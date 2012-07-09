@@ -21,28 +21,28 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testDefaultCompression() {
-        RRTest("testDefaultCompression ", L, "4c92d59d4a5292af1f968dc922c2c63e");
+        RRTest("testDefaultCompression ", L, "887d05e3bdbe831a2584305088806a39");
     }
 
     @Test(enabled = true)
     public void testMultipleIntervals() {
         String intervals = "-L 20:10,100,000-10,100,500 -L 20:10,200,000-10,200,500 -L 20:10,300,000-10,300,500 -L 20:10,400,000-10,500,000 -L 20:10,500,050-10,500,060 -L 20:10,600,000-10,600,015 -L 20:10,700,000-10,700,110";
-        RRTest("testMultipleIntervals ", intervals, "97d5c3fda5551741676793ba325ec7ed");
+        RRTest("testMultipleIntervals ", intervals, "04208b8e2c2e65bcb9d0eb038702b006");
     }
 
     @Test(enabled = true)
     public void testHighCompression() {
-        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "e6bc1cd0e9de961cf0fb1789bf6ab108");
+        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "3a607bc3ebaf84e9dc44e005c5f8a047");
     }
 
     @Test(enabled = true)
     public void testLowCompression() {
-        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "f33ec7cd0b98eebd73d1025ca656cd7e");
+        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "afd39459c841b68a442abdd5ef5f8f27");
     }
 
     @Test(enabled = true)
     public void testIndelCompression() {
-        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "e6e2bc889e4f342a7fedc5d38b391d20");
+        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "f7b9fa44c10bc4b2247813d2b8dc1973");
     }
 
     @Test(enabled = true)
@@ -62,7 +62,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testAddingReadAfterTailingTheStash() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", STASH_L, REF, STASH_BAM) + " -o %s ";
-        executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("022931f032a4122cfe41e58e74d0aede")));
+        executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("886b43e1f26ff18425814dc7563931c6")));
     }
 }
 

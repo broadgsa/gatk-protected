@@ -155,6 +155,13 @@ public class ReduceReadsWalker extends ReadWalker<LinkedList<GATKSAMRecord>, Red
     protected boolean DONT_COMPRESS_READ_NAMES = false;
 
     /**
+     * Optionally hard clip all incoming reads to the desired intervals. The hard clips will happen exactly at the interval
+     * border.
+     */
+    @Argument(fullName = "hard_clip_to_interval", shortName = "clip_int", doc = "", required = false)
+    protected boolean HARD_CLIP_TO_INTERVAL = false;
+
+    /**
      * Minimum proportion of mismatches in a site to trigger a variant region. Anything below this will be
      * considered consensus.
      */
@@ -260,8 +267,14 @@ public class ReduceReadsWalker extends ReadWalker<LinkedList<GATKSAMRecord>, Red
             read = ReadClipper.hardClipAdaptorSequence(read);                                                           // Strip away adaptor sequences, if any.
         if (!DONT_CLIP_LOW_QUAL_TAILS)
             read = ReadClipper.hardClipLowQualEnds(read, minTailQuality);                                               // Clip low quality tails
-        if (!isWholeGenome())
-            mappedReads = hardClipReadToInterval(read);                                                                 // Hard clip the remainder of the read to the desired interval
+        if (!isWholeGenome()) {
+            if (HARD_CLIP_TO_INTERVAL)
+                mappedReads = hardClipReadToInterval(read);                                                             // Hard clip the remainder of the read to the desired interval
+            else {
+                mappedReads = new LinkedList<GATKSAMRecord>();
+                mappedReads.add(read);
+            }
+        }
         else {
             mappedReads = new LinkedList<GATKSAMRecord>();
             if (!read.isEmpty())
