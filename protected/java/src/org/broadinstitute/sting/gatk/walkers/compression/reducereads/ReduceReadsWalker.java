@@ -173,7 +173,7 @@ public class ReduceReadsWalker extends ReadWalker<LinkedList<GATKSAMRecord>, Red
      * considered consensus.
      */
     @Argument(fullName = "minimum_del_proportion_to_trigger_variant", shortName = "mindel", doc = "", required = false)
-    protected double minIndelProportionToTriggerVariant = 0.01;
+    protected double minIndelProportionToTriggerVariant = 0.05;
 
     /**
      * Downsamples the coverage of a variable region approximately (guarantees the minimum to be equal to this).

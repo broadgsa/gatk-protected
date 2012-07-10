@@ -21,13 +21,13 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testDefaultCompression() {
-        RRTest("testDefaultCompression ", L, "887d05e3bdbe831a2584305088806a39");
+        RRTest("testDefaultCompression ", L, "323dd4deabd7767efa0f2c6e7fa4189f");
     }
 
     @Test(enabled = true)
     public void testMultipleIntervals() {
         String intervals = "-L 20:10,100,000-10,100,500 -L 20:10,200,000-10,200,500 -L 20:10,300,000-10,300,500 -L 20:10,400,000-10,500,000 -L 20:10,500,050-10,500,060 -L 20:10,600,000-10,600,015 -L 20:10,700,000-10,700,110";
-        RRTest("testMultipleIntervals ", intervals, "04208b8e2c2e65bcb9d0eb038702b006");
+        RRTest("testMultipleIntervals ", intervals, "c437fb160547ff271f8eba30e5f3ff76");
     }
 
     @Test(enabled = true)
