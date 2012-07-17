@@ -31,7 +31,7 @@ import org.broadinstitute.sting.utils.collections.NestedIntegerArray;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.recalibration.RecalibrationTables;
 
-public class AdvancedRecalibrationEngine extends RecalibrationEngine implements ProtectedPackageSource {
+public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine implements ProtectedPackageSource {
 
     // optimizations: don't reallocate an array each time
     private byte[] tempQualArray;

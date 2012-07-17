@@ -1,4 +1,4 @@
-package org.broadinstitute.sting.utils;
+package org.broadinstitute.sting.gatk;
 
 /*
  * Copyright (c) 2009 The Broad Institute
@@ -27,7 +27,7 @@ package org.broadinstitute.sting.utils;
 
 import org.broadinstitute.sting.utils.classloader.ProtectedPackageSource;
 
-public class DummyProtectedWalker implements ProtectedPackageSource {
+public class DummyProtectedClass implements ProtectedPackageSource {
 
     // THIS CLASS IS USED JUST SO THAT WE CAN TEST WHETHER WE ARE USING THE LITE OR FULL VERSION OF THE GATK
     // **** DO NOT REMOVE! ****
