@@ -24,14 +24,14 @@ public class PoolCallerIntegrationTest extends WalkerTest {
     final String NA12878_WG_CALLS = comparisonDataLocation + "Unvalidated/NA12878/CEUTrio.HiSeq.WGS.b37_decoy.recal.ts_95.snp_indel_combined.vcf";
     final String LSV_ALLELES = validationDataLocation + "ALL.chr20_40m_41m.largeScaleValidationSites.vcf";
     private void PC_MT_Test(String bam, String args, String name, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -R %s -I %s -L %s -reference_sample_calls %s -refsample %s -glm POOLSNP -ignoreLane -pnrm POOL",
+        final String base = String.format("-T UnifiedGenotyper -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -glm POOLSNP -ignoreLane -pnrm POOL",
                 REF, bam, MTINTERVALS, REFSAMPLE_MT_CALLS, REFSAMPLE_NAME) + " --no_cmdline_in_header -o %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
     }
 
     private void PC_LSV_Test(String args, String name, String model, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -R %s -I %s -L %s -reference_sample_calls %s -refsample %s -glm %s -ignoreLane -pnrm POOL",
+        final String base = String.format("-T UnifiedGenotyper -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -glm %s -ignoreLane -pnrm POOL",
                 REF, LSV_BAM, LSVINTERVALS, NA12878_WG_CALLS, REFSAMPLE_NAME, model) + " --no_cmdline_in_header -o %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
