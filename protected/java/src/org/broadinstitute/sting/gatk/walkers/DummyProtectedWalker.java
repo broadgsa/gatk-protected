@@ -27,8 +27,8 @@ package org.broadinstitute.sting.utils;
 
 import org.broadinstitute.sting.utils.classloader.ProtectedPackageSource;
 
-public class DummyProtectedClass implements ProtectedPackageSource {
+public class DummyProtectedWalker implements ProtectedPackageSource {
 
     // THIS CLASS IS USED JUST SO THAT WE CAN TEST WHETHER WE ARE USING THE LITE OR FULL VERSION OF THE GATK
-
+    // **** DO NOT REMOVE! ****
 }
