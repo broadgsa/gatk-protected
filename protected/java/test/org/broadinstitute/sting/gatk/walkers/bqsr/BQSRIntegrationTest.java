@@ -104,10 +104,10 @@ public class BQSRIntegrationTest extends WalkerTest {
     @DataProvider(name = "PRTest")
     public Object[][] createPRTestData() {
         return new Object[][]{
-                {new PRTest("", "66aa65223f192ee39c1773aa187fd493")},
-                {new PRTest(" -qq -1 -IQ", "b7053d3d67aba6d8892f0a60f0ded338")},
-                {new PRTest(" -qq 6 -IQ", "bfbf0855185b2b70aa35237fb71e4487")},
-                {new PRTest(" -IQ", "d2d6ed8667cdba7e56f5db97d6262676")}
+                {new PRTest("", "d2d6ed8667cdba7e56f5db97d6262676")},
+                {new PRTest(" -qq -1", "b7053d3d67aba6d8892f0a60f0ded338")},
+                {new PRTest(" -qq 6", "bfbf0855185b2b70aa35237fb71e4487")},
+                {new PRTest(" -DIQ", "66aa65223f192ee39c1773aa187fd493")}
         };
     }
 
