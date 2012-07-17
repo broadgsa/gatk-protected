@@ -663,7 +663,7 @@ public class ReduceReadsWalker extends ReadWalker<LinkedList<GATKSAMRecord>, Red
      * @return Returns true if the read is the original read that went through map().
      */
     private boolean isOriginalRead(LinkedList<GATKSAMRecord> list, GATKSAMRecord read) {
-        return isWholeGenome() || (list.getFirst().equals(read) && ReadUtils.getReadAndIntervalOverlapType(read, intervalList.first()) == ReadUtils.ReadAndIntervalOverlap.OVERLAP_CONTAINED);
+        return isWholeGenome() || list.getFirst().equals(read);
     }
 
     /**
