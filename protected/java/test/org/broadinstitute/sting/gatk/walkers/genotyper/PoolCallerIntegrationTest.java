@@ -39,7 +39,7 @@ public class PoolCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testBOTH_GGA_Pools() {
-        PC_LSV_Test(String.format(" -maxAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","POOLBOTH","da85bf56eeafae31b5a269b4e19b5db6");
+        PC_LSV_Test(String.format(" -maxAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","POOLBOTH","36b8db57f65be1cc3d2d9d7f9f3f26e4");
     }
 
     @Test
@@ -49,13 +49,13 @@ public class PoolCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testMT_SNP_DISCOVERY_sp4() {
-         PC_MT_Test(CEUTRIO_BAM, " -maxAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","060f06987a33f60433b0382cd7227140");
+         PC_MT_Test(CEUTRIO_BAM, " -maxAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","fa5ee7c957c473a80f3a7f3c35dc80b5");
     }
 
     @Test
     public void testMT_SNP_GGA_sp10() {
 
-        PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "df3ffc5cb76224ba152f543925eb3974");
+        PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "6907c8617d49bb57b33f8704ce7f0323");
     }
 
 }
