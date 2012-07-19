@@ -213,7 +213,7 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
         if (UAC.TREAT_ALL_READS_AS_SINGLE_POOL) {
             AlignmentContext mergedContext = AlignmentContextUtils.joinContexts(contexts.values());
             Map<String,AlignmentContext> newContext = new HashMap<String,AlignmentContext>();
-            newContext.put(DUMMY_POOL,mergedContext);
+            newContext.put(DUMMY_SAMPLE_NAME,mergedContext);
             contexts = newContext;
         }
 
