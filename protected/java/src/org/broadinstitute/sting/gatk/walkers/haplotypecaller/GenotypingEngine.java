@@ -33,6 +33,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.*;
+import org.broadinstitute.sting.utils.codecs.vcf.VCFAlleleClipper;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.variantcontext.*;
@@ -381,24 +382,7 @@ public class GenotypingEngine {
                         }
                         if( R2 > MERGE_EVENTS_R2_THRESHOLD ) {
 
-                            byte[] refBases = thisVC.getReference().getBases();
-                            byte[] altBases = thisVC.getAlternateAllele(0).getBases();
-                            final int thisPadding = ( thisVC.getReference().isNull() || thisVC.getAlternateAllele(0).isNull() ? 1 : 0 );
-                            final int nextPadding = ( nextVC.getReference().isNull() || nextVC.getAlternateAllele(0).isNull() ? 1 : 0 );
-                            for( int locus = thisStart + refBases.length + thisPadding ; locus < nextStart + nextPadding; locus++ ) {
-                                final byte refByte = ref[ locus - refLoc.getStart() ];
-                                refBases = ArrayUtils.add(refBases, refByte);
-                                altBases = ArrayUtils.add(altBases, refByte);
-                            }
-                            refBases = ArrayUtils.addAll(refBases, nextVC.getReference().getBases());
-                            altBases = ArrayUtils.addAll(altBases, nextVC.getAlternateAllele(0).getBases());
-
-                            final ArrayList<Allele> mergedAlleles = new ArrayList<Allele>();
-                            mergedAlleles.add( Allele.create( refBases, true ) );
-                            mergedAlleles.add( Allele.create( altBases, false ) );
-                            final VariantContext mergedVC = ( refBases.length == altBases.length ?
-                                    new VariantContextBuilder("MNP", thisVC.getChr(), thisVC.getStart() + (thisVC.isIndel() && !thisVC.isComplexIndel() ? 1 : 0) , nextVC.getEnd(), mergedAlleles).make() :
-                                    new VariantContextBuilder("Complex", thisVC.getChr(), thisVC.getStart(), nextVC.getEnd(), mergedAlleles).referenceBaseForIndel(ref[thisStart-refLoc.getStart()]).make() );
+                            final VariantContext mergedVC = createMergedVariantContext(thisVC, nextVC, ref, refLoc);
 
                             // remove the old event from the eventMap on every haplotype and the start pos key set, replace with merged event
                             for( final Haplotype h : haplotypes ) {
@@ -429,6 +413,36 @@ public class GenotypingEngine {
                 thisStart = nextStart;
             }
         }
+    }
+
+    // BUGBUG: make this merge function more general
+    protected static VariantContext createMergedVariantContext( final VariantContext thisVC, final VariantContext nextVC, final byte[] ref, final GenomeLoc refLoc ) {
+        final int thisStart = thisVC.getStart();
+        final int nextStart = nextVC.getStart();
+        byte[] refBases = ( thisVC.hasReferenceBaseForIndel() ? new byte[]{ thisVC.getReferenceBaseForIndel() } : new byte[]{} );
+        byte[] altBases = ( thisVC.hasReferenceBaseForIndel() ? new byte[]{ thisVC.getReferenceBaseForIndel() } : new byte[]{} );
+        refBases = ArrayUtils.addAll(refBases, thisVC.getReference().getBases());
+        altBases = ArrayUtils.addAll(altBases, thisVC.getAlternateAllele(0).getBases());
+        for( int locus = thisStart + refBases.length; locus < nextStart; locus++ ) {
+            final byte refByte = ref[locus - refLoc.getStart()];
+            refBases = ArrayUtils.add(refBases, refByte);
+            altBases = ArrayUtils.add(altBases, refByte);
+        }
+        if( nextVC.hasReferenceBaseForIndel() ) {
+            refBases = ArrayUtils.add(refBases, nextVC.getReferenceBaseForIndel());
+            altBases = ArrayUtils.add(altBases, nextVC.getReferenceBaseForIndel());
+        }
+        refBases = ArrayUtils.addAll(refBases, nextVC.getReference().getBases());
+        altBases = ArrayUtils.addAll(altBases, nextVC.getAlternateAllele(0).getBases());
+
+        int iii = 0;
+        if( refBases.length == altBases.length && VCFAlleleClipper.needsPadding(thisVC) ) { // special case of insertion + deletion of same length creates an MNP --> trim padding bases off the allele
+            while( iii < refBases.length && refBases[iii] == altBases[iii] ) { iii++; }
+        }
+        final ArrayList<Allele> mergedAlleles = new ArrayList<Allele>();
+        mergedAlleles.add( Allele.create( ArrayUtils.subarray(refBases, iii, refBases.length), true ) );
+        mergedAlleles.add( Allele.create( ArrayUtils.subarray(altBases, iii, altBases.length), false ) );
+        return new VariantContextBuilder("merged", thisVC.getChr(), thisVC.getStart() + iii, nextVC.getEnd(), mergedAlleles).make();
     }
 
     @Requires({"x11 >= 0", "x12 >= 0", "x21 >= 0", "x22 >= 0"})
