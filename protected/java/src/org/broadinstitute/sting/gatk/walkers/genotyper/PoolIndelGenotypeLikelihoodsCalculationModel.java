@@ -39,6 +39,7 @@ import org.broadinstitute.sting.utils.variantcontext.*;
 import java.util.*;
 
 public class PoolIndelGenotypeLikelihoodsCalculationModel extends PoolGenotypeLikelihoodsCalculationModel {
+    private static final int MAX_NUM_ALLELES_TO_GENOTYPE = 4;
 
     private PairHMMIndelErrorModel pairModel;
     private boolean allelesArePadded = false;
@@ -94,7 +95,10 @@ public class PoolIndelGenotypeLikelihoodsCalculationModel extends PoolGenotypeLi
 
 
         final Pair<List<Allele>,Boolean> pair = IndelGenotypeLikelihoodsCalculationModel.getInitialAlleleList(tracker, ref, contexts, contextType, locParser, UAC,true);
-        final List<Allele> alleles = pair.first;
+        List<Allele> alleles = pair.first;
+
+        if (alleles.size() > MAX_NUM_ALLELES_TO_GENOTYPE)
+            alleles = alleles.subList(0,MAX_NUM_ALLELES_TO_GENOTYPE);
         allelesArePadded = pair.second;
         if (contextType == AlignmentContextUtils.ReadOrientation.COMPLETE) {
             IndelGenotypeLikelihoodsCalculationModel.getIndelLikelihoodMap().clear();

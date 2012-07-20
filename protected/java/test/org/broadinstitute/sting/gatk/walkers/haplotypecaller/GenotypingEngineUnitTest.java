@@ -12,6 +12,7 @@ import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.broadinstitute.sting.utils.variantcontext.VariantContext;
+import org.broadinstitute.sting.utils.variantcontext.VariantContextBuilder;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -232,7 +233,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
     }
 
     /**
-     * Tests that we get the right values from the binomial distribution
+     * Tests that we get the right values from the R^2 calculation
      */
     @Test
     public void testCalculateR2LD() {
@@ -243,6 +244,146 @@ public class GenotypingEngineUnitTest extends BaseTest {
         Assert.assertEquals(GenotypingEngine.calculateR2LD(1,0,0,1), 1.0, 0.00001);
         Assert.assertEquals(GenotypingEngine.calculateR2LD(100,0,0,100), 1.0, 0.00001);
         Assert.assertEquals(GenotypingEngine.calculateR2LD(1,2,3,4), (0.1 - 0.12) * (0.1 - 0.12) / (0.3 * 0.7 * 0.4 * 0.6), 0.00001);
+    }
+
+    @Test
+    public void testCreateMergedVariantContext() {
+        logger.warn("Executing testCreateMergedVariantContext");
+
+        final byte[] ref = "AATTCCGGAATTCCGGAATT".getBytes();
+        final GenomeLoc refLoc = genomeLocParser.createGenomeLoc("2", 1700, 1700 + ref.length);
+
+        // SNP + SNP = simple MNP
+        VariantContext thisVC = new VariantContextBuilder().loc("2", 1703, 1703).alleles("T","G").make();
+        VariantContext nextVC = new VariantContextBuilder().loc("2", 1704, 1704).alleles("C","G").make();
+        VariantContext truthVC = new VariantContextBuilder().loc("2", 1703, 1704).alleles("TC","GG").source("merged").make();
+        VariantContext mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // SNP + ref + SNP = MNP with ref base gap
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1703).alleles("T","G").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1705).alleles("C","G").make();
+        truthVC = new VariantContextBuilder().loc("2", 1703, 1705).alleles("TCC","GCG").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // insertion + SNP
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1703).alleles("-","AAAAA").referenceBaseForIndel("T").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1705).alleles("C","G").make();
+        truthVC = new VariantContextBuilder().loc("2", 1703, 1705).alleles("TCC","TAAAAACG").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // SNP + insertion
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1703).alleles("T","G").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1705).alleles("-","AAAAA").referenceBaseForIndel("C").make();
+        truthVC = new VariantContextBuilder().loc("2", 1703, 1705).alleles("TCC","GCCAAAAA").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // deletion + SNP
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1704).alleles("C","-").referenceBaseForIndel("T").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1705).alleles("C","G").make();
+        truthVC = new VariantContextBuilder().loc("2", 1703, 1705).alleles("TCC","TG").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // SNP + deletion
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1703).alleles("T","G").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1706).alleles("G","-").referenceBaseForIndel("C").make();
+        truthVC = new VariantContextBuilder().loc("2", 1703, 1706).alleles("TCCG","GCC").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // insertion + deletion = MNP
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1703).alleles("-","A").referenceBaseForIndel("T").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1706).alleles("G","-").referenceBaseForIndel("C").make();
+        truthVC = new VariantContextBuilder().loc("2", 1704, 1706).alleles("CCG","ACC").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // insertion + deletion
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1703).alleles("-","AAAAA").referenceBaseForIndel("T").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1706).alleles("G","-").referenceBaseForIndel("C").make();
+        truthVC = new VariantContextBuilder().loc("2", 1703, 1706).alleles("TCCG","TAAAAACC").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // insertion + insertion
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1703).alleles("-","A").referenceBaseForIndel("T").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1705).alleles("-","A").referenceBaseForIndel("C").make();
+        truthVC = new VariantContextBuilder().loc("2", 1703, 1705).alleles("TCC","TACCA").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // deletion + deletion
+        thisVC = new VariantContextBuilder().loc("2", 1701, 1702).alleles("T","-").referenceBaseForIndel("A").make();
+        nextVC = new VariantContextBuilder().loc("2", 1705, 1706).alleles("G","-").referenceBaseForIndel("C").make();
+        truthVC = new VariantContextBuilder().loc("2", 1701, 1706).alleles("ATTCCG","ATCC").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
+
+        // complex + complex
+        thisVC = new VariantContextBuilder().loc("2", 1703, 1704).alleles("TC","AAA").make();
+        nextVC = new VariantContextBuilder().loc("2", 1706, 1707).alleles("GG","AC").make();
+        truthVC = new VariantContextBuilder().loc("2", 1703, 1707).alleles("TCCGG","AAACAC").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+        Assert.assertEquals(truthVC.hasReferenceBaseForIndel(), mergedVC.hasReferenceBaseForIndel());
+        Assert.assertEquals(truthVC.getReferenceBaseForIndel(), mergedVC.getReferenceBaseForIndel());
     }
     
     /**
