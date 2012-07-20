@@ -53,7 +53,7 @@ public class SlidingWindow {
     protected int MIN_BASE_QUAL_TO_COUNT;                                                                               // qual has to be greater than or equal to this value
     protected int MIN_MAPPING_QUALITY;
 
-    protected ReduceReadsWalker.DownsampleStrategy downsampleStrategy;
+    protected ReduceReads.DownsampleStrategy downsampleStrategy;
     private boolean hasIndelQualities;
 
     /**
@@ -82,7 +82,7 @@ public class SlidingWindow {
     }
 
 
-    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader header, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReadsWalker.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities) {
+    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader header, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities) {
         this.stopLocation = -1;
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;

@@ -33,20 +33,21 @@ import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.filters.*;
+import org.broadinstitute.sting.gatk.filters.BadMateFilter;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.*;
+import org.broadinstitute.sting.gatk.walkers.ActiveRegionExtension;
+import org.broadinstitute.sting.gatk.walkers.ActiveRegionWalker;
+import org.broadinstitute.sting.gatk.walkers.PartitionBy;
+import org.broadinstitute.sting.gatk.walkers.PartitionType;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatibleWalker;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.*;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.codecs.vcf.*;
-import org.broadinstitute.sting.utils.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
@@ -56,6 +57,7 @@ import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.sting.utils.variantcontext.*;
+import org.broadinstitute.sting.utils.variantcontext.writer.VariantContextWriter;
 
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
@@ -90,7 +92,7 @@ import java.util.*;
 
 @PartitionBy(PartitionType.LOCUS)
 @ActiveRegionExtension(extension=65, maxRegion=275)
-public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatibleWalker {
+public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
     /**
      * A raw, unfiltered, highly specific callset in VCF format.
@@ -361,7 +363,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //---------------------------------------------------------------------------------------------------------------
 
     @Override
-    public Integer map( final ActiveRegion activeRegion, final RefMetaDataTracker metaDataTracker ) {
+    public Integer map( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker metaDataTracker ) {
 
         final ArrayList<VariantContext> activeAllelesToGenotype = new ArrayList<VariantContext>();
 
@@ -476,7 +478,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //
     //---------------------------------------------------------------------------------------------------------------
 
-    private void finalizeActiveRegion( final ActiveRegion activeRegion ) {
+    private void finalizeActiveRegion( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
         if( DEBUG ) { System.out.println("\nAssembling " + activeRegion.getExtendedLoc() + " with " + activeRegion.size() + " reads:"); }
         final ArrayList<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>();
         final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( ReadUtils.sortReadsByCoordinate(activeRegion.getReads()) );
@@ -503,7 +505,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
     }
 
-    private List<GATKSAMRecord> filterNonPassingReads( final ActiveRegion activeRegion ) {
+    private List<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
         final ArrayList<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
             if( rec.getReadLength() < 24 || rec.getMappingQuality() <= 20 || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
@@ -514,7 +516,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         return readsToRemove;
     }
 
-    private GenomeLoc getPaddedLoc( final ActiveRegion activeRegion ) {
+    private GenomeLoc getPaddedLoc( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
         final int padLeft = Math.max(activeRegion.getReferenceLoc().getStart()-REFERENCE_PADDING, 1);
         final int padRight = Math.min(activeRegion.getReferenceLoc().getStop()+REFERENCE_PADDING, referenceReader.getSequenceDictionary().getSequence(activeRegion.getReferenceLoc().getContig()).getSequenceLength());
         return getToolkit().getGenomeLocParser().createGenomeLoc(activeRegion.getReferenceLoc().getContig(), padLeft, padRight);
