@@ -26,7 +26,7 @@ public class SingleSampleCompressor implements Compressor {
     protected double minIndelProportionToTriggerVariant;
     protected int minBaseQual;
 
-    protected ReduceReadsWalker.DownsampleStrategy downsampleStrategy;
+    protected ReduceReads.DownsampleStrategy downsampleStrategy;
 
     public SingleSampleCompressor(final String sampleName,
                                   final int contextSize,
@@ -35,7 +35,7 @@ public class SingleSampleCompressor implements Compressor {
                                   final double minAltProportionToTriggerVariant,
                                   final double minIndelProportionToTriggerVariant,
                                   final int minBaseQual,
-                                  final ReduceReadsWalker.DownsampleStrategy downsampleStrategy) {
+                                  final ReduceReads.DownsampleStrategy downsampleStrategy) {
         this.sampleName = sampleName;
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
