@@ -32,5 +32,17 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "-gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "ff370c42c8b09a29f1aeff5ac57c7ea6");
     }
+
+    private void HCTestComplexVariants(String bam, String args, String md5) {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 3";
+        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleComplex() {
+        HCTestComplexVariants(CEUTRIO_BAM, "", "6f9fda3ea82c5696bed1d48ee90cd76b");
+    }
+
 }
 

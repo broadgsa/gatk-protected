@@ -446,7 +446,6 @@ public class GenotypingEngine {
     }
 
     @Requires({"x11 >= 0", "x12 >= 0", "x21 >= 0", "x22 >= 0"})
-    @Ensures({"result >= 0.0", "result <= 1.0"})
     protected static double calculateR2LD( final int x11, final int x12, final int x21, final int x22 ) {
         final int total = x11 + x12 + x21 + x22;
         final double pa1b1 = ((double) x11) / ((double) total);

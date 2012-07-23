@@ -82,9 +82,18 @@ import java.util.*;
  *     -jar GenomeAnalysisTK.jar
  *     -T HaplotypeCaller
  *     -R reference/human_g1k_v37.fasta
- *     -I input.bam
+ *     -I sample1.bam [-I sample2.bam ...] \
+ *     --dbsnp dbSNP.vcf \
+ *     -stand_call_conf [50.0] \
+ *     -stand_emit_conf 10.0 \
+ *     [-L targets.interval_list]
  *     -o output.raw.snps.indels.vcf
  * </pre>
+ *
+ * <h2>Caveats</h2>
+ * <ul>
+ * <li>The system is under active and continuous development. All outputs, the underlying likelihood model, and command line arguments are likely to change often.</li>
+ * </ul>
  *
  * @author rpoplin
  * @since 8/22/11
@@ -95,7 +104,7 @@ import java.util.*;
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
     /**
-     * A raw, unfiltered, highly specific callset in VCF format.
+     * A raw, unfiltered, highly sensitive callset in VCF format.
      */
     @Output(doc="File to which variants should be written", required = true)
     protected VariantContextWriter vcfWriter = null;
@@ -103,17 +112,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false)
     protected PrintStream graphWriter = null;
 
-    @Argument(fullName = "assembler", shortName = "assembler", doc = "Assembler to use; currently only SIMPLE_DE_BRUIJN is available.", required = false)
-    protected LocalAssemblyEngine.ASSEMBLER ASSEMBLER_TO_USE = LocalAssemblyEngine.ASSEMBLER.SIMPLE_DE_BRUIJN;
-
-    @Argument(fullName="keepRG", shortName="keepRG", doc="keepRG", required = false)
+    @Hidden
+    @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
     protected String keepRG = null;
-    
+
+    @Hidden
     @Argument(fullName="mnpLookAhead", shortName="mnpLookAhead", doc = "The number of bases to combine together to form MNPs out of nearby consecutive SNPs on the same haplotype", required = false)
     protected int MNP_LOOK_AHEAD = 0;
 
-    @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = true)
-    protected int MIN_PRUNE_FACTOR = 0;
+    @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = false)
+    protected int MIN_PRUNE_FACTOR = 1;
 
     @Argument(fullName="genotypeFullActiveRegion", shortName="genotypeFullActiveRegion", doc = "If specified, alternate alleles are considered to be the full active region for the purposes of genotyping", required = false)
     protected boolean GENOTYPE_FULL_ACTIVE_REGION = false;
@@ -121,10 +129,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="fullHaplotype", shortName="fullHaplotype", doc = "If specified, output the full haplotype sequence instead of converting to individual variants w.r.t. the reference", required = false)
     protected boolean OUTPUT_FULL_HAPLOTYPE_SEQUENCE = false;
 
-    @Argument(fullName="gcpHMM", shortName="gcpHMM", doc="gcpHMM", required = false)
+    @Advanced
+    @Argument(fullName="gcpHMM", shortName="gcpHMM", doc="Gap continuation penalty for use in the Pair HMM", required = false)
     protected int gcpHMM = 10;
 
-    @Argument(fullName="downsampleRegion", shortName="dr", doc="coverage per sample to downsample each region to", required = false)
+    @Argument(fullName="downsampleRegion", shortName="dr", doc="coverage, per-sample, to downsample each active region to", required = false)
     protected int DOWNSAMPLE_PER_SAMPLE_PER_REGION = 1000;
 
     @Argument(fullName="useExpandedTriggerSet", shortName="expandedTriggers", doc = "If specified, use additional, experimental triggers designed to capture larger indels but which may lead to an increase in the false positive rate", required=false)
@@ -184,9 +193,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     
     @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information about each triggering active region", required = false)
     protected boolean DEBUG;
-
-    @Argument(fullName="doBanded", shortName="doBanded", doc="If specified, use the banded option", required = false)
-    protected boolean doBanded = false;
 
     // the assembly engine
     LocalAssemblyEngine assemblyEngine = null;
@@ -275,7 +281,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter );
-        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, doBanded );
+        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, false );
         genotypingEngine = new GenotypingEngine( DEBUG, MNP_LOOK_AHEAD, OUTPUT_FULL_HAPLOTYPE_SEQUENCE );
     }
 
