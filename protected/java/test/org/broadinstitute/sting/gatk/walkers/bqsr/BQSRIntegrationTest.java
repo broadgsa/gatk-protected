@@ -59,7 +59,7 @@ public class BQSRIntegrationTest extends WalkerTest {
     @Test(dataProvider = "BQSRTest")
     public void testBQSR(BQSRTest params) {
         WalkerTestSpec spec = new WalkerTestSpec(
-                " -T BQSR" +
+                " -T BaseRecalibrator" +
                         " -R " + params.reference +
                         " -I " + params.bam +
                         " -L " + params.interval +
@@ -74,7 +74,7 @@ public class BQSRIntegrationTest extends WalkerTest {
     @Test
     public void testBQSRFailWithoutDBSNP() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                " -T BQSR" +
+                " -T BaseRecalibrator" +
                         " -R " + b36KGReference +
                         " -I " + validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.bam" +
                         " -L 1:10,000,000-10,200,000" +
