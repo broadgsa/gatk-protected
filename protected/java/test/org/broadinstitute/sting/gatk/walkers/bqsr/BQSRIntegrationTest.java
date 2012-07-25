@@ -28,6 +28,17 @@ public class BQSRIntegrationTest extends WalkerTest {
             this.md5 = md5;
         }
 
+        public String getCommandLine() {
+            return " -T BaseRecalibrator" +
+                    " -R " + reference +
+                    " -I " + bam +
+                    " -L " + interval +
+                    args +
+                    " --no_plots" +
+                    " -knownSites " + (reference.equals(b36KGReference) ? b36dbSNP129 : hg18dbSNP132) +
+                    " -o %s";
+        }
+
         @Override
         public String toString() {
             return String.format("BQSR(bam='%s', args='%s')", bam, args);
@@ -59,16 +70,14 @@ public class BQSRIntegrationTest extends WalkerTest {
     @Test(dataProvider = "BQSRTest")
     public void testBQSR(BQSRTest params) {
         WalkerTestSpec spec = new WalkerTestSpec(
-                " -T BaseRecalibrator" +
-                        " -R " + params.reference +
-                        " -I " + params.bam +
-                        " -L " + params.interval +
-                        params.args +
-                        " --no_plots" +
-                        " -knownSites " + (params.reference.equals(b36KGReference) ? b36dbSNP129 : hg18dbSNP132) +
-                        " -o %s",
+                params.getCommandLine(),
                 Arrays.asList(params.md5));
         executeTest("testBQSR-"+params.args, spec).getFirst();
+
+        WalkerTestSpec specNT2 = new WalkerTestSpec(
+                params.getCommandLine() + " -nt 2",
+                Arrays.asList(params.md5));
+        executeTest("testBQSR-nt2-"+params.args, specNT2).getFirst();
     }
 
     @Test
