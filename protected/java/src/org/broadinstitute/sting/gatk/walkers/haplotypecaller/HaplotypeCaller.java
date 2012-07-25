@@ -27,6 +27,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
@@ -99,6 +100,7 @@ import java.util.*;
  * @since 8/22/11
  */
 
+@DocumentedGATKFeature( groupName = "Variant Discovery Tools" )
 @PartitionBy(PartitionType.LOCUS)
 @ActiveRegionExtension(extension=65, maxRegion=275)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
