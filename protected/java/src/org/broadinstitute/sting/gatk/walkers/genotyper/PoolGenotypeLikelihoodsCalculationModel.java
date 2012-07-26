@@ -247,7 +247,8 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
 
         // find the alternate allele(s) that we should be using
         final List<Allele> alleles = getFinalAllelesToUse(tracker, ref, allAllelesToUse, GLs);
-
+        if (alleles == null || alleles.isEmpty())
+            return null;
         // start making the VariantContext
         final GenomeLoc loc = ref.getLocus();
         final int endLoc = getEndLocation(tracker, ref, alleles);
@@ -313,7 +314,7 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
                     refLanePileup = refPileup.getPileupForLane(laneID);
 
                 //ReferenceSample referenceSample = new ReferenceSample(UAC.referenceSampleName, refLanePileup, trueReferenceAlleles);
-                perLaneErrorModels.put(laneID, new ErrorModel(UAC.minQualityScore, UAC.maxQualityScore, UAC.phredScaledPrior,  refLanePileup, refVC, UAC.minPower));
+                perLaneErrorModels.put(laneID, new ErrorModel(UAC,  refLanePileup, refVC, ref));
             }
             return perLaneErrorModels;
 

@@ -1,6 +1,10 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import com.google.java.contract.Requires;
+import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
+import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -9,6 +13,7 @@ import org.broadinstitute.sting.utils.variantcontext.VariantContext;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 /**
  * Created by IntelliJ IDEA.
@@ -30,24 +35,26 @@ public class ErrorModel  {
     private static final boolean compressRange = false;
     
     private static final double log10MinusE = Math.log10(Math.exp(1.0));
-
+    private static final boolean DEBUG = false;
     /**
      * Calculates the probability of the data (reference sample reads) given the phred scaled site quality score.
      * 
-     * @param minQualityScore            Minimum site quality score to evaluate
-     * @param maxQualityScore            Maximum site quality score to evaluate
-     * @param phredScaledPrior           Prior for site quality
+     * @param UAC                           Argument Collection
      * @param refSamplePileup            Reference sample pileup
      * @param refSampleVC                VC with True alleles in reference sample pileup
-     * @param minPower                   Minimum power
      */
-    public ErrorModel (byte minQualityScore, byte maxQualityScore, byte phredScaledPrior,
-                       ReadBackedPileup refSamplePileup, VariantContext refSampleVC, double minPower) {
-        this.maxQualityScore = maxQualityScore;
-        this.minQualityScore = minQualityScore;
-        this.phredScaledPrior = phredScaledPrior;
-        log10minPower = Math.log10(minPower);
+    public ErrorModel (final UnifiedArgumentCollection UAC,
+                       final ReadBackedPileup refSamplePileup,
+                       VariantContext refSampleVC, final ReferenceContext refContext) {
+        this.maxQualityScore = UAC.maxQualityScore;
+        this.minQualityScore = UAC.minQualityScore;
+        this.phredScaledPrior = UAC.phredScaledPrior;
+        log10minPower = Math.log10(UAC.minPower);
 
+        PairHMMIndelErrorModel pairModel = null;
+        LinkedHashMap<Allele, Haplotype> haplotypeMap = null;
+        HashMap<PileupElement, LinkedHashMap<Allele, Double>> indelLikelihoodMap = null;
+        double[][] perReadLikelihoods = null;
 
         double[] model = new double[maxQualityScore+1];
         Arrays.fill(model,Double.NEGATIVE_INFINITY);
@@ -61,11 +68,17 @@ public class ErrorModel  {
                     break;
                 }
             }
-
-
+            if (refSampleVC.isIndel()) {
+                pairModel = new PairHMMIndelErrorModel(UAC.INDEL_GAP_OPEN_PENALTY, UAC.INDEL_GAP_CONTINUATION_PENALTY,
+                        UAC.OUTPUT_DEBUG_INDEL_INFO, !UAC.DONT_DO_BANDED_INDEL_COMPUTATION);
+                haplotypeMap = new LinkedHashMap<Allele, Haplotype>();
+                indelLikelihoodMap = new HashMap<PileupElement, LinkedHashMap<Allele, Double>>();
+                IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles(refSampleVC.getAlleles(), refContext, refContext.getLocus(), haplotypeMap); // will update haplotypeMap adding elements
+            }
         }
+
+        double p = MathUtils.phredScaleToLog10Probability((byte)(maxQualityScore-minQualityScore));
         if (refSamplePileup == null || refSampleVC == null  || !hasCalledAlleles) {
-            double p = MathUtils.phredScaleToLog10Probability((byte)(maxQualityScore-minQualityScore));
             for (byte q=minQualityScore; q<=maxQualityScore; q++) {
                 // maximum uncertainty if there's no ref data at site
                 model[q] = p;
@@ -75,23 +88,47 @@ public class ErrorModel  {
         else {
             hasData = true;
             int matches = 0;
-            int coverage = refSamplePileup.getNumberOfElements();
+            int coverage = 0;
 
             Allele refAllele = refSampleVC.getReference();
 
+            if (refSampleVC.isIndel()) {
+                final int readCounts[] = new int[refSamplePileup.getNumberOfElements()];
+                //perReadLikelihoods = new double[readCounts.length][refSampleVC.getAlleles().size()];
+                final int eventLength = IndelGenotypeLikelihoodsCalculationModel.getEventLength(refSampleVC.getAlleles());
+                perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, indelLikelihoodMap, readCounts);
+            }
+            int idx = 0;
             for (PileupElement refPileupElement : refSamplePileup) {
+                if (DEBUG)
+                    System.out.println(refPileupElement.toString());
                 boolean isMatch = false;
-                for (Allele allele : refSampleVC.getAlleles())
-                    isMatch |= pileupElementMatches(refPileupElement, allele, refAllele);
+                for (Allele allele : refSampleVC.getAlleles()) {
+                    boolean m = pileupElementMatches(refPileupElement, allele, refAllele, refContext.getBase());
+                    if (DEBUG) System.out.println(m);
+                    isMatch |= m;
+                }
+                if (refSampleVC.isIndel()) {
+                    // ignore match/mismatch if reads, as determined by their likelihood, are not informative
+                    double[] perAlleleLikelihoods = perReadLikelihoods[idx++];
+                    if (!isInformativeElement(perAlleleLikelihoods))
+                        matches++;
+                    else
+                        matches += (isMatch?1:0);
 
-                matches += (isMatch?1:0);
-          //      System.out.format("MATCH:%b\n",isMatch);
+                }   else {
+                    matches += (isMatch?1:0);
+                }
+                coverage++;
             }
 
             int mismatches = coverage - matches;
             //System.out.format("Cov:%d match:%d mismatch:%d\n",coverage, matches, mismatches);
             for (byte q=minQualityScore; q<=maxQualityScore; q++) {
-                model[q] = log10PoissonProbabilitySiteGivenQual(q,coverage,  mismatches);
+                if (coverage==0)
+                    model[q] = p;
+                else
+                    model[q] = log10PoissonProbabilitySiteGivenQual(q,coverage,  mismatches);
             }
             this.refDepth = coverage;
         }
@@ -101,6 +138,17 @@ public class ErrorModel  {
     }
 
 
+    @Requires("likelihoods.length>0")
+    private boolean isInformativeElement(double[] likelihoods) {
+        // if likelihoods are the same, they're not informative
+        final double thresh = 0.1;
+        int maxIdx = MathUtils.maxElementIndex(likelihoods);
+        int minIdx = MathUtils.minElementIndex(likelihoods);
+        if (likelihoods[maxIdx]-likelihoods[minIdx]< thresh)
+            return false;
+        else
+            return true;
+    }
     /**
      * Simple constructor that just takes a given log-probability vector as error model.
      * Only intended for unit testing, not general usage.
@@ -115,23 +163,27 @@ public class ErrorModel  {
 
     }
 
-    public static boolean pileupElementMatches(PileupElement pileupElement, Allele allele, Allele refAllele) {
- /*       System.out.format("PE: base:%s isNextToDel:%b isNextToIns:%b eventBases:%s eventLength:%d Allele:%s RefAllele:%s\n",
+    public static boolean pileupElementMatches(PileupElement pileupElement, Allele allele, Allele refAllele, byte refBase) {
+        if (DEBUG)
+            System.out.format("PE: base:%s isNextToDel:%b isNextToIns:%b eventBases:%s eventLength:%d Allele:%s RefAllele:%s\n",
                 pileupElement.getBase(), pileupElement.isBeforeDeletionStart(),
                 pileupElement.isBeforeInsertion(),pileupElement.getEventBases(),pileupElement.getEventLength(), allele.toString(), refAllele.toString());
-   */
 
+        //pileupElement.
         // if test allele is ref, any base mismatch, or any insertion/deletion at start of pileup count as mismatch
         if (allele.isReference()) {
             // for a ref allele, any base mismatch or new indel is a mismatch.
-            if(allele.getBases().length>0 && allele.getBases().length == refAllele.getBases().length ) // SNP/MNP case
-                return (/*!pileupElement.isBeforeInsertion() && !pileupElement.isBeforeDeletionStart() &&*/ pileupElement.getBase() == allele.getBases()[0]);
+            if(allele.getBases().length>0 )
+                // todo - can't check vs. allele because allele is not padded so it doesn't include the reference base at this location
+                // could clean up/simplify this when unpadding is removed
+                return (pileupElement.getBase() == refBase);
             else
                 // either null allele to compare, or ref/alt lengths are different (indel by definition).
                 // if we have an indel that we are comparing against a REF allele, any indel presence (of any length/content) is a mismatch
                 return (!pileupElement.isBeforeInsertion() && !pileupElement.isBeforeDeletionStart());
         }
 
+        // for non-ref alleles to compare:
         if (refAllele.getBases().length == allele.getBases().length)
             // alleles have the same length (eg snp or mnp)
             return pileupElement.getBase() == allele.getBases()[0];

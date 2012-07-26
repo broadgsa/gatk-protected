@@ -70,12 +70,6 @@ public class PoolIndelGenotypeLikelihoodsCalculationModel extends PoolGenotypeLi
     }
 
 
-    public static HashMap<PileupElement, LinkedHashMap<Allele, Double>> getIndelLikelihoodMap() {
-        return IndelGenotypeLikelihoodsCalculationModel.getIndelLikelihoodMap();
-    }
-
-
-
     protected PoolGenotypeLikelihoods getPoolGenotypeLikelihoodObject(final List<Allele> alleles,
                                                                                final double[] logLikelihoods,
                                                                                final int ploidy,
