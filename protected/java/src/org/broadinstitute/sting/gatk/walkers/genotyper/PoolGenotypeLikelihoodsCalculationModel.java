@@ -90,7 +90,6 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
 
             return new VariantContextBuilder("pc",referenceSampleVC.getChr(), referenceSampleVC.getStart(), referenceSampleVC.getEnd(),
                     referenceSampleVC.getAlleles())
-                    .referenceBaseForIndel(referenceSampleVC.getReferenceBaseForIndel())
                     .genotypes(new GenotypeBuilder(UAC.referenceSampleName, referenceAlleles).GQ(referenceGenotype.getGQ()).make())
                     .make();
         }

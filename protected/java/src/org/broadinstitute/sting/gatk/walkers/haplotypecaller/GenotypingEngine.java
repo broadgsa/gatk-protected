@@ -33,7 +33,6 @@ import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.*;
-import org.broadinstitute.sting.utils.codecs.vcf.VCFAlleleClipper;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.variantcontext.*;
@@ -419,8 +418,8 @@ public class GenotypingEngine {
     protected static VariantContext createMergedVariantContext( final VariantContext thisVC, final VariantContext nextVC, final byte[] ref, final GenomeLoc refLoc ) {
         final int thisStart = thisVC.getStart();
         final int nextStart = nextVC.getStart();
-        byte[] refBases = ( thisVC.hasReferenceBaseForIndel() ? new byte[]{ thisVC.getReferenceBaseForIndel() } : new byte[]{} );
-        byte[] altBases = ( thisVC.hasReferenceBaseForIndel() ? new byte[]{ thisVC.getReferenceBaseForIndel() } : new byte[]{} );
+        byte[] refBases = ( new byte[]{} );
+        byte[] altBases = ( new byte[]{} );
         refBases = ArrayUtils.addAll(refBases, thisVC.getReference().getBases());
         altBases = ArrayUtils.addAll(altBases, thisVC.getAlternateAllele(0).getBases());
         for( int locus = thisStart + refBases.length; locus < nextStart; locus++ ) {
@@ -428,15 +427,11 @@ public class GenotypingEngine {
             refBases = ArrayUtils.add(refBases, refByte);
             altBases = ArrayUtils.add(altBases, refByte);
         }
-        if( nextVC.hasReferenceBaseForIndel() ) {
-            refBases = ArrayUtils.add(refBases, nextVC.getReferenceBaseForIndel());
-            altBases = ArrayUtils.add(altBases, nextVC.getReferenceBaseForIndel());
-        }
         refBases = ArrayUtils.addAll(refBases, nextVC.getReference().getBases());
         altBases = ArrayUtils.addAll(altBases, nextVC.getAlternateAllele(0).getBases());
 
         int iii = 0;
-        if( refBases.length == altBases.length && VCFAlleleClipper.needsPadding(thisVC) ) { // special case of insertion + deletion of same length creates an MNP --> trim padding bases off the allele
+        if( refBases.length == altBases.length ) { // special case of insertion + deletion of same length creates an MNP --> trim padding bases off the allele
             while( iii < refBases.length && refBases[iii] == altBases[iii] ) { iii++; }
         }
         final ArrayList<Allele> mergedAlleles = new ArrayList<Allele>();
@@ -530,10 +525,10 @@ public class GenotypingEngine {
             final int elementLength = ce.getLength();
             switch( ce.getOperator() ) {
                 case I:
-                    final byte[] insertionBases = Arrays.copyOfRange( alignment, alignmentPos, alignmentPos + elementLength );
+                    final byte[] insertionBases = Arrays.copyOfRange( alignment, alignmentPos - 1, alignmentPos + elementLength );  // add padding base
                     boolean allN = true;
-                    for( final byte b : insertionBases ) {
-                        if( b != (byte) 'N' ) {
+                    for( int i = 1; i < insertionBases.length; i++ ) {  // check all bases except for the padding base
+                        if( insertionBases[i] != (byte) 'N' ) {
                             allN = false;
                             break;
                         }
@@ -541,14 +536,13 @@ public class GenotypingEngine {
                     if( !allN ) {
                         final ArrayList<Allele> insertionAlleles = new ArrayList<Allele>();
                         final int insertionStart = refLoc.getStart() + refPos - 1;
+                        insertionAlleles.add( Allele.create(ref[refPos-1], true) );
                         if( haplotype != null && (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1 || haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1) ) {
-                            insertionAlleles.add( Allele.create(ref[refPos-1], true) );
                             insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
                             vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).make());
                         } else {
-                            insertionAlleles.add( Allele.create(Allele.NULL_ALLELE_STRING, true) );
                             insertionAlleles.add( Allele.create(insertionBases, false) );
-                            vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).referenceBaseForIndel(ref[refPos-1]).make());
+                            vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).make());
                         }
 
                     }
@@ -558,7 +552,7 @@ public class GenotypingEngine {
                     alignmentPos += elementLength;
                     break;
                 case D:
-                    final byte[] deletionBases = Arrays.copyOfRange( ref, refPos, refPos + elementLength );
+                    final byte[] deletionBases = Arrays.copyOfRange( ref, refPos - 1, refPos + elementLength );  // add padding base
                     final ArrayList<Allele> deletionAlleles = new ArrayList<Allele>();
                     final int deletionStart = refLoc.getStart() + refPos - 1;
                     // BUGBUG: how often does this symbolic deletion allele case happen?
@@ -569,8 +563,8 @@ public class GenotypingEngine {
                     //    vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart, deletionAlleles).make());
                     //} else {
                         deletionAlleles.add( Allele.create(deletionBases, true) );
-                        deletionAlleles.add( Allele.create(Allele.NULL_ALLELE_STRING, false) );
-                        vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart + elementLength, deletionAlleles).referenceBaseForIndel(ref[refPos-1]).make());
+                        deletionAlleles.add( Allele.create(ref[refPos-1], false) );
+                        vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart + elementLength, deletionAlleles).make());
                     //}
                     refPos += elementLength;
                     break;
