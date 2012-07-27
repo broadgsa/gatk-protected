@@ -317,7 +317,7 @@ public class GenotypingEngine {
     }
 
     protected void mergeConsecutiveEventsBasedOnLD( final ArrayList<Haplotype> haplotypes, final TreeSet<Integer> startPosKeySet, final byte[] ref, final GenomeLoc refLoc ) {
-        final int MAX_SIZE_TO_COMBINE = 10;
+        final int MAX_SIZE_TO_COMBINE = 15;
         final double MERGE_EVENTS_R2_THRESHOLD = 0.95;
         if( startPosKeySet.size() <= 1 ) { return; }
 

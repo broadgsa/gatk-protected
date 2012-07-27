@@ -57,6 +57,7 @@ import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.fragments.FragmentCollection;
 import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
+import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.sting.utils.variantcontext.*;
@@ -104,7 +105,7 @@ import java.util.*;
 
 @DocumentedGATKFeature( groupName = "Variant Discovery Tools", extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.LOCUS)
-@ActiveRegionExtension(extension=65, maxRegion=275)
+@ActiveRegionExtension(extension=65, maxRegion=300)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
     /**
@@ -329,6 +330,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         final Map<String, AlignmentContext> splitContexts = AlignmentContextUtils.splitContextBySampleName(context);
         final GenotypesContext genotypes = GenotypesContext.create(splitContexts.keySet().size());
+        final MathUtils.RunningAverage averageHQSoftClips = new MathUtils.RunningAverage();
         for( final String sample : splitContexts.keySet() ) {
             final double[] genotypeLikelihoods = new double[3]; // ref versus non-ref (any event)
             Arrays.fill(genotypeLikelihoods, 0.0);
@@ -349,6 +351,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                         if( p.getBase() != ref.getBase() || p.isDeletion() || p.isBeforeDeletedBase() || p.isAfterDeletedBase() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip() ) {
                             AA = 2;
                             BB = 0;
+                            if( p.isNextToSoftClip() ) {
+                                averageHQSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(p.getRead(), (byte) 28));
+                            }
                         }
                     }
                     genotypeLikelihoods[AA] += QualityUtils.qualToProbLog10(qual);
@@ -363,7 +368,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         alleles.add( FAKE_REF_ALLELE );
         alleles.add( FAKE_ALT_ALLELE );
         final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.INDEL);
-        return new ActivityProfileResult( vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() ) );
+        final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
+
+        return new ActivityProfileResult( isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileResult.ActivityProfileResultState.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileResult.ActivityProfileResultState.NONE, averageHQSoftClips.mean() );
     }
 
     //---------------------------------------------------------------------------------------------------------------

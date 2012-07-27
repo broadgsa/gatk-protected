@@ -103,7 +103,7 @@ public class LikelihoodCalculationEngine {
                 readQuals[kkk] = ( readQuals[kkk] > (byte) read.getMappingQuality() ? (byte) read.getMappingQuality() : readQuals[kkk] ); // cap base quality by mapping quality
                 //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
                 //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
-                readQuals[kkk] = ( readQuals[kkk] < (byte) 17 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
+                readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
             }
 
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
@@ -311,7 +311,7 @@ public class LikelihoodCalculationEngine {
         int hap1 = 0;
         int hap2 = 0;
         //double bestElement = Double.NEGATIVE_INFINITY;
-        final int maxChosenHaplotypes = Math.min( 8, sampleKeySet.size() * 2 + 1 );
+        final int maxChosenHaplotypes = Math.min( 9, sampleKeySet.size() * 2 + 1 );
         while( bestHaplotypesIndexList.size() < maxChosenHaplotypes ) {
             double maxElement = Double.NEGATIVE_INFINITY;
             for( int iii = 0; iii < numHaplotypes; iii++ ) {
