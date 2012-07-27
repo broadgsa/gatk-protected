@@ -27,6 +27,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
@@ -303,8 +304,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     public boolean wantsNonPrimaryReads() { return true; }
 
     @Override
-    @Ensures({"result >= 0.0", "result <= 1.0"})
-    public double isActive( final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context ) {
+    @Ensures({"result.isActiveProb >= 0.0", "result.isActiveProb <= 1.0"})
+    public ActivityProfileResult isActive( final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context ) {
 
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
             for( final VariantContext vc : tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()) ) {
@@ -313,15 +314,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                 }
             }
             if( tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ) {
-                return 1.0;
+                return new ActivityProfileResult(1.0);
             }
         }
 
         if( USE_ALLELES_TRIGGER ) {
-            return ( tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
+            return new ActivityProfileResult( tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
         }
 
-        if( context == null ) { return 0.0; }
+        if( context == null ) { return new ActivityProfileResult(0.0); }
 
         final List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
         noCall.add(Allele.NO_CALL);
@@ -362,7 +363,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         alleles.add( FAKE_REF_ALLELE );
         alleles.add( FAKE_ALT_ALLELE );
         final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.INDEL);
-        return ( vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() ) );
+        return new ActivityProfileResult( vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() ) );
     }
 
     //---------------------------------------------------------------------------------------------------------------
