@@ -37,6 +37,13 @@ public class PoolCallerIntegrationTest extends WalkerTest {
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
     }
 
+    private void PC_LSV_Test_NoRef(String args, String name, String model, String md5) {
+        final String base = String.format("-T UnifiedGenotyper -R %s -I %s -L %s -glm %s -ignoreLane -pnrm POOL",
+                REF, LSV_BAM, LSVINTERVALS, model) + " --no_cmdline_in_header -o %s";
+        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+        executeTest("testPoolCaller:"+name+" args=" + args, spec);
+    }
+
     @Test
     public void testBOTH_GGA_Pools() {
         PC_LSV_Test(String.format(" -maxAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","POOLBOTH","36b8db57f65be1cc3d2d9d7f9f3f26e4");
@@ -44,7 +51,17 @@ public class PoolCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testINDEL_GGA_Pools() {
-        PC_LSV_Test(String.format(" -maxAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","POOLINDEL","d1339990291648495bfcf4404f051478");
+        PC_LSV_Test(String.format(" -maxAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles %s",LSV_ALLELES),"LSV_INDEL_GGA","POOLINDEL","d1339990291648495bfcf4404f051478");
+    }
+
+    @Test
+    public void testINDEL_maxAlleles2_ploidy3_Pools_noRef() {
+        PC_LSV_Test_NoRef(" -maxAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","POOLINDEL","b66e7150603310fd57ee7bf9fc590706");
+    }
+
+    @Test
+    public void testINDEL_maxAlleles2_ploidy1_Pools_noRef() {
+        PC_LSV_Test_NoRef(" -maxAlleles 2 -ploidy 1","LSV_INDEL_DISC_NOREF_p1","POOLINDEL","ccdae3fc4d2c922f956a186aaad51c29");
     }
 
     @Test

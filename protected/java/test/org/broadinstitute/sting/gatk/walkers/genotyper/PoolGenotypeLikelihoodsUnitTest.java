@@ -27,6 +27,7 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.walkers.Walker;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -49,6 +50,13 @@ public class PoolGenotypeLikelihoodsUnitTest {
     private static final boolean SIMULATE_NOISY_PILEUP = false;
     private static final int NUM_SIMULATED_OBS = 10;
 
+    void PoolGenotypeLikelihoodsUnitTest() {
+        UAC.minQualityScore = 5;
+        UAC.maxQualityScore = 40;
+        UAC.phredScaledPrior = (byte)20;
+        UAC.minPower = 0.0;
+
+    }
     @Test
     public void testStoringLikelihoodElements() {
 
@@ -251,8 +259,6 @@ public class PoolGenotypeLikelihoodsUnitTest {
     @Test
     public void testErrorModel() {
         final ArtificialReadPileupTestProvider refPileupTestProvider = new ArtificialReadPileupTestProvider(1,"ref");
-        final byte minQ = 5;
-        final byte maxQ = 40;
         final byte refByte = refPileupTestProvider.getRefByte();
         final byte altByte = refByte == (byte)'T'? (byte) 'C': (byte)'T';
         final String refSampleName = refPileupTestProvider.getSampleNames().get(0);
@@ -270,7 +276,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
                 // get artificial alignment context for ref sample - no noise
                 Map<String,AlignmentContext> refContext = refPileupTestProvider.getAlignmentContextFromAlleles(0, new String(new byte[]{altByte}), new int[]{matches, mismatches}, false, 30);
                 final ReadBackedPileup refPileup = refContext.get(refSampleName).getBasePileup();
-                final ErrorModel emodel = new ErrorModel(minQ,maxQ, (byte)20, refPileup, refVC, 0.0);
+                final ErrorModel emodel = new ErrorModel(UAC, refPileup, refVC, refPileupTestProvider.getReferenceContext());
                 final double[] errorVec = emodel.getErrorModelVector().getProbabilityVector();
 
                 final double mlEst = -10.0*Math.log10((double)mismatches/(double)(matches+mismatches));
@@ -287,8 +293,6 @@ public class PoolGenotypeLikelihoodsUnitTest {
     @Test
     public void testIndelErrorModel() {
         final ArtificialReadPileupTestProvider refPileupTestProvider = new ArtificialReadPileupTestProvider(1,"ref");
-        final byte minQ = 5;
-        final byte maxQ = 40;
         final byte refByte = refPileupTestProvider.getRefByte();
         final String altBases = refByte + "TCA";
         final String refSampleName = refPileupTestProvider.getSampleNames().get(0);
@@ -313,7 +317,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
                 // Ref sample has TC insertion but pileup will have TCA inserted instead to test mismatches
                 Map<String,AlignmentContext> refContext = refPileupTestProvider.getAlignmentContextFromAlleles(altBases.length(), altBases, new int[]{matches, mismatches}, false, 30);
                 final ReadBackedPileup refPileup = refContext.get(refSampleName).getBasePileup();
-                final ErrorModel emodel = new ErrorModel(minQ,maxQ, (byte)20, refPileup, refInsertionVC, 0.0);
+                final ErrorModel emodel = new ErrorModel(UAC, refPileup, refInsertionVC, refPileupTestProvider.getReferenceContext());
                 final double[] errorVec = emodel.getErrorModelVector().getProbabilityVector();
 
                 final double mlEst = -10.0*Math.log10((double)mismatches/(double)(matches+mismatches));
@@ -343,7 +347,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
                 // Ref sample has 4bp deletion but pileup will have 3 bp deletion instead to test mismatches
                 Map<String,AlignmentContext> refContext = refPileupTestProvider.getAlignmentContextFromAlleles(-delLength+1, altBases, new int[]{matches, mismatches}, false, 30);
                 final ReadBackedPileup refPileup = refContext.get(refSampleName).getBasePileup();
-                final ErrorModel emodel = new ErrorModel(minQ,maxQ, (byte)20, refPileup, refDeletionVC, 0.0);
+                final ErrorModel emodel = new ErrorModel(UAC, refPileup, refDeletionVC, refPileupTestProvider.getReferenceContext());
                 final double[] errorVec = emodel.getErrorModelVector().getProbabilityVector();
 
                 final double mlEst = -10.0*Math.log10((double)mismatches/(double)(matches+mismatches));

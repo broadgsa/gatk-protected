@@ -25,6 +25,8 @@ public class PoolIndelGenotypeLikelihoods extends PoolGenotypeLikelihoods {
     final int eventLength;
     double[][] readHaplotypeLikelihoods;
 
+    final byte refBase;
+
     public PoolIndelGenotypeLikelihoods(final List<Allele> alleles, 
                                         final double[] logLikelihoods, 
                                         final int ploidy,
@@ -38,6 +40,8 @@ public class PoolIndelGenotypeLikelihoods extends PoolGenotypeLikelihoods {
         this.haplotypeMap = haplotypeMap;
         this.refContext = referenceContext;
         this.eventLength = IndelGenotypeLikelihoodsCalculationModel.getEventLength(alleles);
+        // todo - not needed if indel alleles have base at current position
+        this.refBase = referenceContext.getBase();
     }
 
     // -------------------------------------------------------------------------------------
@@ -141,7 +145,7 @@ public class PoolIndelGenotypeLikelihoods extends PoolGenotypeLikelihoods {
             final int numHaplotypes = haplotypeMap.size();
 
             final int readCounts[] = new int[pileup.getNumberOfElements()];
-            readHaplotypeLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, refContext, eventLength, PoolIndelGenotypeLikelihoodsCalculationModel.getIndelLikelihoodMap(), readCounts);
+            readHaplotypeLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, refContext, eventLength, IndelGenotypeLikelihoodsCalculationModel.getIndelLikelihoodMap(), readCounts);
             n = readHaplotypeLikelihoods.length;
         } else {
             Allele refAllele = null;
@@ -161,7 +165,7 @@ public class PoolIndelGenotypeLikelihoods extends PoolGenotypeLikelihoods {
                 int idx =0;
                 for (Allele allele : alleles) {
                     int cnt = numSeenBases.get(idx);
-                    numSeenBases.set(idx++,cnt + (ErrorModel.pileupElementMatches(elt, allele, refAllele)?1:0));
+                    numSeenBases.set(idx++,cnt + (ErrorModel.pileupElementMatches(elt, allele, refAllele, refBase)?1:0));
                 }
 
                 n++;
