@@ -290,16 +290,16 @@ public class PoolGenotypeLikelihoodsUnitTest {
         final byte minQ = 5;
         final byte maxQ = 40;
         final byte refByte = refPileupTestProvider.getRefByte();
-        final String altBases = "TCA";
+        final String altBases = refByte + "TCA";
         final String refSampleName = refPileupTestProvider.getSampleNames().get(0);
         final List<Allele> trueAlleles = new ArrayList<Allele>();
-        trueAlleles.add(Allele.create(Allele.NULL_ALLELE_STRING, true));
-        trueAlleles.add(Allele.create("TC", false));
+        trueAlleles.add(Allele.create(refByte, true));
+        trueAlleles.add(Allele.create(refByte + "TC", false));
 
         final String fw = new String(refPileupTestProvider.getReferenceContext().getForwardBases());
         final VariantContext refInsertionVC = new VariantContextBuilder("test","chr1",refPileupTestProvider.getReferenceContext().getLocus().getStart(),
                 refPileupTestProvider.getReferenceContext().getLocus().getStart(), trueAlleles).
-                genotypes(GenotypeBuilder.create(refSampleName, trueAlleles)).referenceBaseForIndel(refByte).make();
+                genotypes(GenotypeBuilder.create(refSampleName, trueAlleles)).make();
 
 
         final int[] matchArray = {95, 995, 9995, 10000};
@@ -329,12 +329,12 @@ public class PoolGenotypeLikelihoodsUnitTest {
         // create deletion VC
         final int delLength = 4;
         final List<Allele> delAlleles = new ArrayList<Allele>();
-        delAlleles.add(Allele.create(fw.substring(1,delLength+1), true));
-        delAlleles.add(Allele.create(Allele.NULL_ALLELE_STRING, false));
+        delAlleles.add(Allele.create(fw.substring(0,delLength+1), true));
+        delAlleles.add(Allele.create(refByte, false));
 
         final VariantContext refDeletionVC =  new VariantContextBuilder("test","chr1",refPileupTestProvider.getReferenceContext().getLocus().getStart(),
                 refPileupTestProvider.getReferenceContext().getLocus().getStart()+delLength, delAlleles).
-                genotypes(GenotypeBuilder.create(refSampleName, delAlleles)).referenceBaseForIndel(refByte).make();
+                genotypes(GenotypeBuilder.create(refSampleName, delAlleles)).make();
 
         for (int matches: matchArray) {
             for (int mismatches: mismatchArray) {
