@@ -183,8 +183,13 @@ public class GenotypingEngine {
     }
 
     @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
-    public List<Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>>> assignGenotypeLikelihoodsAndCallIndependentEvents( final UnifiedGenotyperEngine UG_engine, final ArrayList<Haplotype> haplotypes, final byte[] ref, final GenomeLoc refLoc,
-                                                                                                                               final GenomeLoc activeRegionWindow, final GenomeLocParser genomeLocParser, final ArrayList<VariantContext> activeAllelesToGenotype ) {
+    public List<Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>>> assignGenotypeLikelihoodsAndCallIndependentEvents( final UnifiedGenotyperEngine UG_engine,
+                                                                                                                               final ArrayList<Haplotype> haplotypes,
+                                                                                                                               final byte[] ref,
+                                                                                                                               final GenomeLoc refLoc,
+                                                                                                                               final GenomeLoc activeRegionWindow,
+                                                                                                                               final GenomeLocParser genomeLocParser,
+                                                                                                                               final ArrayList<VariantContext> activeAllelesToGenotype ) {
 
         final ArrayList<Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>>> returnCalls = new ArrayList<Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>>>();
 
