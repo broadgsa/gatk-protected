@@ -27,7 +27,6 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.walkers.Walker;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -290,15 +289,17 @@ public class PoolGenotypeLikelihoodsUnitTest {
 
     }
 
-    @Test
+    // TODO -- Guillermo, this test cannot work because the ArtificialReadPileupTestProvider returns a position of chr1:5, which is less than
+    // TODO --     HAPLOTYPE_SIZE in IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles() so the HaplotypeMap is not populated.
+    @Test (enabled = false)
     public void testIndelErrorModel() {
         final ArtificialReadPileupTestProvider refPileupTestProvider = new ArtificialReadPileupTestProvider(1,"ref");
         final byte refByte = refPileupTestProvider.getRefByte();
-        final String altBases = refByte + "TCA";
+        final String altBases = (char)refByte + "TCA";
         final String refSampleName = refPileupTestProvider.getSampleNames().get(0);
         final List<Allele> trueAlleles = new ArrayList<Allele>();
         trueAlleles.add(Allele.create(refByte, true));
-        trueAlleles.add(Allele.create(refByte + "TC", false));
+        trueAlleles.add(Allele.create((char)refByte + "TC", false));
 
         final String fw = new String(refPileupTestProvider.getReferenceContext().getForwardBases());
         final VariantContext refInsertionVC = new VariantContextBuilder("test","chr1",refPileupTestProvider.getReferenceContext().getLocus().getStart(),
@@ -392,9 +393,6 @@ public class PoolGenotypeLikelihoodsUnitTest {
         final byte refByte = readPileupTestProvider.getRefByte();
         final byte altByte = refByte == (byte)'T'? (byte) 'C': (byte)'T';
 
-        final int refIdx = BaseUtils.simpleBaseToBaseIndex(refByte);
-        final int altIdx = BaseUtils.simpleBaseToBaseIndex(altByte);
-
         final List<Allele> allAlleles = new ArrayList<Allele>();  // this contains only ref Allele up to now
         final Set<String> laneIDs = new TreeSet<String>();
         laneIDs.add(GenotypeLikelihoodsCalculationModel.DUMMY_LANE);
@@ -411,11 +409,17 @@ public class PoolGenotypeLikelihoodsUnitTest {
         for (String laneID : laneIDs)
             noisyErrorModels.put(laneID, Q30ErrorModel);
 
+        final int refIdx = 0;
+        int altIdx = 2;
+
+        // ref allele must be first
+        allAlleles.add(Allele.create(refByte, true));
         for (byte b: BaseUtils.BASES) {
-            if (refByte == b)
-                allAlleles.add(Allele.create(b,true));
-            else
+            if (refByte != b) {
+                if (b == altByte)
+                    altIdx = allAlleles.size();
                 allAlleles.add(Allele.create(b, false));
+            }
         }
 
         PrintStream out = null;
