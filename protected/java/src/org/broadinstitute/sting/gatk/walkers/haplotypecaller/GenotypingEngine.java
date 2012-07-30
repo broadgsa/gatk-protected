@@ -334,10 +334,10 @@ public class GenotypingEngine {
                     boolean isBiallelic = true;
                     VariantContext thisVC = null;
                     VariantContext nextVC = null;
-                    int x11 = 0;
-                    int x12 = 0;
-                    int x21 = 0;
-                    int x22 = 0;
+                    double x11 = Double.NEGATIVE_INFINITY;
+                    double x12 = Double.NEGATIVE_INFINITY;
+                    double x21 = Double.NEGATIVE_INFINITY;
+                    double x22 = Double.NEGATIVE_INFINITY;
 
                     for( final Haplotype h : haplotypes ) {
                         // only make complex substitutions out of consecutive biallelic sites
@@ -360,13 +360,17 @@ public class GenotypingEngine {
                             }
                         }
                         // count up the co-occurrences of the events for the R^2 calculation
-                        // BUGBUG: use haplotype likelihoods per-sample to make this more accurate
-                        if( thisHapVC == null ) {
-                            if( nextHapVC == null ) { x11++; }
-                            else { x12++; }
-                        } else {
-                            if( nextHapVC == null ) { x21++; }
-                            else { x22++; }
+                        final ArrayList<Haplotype> haplotypeList = new ArrayList<Haplotype>();
+                        haplotypeList.add(h);
+                        for( final String sample : haplotypes.get(0).getSampleKeySet() ) {
+                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( haplotypeList, sample )[0][0];
+                            if( thisHapVC == null ) {
+                                if( nextHapVC == null ) { x11 = MathUtils.approximateLog10SumLog10(x11, haplotypeLikelihood); }
+                                else { x12 = MathUtils.approximateLog10SumLog10(x12, haplotypeLikelihood); }
+                            } else {
+                                if( nextHapVC == null ) { x21 = MathUtils.approximateLog10SumLog10(x21, haplotypeLikelihood); }
+                                else { x22 = MathUtils.approximateLog10SumLog10(x22, haplotypeLikelihood); }
+                            }
                         }
                     }
                     if( thisVC == null || nextVC == null ) {
@@ -374,7 +378,7 @@ public class GenotypingEngine {
                         //throw new ReviewedStingException("StartPos TreeSet has an entry for an event that is found on no haplotype. start pos = " + thisStart + ", next pos = " + nextStart);
                     }
                     if( isBiallelic ) {
-                        final double R2 = calculateR2LD( x11, x12, x21, x22 );
+                        final double R2 = calculateR2LD( Math.pow(10.0, x11), Math.pow(10.0, x12), Math.pow(10.0, x21), Math.pow(10.0, x22) );
                         if( DEBUG ) {
                             System.out.println("Found consecutive biallelic events with R^2 = " + String.format("%.4f", R2));
                             System.out.println("-- " + thisVC);
@@ -445,12 +449,11 @@ public class GenotypingEngine {
         return new VariantContextBuilder("merged", thisVC.getChr(), thisVC.getStart() + iii, nextVC.getEnd(), mergedAlleles).make();
     }
 
-    @Requires({"x11 >= 0", "x12 >= 0", "x21 >= 0", "x22 >= 0"})
-    protected static double calculateR2LD( final int x11, final int x12, final int x21, final int x22 ) {
-        final int total = x11 + x12 + x21 + x22;
-        final double pa1b1 = ((double) x11) / ((double) total);
-        final double pa1b2 = ((double) x12) / ((double) total);
-        final double pa2b1 = ((double) x21) / ((double) total);
+    protected static double calculateR2LD( final double x11, final double x12, final double x21, final double x22 ) {
+        final double total = x11 + x12 + x21 + x22;
+        final double pa1b1 = x11 / total;
+        final double pa1b2 = x12 / total;
+        final double pa2b1 = x21 / total;
         final double pa1 = pa1b1 + pa1b2;
         final double pb1 = pa1b1 + pa2b1;
         return ((pa1b1 - pa1*pb1) * (pa1b1 - pa1*pb1)) / ( pa1 * (1.0 - pa1) * pb1 * (1.0 - pb1) );

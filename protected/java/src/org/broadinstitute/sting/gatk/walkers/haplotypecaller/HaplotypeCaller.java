@@ -415,7 +415,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         likelihoodCalculationEngine.computeReadLikelihoods( haplotypes, perSampleReadList );
 
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
-        final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes ) : haplotypes );
+        final ArrayList<Haplotype> bestHaplotypes = haplotypes;// ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes ) : haplotypes );
 
         for( final Pair<VariantContext, HashMap<Allele, ArrayList<Haplotype>>> callResult :
                 ( GENOTYPE_FULL_ACTIVE_REGION && UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
@@ -496,7 +496,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //---------------------------------------------------------------------------------------------------------------
 
     private void finalizeActiveRegion( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
-        if( DEBUG ) { System.out.println("\nAssembling " + activeRegion.getExtendedLoc() + " with " + activeRegion.size() + " reads:"); }
+        if( DEBUG ) { System.out.println("\nAssembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
         final ArrayList<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>();
         final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( ReadUtils.sortReadsByCoordinate(activeRegion.getReads()) );
         activeRegion.clearReads();
@@ -525,7 +525,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     private List<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
         final ArrayList<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
-            if( rec.getReadLength() < 24 || rec.getMappingQuality() <= 20 || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
+            if( rec.getReadLength() < 24 || rec.getMappingQuality() < 20 || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
                 readsToRemove.add(rec);
             }
         }
