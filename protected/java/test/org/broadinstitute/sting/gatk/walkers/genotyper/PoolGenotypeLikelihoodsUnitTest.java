@@ -392,8 +392,6 @@ public class PoolGenotypeLikelihoodsUnitTest {
         final byte refByte = readPileupTestProvider.getRefByte();
         final byte altByte = refByte == (byte)'T'? (byte) 'C': (byte)'T';
 
-        final int refIdx = BaseUtils.simpleBaseToBaseIndex(refByte);
-        final int altIdx = BaseUtils.simpleBaseToBaseIndex(altByte);
 
         final List<Allele> allAlleles = new ArrayList<Allele>();  // this contains only ref Allele up to now
         final Set<String> laneIDs = new TreeSet<String>();
@@ -411,17 +409,28 @@ public class PoolGenotypeLikelihoodsUnitTest {
         for (String laneID : laneIDs)
             noisyErrorModels.put(laneID, Q30ErrorModel);
 
+         // all first ref allele
+        allAlleles.add(Allele.create(refByte,true));
         for (byte b: BaseUtils.BASES) {
-            if (refByte == b)
-                allAlleles.add(Allele.create(b,true));
-            else
+            if (refByte != b)
                 allAlleles.add(Allele.create(b, false));
         }
+
+        final int refIdx = 0;
+        int altIdx = -1;
+
+        for (int k=0; k < allAlleles.size(); k++)
+            if (altByte == allAlleles.get(k).getBases()[0]) {
+                altIdx = k;
+                break;
+            }
+
+
 
         PrintStream out = null;
         if (SIMULATE_NOISY_PILEUP) {
             try {
-                out = new PrintStream(new File("/humgen/gsa-scr1/delangel/GATK/Sting_unstable_mac/GLUnitTest.table"));
+                out = new PrintStream(new File("GLUnitTest.table"));
     //                            out = new PrintStream(new File("/Users/delangel/GATK/Sting_unstable/GLUnitTest.table"));
             }
             catch (Exception e) {}

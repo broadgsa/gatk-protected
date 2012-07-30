@@ -5,6 +5,7 @@ import net.sf.samtools.SAMUtils;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.baq.BAQ;
+import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -48,7 +49,12 @@ public class PoolSNPGenotypeLikelihoods extends PoolGenotypeLikelihoods/* implem
 
         myAlleles = new ArrayList<Allele>(alleles);
 
-        refByte = alleles.get(0).getBases()[0];  // by construction, first allele in list is always ref!
+        Allele refAllele = alleles.get(0);
+        //sanity check: by construction, first allele should ALWAYS be the reference alleles
+        if (!refAllele.isReference())
+            throw new ReviewedStingException("BUG: First allele in list passed to PoolSNPGenotypeLikelihoods should be reference!");
+
+        refByte = refAllele.getBases()[0];  // by construction, first allele in list is always ref!
 
         if (myAlleles.size() < BaseUtils.BASES.length) {
             // likelihood only defined for subset of possible alleles. Fill then with other alleles to have all possible ones,
