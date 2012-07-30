@@ -353,6 +353,16 @@ public class GenotypingEngineUnitTest extends BaseTest {
         Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
         Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
 
+        // deletion + insertion (abutting)
+        thisVC = new VariantContextBuilder().loc("2", 1701, 1702).alleles("AT","A").make();
+        nextVC = new VariantContextBuilder().loc("2", 1702, 1702).alleles("T","GCGCGC").make();
+        truthVC = new VariantContextBuilder().loc("2", 1701, 1702).alleles("AT","AGCGCGC").source("merged").make();
+        mergedVC = GenotypingEngine.createMergedVariantContext(thisVC, nextVC, ref, refLoc);
+        logger.warn(truthVC + " == " + mergedVC);
+        Assert.assertTrue(truthVC.hasSameAllelesAs(mergedVC));
+        Assert.assertEquals(truthVC.getStart(), mergedVC.getStart());
+        Assert.assertEquals(truthVC.getEnd(), mergedVC.getEnd());
+
         // complex + complex
         thisVC = new VariantContextBuilder().loc("2", 1703, 1704).alleles("TC","AAA").make();
         nextVC = new VariantContextBuilder().loc("2", 1706, 1707).alleles("GG","AC").make();

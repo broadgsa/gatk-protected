@@ -423,16 +423,17 @@ public class GenotypingEngine {
     protected static VariantContext createMergedVariantContext( final VariantContext thisVC, final VariantContext nextVC, final byte[] ref, final GenomeLoc refLoc ) {
         final int thisStart = thisVC.getStart();
         final int nextStart = nextVC.getStart();
-        byte[] refBases = ( new byte[]{} );
-        byte[] altBases = ( new byte[]{} );
+        byte[] refBases = new byte[]{};
+        byte[] altBases = new byte[]{};
         refBases = ArrayUtils.addAll(refBases, thisVC.getReference().getBases());
         altBases = ArrayUtils.addAll(altBases, thisVC.getAlternateAllele(0).getBases());
-        for( int locus = thisStart + refBases.length; locus < nextStart; locus++ ) {
+        int locus;
+        for( locus = thisStart + refBases.length; locus < nextStart; locus++ ) {
             final byte refByte = ref[locus - refLoc.getStart()];
             refBases = ArrayUtils.add(refBases, refByte);
             altBases = ArrayUtils.add(altBases, refByte);
         }
-        refBases = ArrayUtils.addAll(refBases, nextVC.getReference().getBases());
+        refBases = ArrayUtils.addAll(refBases, ArrayUtils.subarray(nextVC.getReference().getBases(), locus > nextStart ? 1 : 0, nextVC.getReference().getBases().length)); // special case of deletion including the padding base of consecutive indel
         altBases = ArrayUtils.addAll(altBases, nextVC.getAlternateAllele(0).getBases());
 
         int iii = 0;

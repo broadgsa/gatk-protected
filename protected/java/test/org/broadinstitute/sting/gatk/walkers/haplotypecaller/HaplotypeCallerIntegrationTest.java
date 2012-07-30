@@ -30,10 +30,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        // TODO -- Ryan, do you know why the md5s changed just for the rank sum tests?
-        final String RyansMd5 = "ff370c42c8b09a29f1aeff5ac57c7ea6";
-        final String EricsMd5 = "d8317f4589e8e0c48bcd087cdb75ce88";
-        HCTest(CEUTRIO_BAM, "-gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", EricsMd5);
+        HCTest(CEUTRIO_BAM, "-gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "d8317f4589e8e0c48bcd087cdb75ce88");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -46,6 +43,5 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerMultiSampleComplex() {
         HCTestComplexVariants(CEUTRIO_BAM, "", "6f9fda3ea82c5696bed1d48ee90cd76b");
     }
-
 }
 
