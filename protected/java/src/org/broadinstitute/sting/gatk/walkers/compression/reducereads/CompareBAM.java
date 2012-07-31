@@ -1,6 +1,7 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.filters.DuplicateReadFilter;
@@ -11,6 +12,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.LocusWalker;
 import org.broadinstitute.sting.gatk.walkers.ReadFilters;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +41,7 @@ import java.util.Map;
  * @since 10/30/11
  */
 
+@DocumentedGATKFeature( groupName = "Quality Control and Simple Analysis Tools", extraDocs = {CommandLineGATK.class} )
 @ReadFilters({UnmappedReadFilter.class,NotPrimaryAlignmentFilter.class,DuplicateReadFilter.class,FailsVendorQualityCheckFilter.class})
 public class CompareBAM extends LocusWalker<Map<CompareBAM.TestName, Boolean>, CompareBAM.TestResults> {
     @Argument(required = true,  shortName = "rr",  fullName = "reduced_readgroup", doc = "The read group ID corresponding to the compressed BAM being tested") public String reducedReadGroupID;
