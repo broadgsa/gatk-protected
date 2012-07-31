@@ -379,7 +379,6 @@ public class GenotypingEngine {
                     }
                     if( thisVC == null || nextVC == null ) {
                         continue;
-                        //throw new ReviewedStingException("StartPos TreeSet has an entry for an event that is found on no haplotype. start pos = " + thisStart + ", next pos = " + nextStart);
                     }
                     if( isBiallelic ) {
                         final double R2 = calculateR2LD( Math.pow(10.0, x11), Math.pow(10.0, x12), Math.pow(10.0, x21), Math.pow(10.0, x22) );
@@ -441,7 +440,7 @@ public class GenotypingEngine {
         altBases = ArrayUtils.addAll(altBases, nextVC.getAlternateAllele(0).getBases());
 
         int iii = 0;
-        if( refBases.length == altBases.length ) { // special case of insertion + deletion of same length creates an MNP --> trim padding bases off the allele
+        if( refBases.length == altBases.length ) { // insertion + deletion of same length creates an MNP --> trim common prefix bases off the beginning of the allele
             while( iii < refBases.length && refBases[iii] == altBases[iii] ) { iii++; }
         }
         final ArrayList<Allele> mergedAlleles = new ArrayList<Allele>();
