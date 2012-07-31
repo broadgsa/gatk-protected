@@ -46,12 +46,12 @@ public class PoolCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testBOTH_GGA_Pools() {
-        PC_LSV_Test(String.format(" -maxAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","POOLBOTH","d8cba4ec4267d7d766081fcead845d08");
+        PC_LSV_Test(String.format(" -maxAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","POOLBOTH","d76e3b910259da819f1e1b2adc68ba8d");
     }
 
     @Test
     public void testINDEL_GGA_Pools() {
-        PC_LSV_Test(String.format(" -maxAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_INDEL_GGA","POOLINDEL","8e9b7e89c439b430e95b146a7540c72e");
+        PC_LSV_Test(String.format(" -maxAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_INDEL_GGA","POOLINDEL","ffadcdaee613dab975197bed0fc78da3");
     }
 
     @Test
