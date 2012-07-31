@@ -39,7 +39,7 @@ import org.broadinstitute.sting.utils.variantcontext.*;
 
 import java.util.*;
 
-public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsCalculationModel {
+public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsCalculationModel {
 
     //protected Set<String> laneIDs;
     public enum Model {
@@ -52,7 +52,7 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
 
     final protected UnifiedArgumentCollection UAC;
 
-    protected PoolGenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
+    protected GeneralPloidyGenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
         super(UAC,logger);
         this.UAC = UAC;
 
@@ -137,11 +137,11 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
     protected static class PoolGenotypeData {
 
         public final String name;
-        public final PoolGenotypeLikelihoods GL;
+        public final GeneralPloidyGenotypeLikelihoods GL;
         public final int depth;
         public final List<Allele> alleles;
 
-        public PoolGenotypeData(final String name, final PoolGenotypeLikelihoods GL, final int depth, final List<Allele> alleles) {
+        public PoolGenotypeData(final String name, final GeneralPloidyGenotypeLikelihoods GL, final int depth, final List<Allele> alleles) {
             this.name = name;
             this.GL = GL;
             this.depth = depth;
@@ -236,7 +236,7 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
             ReadBackedPileup pileup = AlignmentContextUtils.stratify(sample.getValue(), contextType).getBasePileup();
 
             // create the GenotypeLikelihoods object
-            final PoolGenotypeLikelihoods GL = getPoolGenotypeLikelihoodObject(allAlleles, null, UAC.samplePloidy, perLaneErrorModels, useBAQedPileup, ref, UAC.IGNORE_LANE_INFO);
+            final GeneralPloidyGenotypeLikelihoods GL = getPoolGenotypeLikelihoodObject(allAlleles, null, UAC.samplePloidy, perLaneErrorModels, useBAQedPileup, ref, UAC.IGNORE_LANE_INFO);
             // actually compute likelihoods
             final int nGoodBases = GL.add(pileup, UAC);
             if ( nGoodBases > 0 )
@@ -268,7 +268,7 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
 
         for ( PoolGenotypeData sampleData : GLs ) {
             // extract from multidimensional array
-            final double[] myLikelihoods = PoolGenotypeLikelihoods.subsetToAlleles(sampleData.GL.getLikelihoods(),sampleData.GL.numChromosomes,
+            final double[] myLikelihoods = GeneralPloidyGenotypeLikelihoods.subsetToAlleles(sampleData.GL.getLikelihoods(), sampleData.GL.numChromosomes,
                     allAlleles, alleles);
 
             // normalize in log space so that max element is zero.
@@ -327,7 +327,7 @@ public abstract class PoolGenotypeLikelihoodsCalculationModel extends GenotypeLi
        Abstract methods - must be implemented in derived classes
     */
 
-    protected abstract PoolGenotypeLikelihoods getPoolGenotypeLikelihoodObject(final List<Allele> alleles,
+    protected abstract GeneralPloidyGenotypeLikelihoods getPoolGenotypeLikelihoodObject(final List<Allele> alleles,
                                                                                final double[] logLikelihoods,
                                                                                final int ploidy,
                                                                                final HashMap<String, ErrorModel> perLaneErrorModels,

@@ -19,7 +19,7 @@ import java.util.Arrays;
  * Time: 7:44 AM
  * To change this template use File | Settings | File Templates.
  */
-public class PoolAFCalculationModelUnitTest extends BaseTest {
+public class GeneralPloidyAFCalculationModelUnitTest extends BaseTest {
 
     static double[] AA1, AB1, BB1;
     static double[] AA2, AB2, AC2, BB2, BC2, CC2;
@@ -138,10 +138,10 @@ public class PoolAFCalculationModelUnitTest extends BaseTest {
     public void testGLs(GetGLsTest cfg) {
 
         final AlleleFrequencyCalculationResult result = new AlleleFrequencyCalculationResult(cfg.numAltAlleles);
-        final int len = PoolGenotypeLikelihoods.getNumLikelihoodElements(1+cfg.numAltAlleles,cfg.ploidy*cfg.GLs.size());
+        final int len = GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(1 + cfg.numAltAlleles, cfg.ploidy * cfg.GLs.size());
         double[] priors = new double[len];  // flat priors
 
-        PoolAFCalculationModel.combineSinglePools(cfg.GLs, 1+cfg.numAltAlleles, cfg.ploidy, priors, result);
+        GeneralPloidyExactAFCalculationModel.combineSinglePools(cfg.GLs, 1 + cfg.numAltAlleles, cfg.ploidy, priors, result);
         int nameIndex = 1;
         for ( int allele = 0; allele < cfg.numAltAlleles; allele++, nameIndex+=2 ) {
             int expectedAlleleCount = Integer.valueOf(cfg.name.substring(nameIndex, nameIndex+1));

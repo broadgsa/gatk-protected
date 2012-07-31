@@ -35,22 +35,22 @@ import org.broadinstitute.sting.utils.variantcontext.*;
 
 import java.util.*;
 
-public class PoolSNPGenotypeLikelihoodsCalculationModel extends PoolGenotypeLikelihoodsCalculationModel {
+public class GeneralPloidySNPGenotypeLikelihoodsCalculationModel extends GeneralPloidyGenotypeLikelihoodsCalculationModel {
 
 
-    protected PoolSNPGenotypeLikelihoodsCalculationModel( UnifiedArgumentCollection UAC,  Logger logger) {
+    protected GeneralPloidySNPGenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
         super(UAC, logger);
 
     }
 
-    protected PoolGenotypeLikelihoods getPoolGenotypeLikelihoodObject(final List<Allele> alleles,
+    protected GeneralPloidyGenotypeLikelihoods getPoolGenotypeLikelihoodObject(final List<Allele> alleles,
                                                                                final double[] logLikelihoods,
                                                                                final int ploidy,
                                                                                final HashMap<String, ErrorModel> perLaneErrorModels,
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
                                                                                final boolean ignoreLaneInformation) {
-        return new PoolSNPGenotypeLikelihoods(alleles, null, UAC.samplePloidy, perLaneErrorModels, useBQAedPileup, UAC.IGNORE_LANE_INFO);
+        return new GeneralPloidySNPGenotypeLikelihoods(alleles, null, UAC.samplePloidy, perLaneErrorModels, useBQAedPileup, UAC.IGNORE_LANE_INFO);
     }
 
     protected List<Allele> getInitialAllelesToUse(final RefMetaDataTracker tracker,

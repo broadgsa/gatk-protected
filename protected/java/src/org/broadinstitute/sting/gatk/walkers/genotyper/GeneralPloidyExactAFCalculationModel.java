@@ -34,7 +34,7 @@ import org.broadinstitute.sting.utils.variantcontext.*;
 import java.io.PrintStream;
 import java.util.*;
 
-public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
+public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalculationModel {
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 10; // if PL vectors longer than this # of elements, don't log them
     final protected UnifiedArgumentCollection UAC;
 
@@ -42,7 +42,7 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
     private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
     private final static boolean VERBOSE = false;
 
-    protected PoolAFCalculationModel(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
+    protected GeneralPloidyExactAFCalculationModel(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
         super(UAC, N, logger, verboseWriter);
         ploidy = UAC.samplePloidy;
         this.UAC = UAC;
@@ -140,7 +140,7 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
         for ( final double[] likelihoods : GLs ) {
 
             final int PLindexOfBestGL = MathUtils.maxElementIndex(likelihoods);
-            final int[] acCount = PoolGenotypeLikelihoods.getAlleleCountFromPLIndex(1+numOriginalAltAlleles,ploidy,PLindexOfBestGL);
+            final int[] acCount = GeneralPloidyGenotypeLikelihoods.getAlleleCountFromPLIndex(1 + numOriginalAltAlleles, ploidy, PLindexOfBestGL);
             // by convention, first count coming from getAlleleCountFromPLIndex comes from reference allele
             for (int k=1; k < acCount.length;k++) {
                 if (acCount[k] > 0)
@@ -238,7 +238,7 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
         return newPool;
     }
 
-    // todo - refactor, function almost identical except for log10LofK computation in PoolGenotypeLikelihoods
+    // todo - refactor, function almost identical except for log10LofK computation in GeneralPloidyGenotypeLikelihoods
     /**
      *
      * @param set                       ExactACset holding conformation to be computed
@@ -301,7 +301,7 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
                 continue;
 
 
-            PoolGenotypeLikelihoods.updateACset(ACcountsClone, ACqueue, indexesToACset);
+            GeneralPloidyGenotypeLikelihoods.updateACset(ACcountsClone, ACqueue, indexesToACset);
         }
 
 
@@ -341,14 +341,14 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
 
         // Say L1(K) = Pr(D|AC1=K) * choose(m1,K)
         // and L2(K) = Pr(D|AC2=K) * choose(m2,K)
-        PoolGenotypeLikelihoods.SumIterator firstIterator = new PoolGenotypeLikelihoods.SumIterator(numAlleles,ploidy1);
+        GeneralPloidyGenotypeLikelihoods.SumIterator firstIterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(numAlleles,ploidy1);
         final double[] x = originalPool.getLikelihoodsAsVector(true);
         while(firstIterator.hasNext()) {
             x[firstIterator.getLinearIndex()] += MathUtils.log10MultinomialCoefficient(ploidy1,firstIterator.getCurrentVector());
             firstIterator.next();
         }
 
-        PoolGenotypeLikelihoods.SumIterator secondIterator = new PoolGenotypeLikelihoods.SumIterator(numAlleles,ploidy2);
+        GeneralPloidyGenotypeLikelihoods.SumIterator secondIterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(numAlleles,ploidy2);
         final double[] y = yy.clone();
         while(secondIterator.hasNext()) {
             y[secondIterator.getLinearIndex()] += MathUtils.log10MultinomialCoefficient(ploidy2,secondIterator.getCurrentVector());
@@ -357,7 +357,7 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
 
         // initialize output to -log10(choose(m1+m2,[k1 k2...])
         final int outputDim = GenotypeLikelihoods.numLikelihoods(numAlleles, newPloidy);
-        final PoolGenotypeLikelihoods.SumIterator outputIterator = new PoolGenotypeLikelihoods.SumIterator(numAlleles,newPloidy);
+        final GeneralPloidyGenotypeLikelihoods.SumIterator outputIterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(numAlleles,newPloidy);
 
 
         // Now, result(K) =  logSum_G (L1(G)+L2(K-G)) where G are all possible vectors that sum UP to K
@@ -419,7 +419,7 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
             double denom =  -MathUtils.log10MultinomialCoefficient(newPloidy, currentCount);
 
             // for current conformation, get all possible ways to break vector K into two components G1 and G2
-            final PoolGenotypeLikelihoods.SumIterator innerIterator = new PoolGenotypeLikelihoods.SumIterator(numAlleles,ploidy2);
+            final GeneralPloidyGenotypeLikelihoods.SumIterator innerIterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(numAlleles,ploidy2);
             set.log10Likelihoods[0] = Double.NEGATIVE_INFINITY;
             while (innerIterator.hasNext()) {
                 // check if breaking current conformation into g1 and g2 is feasible.
@@ -617,7 +617,7 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
             if ( numOriginalAltAlleles == numNewAltAlleles) {
                 newLikelihoods = originalLikelihoods;
             } else {
-                newLikelihoods = PoolGenotypeLikelihoods.subsetToAlleles(originalLikelihoods, ploidy, vc.getAlleles(),allelesToUse);
+                newLikelihoods = GeneralPloidyGenotypeLikelihoods.subsetToAlleles(originalLikelihoods, ploidy, vc.getAlleles(), allelesToUse);
 
                 // might need to re-normalize
                 newLikelihoods = MathUtils.normalizeFromLog10(newLikelihoods, false, true);
@@ -668,7 +668,7 @@ public class PoolAFCalculationModel extends AlleleFrequencyCalculationModel {
         // find the genotype with maximum likelihoods
         final int PLindex = numNewAltAlleles == 0 ? 0 : MathUtils.maxElementIndex(newLikelihoods);
 
-        final int[] mlAlleleCount = PoolGenotypeLikelihoods.getAlleleCountFromPLIndex(allelesToUse.size(), numChromosomes, PLindex);
+        final int[] mlAlleleCount = GeneralPloidyGenotypeLikelihoods.getAlleleCountFromPLIndex(allelesToUse.size(), numChromosomes, PLindex);
         final ArrayList<Double> alleleFreqs = new ArrayList<Double>();
         final ArrayList<Integer> alleleCounts = new ArrayList<Integer>();
 

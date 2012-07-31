@@ -18,7 +18,7 @@ import java.util.*;
  * Time: 10:06 AM
  * To change this template use File | Settings | File Templates.
  */
-public class PoolIndelGenotypeLikelihoods extends PoolGenotypeLikelihoods {
+public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotypeLikelihoods {
     final PairHMMIndelErrorModel pairModel;
     final LinkedHashMap<Allele, Haplotype> haplotypeMap;
     final ReferenceContext refContext;
@@ -27,14 +27,14 @@ public class PoolIndelGenotypeLikelihoods extends PoolGenotypeLikelihoods {
 
     final byte refBase;
 
-    public PoolIndelGenotypeLikelihoods(final List<Allele> alleles, 
-                                        final double[] logLikelihoods, 
-                                        final int ploidy,
-                                        final HashMap<String, ErrorModel> perLaneErrorModels, 
-                                        final boolean ignoreLaneInformation,
-                                        final PairHMMIndelErrorModel pairModel, 
-                                        final LinkedHashMap<Allele, Haplotype> haplotypeMap,
-                                        final ReferenceContext referenceContext) {
+    public GeneralPloidyIndelGenotypeLikelihoods(final List<Allele> alleles,
+                                                 final double[] logLikelihoods,
+                                                 final int ploidy,
+                                                 final HashMap<String, ErrorModel> perLaneErrorModels,
+                                                 final boolean ignoreLaneInformation,
+                                                 final PairHMMIndelErrorModel pairModel,
+                                                 final LinkedHashMap<Allele, Haplotype> haplotypeMap,
+                                                 final ReferenceContext referenceContext) {
         super(alleles, logLikelihoods, ploidy, perLaneErrorModels, ignoreLaneInformation);
         this.pairModel = pairModel;
         this.haplotypeMap = haplotypeMap;

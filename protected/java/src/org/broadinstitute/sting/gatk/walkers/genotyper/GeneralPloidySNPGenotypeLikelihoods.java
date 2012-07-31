@@ -23,7 +23,7 @@ import static java.lang.Math.pow;
  * and posteriors given a pile of bases and quality scores
  *
 */
-public class PoolSNPGenotypeLikelihoods extends PoolGenotypeLikelihoods/* implements Cloneable*/ {
+public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLikelihoods/* implements Cloneable*/ {
 
     final List<Allele> myAlleles;
     final int[] alleleIndices;
@@ -42,8 +42,8 @@ public class PoolSNPGenotypeLikelihoods extends PoolGenotypeLikelihoods/* implem
      * @param useBQAedPileup    Use BAQed pileup
      * @param ignoreLaneInformation  If true, lane info is ignored
      */
-    public PoolSNPGenotypeLikelihoods(final List<Allele> alleles, final double[] logLikelihoods, final int ploidy,
-                                      final HashMap<String, ErrorModel> perLaneErrorModels, final boolean useBQAedPileup,final boolean ignoreLaneInformation) {
+    public GeneralPloidySNPGenotypeLikelihoods(final List<Allele> alleles, final double[] logLikelihoods, final int ploidy,
+                                               final HashMap<String, ErrorModel> perLaneErrorModels, final boolean useBQAedPileup, final boolean ignoreLaneInformation) {
         super(alleles, logLikelihoods, ploidy, perLaneErrorModels, ignoreLaneInformation);
         this.useBAQedPileup = useBQAedPileup;
 
@@ -52,7 +52,7 @@ public class PoolSNPGenotypeLikelihoods extends PoolGenotypeLikelihoods/* implem
         Allele refAllele = alleles.get(0);
         //sanity check: by construction, first allele should ALWAYS be the reference alleles
         if (!refAllele.isReference())
-            throw new ReviewedStingException("BUG: First allele in list passed to PoolSNPGenotypeLikelihoods should be reference!");
+            throw new ReviewedStingException("BUG: First allele in list passed to GeneralPloidySNPGenotypeLikelihoods should be reference!");
 
         refByte = refAllele.getBases()[0];  // by construction, first allele in list is always ref!
 

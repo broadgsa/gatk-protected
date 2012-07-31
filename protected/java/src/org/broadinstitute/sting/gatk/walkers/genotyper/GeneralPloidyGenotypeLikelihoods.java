@@ -37,7 +37,7 @@ import org.broadinstitute.sting.utils.variantcontext.GenotypeLikelihoods;
 
 import java.util.*;
 
-public abstract class PoolGenotypeLikelihoods {
+public abstract class GeneralPloidyGenotypeLikelihoods {
     protected final int numChromosomes;
     private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
 
@@ -67,8 +67,8 @@ public abstract class PoolGenotypeLikelihoods {
 
     private static final boolean FAST_GL_COMPUTATION = true;
     // constructor with given logPL elements
-    public PoolGenotypeLikelihoods(final List<Allele> alleles, final double[] logLikelihoods, final int ploidy,
-                                   final HashMap<String, ErrorModel> perLaneErrorModels, final boolean ignoreLaneInformation) {
+    public GeneralPloidyGenotypeLikelihoods(final List<Allele> alleles, final double[] logLikelihoods, final int ploidy,
+                                            final HashMap<String, ErrorModel> perLaneErrorModels, final boolean ignoreLaneInformation) {
         this.alleles = alleles;
         this.nAlleles = alleles.size();
         numChromosomes = ploidy;
@@ -101,7 +101,7 @@ public abstract class PoolGenotypeLikelihoods {
             Arrays.fill(log10Likelihoods, MIN_LIKELIHOOD);
         } else {
             if (logLikelihoods.length != likelihoodDim)
-                throw new ReviewedStingException("BUG: inconsistent parameters when creating PoolGenotypeLikelihoods object");
+                throw new ReviewedStingException("BUG: inconsistent parameters when creating GeneralPloidyGenotypeLikelihoods object");
 
             log10Likelihoods = logLikelihoods; //.clone(); // is clone needed?
         }
@@ -174,7 +174,7 @@ public abstract class PoolGenotypeLikelihoods {
                 final int numAlleles = currentState.length;
                 final int ploidy = restrictSumTo;
 
-                linearIndex = PoolGenotypeLikelihoods.getLinearIndex(stateVector, numAlleles, ploidy);
+                linearIndex = GeneralPloidyGenotypeLikelihoods.getLinearIndex(stateVector, numAlleles, ploidy);
             }
             else
                 throw new ReviewedStingException("BUG: Not supported");
@@ -308,7 +308,7 @@ public abstract class PoolGenotypeLikelihoods {
     public static double[] subsetToAlleles(final double[] oldLikelihoods, final int numChromosomes,
                                                    final List<Allele> originalAlleles, final List<Allele> allelesToSubset) {
 
-        int newPLSize = PoolGenotypeLikelihoods.getNumLikelihoodElements(allelesToSubset.size(), numChromosomes);
+        int newPLSize = GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(allelesToSubset.size(), numChromosomes);
         double[] newPLs = new double[newPLSize];
 
 
@@ -357,7 +357,7 @@ public abstract class PoolGenotypeLikelihoods {
                     newCount[idx] =  pVec[permutationKey[idx]];
     
                 // get corresponding index from new count
-                int outputIdx = PoolGenotypeLikelihoods.getLinearIndex(newCount, allelesToSubset.size(), numChromosomes);
+                int outputIdx = GeneralPloidyGenotypeLikelihoods.getLinearIndex(newCount, allelesToSubset.size(), numChromosomes);
                 newPLs[outputIdx] = pl;
                 if (VERBOSE) {
                     System.out.println("Old Key:"+Arrays.toString(pVec));

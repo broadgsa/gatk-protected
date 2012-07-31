@@ -27,7 +27,6 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.walkers.Walker;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -42,7 +41,7 @@ import java.io.PrintStream;
 import java.util.*;
 
 
-public class PoolGenotypeLikelihoodsUnitTest {
+public class GeneralPloidyGenotypeLikelihoodsUnitTest {
 
     final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
     final Logger logger = Logger.getLogger(Walker.class);
@@ -61,7 +60,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
     public void testStoringLikelihoodElements() {
 
 
-        // basic test storing a given PL vector in a PoolGenotypeLikelihoods object and then retrieving it back
+        // basic test storing a given PL vector in a GeneralPloidyGenotypeLikelihoods object and then retrieving it back
 
         int ploidy = 20;
         int numAlleles = 4;
@@ -79,7 +78,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
         for (int k=0; k < gls.length; k++)
             gls[k]= (double)k;
 
-        PoolGenotypeLikelihoods gl = new PoolSNPGenotypeLikelihoods(alleles, gls,ploidy, null, false,true);
+        GeneralPloidyGenotypeLikelihoods gl = new GeneralPloidySNPGenotypeLikelihoods(alleles, gls,ploidy, null, false,true);
         double[] glnew = gl.getLikelihoods();
 
         Assert.assertEquals(gls, glnew);
@@ -91,7 +90,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
 
         for (int ploidy = 2; ploidy < 10; ploidy++) {
             for (int nAlleles = 2; nAlleles < 10; nAlleles++)
-                Assert.assertEquals(PoolGenotypeLikelihoods.getNumLikelihoodElements(nAlleles,ploidy),
+                Assert.assertEquals(GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(nAlleles, ploidy),
                         GenotypeLikelihoods.numLikelihoods(nAlleles, ploidy));
         }
 
@@ -103,7 +102,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
         // create iterator, compare linear index given by iterator with closed form function
         int numAlleles = 4;
         int ploidy = 2;
-        PoolGenotypeLikelihoods.SumIterator iterator = new PoolGenotypeLikelihoods.SumIterator(numAlleles, ploidy);
+        GeneralPloidyGenotypeLikelihoods.SumIterator iterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(numAlleles, ploidy);
 
         while(iterator.hasNext()) {
             System.out.format("\n%d:",iterator.getLinearIndex());
@@ -112,7 +111,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
                 System.out.format("%d ",aa);
 
 
-            int computedIdx = PoolGenotypeLikelihoods.getLinearIndex(a, numAlleles, ploidy);
+            int computedIdx = GeneralPloidyGenotypeLikelihoods.getLinearIndex(a, numAlleles, ploidy);
             System.out.format("Computed idx = %d\n",computedIdx);
             iterator.next();
         }
@@ -141,7 +140,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
         allelesToSubset.add(Allele.create("A",false));
         allelesToSubset.add(Allele.create("C",false));
 
-        double[] newGLs = PoolGenotypeLikelihoods.subsetToAlleles(oldLikelihoods, ploidy,
+        double[] newGLs = GeneralPloidyGenotypeLikelihoods.subsetToAlleles(oldLikelihoods, ploidy,
                 originalAlleles, allelesToSubset);
 
 
@@ -171,7 +170,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
     @Test
     public void testIndexIterator() {
         int[] seed = new int[]{1,2,3,4};
-        PoolGenotypeLikelihoods.SumIterator iterator = runIterator(seed,-1);
+        GeneralPloidyGenotypeLikelihoods.SumIterator iterator = runIterator(seed,-1);
         // Assert.assertTrue(compareIntArrays(iterator.getCurrentVector(), seed));
         Assert.assertEquals(iterator.getLinearIndex(),prod(seed)-1);
 
@@ -229,12 +228,12 @@ public class PoolGenotypeLikelihoodsUnitTest {
 
     }
 
-    private PoolGenotypeLikelihoods.SumIterator runIterator(int[] seed, int restrictSumTo) {
-        PoolGenotypeLikelihoods.SumIterator iterator = new PoolGenotypeLikelihoods.SumIterator(seed, restrictSumTo);
+    private GeneralPloidyGenotypeLikelihoods.SumIterator runIterator(int[] seed, int restrictSumTo) {
+        GeneralPloidyGenotypeLikelihoods.SumIterator iterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(seed, restrictSumTo);
 
         while(iterator.hasNext()) {
             int[] a =  iterator.getCurrentVector();
-            int idx = PoolGenotypeLikelihoods.getLinearIndex(a, a.length, restrictSumTo);
+            int idx = GeneralPloidyGenotypeLikelihoods.getLinearIndex(a, a.length, restrictSumTo);
             if (VERBOSE)   {
                 System.out.format("%d:",iterator.getLinearIndex());
                 for (int i=0; i < seed.length; i++)
@@ -454,7 +453,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
 
                     // get now likelihoods for this
 
-                    final PoolSNPGenotypeLikelihoods GL = new PoolSNPGenotypeLikelihoods(allAlleles, null, nSamplesPerPool*2, noiselessErrorModels, false, true);
+                    final GeneralPloidySNPGenotypeLikelihoods GL = new GeneralPloidySNPGenotypeLikelihoods(allAlleles, null, nSamplesPerPool*2, noiselessErrorModels, false, true);
                     final int nGoodBases = GL.add(alignmentContextMap.get("sample0000").getBasePileup(), true, false, UAC.MIN_BASE_QUALTY_SCORE);
                     if (VERBOSE) {
                         System.out.format("Depth:%d, AC:%d, altDepth:%d, samplesPerPool:%d\nGLs:", depth,ac,altDepth, nSamplesPerPool);
@@ -483,7 +482,7 @@ public class PoolGenotypeLikelihoodsUnitTest {
 
                             // get now likelihoods for this
 
-                            final PoolSNPGenotypeLikelihoods noisyGL = new PoolSNPGenotypeLikelihoods(allAlleles, null, nSamplesPerPool*2, noisyErrorModels, false,true);
+                            final GeneralPloidySNPGenotypeLikelihoods noisyGL = new GeneralPloidySNPGenotypeLikelihoods(allAlleles, null, nSamplesPerPool*2, noisyErrorModels, false,true);
                             noisyGL.add(noisyAlignmentContextMap.get("sample0000").getBasePileup(), true, false, UAC.MIN_BASE_QUALTY_SCORE);
                             mlPair = noisyGL.getMostLikelyACCount();
 

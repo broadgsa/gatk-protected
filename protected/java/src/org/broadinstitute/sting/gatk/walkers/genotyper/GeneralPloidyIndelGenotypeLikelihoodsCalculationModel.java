@@ -32,13 +32,11 @@ import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.sting.utils.*;
-import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.variantcontext.*;
 
 import java.util.*;
 
-public class PoolIndelGenotypeLikelihoodsCalculationModel extends PoolGenotypeLikelihoodsCalculationModel {
+public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends GeneralPloidyGenotypeLikelihoodsCalculationModel {
     private static final int MAX_NUM_ALLELES_TO_GENOTYPE = 4;
 
     private PairHMMIndelErrorModel pairModel;
@@ -59,7 +57,7 @@ public class PoolIndelGenotypeLikelihoodsCalculationModel extends PoolGenotypeLi
     }
        */
 
-    protected PoolIndelGenotypeLikelihoodsCalculationModel(final UnifiedArgumentCollection UAC, final Logger logger) {
+    protected GeneralPloidyIndelGenotypeLikelihoodsCalculationModel(final UnifiedArgumentCollection UAC, final Logger logger) {
         super(UAC, logger);
 
 
@@ -69,14 +67,14 @@ public class PoolIndelGenotypeLikelihoodsCalculationModel extends PoolGenotypeLi
     }
 
 
-    protected PoolGenotypeLikelihoods getPoolGenotypeLikelihoodObject(final List<Allele> alleles,
+    protected GeneralPloidyGenotypeLikelihoods getPoolGenotypeLikelihoodObject(final List<Allele> alleles,
                                                                                final double[] logLikelihoods,
                                                                                final int ploidy,
                                                                                final HashMap<String, ErrorModel> perLaneErrorModels,
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
                                                                                final boolean ignoreLaneInformation){
-        return new PoolIndelGenotypeLikelihoods(alleles, logLikelihoods, ploidy,perLaneErrorModels,ignoreLaneInformation, pairModel, haplotypeMap, ref);
+        return new GeneralPloidyIndelGenotypeLikelihoods(alleles, logLikelihoods, ploidy,perLaneErrorModels,ignoreLaneInformation, pairModel, haplotypeMap, ref);
     }
 
     protected List<Allele> getInitialAllelesToUse(final RefMetaDataTracker tracker,
