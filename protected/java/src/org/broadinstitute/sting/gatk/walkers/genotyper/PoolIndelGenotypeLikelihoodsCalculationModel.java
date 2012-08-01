@@ -105,6 +105,10 @@ public class PoolIndelGenotypeLikelihoodsCalculationModel extends PoolGenotypeLi
             haplotypeMap.clear();
         }
         IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles(alleles, ref, ref.getLocus(), haplotypeMap);
+
+        // sanity check: if haplotype map couldn't be created, clear allele list
+        if (haplotypeMap.isEmpty())
+            alleles.clear();
         return alleles;
 
     }
