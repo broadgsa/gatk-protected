@@ -239,6 +239,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         Set<String> samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
         samplesList.addAll( samples );
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
+        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.SNP; // the GLmodel isn't used by the HaplotypeCaller but it is dangerous to let the user change this argument
         UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC.clone(), logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
         UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY; // low values used for isActive determination only, default/user-specified values used for actual calling
         UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY; // low values used for isActive determination only, default/user-specified values used for actual calling
