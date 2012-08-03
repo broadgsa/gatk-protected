@@ -95,9 +95,10 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
             ArrayList<Haplotype> haplotypes = new ArrayList<Haplotype>();
             for( int iii = 1; iii <= 3; iii++) {
                 Double readLikelihood = ( iii == 1 ? readLikelihoodForHaplotype1 : ( iii == 2 ? readLikelihoodForHaplotype2 : readLikelihoodForHaplotype3) );
+                int readCount = 1;
                 if( readLikelihood != null ) {
                     Haplotype haplotype = new Haplotype( (iii == 1 ? "AAAA" : (iii == 2 ? "CCCC" : "TTTT")).getBytes() );
-                    haplotype.addReadLikelihoods("myTestSample", new double[]{readLikelihood});
+                    haplotype.addReadLikelihoods("myTestSample", new double[]{readLikelihood}, new int[]{readCount});
                     haplotypes.add(haplotype);
                 }
             }

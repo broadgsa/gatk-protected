@@ -146,7 +146,8 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
         Assert.assertTrue(graphEquals(graph, expectedGraph));
     }
 
-    @Test(enabled=true)
+    @Test(enabled=false)
+// not ready yet
     public void testBasicGraphCreation() {
         final ArtificialReadPileupTestProvider refPileupTestProvider = new ArtificialReadPileupTestProvider(1,"ref");
         final byte refBase = refPileupTestProvider.getReferenceContext().getBase();
