@@ -50,7 +50,6 @@ public class LikelihoodCalculationEngine {
     }
 
     public void computeReadLikelihoods( final ArrayList<Haplotype> haplotypes, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList ) {
-        final int numHaplotypes = haplotypes.size();
 
         int X_METRIC_LENGTH = 0;
         for( final String sample : perSampleReadList.keySet() ) {
@@ -60,8 +59,8 @@ public class LikelihoodCalculationEngine {
             }
         }
         int Y_METRIC_LENGTH = 0;
-        for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
-            final int haplotypeLength = haplotypes.get(jjj).getBases().length;
+        for( Haplotype h: haplotypes ) {
+            final int haplotypeLength = h.getBases().length;
             if( haplotypeLength > Y_METRIC_LENGTH ) { Y_METRIC_LENGTH = haplotypeLength; }
         }
 
@@ -90,8 +89,10 @@ public class LikelihoodCalculationEngine {
         final int numHaplotypes = haplotypes.size();
         final int numReads = reads.size();
         final double[][] readLikelihoods = new double[numHaplotypes][numReads];
+        final int[][] readCounts = new int[numHaplotypes][numReads];
         for( int iii = 0; iii < numReads; iii++ ) {
             final GATKSAMRecord read = reads.get(iii);
+            final int readCount =  getRepresentativeReadCount(read);
 
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
@@ -114,11 +115,21 @@ public class LikelihoodCalculationEngine {
                 readLikelihoods[jjj][iii] = pairHMM.computeReadLikelihoodGivenHaplotype(haplotype.getBases(), read.getReadBases(),
                         readQuals, readInsQuals, readDelQuals, overallGCP,
                         haplotypeStart, matchMetricArray, XMetricArray, YMetricArray);
+                readCounts[jjj][iii] = readCount;
             }
         }
         for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
-            haplotypes.get(jjj).addReadLikelihoods( sample, readLikelihoods[jjj] );
+            haplotypes.get(jjj).addReadLikelihoods( sample, readLikelihoods[jjj], readCounts[jjj] );
         }
+    }
+
+    private static int getRepresentativeReadCount(GATKSAMRecord read) {
+        if (!read.isReducedRead())
+            return 1;
+
+        // compute mean representative read counts
+        final byte[] counts = read.getReducedReadCounts();
+        return MathUtils.sum(counts)/counts.length;
     }
 
     private static int computeFirstDifferingPosition( final byte[] b1, final byte[] b2 ) {
@@ -154,17 +165,20 @@ public class LikelihoodCalculationEngine {
         }
 
         // compute the diploid haplotype likelihoods
+        // todo - needs to be generalized to arbitrary ploidy, cleaned and merged with PairHMMIndelErrorModel code
         for( int iii = 0; iii < numHaplotypes; iii++ ) {
             for( int jjj = 0; jjj <= iii; jjj++ ) {                
                 for( final Haplotype iii_mapped : haplotypeMapping.get(iii) ) {
                     final double[] readLikelihoods_iii = iii_mapped.getReadLikelihoods(sample);
+                    final int[] readCounts_iii = iii_mapped.getReadCounts(sample);
                     for( final Haplotype jjj_mapped : haplotypeMapping.get(jjj) ) {
                         final double[] readLikelihoods_jjj = jjj_mapped.getReadLikelihoods(sample);
                         double haplotypeLikelihood = 0.0;
                         for( int kkk = 0; kkk < readLikelihoods_iii.length; kkk++ ) {
                             // Compute log10(10^x1/2 + 10^x2/2) = log10(10^x1+10^x2)-log10(2)
+                            // log10(10^(a*x1) + 10^(b*x2))
                             // First term is approximated by Jacobian log with table lookup.
-                            haplotypeLikelihood += MathUtils.approximateLog10SumLog10(readLikelihoods_iii[kkk], readLikelihoods_jjj[kkk]) + LOG_ONE_HALF;
+                            haplotypeLikelihood +=readCounts_iii[kkk] *( MathUtils.approximateLog10SumLog10(readLikelihoods_iii[kkk], readLikelihoods_jjj[kkk]) + LOG_ONE_HALF);
                         }
                         haplotypeLikelihoodMatrix[iii][jjj] = Math.max(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood); // MathUtils.approximateLog10SumLog10(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood); // BUGBUG: max or sum?
                     }

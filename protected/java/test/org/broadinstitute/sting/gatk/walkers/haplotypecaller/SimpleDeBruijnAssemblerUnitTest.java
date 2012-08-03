@@ -7,6 +7,8 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
  */
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.gatk.walkers.genotyper.ArtificialReadPileupTestProvider;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
@@ -18,6 +20,7 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.PrintStream;
 import java.util.*;
 
 public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
@@ -143,6 +146,43 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
         Assert.assertTrue(graphEquals(graph, expectedGraph));
     }
 
+    @Test(enabled=true)
+    public void testBasicGraphCreation() {
+        final ArtificialReadPileupTestProvider refPileupTestProvider = new ArtificialReadPileupTestProvider(1,"ref");
+        final byte refBase = refPileupTestProvider.getReferenceContext().getBase();
+        final String altBase = (refBase==(byte)'A'?"C":"A");
+        final int matches = 50;
+        final int mismatches = 50;
+        Map<String,AlignmentContext> refContext = refPileupTestProvider.getAlignmentContextFromAlleles(0, altBase, new int[]{matches, mismatches}, false, 30);
+        PrintStream graphWriter = null;
+
+        try{
+            graphWriter = new PrintStream("du.txt");
+        } catch (Exception e) {}
+
+
+        SimpleDeBruijnAssembler assembler = new SimpleDeBruijnAssembler(true,graphWriter);
+        final Haplotype refHaplotype = new Haplotype(refPileupTestProvider.getReferenceContext().getBases());
+        refHaplotype.setIsReference(true);
+        assembler.createDeBruijnGraphs(refContext.get(refPileupTestProvider.getSampleNames().get(0)).getBasePileup().getReads(), refHaplotype);
+
+/*        // clean up the graphs by pruning and merging
+        for( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph : graphs ) {
+            SimpleDeBruijnAssembler.pruneGraph( graph, PRUNE_FACTOR );
+            //eliminateNonRefPaths( graph );
+            SimpleDeBruijnAssembler.mergeNodes( graph );
+        }
+  */
+        if( graphWriter != null ) {
+            assembler.printGraphs();
+        }
+
+        int k=2;
+
+        // find the best paths in the graphs
+    //    return findBestPaths( refHaplotype, fullReferenceWithPadding, refLoc, activeAllelesToGenotype, activeRegion.getExtendedLoc() );
+
+    }
     @Test(enabled = true)
     public void testEliminateNonRefPaths() {
         DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);

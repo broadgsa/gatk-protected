@@ -4,6 +4,7 @@ import com.google.java.contract.Ensures;
 import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Haplotype;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -68,7 +69,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         return findBestPaths( refHaplotype, fullReferenceWithPadding, refLoc, activeAllelesToGenotype, activeRegion.getExtendedLoc() );
     }
 
-    private void createDeBruijnGraphs( final ArrayList<GATKSAMRecord> reads, final Haplotype refHaplotype ) {
+    protected void createDeBruijnGraphs( final List<GATKSAMRecord> reads, final Haplotype refHaplotype ) {
         graphs.clear();
 
         // create the graph
@@ -161,7 +162,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         }
     }
 
-    private static boolean createGraphFromSequences( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final ArrayList<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
+    private static boolean createGraphFromSequences( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final Collection<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
         final byte[] refSequence = refHaplotype.getBases();
         if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
             final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
@@ -183,6 +184,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         for( final GATKSAMRecord read : reads ) {
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
+            final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not readuced
             if( sequence.length > KMER_LENGTH + KMER_OVERLAP ) {
                 final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
                 for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {                    
@@ -194,6 +196,12 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                             break;
                         }
                     }
+                    int countNumber = 1;
+                    if (read.isReducedRead()) {
+                        // compute min (?) number of reduced read counts in current kmer span
+                        countNumber = MathUtils.arrayMin(Arrays.copyOfRange(reducedReadCounts,iii,iii+KMER_LENGTH+1));
+                    }
+
                     if( !badKmer ) {
                         // get the kmers
                         final byte[] kmer1 = new byte[KMER_LENGTH];
@@ -201,7 +209,8 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                         final byte[] kmer2 = new byte[KMER_LENGTH];
                         System.arraycopy(sequence, iii+1, kmer2, 0, KMER_LENGTH);
 
-                        addKmersToGraph(graph, kmer1, kmer2, false);
+                        for (int k=0; k < countNumber; k++)
+                            addKmersToGraph(graph, kmer1, kmer2, false);
                     }
                 }
             }
@@ -230,7 +239,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         return true;
     }
 
-    private void printGraphs() {
+    protected void printGraphs() {
         int count = 0;
         for( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph : graphs ) {
             GRAPH_WRITER.println("digraph kmer" + count++ +" {");
