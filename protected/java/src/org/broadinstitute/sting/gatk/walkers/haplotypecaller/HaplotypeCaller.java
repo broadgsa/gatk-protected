@@ -415,7 +415,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         likelihoodCalculationEngine.computeReadLikelihoods( haplotypes, perSampleReadList );
 
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
-        final ArrayList<Haplotype> bestHaplotypes = haplotypes;// ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes ) : haplotypes );
+        final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes ) : haplotypes );
 
         for( final Pair<VariantContext, HashMap<Allele, ArrayList<Haplotype>>> callResult :
                 ( GENOTYPE_FULL_ACTIVE_REGION && UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
