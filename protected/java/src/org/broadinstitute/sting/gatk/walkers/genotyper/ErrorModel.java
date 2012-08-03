@@ -68,10 +68,10 @@ public class ErrorModel  {
                     break;
                 }
             }
+            haplotypeMap = new LinkedHashMap<Allele, Haplotype>();
             if (refSampleVC.isIndel()) {
                 pairModel = new PairHMMIndelErrorModel(UAC.INDEL_GAP_OPEN_PENALTY, UAC.INDEL_GAP_CONTINUATION_PENALTY,
                         UAC.OUTPUT_DEBUG_INDEL_INFO, !UAC.DONT_DO_BANDED_INDEL_COMPUTATION);
-                haplotypeMap = new LinkedHashMap<Allele, Haplotype>();
                 indelLikelihoodMap = new HashMap<PileupElement, LinkedHashMap<Allele, Double>>();
                 IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles(refSampleVC.getAlleles(), refContext, refContext.getLocus(), haplotypeMap); // will update haplotypeMap adding elements
             }
@@ -96,7 +96,8 @@ public class ErrorModel  {
                 final int readCounts[] = new int[refSamplePileup.getNumberOfElements()];
                 //perReadLikelihoods = new double[readCounts.length][refSampleVC.getAlleles().size()];
                 final int eventLength = IndelGenotypeLikelihoodsCalculationModel.getEventLength(refSampleVC.getAlleles());
-                perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, indelLikelihoodMap, readCounts);
+                if (!haplotypeMap.isEmpty())
+                    perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, indelLikelihoodMap, readCounts);
             }
             int idx = 0;
             for (PileupElement refPileupElement : refSamplePileup) {
@@ -108,7 +109,7 @@ public class ErrorModel  {
                     if (DEBUG) System.out.println(m);
                     isMatch |= m;
                 }
-                if (refSampleVC.isIndel()) {
+                if (refSampleVC.isIndel() && !haplotypeMap.isEmpty()) {
                     // ignore match/mismatch if reads, as determined by their likelihood, are not informative
                     double[] perAlleleLikelihoods = perReadLikelihoods[idx++];
                     if (!isInformativeElement(perAlleleLikelihoods))
@@ -173,10 +174,10 @@ public class ErrorModel  {
         // if test allele is ref, any base mismatch, or any insertion/deletion at start of pileup count as mismatch
         if (allele.isReference()) {
             // for a ref allele, any base mismatch or new indel is a mismatch.
-            if(allele.getBases().length>0 )
+            if(allele.getBases().length>0)
                 // todo - can't check vs. allele because allele is not padded so it doesn't include the reference base at this location
                 // could clean up/simplify this when unpadding is removed
-                return (pileupElement.getBase() == refBase);
+                return (pileupElement.getBase() == refBase && !pileupElement.isBeforeInsertion() && !pileupElement.isBeforeDeletionStart());
             else
                 // either null allele to compare, or ref/alt lengths are different (indel by definition).
                 // if we have an indel that we are comparing against a REF allele, any indel presence (of any length/content) is a mismatch
