@@ -533,27 +533,18 @@ public class GenotypingEngine {
             final int elementLength = ce.getLength();
             switch( ce.getOperator() ) {
                 case I:
-                    final byte[] insertionBases = Arrays.copyOfRange( alignment, alignmentPos - 1, alignmentPos + elementLength );  // add padding base
-                    boolean allN = true;
-                    for( int i = 1; i < insertionBases.length; i++ ) {  // check all bases except for the padding base
-                        if( insertionBases[i] != (byte) 'N' ) {
-                            allN = false;
-                            break;
-                        }
+                    final ArrayList<Allele> insertionAlleles = new ArrayList<Allele>();
+                    final int insertionStart = refLoc.getStart() + refPos - 1;
+                    insertionAlleles.add( Allele.create(ref[refPos-1], true) );
+                    if( haplotype != null && (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1 || haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1) ) {
+                        insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
+                    } else {
+                        byte[] insertionBases = new byte[]{};
+                        insertionBases = ArrayUtils.add(insertionBases, ref[refPos-1]); // add the padding base
+                        insertionBases = ArrayUtils.addAll(insertionBases, Arrays.copyOfRange( alignment, alignmentPos, alignmentPos + elementLength ));
+                        insertionAlleles.add( Allele.create(insertionBases, false) );
                     }
-                    if( !allN ) {
-                        final ArrayList<Allele> insertionAlleles = new ArrayList<Allele>();
-                        final int insertionStart = refLoc.getStart() + refPos - 1;
-                        insertionAlleles.add( Allele.create(ref[refPos-1], true) );
-                        if( haplotype != null && (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1 || haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1) ) {
-                            insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
-                            vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).make());
-                        } else {
-                            insertionAlleles.add( Allele.create(insertionBases, false) );
-                            vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).make());
-                        }
-
-                    }
+                    vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).make());
                     alignmentPos += elementLength;
                     break;
                 case S:

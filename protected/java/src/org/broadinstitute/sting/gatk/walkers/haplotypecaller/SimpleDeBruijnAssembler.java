@@ -281,7 +281,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                 final Haplotype h = new Haplotype( path.getBases( graph ), path.getScore() );
                 if( addHaplotype( h, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop ) ) {
                     if( !activeAllelesToGenotype.isEmpty() ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
-                        final HashMap<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h.getAlignmentStartHapwrtRef(), h.getCigar(), fullReferenceWithPadding, h.getBases(), refLoc, "HCassembly", 0 ); // BUGBUG: need to put this function in a shared place
+                        final HashMap<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), fullReferenceWithPadding, h.getBases(), refLoc, "HCassembly", 0 ); // BUGBUG: need to put this function in a shared place
                         for( final VariantContext compVC : activeAllelesToGenotype ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
                             final VariantContext vcOnHaplotype = eventMap.get(compVC.getStart());
                             if( vcOnHaplotype == null || !vcOnHaplotype.hasSameAllelesAs(compVC) ) {
@@ -311,7 +311,8 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     private boolean addHaplotype( final Haplotype haplotype, final byte[] ref, final ArrayList<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop ) {
-        //final int sizeOfActiveRegion = activeRegionStop - activeRegionStart;
+        if( haplotype == null ) { return false; }
+
         final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( ref, haplotype.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
         haplotype.setAlignmentStartHapwrtRef( swConsensus.getAlignmentStart2wrt1() );
         haplotype.setCigar( AlignmentUtils.leftAlignIndel(swConsensus.getCigar(), ref, haplotype.getBases(), swConsensus.getAlignmentStart2wrt1(), 0) );
