@@ -30,6 +30,7 @@ import com.google.java.contract.Requires;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.broadinstitute.sting.utils.variantcontext.VariantContext;
 
@@ -92,7 +93,7 @@ public class LikelihoodCalculationEngine {
         final int[][] readCounts = new int[numHaplotypes][numReads];
         for( int iii = 0; iii < numReads; iii++ ) {
             final GATKSAMRecord read = reads.get(iii);
-            final int readCount = getRepresentativeReadCount(read);
+            final int readCount = ReadUtils.getMeanRepresentativeReadCount(read);
 
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
@@ -121,15 +122,6 @@ public class LikelihoodCalculationEngine {
         for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
             haplotypes.get(jjj).addReadLikelihoods( sample, readLikelihoods[jjj], readCounts[jjj] );
         }
-    }
-
-    private static int getRepresentativeReadCount(GATKSAMRecord read) {
-        if (!read.isReducedRead())
-            return 1;
-
-        // compute mean representative read counts
-        final byte[] counts = read.getReducedReadCounts();
-        return MathUtils.sum(counts)/counts.length;
     }
 
     private static int computeFirstDifferingPosition( final byte[] b1, final byte[] b2 ) {
