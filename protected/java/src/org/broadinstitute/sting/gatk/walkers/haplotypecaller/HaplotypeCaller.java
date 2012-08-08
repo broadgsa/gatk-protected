@@ -128,9 +128,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = false)
     protected int MIN_PRUNE_FACTOR = 1;
 
+    @Advanced
     @Argument(fullName="genotypeFullActiveRegion", shortName="genotypeFullActiveRegion", doc = "If specified, alternate alleles are considered to be the full active region for the purposes of genotyping", required = false)
     protected boolean GENOTYPE_FULL_ACTIVE_REGION = false;
 
+    @Advanced
     @Argument(fullName="fullHaplotype", shortName="fullHaplotype", doc = "If specified, output the full haplotype sequence instead of converting to individual variants w.r.t. the reference", required = false)
     protected boolean OUTPUT_FULL_HAPLOTYPE_SEQUENCE = false;
 
@@ -140,9 +142,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Argument(fullName="downsampleRegion", shortName="dr", doc="coverage, per-sample, to downsample each active region to", required = false)
     protected int DOWNSAMPLE_PER_SAMPLE_PER_REGION = 1000;
-
-    @Argument(fullName="useExpandedTriggerSet", shortName="expandedTriggers", doc = "If specified, use additional, experimental triggers designed to capture larger indels but which may lead to an increase in the false positive rate", required=false)
-    protected boolean USE_EXPANDED_TRIGGER_SET = false;
 
     @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "If specified, use additional trigger on variants found in an external alleles file", required=false)
     protected boolean USE_ALLELES_TRIGGER = false;
@@ -245,8 +244,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC.clone(), logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
         UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY; // low values used for isActive determination only, default/user-specified values used for actual calling
         UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY; // low values used for isActive determination only, default/user-specified values used for actual calling
-        UAC.STANDARD_CONFIDENCE_FOR_CALLING = (USE_EXPANDED_TRIGGER_SET ? 0.3 : Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING) ); // low values used for isActive determination only, default/user-specified values used for actual calling
-        UAC.STANDARD_CONFIDENCE_FOR_EMITTING = (USE_EXPANDED_TRIGGER_SET ? 0.3 : Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING) ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        UAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING);
+        UAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING);
         UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
 
         // initialize the output VCF header
@@ -332,29 +331,19 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         final Map<String, AlignmentContext> splitContexts = AlignmentContextUtils.splitContextBySampleName(context);
         final GenotypesContext genotypes = GenotypesContext.create(splitContexts.keySet().size());
         final MathUtils.RunningAverage averageHQSoftClips = new MathUtils.RunningAverage();
-        for( Map.Entry<String, AlignmentContext> sample : splitContexts.entrySet() ) {
+        for( final Map.Entry<String, AlignmentContext> sample : splitContexts.entrySet() ) {
             final double[] genotypeLikelihoods = new double[3]; // ref versus non-ref (any event)
             Arrays.fill(genotypeLikelihoods, 0.0);
 
             for( final PileupElement p : sample.getValue().getBasePileup() ) {
-                final byte qual = ( USE_EXPANDED_TRIGGER_SET ?
-                                        ( p.isNextToSoftClip() || p.isBeforeInsertion() || p.isAfterInsertion() ? ( p.getQual() > QualityUtils.MIN_USABLE_Q_SCORE ? p.getQual() : (byte) 20 ) : p.getQual() )
-                                        : p.getQual() );
-                if( p.isDeletion() || qual > (USE_EXPANDED_TRIGGER_SET ? QualityUtils.MIN_USABLE_Q_SCORE : (byte) 18) ) {
+                final byte qual = p.getQual();
+                if( p.isDeletion() || qual > (byte) 18) {
                     int AA = 0; final int AB = 1; int BB = 2;
-                    if( USE_EXPANDED_TRIGGER_SET ) {
-                        if( p.getBase() != ref.getBase() || p.isDeletion() || p.isBeforeDeletedBase() || p.isAfterDeletedBase() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip() ||
-                                (!p.getRead().getNGSPlatform().equals(NGSPlatform.SOLID) && ((p.getRead().getReadPairedFlag() && p.getRead().getMateUnmappedFlag()) || BadMateFilter.hasBadMate(p.getRead()))) ) {
-                            AA = 2;
-                            BB = 0;
-                        }
-                    } else {
-                        if( p.getBase() != ref.getBase() || p.isDeletion() || p.isBeforeDeletedBase() || p.isAfterDeletedBase() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip() ) {
-                            AA = 2;
-                            BB = 0;
-                            if( p.isNextToSoftClip() ) {
-                                averageHQSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(p.getRead(), (byte) 28));
-                            }
+                    if( p.getBase() != ref.getBase() || p.isDeletion() || p.isBeforeDeletedBase() || p.isAfterDeletedBase() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip() ) {
+                        AA = 2;
+                        BB = 0;
+                        if( p.isNextToSoftClip() ) {
+                            averageHQSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(p.getRead(), (byte) 28));
                         }
                     }
                     genotypeLikelihoods[AA] += p.getRepresentativeCount() * QualityUtils.qualToProbLog10(qual);
