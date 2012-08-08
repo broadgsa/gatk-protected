@@ -3,6 +3,7 @@ package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 
 /**
@@ -200,5 +201,28 @@ public class HeaderElement {
         return baseQual >= minBaseQual && baseMappingQuality >= minMappingQual;
     }
 
+    /**
+     * Calculates the number of haplotypes necessary to represent this site.
+     *
+     * @param minVariantProportion the minimum proportion to call a site variant.
+     * @return the number of haplotypes necessary to represent this site.
+     */
+    public int getNumberOfHaplotypes(double minVariantProportion) {
+        int nHaplotypes = 0;
+        int totalCount = consensusBaseCounts.totalCount();
+        int runningCount = 0;
 
+        if (totalCount == 0)
+            return 0;
+
+        Object[] countsArray = consensusBaseCounts.countsArray();
+        Arrays.sort(countsArray);
+        for (int i = countsArray.length-1; i>=0; i--) {
+            nHaplotypes++;
+            runningCount += (Integer) countsArray[i];
+            if (runningCount/totalCount > minVariantProportion)
+                break;
+        }
+        return nHaplotypes;
+    }
 }

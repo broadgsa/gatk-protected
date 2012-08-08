@@ -52,23 +52,23 @@ import java.util.*;
 
 /**
  * Reduces the BAM file using read based compression that keeps only essential information for variant calling
- * <p/>
+ *
  * <p>
  * This walker will generated reduced versions of the BAM files that still follow the BAM spec
  * and contain all the information necessary for the GSA variant calling pipeline. Some options
  * allow you to tune in how much compression you want to achieve. The default values have been
  * shown to reduce a typical whole exome BAM file 100x. The higher the coverage, the bigger the
  * savings in file size and performance of the downstream tools.
- * <p/>
+ *
  * <h2>Input</h2>
  * <p>
  * The BAM file to be compressed
  * </p>
- * <p/>
+ *
  * <h2>Output</h2>
  * <p>
  * The compressed (reduced) BAM file.
- * </p>
+ *
  * <p/>
  * <h2>Examples</h2>
  * <pre>
@@ -86,13 +86,13 @@ import java.util.*;
 public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceReadsStash> {
 
     @Output
-    protected StingSAMFileWriter out;
+    private StingSAMFileWriter out;
 
     /**
      * The number of bases to keep around mismatches (potential variation)
      */
     @Argument(fullName = "context_size", shortName = "cs", doc = "", required = false)
-    protected int contextSize = 10;
+    private int contextSize = 10;
 
     /**
      * The minimum mapping quality to be considered for the consensus synthetic read. Reads that have
@@ -100,7 +100,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * towards variable regions.
      */
     @Argument(fullName = "minimum_mapping_quality", shortName = "minmap", doc = "", required = false)
-    protected int minMappingQuality = 20;
+    private int minMappingQuality = 20;
 
     /**
      * The minimum base quality to be considered for the consensus synthetic read. Reads that have
@@ -108,35 +108,35 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * towards variable regions.
      */
     @Argument(fullName = "minimum_base_quality_to_consider", shortName = "minqual", doc = "", required = false)
-    protected byte minBaseQual = 20;
+    private byte minBaseQual = 20;
 
     /**
      * Reads have notoriously low quality bases on the tails (left and right). Consecutive bases with quality
      * lower than this threshold will be hard clipped off before entering the reduce reads algorithm.
      */
     @Argument(fullName = "minimum_tail_qualities", shortName = "mintail", doc = "", required = false)
-    protected byte minTailQuality = 2;
+    private byte minTailQuality = 2;
 
     /**
      * Do not simplify read (strip away all extra information of the read -- anything other than bases, quals
      * and read group).
      */
     @Argument(fullName = "dont_simplify_reads", shortName = "nosimplify", doc = "", required = false)
-    protected boolean DONT_SIMPLIFY_READS = false;
+    private boolean DONT_SIMPLIFY_READS = false;
 
     /**
      * Do not hard clip adaptor sequences. Note: You don't have to turn this on for reads that are not mate paired.
      * The program will behave correctly in those cases.
      */
     @Argument(fullName = "dont_hardclip_adaptor_sequences", shortName = "noclip_ad", doc = "", required = false)
-    protected boolean DONT_CLIP_ADAPTOR_SEQUENCES = false;
+    private boolean DONT_CLIP_ADAPTOR_SEQUENCES = false;
 
     /**
      * Do not hard clip the low quality tails of the reads. This option overrides the argument of minimum tail
      * quality.
      */
     @Argument(fullName = "dont_hardclip_low_qual_tails", shortName = "noclip_tail", doc = "", required = false)
-    protected boolean DONT_CLIP_LOW_QUAL_TAILS = false;
+    private boolean DONT_CLIP_LOW_QUAL_TAILS = false;
 
     /**
      * Do not use high quality soft-clipped bases. By default, ReduceReads will hard clip away any low quality soft clipped
@@ -144,7 +144,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * regions. The minimum quality for soft clipped bases is the same as the minimum base quality to consider (minqual)
      */
     @Argument(fullName = "dont_use_softclipped_bases", shortName = "no_soft", doc = "", required = false)
-    protected boolean DONT_USE_SOFTCLIPPED_BASES = false;
+    private boolean DONT_USE_SOFTCLIPPED_BASES = false;
 
     /**
      * Do not compress read names. By default, ReduceReads will compress read names to numbers and guarantee 
@@ -152,47 +152,56 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * there is no guarantee that read name uniqueness will be maintained -- in this case we recommend not compressing. 
      */
     @Argument(fullName = "dont_compress_read_names", shortName = "nocmp_names", doc = "", required = false)
-    protected boolean DONT_COMPRESS_READ_NAMES = false;
+    private boolean DONT_COMPRESS_READ_NAMES = false;
 
     /**
      * Optionally hard clip all incoming reads to the desired intervals. The hard clips will happen exactly at the interval
      * border.
      */
     @Argument(fullName = "hard_clip_to_interval", shortName = "clip_int", doc = "", required = false)
-    protected boolean HARD_CLIP_TO_INTERVAL = false;
+    private boolean HARD_CLIP_TO_INTERVAL = false;
 
     /**
      * Minimum proportion of mismatches in a site to trigger a variant region. Anything below this will be
      * considered consensus.
      */
     @Argument(fullName = "minimum_alt_proportion_to_trigger_variant", shortName = "minvar", doc = "", required = false)
-    protected double minAltProportionToTriggerVariant = 0.05;
+    private double minAltProportionToTriggerVariant = 0.05;
 
     /**
      * Minimum proportion of indels in a site to trigger a variant region. Anything below this will be
      * considered consensus.
      */
     @Argument(fullName = "minimum_del_proportion_to_trigger_variant", shortName = "mindel", doc = "", required = false)
-    protected double minIndelProportionToTriggerVariant = 0.05;
+    private double minIndelProportionToTriggerVariant = 0.05;
+
+    /**
+     * Minimum proportion of indels in a site to trigger a variant region. Anything below this will be
+     * considered consensus.
+     */
+    @Argument(fullName = "contigs", shortName = "ctg", doc = "", required = false)
+    private int nContigs = 2;
+
+
 
     /**
      * Downsamples the coverage of a variable region approximately (guarantees the minimum to be equal to this).
      * A value of 0 turns downsampling off.
      */
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
-    protected int downsampleCoverage = 250;
+    private int downsampleCoverage = 250;
 
     @Hidden
     @Argument(fullName = "", shortName = "dl", doc = "", required = false)
-    protected int debugLevel = 0;
+    private int debugLevel = 0;
 
     @Hidden
     @Argument(fullName = "", shortName = "dr", doc = "", required = false)
-    protected String debugRead = "";
+    private String debugRead = "";
 
     @Hidden
     @Argument(fullName = "downsample_strategy", shortName = "dm", doc = "", required = false)
-    protected DownsampleStrategy downsampleStrategy = DownsampleStrategy.Normal;
+    private DownsampleStrategy downsampleStrategy = DownsampleStrategy.Normal;
     
     @Hidden 
     @Argument(fullName = "no_pg_tag", shortName = "npt", doc ="", required = false)
@@ -203,7 +212,6 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         Adaptive
     }
     
-    protected int totalReads = 0;
     int nCompressedReads = 0;
 
     HashMap<String, Long> readNameHash;                                     // This hash will keep the name of the original read the new compressed name (a number).
@@ -249,7 +257,6 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     @Override
     public LinkedList<GATKSAMRecord> map(ReferenceContext ref, GATKSAMRecord read, RefMetaDataTracker metaDataTracker) {
         LinkedList<GATKSAMRecord> mappedReads;
-        totalReads++;
         if (!debugRead.isEmpty() && read.getReadName().contains(debugRead))
                 System.out.println("Found debug read!");
 
@@ -316,7 +323,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      */
     @Override
     public ReduceReadsStash reduceInit() {
-        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
+        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs));
     }
 
     /**
@@ -532,8 +539,6 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
                 read.setAttribute(GATKSAMRecord.REDUCED_READ_ORIGINAL_ALIGNMENT_START_SHIFT, startShift);               // If the read had any soft clips before getting chopped (variant region) annotate it's original alignment (start)
             if (endShift > 0)
                 read.setAttribute(GATKSAMRecord.REDUCED_READ_ORIGINAL_ALIGNMENT_END_SHIFT, endShift);                   // If the read had any soft clips before getting chopped (variant region) annotate it's original alignment (end)
-            
-            totalReads++;
         }
 
         if (debugLevel == 1)

@@ -220,4 +220,8 @@ import java.util.Map;
             return 0.0;
         return (double) counts.get(index) / totalCountWithoutIndels();
     }
+
+    public Object[] countsArray() {
+        return (Object []) counts.values().toArray();
+    }
 }

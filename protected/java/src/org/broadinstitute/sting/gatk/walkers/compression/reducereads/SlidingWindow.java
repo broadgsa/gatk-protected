@@ -8,14 +8,12 @@ import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -56,6 +54,8 @@ public class SlidingWindow {
     protected ReduceReads.DownsampleStrategy downsampleStrategy;
     private boolean hasIndelQualities;
 
+    private final int nContigs;
+
     /**
      * The types of synthetic reads to use in the finalizeAndAdd method
      */
@@ -77,12 +77,12 @@ public class SlidingWindow {
         return contigIndex;
     }
 
-    public int getStartLocation() {
-        return windowHeader.isEmpty() ? -1 : windowHeader.peek().getLocation();
+    public int getStartLocation(LinkedList<HeaderElement> header) {
+        return header.isEmpty() ? -1 : header.peek().getLocation();
     }
 
 
-    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader header, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities) {
+    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader header, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, int nContigs) {
         this.stopLocation = -1;
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
@@ -111,6 +111,7 @@ public class SlidingWindow {
         
         this.downsampleStrategy = downsampleStrategy;
         this.hasIndelQualities = hasIndelQualities;
+        this.nContigs = nContigs;
     }
 
     /**
@@ -125,7 +126,7 @@ public class SlidingWindow {
      * @return a list of reads that have been finished by sliding the window.
      */
     public List<GATKSAMRecord> addRead(GATKSAMRecord read) {
-        updateHeaderCounts(read, false);                                                                                // update the window header counts
+        addToHeader(windowHeader, read);                                                                                // update the window header counts
         readsInWindow.add(read);                                                                                        // add read to sliding reads
         return slideWindow(read.getUnclippedStart());
     }
@@ -191,9 +192,9 @@ public class SlidingWindow {
     protected List<GATKSAMRecord> slideWindow(int incomingReadUnclippedStart) {
         List<GATKSAMRecord> finalizedReads = new LinkedList<GATKSAMRecord>();
 
-        if (incomingReadUnclippedStart - contextSize > getStartLocation()) {
-            int readStartHeaderIndex = incomingReadUnclippedStart - getStartLocation();
-            boolean[] variantSite = markSites(getStartLocation() + readStartHeaderIndex);
+        if (incomingReadUnclippedStart - contextSize > getStartLocation(windowHeader)) {
+            int readStartHeaderIndex = incomingReadUnclippedStart - getStartLocation(windowHeader);
+            boolean[] variantSite = markSites(getStartLocation(windowHeader) + readStartHeaderIndex);
             int breakpoint = Math.max(readStartHeaderIndex - contextSize - 1, 0);                                       // this is the limit of what we can close/send to consensus (non-inclusive)
 
             List<Pair<Integer,Integer>> regions = getAllVariantRegions(0, breakpoint, variantSite);
@@ -201,7 +202,7 @@ public class SlidingWindow {
 
             List<GATKSAMRecord> readsToRemove = new LinkedList<GATKSAMRecord>();
             for (GATKSAMRecord read : readsInWindow) {                                                                  // todo -- unnecessarily going through all reads in the window !! Optimize this (But remember reads are not sorted by alignment end!)
-                if (read.getAlignmentEnd() < getStartLocation()) {
+                if (read.getAlignmentEnd() < getStartLocation(windowHeader)) {
                     readsToRemove.add(read);
                 }
             }
@@ -222,15 +223,15 @@ public class SlidingWindow {
      */
     protected boolean[] markSites(int stop) {
 
-        boolean[] markedSites = new boolean[stop - getStartLocation() + contextSize + 1];
+        boolean[] markedSites = new boolean[stop - getStartLocation(windowHeader) + contextSize + 1];
 
         Iterator<HeaderElement> headerElementIterator = windowHeader.iterator();
-        for (int i = getStartLocation(); i < stop; i++) {
+        for (int i = getStartLocation(windowHeader); i < stop; i++) {
             if (headerElementIterator.hasNext()) {
                 HeaderElement headerElement = headerElementIterator.next();
 
                 if (headerElement.isVariant(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT, MIN_INDEL_BASE_PROPORTION_TO_TRIGGER_VARIANT))
-                    markVariantRegion(markedSites, i - getStartLocation());
+                    markVariantRegion(markedSites, i - getStartLocation(windowHeader));
 
             } else
                 break;
@@ -260,14 +261,13 @@ public class SlidingWindow {
      * @param end   the first header index NOT TO add to consensus
      * @return a list of consensus reads generated by this call. Empty list if no consensus was generated.
      */
-    protected List<GATKSAMRecord> addToSyntheticReads(int start, int end) {
+    protected List<GATKSAMRecord> addToSyntheticReads(List<HeaderElement> header, int start, int end) {
         LinkedList<GATKSAMRecord> reads = new LinkedList<GATKSAMRecord>();
         if (start < end) {
-
-            ListIterator<HeaderElement> headerElementIterator = windowHeader.listIterator(start);
+            ListIterator<HeaderElement> headerElementIterator = header.listIterator(start);
 
             if (!headerElementIterator.hasNext())
-                throw new ReviewedStingException(String.format("Requested to add to synthetic reads a region that contains no header element at index: %d  - %d / %d", start, windowHeader.size(), end));
+                throw new ReviewedStingException(String.format("Requested to add to synthetic reads a region that contains no header element at index: %d  - %d / %d", start, header.size(), end));
 
             HeaderElement headerElement = headerElementIterator.next();
 
@@ -280,7 +280,7 @@ public class SlidingWindow {
                 if (endOfConsensus <= start)
                     throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfConsensus, start));
 
-                reads.addAll(addToSyntheticReads(endOfConsensus, end));
+                reads.addAll(addToSyntheticReads(header, endOfConsensus, end));
             } else if (headerElement.hasFilteredData()) {
                 reads.addAll(finalizeAndAdd(ConsensusType.CONSENSUS));
 
@@ -290,7 +290,7 @@ public class SlidingWindow {
                 if (endOfFilteredData <= start)
                     throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfFilteredData, start));
 
-                reads.addAll(addToSyntheticReads(endOfFilteredData, end));
+                reads.addAll(addToSyntheticReads(header, endOfFilteredData, end));
             } else if (headerElement.isEmpty()) {
                 reads.addAll(finalizeAndAdd(ConsensusType.BOTH));
 
@@ -299,7 +299,7 @@ public class SlidingWindow {
                 if (endOfEmptyData <= start)
                     throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfEmptyData, start));
 
-                reads.addAll(addToSyntheticReads(endOfEmptyData, end));
+                reads.addAll(addToSyntheticReads(header, endOfEmptyData, end));
             } else
                 throw new ReviewedStingException(String.format("Header Element %d is neither Consensus, Data or Empty. Something is wrong.", start));
 
@@ -474,6 +474,55 @@ public class SlidingWindow {
         syntheticRead.add(base, count, qual, insQual, delQual, rms);
     }
 
+    private List<GATKSAMRecord> compressVariantRegion(int start, int stop) {
+        List<GATKSAMRecord> allReads = new LinkedList<GATKSAMRecord>();
+
+        // Try to compress into a polyploid consensus
+        int nHaplotypes = 0;
+        int hetRefPosition = -1;
+        boolean canCompress = true;
+        boolean foundEvent = false;
+        Object[] header = windowHeader.toArray();
+        for (int i = start; i<=stop; i++) {
+            nHaplotypes = Math.max(nHaplotypes, ((HeaderElement) header[i]).getNumberOfHaplotypes(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT));
+            if (nHaplotypes > nContigs) {
+                canCompress = false;
+                break;
+            }
+
+            // guarantees that there is only 1 site in the variant region that needs more than one haplotype
+            if (nHaplotypes > 1) {
+                if (!foundEvent) {
+                    foundEvent = true;
+                    hetRefPosition = i;
+                }
+                else {
+                    canCompress = false;
+                    break;
+                }
+            }
+        }
+
+        int refStart = windowHeader.get(start).getLocation();
+        int refStop = windowHeader.get(stop).getLocation();
+
+        // Try to compress the variant region
+        if (canCompress) {
+            allReads = createPolyploidConsensus(start, stop, nHaplotypes, hetRefPosition);
+        }
+
+        // Return all reads that overlap the variant region and remove them read from the window header entirely
+        else {
+            for (GATKSAMRecord read : readsInWindow) {
+                if (read.getSoftStart() <= refStop && read.getAlignmentEnd() >= refStart) {
+                    allReads.add(read);
+                    removeFromHeader(windowHeader, read);
+                }
+            }
+        }
+        return allReads;
+    }
+
     /**
      * Finalizes a variant region, any adjacent synthetic reads.
      *
@@ -483,20 +532,10 @@ public class SlidingWindow {
      */
     @Requires("start <= stop")
     protected List<GATKSAMRecord> closeVariantRegion(int start, int stop) {
-        List<GATKSAMRecord> allReads = new LinkedList<GATKSAMRecord>();
-
-        int refStart = windowHeader.get(start).getLocation();                                                           // All operations are reference based, not read based
-        int refStop = windowHeader.get(stop).getLocation();
-
-        for (GATKSAMRecord read : readsInWindow) {                                                                      // Keep all reads that overlap the variant region
-            if (read.getSoftStart() <= refStop && read.getAlignmentEnd() >= refStart) {
-                allReads.add(read);
-                updateHeaderCounts(read, true);                                                                         // Remove this read from the window header entirely
-            }
-        }
+        List<GATKSAMRecord> allReads = compressVariantRegion(start, stop);
 
         List<GATKSAMRecord> result = (downsampleCoverage > 0) ? downsampleVariantRegion(allReads) : allReads;
-        result.addAll(addToSyntheticReads(0, start));
+        result.addAll(addToSyntheticReads(windowHeader, 0, start));
         result.addAll(finalizeAndAdd(ConsensusType.BOTH));
 
         for (GATKSAMRecord read : allReads) {
@@ -566,7 +605,7 @@ public class SlidingWindow {
             finalizedReads = closeVariantRegions(regions, true);
 
             if (!windowHeader.isEmpty()) {
-                finalizedReads.addAll(addToSyntheticReads(0, windowHeader.size() - 1));
+                finalizedReads.addAll(addToSyntheticReads(windowHeader, 0, windowHeader.size() - 1));
                 finalizedReads.addAll(finalizeAndAdd(ConsensusType.BOTH));                                              // if it ended in running consensus, finish it up
             }
 
@@ -611,13 +650,75 @@ public class SlidingWindow {
     }
 
 
+
+    private List<GATKSAMRecord> createPolyploidConsensus(int start, int stop, int nHaplotypes, int hetRefPosition) {
+        // we will create two (positive strand, negative strand) headers for each contig
+        List<LinkedList<HeaderElement>> headersPosStrand = new ArrayList<LinkedList<HeaderElement>>();
+        List<LinkedList<HeaderElement>> headersNegStrand = new ArrayList<LinkedList<HeaderElement>>();
+        Map<Byte, Integer> haplotypeHeaderMap = new HashMap<Byte, Integer>(nHaplotypes);
+        int currentHaplotype = 0;
+        int refStart = windowHeader.get(start).getLocation();
+        int refStop = windowHeader.get(stop).getLocation();
+
+        for (GATKSAMRecord read : readsInWindow) {
+            int haplotype = -1;
+
+            // check if the read is inside the variant region
+            if ( read.getMappingQuality() > MIN_MAPPING_QUALITY && (read.getSoftStart() <= refStop && read.getSoftEnd() >= refStart)) {
+
+                // check if the read contains the het site
+                if (read.getSoftStart() <= hetRefPosition && read.getSoftEnd() >= hetRefPosition) {
+                    int readPos = ReadUtils.getReadCoordinateForReferenceCoordinate(read, hetRefPosition, ReadUtils.ClippingTail.LEFT_TAIL);
+                    byte base = read.getReadBases()[readPos];
+                    byte qual = read.getBaseQualities(EventType.BASE_SUBSTITUTION)[readPos];
+
+                    // check if base passes the filters!
+                    if (qual > MIN_BASE_QUAL_TO_COUNT) {
+                        // check which haplotype this read represents and take the index of it from the list of headers
+                        if (haplotypeHeaderMap.containsKey(base)) {
+                            haplotype = haplotypeHeaderMap.get(base);
+                        }
+                        // create new lists if this haplotype has not been seen yet
+                        else {
+                            haplotype = ++currentHaplotype;
+                            haplotypeHeaderMap.put(base, currentHaplotype);
+                            headersPosStrand.add(new LinkedList<HeaderElement>());
+                            headersNegStrand.add(new LinkedList<HeaderElement>());
+                        }
+                    }
+                    LinkedList<HeaderElement> header = read.getReadNegativeStrandFlag() ? headersNegStrand.get(haplotype) : headersPosStrand.get(haplotype);
+                    addToHeader(header, read);
+                }
+            }
+        }
+
+        List<GATKSAMRecord> hetReads = new LinkedList<GATKSAMRecord>();
+        for (List<HeaderElement> header : headersPosStrand) {
+            hetReads.addAll(addToSyntheticReads(header, 0, header.size()));
+            hetReads.add(finalizeRunningConsensus());
+        }
+        return hetReads;
+    }
+
+
+    private void addToHeader(LinkedList<HeaderElement> header, GATKSAMRecord read) {
+        updateHeaderCounts(header, read, false);
+    }
+
+    private void removeFromHeader(LinkedList<HeaderElement> header, GATKSAMRecord read) {
+        updateHeaderCounts(header, read, true);
+    }
+
+
     /**
      * Updates the sliding window's header counts with the incoming read bases, insertions
      * and deletions.
      *
+     * @param header the sliding window header to use
      * @param read the incoming read to be added to the sliding window
+     * @param removeRead if we are removing the read from the header or adding
      */
-    protected void updateHeaderCounts(GATKSAMRecord read, boolean removeRead) {
+    private void updateHeaderCounts(LinkedList<HeaderElement> header, GATKSAMRecord read, boolean removeRead) {
         byte[] bases = read.getReadBases();
         byte[] quals = read.getBaseQualities();
         byte[] insQuals = read.getExistingBaseInsertionQualities();
@@ -627,7 +728,7 @@ public class SlidingWindow {
         Cigar cigar = read.getCigar();
 
         int readBaseIndex = 0;
-        int startLocation = getStartLocation();
+        int startLocation = getStartLocation(header);
         int locationIndex = startLocation < 0 ? 0 : readStart - startLocation;
 
         if (removeRead && locationIndex < 0)
@@ -636,7 +737,7 @@ public class SlidingWindow {
         if (!removeRead) {                                                                                              // we only need to create new header elements if we are adding the read, not when we're removing it
             if (locationIndex < 0) {                                                                                    // Do we need to add extra elements before the start of the header? -- this may happen if the previous read was clipped and this alignment starts before the beginning of the window
                 for (int i = 1; i <= -locationIndex; i++)
-                    windowHeader.addFirst(new HeaderElement(startLocation - i));
+                    header.addFirst(new HeaderElement(startLocation - i));
 
                 startLocation = readStart;                                                               // update start location accordingly
                 locationIndex = 0;
@@ -645,19 +746,19 @@ public class SlidingWindow {
             if (stopLocation < readEnd) {                                                                // Do we need to add extra elements to the header?
                 int elementsToAdd = (stopLocation < 0) ? readEnd - readStart + 1 : readEnd - stopLocation;
                 while (elementsToAdd-- > 0)
-                    windowHeader.addLast(new HeaderElement(readEnd - elementsToAdd));
+                    header.addLast(new HeaderElement(readEnd - elementsToAdd));
 
                 stopLocation = readEnd;                                                                  // update stopLocation accordingly
             }
 
             // Special case for leading insertions before the beginning of the sliding read
             if (ReadUtils.readStartsWithInsertion(read).getFirst() && (readStart == startLocation || startLocation < 0)) {
-                windowHeader.addFirst(new HeaderElement(readStart - 1));                                 // create a new first element to the window header with no bases added
+                header.addFirst(new HeaderElement(readStart - 1));                                 // create a new first element to the window header with no bases added
                 locationIndex = 1;                                                                                      // This allows the first element (I) to look at locationIndex - 1 in the subsequent switch and do the right thing.
             }
         }
 
-        Iterator<HeaderElement> headerElementIterator = windowHeader.listIterator(locationIndex);
+        Iterator<HeaderElement> headerElementIterator = header.listIterator(locationIndex);
         HeaderElement headerElement;
         for (CigarElement cigarElement : cigar.getCigarElements()) {
             switch (cigarElement.getOperator()) {
@@ -668,7 +769,7 @@ public class SlidingWindow {
                         break;
                     }
 
-                    headerElement = windowHeader.get(locationIndex - 1);                                                // insertions are added to the base to the left (previous element)
+                    headerElement = header.get(locationIndex - 1);                                                // insertions are added to the base to the left (previous element)
 
                     if (removeRead) {
                         headerElement.removeInsertionToTheRight();
