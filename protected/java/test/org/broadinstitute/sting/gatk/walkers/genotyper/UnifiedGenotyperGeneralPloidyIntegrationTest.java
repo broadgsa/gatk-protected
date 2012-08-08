@@ -55,12 +55,12 @@ public class UnifiedGenotyperGeneralPloidyIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testINDEL_maxAlleles2_ploidy3_Pools_noRef() {
+    public void testINDEL_maxAltAlleles2_ploidy3_Pools_noRef() {
         PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","96087fe9240e3656cc2a4e0ff0174d5b");
     }
 
     @Test
-    public void testINDEL_maxAlleles2_ploidy1_Pools_noRef() {
+    public void testINDEL_maxAltAlleles2_ploidy1_Pools_noRef() {
         PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 1","LSV_INDEL_DISC_NOREF_p1","INDEL","6fdae7093831ecfc82a06dd707d62fe9");
     }
 
