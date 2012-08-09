@@ -499,7 +499,7 @@ public class SlidingWindow {
         result.addAll(addToSyntheticReads(0, start));
         result.addAll(finalizeAndAdd(ConsensusType.BOTH));
 
-        for (GATKSAMRecord read : result) {
+        for (GATKSAMRecord read : allReads) {
             readsInWindow.remove(read);                                                                                 // todo -- not optimal, but needs to be done so the next region doesn't try to remove the same reads from the header counts.
         }
 
@@ -627,7 +627,7 @@ public class SlidingWindow {
         int locationIndex = startLocation < 0 ? 0 : readStart - startLocation;
 
         if (removeRead && locationIndex < 0)
-            throw new ReviewedStingException("read is behind the Sliding Window. read: " + read + " cigar: " + read.getCigarString() + " window: " + startLocation + "," + stopLocation);
+            throw new ReviewedStingException("read is behind the Sliding Window. read: " + read + " start " + read.getUnclippedStart() + "," + read.getUnclippedEnd() + " cigar: " + read.getCigarString() + " window: " + startLocation + "," + stopLocation);
 
         if (!removeRead) {                                                                                              // we only need to create new header elements if we are adding the read, not when we're removing it
             if (locationIndex < 0) {                                                                                    // Do we need to add extra elements before the start of the header? -- this may happen if the previous read was clipped and this alignment starts before the beginning of the window
