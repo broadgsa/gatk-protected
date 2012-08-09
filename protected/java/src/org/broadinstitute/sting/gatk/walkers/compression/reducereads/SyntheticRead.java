@@ -5,7 +5,7 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
-import org.broadinstitute.sting.gatk.walkers.bqsr.EventType;
+import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
@@ -102,7 +102,7 @@ public class SyntheticRead {
      * @param base   the base to add
      * @param count  number of reads with this base
      */
-    @Requires("count < Byte.MAX_VALUE")
+    @Requires("count <= Byte.MAX_VALUE")
     public void add(BaseIndex base, byte count, byte qual, byte insQual, byte delQual, double mappingQuality) {
         counts.add(count);
         bases.add(base);

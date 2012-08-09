@@ -53,7 +53,7 @@ public class SlidingWindow {
     protected int MIN_BASE_QUAL_TO_COUNT;                                                                               // qual has to be greater than or equal to this value
     protected int MIN_MAPPING_QUALITY;
 
-    protected ReduceReadsWalker.DownsampleStrategy downsampleStrategy;
+    protected ReduceReads.DownsampleStrategy downsampleStrategy;
     private boolean hasIndelQualities;
 
     /**
@@ -82,7 +82,7 @@ public class SlidingWindow {
     }
 
 
-    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader header, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReadsWalker.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities) {
+    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader header, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities) {
         this.stopLocation = -1;
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
@@ -499,7 +499,7 @@ public class SlidingWindow {
         result.addAll(addToSyntheticReads(0, start));
         result.addAll(finalizeAndAdd(ConsensusType.BOTH));
 
-        for (GATKSAMRecord read : result) {
+        for (GATKSAMRecord read : allReads) {
             readsInWindow.remove(read);                                                                                 // todo -- not optimal, but needs to be done so the next region doesn't try to remove the same reads from the header counts.
         }
 
@@ -536,6 +536,10 @@ public class SlidingWindow {
      * @return a list of reads selected by the downsampler to cover the window to at least the desired coverage
      */
     protected List<GATKSAMRecord> downsampleVariantRegion(final List<GATKSAMRecord> allReads) {
+        int nReads = allReads.size();
+        if (nReads == 0)
+            return allReads;
+
         double fraction = 100 / allReads.size();
         if (fraction >= 1)
             return allReads;
@@ -544,6 +548,7 @@ public class SlidingWindow {
         downsampler.submit(allReads);
         return downsampler.consumeDownsampledItems();
     }
+
 
     /**
      * Properly closes a Sliding Window, finalizing all consensus and variant
@@ -627,7 +632,7 @@ public class SlidingWindow {
         int locationIndex = startLocation < 0 ? 0 : readStart - startLocation;
 
         if (removeRead && locationIndex < 0)
-            throw new ReviewedStingException("read is behind the Sliding Window. read: " + read + " cigar: " + read.getCigarString() + " window: " + startLocation + "," + stopLocation);
+            throw new ReviewedStingException("read is behind the Sliding Window. read: " + read + " start " + read.getUnclippedStart() + "," + read.getUnclippedEnd() + " cigar: " + read.getCigarString() + " window: " + startLocation + "," + stopLocation);
 
         if (!removeRead) {                                                                                              // we only need to create new header elements if we are adding the read, not when we're removing it
             if (locationIndex < 0) {                                                                                    // Do we need to add extra elements before the start of the header? -- this may happen if the previous read was clipped and this alignment starts before the beginning of the window
