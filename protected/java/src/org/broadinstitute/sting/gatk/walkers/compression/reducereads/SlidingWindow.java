@@ -484,7 +484,7 @@ public class SlidingWindow {
         boolean foundEvent = false;
         Object[] header = windowHeader.toArray();
         for (int i = start; i<=stop; i++) {
-            nHaplotypes = Math.max(nHaplotypes, ((HeaderElement) header[i]).getNumberOfHaplotypes(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT));
+            nHaplotypes = ((HeaderElement) header[i]).getNumberOfHaplotypes(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
             if (nHaplotypes > nContigs) {
                 canCompress = false;
                 break;
@@ -519,6 +519,8 @@ public class SlidingWindow {
                     removeFromHeader(windowHeader, read);
                 }
             }
+            for (GATKSAMRecord read : allReads)
+                readsInWindow.remove(read);
         }
         return allReads;
     }
@@ -537,10 +539,6 @@ public class SlidingWindow {
         List<GATKSAMRecord> result = (downsampleCoverage > 0) ? downsampleVariantRegion(allReads) : allReads;
         result.addAll(addToSyntheticReads(windowHeader, 0, start));
         result.addAll(finalizeAndAdd(ConsensusType.BOTH));
-
-        for (GATKSAMRecord read : allReads) {
-            readsInWindow.remove(read);                                                                                 // todo -- not optimal, but needs to be done so the next region doesn't try to remove the same reads from the header counts.
-        }
 
         return result;                                                                                                  // finalized reads will be downsampled if necessary
     }
@@ -659,7 +657,7 @@ public class SlidingWindow {
         int currentHaplotype = 0;
         int refStart = windowHeader.get(start).getLocation();
         int refStop = windowHeader.get(stop).getLocation();
-
+        List<GATKSAMRecord> toRemove = new LinkedList<GATKSAMRecord>();
         for (GATKSAMRecord read : readsInWindow) {
             int haplotype = -1;
 
@@ -688,6 +686,7 @@ public class SlidingWindow {
                     }
                     LinkedList<HeaderElement> header = read.getReadNegativeStrandFlag() ? headersNegStrand.get(haplotype) : headersPosStrand.get(haplotype);
                     addToHeader(header, read);
+                    toRemove.add(read);
                 }
             }
         }
@@ -696,6 +695,10 @@ public class SlidingWindow {
         for (List<HeaderElement> header : headersPosStrand) {
             hetReads.addAll(addToSyntheticReads(header, 0, header.size()));
             hetReads.add(finalizeRunningConsensus());
+        }
+
+        for (GATKSAMRecord read : toRemove) {
+            readsInWindow.remove(read);
         }
         return hetReads;
     }
