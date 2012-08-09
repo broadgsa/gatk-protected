@@ -102,7 +102,7 @@ public class SyntheticRead {
      * @param base   the base to add
      * @param count  number of reads with this base
      */
-    @Requires("count < Byte.MAX_VALUE")
+    @Requires("count <= Byte.MAX_VALUE")
     public void add(BaseIndex base, byte count, byte qual, byte insQual, byte delQual, double mappingQuality) {
         counts.add(count);
         bases.add(base);

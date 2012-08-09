@@ -11,6 +11,8 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     final String DELETION_BAM = validationDataLocation + "filtered_deletion_for_reduce_reads.bam";
     final String STASH_BAM = validationDataLocation + "ReduceReadsStashBug.bam";
     final String STASH_L = " -L 14:73718184-73718284 -L 14:73718294-73718330 -L 14:73718360-73718556";
+    final String DIVIDEBYZERO_BAM = validationDataLocation + "ReduceReadsDivideByZeroBug.bam";
+    final String DIVIDEBYZERO_L = " -L " + validationDataLocation + "ReduceReadsDivideByZeroBug.intervals";
     final String L = " -L 20:10,100,000-10,120,000 ";
 
     private void RRTest(String testName, String args, String md5) {
@@ -64,5 +66,16 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", STASH_L, REF, STASH_BAM) + " -o %s ";
         executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("886b43e1f26ff18425814dc7563931c6")));
     }
+
+    /**
+     * Divide by zero bug reported by GdA and users in the forum. Happens when the downsampler goes over a region where all reads get
+     * filtered out.
+     */
+    @Test(enabled = true)
+    public void testDivideByZero() {
+        String base = String.format("-T ReduceReads %s -npt -R %s -I %s", DIVIDEBYZERO_L, REF, DIVIDEBYZERO_BAM) + " -o %s ";
+        executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("137505c3efd1e9f8d9209dbdf8419ff9")));
+    }
+
 }
 

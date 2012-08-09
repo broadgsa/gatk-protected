@@ -251,7 +251,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         LinkedList<GATKSAMRecord> mappedReads;
         totalReads++;
         if (!debugRead.isEmpty() && read.getReadName().contains(debugRead))
-            System.out.println("Found debug read!");
+                System.out.println("Found debug read!");
 
         if (debugLevel == 1)
             System.out.printf("\nOriginal: %s %s %d %d\n", read, read.getCigar(), read.getAlignmentStart(), read.getAlignmentEnd());
@@ -260,7 +260,14 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         // attribute hash so we can determine later if we need to write down the alignment shift to the reduced BAM file
         read.setTemporaryAttribute(GATKSAMRecord.REDUCED_READ_ORIGINAL_ALIGNMENT_START_SHIFT, read.getAlignmentStart());
         read.setTemporaryAttribute(GATKSAMRecord.REDUCED_READ_ORIGINAL_ALIGNMENT_END_SHIFT, read.getAlignmentEnd());
-        
+
+        // Check if the read goes beyond the boundaries of the chromosome, and hard clip those boundaries.
+        int chromosomeLength = ref.getGenomeLocParser().getContigInfo(read.getReferenceName()).getSequenceLength();
+        if (read.getSoftStart() < 0)
+            read = ReadClipper.hardClipByReadCoordinates(read, 0, -read.getSoftStart() - 1);
+        if (read.getSoftEnd() > chromosomeLength)
+            read = ReadClipper.hardClipByReadCoordinates(read, chromosomeLength - read.getSoftStart() + 1, read.getReadLength() - 1);
+
         if (!DONT_SIMPLIFY_READS)
             read.simplify();                                                                                            // Clear all unnecessary attributes
         if (!DONT_CLIP_ADAPTOR_SEQUENCES)
