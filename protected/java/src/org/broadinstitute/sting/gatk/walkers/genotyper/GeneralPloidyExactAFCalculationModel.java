@@ -681,8 +681,8 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
         }
 
         // per-pool logging of AC and AF
-        gb.attribute(VCFConstants.MLE_ALLELE_COUNT_KEY, alleleCounts.size() == 1 ? alleleCounts.get(0) : alleleCounts);
-        gb.attribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, alleleFreqs.size() == 1 ? alleleFreqs.get(0) : alleleFreqs);
+        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, alleleCounts.size() == 1 ? alleleCounts.get(0) : alleleCounts);
+        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, alleleFreqs.size() == 1 ? alleleFreqs.get(0) : alleleFreqs);
 
         // remove PLs if necessary
         if (newLikelihoods.length > MAX_LENGTH_FOR_POOL_PL_LOGGING)
