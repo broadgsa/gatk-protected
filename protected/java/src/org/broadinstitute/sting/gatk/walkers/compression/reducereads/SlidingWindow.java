@@ -536,6 +536,10 @@ public class SlidingWindow {
      * @return a list of reads selected by the downsampler to cover the window to at least the desired coverage
      */
     protected List<GATKSAMRecord> downsampleVariantRegion(final List<GATKSAMRecord> allReads) {
+        int nReads = allReads.size();
+        if (nReads == 0)
+            return allReads;
+
         double fraction = 100 / allReads.size();
         if (fraction >= 1)
             return allReads;
@@ -544,6 +548,7 @@ public class SlidingWindow {
         downsampler.submit(allReads);
         return downsampler.consumeDownsampledItems();
     }
+
 
     /**
      * Properly closes a Sliding Window, finalizing all consensus and variant
