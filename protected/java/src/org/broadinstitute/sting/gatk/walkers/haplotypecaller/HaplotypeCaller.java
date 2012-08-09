@@ -332,11 +332,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         final Map<String, AlignmentContext> splitContexts = AlignmentContextUtils.splitContextBySampleName(context);
         final GenotypesContext genotypes = GenotypesContext.create(splitContexts.keySet().size());
         final MathUtils.RunningAverage averageHQSoftClips = new MathUtils.RunningAverage();
-        for( final String sample : splitContexts.keySet() ) {
+        for( Map.Entry<String, AlignmentContext> sample : splitContexts.entrySet() ) {
             final double[] genotypeLikelihoods = new double[3]; // ref versus non-ref (any event)
             Arrays.fill(genotypeLikelihoods, 0.0);
 
-            for( final PileupElement p : splitContexts.get(sample).getBasePileup() ) {
+            for( final PileupElement p : sample.getValue().getBasePileup() ) {
                 final byte qual = ( USE_EXPANDED_TRIGGER_SET ?
                                         ( p.isNextToSoftClip() || p.isBeforeInsertion() || p.isAfterInsertion() ? ( p.getQual() > QualityUtils.MIN_USABLE_Q_SCORE ? p.getQual() : (byte) 20 ) : p.getQual() )
                                         : p.getQual() );
@@ -362,7 +362,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                     genotypeLikelihoods[BB] += p.getRepresentativeCount() * QualityUtils.qualToErrorProbLog10(qual) + LOG_ONE_THIRD;
                 }
             }
-            genotypes.add( new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make() );
+            genotypes.add( new GenotypeBuilder(sample.getKey()).alleles(noCall).PL(genotypeLikelihoods).make() );
         }
 
         final ArrayList<Allele> alleles = new ArrayList<Allele>();

@@ -25,9 +25,6 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
 import net.sf.samtools.util.SequenceUtil;
 import org.broadinstitute.sting.commandline.Argument;
 import org.broadinstitute.sting.commandline.Hidden;
@@ -183,7 +180,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * A value of 0 turns downsampling off.
      */
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
-    protected int downsampleCoverage = 0;
+    protected int downsampleCoverage = 250;
 
     @Hidden
     @Argument(fullName = "", shortName = "dl", doc = "", required = false)
@@ -535,80 +532,11 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         if (debugLevel == 1)
             System.out.println("BAM: " + read.getCigar() + " " + read.getAlignmentStart() + " " + read.getAlignmentEnd());
 
-//        if (!DONT_USE_SOFTCLIPPED_BASES)
-//            reSoftClipBases(read);
-
         if (!DONT_COMPRESS_READ_NAMES)
             compressReadName(read);
 
         out.addAlignment(read);
     }
-
-    private void reSoftClipBases(GATKSAMRecord read) {
-        Integer left = (Integer) read.getTemporaryAttribute("SL");
-        Integer right = (Integer) read.getTemporaryAttribute("SR");
-        if (left != null || right != null) {
-            Cigar newCigar = new Cigar();
-            for (CigarElement element : read.getCigar().getCigarElements()) {
-                newCigar.add(new CigarElement(element.getLength(), element.getOperator()));
-            }
-
-            if (left != null) {
-                newCigar = updateFirstSoftClipCigarElement(left, newCigar);
-                read.setAlignmentStart(read.getAlignmentStart() + left);
-            }
-
-            if (right != null) {
-                Cigar invertedCigar = invertCigar(newCigar);
-                newCigar = invertCigar(updateFirstSoftClipCigarElement(right, invertedCigar));
-            }
-            read.setCigar(newCigar);
-        }
-    }
-
-    /**
-     * Facility routine to revert the first element of a Cigar string (skipping hard clips) into a soft-clip.
-     * To be used on both ends if provided a flipped Cigar
-     *
-     * @param softClipSize  the length of the soft clipped element to add
-     * @param originalCigar the original Cigar string
-     * @return a new Cigar object with the soft clips added
-     */
-    private Cigar updateFirstSoftClipCigarElement (int softClipSize, Cigar originalCigar) {
-        Cigar result = new Cigar();
-        CigarElement leftElement = new CigarElement(softClipSize, CigarOperator.S);
-        boolean updated = false;
-        for (CigarElement element : originalCigar.getCigarElements()) {
-            if (!updated && element.getOperator() == CigarOperator.M) {
-                result.add(leftElement);
-                int newLength = element.getLength() - softClipSize;
-                if (newLength > 0)
-                    result.add(new CigarElement(newLength, CigarOperator.M));
-                updated = true;
-            }
-            else
-                result.add(element);
-        }
-        return result;
-    }
-
-    /**
-     * Given a cigar string, returns the inverted cigar string.
-     *
-     * @param cigar the original cigar
-     * @return the inverted cigar
-     */
-    private Cigar invertCigar(Cigar cigar) {
-        Stack<CigarElement> stack = new Stack<CigarElement>();
-        for (CigarElement e : cigar.getCigarElements())
-            stack.push(e);
-        Cigar inverted = new Cigar();
-        while (!stack.empty()) {
-            inverted.add(stack.pop());
-        }
-        return inverted;
-    }
-
 
     /**
      * Quality control procedure that checks if the consensus reads contains too many
