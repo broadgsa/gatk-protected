@@ -20,17 +20,17 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "7b4e76934e0c911220b4e7da8776ab2b");
+        HCTest(CEUTRIO_BAM, "", "882ece8391cfec30ab658970a487d078");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "fcf0cea98a571d5e2d1dfa8b5edc599d");
+        HCTest(NA12878_BAM, "", "6f458e04251bc4c09b5b544d46f19d68");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "-gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "ff370c42c8b09a29f1aeff5ac57c7ea6");
+        HCTest(CEUTRIO_BAM, "-gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "c172791007f867bf3b975d4194564d9e");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -41,7 +41,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(CEUTRIO_BAM, "", "6f9fda3ea82c5696bed1d48ee90cd76b");
+        HCTestComplexVariants(CEUTRIO_BAM, "", "94186811016b332a58c150df556278f8");
     }
 
 }
