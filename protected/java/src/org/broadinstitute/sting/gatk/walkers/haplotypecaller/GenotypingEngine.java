@@ -568,6 +568,8 @@ public class GenotypingEngine {
                     refPos += elementLength;
                     break;
                 case M:
+                case EQ:
+                case X:
                     int numSinceMismatch = -1;
                     int stopOfMismatch = -1;
                     int startOfMismatch = -1;
