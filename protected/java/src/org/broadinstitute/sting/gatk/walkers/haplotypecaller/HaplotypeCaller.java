@@ -276,6 +276,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         headerInfo.add(new VCFInfoHeaderLine("extType", 1, VCFHeaderLineType.String, "Extended type of event: SNP, MNP, INDEL, or COMPLEX"));
         headerInfo.add(new VCFInfoHeaderLine("QDE", 1, VCFHeaderLineType.Float, "QD value divided by the number of variants found on the haplotype that contained this variant"));
 
+        // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
+        // where the filters are used.  For example, in emitting all sites the lowQual field is used
+        headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotyperEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
+
         vcfWriter.writeHeader(new VCFHeader(headerInfo, samples));
 
         try {
