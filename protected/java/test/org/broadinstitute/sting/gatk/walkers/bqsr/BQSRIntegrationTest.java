@@ -50,20 +50,20 @@ public class BQSRIntegrationTest extends WalkerTest {
         String HiSeqBam = privateTestDir + "HiSeq.1mb.1RG.bam";
         String HiSeqInterval = "chr1:10,000,000-10,100,000";
         return new Object[][]{
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "239ce3387b4540faf44ec000d844ccd1")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "d69127341938910c38166dd18449598d")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "b77e621bed1b0dc57970399a35efd0da")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "2697f38d467a7856c40abce0f778456a")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "a55018b1643ca3964dbb50783db9f3e4")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "54fe8d1f5573845e6a2aa9688f6dd950")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "6b518ad3c56d66c6f5ea812d058f5c4d")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "3ddb9730f00ee3a612b42209ed9f7e03")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "4cd4fb754e1ef142ad691cb35c74dc4c")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "364eab693e5e4c7d18a77726b6460f3f")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "c449cfca61d605b534f0dce35581339d")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "5268cb5a4b69335568751d5e5ab80d43")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "3ddb9730f00ee3a612b42209ed9f7e03")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "4a786ba42e38e7fd101947c34a6883ed")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "1cfc73371abb933ca26496745d105ff0")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "ee5142776008741b1b2453b1258c6d99")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "fbc520794f0f98d52159de956f7217f1")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "ab5b93794049c514bf8e407019d76b67")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "81df636e3d0ed6f16113517e0169bc96")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "ad3c47355448f8c45e172c6e1129c65d")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "fef7240140a9b6d6335ce009fa4edec5")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "600652ee49b9ce1ca2d8ee2d8b7c8211")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "769f95b9dcc78a405d3e6b191e5a19f5")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "43fcba51264cc98bd8466d21e1b96766")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "48aaf9ac54b97eac3663882a59354ab2")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "dac04b9e1e1c52af8d3a50c2e550fda9")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "600652ee49b9ce1ca2d8ee2d8b7c8211")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "26a04f5a28c40750c603cbe8a926d7bd")},
         };
     }
 
