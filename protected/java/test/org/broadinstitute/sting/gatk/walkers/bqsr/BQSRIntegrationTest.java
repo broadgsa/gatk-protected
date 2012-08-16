@@ -62,6 +62,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "43fcba51264cc98bd8466d21e1b96766")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "48aaf9ac54b97eac3663882a59354ab2")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "dac04b9e1e1c52af8d3a50c2e550fda9")},
+                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "90d70542076715a8605a8d4002614b34")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "600652ee49b9ce1ca2d8ee2d8b7c8211")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "26a04f5a28c40750c603cbe8a926d7bd")},
         };
@@ -92,6 +93,20 @@ public class BQSRIntegrationTest extends WalkerTest {
                 1, // just one output file
                 UserException.CommandLineException.class);
         executeTest("testBQSRFailWithoutDBSNP", spec);
+    }
+
+    @Test
+    public void testBQSRFailWithSolidNoCall() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T BaseRecalibrator" +
+                        " -R " + b36KGReference +
+                        " -I " + privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam" +
+                        " -L 1:50,000-80,000" +
+                        " --no_plots" +
+                        " -o %s",
+                1, // just one output file
+                UserException.class);
+        executeTest("testBQSRFailWithSolidNoCall", spec);
     }
 
     private static class PRTest {
