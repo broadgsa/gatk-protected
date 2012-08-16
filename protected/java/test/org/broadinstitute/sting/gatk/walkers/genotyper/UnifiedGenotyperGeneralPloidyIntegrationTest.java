@@ -23,6 +23,7 @@ public class UnifiedGenotyperGeneralPloidyIntegrationTest extends WalkerTest {
     final String NA12891_CALLS = comparisonDataLocation + "Unvalidated/mtDNA/NA12891.snp.vcf";
     final String NA12878_WG_CALLS = comparisonDataLocation + "Unvalidated/NA12878/CEUTrio.HiSeq.WGS.b37_decoy.recal.ts_95.snp_indel_combined.vcf";
     final String LSV_ALLELES = validationDataLocation + "ALL.chr20_40m_41m.largeScaleValidationSites.vcf";
+
     private void PC_MT_Test(String bam, String args, String name, String md5) {
         final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -ignoreLane ",
                 REF, bam, MTINTERVALS, REFSAMPLE_MT_CALLS, REFSAMPLE_NAME) + " --no_cmdline_in_header -o %s";
@@ -44,35 +45,33 @@ public class UnifiedGenotyperGeneralPloidyIntegrationTest extends WalkerTest {
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
     }
 
-    @Test
+    @Test(enabled = false)
     public void testBOTH_GGA_Pools() {
         PC_LSV_Test(String.format(" -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","BOTH","0934f72865388999efec64bd9d4a9b93");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testINDEL_GGA_Pools() {
         PC_LSV_Test(String.format(" -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_INDEL_GGA","INDEL","126581c72d287722437274d41b6fed7b");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testINDEL_maxAltAlleles2_ploidy3_Pools_noRef() {
         PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","b543aa1c3efedb301e525c1d6c50ed8d");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testINDEL_maxAltAlleles2_ploidy1_Pools_noRef() {
         PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 1","LSV_INDEL_DISC_NOREF_p1","INDEL","55b20557a836bb92688e68f12d7f5dc4");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testMT_SNP_DISCOVERY_sp4() {
          PC_MT_Test(CEUTRIO_BAM, " -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","7eb889e8e07182f4c3d64609591f9459");
     }
 
-    @Test
+    @Test(enabled = false)
     public void testMT_SNP_GGA_sp10() {
-
         PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "db8114877b99b14f7180fdcd24b040a7");
     }
-
 }
