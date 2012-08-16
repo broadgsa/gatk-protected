@@ -262,18 +262,19 @@ public class ErrorModel  {
     }
 
     public String toString() {
-        String result = "(";
+        StringBuilder result = new StringBuilder("(");
         boolean skipComma = true;
         for (double v : probabilityVector.getProbabilityVector()) {
             if (skipComma) {
                 skipComma = false;
             }
             else {
-                result += ",";
+                result.append(",");
             }
-            result += String.format("%.4f", v);
+            result.append(String.format("%.4f", v));
         }
-        return result + ")";
+        result.append(")");
+        return result.toString();
     }
     
     public static int getTotalReferenceDepth(HashMap<String, ErrorModel>  perLaneErrorModels) {
