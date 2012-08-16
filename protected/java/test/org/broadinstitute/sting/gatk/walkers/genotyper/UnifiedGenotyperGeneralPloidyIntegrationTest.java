@@ -45,32 +45,32 @@ public class UnifiedGenotyperGeneralPloidyIntegrationTest extends WalkerTest {
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testBOTH_GGA_Pools() {
         PC_LSV_Test(String.format(" -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","BOTH","0934f72865388999efec64bd9d4a9b93");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testINDEL_GGA_Pools() {
         PC_LSV_Test(String.format(" -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_INDEL_GGA","INDEL","126581c72d287722437274d41b6fed7b");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testINDEL_maxAltAlleles2_ploidy3_Pools_noRef() {
         PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","b543aa1c3efedb301e525c1d6c50ed8d");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testINDEL_maxAltAlleles2_ploidy1_Pools_noRef() {
         PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 1","LSV_INDEL_DISC_NOREF_p1","INDEL","55b20557a836bb92688e68f12d7f5dc4");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testMT_SNP_DISCOVERY_sp4() {
          PC_MT_Test(CEUTRIO_BAM, " -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","7eb889e8e07182f4c3d64609591f9459");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testMT_SNP_GGA_sp10() {
         PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "db8114877b99b14f7180fdcd24b040a7");
     }
