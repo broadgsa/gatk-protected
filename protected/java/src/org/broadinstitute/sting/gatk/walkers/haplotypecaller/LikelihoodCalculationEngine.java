@@ -27,6 +27,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import org.broadinstitute.sting.gatk.walkers.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -323,11 +324,13 @@ public class LikelihoodCalculationEngine {
         return bestHaplotypes;
     }
 
-    public static Map<String, Map<Allele, List<GATKSAMRecord>>> partitionReadsBasedOnLikelihoods( final GenomeLocParser parser, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList, final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call) {
-        final Map<String, Map<Allele, List<GATKSAMRecord>>> returnMap = new HashMap<String, Map<Allele, List<GATKSAMRecord>>>();
+    public static Map<String, PerReadAlleleLikelihoodMap> partitionReadsBasedOnLikelihoods( final GenomeLocParser parser, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList, final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call) {
+        final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         final GenomeLoc callLoc = parser.createGenomeLoc(call.getFirst());
         for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
-            final Map<Allele, List<GATKSAMRecord>> alleleReadMap = new HashMap<Allele, List<GATKSAMRecord>>();
+            //final Map<Allele, List<GATKSAMRecord>> alleleReadMap = new HashMap<Allele, List<GATKSAMRecord>>();
+            final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
+
             final ArrayList<GATKSAMRecord> readsForThisSample = sample.getValue();
             for( int iii = 0; iii < readsForThisSample.size(); iii++ ) {
                 final GATKSAMRecord read = readsForThisSample.get(iii); // BUGBUG: assumes read order in this list and haplotype likelihood list are the same!
@@ -335,51 +338,31 @@ public class LikelihoodCalculationEngine {
                 if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
                     final double likelihoods[] = new double[call.getFirst().getAlleles().size()];
                     int count = 0;
-                    for( final Allele a : call.getFirst().getAlleles() ) { // find the allele with the highest haplotype likelihood
-                        double maxLikelihood = Double.NEGATIVE_INFINITY;
+
+                    for( final Allele a : call.getFirst().getAlleles() ) {
                         for( final Haplotype h : call.getSecond().get(a) ) { // use the max likelihood from all the haplotypes which mapped to this allele (achieved via the haplotype mapper object)
                             final double likelihood = h.getReadLikelihoods(sample.getKey())[iii];
-                            if( likelihood > maxLikelihood ) {
-                                maxLikelihood = likelihood;
-                            }
-                        }
-                        likelihoods[count++] = maxLikelihood;
-                    }
-                    final int bestAllele = MathUtils.maxElementIndex(likelihoods);
-                    final double bestLikelihood = likelihoods[bestAllele];
-                    Allele allele = Allele.NO_CALL;
-                    boolean isInformativeRead = false;
-                    for( final double likelihood : likelihoods ) {
-                        if( bestLikelihood - likelihood > BEST_LIKELIHOOD_THRESHOLD ) {
-                            isInformativeRead = true;
-                            break;
+                            likelihoodMap.add(read, a, likelihood);
                         }
                     }
-                    // uninformative reads get the no call Allele
-                    if( isInformativeRead ) {
-                        allele = call.getFirst().getAlleles().get(bestAllele);
-                    }
-                    List<GATKSAMRecord> readList = alleleReadMap.get(allele);
-                    if( readList == null ) {
-                        readList = new ArrayList<GATKSAMRecord>();
-                        alleleReadMap.put(allele, readList);
-                    }
-                    readList.add(read);
                 }
             }
-            // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
+/*            // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
             List<GATKSAMRecord> readList = alleleReadMap.get(Allele.NO_CALL);
             if( readList == null ) {
                 readList = new ArrayList<GATKSAMRecord>();
                 alleleReadMap.put(Allele.NO_CALL, readList);
             }
-            for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
+  */
+ /*           for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
                 if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
                     readList.add(read);
                 }
             }
-            returnMap.put(sample.getKey(), alleleReadMap);
+   */
+            returnMap.put(sample.getKey(), likelihoodMap);
+
         }
         return returnMap;
     }
