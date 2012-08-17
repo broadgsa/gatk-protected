@@ -145,7 +145,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
         List<Integer> numSeenBases = new ArrayList<Integer>(this.alleles.size());
 
         if (!hasReferenceSampleData) {
-
+ 
             final int readCounts[] = new int[pileup.getNumberOfElements()];
             readHaplotypeLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, refContext, eventLength, perReadAlleleLikelihoodMap, readCounts);
             n = readHaplotypeLikelihoods.length;
