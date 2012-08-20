@@ -2,6 +2,8 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import org.jgrapht.graph.DefaultDirectedGraph;
 
+import java.util.Comparator;
+
 /**
  * Created by IntelliJ IDEA.
  * User: ebanks
@@ -9,7 +11,7 @@ import org.jgrapht.graph.DefaultDirectedGraph;
  */
 
 // simple edge class for connecting nodes in the graph
-public class DeBruijnEdge implements Comparable<DeBruijnEdge> {
+public class DeBruijnEdge {
 
     private int multiplicity;
     private boolean isRef;
@@ -53,8 +55,10 @@ public class DeBruijnEdge implements Comparable<DeBruijnEdge> {
         return (graph.getEdgeSource(this).equals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph2.getEdgeTarget(edge)));
     }
 
-    @Override
-    public int compareTo( final DeBruijnEdge that ) {
-        return this.multiplicity - that.multiplicity;
+    public static class EdgeWeightComparator implements Comparator<DeBruijnEdge> {
+        @Override
+        public int compare(final DeBruijnEdge edge1, final DeBruijnEdge edge2) {
+            return edge1.multiplicity - edge2.multiplicity;
+        }
     }
 }
