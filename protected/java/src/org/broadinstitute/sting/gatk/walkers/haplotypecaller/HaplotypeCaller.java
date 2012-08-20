@@ -27,6 +27,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.commandline.*;
@@ -189,7 +190,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected String[] annotationClassesToUse = { "Standard" };
 
     @ArgumentCollection
-    private UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
+    private StandardCallerArgumentCollection SCAC = new StandardCallerArgumentCollection();
 
     // the calculation arguments
     private UnifiedGenotyperEngine UG_engine = null;
@@ -240,7 +241,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         Set<String> samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
         samplesList.addAll( samples );
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
-        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.SNP; // the GLmodel isn't used by the HaplotypeCaller but it is dangerous to let the user change this argument
+        final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
         UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC.clone(), logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
         UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY; // low values used for isActive determination only, default/user-specified values used for actual calling
         UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY; // low values used for isActive determination only, default/user-specified values used for actual calling
