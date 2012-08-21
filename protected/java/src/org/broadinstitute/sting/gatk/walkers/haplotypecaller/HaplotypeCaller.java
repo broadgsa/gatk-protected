@@ -27,6 +27,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.gatk.walkers.genotyper.*;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
@@ -186,7 +187,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected String[] annotationClassesToUse = { "Standard" };
 
     @ArgumentCollection
-    private UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
+    private StandardCallerArgumentCollection SCAC = new StandardCallerArgumentCollection();
 
     // the calculation arguments
     private UnifiedGenotyperEngine UG_engine = null;
@@ -237,7 +238,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         Set<String> samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
         samplesList.addAll( samples );
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
-        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.SNP; // the GLmodel isn't used by the HaplotypeCaller but it is dangerous to let the user change this argument
+        final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
         UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC.clone(), logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
         UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY; // low values used for isActive determination only, default/user-specified values used for actual calling
         UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY; // low values used for isActive determination only, default/user-specified values used for actual calling
@@ -410,45 +411,48 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         for( final Pair<VariantContext, HashMap<Allele, ArrayList<Haplotype>>> callResult :
                 ( GENOTYPE_FULL_ACTIVE_REGION && UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
-                  ? genotypingEngine.assignGenotypeLikelihoodsAndCallHaplotypeEvents( UG_engine, bestHaplotypes, fullReferenceWithPadding, getPaddedLoc(activeRegion), activeRegion.getLocation(), getToolkit().getGenomeLocParser() )
+                  ? genotypingEngine.assignGenotypeLikelihoodsAndCallHaplotypeEvents( UG_engine, bestHaplotypes, fullReferenceWithPadding, getPaddedLoc(activeRegion), activeRegion.getExtendedLoc(), getToolkit().getGenomeLocParser() )
                   : genotypingEngine.assignGenotypeLikelihoodsAndCallIndependentEvents( UG_engine, bestHaplotypes, fullReferenceWithPadding, getPaddedLoc(activeRegion), activeRegion.getLocation(), getToolkit().getGenomeLocParser(), activeAllelesToGenotype ) ) ) {
             if( DEBUG ) { System.out.println(callResult.getFirst().toStringWithoutGenotypes()); }
 
             final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = LikelihoodCalculationEngine.partitionReadsBasedOnLikelihoods( getToolkit().getGenomeLocParser(), perSampleReadList, perSampleFilteredReadList, callResult );
             final VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, callResult.getFirst());
-
-            // add some custom annotations to the calls
             final Map<String, Object> myAttributes = new LinkedHashMap<String, Object>(annotatedCall.getAttributes());
-            // Calculate the number of variants on the haplotype
-            int maxNumVar = 0;
-            for( final Allele allele : callResult.getFirst().getAlleles() ) {
-                if( !allele.isReference() ) {
-                    for( final Haplotype haplotype : callResult.getSecond().get(allele) ) {
-                        final int numVar = haplotype.getEventMap().size();
-                        if( numVar > maxNumVar ) { maxNumVar = numVar; }
+
+            if( !GENOTYPE_FULL_ACTIVE_REGION ) {
+                // add some custom annotations to the calls
+
+                // Calculate the number of variants on the haplotype
+                int maxNumVar = 0;
+                for( final Allele allele : callResult.getFirst().getAlleles() ) {
+                    if( !allele.isReference() ) {
+                        for( final Haplotype haplotype : callResult.getSecond().get(allele) ) {
+                            final int numVar = haplotype.getEventMap().size();
+                            if( numVar > maxNumVar ) { maxNumVar = numVar; }
+                        }
                     }
                 }
-            }
-            // Calculate the event length
-            int maxLength = 0;
-            for ( final Allele a : annotatedCall.getAlternateAlleles() ) {
-                final int length = a.length() - annotatedCall.getReference().length();
-                if( Math.abs(length) > Math.abs(maxLength) ) { maxLength = length; }
-            }
+                // Calculate the event length
+                int maxLength = 0;
+                for ( final Allele a : annotatedCall.getAlternateAlleles() ) {
+                    final int length = a.length() - annotatedCall.getReference().length();
+                    if( Math.abs(length) > Math.abs(maxLength) ) { maxLength = length; }
+                }
 
-            myAttributes.put("NVH", maxNumVar);
-            myAttributes.put("NumHapEval", bestHaplotypes.size());
-            myAttributes.put("NumHapAssembly", haplotypes.size());
-            myAttributes.put("ActiveRegionSize", activeRegion.getLocation().size());
-            myAttributes.put("EVENTLENGTH", maxLength);
-            myAttributes.put("TYPE", (annotatedCall.isSNP() || annotatedCall.isMNP() ? "SNP" : "INDEL") );
-            myAttributes.put("extType", annotatedCall.getType().toString() );
+                myAttributes.put("NVH", maxNumVar);
+                myAttributes.put("NumHapEval", bestHaplotypes.size());
+                myAttributes.put("NumHapAssembly", haplotypes.size());
+                myAttributes.put("ActiveRegionSize", activeRegion.getLocation().size());
+                myAttributes.put("EVENTLENGTH", maxLength);
+                myAttributes.put("TYPE", (annotatedCall.isSNP() || annotatedCall.isMNP() ? "SNP" : "INDEL") );
+                myAttributes.put("extType", annotatedCall.getType().toString() );
 
-            //if( likelihoodCalculationEngine.haplotypeScore != null ) {
-            //    myAttributes.put("HaplotypeScore", String.format("%.4f", likelihoodCalculationEngine.haplotypeScore));
-            //}
-            if( annotatedCall.hasAttribute("QD") ) {
-                myAttributes.put("QDE", String.format("%.2f", Double.parseDouble((String)annotatedCall.getAttribute("QD")) / ((double)maxNumVar)) );
+                //if( likelihoodCalculationEngine.haplotypeScore != null ) {
+                //    myAttributes.put("HaplotypeScore", String.format("%.4f", likelihoodCalculationEngine.haplotypeScore));
+                //}
+                if( annotatedCall.hasAttribute("QD") ) {
+                    myAttributes.put("QDE", String.format("%.2f", Double.parseDouble((String)annotatedCall.getAttribute("QD")) / ((double)maxNumVar)) );
+                }
             }
 
             vcfWriter.add( new VariantContextBuilder(annotatedCall).attributes(myAttributes).make() );

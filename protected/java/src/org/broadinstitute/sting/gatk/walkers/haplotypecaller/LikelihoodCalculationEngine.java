@@ -180,7 +180,6 @@ public class LikelihoodCalculationEngine {
                             final double[] readLikelihoods_jjj = jjj_mapped.getReadLikelihoods(sample);
                             for( int kkk = 0; kkk < readLikelihoods_iii.length; kkk++ ) {
                                 // Compute log10(10^x1/2 + 10^x2/2) = log10(10^x1+10^x2)-log10(2)
-                                // log10(10^(a*x1) + 10^(b*x2))  ???
                                 // First term is approximated by Jacobian log with table lookup.
                                 haplotypeLikelihood += readCounts_iii[kkk] * ( MathUtils.approximateLog10SumLog10(readLikelihoods_iii[kkk], readLikelihoods_jjj[kkk]) + LOG_ONE_HALF );
                             }
