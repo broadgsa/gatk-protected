@@ -178,7 +178,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
      * so annotations will be excluded even if they are explicitly included with the other options.
      */
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
-    protected List<String> annotationsToExclude = new ArrayList<String>(Arrays.asList(new String[]{"HaplotypeScore", "MappingQualityZero", "SpanningDeletions", "TandemRepeatAnnotator"}));
+    protected List<String> annotationsToExclude = new ArrayList<String>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator"}));
 
     /**
      * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
