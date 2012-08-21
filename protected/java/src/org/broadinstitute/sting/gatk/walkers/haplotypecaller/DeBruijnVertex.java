@@ -37,7 +37,7 @@ public class DeBruijnVertex {
     }
 
     public byte[] getSequence() {
-        return sequence;
+        return sequence.clone();
     }
 
     public byte[] getSuffix() {
