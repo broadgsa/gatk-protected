@@ -14,7 +14,7 @@ public class DeBruijnVertex {
     public final int kmer;
 
     public DeBruijnVertex( final byte[] sequence, final int kmer ) {
-        this.sequence = sequence;
+        this.sequence = sequence.clone();
         this.kmer = kmer;
     }
 
