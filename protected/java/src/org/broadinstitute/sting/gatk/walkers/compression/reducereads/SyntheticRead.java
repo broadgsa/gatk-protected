@@ -5,7 +5,7 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
-import org.broadinstitute.sting.gatk.walkers.bqsr.EventType;
+import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;

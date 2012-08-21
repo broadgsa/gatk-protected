@@ -82,11 +82,11 @@ public class KBestPaths {
         }
     }
 
-    protected static class PathComparatorLowestEdge implements Comparator<Path> {
-        public int compare(final Path path1, final Path path2) {
-            return path2.lowestEdge - path1.lowestEdge;
-        }
-    }
+    //protected static class PathComparatorLowestEdge implements Comparator<Path> {
+    //    public int compare(final Path path1, final Path path2) {
+    //        return path2.lowestEdge - path1.lowestEdge;
+    //    }
+    //}
 
     public static List<Path> getKBestPaths( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final int k ) {
         if( k > MAX_PATHS_TO_HOLD/2 ) { throw new ReviewedStingException("Asked for more paths than MAX_PATHS_TO_HOLD!"); }
@@ -99,7 +99,7 @@ public class KBestPaths {
             }
         }
 
-        Collections.sort(bestPaths, new PathComparatorLowestEdge() );
+        Collections.sort(bestPaths, new PathComparatorTotalScore() );
         Collections.reverse(bestPaths);
         return bestPaths.subList(0, Math.min(k, bestPaths.size()));
     }
@@ -114,8 +114,8 @@ public class KBestPaths {
         if ( allOutgoingEdgesHaveBeenVisited(graph, path) ) {
             if ( bestPaths.size() >= MAX_PATHS_TO_HOLD ) {
                 // clean out some low scoring paths
-                Collections.sort(bestPaths, new PathComparatorLowestEdge() );
-                for(int iii = 0; iii < 20; iii++) { bestPaths.remove(0); }
+                Collections.sort(bestPaths, new PathComparatorTotalScore() );
+                for(int iii = 0; iii < 20; iii++) { bestPaths.remove(0); } // BUGBUG: assumes MAX_PATHS_TO_HOLD >> 20
             }
             bestPaths.add(path);
         } else if( n.val > 10000) {
