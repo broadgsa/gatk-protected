@@ -2,6 +2,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import org.jgrapht.graph.DefaultDirectedGraph;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 /**
@@ -55,7 +56,7 @@ public class DeBruijnEdge {
         return (graph.getEdgeSource(this).equals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph2.getEdgeTarget(edge)));
     }
 
-    public static class EdgeWeightComparator implements Comparator<DeBruijnEdge> {
+    public static class EdgeWeightComparator implements Comparator<DeBruijnEdge>, Serializable {
         @Override
         public int compare(final DeBruijnEdge edge1, final DeBruijnEdge edge2) {
             return edge1.multiplicity - edge2.multiplicity;
