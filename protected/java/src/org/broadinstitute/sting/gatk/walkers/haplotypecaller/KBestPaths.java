@@ -4,6 +4,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
+import java.io.Serializable;
 import java.util.*;
 
 /**
@@ -76,13 +77,15 @@ public class KBestPaths {
         }
     }
 
-    protected static class PathComparatorTotalScore implements Comparator<Path> {
+    protected static class PathComparatorTotalScore implements Comparator<Path>, Serializable {
+        @Override
         public int compare(final Path path1, final Path path2) {
             return path1.totalScore - path2.totalScore;
         }
     }
 
-    //protected static class PathComparatorLowestEdge implements Comparator<Path> {
+    //protected static class PathComparatorLowestEdge implements Comparator<Path>, Serializable {
+    //    @Override
     //    public int compare(final Path path1, final Path path2) {
     //        return path2.lowestEdge - path1.lowestEdge;
     //    }
@@ -124,7 +127,7 @@ public class KBestPaths {
             // recursively run DFS
             final ArrayList<DeBruijnEdge> edgeArrayList = new ArrayList<DeBruijnEdge>();
             edgeArrayList.addAll(graph.outgoingEdgesOf(path.lastVertex));
-            Collections.sort(edgeArrayList);
+            Collections.sort(edgeArrayList, new DeBruijnEdge.EdgeWeightComparator());
             Collections.reverse(edgeArrayList);
             for ( final DeBruijnEdge edge : edgeArrayList ) {
                 // make sure the edge is not already in the path

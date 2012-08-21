@@ -78,10 +78,10 @@ public class LikelihoodCalculationEngine {
         PairHMM.initializeArrays(matchMetricArray, XMetricArray, YMetricArray, X_METRIC_LENGTH);
 
         // for each sample's reads
-        for( final String sample : perSampleReadList.keySet() ) {
+        for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
             //if( DEBUG ) { System.out.println("Evaluating sample " + sample + " with " + perSampleReadList.get( sample ).size() + " passing reads"); }
             // evaluate the likelihood of the reads given those haplotypes
-            computeReadLikelihoods( haplotypes, perSampleReadList.get(sample), sample, matchMetricArray, XMetricArray, YMetricArray );
+            computeReadLikelihoods( haplotypes, sampleEntry.getValue(), sampleEntry.getKey(), matchMetricArray, XMetricArray, YMetricArray );
         }
     }
 
