@@ -42,14 +42,12 @@ import java.util.*;
 public class GenotypingEngine {
 
     private final boolean DEBUG;
-    private final int MNP_LOOK_AHEAD;
     private final boolean OUTPUT_FULL_HAPLOTYPE_SEQUENCE;
     private final static List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
     private final static Allele SYMBOLIC_UNASSEMBLED_EVENT_ALLELE = Allele.create("<UNASSEMBLED_EVENT>", false);
 
-    public GenotypingEngine( final boolean DEBUG, final int MNP_LOOK_AHEAD, final boolean OUTPUT_FULL_HAPLOTYPE_SEQUENCE ) {
+    public GenotypingEngine( final boolean DEBUG, final boolean OUTPUT_FULL_HAPLOTYPE_SEQUENCE ) {
         this.DEBUG = DEBUG;
-        this.MNP_LOOK_AHEAD = MNP_LOOK_AHEAD;
         this.OUTPUT_FULL_HAPLOTYPE_SEQUENCE = OUTPUT_FULL_HAPLOTYPE_SEQUENCE;
         noCall.add(Allele.NO_CALL);
     }
@@ -120,7 +118,7 @@ public class GenotypingEngine {
                 System.out.println( "> Cigar = " + h.getCigar() );
             }
             // Walk along the alignment and turn any difference from the reference into an event
-            h.setEventMap( generateVCsFromAlignment( h.getAlignmentStartHapwrtRef(), h.getCigar(), ref, h.getBases(), refLoc, "HC" + count++, MNP_LOOK_AHEAD ) );
+            h.setEventMap( generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), ref, h.getBases(), refLoc, "HC" + count++ ) );
             startPosKeySet.addAll(h.getEventMap().keySet());
         }
         
@@ -203,7 +201,7 @@ public class GenotypingEngine {
         if( DEBUG ) { System.out.println("=== Best Haplotypes ==="); }
         for( final Haplotype h : haplotypes ) {
             // Walk along the alignment and turn any difference from the reference into an event
-            h.setEventMap( generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), ref, h.getBases(), refLoc, "HC" + count++, MNP_LOOK_AHEAD ) );
+            h.setEventMap( generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), ref, h.getBases(), refLoc, "HC" + count++ ) );
             if( activeAllelesToGenotype.isEmpty() ) { startPosKeySet.addAll(h.getEventMap().keySet()); }
             if( DEBUG ) {
                 System.out.println( h.toString() );
@@ -521,11 +519,7 @@ public class GenotypingEngine {
         return false;
     }
 
-    protected static HashMap<Integer,VariantContext> generateVCsFromAlignment( final int alignmentStartHapwrtRef, final Cigar cigar, final byte[] ref, final byte[] alignment, final GenomeLoc refLoc, final String sourceNameToAdd, final int MNP_LOOK_AHEAD ) {
-        return generateVCsFromAlignment(null, alignmentStartHapwrtRef, cigar, ref, alignment, refLoc, sourceNameToAdd, MNP_LOOK_AHEAD); // BUGBUG: needed for compatibility with HaplotypeResolver code
-    }
-
-    protected static HashMap<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final int alignmentStartHapwrtRef, final Cigar cigar, final byte[] ref, final byte[] alignment, final GenomeLoc refLoc, final String sourceNameToAdd, final int MNP_LOOK_AHEAD ) {
+    protected static HashMap<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final int alignmentStartHapwrtRef, final Cigar cigar, final byte[] ref, final byte[] alignment, final GenomeLoc refLoc, final String sourceNameToAdd ) {
         final HashMap<Integer,VariantContext> vcs = new HashMap<Integer,VariantContext>();
 
         int refPos = alignmentStartHapwrtRef;
@@ -543,7 +537,7 @@ public class GenotypingEngine {
                     if( BaseUtils.isRegularBase(refByte) ) {
                         insertionAlleles.add( Allele.create(refByte, true) );
                     }
-                    if( haplotype != null && (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1 || haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1) ) {
+                    if( (haplotype.leftBreakPoint != 0 || haplotype.rightBreakPoint != 0) && (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1 || haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1) ) {
                         insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
                     } else {
                         byte[] insertionBases = new byte[]{};
@@ -590,39 +584,16 @@ public class GenotypingEngine {
                 case EQ:
                 case X:
                 {
-                    int numSinceMismatch = -1;
-                    int stopOfMismatch = -1;
-                    int startOfMismatch = -1;
-                    int refPosStartOfMismatch = -1;
                     for( int iii = 0; iii < elementLength; iii++ ) {
-                        if( ref[refPos] != alignment[alignmentPos] && alignment[alignmentPos] != ((byte) 'N') ) {
-                            // SNP or start of possible MNP
-                            if( stopOfMismatch == -1 ) {
-                                startOfMismatch = alignmentPos;
-                                stopOfMismatch = alignmentPos;
-                                numSinceMismatch = 0;
-                                refPosStartOfMismatch = refPos;
-                            } else {
-                                stopOfMismatch = alignmentPos;
-                            }
-                        }
-                        if( stopOfMismatch != -1) {
-                            numSinceMismatch++;
-                        }
-                        if( numSinceMismatch > MNP_LOOK_AHEAD || (iii == elementLength - 1 && stopOfMismatch != -1) ) {
-                            final byte[] refBases = Arrays.copyOfRange( ref, refPosStartOfMismatch, refPosStartOfMismatch + (stopOfMismatch - startOfMismatch) + 1 );
-                            final byte[] mismatchBases = Arrays.copyOfRange( alignment, startOfMismatch, stopOfMismatch + 1 );
-                            if( BaseUtils.isAllRegularBases(refBases) && BaseUtils.isAllRegularBases(mismatchBases) ) {
+                        final byte refByte = ref[refPos];
+                        final byte altByte = alignment[alignmentPos];
+                        if( refByte != altByte ) { // SNP!
+                            if( BaseUtils.isRegularBase(refByte) && BaseUtils.isRegularBase(altByte) ) {
                                 final ArrayList<Allele> snpAlleles = new ArrayList<Allele>();
-                                snpAlleles.add( Allele.create( refBases, true ) );
-                                snpAlleles.add( Allele.create( mismatchBases, false ) );
-                                final int snpStart = refLoc.getStart() + refPosStartOfMismatch;
-                                vcs.put(snpStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), snpStart, snpStart + (stopOfMismatch - startOfMismatch), snpAlleles).make());
+                                snpAlleles.add( Allele.create( refByte, true ) );
+                                snpAlleles.add( Allele.create( altByte, false ) );
+                                vcs.put(refLoc.getStart() + refPos, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), refLoc.getStart() + refPos, refLoc.getStart() + refPos, snpAlleles).make());
                             }
-                            numSinceMismatch = -1;
-                            stopOfMismatch = -1;
-                            startOfMismatch = -1;
-                            refPosStartOfMismatch = -1;
                         }
                         refPos++;
                         alignmentPos++;
