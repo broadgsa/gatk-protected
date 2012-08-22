@@ -201,7 +201,8 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                         // compute mean number of reduced read counts in current kmer span
                         final byte[] counts = Arrays.copyOfRange(reducedReadCounts,iii,iii+KMER_LENGTH+1);
                         // precise rounding can make a difference with low consensus counts
-                        countNumber = (int)Math.round((double)MathUtils.sum(counts)/counts.length);
+                        countNumber = MathUtils.arrayMax(counts);
+                      //  countNumber = (int)Math.round((double)MathUtils.sum(counts)/counts.length);
                     }
 
                     if( !badKmer ) {
