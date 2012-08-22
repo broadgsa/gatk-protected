@@ -119,10 +119,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
     protected String keepRG = null;
 
-    @Hidden
-    @Argument(fullName="mnpLookAhead", shortName="mnpLookAhead", doc = "The number of bases to combine together to form MNPs out of nearby consecutive SNPs on the same haplotype", required = false)
-    protected int MNP_LOOK_AHEAD = 0;
-
     @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = false)
     protected int MIN_PRUNE_FACTOR = 1;
 
@@ -135,7 +131,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected boolean OUTPUT_FULL_HAPLOTYPE_SEQUENCE = false;
 
     @Advanced
-    @Argument(fullName="gcpHMM", shortName="gcpHMM", doc="Gap continuation penalty for use in the Pair HMM", required = false)
+    @Argument(fullName="gcpHMM", shortName="gcpHMM", doc="Flat gap continuation penalty for use in the Pair HMM", required = false)
     protected int gcpHMM = 10;
 
     @Argument(fullName="downsampleRegion", shortName="dr", doc="coverage, per-sample, to downsample each active region to", required = false)
@@ -189,21 +185,21 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @ArgumentCollection
     private StandardCallerArgumentCollection SCAC = new StandardCallerArgumentCollection();
 
-    // the calculation arguments
-    private UnifiedGenotyperEngine UG_engine = null;
-    private UnifiedGenotyperEngine UG_engine_simple_genotyper = null;
-    
     @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information about each triggering active region", required = false)
     protected boolean DEBUG;
 
+    // the UG engines
+    private UnifiedGenotyperEngine UG_engine = null;
+    private UnifiedGenotyperEngine UG_engine_simple_genotyper = null;
+
     // the assembly engine
-    LocalAssemblyEngine assemblyEngine = null;
+    private LocalAssemblyEngine assemblyEngine = null;
 
     // the likelihoods engine
-    LikelihoodCalculationEngine likelihoodCalculationEngine = null;
+    private LikelihoodCalculationEngine likelihoodCalculationEngine = null;
 
     // the genotyping engine
-    GenotypingEngine genotypingEngine = null;
+    private GenotypingEngine genotypingEngine = null;
 
     // the annotation engine
     private VariantAnnotatorEngine annotationEngine;
@@ -289,7 +285,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, false );
-        genotypingEngine = new GenotypingEngine( DEBUG, MNP_LOOK_AHEAD, OUTPUT_FULL_HAPLOTYPE_SEQUENCE );
+        genotypingEngine = new GenotypingEngine( DEBUG, OUTPUT_FULL_HAPLOTYPE_SEQUENCE );
     }
 
     //---------------------------------------------------------------------------------------------------------------
