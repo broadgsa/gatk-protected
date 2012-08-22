@@ -26,6 +26,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
     double[][] readHaplotypeLikelihoods;
 
     final byte refBase;
+    final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap;
 
     public GeneralPloidyIndelGenotypeLikelihoods(final List<Allele> alleles,
                                                  final double[] logLikelihoods,
@@ -34,7 +35,8 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
                                                  final boolean ignoreLaneInformation,
                                                  final PairHMMIndelErrorModel pairModel,
                                                  final LinkedHashMap<Allele, Haplotype> haplotypeMap,
-                                                 final ReferenceContext referenceContext) {
+                                                 final ReferenceContext referenceContext,
+                                                 final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
         super(alleles, logLikelihoods, ploidy, perLaneErrorModels, ignoreLaneInformation);
         this.pairModel = pairModel;
         this.haplotypeMap = haplotypeMap;
@@ -42,6 +44,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
         this.eventLength = IndelGenotypeLikelihoodsCalculationModel.getEventLength(alleles);
         // todo - not needed if indel alleles have base at current position
         this.refBase = referenceContext.getBase();
+        this.perReadAlleleLikelihoodMap = perReadAlleleLikelihoodMap;
     }
 
     // -------------------------------------------------------------------------------------
@@ -142,8 +145,9 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
         List<Integer> numSeenBases = new ArrayList<Integer>(this.alleles.size());
 
         if (!hasReferenceSampleData) {
+ 
             final int readCounts[] = new int[pileup.getNumberOfElements()];
-            readHaplotypeLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, refContext, eventLength, IndelGenotypeLikelihoodsCalculationModel.getIndelLikelihoodMap(), readCounts);
+            readHaplotypeLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, refContext, eventLength, perReadAlleleLikelihoodMap, readCounts);
             n = readHaplotypeLikelihoods.length;
         } else {
             Allele refAllele = null;

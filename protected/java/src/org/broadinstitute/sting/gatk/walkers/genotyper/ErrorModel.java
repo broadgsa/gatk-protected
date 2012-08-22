@@ -53,13 +53,14 @@ public class ErrorModel  {
 
         PairHMMIndelErrorModel pairModel = null;
         LinkedHashMap<Allele, Haplotype> haplotypeMap = null;
-        HashMap<PileupElement, LinkedHashMap<Allele, Double>> indelLikelihoodMap = null;
         double[][] perReadLikelihoods = null;
 
         double[] model = new double[maxQualityScore+1];
         Arrays.fill(model,Double.NEGATIVE_INFINITY);
 
         boolean hasCalledAlleles = false;
+
+        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
         if (refSampleVC != null) {
 
             for (Allele allele : refSampleVC.getAlleles()) {
@@ -72,7 +73,6 @@ public class ErrorModel  {
             if (refSampleVC.isIndel()) {
                 pairModel = new PairHMMIndelErrorModel(UAC.INDEL_GAP_OPEN_PENALTY, UAC.INDEL_GAP_CONTINUATION_PENALTY,
                         UAC.OUTPUT_DEBUG_INDEL_INFO, !UAC.DONT_DO_BANDED_INDEL_COMPUTATION);
-                indelLikelihoodMap = new HashMap<PileupElement, LinkedHashMap<Allele, Double>>();
                 IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles(refSampleVC.getAlleles(), refContext, refContext.getLocus(), haplotypeMap); // will update haplotypeMap adding elements
             }
         }
@@ -92,12 +92,12 @@ public class ErrorModel  {
 
             Allele refAllele = refSampleVC.getReference();
 
-            if (refSampleVC.isIndel()) {
+            if ( refSampleVC.isIndel()) {
                 final int readCounts[] = new int[refSamplePileup.getNumberOfElements()];
                 //perReadLikelihoods = new double[readCounts.length][refSampleVC.getAlleles().size()];
                 final int eventLength = IndelGenotypeLikelihoodsCalculationModel.getEventLength(refSampleVC.getAlleles());
                 if (!haplotypeMap.isEmpty())
-                    perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, indelLikelihoodMap, readCounts);
+                    perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, perReadAlleleLikelihoodMap, readCounts);
             }
             int idx = 0;
             for (PileupElement refPileupElement : refSamplePileup) {

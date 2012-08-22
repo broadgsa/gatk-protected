@@ -201,7 +201,8 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                         // compute mean number of reduced read counts in current kmer span
                         final byte[] counts = Arrays.copyOfRange(reducedReadCounts,iii,iii+KMER_LENGTH+1);
                         // precise rounding can make a difference with low consensus counts
-                        countNumber = (int)Math.round((double)MathUtils.sum(counts)/counts.length);
+                        countNumber = MathUtils.arrayMax(counts);
+                      //  countNumber = (int)Math.round((double)MathUtils.sum(counts)/counts.length);
                     }
 
                     if( !badKmer ) {
@@ -292,7 +293,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                 final Haplotype h = new Haplotype( path.getBases( graph ), path.getScore() );
                 if( addHaplotype( h, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop ) ) {
                     if( !activeAllelesToGenotype.isEmpty() ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
-                        final HashMap<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), fullReferenceWithPadding, h.getBases(), refLoc, "HCassembly", 0 ); // BUGBUG: need to put this function in a shared place
+                        final HashMap<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), fullReferenceWithPadding, h.getBases(), refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
                         for( final VariantContext compVC : activeAllelesToGenotype ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
                             final VariantContext vcOnHaplotype = eventMap.get(compVC.getStart());
                             if( vcOnHaplotype == null || !vcOnHaplotype.hasSameAllelesAs(compVC) ) {
