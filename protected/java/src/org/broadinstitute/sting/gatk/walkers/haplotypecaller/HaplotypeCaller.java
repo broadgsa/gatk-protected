@@ -28,8 +28,10 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 import com.google.java.contract.Ensures;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
+import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.gatk.walkers.genotyper.*;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
+import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
@@ -40,10 +42,6 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.ActiveRegionExtension;
-import org.broadinstitute.sting.gatk.walkers.ActiveRegionWalker;
-import org.broadinstitute.sting.gatk.walkers.PartitionBy;
-import org.broadinstitute.sting.gatk.walkers.PartitionType;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.utils.*;
@@ -103,6 +101,7 @@ import java.util.*;
 
 @DocumentedGATKFeature( groupName = "Variant Discovery Tools", extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.LOCUS)
+@BAQMode(ApplicationTime = BAQ.ApplicationTime.FORBIDDEN)
 @ActiveRegionExtension(extension=65, maxRegion=300)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
