@@ -47,12 +47,12 @@ public class UnifiedGenotyperGeneralPloidyIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testBOTH_GGA_Pools() {
-        PC_LSV_Test(String.format(" -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","BOTH","077db83cf7dc5490f670c85856b408b2");
+        PC_LSV_Test(String.format(" -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","BOTH","0ff90fa3882a3fb5089a7bba50dd8ae3");
     }
 
     @Test(enabled = true)
     public void testINDEL_GGA_Pools() {
-        PC_LSV_Test(String.format(" -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_INDEL_GGA","INDEL","e460a17377b731ff4eab36fb56042ecd");
+        PC_LSV_Test(String.format(" -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_INDEL_GGA","INDEL","90af837f372e3d5143af30bf5c8c2b75");
     }
 
     @Test(enabled = true)
@@ -67,11 +67,11 @@ public class UnifiedGenotyperGeneralPloidyIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testMT_SNP_DISCOVERY_sp4() {
-         PC_MT_Test(CEUTRIO_BAM, " -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","da359fe7dd6dce045193198c264301ee");
+         PC_MT_Test(CEUTRIO_BAM, " -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","c32e10070e10d30d33e5b882c1f89413");
     }
 
     @Test(enabled = true)
     public void testMT_SNP_GGA_sp10() {
-        PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "ad0eef3a9deaa098d79df62af7e5448a");
+        PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "4d16d3c9475637bad70e9dc2eafe2da2");
     }
 }
