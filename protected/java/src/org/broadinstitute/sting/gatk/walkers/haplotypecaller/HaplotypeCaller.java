@@ -308,7 +308,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
             for( final VariantContext vc : tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()) ) {
                 if( !allelesToGenotype.contains(vc) ) {
-                    allelesToGenotype.add(vc); // save for later for processing during the ActiveRegion's map call. Should be folded into a ReadMetaDataTracker object
+                    allelesToGenotype.add(vc); // save for later for processing during the ActiveRegion's map call. Should be folded into a RefMetaDataTracker object
                 }
             }
             if( tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ) {
