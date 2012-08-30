@@ -66,4 +66,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
         HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "e1f88fac91424740c0eaac1de48b3970");
     }
+
+    @Test
+    public void HCTestProblematicReadsModifiedInActiveRegions() {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("000fd36d5cf8090386bb2ac15e3ab0b5"));
+        executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
+    }
+
 }
