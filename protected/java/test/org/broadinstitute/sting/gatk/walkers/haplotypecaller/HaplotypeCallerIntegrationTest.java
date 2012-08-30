@@ -73,5 +73,4 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("000fd36d5cf8090386bb2ac15e3ab0b5"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
-
 }
