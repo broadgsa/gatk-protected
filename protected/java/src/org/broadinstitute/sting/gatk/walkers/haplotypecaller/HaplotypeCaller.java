@@ -380,7 +380,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             allelesToGenotype.removeAll( activeAllelesToGenotype );
         }
 
-        if( !activeRegion.isActive ) { return 0; } // Not active so nothing to do!
+        if( !activeRegion.isActive ) { return 0; } // Not active so nothing to do TODO : YOSSI Write something smart!!
         if( activeRegion.size() == 0 && UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) { return 0; } // No reads here so nothing to do!
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES && activeAllelesToGenotype.isEmpty() ) { return 0; } // No alleles found in this region so nothing to do!
 
