@@ -188,6 +188,7 @@ public class GenotypingEngine {
         return returnCalls;
     }
 
+    // BUGBUG: Create a class to hold this complicated return type
     @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
     public List<Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>>> assignGenotypeLikelihoodsAndCallIndependentEvents( final UnifiedGenotyperEngine UG_engine,
                                                                                                                                final ArrayList<Haplotype> haplotypes,
@@ -214,7 +215,6 @@ public class GenotypingEngine {
                 System.out.println( ">> Events = " + h.getEventMap());
             }
         }
-        final ArrayList<String> priorityList = new ArrayList<String>(); // filled in later, used to merge overlapping events into common reference view
 
         cleanUpSymbolicUnassembledEvents( haplotypes );
         if( activeAllelesToGenotype.isEmpty() && haplotypes.get(0).getSampleKeySet().size() >= 3 ) { // if not in GGA mode and have at least 3 samples try to create MNP and complex events by looking at LD structure
@@ -229,7 +229,9 @@ public class GenotypingEngine {
         // Walk along each position in the key set and create each event to be outputted
         for( final int loc : startPosKeySet ) {
             if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) {
-                final ArrayList<VariantContext> eventsAtThisLoc = new ArrayList<VariantContext>();
+                final ArrayList<VariantContext> eventsAtThisLoc = new ArrayList<VariantContext>(); // the overlapping events to merge into a common reference view
+                final ArrayList<String> priorityList = new ArrayList<String>(); // used to merge overlapping events into common reference view
+
                 if( activeAllelesToGenotype.isEmpty() ) {
                     for( final Haplotype h : haplotypes ) {
                         final HashMap<Integer,VariantContext> eventMap = h.getEventMap();
