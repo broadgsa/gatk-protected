@@ -184,7 +184,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         for( final GATKSAMRecord read : reads ) {
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
-            final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not readuced
+            final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
             if( sequence.length > KMER_LENGTH + KMER_OVERLAP ) {
                 final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
                 for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {                    
