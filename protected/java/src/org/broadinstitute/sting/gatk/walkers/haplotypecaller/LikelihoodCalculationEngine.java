@@ -346,20 +346,15 @@ public class LikelihoodCalculationEngine {
                     }
                 }
             }
-/*            // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
-            List<GATKSAMRecord> readList = alleleReadMap.get(Allele.NO_CALL);
-            if( readList == null ) {
-                readList = new ArrayList<GATKSAMRecord>();
-                alleleReadMap.put(Allele.NO_CALL, readList);
-            }
-  */
- /*           for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
+            // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
+            for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
                 if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
-                    readList.add(read);
+                    for( final Allele a : call.getFirst().getAlleles() )
+                        likelihoodMap.add(read,a,0.0);
                 }
             }
-   */
+
             returnMap.put(sample.getKey(), likelihoodMap);
 
         }
