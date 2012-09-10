@@ -546,7 +546,7 @@ public class SlidingWindow {
 
         FractionalDownsampler <GATKSAMRecord> downsampler = new FractionalDownsampler<GATKSAMRecord>(fraction);
         downsampler.submit(allReads);
-        return downsampler.consumeDownsampledItems();
+        return downsampler.consumeFinalizedItems();
     }
 
 

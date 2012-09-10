@@ -34,7 +34,7 @@ import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.filters.*;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
-import org.broadinstitute.sting.gatk.refdata.ReadMetaDataTracker;
+import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.PartitionBy;
 import org.broadinstitute.sting.gatk.walkers.PartitionType;
 import org.broadinstitute.sting.gatk.walkers.ReadFilters;
@@ -247,7 +247,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * @return a linked list with all the reads produced by the clipping operations
      */
     @Override
-    public LinkedList<GATKSAMRecord> map(ReferenceContext ref, GATKSAMRecord read, ReadMetaDataTracker metaDataTracker) {
+    public LinkedList<GATKSAMRecord> map(ReferenceContext ref, GATKSAMRecord read, RefMetaDataTracker metaDataTracker) {
         LinkedList<GATKSAMRecord> mappedReads;
         totalReads++;
         if (!debugRead.isEmpty() && read.getReadName().contains(debugRead))
