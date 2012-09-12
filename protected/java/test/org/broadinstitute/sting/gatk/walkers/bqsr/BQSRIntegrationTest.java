@@ -34,7 +34,6 @@ public class BQSRIntegrationTest extends WalkerTest {
                     " -I " + bam +
                     " -L " + interval +
                     args +
-                    " --no_plots" +
                     " -knownSites " + (reference.equals(b36KGReference) ? b36dbSNP129 : hg18dbSNP132) +
                     " -o %s";
         }
@@ -50,21 +49,21 @@ public class BQSRIntegrationTest extends WalkerTest {
         String HiSeqBam = privateTestDir + "HiSeq.1mb.1RG.bam";
         String HiSeqInterval = "chr1:10,000,000-10,100,000";
         return new Object[][]{
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "1cfc73371abb933ca26496745d105ff0")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "ee5142776008741b1b2453b1258c6d99")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "fbc520794f0f98d52159de956f7217f1")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "ab5b93794049c514bf8e407019d76b67")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "81df636e3d0ed6f16113517e0169bc96")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "ad3c47355448f8c45e172c6e1129c65d")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "fef7240140a9b6d6335ce009fa4edec5")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "600652ee49b9ce1ca2d8ee2d8b7c8211")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "769f95b9dcc78a405d3e6b191e5a19f5")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "43fcba51264cc98bd8466d21e1b96766")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "48aaf9ac54b97eac3663882a59354ab2")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "dac04b9e1e1c52af8d3a50c2e550fda9")},
-                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "90d70542076715a8605a8d4002614b34")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "600652ee49b9ce1ca2d8ee2d8b7c8211")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "26a04f5a28c40750c603cbe8a926d7bd")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "5a28b9fb5f2e36703e9804d276c38009")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "646a7c6db12cf0ec119bc27abed9c7b8")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "777f21676435837ba470497e17624266")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "f7d77e0d86d033c69f25ef9858fdb95d")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "c3866646833cbb60831695d016d614d1")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "04c1d020bdb25fc55c3983748702290c")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "edf77f41cdd6c27f987cb1ecbcaa889b")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "3d52db844e8220d2dbdcd1339b3d3000")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "47605edafb4da0859bf735a6bd2dfe9c")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "0ac92d3548fdca8f253121842bb38c65")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "de7448f5bf787c17f1ee4c415bc90d3c")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "60542fe8a3cc89a47421767c6e1c11cd")},
+                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "f9a5a8f1b8f77f4c8857ccba8bff49a6")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "3d52db844e8220d2dbdcd1339b3d3000")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "919d88b173b0c11cbca762132bc94ab9")},
         };
     }
 
@@ -88,7 +87,6 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -R " + b36KGReference +
                         " -I " + validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.bam" +
                         " -L 1:10,000,000-10,200,000" +
-                        " --no_plots" +
                         " -o %s",
                 1, // just one output file
                 UserException.CommandLineException.class);
@@ -102,7 +100,6 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -R " + b36KGReference +
                         " -I " + privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam" +
                         " -L 1:50,000-80,000" +
-                        " --no_plots" +
                         " -o %s",
                 1, // just one output file
                 UserException.class);
