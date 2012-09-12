@@ -73,4 +73,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("8d092b25f40456e618eef91fdce8adf0"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
+
+    @Test
+    public void HCTestStructuralIndels() {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("c29e61810c056b52a47baae0696931ea"));
+        executeTest("HCTestStructuralIndels: ", spec);
+    }
+
 }
