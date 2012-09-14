@@ -195,8 +195,8 @@ public class ErrorModel  {
         if (eventLength < 0 && pileupElement.isBeforeDeletionStart() && pileupElement.getEventLength() == -eventLength)
             return true;
 
-        if (eventLength > 0 && pileupElement.isBeforeInsertion() &&
-                Arrays.equals(pileupElement.getEventBases().getBytes(),alleleBases))
+                if (eventLength > 0 && pileupElement.isBeforeInsertion() &&
+                Arrays.equals(pileupElement.getEventBases().getBytes(),Arrays.copyOfRange(alleleBases,1,alleleBases.length))) // allele contains ref byte, but pileupElement's event bases doesn't
             return true;
 
         return false;

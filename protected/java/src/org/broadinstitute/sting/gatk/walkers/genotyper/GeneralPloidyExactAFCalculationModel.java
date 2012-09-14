@@ -199,6 +199,8 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
                     numAlleles, log10AlleleFrequencyPriors, result);
             combinedPloidy = ploidyPerPool + combinedPloidy; // total number of chromosomes in combinedLikelihoods
         }
+
+        int k=0;
     }
 
     public static CombinedPoolLikelihoods fastCombineMultiallelicPool(final CombinedPoolLikelihoods originalPool, double[] newGL, int originalPloidy, int newGLPloidy, int numAlleles,
@@ -408,6 +410,7 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
 
             result.setLog10LikelihoodOfAFzero(log10Lof0);
             result.setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
+            return log10Lof0;
 
         }   else {
 
