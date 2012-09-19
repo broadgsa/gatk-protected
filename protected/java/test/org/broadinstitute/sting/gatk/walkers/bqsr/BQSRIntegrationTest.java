@@ -49,21 +49,21 @@ public class BQSRIntegrationTest extends WalkerTest {
         String HiSeqBam = privateTestDir + "HiSeq.1mb.1RG.bam";
         String HiSeqInterval = "chr1:10,000,000-10,100,000";
         return new Object[][]{
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "be6c7bc0b79a2d0395d21cd0154540d5")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "65781095beb41d8feca26e93e04dcc0b")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "8ee1fed1713daca1f36e8b30bee2cd23")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "9449d8a8baac742f46673e9b8314220b")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "39313c6e3b85142548fee9b6c130e7b6")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "15eae9e834ed80b24660393c6df87f85")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "8485d8fd5e780e98d720dfbf79f26528")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "c423d1d443822dae404239bb9a746b96")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "fb0a6aef430f562ed5e0002d03e0c619")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "efee7bcb89abe36da1cfd8a635d37cd2")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "0e8a3238902a1ff0f0c657fb09b4c022")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "5e58d3dcf5ca38f008a64d1c0743ed83")},
-                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "1a8e5c85c7935eb1bd2203f5c86ce1db")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "c423d1d443822dae404239bb9a746b96")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "6762b39dc027056365280a9d582a6713")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "55a46d8f5d2f9acfa2d7659e18b6df43")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "8e930f56a8905a5999af7d6ba8a92f91")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "8e87bee4bd6531b405082c4da785f1f5")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "b309a5f57b861d7f31cb76cdac4ff8a7")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "4c75d47ed2cf93b499be8fbb29b24dfd")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "43b06e5568a89e4ce1dd9146ce580c89")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "25f4f48dba27475b0cd7c06ef0239aba")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "dfcba9acc32b4a1dfeceea135b48615a")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "e8077b721f2e6f51c1945b6f6236835c")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "fbdc8d0fd312e3a7f49063c580cf5d92")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "4f47415628201a4f3c33e48ec066677b")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "1e89d2b88f4218363b9322b38e9536f2")},
+                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "a7beb0b16756257a274eecf73474ed90")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "dfcba9acc32b4a1dfeceea135b48615a")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "2082c70e08f1c14290c3812021832f83")},
         };
     }
 
@@ -124,10 +124,10 @@ public class BQSRIntegrationTest extends WalkerTest {
     @DataProvider(name = "PRTest")
     public Object[][] createPRTestData() {
         return new Object[][]{
-                {new PRTest("", "1532242f9fe90ef759a0faa5d85f61fb")},
-                {new PRTest(" -qq -1", "3dd2c87915c96ac55c3872026574d8cb")},
-                {new PRTest(" -qq 6", "5d012ee224f1cb4a7afac59e3655e20c")},
-                {new PRTest(" -DIQ", "66aa65223f192ee39c1773aa187fd493")}
+                {new PRTest("", "ab2f209ab98ad3432e208cbd524a4c4a")},
+                {new PRTest(" -qq -1", "5226c06237b213b9e9b25a32ed92d09a")},
+                {new PRTest(" -qq 6", "b592a5c62b952a012e18adb898ea9c33")},
+                {new PRTest(" -DIQ", "8977bea0c57b808e65e9505eb648cdf7")}
         };
     }
 
