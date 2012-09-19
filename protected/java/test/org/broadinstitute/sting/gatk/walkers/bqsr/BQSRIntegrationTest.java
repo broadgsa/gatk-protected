@@ -137,7 +137,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                 "-T PrintReads" +
                         " -R " + hg18Reference +
                         " -I " + privateTestDir + "HiSeq.1mb.1RG.bam" +
-                        " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.table" +
+                        " -BQSR " + privateTestDir + "HiSeq.20mb.1RG.table" +
                         params.args +
                         " -o %s",
                 Arrays.asList(params.md5));
