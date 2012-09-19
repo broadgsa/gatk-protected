@@ -200,7 +200,6 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
             combinedPloidy = ploidyPerPool + combinedPloidy; // total number of chromosomes in combinedLikelihoods
         }
 
-        int k=0;
     }
 
     public static CombinedPoolLikelihoods fastCombineMultiallelicPool(final CombinedPoolLikelihoods originalPool, double[] newGL, int originalPloidy, int newGLPloidy, int numAlleles,
