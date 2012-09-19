@@ -5,7 +5,7 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
-import org.broadinstitute.sting.gatk.downsampling.FractionalDownsampler;
+import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
@@ -540,11 +540,10 @@ public class SlidingWindow {
         if (nReads == 0)
             return allReads;
 
-        double fraction = 100 / allReads.size();
-        if (fraction >= 1)
+        if (downsampleCoverage >= nReads)
             return allReads;
 
-        FractionalDownsampler <GATKSAMRecord> downsampler = new FractionalDownsampler<GATKSAMRecord>(fraction);
+        ReservoirDownsampler <GATKSAMRecord> downsampler = new ReservoirDownsampler<GATKSAMRecord>(downsampleCoverage);
         downsampler.submit(allReads);
         return downsampler.consumeFinalizedItems();
     }

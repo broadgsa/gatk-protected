@@ -23,28 +23,28 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testDefaultCompression() {
-        RRTest("testDefaultCompression ", L, "72eb6db9d7a09a0cc25eaac1aafa97b7");
+        RRTest("testDefaultCompression ", L, "323dd4deabd7767efa0f2c6e7fa4189f");
     }
 
     @Test(enabled = true)
     public void testMultipleIntervals() {
         String intervals = "-L 20:10,100,000-10,100,500 -L 20:10,200,000-10,200,500 -L 20:10,300,000-10,300,500 -L 20:10,400,000-10,500,000 -L 20:10,500,050-10,500,060 -L 20:10,600,000-10,600,015 -L 20:10,700,000-10,700,110";
-        RRTest("testMultipleIntervals ", intervals, "104b1a1d9fa5394c6fea95cd32967b78");
+        RRTest("testMultipleIntervals ", intervals, "c437fb160547ff271f8eba30e5f3ff76");
     }
 
     @Test(enabled = true)
     public void testHighCompression() {
-        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "c55140cec60fa8c35161680289d74d47");
+        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "3a607bc3ebaf84e9dc44e005c5f8a047");
     }
 
     @Test(enabled = true)
     public void testLowCompression() {
-        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "0f2e57b7f6de03cc4da1ffcc8cf8f1a7");
+        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "7c9b4a70c2c90b0a995800aa42852e63");
     }
 
     @Test(enabled = true)
     public void testIndelCompression() {
-        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "dda0c95f56f90e5f633c2437c2b21031");
+        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "f7b9fa44c10bc4b2247813d2b8dc1973");
     }
 
     @Test(enabled = true)
@@ -74,7 +74,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testDivideByZero() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", DIVIDEBYZERO_L, REF, DIVIDEBYZERO_BAM) + " -o %s ";
-        executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("137505c3efd1e9f8d9209dbdf8419ff9")));
+        executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("93ffdc209d4cc0fc4f0169ca9be55cc2")));
     }
 
 }
