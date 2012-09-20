@@ -224,12 +224,16 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
         indexesToACset.put(zeroSet.ACcounts, zeroSet);
 
         // keep processing while we have AC conformations that need to be calculated
-        double maxLog10L = Double.NEGATIVE_INFINITY;
+        MaxLikelihoodSeen maxLikelihoodSeen = new MaxLikelihoodSeen();
         while ( !ACqueue.isEmpty() ) {
             // compute log10Likelihoods
             final ExactACset ACset = ACqueue.remove();
-            final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, result, maxLog10L, ACqueue, indexesToACset);
-            maxLog10L = Math.max(maxLog10L, log10LofKs);
+            final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, result, maxLikelihoodSeen, ACqueue, indexesToACset);
+
+            // adjust max likelihood seen if needed
+            if ( log10LofKs > maxLikelihoodSeen.maxLog10L )
+                maxLikelihoodSeen.update(log10LofKs, ACset.ACcounts);
+
             // clean up memory
             indexesToACset.remove(ACset.ACcounts);
             if ( VERBOSE )
@@ -250,7 +254,7 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
      * @param originalPloidy             Total ploidy of original combined pool
      * @param newGLPloidy                Ploidy of GL vector
      * @param result                     AFResult object
-     * @param maxLog10L                  max likelihood observed so far
+     * @param maxLikelihoodSeen          max likelihood observed so far
      * @param ACqueue                    Queue of conformations to compute
      * @param indexesToACset             AC indices of objects in queue
      * @return                           max log likelihood
@@ -263,7 +267,7 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
                                                                 final int originalPloidy,
                                                                 final int newGLPloidy,
                                                                 final AlleleFrequencyCalculationResult result,
-                                                                final double  maxLog10L,
+                                                                final MaxLikelihoodSeen maxLikelihoodSeen,
                                                                 final LinkedList<ExactACset> ACqueue,
                                                                 final HashMap<ExactACcounts, ExactACset> indexesToACset) {
 
@@ -277,9 +281,9 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
         if (!Double.isInfinite(log10LofK))
             newPool.add(set);
 
-        if ( log10LofK < maxLog10L - MAX_LOG10_ERROR_TO_STOP_EARLY ) {
+        if ( log10LofK < maxLikelihoodSeen.maxLog10L - MAX_LOG10_ERROR_TO_STOP_EARLY && maxLikelihoodSeen.isLowerAC(set.ACcounts) ) {
             if ( VERBOSE )
-                System.out.printf(" *** breaking early set=%s log10L=%.2f maxLog10L=%.2f%n", set.ACcounts, log10LofK, maxLog10L);
+                System.out.printf(" *** breaking early set=%s log10L=%.2f maxLog10L=%.2f%n", set.ACcounts, log10LofK, maxLikelihoodSeen.maxLog10L);
             return log10LofK;
         }
 
