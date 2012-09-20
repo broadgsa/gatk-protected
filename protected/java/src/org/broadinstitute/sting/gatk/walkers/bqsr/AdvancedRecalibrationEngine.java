@@ -77,7 +77,7 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
             final byte qual = tempQualArray[eventIndex];
             final boolean isError = tempErrorArray[eventIndex];
 
-            final NestedIntegerArray<RecalDatum> rgRecalTable = recalibrationTables.getTable(RecalibrationTables.TableType.READ_GROUP_TABLE);
+            final NestedIntegerArray<RecalDatum> rgRecalTable = recalibrationTables.getReadGroupTable();
             final RecalDatum rgPreviousDatum = rgRecalTable.get(keys[0], eventIndex);
             final RecalDatum rgThisDatum = createDatumObject(qual, isError);
             if (rgPreviousDatum == null) // key doesn't exist yet in the map so make a new bucket and add it
@@ -85,7 +85,7 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
             else
                 rgPreviousDatum.combine(rgThisDatum);
 
-            final NestedIntegerArray<RecalDatum> qualRecalTable = recalibrationTables.getTable(RecalibrationTables.TableType.QUALITY_SCORE_TABLE);
+            final NestedIntegerArray<RecalDatum> qualRecalTable = recalibrationTables.getQualityScoreTable();
             final RecalDatum qualPreviousDatum = qualRecalTable.get(keys[0], keys[1], eventIndex);
             if (qualPreviousDatum == null)
                 qualRecalTable.put(createDatumObject(qual, isError), keys[0], keys[1], eventIndex);
@@ -124,7 +124,7 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
                     final byte qual = tempQualArray[eventIndex];
                     final double isError = tempFractionalErrorArray[eventIndex];
 
-                    final NestedIntegerArray<RecalDatum> rgRecalTable = recalibrationTables.getTable(RecalibrationTables.TableType.READ_GROUP_TABLE);
+                    final NestedIntegerArray<RecalDatum> rgRecalTable = recalibrationTables.getReadGroupTable();
                     final RecalDatum rgPreviousDatum = rgRecalTable.get(keys[0], eventIndex);
                     final RecalDatum rgThisDatum = createDatumObject(qual, isError);
                     if (rgPreviousDatum == null) // key doesn't exist yet in the map so make a new bucket and add it
@@ -132,7 +132,7 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
                     else
                         rgPreviousDatum.combine(rgThisDatum);
 
-                    final NestedIntegerArray<RecalDatum> qualRecalTable = recalibrationTables.getTable(RecalibrationTables.TableType.QUALITY_SCORE_TABLE);
+                    final NestedIntegerArray<RecalDatum> qualRecalTable = recalibrationTables.getQualityScoreTable();
                     final RecalDatum qualPreviousDatum = qualRecalTable.get(keys[0], keys[1], eventIndex);
                     if (qualPreviousDatum == null)
                         qualRecalTable.put(createDatumObject(qual, isError), keys[0], keys[1], eventIndex);
