@@ -612,7 +612,7 @@ public class SlidingWindow {
             finalizedReads = closeVariantRegions(regions, true);
 
             if (!windowHeader.isEmpty()) {
-                finalizedReads.addAll(addToSyntheticReads(windowHeader, 0, windowHeader.size() - 1, false));
+                finalizedReads.addAll(addToSyntheticReads(windowHeader, 0, windowHeader.size(), false));
                 finalizedReads.addAll(finalizeAndAdd(ConsensusType.BOTH));                                              // if it ended in running consensus, finish it up
             }
 
