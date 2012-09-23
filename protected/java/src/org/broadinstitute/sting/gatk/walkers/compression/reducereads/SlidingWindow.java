@@ -719,6 +719,7 @@ public class SlidingWindow {
         }
 
         for (GATKSAMRecord read : toRemove) {
+            removeFromHeader(windowHeader, read);
             readsInWindow.remove(read);
         }
         return hetReads;
