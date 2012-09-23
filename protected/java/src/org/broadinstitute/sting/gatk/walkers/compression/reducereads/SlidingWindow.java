@@ -674,7 +674,7 @@ public class SlidingWindow {
             // check if the read is either before or inside the variant region
             if (read.getSoftStart() <= refStop) {
                 // check if the read is inside the variant region
-                if (read.getMappingQuality() > MIN_MAPPING_QUALITY && read.getSoftEnd() >= refStart) {
+                if (read.getMappingQuality() >= MIN_MAPPING_QUALITY && read.getSoftEnd() >= refStart) {
                     // check if the read contains the het site
                     if (read.getSoftStart() <= hetRefPosition && read.getSoftEnd() >= hetRefPosition) {
                         int readPos = ReadUtils.getReadCoordinateForReferenceCoordinate(read, hetRefPosition, ReadUtils.ClippingTail.LEFT_TAIL);
@@ -682,7 +682,7 @@ public class SlidingWindow {
                         byte qual = read.getBaseQualities(EventType.BASE_SUBSTITUTION)[readPos];
 
                         // check if base passes the filters!
-                        if (qual > MIN_BASE_QUAL_TO_COUNT) {
+                        if (qual >= MIN_BASE_QUAL_TO_COUNT) {
                             // check which haplotype this read represents and take the index of it from the list of headers
                             if (haplotypeHeaderMap.containsKey(base)) {
                                 haplotype = haplotypeHeaderMap.get(base);
