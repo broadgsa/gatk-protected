@@ -698,8 +698,11 @@ public class SlidingWindow {
                             LinkedList<HeaderElement> header = read.getReadNegativeStrandFlag() ? headersNegStrand.get(haplotype) : headersPosStrand.get(haplotype);
                             addToHeader(header, read);
                         }
+
+                        removeFromHeader(windowHeader, read);
                     }
                 }
+
                 // we remove all reads before and inside the variant region from the window
                 toRemove.add(read);
             }
@@ -719,7 +722,6 @@ public class SlidingWindow {
         }
 
         for (GATKSAMRecord read : toRemove) {
-            removeFromHeader(windowHeader, read);
             readsInWindow.remove(read);
         }
         return hetReads;
