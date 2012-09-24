@@ -546,7 +546,7 @@ public class SlidingWindow {
         List<GATKSAMRecord> allReads = compressVariantRegion(start, stop);
 
         List<GATKSAMRecord> result = (downsampleCoverage > 0) ? downsampleVariantRegion(allReads) : allReads;
-        result.addAll(addToSyntheticReads(windowHeader, 0, start, false));
+        result.addAll(addToSyntheticReads(windowHeader, 0, stop, false));
         result.addAll(finalizeAndAdd(ConsensusType.BOTH));
 
         return result;                                                                                                  // finalized reads will be downsampled if necessary
