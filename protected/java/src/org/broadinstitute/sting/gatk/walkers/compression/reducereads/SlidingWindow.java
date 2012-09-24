@@ -696,10 +696,11 @@ public class SlidingWindow {
                                 currentHaplotype++;
                             }
                             LinkedList<HeaderElement> header = read.getReadNegativeStrandFlag() ? headersNegStrand.get(haplotype) : headersPosStrand.get(haplotype);
+                            // add to the polyploid header
                             addToHeader(header, read);
+                            // remove from the standard header so that we don't double count it
+                            removeFromHeader(windowHeader, read);
                         }
-
-                        removeFromHeader(windowHeader, read);
                     }
                 }
 
