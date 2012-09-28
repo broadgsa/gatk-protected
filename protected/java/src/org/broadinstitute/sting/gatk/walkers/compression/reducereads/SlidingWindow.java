@@ -55,6 +55,8 @@ public class SlidingWindow {
 
     private final int nContigs;
 
+    private boolean allowPolyploidReduction;
+
     /**
      * The types of synthetic reads to use in the finalizeAndAdd method
      */
@@ -85,7 +87,7 @@ public class SlidingWindow {
     }
 
 
-    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, int nContigs) {
+    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, int nContigs, boolean allowPolyploidReduction) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
 
@@ -114,6 +116,8 @@ public class SlidingWindow {
         this.downsampleStrategy = downsampleStrategy;
         this.hasIndelQualities = hasIndelQualities;
         this.nContigs = nContigs;
+
+        this.allowPolyploidReduction = allowPolyploidReduction;
     }
 
     /**
@@ -485,22 +489,25 @@ public class SlidingWindow {
         boolean canCompress = true;
         boolean foundEvent = false;
         Object[] header = windowHeader.toArray();
-        for (int i = start; i<=stop; i++) {
-            nHaplotypes = ((HeaderElement) header[i]).getNumberOfHaplotypes(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
-            if (nHaplotypes > nContigs) {
-                canCompress = false;
-                break;
-            }
 
-            // guarantees that there is only 1 site in the variant region that needs more than one haplotype
-            if (nHaplotypes > 1) {
-                if (!foundEvent) {
-                    foundEvent = true;
-                    hetRefPosition = i;
-                }
-                else {
+        if ( allowPolyploidReduction ) { // foundEvent will remain false if we don't allow polyploid reduction
+            for (int i = start; i<=stop; i++) {
+                nHaplotypes = ((HeaderElement) header[i]).getNumberOfHaplotypes(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
+                if (nHaplotypes > nContigs) {
                     canCompress = false;
                     break;
+                }
+
+                // guarantees that there is only 1 site in the variant region that needs more than one haplotype
+                if (nHaplotypes > 1) {
+                    if (!foundEvent) {
+                        foundEvent = true;
+                        hetRefPosition = i;
+                    }
+                    else {
+                        canCompress = false;
+                        break;
+                    }
                 }
             }
         }

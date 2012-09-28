@@ -118,6 +118,12 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     private byte minTailQuality = 2;
 
     /**
+     * Allow the experimental polyploid-based reduction capabilities of this tool
+     */
+    @Argument(fullName = "allow_polyploid_reduction", shortName = "polyploid", doc = "", required = false)
+    private boolean USE_POLYPLOID_REDUCTION = false;
+
+    /**
      * Do not simplify read (strip away all extra information of the read -- anything other than bases, quals
      * and read group).
      */
@@ -323,7 +329,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      */
     @Override
     public ReduceReadsStash reduceInit() {
-        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs));
+        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs, USE_POLYPLOID_REDUCTION));
     }
 
     /**
