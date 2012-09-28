@@ -546,7 +546,7 @@ public class SlidingWindow {
         List<GATKSAMRecord> allReads = compressVariantRegion(start, stop);
 
         List<GATKSAMRecord> result = (downsampleCoverage > 0) ? downsampleVariantRegion(allReads) : allReads;
-        result.addAll(addToSyntheticReads(windowHeader, 0, start, false));
+        result.addAll(addToSyntheticReads(windowHeader, 0, stop, false));
         result.addAll(finalizeAndAdd(ConsensusType.BOTH));
 
         return result;                                                                                                  // finalized reads will be downsampled if necessary
@@ -612,7 +612,7 @@ public class SlidingWindow {
             finalizedReads = closeVariantRegions(regions, true);
 
             if (!windowHeader.isEmpty()) {
-                finalizedReads.addAll(addToSyntheticReads(windowHeader, 0, windowHeader.size() - 1, false));
+                finalizedReads.addAll(addToSyntheticReads(windowHeader, 0, windowHeader.size(), false));
                 finalizedReads.addAll(finalizeAndAdd(ConsensusType.BOTH));                                              // if it ended in running consensus, finish it up
             }
 
@@ -674,7 +674,7 @@ public class SlidingWindow {
             // check if the read is either before or inside the variant region
             if (read.getSoftStart() <= refStop) {
                 // check if the read is inside the variant region
-                if (read.getMappingQuality() > MIN_MAPPING_QUALITY && read.getSoftEnd() >= refStart) {
+                if (read.getMappingQuality() >= MIN_MAPPING_QUALITY && read.getSoftEnd() >= refStart) {
                     // check if the read contains the het site
                     if (read.getSoftStart() <= hetRefPosition && read.getSoftEnd() >= hetRefPosition) {
                         int readPos = ReadUtils.getReadCoordinateForReferenceCoordinate(read, hetRefPosition, ReadUtils.ClippingTail.LEFT_TAIL);
@@ -682,7 +682,7 @@ public class SlidingWindow {
                         byte qual = read.getBaseQualities(EventType.BASE_SUBSTITUTION)[readPos];
 
                         // check if base passes the filters!
-                        if (qual > MIN_BASE_QUAL_TO_COUNT) {
+                        if (qual >= MIN_BASE_QUAL_TO_COUNT) {
                             // check which haplotype this read represents and take the index of it from the list of headers
                             if (haplotypeHeaderMap.containsKey(base)) {
                                 haplotype = haplotypeHeaderMap.get(base);
@@ -696,10 +696,14 @@ public class SlidingWindow {
                                 currentHaplotype++;
                             }
                             LinkedList<HeaderElement> header = read.getReadNegativeStrandFlag() ? headersNegStrand.get(haplotype) : headersPosStrand.get(haplotype);
+                            // add to the polyploid header
                             addToHeader(header, read);
+                            // remove from the standard header so that we don't double count it
+                            removeFromHeader(windowHeader, read);
                         }
                     }
                 }
+
                 // we remove all reads before and inside the variant region from the window
                 toRemove.add(read);
             }

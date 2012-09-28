@@ -263,7 +263,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         if (debugLevel == 1)
             System.out.printf("\nOriginal: %s %s %d %d\n", read, read.getCigar(), read.getAlignmentStart(), read.getAlignmentEnd());
 
-        // we write the actual alignment starts to their respectiv alignment shift tags in the temporary
+        // we write the actual alignment starts to their respective alignment shift tags in the temporary
         // attribute hash so we can determine later if we need to write down the alignment shift to the reduced BAM file
         read.setTemporaryAttribute(GATKSAMRecord.REDUCED_READ_ORIGINAL_ALIGNMENT_START_SHIFT, read.getAlignmentStart());
         read.setTemporaryAttribute(GATKSAMRecord.REDUCED_READ_ORIGINAL_ALIGNMENT_END_SHIFT, read.getAlignmentEnd());

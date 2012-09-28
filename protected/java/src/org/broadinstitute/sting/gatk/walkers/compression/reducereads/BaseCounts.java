@@ -7,7 +7,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * An object to keep track of the number of occurences of each base and it's quality.
+ * An object to keep track of the number of occurrences of each base and it's quality.
  *
  * User: depristo
  * Date: 4/8/11
@@ -82,8 +82,6 @@ import java.util.Map;
             sumQuals.put(i, sumQuals.get(i) - qual);
         }
     }
-
-
 
     @Ensures("result >= 0")
     public int getCount(byte base) {
@@ -183,7 +181,7 @@ import java.util.Map;
     public BaseIndex baseIndexWithMostCounts() {
         BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
         for (BaseIndex i : counts.keySet())
-            if (counts.get(i) > counts.get(maxI))
+            if (hasHigherCount(i, maxI))
                 maxI = i;
         return maxI;
     }
@@ -192,17 +190,23 @@ import java.util.Map;
     public BaseIndex baseIndexWithMostCountsWithoutIndels() {
         BaseIndex mostCounts = MAX_BASE_INDEX_WITH_NO_COUNTS;
         for (BaseIndex index : counts.keySet())
-            if (index.isNucleotide() && counts.get(index) > counts.get(mostCounts))
+            if (index.isNucleotide() && hasHigherCount(index, mostCounts))
                 mostCounts = index;
         return mostCounts;
+    }
+
+    private boolean hasHigherCount(final BaseIndex targetIndex, final BaseIndex testIndex) {
+        final int targetCount = counts.get(targetIndex);
+        final int testCount = counts.get(testIndex);
+        return  ( targetCount > testCount || (targetCount == testCount && sumQuals.get(targetIndex) > sumQuals.get(testIndex)) );
     }
 
     @Ensures("result >=0")
     public int totalCountWithoutIndels() {
         int sum = 0;
-        for (BaseIndex index : counts.keySet())
-            if (index.isNucleotide())
-                sum += counts.get(index);
+        for (Map.Entry<BaseIndex, Integer> entry : counts.entrySet())
+            if (entry.getKey().isNucleotide())
+                sum += entry.getValue();
         return sum;
     }
 
@@ -222,6 +226,6 @@ import java.util.Map;
     }
 
     public Object[] countsArray() {
-        return (Object []) counts.values().toArray();
+        return counts.values().toArray();
     }
 }

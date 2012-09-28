@@ -281,7 +281,9 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
         if (!Double.isInfinite(log10LofK))
             newPool.add(set);
 
-        if ( log10LofK < maxLikelihoodSeen.maxLog10L - MAX_LOG10_ERROR_TO_STOP_EARLY && maxLikelihoodSeen.isLowerAC(set.ACcounts) ) {
+        // TODO -- uncomment this correct line when the implementation of this model is optimized (it's too slow now to handle this fix)
+        //if ( log10LofK < maxLikelihoodSeen.maxLog10L - MAX_LOG10_ERROR_TO_STOP_EARLY && maxLikelihoodSeen.isLowerAC(set.ACcounts) ) {
+        if ( log10LofK < maxLikelihoodSeen.maxLog10L - MAX_LOG10_ERROR_TO_STOP_EARLY ) {
             if ( VERBOSE )
                 System.out.printf(" *** breaking early set=%s log10L=%.2f maxLog10L=%.2f%n", set.ACcounts, log10LofK, maxLikelihoodSeen.maxLog10L);
             return log10LofK;
