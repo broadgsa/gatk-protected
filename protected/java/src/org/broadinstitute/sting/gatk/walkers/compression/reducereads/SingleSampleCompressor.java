@@ -19,6 +19,7 @@ public class SingleSampleCompressor implements Compressor {
     final private int minBaseQual;
     final private ReduceReads.DownsampleStrategy downsampleStrategy;
     final private int nContigs;
+    final private boolean allowPolyploidReduction;
 
     private SlidingWindow slidingWindow;
     private int slidingWindowCounter;
@@ -31,7 +32,8 @@ public class SingleSampleCompressor implements Compressor {
                                   final double minIndelProportionToTriggerVariant,
                                   final int minBaseQual,
                                   final ReduceReads.DownsampleStrategy downsampleStrategy,
-                                  final int nContigs) {
+                                  final int nContigs,
+                                  final boolean allowPolyploidReduction) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
         this.minMappingQuality = minMappingQuality;
@@ -41,6 +43,7 @@ public class SingleSampleCompressor implements Compressor {
         this.minBaseQual = minBaseQual;
         this.downsampleStrategy = downsampleStrategy;
         this.nContigs = nContigs;
+        this.allowPolyploidReduction = allowPolyploidReduction;
     }
 
     /**
@@ -62,7 +65,7 @@ public class SingleSampleCompressor implements Compressor {
         }
 
         if ( slidingWindow == null) {                                                  // this is the first read
-            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), nContigs);
+            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), nContigs, allowPolyploidReduction);
             slidingWindowCounter++;
         }
 
