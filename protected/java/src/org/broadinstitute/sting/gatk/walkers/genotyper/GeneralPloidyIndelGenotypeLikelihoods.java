@@ -188,7 +188,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
      * @param alleleList    List of alleles
      * @param numObservations Number of observations for each allele in alleleList
      */
-    public void getLikelihoodOfConformation(final AlleleFrequencyCalculationModel.ExactACset ACset,
+    public void getLikelihoodOfConformation(final ExactAFCalculation.ExactACset ACset,
                                             final ErrorModel errorModel,
                                             final List<Allele> alleleList,
                                             final List<Integer> numObservations,

@@ -34,7 +34,7 @@ import org.broadinstitute.sting.utils.variantcontext.*;
 import java.io.PrintStream;
 import java.util.*;
 
-public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalculationModel {
+public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 10; // if PL vectors longer than this # of elements, don't log them
     final protected UnifiedArgumentCollection UAC;
 
@@ -42,35 +42,38 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
     private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
     private final static boolean VERBOSE = false;
 
-    protected GeneralPloidyExactAFCalculationModel(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
+    protected GeneralPloidyExactAFCalculation(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
         super(UAC, N, logger, verboseWriter);
         ploidy = UAC.samplePloidy;
         this.UAC = UAC;
 
     }
 
-    public List<Allele> getLog10PNonRef(final VariantContext vc,
-                                        final double[] log10AlleleFrequencyPriors,
-                                        final AlleleFrequencyCalculationResult result) {
-
-        GenotypesContext GLs = vc.getGenotypes();
-        List<Allele> alleles = vc.getAlleles();
-
+    @Override
+    protected VariantContext reduceScope(VariantContext vc) {
         // don't try to genotype too many alternate alleles
         if ( vc.getAlternateAlleles().size() > MAX_ALTERNATE_ALLELES_TO_GENOTYPE ) {
             logger.warn("this tool is currently set to genotype at most " + MAX_ALTERNATE_ALLELES_TO_GENOTYPE + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart() + " has " + (vc.getAlternateAlleles().size()) + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
 
-            alleles = new ArrayList<Allele>(MAX_ALTERNATE_ALLELES_TO_GENOTYPE + 1);
+            final List<Allele> alleles = new ArrayList<Allele>(MAX_ALTERNATE_ALLELES_TO_GENOTYPE + 1);
             alleles.add(vc.getReference());
             alleles.addAll(chooseMostLikelyAlternateAlleles(vc, MAX_ALTERNATE_ALLELES_TO_GENOTYPE, ploidy));
 
+            VariantContextBuilder builder = new VariantContextBuilder(vc);
+            builder.alleles(alleles);
+            builder.genotypes(subsetAlleles(vc, alleles, false, ploidy));
+            return builder.make();
 
-            GLs = subsetAlleles(vc, alleles, false, ploidy);
+        } else {
+            return vc;
         }
+    }
 
-        combineSinglePools(GLs, alleles.size(), ploidy, log10AlleleFrequencyPriors, result);
-
-        return alleles;
+    @Override
+    public void computeLog10PNonRef(final VariantContext vc,
+                                    final double[] log10AlleleFrequencyPriors,
+                                    final AlleleFrequencyCalculationResult result) {
+        combineSinglePools(vc.getGenotypes(), vc.getNAlleles(), ploidy, log10AlleleFrequencyPriors, result);
     }
 
 

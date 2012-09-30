@@ -12,7 +12,10 @@ import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 
 import static java.lang.Math.log10;
 import static java.lang.Math.pow;
@@ -218,7 +221,7 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
      * @param alleleList    List of alleles
      * @param numObservations Number of observations for each allele in alleleList
       */
-    public void getLikelihoodOfConformation(final AlleleFrequencyCalculationModel.ExactACset ACset,
+    public void getLikelihoodOfConformation(final ExactAFCalculation.ExactACset ACset,
                                             final ErrorModel errorModel,
                                             final List<Allele> alleleList,
                                             final List<Integer> numObservations,
