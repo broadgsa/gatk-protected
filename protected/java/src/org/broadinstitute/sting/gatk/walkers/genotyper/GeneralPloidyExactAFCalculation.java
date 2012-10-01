@@ -36,7 +36,6 @@ import java.util.*;
 
 public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 10; // if PL vectors longer than this # of elements, don't log them
-    final protected UnifiedArgumentCollection UAC;
 
     private final int ploidy;
     private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
@@ -45,8 +44,11 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
     protected GeneralPloidyExactAFCalculation(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
         super(UAC, N, logger, verboseWriter);
         ploidy = UAC.samplePloidy;
-        this.UAC = UAC;
+    }
 
+    public GeneralPloidyExactAFCalculation(final int nSamples, final int maxAltAlleles, final int ploidy) {
+        super(nSamples, maxAltAlleles, false, null, null, null);
+        this.ploidy = ploidy;
     }
 
     @Override
@@ -63,7 +65,6 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
             builder.alleles(alleles);
             builder.genotypes(subsetAlleles(vc, alleles, false, ploidy));
             return builder.make();
-
         } else {
             return vc;
         }
