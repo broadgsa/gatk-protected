@@ -198,7 +198,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
 
         combinedPoolLikelihoods.add(set);
         for (int p=1; p<genotypeLikelihoods.size(); p++) {
-            result.reset();
+            result.reset(); // TODO -- why is this here?  It makes it hard to track the n evaluation
             combinedPoolLikelihoods = fastCombineMultiallelicPool(combinedPoolLikelihoods, genotypeLikelihoods.get(p), combinedPloidy, ploidyPerPool,
                     numAlleles, log10AlleleFrequencyPriors, result);
             combinedPloidy = ploidyPerPool + combinedPloidy; // total number of chromosomes in combinedLikelihoods
@@ -230,6 +230,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
         // keep processing while we have AC conformations that need to be calculated
         MaxLikelihoodSeen maxLikelihoodSeen = new MaxLikelihoodSeen();
         while ( !ACqueue.isEmpty() ) {
+            result.incNEvaluations();
             // compute log10Likelihoods
             final ExactACset ACset = ACqueue.remove();
             final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, result, maxLikelihoodSeen, ACqueue, indexesToACset);
