@@ -41,26 +41,26 @@ import java.util.Map;
 
     @Requires("other != null")
     public void add(BaseCounts other) {
-        for (BaseIndex i : BaseIndex.values())
+        for (final BaseIndex i : BaseIndex.values())
             counts.put(i, counts.get(i) + other.counts.get(i));
     }
 
     @Requires("other != null")
     public void sub(BaseCounts other) {
-        for (BaseIndex i : BaseIndex.values())
+        for (final BaseIndex i : BaseIndex.values())
             counts.put(i, counts.get(i) - other.counts.get(i));
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
     public void incr(byte base) {
-        BaseIndex i = BaseIndex.byteToBase(base);
+        final BaseIndex i = BaseIndex.byteToBase(base);
         if (i != null) // no Ns
             counts.put(i, counts.get(i) + 1);
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
     public void incr(byte base, byte qual) {
-        BaseIndex i = BaseIndex.byteToBase(base);
+        final BaseIndex i = BaseIndex.byteToBase(base);
         if (i != null) { // no Ns
             counts.put(i, counts.get(i) + 1);
             sumQuals.put(i, sumQuals.get(i) + qual);
@@ -69,14 +69,14 @@ import java.util.Map;
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
     public void decr(byte base) {
-        BaseIndex i = BaseIndex.byteToBase(base);
+        final BaseIndex i = BaseIndex.byteToBase(base);
         if (i != null) // no Ns
             counts.put(i, counts.get(i) - 1);
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
     public void decr(byte base, byte qual) {
-        BaseIndex i = BaseIndex.byteToBase(base);
+        final BaseIndex i = BaseIndex.byteToBase(base);
         if (i != null) { // no Ns
             counts.put(i, counts.get(i) - 1);
             sumQuals.put(i, sumQuals.get(i) - qual);
@@ -84,52 +84,48 @@ import java.util.Map;
     }
 
     @Ensures("result >= 0")
-    public int getCount(byte base) {
+    public int getCount(final byte base) {
         return getCount(BaseIndex.byteToBase(base));
     }
 
     @Ensures("result >= 0")
-    public int getCount(BaseIndex base) {
+    public int getCount(final BaseIndex base) {
         return counts.get(base);
     }
 
     @Ensures("result >= 0")
-    public long getSumQuals(byte base) {
+    public long getSumQuals(final byte base) {
         return getSumQuals(BaseIndex.byteToBase(base));
     }
 
     @Ensures("result >= 0")
-    public long getSumQuals(BaseIndex base) {
+    public long getSumQuals(final BaseIndex base) {
         return sumQuals.get(base);
     }
 
     @Ensures("result >= 0")
-    public byte averageQuals(byte base) {
+    public byte averageQuals(final byte base) {
         return (byte) (getSumQuals(base) / getCount(base));
     }
 
     @Ensures("result >= 0")
-    public byte averageQuals(BaseIndex base) {
+    public byte averageQuals(final BaseIndex base) {
         return (byte) (getSumQuals(base) / getCount(base));
     }
 
-    public byte baseWithMostCounts() {
-        return baseIndexWithMostCounts().getByte();
+    @Ensures("result >= 0")
+    public int countOfBase(final BaseIndex base) {
+        return counts.get(base);
     }
 
     @Ensures("result >= 0")
-    public int countOfMostCommonBase() {
-        return counts.get(baseIndexWithMostCounts());
+    public long sumQualsOfBase(final BaseIndex base) {
+        return sumQuals.get(base);
     }
 
     @Ensures("result >= 0")
-    public long sumQualsOfMostCommonBase() {
-        return sumQuals.get(baseIndexWithMostCounts());
-    }
-
-    @Ensures("result >= 0")
-    public byte averageQualsOfMostCommonBase() {
-        return (byte) (sumQualsOfMostCommonBase() / countOfMostCommonBase());
+    public byte averageQualsOfBase(final BaseIndex base) {
+        return (byte) (sumQualsOfBase(base) / countOfBase(base));
     }
 
 
@@ -149,7 +145,7 @@ import java.util.Map;
      * @return the proportion of this base over all other bases
      */
     @Ensures({"result >=0.0", "result<= 1.0"})
-    public double baseCountProportion(byte base) {
+    public double baseCountProportion(final byte base) {
         return (double) counts.get(BaseIndex.byteToBase(base)) / totalCount();
     }
 
@@ -160,7 +156,7 @@ import java.util.Map;
      * @return the proportion of this base over all other bases
      */
     @Ensures({"result >=0.0", "result<= 1.0"})
-    public double baseCountProportion(BaseIndex baseIndex) {
+    public double baseCountProportion(final BaseIndex baseIndex) {
         int total = totalCount();
         if (total == 0)
             return 0.0;
@@ -177,28 +173,58 @@ import java.util.Map;
         return b.toString();
     }
 
+    public byte baseWithMostCounts() {
+        return baseIndexWithMostCounts().getByte();
+    }
+
     @Ensures("result != null")
     public BaseIndex baseIndexWithMostCounts() {
         BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
-        for (BaseIndex i : counts.keySet())
-            if (hasHigherCount(i, maxI))
-                maxI = i;
+        for (Map.Entry<BaseIndex, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() > counts.get(maxI))
+                maxI = entry.getKey();
+        }
         return maxI;
     }
 
     @Ensures("result != null")
     public BaseIndex baseIndexWithMostCountsWithoutIndels() {
-        BaseIndex mostCounts = MAX_BASE_INDEX_WITH_NO_COUNTS;
-        for (BaseIndex index : counts.keySet())
-            if (index.isNucleotide() && hasHigherCount(index, mostCounts))
-                mostCounts = index;
-        return mostCounts;
+        BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
+        for (Map.Entry<BaseIndex, Integer> entry : counts.entrySet()) {
+            if (entry.getKey().isNucleotide() && entry.getValue() > counts.get(maxI))
+                maxI = entry.getKey();
+        }
+        return maxI;
     }
 
     private boolean hasHigherCount(final BaseIndex targetIndex, final BaseIndex testIndex) {
         final int targetCount = counts.get(targetIndex);
         final int testCount = counts.get(testIndex);
         return  ( targetCount > testCount || (targetCount == testCount && sumQuals.get(targetIndex) > sumQuals.get(testIndex)) );
+    }
+
+    public byte baseWithMostProbability() {
+        return baseIndexWithMostProbability().getByte();
+    }
+
+    @Ensures("result != null")
+    public BaseIndex baseIndexWithMostProbability() {
+        BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
+        for (Map.Entry<BaseIndex, Long> entry : sumQuals.entrySet()) {
+            if (entry.getValue() > sumQuals.get(maxI))
+                maxI = entry.getKey();
+        }
+        return maxI;
+    }
+
+    @Ensures("result != null")
+    public BaseIndex baseIndexWithMostProbabilityWithoutIndels() {
+        BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
+        for (Map.Entry<BaseIndex, Long> entry : sumQuals.entrySet()) {
+            if (entry.getKey().isNucleotide() && entry.getValue() > sumQuals.get(maxI))
+                maxI = entry.getKey();
+        }
+        return maxI;
     }
 
     @Ensures("result >=0")
@@ -218,8 +244,8 @@ import java.util.Map;
      */
     @Requires("index.isNucleotide()")
     @Ensures({"result >=0.0", "result<= 1.0"})
-    public double baseCountProportionWithoutIndels(BaseIndex index) {
-        int total = totalCountWithoutIndels();
+    public double baseCountProportionWithoutIndels(final BaseIndex index) {
+        final int total = totalCountWithoutIndels();
         if (total == 0)
             return 0.0;
         return (double) counts.get(index) / totalCountWithoutIndels();

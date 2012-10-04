@@ -182,7 +182,7 @@ public class HeaderElement {
      * @return whether or not the HeaderElement is variant due to excess insertions
      */
     private boolean isVariantFromMismatches(double minVariantProportion) {
-        BaseIndex mostCommon = consensusBaseCounts.baseIndexWithMostCountsWithoutIndels();
+        BaseIndex mostCommon = consensusBaseCounts.baseIndexWithMostProbabilityWithoutIndels();
         double mostCommonProportion = consensusBaseCounts.baseCountProportionWithoutIndels(mostCommon);
         return mostCommonProportion != 0.0 && mostCommonProportion < (1 - minVariantProportion);
     }

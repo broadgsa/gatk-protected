@@ -472,11 +472,11 @@ public class SlidingWindow {
      * @param rms           the rms mapping quality in the header element
      */
     private void genericAddBaseToConsensus(SyntheticRead syntheticRead, BaseAndQualsCounts baseCounts, double rms) {
-        BaseIndex base = baseCounts.baseIndexWithMostCounts();
-        byte count = (byte) Math.min(baseCounts.countOfMostCommonBase(), Byte.MAX_VALUE);
-        byte qual = baseCounts.averageQualsOfMostCommonBase();
-        byte insQual = baseCounts.averageInsertionQualsOfMostCommonBase();
-        byte delQual = baseCounts.averageDeletionQualsOfMostCommonBase();
+        BaseIndex base = baseCounts.baseIndexWithMostProbability();
+        byte count = (byte) Math.min(baseCounts.countOfBase(base), Byte.MAX_VALUE);
+        byte qual = baseCounts.averageQualsOfBase(base);
+        byte insQual = baseCounts.averageInsertionQualsOfBase(base);
+        byte delQual = baseCounts.averageDeletionQualsOfBase(base);
         syntheticRead.add(base, count, qual, insQual, delQual, rms);
     }
 
