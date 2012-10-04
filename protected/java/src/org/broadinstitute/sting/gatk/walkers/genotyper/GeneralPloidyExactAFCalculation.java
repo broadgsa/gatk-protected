@@ -34,43 +34,47 @@ import org.broadinstitute.sting.utils.variantcontext.*;
 import java.io.PrintStream;
 import java.util.*;
 
-public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalculationModel {
+public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 10; // if PL vectors longer than this # of elements, don't log them
-    final protected UnifiedArgumentCollection UAC;
 
     private final int ploidy;
     private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
     private final static boolean VERBOSE = false;
 
-    protected GeneralPloidyExactAFCalculationModel(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
+    protected GeneralPloidyExactAFCalculation(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
         super(UAC, N, logger, verboseWriter);
         ploidy = UAC.samplePloidy;
-        this.UAC = UAC;
-
     }
 
-    public List<Allele> getLog10PNonRef(final VariantContext vc,
-                                        final double[] log10AlleleFrequencyPriors,
-                                        final AlleleFrequencyCalculationResult result) {
+    public GeneralPloidyExactAFCalculation(final int nSamples, final int maxAltAlleles, final int ploidy) {
+        super(nSamples, maxAltAlleles, false, null, null, null);
+        this.ploidy = ploidy;
+    }
 
-        GenotypesContext GLs = vc.getGenotypes();
-        List<Allele> alleles = vc.getAlleles();
-
+    @Override
+    protected VariantContext reduceScope(VariantContext vc) {
         // don't try to genotype too many alternate alleles
         if ( vc.getAlternateAlleles().size() > MAX_ALTERNATE_ALLELES_TO_GENOTYPE ) {
             logger.warn("this tool is currently set to genotype at most " + MAX_ALTERNATE_ALLELES_TO_GENOTYPE + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart() + " has " + (vc.getAlternateAlleles().size()) + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
 
-            alleles = new ArrayList<Allele>(MAX_ALTERNATE_ALLELES_TO_GENOTYPE + 1);
+            final List<Allele> alleles = new ArrayList<Allele>(MAX_ALTERNATE_ALLELES_TO_GENOTYPE + 1);
             alleles.add(vc.getReference());
             alleles.addAll(chooseMostLikelyAlternateAlleles(vc, MAX_ALTERNATE_ALLELES_TO_GENOTYPE, ploidy));
 
-
-            GLs = subsetAlleles(vc, alleles, false, ploidy);
+            VariantContextBuilder builder = new VariantContextBuilder(vc);
+            builder.alleles(alleles);
+            builder.genotypes(subsetAlleles(vc, alleles, false, ploidy));
+            return builder.make();
+        } else {
+            return vc;
         }
+    }
 
-        combineSinglePools(GLs, alleles.size(), ploidy, log10AlleleFrequencyPriors, result);
-
-        return alleles;
+    @Override
+    public void computeLog10PNonRef(final VariantContext vc,
+                                    final double[] log10AlleleFrequencyPriors,
+                                    final AlleleFrequencyCalculationResult result) {
+        combineSinglePools(vc.getGenotypes(), vc.getNAlleles(), ploidy, log10AlleleFrequencyPriors, result);
     }
 
 
@@ -194,7 +198,7 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
 
         combinedPoolLikelihoods.add(set);
         for (int p=1; p<genotypeLikelihoods.size(); p++) {
-            result.reset();
+            result.reset(); // TODO -- why is this here?  It makes it hard to track the n evaluation
             combinedPoolLikelihoods = fastCombineMultiallelicPool(combinedPoolLikelihoods, genotypeLikelihoods.get(p), combinedPloidy, ploidyPerPool,
                     numAlleles, log10AlleleFrequencyPriors, result);
             combinedPloidy = ploidyPerPool + combinedPloidy; // total number of chromosomes in combinedLikelihoods
@@ -226,6 +230,7 @@ public class GeneralPloidyExactAFCalculationModel extends AlleleFrequencyCalcula
         // keep processing while we have AC conformations that need to be calculated
         MaxLikelihoodSeen maxLikelihoodSeen = new MaxLikelihoodSeen();
         while ( !ACqueue.isEmpty() ) {
+            result.incNEvaluations();
             // compute log10Likelihoods
             final ExactACset ACset = ACqueue.remove();
             final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, result, maxLikelihoodSeen, ACqueue, indexesToACset);
