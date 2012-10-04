@@ -116,8 +116,9 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final List<Genotype> triAllelicSamples = Arrays.asList(AA2, AB2, BB2, AC2, BC2, CC2);
 
         for ( final int nSamples : Arrays.asList(1, 2, 3, 4) ) {
-            final DiploidExactAFCalculation diploidCalc = new DiploidExactAFCalculation(nSamples, 4);
-            final GeneralPloidyExactAFCalculation generalCalc = new GeneralPloidyExactAFCalculation(nSamples, 4, 2);
+            final ExactAFCalculation diploidCalc = new DiploidExactAFCalculation(nSamples, 4);
+            final ExactAFCalculation optDiploidCalc = new OptimizedDiploidExactAFCalculation(nSamples, 4);
+            final ExactAFCalculation generalCalc = new GeneralPloidyExactAFCalculation(nSamples, 4, 2);
 
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
@@ -125,7 +126,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues-1, humanPriors, 0.001);
 
             for ( final double[] priors : Arrays.asList(flatPriors, humanPriors) ) { // , humanPriors) ) {
-                for ( ExactAFCalculation model : Arrays.asList(diploidCalc, generalCalc) ) {
+                for ( ExactAFCalculation model : Arrays.asList(diploidCalc, optDiploidCalc, generalCalc) ) {
                     final String priorName = priors == humanPriors ? "human" : "flat";
 
                     // bi-allelic
@@ -172,11 +173,12 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
                 samples.addAll(Collections.nCopies(nNonInformative, testData.nonInformative));
 
                 final int nSamples = samples.size();
-                final DiploidExactAFCalculation diploidCalc = new DiploidExactAFCalculation(nSamples, 4);
-                final GeneralPloidyExactAFCalculation generalCalc = new GeneralPloidyExactAFCalculation(nSamples, 4, 2);
+                final ExactAFCalculation diploidCalc = new DiploidExactAFCalculation(nSamples, 4);
+                final ExactAFCalculation optDiploidCalc = new OptimizedDiploidExactAFCalculation(nSamples, 4);
+                final ExactAFCalculation generalCalc = new GeneralPloidyExactAFCalculation(nSamples, 4, 2);
                 final double[] priors = new double[2*nSamples+1];  // flat priors
 
-                for ( ExactAFCalculation model : Arrays.asList(diploidCalc, generalCalc) ) {
+                for ( ExactAFCalculation model : Arrays.asList(diploidCalc, optDiploidCalc, generalCalc) ) {
                     final GetGLsTest onlyInformative = new GetGLsTest(model, testData.nAltAlleles, testData.called, priors, "flat");
 
                     for ( int rotation = 0; rotation < nSamples; rotation++ ) {
@@ -243,10 +245,10 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 //        }
     }
 
-    @Test(enabled = true)
-    public void testLargeGLs() {
+    @Test(enabled = true, dataProvider = "Models")
+    public void testLargeGLs(final ExactAFCalculation calc) {
         final Genotype BB = makePL(Arrays.asList(C, C), 20000000, 20000000, 0);
-        GetGLsTest cfg = new GetGLsTest(new DiploidExactAFCalculation(1, 1), 1, Arrays.asList(BB, BB, BB), FLAT_3SAMPLE_PRIORS, "flat");
+        GetGLsTest cfg = new GetGLsTest(calc, 1, Arrays.asList(BB, BB, BB), FLAT_3SAMPLE_PRIORS, "flat");
 
         final AlleleFrequencyCalculationResult result = cfg.execute();
 
@@ -254,11 +256,11 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         Assert.assertEquals(calculatedAlleleCount, 6);
     }
 
-    @Test(enabled = true)
-    public void testMismatchedGLs() {
+    @Test(enabled = true, dataProvider = "Models")
+    public void testMismatchedGLs(final ExactAFCalculation calc) {
         final Genotype AB = makePL(Arrays.asList(A,C), 2000, 0, 2000, 2000, 2000, 2000);
         final Genotype AC = makePL(Arrays.asList(A,G), 100, 100, 100, 0, 100, 100);
-        GetGLsTest cfg = new GetGLsTest(new DiploidExactAFCalculation(2, 2), 2, Arrays.asList(AB, AC), FLAT_3SAMPLE_PRIORS, "flat");
+        GetGLsTest cfg = new GetGLsTest(calc, 2, Arrays.asList(AB, AC), FLAT_3SAMPLE_PRIORS, "flat");
 
         final AlleleFrequencyCalculationResult result = cfg.execute();
 
@@ -270,8 +272,9 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
     public Object[][] makeModels() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{new DiploidExactAFCalculation(1, 4)});
-        tests.add(new Object[]{new GeneralPloidyExactAFCalculation(1, 4, 2)});
+        tests.add(new Object[]{new DiploidExactAFCalculation(2, 4)});
+        tests.add(new Object[]{new OptimizedDiploidExactAFCalculation(2, 4)});
+        tests.add(new Object[]{new GeneralPloidyExactAFCalculation(2, 4, 2)});
 
         return tests.toArray(new Object[][]{});
     }
