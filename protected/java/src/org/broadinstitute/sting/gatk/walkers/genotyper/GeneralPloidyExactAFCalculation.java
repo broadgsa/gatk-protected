@@ -47,7 +47,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
     }
 
     public GeneralPloidyExactAFCalculation(final int nSamples, final int maxAltAlleles, final int ploidy) {
-        super(nSamples, maxAltAlleles, false, null, null, null);
+        super(nSamples, maxAltAlleles, maxAltAlleles, null, null, null);
         this.ploidy = ploidy;
     }
 
