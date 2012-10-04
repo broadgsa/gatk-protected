@@ -214,7 +214,7 @@ import java.util.Map;
             if (entry.getValue() > sumQuals.get(maxI))
                 maxI = entry.getKey();
         }
-        return maxI;
+        return (sumQuals.get(maxI) > 0L ? maxI : baseIndexWithMostCounts());
     }
 
     @Ensures("result != null")
@@ -224,7 +224,7 @@ import java.util.Map;
             if (entry.getKey().isNucleotide() && entry.getValue() > sumQuals.get(maxI))
                 maxI = entry.getKey();
         }
-        return maxI;
+        return (sumQuals.get(maxI) > 0L ? maxI : baseIndexWithMostCountsWithoutIndels());
     }
 
     @Ensures("result >=0")
