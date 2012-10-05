@@ -79,6 +79,11 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             return getCalc().getLog10PNonRef(getVC(), getPriors());
         }
 
+        public AlleleFrequencyCalculationResult executeRef() {
+            final ExactAFCalculation ref = new DiploidExactAFCalculation(getCalc().nSamples, getCalc().getMaxAltAlleles());
+            return ref.getLog10PNonRef(getVC(), getPriors());
+        }
+
         public double[] getPriors() {
             return priors;
         }
@@ -216,13 +221,16 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
     }
 
     private void testResultSimple(final GetGLsTest cfg) {
+        final AlleleFrequencyCalculationResult refResult = cfg.executeRef();
         final AlleleFrequencyCalculationResult result = cfg.execute();
+
+        compareToRefResult(refResult, result);
 
         Assert.assertEquals(result.getNormalizedPosteriorOfAFzero() + result.getNormalizedPosteriorOfAFGTZero(), 1.0, 1e-4);
 
-        final int minNumberOfEvaluations = cfg.getVC().getCalledChrCount();
-        Assert.assertTrue(result.getnEvaluations() >= minNumberOfEvaluations,
-                "Number of evaluations " + result.getnEvaluations() + " must be at least " + minNumberOfEvaluations);
+//        final int minNumberOfEvaluations = cfg.getVC().getCalledChrCount();
+//        Assert.assertTrue(result.getnEvaluations() >= minNumberOfEvaluations,
+//                "Number of evaluations " + result.getnEvaluations() + " must be at least " + minNumberOfEvaluations);
         Assert.assertNotNull(result.getAllelesUsedInGenotyping());
         Assert.assertTrue(cfg.getAlleles().containsAll(result.getAllelesUsedInGenotyping()), "Result object has alleles not in our initial allele list");
 
@@ -243,6 +251,22 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 //        } else {
 //            Assert.assertTrue(result.getNormalizedPosteriorOfAFzero() > 0.50, "MAP AC " + AC_MAP + " == 0 but we had posterior AF = 0 < 0.5 of " + result.getNormalizedPosteriorOfAFzero());
 //        }
+    }
+
+    private void compareToRefResult(final AlleleFrequencyCalculationResult refResult,
+                                    final AlleleFrequencyCalculationResult result) {
+        final double TOLERANCE = 1;
+        // MAP may not be equal
+//        Assert.assertEquals(result.getAlleleCountsOfMAP(), refResult.getAlleleCountsOfMAP());
+        Assert.assertEquals(result.getAlleleCountsOfMLE(), refResult.getAlleleCountsOfMLE());
+        Assert.assertEquals(result.getAllelesUsedInGenotyping(), refResult.getAllelesUsedInGenotyping());
+        Assert.assertEquals(result.getLog10LikelihoodOfAFzero(), refResult.getLog10LikelihoodOfAFzero(), TOLERANCE);
+        Assert.assertEquals(result.getLog10MAP(), refResult.getLog10MAP(), TOLERANCE);
+        Assert.assertEquals(result.getLog10MLE(), refResult.getLog10MLE(), TOLERANCE);
+        Assert.assertEquals(result.getLog10PosteriorOfAFzero(), refResult.getLog10PosteriorOfAFzero(), TOLERANCE);
+        Assert.assertEquals(result.getLog10PosteriorsMatrixSumWithoutAFzero(), refResult.getLog10PosteriorsMatrixSumWithoutAFzero(), TOLERANCE);
+        Assert.assertEquals(result.getNormalizedPosteriorOfAFGTZero(), refResult.getNormalizedPosteriorOfAFGTZero(), 0.5);
+        Assert.assertEquals(result.getNormalizedPosteriorOfAFzero(), refResult.getNormalizedPosteriorOfAFzero(), 0.5);
     }
 
     @Test(enabled = true, dataProvider = "Models")
