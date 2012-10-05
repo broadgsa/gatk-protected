@@ -47,11 +47,11 @@ public class ExactAFCalculationTestBuilder {
         return nSamples;
     }
 
-    public ExactAFCalculation makeModel() {
+    public ExactAFCalc makeModel() {
         switch (modelType) {
-            case ReferenceDiploidExact:          return new ReferenceDiploidExactAFCalculation(nSamples, 4);
-            case ConstrainedDiploidExact: return new ConstrainedDiploidExactAFCalculation(nSamples, 4);
-            case GeneralExact:          return new GeneralPloidyExactAFCalculation(nSamples, 4, 2);
+            case ReferenceDiploidExact:          return new ReferenceDiploidExactAFCalc(nSamples, 4);
+            case ConstrainedDiploidExact: return new ConstrainedDiploidExactAFCalc(nSamples, 4);
+            case GeneralExact:          return new GeneralPloidyExactAFCalc(nSamples, 4, 2);
             default: throw new RuntimeException("Unexpected type " + modelType);
         }
     }

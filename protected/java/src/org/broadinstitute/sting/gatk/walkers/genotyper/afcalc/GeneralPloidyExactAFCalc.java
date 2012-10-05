@@ -37,19 +37,19 @@ import org.broadinstitute.sting.utils.variantcontext.*;
 import java.io.PrintStream;
 import java.util.*;
 
-public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
+public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 10; // if PL vectors longer than this # of elements, don't log them
 
     private final int ploidy;
     private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
     private final static boolean VERBOSE = false;
 
-    protected GeneralPloidyExactAFCalculation(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
+    protected GeneralPloidyExactAFCalc(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
         super(UAC, N, logger, verboseWriter);
         ploidy = UAC.samplePloidy;
     }
 
-    public GeneralPloidyExactAFCalculation(final int nSamples, final int maxAltAlleles, final int ploidy) {
+    public GeneralPloidyExactAFCalc(final int nSamples, final int maxAltAlleles, final int ploidy) {
         super(nSamples, maxAltAlleles, maxAltAlleles, null, null, null);
         this.ploidy = ploidy;
     }
@@ -78,7 +78,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
     @Override
     public void computeLog10PNonRef(final VariantContext vc,
                                     final double[] log10AlleleFrequencyPriors,
-                                    final AlleleFrequencyCalculationResult result) {
+                                    final AFCalcResult result) {
         combineSinglePools(vc.getGenotypes(), vc.getNAlleles(), ploidy, log10AlleleFrequencyPriors, result);
     }
 
@@ -186,7 +186,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
                                              final int numAlleles,
                                              final int ploidyPerPool,
                                              final double[] log10AlleleFrequencyPriors,
-                                             final AlleleFrequencyCalculationResult result) {
+                                             final AFCalcResult result) {
 
         final ArrayList<double[]> genotypeLikelihoods = getGLs(GLs);
 
@@ -213,7 +213,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
 
     public static CombinedPoolLikelihoods fastCombineMultiallelicPool(final CombinedPoolLikelihoods originalPool, double[] newGL, int originalPloidy, int newGLPloidy, int numAlleles,
                                                                       final double[] log10AlleleFrequencyPriors,
-                                                                      final AlleleFrequencyCalculationResult result) {
+                                                                      final AFCalcResult result) {
 
 
 
@@ -276,7 +276,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
                                                                 final double[] log10AlleleFrequencyPriors,
                                                                 final int originalPloidy,
                                                                 final int newGLPloidy,
-                                                                final AlleleFrequencyCalculationResult result,
+                                                                final AFCalcResult result,
                                                                 final StateTracker stateTracker,
                                                                 final LinkedList<ExactACset> ACqueue,
                                                                 final HashMap<ExactACcounts, ExactACset> indexesToACset) {
@@ -343,7 +343,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
      */
     public static void combineMultiallelicPoolNaively(CombinedPoolLikelihoods originalPool, double[] yy, int ploidy1, int ploidy2, int numAlleles,
                                                       final double[] log10AlleleFrequencyPriors,
-                                                      final AlleleFrequencyCalculationResult result) {
+                                                      final AFCalcResult result) {
 /*
         final int dim1 = GenotypeLikelihoods.numLikelihoods(numAlleles, ploidy1);
         final int dim2 = GenotypeLikelihoods.numLikelihoods(numAlleles, ploidy2);
@@ -405,7 +405,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
                                       final double[] secondGL,
                                       final double[] log10AlleleFrequencyPriors,
                                       final int numAlleles, final int ploidy1, final int ploidy2,
-                                      final AlleleFrequencyCalculationResult result) {
+                                      final AFCalcResult result) {
 
         final int newPloidy = ploidy1 + ploidy2;
 
@@ -511,7 +511,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
      */
     public static ProbabilityVector combineBiallelicPoolsNaively(final ProbabilityVector originalPool, final double[] newPLVector,
                                                                  final int ploidy1, final int ploidy2, final double[] log10AlleleFrequencyPriors,
-                                                                 final AlleleFrequencyCalculationResult result) {
+                                                                 final AFCalcResult result) {
 
         final int newPloidy = ploidy1 + ploidy2;
 

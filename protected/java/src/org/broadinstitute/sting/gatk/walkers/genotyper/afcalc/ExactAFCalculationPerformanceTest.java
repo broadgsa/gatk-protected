@@ -53,14 +53,14 @@ public class ExactAFCalculationPerformanceTest {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(10, 100, 1000) ) {
-                final ExactAFCalculation calc = testBuilder.makeModel();
+                final ExactAFCalc calc = testBuilder.makeModel();
                 final double[] priors = testBuilder.makePriors();
 
                 for ( int[] ACs : makeACs(testBuilder.numAltAlleles, testBuilder.nSamples*2) ) {
                     final VariantContext vc = testBuilder.makeACTest(ACs, 0, nonTypePL);
 
                     timer.start();
-                    final AlleleFrequencyCalculationResult result = calc.getLog10PNonRef(vc, priors);
+                    final AFCalcResult result = calc.getLog10PNonRef(vc, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     int otherAC = 0;
@@ -109,7 +109,7 @@ public class ExactAFCalculationPerformanceTest {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(100) ) {
-                final ExactAFCalculation calc = testBuilder.makeModel();
+                final ExactAFCalc calc = testBuilder.makeModel();
                 final double[] priors = testBuilder.makePriors();
 
                 final int[] ac = new int[testBuilder.numAltAlleles];
@@ -123,7 +123,7 @@ public class ExactAFCalculationPerformanceTest {
                     vcb.genotypes(genotypes);
 
                     timer.start();
-                    final AlleleFrequencyCalculationResult result = calc.getLog10PNonRef(vcb.make(), priors);
+                    final AFCalcResult result = calc.getLog10PNonRef(vcb.make(), priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);
@@ -143,7 +143,7 @@ public class ExactAFCalculationPerformanceTest {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(100) ) {
-                final ExactAFCalculation calc = testBuilder.makeModel();
+                final ExactAFCalc calc = testBuilder.makeModel();
                 final double[] priors = testBuilder.makePriors();
 
                 final int[] ac = new int[testBuilder.numAltAlleles];
@@ -153,7 +153,7 @@ public class ExactAFCalculationPerformanceTest {
                     final VariantContext vc = testBuilder.makeACTest(ac, nNonInformative, nonTypePL);
 
                     timer.start();
-                    final AlleleFrequencyCalculationResult result = calc.getLog10PNonRef(vc, priors);
+                    final AFCalcResult result = calc.getLog10PNonRef(vc, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);

@@ -138,11 +138,11 @@ public class GeneralPloidyAFCalculationModelUnitTest extends BaseTest {
     @Test(dataProvider = "getGLs")
     public void testGLs(GetGLsTest cfg) {
 
-        final AlleleFrequencyCalculationResult result = new AlleleFrequencyCalculationResult(cfg.numAltAlleles);
+        final AFCalcResult result = new AFCalcResult(cfg.numAltAlleles);
         final int len = GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(1 + cfg.numAltAlleles, cfg.ploidy * cfg.GLs.size());
         double[] priors = new double[len];  // flat priors
 
-        GeneralPloidyExactAFCalculation.combineSinglePools(cfg.GLs, 1 + cfg.numAltAlleles, cfg.ploidy, priors, result);
+        GeneralPloidyExactAFCalc.combineSinglePools(cfg.GLs, 1 + cfg.numAltAlleles, cfg.ploidy, priors, result);
         int nameIndex = 1;
         for ( int allele = 0; allele < cfg.numAltAlleles; allele++, nameIndex+=2 ) {
             int expectedAlleleCount = Integer.valueOf(cfg.name.substring(nameIndex, nameIndex+1));
