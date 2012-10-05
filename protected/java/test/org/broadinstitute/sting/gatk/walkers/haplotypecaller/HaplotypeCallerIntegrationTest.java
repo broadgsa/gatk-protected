@@ -31,7 +31,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "-gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "71bec55320a2f07af0d54be9d7735322");
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles_for_indels 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "71bec55320a2f07af0d54be9d7735322");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
