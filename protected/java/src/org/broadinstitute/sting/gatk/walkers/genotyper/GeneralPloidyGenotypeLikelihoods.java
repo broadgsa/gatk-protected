@@ -540,7 +540,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
 
     }
 
-    private double calculateACConformationAndUpdateQueue(final DiploidExactAFCalculation.ExactACset set,
+    private double calculateACConformationAndUpdateQueue(final ExactAFCalculation.ExactACset set,
                                                          final ErrorModel errorModel,
                                                          final List<Allele> alleleList,
                                                          final List<Integer> numObservations,

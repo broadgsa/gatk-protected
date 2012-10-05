@@ -48,8 +48,8 @@ public class ExactAFCalculationTestBuilder {
 
     public ExactAFCalculation makeModel() {
         switch (modelType) {
-            case DiploidExact:          return new DiploidExactAFCalculation(nSamples, 4);
-            case OptimizedDiploidExact: return new OptimizedDiploidExactAFCalculation(nSamples, 4);
+            case DiploidExact:          return new ReferenceDiploidExactAFCalculation(nSamples, 4);
+            case OptimizedDiploidExact: return new ConstrainedDiploidExactAFCalculation(nSamples, 4);
             case GeneralExact:          return new GeneralPloidyExactAFCalculation(nSamples, 4, 2);
             default: throw new RuntimeException("Unexpected type " + modelType);
         }

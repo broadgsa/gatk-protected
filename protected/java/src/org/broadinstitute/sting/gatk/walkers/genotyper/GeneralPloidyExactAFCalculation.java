@@ -230,7 +230,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
         indexesToACset.put(zeroSet.ACcounts, zeroSet);
 
         // keep processing while we have AC conformations that need to be calculated
-        OldMaxLikelihoodSeen maxLikelihoodSeen = new OldMaxLikelihoodSeen();
+        MaxLikelihoodSeen maxLikelihoodSeen = new MaxLikelihoodSeen();
         while ( !ACqueue.isEmpty() ) {
             result.incNEvaluations();
             // compute log10Likelihoods
@@ -274,7 +274,7 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
                                                                 final int originalPloidy,
                                                                 final int newGLPloidy,
                                                                 final AlleleFrequencyCalculationResult result,
-                                                                final OldMaxLikelihoodSeen maxLikelihoodSeen,
+                                                                final MaxLikelihoodSeen maxLikelihoodSeen,
                                                                 final LinkedList<ExactACset> ACqueue,
                                                                 final HashMap<ExactACcounts, ExactACset> indexesToACset) {
 
