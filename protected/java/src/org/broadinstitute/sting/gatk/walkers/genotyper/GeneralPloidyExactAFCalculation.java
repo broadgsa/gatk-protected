@@ -54,12 +54,12 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
     @Override
     protected VariantContext reduceScope(VariantContext vc) {
         // don't try to genotype too many alternate alleles
-        if ( vc.getAlternateAlleles().size() > MAX_ALTERNATE_ALLELES_TO_GENOTYPE ) {
-            logger.warn("this tool is currently set to genotype at most " + MAX_ALTERNATE_ALLELES_TO_GENOTYPE + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart() + " has " + (vc.getAlternateAlleles().size()) + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
+        if ( vc.getAlternateAlleles().size() > maxAltAlleles) {
+            logger.warn("this tool is currently set to genotype at most " + maxAltAlleles + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart() + " has " + (vc.getAlternateAlleles().size()) + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
 
-            final List<Allele> alleles = new ArrayList<Allele>(MAX_ALTERNATE_ALLELES_TO_GENOTYPE + 1);
+            final List<Allele> alleles = new ArrayList<Allele>(maxAltAlleles + 1);
             alleles.add(vc.getReference());
-            alleles.addAll(chooseMostLikelyAlternateAlleles(vc, MAX_ALTERNATE_ALLELES_TO_GENOTYPE, ploidy));
+            alleles.addAll(chooseMostLikelyAlternateAlleles(vc, maxAltAlleles, ploidy));
 
             VariantContextBuilder builder = new VariantContextBuilder(vc);
             builder.alleles(alleles);

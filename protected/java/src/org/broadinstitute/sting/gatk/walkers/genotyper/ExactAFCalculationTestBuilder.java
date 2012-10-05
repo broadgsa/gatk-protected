@@ -1,11 +1,13 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
+import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.variantcontext.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class ExactAFCalculationTestBuilder {
@@ -68,7 +70,11 @@ public class ExactAFCalculationTestBuilder {
         }
     }
 
-    public VariantContext makeACTest(final int[] ACs, final int nonTypePL) {
+    public VariantContext makeACTest(final List<Integer> ACs, final int nNonInformative, final int nonTypePL) {
+        return makeACTest(ArrayUtils.toPrimitive(ACs.toArray(new Integer[]{})), nNonInformative, nonTypePL);
+    }
+
+    public VariantContext makeACTest(final int[] ACs, final int nNonInformative, final int nonTypePL) {
         final int nChrom = nSamples * 2;
 
         final int[] nhet = new int[numAltAlleles];
@@ -76,7 +82,7 @@ public class ExactAFCalculationTestBuilder {
 
         for ( int i = 0; i < ACs.length; i++ ) {
             final double p = ACs[i] / (1.0 * nChrom);
-            nhomvar[i] = (int)Math.floor(nSamples * p * p);
+            nhomvar[i] = (int)Math.floor((nSamples - nNonInformative) * p * p);
             nhet[i] = ACs[i] - 2 * nhomvar[i];
 
             if ( nhet[i] < 0 )
@@ -87,10 +93,10 @@ public class ExactAFCalculationTestBuilder {
         if ( calcAC != MathUtils.sum(ACs) )
             throw new IllegalStateException("calculated AC " + calcAC + " not equal to desired AC " + Utils.join(",", ACs));
 
-        return makeACTest(nhet, nhomvar, nonTypePL);
+        return makeACTest(nhet, nhomvar, nNonInformative, nonTypePL);
     }
 
-    public VariantContext makeACTest(final int[] nhet, final int[] nhomvar, final int nonTypePL) {
+    public VariantContext makeACTest(final int[] nhet, final int[] nhomvar, final int nNonInformative, final int nonTypePL) {
         List<Genotype> samples = new ArrayList<Genotype>(nSamples);
 
         for ( int altI = 0; altI < nhet.length; altI++ ) {
@@ -100,8 +106,12 @@ public class ExactAFCalculationTestBuilder {
                 samples.add(makePL(GenotypeType.HOM_VAR, nonTypePL, altI+1));
         }
 
-        final int nRef = (int)(nSamples - MathUtils.sum(nhet) - MathUtils.sum(nhomvar));
-        for ( int i = 0; i < nRef; i++ ) samples.add(makePL(GenotypeType.HOM_REF, nonTypePL, 0));
+        final int[] nonInformativePLs = new int[GenotypeLikelihoods.numLikelihoods(numAltAlleles, 2)];
+        final Genotype nonInformative = makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), nonInformativePLs);
+        samples.addAll(Collections.nCopies(nNonInformative, nonInformative));
+
+        final int nRef = Math.max((int) (nSamples - nNonInformative - MathUtils.sum(nhet) - MathUtils.sum(nhomvar)), 0);
+        samples.addAll(Collections.nCopies(nRef, makePL(GenotypeType.HOM_REF, nonTypePL, 0)));
 
         samples = samples.subList(0, nSamples);
 

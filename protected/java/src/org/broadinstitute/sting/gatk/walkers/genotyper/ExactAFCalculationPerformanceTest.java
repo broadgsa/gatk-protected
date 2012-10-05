@@ -7,7 +7,6 @@ import org.broadinstitute.sting.gatk.report.GATKReport;
 import org.broadinstitute.sting.gatk.report.GATKReportTable;
 import org.broadinstitute.sting.utils.SimpleTimer;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.broadinstitute.sting.utils.variantcontext.Genotype;
 import org.broadinstitute.sting.utils.variantcontext.VariantContext;
 import org.broadinstitute.sting.utils.variantcontext.VariantContextBuilder;
@@ -58,7 +57,7 @@ public class ExactAFCalculationPerformanceTest {
                 final double[] priors = testBuilder.makePriors();
 
                 for ( int[] ACs : makeACs(testBuilder.numAltAlleles, testBuilder.nSamples*2) ) {
-                    final VariantContext vc = testBuilder.makeACTest(ACs, nonTypePL);
+                    final VariantContext vc = testBuilder.makeACTest(ACs, 0, nonTypePL);
 
                     timer.start();
                     final AlleleFrequencyCalculationResult result = calc.getLog10PNonRef(vc, priors);
@@ -115,7 +114,7 @@ public class ExactAFCalculationPerformanceTest {
 
                 final int[] ac = new int[testBuilder.numAltAlleles];
                 ac[0] = 1;
-                final VariantContext vc = testBuilder.makeACTest(ac, nonTypePL);
+                final VariantContext vc = testBuilder.makeACTest(ac, 0, nonTypePL);
 
                 for ( int position = 0; position < vc.getNSamples(); position++ ) {
                     final VariantContextBuilder vcb = new VariantContextBuilder(vc);
@@ -149,19 +148,12 @@ public class ExactAFCalculationPerformanceTest {
 
                 final int[] ac = new int[testBuilder.numAltAlleles];
                 ac[0] = 1;
-                final VariantContext vc = testBuilder.makeACTest(ac, nonTypePL);
-                final Genotype nonInformative = testBuilder.makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), 0, 0, 0);
 
-                for ( int nNonInformative = 0; nNonInformative < vc.getNSamples(); nNonInformative++ ) {
-                    final VariantContextBuilder vcb = new VariantContextBuilder(vc);
-
-                    final List<Genotype> genotypes = new ArrayList<Genotype>();
-                    genotypes.addAll(vc.getGenotypes().subList(0, nNonInformative + 1));
-                    genotypes.addAll(Collections.nCopies(vc.getNSamples() - nNonInformative, nonInformative));
-                    vcb.genotypes(genotypes);
+                for ( int nNonInformative = 0; nNonInformative < testBuilder.nSamples; nNonInformative++ ) {
+                    final VariantContext vc = testBuilder.makeACTest(ac, nNonInformative, nonTypePL);
 
                     timer.start();
-                    final AlleleFrequencyCalculationResult result = calc.getLog10PNonRef(vcb.make(), priors);
+                    final AlleleFrequencyCalculationResult result = calc.getLog10PNonRef(vc, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);

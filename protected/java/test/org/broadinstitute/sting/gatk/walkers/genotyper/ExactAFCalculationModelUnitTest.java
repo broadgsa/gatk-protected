@@ -345,4 +345,47 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
                             + expectedAC_AC + " priors " + Utils.join(",", priors));
         }
     }
+
+    @DataProvider(name = "MaxACsToVisit")
+    public Object[][] makeMaxACsToVisit() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final int nSamples = 10;
+        final ExactAFCalculationTestBuilder.ModelType modelType = ExactAFCalculationTestBuilder.ModelType.DiploidExact;
+
+        for (int nNonInformative = 0; nNonInformative < nSamples - 1; nNonInformative++ ) {
+            final int nChrom = (nSamples - nNonInformative) * 2;
+            for ( int i = 0; i < nChrom; i++ ) {
+                // bi-allelic
+                tests.add(new Object[]{nSamples, Arrays.asList(i), nNonInformative, modelType});
+
+                // tri-allelic
+                for ( int j = 0; j < (nChrom - i); j++)
+                    tests.add(new Object[]{nSamples, Arrays.asList(i, j), nNonInformative, modelType});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(enabled = true, dataProvider = "MaxACsToVisit")
+    public void testMaxACsToVisit(final int nSamples, final List<Integer> requestedACs, final int nNonInformative, final ExactAFCalculationTestBuilder.ModelType modelType) {
+        final int nAlts = requestedACs.size();
+        final ExactAFCalculationTestBuilder testBuilder
+                = new ExactAFCalculationTestBuilder(nSamples, nAlts, modelType,
+                ExactAFCalculationTestBuilder.PriorType.human);
+
+        final VariantContext vc = testBuilder.makeACTest(requestedACs, nNonInformative, 100);
+        final int[] maxACsToVisit = testBuilder.makeModel().computeMaxACs(vc);
+
+        // this is necessary because cannot ensure that the tester gives us back the requested ACs due
+        // to rounding errors
+        final List<Integer> ACs = new ArrayList<Integer>();
+        for ( final Allele a : vc.getAlternateAlleles() )
+            ACs.add(vc.getCalledChrCount(a));
+
+        for ( int i = 0; i < nAlts; i++ ) {
+            Assert.assertEquals(maxACsToVisit[i], (int)ACs.get(i), "Maximum AC computed wasn't equal to the max possible in the construction for alt allele " + i);
+        }
+    }
 }
