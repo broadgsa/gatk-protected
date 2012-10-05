@@ -19,7 +19,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         executeTest("testHaplotypeCaller: args=" + args, spec);
     }
 
-    @Test
+    //@Test
     public void testHaplotypeCallerMultiSample() {
         HCTest(CEUTRIO_BAM, "", "5b751474ad0aef4cdb53f094e605f97c");
     }
@@ -80,5 +80,20 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("c29e61810c056b52a47baae0696931ea"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
+
+    // --------------------------------------------------------------------------------------------------------------
+    //
+    // testing AD for reduced reads
+    //
+    // --------------------------------------------------------------------------------------------------------------
+
+    @Test
+    public void HCtestADAnnotationInReducedBam() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
+                Arrays.asList("6ac31dbea0ffc289b6feadb47457d427"));    //TODO: once the HC is fixed, update MD5
+        executeTest("HC test AD Annotation when calling on a ReducedRead BAM", spec);
+    }
+
 
 }
