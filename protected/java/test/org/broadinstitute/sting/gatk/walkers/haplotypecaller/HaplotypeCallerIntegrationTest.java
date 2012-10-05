@@ -83,16 +83,16 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     // --------------------------------------------------------------------------------------------------------------
     //
-    // testing AD for reduced reads
+    // testing reduced reads
     //
     // --------------------------------------------------------------------------------------------------------------
 
     @Test
-    public void HCtestADAnnotationInReducedBam() {
+    public void HCTestReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("6ac31dbea0ffc289b6feadb47457d427"));    //TODO: once the HC is fixed, update MD5
-        executeTest("HC test AD Annotation when calling on a ReducedRead BAM", spec);
+                Arrays.asList("864abe729828248333aee14818c1d2e1"));
+        executeTest("HC calling on a ReducedRead BAM", spec);
     }
 
 
