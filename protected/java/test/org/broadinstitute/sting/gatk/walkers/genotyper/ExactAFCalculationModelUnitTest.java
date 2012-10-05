@@ -378,14 +378,70 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final VariantContext vc = testBuilder.makeACTest(requestedACs, nNonInformative, 100);
         final int[] maxACsToVisit = testBuilder.makeModel().computeMaxACs(vc);
 
-        // this is necessary because cannot ensure that the tester gives us back the requested ACs due
-        // to rounding errors
+        testExpectedACs(vc, maxACsToVisit);
+    }
+
+    private void testExpectedACs(final VariantContext vc, final int[] maxACsToVisit) {
+        // this is necessary because cannot ensure that the tester gives us back the
+        // requested ACs due to rounding errors
         final List<Integer> ACs = new ArrayList<Integer>();
         for ( final Allele a : vc.getAlternateAlleles() )
             ACs.add(vc.getCalledChrCount(a));
 
-        for ( int i = 0; i < nAlts; i++ ) {
+        for ( int i = 0; i < maxACsToVisit.length; i++ ) {
             Assert.assertEquals(maxACsToVisit[i], (int)ACs.get(i), "Maximum AC computed wasn't equal to the max possible in the construction for alt allele " + i);
         }
+    }
+
+    @DataProvider(name = "MaxACsGenotypes")
+    public Object[][] makeMaxACsForGenotype() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final List<Allele> AA = Arrays.asList(A, A);
+        final List<Allele> AC = Arrays.asList(A, C);
+        final List<Allele> CC = Arrays.asList(C, C);
+        final List<Allele> AG = Arrays.asList(A, G);
+        final List<Allele> GG = Arrays.asList(G, G);
+        final List<Allele> CG = Arrays.asList(C, G);
+
+        final VariantContext vc2 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C)).make();
+        final VariantContext vc3 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C, G)).make();
+
+        tests.add(new Object[]{vc2, makePL(AA, 0, 10, 10)});
+        tests.add(new Object[]{vc2, makePL(AC, 10, 0, 10)});
+        tests.add(new Object[]{vc2, makePL(CC, 10, 10, 0)});
+
+        // make sure non-informative => 0
+        tests.add(new Object[]{vc2, makePL(AA, 0, 0, 0)});
+        tests.add(new Object[]{vc3, makePL(AA, 0, 0, 0, 0, 0, 0)});
+
+        // multi-allelics
+        tests.add(new Object[]{vc3, makePL(AG, 10, 10, 10, 0, 10, 10)});
+        tests.add(new Object[]{vc3, makePL(CG, 10, 10, 10, 10, 0, 10)});
+        tests.add(new Object[]{vc3, makePL(GG, 10, 10, 10, 10, 10, 0)});
+
+        // deal with non-informatives third alleles
+        tests.add(new Object[]{vc3, makePL(AC, 10, 0, 10,  0, 0, 10)});
+        tests.add(new Object[]{vc3, makePL(AC, 10, 0, 10, 10, 0, 10)});
+        tests.add(new Object[]{vc3, makePL(AC, 10, 0, 10, 10, 0,  0)});
+        tests.add(new Object[]{vc3, makePL(AC, 10, 0, 10,  0, 0,  0)});
+        tests.add(new Object[]{vc3, makePL(CC, 10, 10, 0,  0, 0, 10)});
+        tests.add(new Object[]{vc3, makePL(CC, 10, 10, 0, 10, 0, 10)});
+        tests.add(new Object[]{vc3, makePL(CC, 10, 10, 0, 10, 0,  0)});
+        tests.add(new Object[]{vc3, makePL(CC, 10, 10, 0,  0, 0,  0)});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(enabled = true, dataProvider = "MaxACsGenotypes")
+    private void testMakeACByGenotype(final VariantContext vcRoot, final Genotype g) {
+        final VariantContext vc = new VariantContextBuilder(vcRoot).genotypes(g).make();
+
+        final ExactAFCalculationTestBuilder.ModelType modelType = ExactAFCalculationTestBuilder.ModelType.DiploidExact;
+        final ExactAFCalculationTestBuilder testBuilder
+                = new ExactAFCalculationTestBuilder(1, vc.getNAlleles()-1, modelType,
+                ExactAFCalculationTestBuilder.PriorType.human);
+        final int[] maxACsToVisit = testBuilder.makeModel().computeMaxACs(vc);
+        testExpectedACs(vc, maxACsToVisit);
     }
 }
