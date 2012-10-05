@@ -1,6 +1,7 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACset;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -188,12 +189,12 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
      * @param alleleList    List of alleles
      * @param numObservations Number of observations for each allele in alleleList
      */
-    public void getLikelihoodOfConformation(final ExactAFCalculation.ExactACset ACset,
+    public void getLikelihoodOfConformation(final ExactACset ACset,
                                             final ErrorModel errorModel,
                                             final List<Allele> alleleList,
                                             final List<Integer> numObservations,
                                             final ReadBackedPileup pileup) {
-        final int[] currentCnt = Arrays.copyOf(ACset.ACcounts.counts, alleleList.size());
+        final int[] currentCnt = Arrays.copyOf(ACset.getACcounts().getCounts(), alleleList.size());
         double p1 = 0.0;
 
         if (!hasReferenceSampleData) {
@@ -218,6 +219,6 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
             }
             p1 = MathUtils.logDotProduct(errorModel.getErrorModelVector().getProbabilityVector(minQ, maxQ), acVec);
         }
-        ACset.log10Likelihoods[0] = p1;
+        ACset.getLog10Likelihoods()[0] = p1;
    }
 }

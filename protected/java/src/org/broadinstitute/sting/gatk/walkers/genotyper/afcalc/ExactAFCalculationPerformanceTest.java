@@ -1,4 +1,4 @@
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
@@ -175,8 +175,8 @@ public class ExactAFCalculationPerformanceTest {
         final boolean USE_GENERAL = false;
         final List<ExactAFCalculationTestBuilder.ModelType> modelTypes = USE_GENERAL
                 ? Arrays.asList(ExactAFCalculationTestBuilder.ModelType.values())
-                : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.OptimizedDiploidExact);
-//        : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.DiploidExact, ExactAFCalculationTestBuilder.ModelType.OptimizedDiploidExact);
+                : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact);
+//        : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.ReferenceDiploidExact, ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact);
 
         final boolean ONLY_HUMAN_PRIORS = false;
         final List<ExactAFCalculationTestBuilder.PriorType> priorTypes = ONLY_HUMAN_PRIORS

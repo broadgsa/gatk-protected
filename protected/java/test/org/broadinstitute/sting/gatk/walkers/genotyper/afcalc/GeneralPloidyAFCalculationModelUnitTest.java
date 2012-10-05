@@ -1,6 +1,7 @@
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.gatk.walkers.genotyper.GeneralPloidyGenotypeLikelihoods;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.broadinstitute.sting.utils.variantcontext.Genotype;
 import org.broadinstitute.sting.utils.variantcontext.GenotypeBuilder;

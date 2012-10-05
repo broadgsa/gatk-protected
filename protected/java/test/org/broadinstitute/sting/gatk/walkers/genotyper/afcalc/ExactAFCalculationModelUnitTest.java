@@ -1,6 +1,7 @@
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.Utils;
@@ -128,7 +129,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
             final double[] humanPriors = new double[nPriorValues];
-            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues-1, humanPriors, 0.001);
+            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001);
 
             for ( final double[] priors : Arrays.asList(flatPriors, humanPriors) ) { // , humanPriors) ) {
                 for ( ExactAFCalculation model : Arrays.asList(diploidCalc, generalCalc, optDiploidCalc) ) {
@@ -375,7 +376,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         final int nSamples = 10;
-        final ExactAFCalculationTestBuilder.ModelType modelType = ExactAFCalculationTestBuilder.ModelType.DiploidExact;
+        final ExactAFCalculationTestBuilder.ModelType modelType = ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact;
 
         for (int nNonInformative = 0; nNonInformative < nSamples - 1; nNonInformative++ ) {
             final int nChrom = (nSamples - nNonInformative) * 2;
@@ -400,7 +401,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
                 ExactAFCalculationTestBuilder.PriorType.human);
 
         final VariantContext vc = testBuilder.makeACTest(requestedACs, nNonInformative, 100);
-        final int[] maxACsToVisit = testBuilder.makeModel().computeMaxACs(vc);
+        final int[] maxACsToVisit = ((ConstrainedDiploidExactAFCalculation)testBuilder.makeModel()).computeMaxACs(vc);
 
         testExpectedACs(vc, maxACsToVisit);
     }
@@ -461,11 +462,11 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
     private void testMakeACByGenotype(final VariantContext vcRoot, final Genotype g) {
         final VariantContext vc = new VariantContextBuilder(vcRoot).genotypes(g).make();
 
-        final ExactAFCalculationTestBuilder.ModelType modelType = ExactAFCalculationTestBuilder.ModelType.DiploidExact;
+        final ExactAFCalculationTestBuilder.ModelType modelType = ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact;
         final ExactAFCalculationTestBuilder testBuilder
                 = new ExactAFCalculationTestBuilder(1, vc.getNAlleles()-1, modelType,
                 ExactAFCalculationTestBuilder.PriorType.human);
-        final int[] maxACsToVisit = testBuilder.makeModel().computeMaxACs(vc);
+        final int[] maxACsToVisit = ((ConstrainedDiploidExactAFCalculation)testBuilder.makeModel()).computeMaxACs(vc);
         testExpectedACs(vc, maxACsToVisit);
     }
 }

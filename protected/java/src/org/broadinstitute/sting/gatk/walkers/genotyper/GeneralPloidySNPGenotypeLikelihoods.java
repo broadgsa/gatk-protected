@@ -2,6 +2,7 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 
 import net.sf.samtools.SAMUtils;
+import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACset;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.baq.BAQ;
@@ -221,12 +222,12 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
      * @param alleleList    List of alleles
      * @param numObservations Number of observations for each allele in alleleList
       */
-    public void getLikelihoodOfConformation(final ExactAFCalculation.ExactACset ACset,
+    public void getLikelihoodOfConformation(final ExactACset ACset,
                                             final ErrorModel errorModel,
                                             final List<Allele> alleleList,
                                             final List<Integer> numObservations,
                                             final ReadBackedPileup pileup) {
-        final int[] currentCnt = Arrays.copyOf(ACset.ACcounts.counts, BaseUtils.BASES.length);
+        final int[] currentCnt = Arrays.copyOf(ACset.getACcounts().getCounts(), BaseUtils.BASES.length);
         final int[] ac = new int[BaseUtils.BASES.length];
         
         for (int k=0; k < BaseUtils.BASES.length; k++ )
@@ -241,9 +242,9 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
                 final byte qual = qualToUse(elt, true, true, mbq);
                 if ( qual == 0 )
                     continue;
-                final double acc[] = new double[ACset.ACcounts.counts.length];
+                final double acc[] = new double[ACset.getACcounts().getCounts().length];
                 for (int k=0; k < acc.length; k++ )
-                    acc[k] = qualLikelihoodCache[BaseUtils.simpleBaseToBaseIndex(alleleList.get(k).getBases()[0])][BaseUtils.simpleBaseToBaseIndex(obsBase)][qual] +MathUtils.log10Cache[ACset.ACcounts.counts[k]]
+                    acc[k] = qualLikelihoodCache[BaseUtils.simpleBaseToBaseIndex(alleleList.get(k).getBases()[0])][BaseUtils.simpleBaseToBaseIndex(obsBase)][qual] +MathUtils.log10Cache[ACset.getACcounts().getCounts()[k]]
                             - LOG10_PLOIDY;
                 p1 += MathUtils.log10sumLog10(acc);
             }
@@ -267,7 +268,7 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
     
             p1 = MathUtils.logDotProduct(errorModel.getErrorModelVector().getProbabilityVector(minQ,maxQ), acVec);
         }
-        ACset.log10Likelihoods[0] = p1;
+        ACset.getLog10Likelihoods()[0] = p1;
         /*        System.out.println(Arrays.toString(ACset.ACcounts.getCounts())+" "+String.valueOf(p1));
         System.out.println(Arrays.toString(errorModel.getErrorModelVector().getProbabilityVector(minQ,maxQ)));
       */

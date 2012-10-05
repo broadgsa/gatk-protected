@@ -1,6 +1,7 @@
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.variantcontext.*;
@@ -32,8 +33,8 @@ public class ExactAFCalculationTestBuilder {
     }
 
     public enum ModelType {
-        DiploidExact,
-        OptimizedDiploidExact,
+        ReferenceDiploidExact,
+        ConstrainedDiploidExact,
         GeneralExact
     }
 
@@ -48,8 +49,8 @@ public class ExactAFCalculationTestBuilder {
 
     public ExactAFCalculation makeModel() {
         switch (modelType) {
-            case DiploidExact:          return new ReferenceDiploidExactAFCalculation(nSamples, 4);
-            case OptimizedDiploidExact: return new ConstrainedDiploidExactAFCalculation(nSamples, 4);
+            case ReferenceDiploidExact:          return new ReferenceDiploidExactAFCalculation(nSamples, 4);
+            case ConstrainedDiploidExact: return new ConstrainedDiploidExactAFCalculation(nSamples, 4);
             case GeneralExact:          return new GeneralPloidyExactAFCalculation(nSamples, 4, 2);
             default: throw new RuntimeException("Unexpected type " + modelType);
         }
@@ -63,7 +64,7 @@ public class ExactAFCalculationTestBuilder {
                 return MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
             case human:
                 final double[] humanPriors = new double[nPriorValues];
-                UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues-1, humanPriors, 0.001);
+                UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001);
                 return humanPriors;
             default:
                 throw new RuntimeException("Unexpected type " + priorType);

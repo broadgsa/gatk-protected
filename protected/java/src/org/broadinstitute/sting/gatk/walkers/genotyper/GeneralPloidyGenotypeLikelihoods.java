@@ -26,6 +26,8 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import net.sf.samtools.SAMUtils;
+import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACcounts;
+import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACset;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.codecs.vcf.VCFConstants;
 import org.broadinstitute.sting.utils.collections.Pair;
@@ -123,7 +125,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
      *
      *
      */
-    protected static class SumIterator {
+    public static class SumIterator {
         private int[] currentState;
         private final int[] finalState;
         private final int restrictSumTo;
@@ -491,32 +493,32 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
             // If neighbors fall below maximum - threshold, we don't queue up THEIR own neighbors
             // and we repeat until queue is empty
             // queue of AC conformations to process
-            final LinkedList<ExactAFCalculation.ExactACset> ACqueue = new LinkedList<ExactAFCalculation.ExactACset>();
+            final LinkedList<ExactACset> ACqueue = new LinkedList<ExactACset>();
             // mapping of ExactACset indexes to the objects
-            final HashMap<ExactAFCalculation.ExactACcounts, ExactAFCalculation.ExactACset> indexesToACset = new HashMap<ExactAFCalculation.ExactACcounts, ExactAFCalculation.ExactACset>(likelihoodDim);
+            final HashMap<ExactACcounts, ExactACset> indexesToACset = new HashMap<ExactACcounts, ExactACset>(likelihoodDim);
             // add AC=0 to the queue
             final int[] zeroCounts = new int[nAlleles];
             zeroCounts[0] = numChromosomes;
 
-            ExactAFCalculation.ExactACset zeroSet =
-                    new ExactAFCalculation.ExactACset(1, new ExactAFCalculation.ExactACcounts(zeroCounts));
+            ExactACset zeroSet =
+                    new ExactACset(1, new ExactACcounts(zeroCounts));
 
             ACqueue.add(zeroSet);
-            indexesToACset.put(zeroSet.ACcounts, zeroSet);
+            indexesToACset.put(zeroSet.getACcounts(), zeroSet);
 
             // keep processing while we have AC conformations that need to be calculated
             double maxLog10L = Double.NEGATIVE_INFINITY;
             while ( !ACqueue.isEmpty() ) {
                 // compute log10Likelihoods
-                final ExactAFCalculation.ExactACset ACset = ACqueue.remove();
+                final ExactACset ACset = ACqueue.remove();
                 final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, errorModel, alleleList, numObservations, maxLog10L, ACqueue, indexesToACset, pileup);
 
                 // adjust max likelihood seen if needed
                 maxLog10L = Math.max(maxLog10L, log10LofKs);
                 // clean up memory
-                indexesToACset.remove(ACset.ACcounts);
+                indexesToACset.remove(ACset.getACcounts());
                 if ( VERBOSE )
-                    System.out.printf(" *** removing used set=%s%n", ACset.ACcounts);
+                    System.out.printf(" *** removing used set=%s%n", ACset.getACcounts());
 
              }
 
@@ -525,13 +527,13 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
             int plIdx = 0;
             SumIterator iterator = new SumIterator(nAlleles, numChromosomes);
             while (iterator.hasNext()) {
-                ExactAFCalculation.ExactACset ACset =
-                       new ExactAFCalculation.ExactACset(1, new ExactAFCalculation.ExactACcounts(iterator.getCurrentVector()));
+                ExactACset ACset =
+                       new ExactACset(1, new ExactACcounts(iterator.getCurrentVector()));
                 // for observed base X, add Q(jX,k) to likelihood vector for all k in error model
                 //likelihood(jA,jC,jG,jT) = logsum(logPr (errorModel[k],nA*Q(jA,k) +  nC*Q(jC,k) + nG*Q(jG,k) + nT*Q(jT,k))
                 getLikelihoodOfConformation(ACset, errorModel, alleleList, numObservations, pileup);
 
-                setLogPLs(plIdx++, ACset.log10Likelihoods[0]);
+                setLogPLs(plIdx++, ACset.getLog10Likelihoods()[0]);
                 iterator.next();
             }
         }
@@ -540,40 +542,40 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
 
     }
 
-    private double calculateACConformationAndUpdateQueue(final ExactAFCalculation.ExactACset set,
+    private double calculateACConformationAndUpdateQueue(final ExactACset set,
                                                          final ErrorModel errorModel,
                                                          final List<Allele> alleleList,
                                                          final List<Integer> numObservations,
                                                          final double  maxLog10L,
-                                                         final LinkedList<ExactAFCalculation.ExactACset> ACqueue,
-                                                         final HashMap<ExactAFCalculation.ExactACcounts,
-                                                                 ExactAFCalculation.ExactACset> indexesToACset,
+                                                         final LinkedList<ExactACset> ACqueue,
+                                                         final HashMap<ExactACcounts,
+                                                                 ExactACset> indexesToACset,
                                                          final ReadBackedPileup pileup) {
         // compute likelihood of set
         getLikelihoodOfConformation(set, errorModel, alleleList, numObservations, pileup);
-        final double log10LofK = set.log10Likelihoods[0];
+        final double log10LofK = set.getLog10Likelihoods()[0];
         
         // log result in PL vector
-        int idx = getLinearIndex(set.ACcounts.getCounts(), nAlleles, numChromosomes);
+        int idx = getLinearIndex(set.getACcounts().getCounts(), nAlleles, numChromosomes);
         setLogPLs(idx, log10LofK);
 
         // can we abort early because the log10Likelihoods are so small?
         if ( log10LofK < maxLog10L - MAX_LOG10_ERROR_TO_STOP_EARLY ) {
             if ( VERBOSE )
-                System.out.printf(" *** breaking early set=%s log10L=%.2f maxLog10L=%.2f%n", set.ACcounts, log10LofK, maxLog10L);
+                System.out.printf(" *** breaking early set=%s log10L=%.2f maxLog10L=%.2f%n", set.getACcounts(), log10LofK, maxLog10L);
             return log10LofK;
         }
 
         // iterate over higher frequencies if possible
         // by convention, ACcounts contained in set have full vector of possible pool ac counts including ref count.
-        final int ACwiggle = numChromosomes - set.getACsum() + set.ACcounts.counts[0];
+        final int ACwiggle = numChromosomes - set.getACsum() + set.getACcounts().getCounts()[0];
         if ( ACwiggle == 0 ) // all alternate alleles already sum to 2N so we cannot possibly go to higher frequencies
             return log10LofK;
 
 
         // add conformations for other cases
         for ( int allele = 1; allele < nAlleles; allele++ ) {
-            final int[] ACcountsClone = set.ACcounts.getCounts().clone();
+            final int[] ACcountsClone = set.getACcounts().getCounts().clone();
             ACcountsClone[allele]++;
             // is this a valid conformation?
             int altSum = (int)MathUtils.sum(ACcountsClone) - ACcountsClone[0];
@@ -597,7 +599,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
      * @param numObservations Number of observations for each allele
      * @param pileup        Read backed pileup in case it's necessary
      */
-    public abstract void getLikelihoodOfConformation(final ExactAFCalculation.ExactACset ACset,
+    public abstract void getLikelihoodOfConformation(final ExactACset ACset,
                                                      final ErrorModel errorModel,
                                                      final List<Allele> alleleList,
                                                      final List<Integer> numObservations,
@@ -608,12 +610,12 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
 
     // Static methods
     public static void updateACset(final int[] newSetCounts,
-                                    final LinkedList<ExactAFCalculation.ExactACset> ACqueue,
-                                    final HashMap<ExactAFCalculation.ExactACcounts, ExactAFCalculation.ExactACset> indexesToACset) {
+                                    final LinkedList<ExactACset> ACqueue,
+                                    final HashMap<ExactACcounts, ExactACset> indexesToACset) {
 
-        final ExactAFCalculation.ExactACcounts index = new ExactAFCalculation.ExactACcounts(newSetCounts);
+        final ExactACcounts index = new ExactACcounts(newSetCounts);
         if ( !indexesToACset.containsKey(index) ) {
-            ExactAFCalculation.ExactACset newSet = new ExactAFCalculation.ExactACset(1, index);
+            ExactACset newSet = new ExactACset(1, index);
             indexesToACset.put(index, newSet);
             ACqueue.add(newSet);     
             if (VERBOSE)
