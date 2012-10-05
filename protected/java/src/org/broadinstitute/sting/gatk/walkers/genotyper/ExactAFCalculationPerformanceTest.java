@@ -175,14 +175,14 @@ public class ExactAFCalculationPerformanceTest {
         final boolean USE_GENERAL = false;
         final List<ExactAFCalculationTestBuilder.ModelType> modelTypes = USE_GENERAL
                 ? Arrays.asList(ExactAFCalculationTestBuilder.ModelType.values())
-                : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.DiploidExact);
+                : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.DiploidExact, ExactAFCalculationTestBuilder.ModelType.OptimizedDiploidExact);
 
         final boolean ONLY_HUMAN_PRIORS = false;
         final List<ExactAFCalculationTestBuilder.PriorType> priorTypes = ONLY_HUMAN_PRIORS
                 ? Arrays.asList(ExactAFCalculationTestBuilder.PriorType.values())
                 : Arrays.asList(ExactAFCalculationTestBuilder.PriorType.human);
 
-        final int MAX_N_SAMPLES_FOR_MULTI_ALLELIC = 100;
+        final int MAX_N_SAMPLES_FOR_MULTI_ALLELIC = 200;
 
         final List<Analysis> analyzes = new ArrayList<Analysis>();
         analyzes.add(new AnalyzeByACAndPL(coreColumns));
@@ -191,7 +191,7 @@ public class ExactAFCalculationPerformanceTest {
 
         for ( int iteration = 0; iteration < 1; iteration++ ) {
             for ( final int nAltAlleles : Arrays.asList(1, 2) ) {
-                for ( final int nSamples : Arrays.asList(1, 10, 100, 1000, 10000) ) {
+                for ( final int nSamples : Arrays.asList(1, 10, 100, 200) ) {
                     if ( nSamples > MAX_N_SAMPLES_FOR_MULTI_ALLELIC && nAltAlleles > 1 )
                         continue; // skip things that will take forever!
 
