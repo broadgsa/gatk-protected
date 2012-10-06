@@ -107,8 +107,7 @@ public class ExactAFCalculationTestBuilder {
                 samples.add(makePL(GenotypeType.HOM_VAR, nonTypePL, altI+1));
         }
 
-        final int[] nonInformativePLs = new int[GenotypeLikelihoods.numLikelihoods(numAltAlleles, 2)];
-        final Genotype nonInformative = makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), nonInformativePLs);
+        final Genotype nonInformative = makeNonInformative();
         samples.addAll(Collections.nCopies(nNonInformative, nonInformative));
 
         final int nRef = Math.max((int) (nSamples - nNonInformative - MathUtils.sum(nhet) - MathUtils.sum(nhomvar)), 0);
@@ -146,6 +145,11 @@ public class ExactAFCalculationTestBuilder {
 
     private int numPLs() {
         return GenotypeLikelihoods.numLikelihoods(numAltAlleles+1, 2);
+    }
+
+    public Genotype makeNonInformative() {
+        final int[] nonInformativePLs = new int[GenotypeLikelihoods.numLikelihoods(numAltAlleles, 2)];
+        return makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), nonInformativePLs);
     }
 
     public Genotype makePL(final GenotypeType type, final int nonTypePL, final int altI) {

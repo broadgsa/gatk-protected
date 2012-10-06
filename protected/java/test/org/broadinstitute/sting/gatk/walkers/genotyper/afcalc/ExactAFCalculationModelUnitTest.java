@@ -293,6 +293,122 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         Assert.assertEquals(result.getAlleleCountsOfMAP()[1], 1);
     }
 
+    // --------------------------------------------------------------------------------
+    //
+    // Code to test that the pNonRef value is meaningful
+    //
+    // --------------------------------------------------------------------------------
+
+    private static class PNonRefData {
+        final Genotype g;
+        final double pNonRef, tolerance;
+        final boolean canScale;
+        final List<ExactAFCalculationTestBuilder.ModelType> badModels;
+        final VariantContext vc;
+
+        private PNonRefData(final VariantContext vc, Genotype g, double pNonRef, double tolerance, final boolean canScale) {
+            this(vc, g, pNonRef, tolerance, canScale, Collections.<ExactAFCalculationTestBuilder.ModelType>emptyList());
+        }
+
+        private PNonRefData(final VariantContext vc, Genotype g, double pNonRef, double tolerance, final boolean canScale, final List<ExactAFCalculationTestBuilder.ModelType> badModels) {
+            this.g = g;
+            this.pNonRef = pNonRef;
+            this.tolerance = tolerance;
+            this.canScale = canScale;
+            this.badModels = badModels;
+            this.vc = vc;
+        }
+
+        public PNonRefData scale(final int scaleFactor) {
+            if ( canScale ) {
+                final int[] PLs = new int[g.getPL().length];
+                for ( int i = 0; i < PLs.length; i++ ) PLs[i] = g.getPL()[i] * ((int)Math.log10(scaleFactor)+1);
+                final Genotype scaledG = new GenotypeBuilder(g).PL(PLs).make();
+                final double scaledPNonRef = pNonRef < 0.5 ? pNonRef / scaleFactor : 1 - ((1-pNonRef) / scaleFactor);
+                return new PNonRefData(vc, scaledG, scaledPNonRef, tolerance / scaleFactor, true);
+            } else {
+                return this;
+            }
+        }
+    }
+
+    @DataProvider(name = "PNonRef")
+    public Object[][] makePNonRefTest() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final List<Allele> AA = Arrays.asList(A, A);
+        final List<Allele> AC = Arrays.asList(A, C);
+        final List<Allele> CC = Arrays.asList(C, C);
+        final List<Allele> AG = Arrays.asList(A, G);
+        final List<Allele> GG = Arrays.asList(G, G);
+        final List<Allele> CG = Arrays.asList(C, G);
+
+        final VariantContext vc2 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C)).make();
+        final VariantContext vc3 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C, G)).make();
+        final ExactAFCalculationTestBuilder.PriorType priorType = ExactAFCalculationTestBuilder.PriorType.flat;
+
+        final List<ExactAFCalculationTestBuilder.ModelType> constrainedModel = Arrays.asList(ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact);
+
+        final List<PNonRefData> initialPNonRefData = Arrays.asList(
+                // bi-allelic sites
+                new PNonRefData(vc2, makePL(AA, 0, 10, 10), 0.1666667, 1e-1, true),
+                new PNonRefData(vc2, makePL(AA, 0,  1, 10), 0.4721084, 1e-1, false, constrainedModel),
+                new PNonRefData(vc2, makePL(AA, 0,  1,  1), 0.6136992, 1e-1, false, constrainedModel),
+                new PNonRefData(vc2, makePL(AA, 0,  5,  5), 0.3874259, 1e-1, false, constrainedModel),
+                new PNonRefData(vc2, makePL(AC, 10, 0, 10), 0.9166667, 1e-1, true),
+                new PNonRefData(vc2, makePL(CC, 10, 10, 0), 0.9166667, 1e-1, true),
+
+                // tri-allelic sites -- cannot scale because of the naivety of our scaling estimator
+                new PNonRefData(vc3, makePL(AA, 0, 10, 10, 10, 10, 10), 0.3023255813953489, 2e-1, false), // more tolerance because constrained model is a bit inaccurate
+                new PNonRefData(vc3, makePL(AC, 10, 0, 10, 10, 10, 10), 0.9166667, 1e-1, false),
+                new PNonRefData(vc3, makePL(CC, 10, 10, 0, 10, 10, 10), 0.9166667, 1e-1, false),
+                new PNonRefData(vc3, makePL(AG, 10, 10, 10, 0, 10, 10), 0.9166667, 1e-1, false),
+                new PNonRefData(vc3, makePL(CG, 10, 10, 10, 10, 0, 10), 0.80, 1e-1, false),
+                new PNonRefData(vc3, makePL(GG, 10, 10, 10, 10, 10, 0), 0.9166667, 1e-1, false)
+        );
+
+        for ( ExactAFCalculationTestBuilder.ModelType modelType : ExactAFCalculationTestBuilder.ModelType.values() ) {
+            for ( int nNonInformative = 0; nNonInformative < 3; nNonInformative++ ) {
+                for ( final PNonRefData rootData : initialPNonRefData ) {
+                    for ( int plScale = 1; plScale <= 100000; plScale *= 10 ) {
+                        if ( ! rootData.badModels.contains(modelType) && (plScale == 1 || rootData.canScale) ) {
+                            final PNonRefData data = rootData.scale(plScale);
+                            tests.add(new Object[]{data.vc, modelType, priorType, Arrays.asList(data.g), data.pNonRef, data.tolerance, nNonInformative});
+                        }
+                    }
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(enabled = true, dataProvider = "PNonRef")
+    private void testPNonRef(final VariantContext vcRoot,
+                             ExactAFCalculationTestBuilder.ModelType modelType,
+                             ExactAFCalculationTestBuilder.PriorType priorType,
+                             final List<Genotype> genotypes,
+                             final double expectedPNonRef,
+                             final double tolerance,
+                             final int nNonInformative) {
+        final ExactAFCalculationTestBuilder testBuilder
+                = new ExactAFCalculationTestBuilder(1, vcRoot.getNAlleles()-1, modelType, priorType);
+
+        final VariantContextBuilder vcb = new VariantContextBuilder(vcRoot);
+        vcb.genotypes(genotypes);
+
+        final AFCalcResult result = testBuilder.makeModel().getLog10PNonRef(vcb.make(), testBuilder.makePriors());
+
+        Assert.assertEquals(result.getNormalizedPosteriorOfAFGTZero(), expectedPNonRef, tolerance,
+                "Actual pNonRef not within tolerance " + tolerance + " of expected");
+    }
+
+    // --------------------------------------------------------------------------------
+    //
+    // Test priors
+    //
+    // --------------------------------------------------------------------------------
+
     @DataProvider(name = "Models")
     public Object[][] makeModels() {
         List<Object[]> tests = new ArrayList<Object[]>();
