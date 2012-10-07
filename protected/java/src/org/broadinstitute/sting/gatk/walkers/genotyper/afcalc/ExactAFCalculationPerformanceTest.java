@@ -52,7 +52,7 @@ public class ExactAFCalculationPerformanceTest {
         public void run(final ExactAFCalculationTestBuilder testBuilder, final List<Object> coreValues) {
             final SimpleTimer timer = new SimpleTimer();
 
-            for ( final int nonTypePL : Arrays.asList(10, 100, 1000) ) {
+            for ( final int nonTypePL : Arrays.asList(100) ) {
                 final ExactAFCalc calc = testBuilder.makeModel();
                 final double[] priors = testBuilder.makePriors();
 
@@ -164,6 +164,26 @@ public class ExactAFCalculationPerformanceTest {
         }
     }
 
+    private static class ModelParams {
+        final ExactAFCalculationTestBuilder.ModelType modelType;
+        final int maxBiNSamples, maxTriNSamples;
+
+        private ModelParams(ExactAFCalculationTestBuilder.ModelType modelType, int maxBiNSamples, int maxTriNSamples) {
+            this.modelType = modelType;
+            this.maxBiNSamples = maxBiNSamples;
+            this.maxTriNSamples = maxTriNSamples;
+        }
+
+        public boolean meetsConstraints(final int nAltAlleles, final int nSamples) {
+            if ( nAltAlleles == 1 )
+                return nSamples <= maxBiNSamples;
+            else if ( nAltAlleles == 2 )
+                return nSamples <= maxTriNSamples;
+            else
+                throw new IllegalStateException("Unexpected number of alt alleles " + nAltAlleles);
+        }
+    }
+
     public static void main(final String[] args) throws Exception {
         logger.addAppender(new ConsoleAppender(new SimpleLayout()));
 
@@ -172,39 +192,36 @@ public class ExactAFCalculationPerformanceTest {
 
         final PrintStream out = new PrintStream(new FileOutputStream(args[0]));
 
-        final boolean USE_GENERAL = false;
-        final List<ExactAFCalculationTestBuilder.ModelType> modelTypes = USE_GENERAL
-                ? Arrays.asList(ExactAFCalculationTestBuilder.ModelType.values())
-                : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact);
-//        : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.ReferenceDiploidExact, ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact);
+        final List<ModelParams> modelParams = Arrays.asList(
+                new ModelParams(ExactAFCalculationTestBuilder.ModelType.ReferenceDiploidExact, 1000, 10),
+//                new ModelParams(ExactAFCalculationTestBuilder.ModelType.GeneralExact, 100, 10),
+                new ModelParams(ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact, 1000, 100),
+                new ModelParams(ExactAFCalculationTestBuilder.ModelType.IndependentDiploidExact, 1000, 10000));
 
         final boolean ONLY_HUMAN_PRIORS = false;
         final List<ExactAFCalculationTestBuilder.PriorType> priorTypes = ONLY_HUMAN_PRIORS
                 ? Arrays.asList(ExactAFCalculationTestBuilder.PriorType.values())
                 : Arrays.asList(ExactAFCalculationTestBuilder.PriorType.human);
 
-        final int MAX_N_SAMPLES_FOR_MULTI_ALLELIC = 200;
-
         final List<Analysis> analyzes = new ArrayList<Analysis>();
         analyzes.add(new AnalyzeByACAndPL(coreColumns));
         analyzes.add(new AnalyzeBySingletonPosition(coreColumns));
-        analyzes.add(new AnalyzeByNonInformative(coreColumns));
+        //analyzes.add(new AnalyzeByNonInformative(coreColumns));
 
         for ( int iteration = 0; iteration < 1; iteration++ ) {
             for ( final int nAltAlleles : Arrays.asList(1, 2) ) {
-                for ( final int nSamples : Arrays.asList(1, 10, 100, 200) ) {
-                    if ( nSamples > MAX_N_SAMPLES_FOR_MULTI_ALLELIC && nAltAlleles > 1 )
-                        continue; // skip things that will take forever!
+                for ( final int nSamples : Arrays.asList(1, 10, 100, 1000, 10000) ) {
+                        for ( final ModelParams modelToRun : modelParams) {
+                            if ( modelToRun.meetsConstraints(nAltAlleles, nSamples) ) {
+                                for ( final ExactAFCalculationTestBuilder.PriorType priorType : priorTypes ) {
+                                final ExactAFCalculationTestBuilder testBuilder
+                                        = new ExactAFCalculationTestBuilder(nSamples, nAltAlleles, modelToRun.modelType, priorType);
 
-                    for ( final ExactAFCalculationTestBuilder.ModelType modelType : modelTypes ) {
-                        for ( final ExactAFCalculationTestBuilder.PriorType priorType : priorTypes ) {
-                            final ExactAFCalculationTestBuilder testBuilder
-                                    = new ExactAFCalculationTestBuilder(nSamples, nAltAlleles, modelType, priorType);
-
-                            for ( final Analysis analysis : analyzes ) {
-                                logger.info(Utils.join("\t", Arrays.asList(iteration, nAltAlleles, nSamples, modelType, priorType, analysis.getName())));
-                                final List<?> values = Arrays.asList(iteration, nAltAlleles, nSamples, modelType, priorType);
-                                analysis.run(testBuilder, (List<Object>)values);
+                                for ( final Analysis analysis : analyzes ) {
+                                    logger.info(Utils.join("\t", Arrays.asList(iteration, nAltAlleles, nSamples, modelToRun.modelType, priorType, analysis.getName())));
+                                    final List<?> values = Arrays.asList(iteration, nAltAlleles, nSamples, modelToRun.modelType, priorType);
+                                    analysis.run(testBuilder, (List<Object>)values);
+                                }
                             }
                         }
                     }

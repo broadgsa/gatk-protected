@@ -35,6 +35,7 @@ public class ExactAFCalculationTestBuilder {
     public enum ModelType {
         ReferenceDiploidExact,
         ConstrainedDiploidExact,
+        IndependentDiploidExact,
         GeneralExact
     }
 
@@ -49,9 +50,10 @@ public class ExactAFCalculationTestBuilder {
 
     public ExactAFCalc makeModel() {
         switch (modelType) {
-            case ReferenceDiploidExact:          return new ReferenceDiploidExactAFCalc(nSamples, 4);
+            case ReferenceDiploidExact:   return new ReferenceDiploidExactAFCalc(nSamples, 4);
             case ConstrainedDiploidExact: return new ConstrainedDiploidExactAFCalc(nSamples, 4);
-            case GeneralExact:          return new GeneralPloidyExactAFCalc(nSamples, 4, 2);
+            case GeneralExact:            return new GeneralPloidyExactAFCalc(nSamples, 4, 2);
+            case IndependentDiploidExact: return new IndependentAllelesDiploidExactAFCalc(nSamples, 4);
             default: throw new RuntimeException("Unexpected type " + modelType);
         }
     }
