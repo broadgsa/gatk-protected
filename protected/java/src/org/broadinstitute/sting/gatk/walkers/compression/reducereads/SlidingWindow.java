@@ -55,7 +55,7 @@ public class SlidingWindow {
 
     private final int nContigs;
 
-    private boolean allowPolyploidReduction;
+    private boolean allowPolyploidReductionInGeneral;
 
     /**
      * The types of synthetic reads to use in the finalizeAndAdd method
@@ -117,7 +117,7 @@ public class SlidingWindow {
         this.hasIndelQualities = hasIndelQualities;
         this.nContigs = nContigs;
 
-        this.allowPolyploidReduction = allowPolyploidReduction;
+        this.allowPolyploidReductionInGeneral = allowPolyploidReduction;
     }
 
     /**
@@ -207,8 +207,9 @@ public class SlidingWindow {
             finalizedReads = closeVariantRegions(regions, false);
 
             List<GATKSAMRecord> readsToRemove = new LinkedList<GATKSAMRecord>();
-            for (GATKSAMRecord read : readsInWindow) {                                                                  // todo -- unnecessarily going through all reads in the window !! Optimize this (But remember reads are not sorted by alignment end!)
-                if (read.getSoftEnd() < getStartLocation(windowHeader)) {
+            final int windowHeaderStartLoc = getStartLocation(windowHeader);
+            for (final GATKSAMRecord read : readsInWindow) {                                                            // todo -- unnecessarily going through all reads in the window !! Optimize this (But remember reads are not sorted by alignment end!)
+                if (read.getSoftEnd() < windowHeaderStartLoc) {
                     readsToRemove.add(read);
                 }
             }
@@ -489,7 +490,7 @@ public class SlidingWindow {
         syntheticRead.add(base, count, qual, insQual, delQual, rms);
     }
 
-    private List<GATKSAMRecord> compressVariantRegion(int start, int stop) {
+    private List<GATKSAMRecord> compressVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
         List<GATKSAMRecord> allReads = new LinkedList<GATKSAMRecord>();
 
         // Try to compress into a polyploid consensus
@@ -499,7 +500,8 @@ public class SlidingWindow {
         boolean foundEvent = false;
         Object[] header = windowHeader.toArray();
 
-        if ( allowPolyploidReduction ) { // foundEvent will remain false if we don't allow polyploid reduction
+        // foundEvent will remain false if we don't allow polyploid reduction
+        if ( allowPolyploidReductionInGeneral && !disallowPolyploidReductionAtThisPosition ) {
             for (int i = start; i<=stop; i++) {
                 nHaplotypes = ((HeaderElement) header[i]).getNumberOfHaplotypes(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
                 if (nHaplotypes > nContigs) {
@@ -558,8 +560,8 @@ public class SlidingWindow {
      * @return all reads contained in the variant region plus any adjacent synthetic reads
      */
     @Requires("start <= stop")
-    protected List<GATKSAMRecord> closeVariantRegion(int start, int stop) {
-        List<GATKSAMRecord> allReads = compressVariantRegion(start, stop);
+    protected List<GATKSAMRecord> closeVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
+        List<GATKSAMRecord> allReads = compressVariantRegion(start, stop, disallowPolyploidReductionAtThisPosition);
 
         List<GATKSAMRecord> result = (downsampleCoverage > 0) ? downsampleVariantRegion(allReads) : allReads;
         result.addAll(addToSyntheticReads(windowHeader, 0, stop, false));
@@ -579,7 +581,7 @@ public class SlidingWindow {
                 if (stop < 0 && forceClose)
                     stop = windowHeader.size() - 1;
                 if (stop >= 0) {
-                    allReads.addAll(closeVariantRegion(start, stop));
+                    allReads.addAll(closeVariantRegion(start, stop, regions.size() > 1));
                     lastStop = stop;
                 }
             }
