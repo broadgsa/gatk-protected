@@ -2,9 +2,10 @@ package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Logger;
-import org.apache.log4j.SimpleLayout;
+import org.apache.log4j.TTCCLayout;
 import org.broadinstitute.sting.gatk.report.GATKReport;
 import org.broadinstitute.sting.gatk.report.GATKReportTable;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.SimpleTimer;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.variantcontext.Genotype;
@@ -82,18 +83,21 @@ public class ExactAFCalculationPerformanceTest {
 
             final List<int[]> ACs = new LinkedList<int[]>();
 
-            if ( nAltAlleles == 1 )
-                for ( int i = 0; i < nChrom; i++ ) {
-                    ACs.add(new int[]{i});
-            } else if ( nAltAlleles == 2 ) {
-                for ( int i = 0; i < nChrom; i++ ) {
-                    for ( int j : Arrays.asList(0, 1, 5, 10, 50, 100, 1000, 10000, 100000) ) {
-                        if ( j < nChrom - i )
-                            ACs.add(new int[]{i, j});
+            final List<Integer> ACsToTry = MathUtils.log10LinearRange(0, nChrom, 0.1); //Arrays.asList(0, 1, 2, 3, 6, 10, 20, 40, 60, 100, 200, 400, 600, 1000, 2000, 4000, 6000, 10000, 100000);
+
+            for ( int i : ACsToTry ) {
+                if ( i < nChrom ) {
+                    if ( nAltAlleles == 1 ) {
+                        ACs.add(new int[]{i});
+                    } else if ( nAltAlleles == 2 ) {
+                        for ( int j : ACsToTry ) {
+                            if ( j < nChrom - i )
+                                ACs.add(new int[]{i, j});
+                        }
+                    } else {
+                        throw new IllegalStateException("cannot get here");
                     }
                 }
-            } else {
-                throw new IllegalStateException("cannot get here");
             }
 
             return ACs;
@@ -116,7 +120,7 @@ public class ExactAFCalculationPerformanceTest {
                 ac[0] = 1;
                 final VariantContext vc = testBuilder.makeACTest(ac, 0, nonTypePL);
 
-                for ( int position = 0; position < vc.getNSamples(); position++ ) {
+                for ( final int position : MathUtils.log10LinearRange(0, vc.getNSamples(), 0.1) ) {
                     final VariantContextBuilder vcb = new VariantContextBuilder(vc);
                     final List<Genotype> genotypes = new ArrayList<Genotype>(vc.getGenotypes());
                     Collections.rotate(genotypes, position);
@@ -184,19 +188,54 @@ public class ExactAFCalculationPerformanceTest {
         }
     }
 
+    public enum Operation {
+        ANALYZE,
+        SINGLE
+    }
     public static void main(final String[] args) throws Exception {
-        logger.addAppender(new ConsoleAppender(new SimpleLayout()));
+        final TTCCLayout layout = new TTCCLayout();
+        layout.setThreadPrinting(false);
+        layout.setCategoryPrefixing(false);
+        layout.setContextPrinting(false);
+        logger.addAppender(new ConsoleAppender(layout));
 
+        final Operation op = Operation.valueOf(args[0]);
+
+        switch ( op ) {
+            case ANALYZE: analyze(args); break;
+            case SINGLE: profileBig(args); break;
+            default: throw new IllegalAccessException("unknown operation " + op);
+        }
+    }
+
+    private static void profileBig(final String[] args) throws Exception {
+        final int nSamples = Integer.valueOf(args[1]);
+        final int ac = Integer.valueOf(args[2]);
+
+        final ExactAFCalculationTestBuilder testBuilder = new ExactAFCalculationTestBuilder(nSamples, 1,
+                ExactAFCalculationTestBuilder.ModelType.IndependentDiploidExact,
+                ExactAFCalculationTestBuilder.PriorType.human);
+
+        final VariantContext vc = testBuilder.makeACTest(new int[]{ac}, 0, 100);
+
+        final SimpleTimer timer = new SimpleTimer().start();
+        final AFCalcResult result = testBuilder.makeModel().getLog10PNonRef(vc, testBuilder.makePriors());
+        final long runtime = timer.getElapsedTimeNano();
+        logger.info("result " + result.getNormalizedPosteriorOfAFGTZero());
+        logger.info("runtime " + runtime);
+    }
+
+    private static void analyze(final String[] args) throws Exception {
         final List<String> coreColumns = Arrays.asList("iteration", "n.alt.alleles", "n.samples",
                 "exact.model", "prior.type", "runtime", "n.evaluations");
 
-        final PrintStream out = new PrintStream(new FileOutputStream(args[0]));
+        final PrintStream out = new PrintStream(new FileOutputStream(args[1]));
 
         final List<ModelParams> modelParams = Arrays.asList(
-                new ModelParams(ExactAFCalculationTestBuilder.ModelType.ReferenceDiploidExact, 1000, 10),
+                new ModelParams(ExactAFCalculationTestBuilder.ModelType.ReferenceDiploidExact, 10000, 10),
 //                new ModelParams(ExactAFCalculationTestBuilder.ModelType.GeneralExact, 100, 10),
-                new ModelParams(ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact, 1000, 100),
-                new ModelParams(ExactAFCalculationTestBuilder.ModelType.IndependentDiploidExact, 1000, 10000));
+                new ModelParams(ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact, 10000, 100),
+                new ModelParams(ExactAFCalculationTestBuilder.ModelType.IndependentDiploidExact, 10000, 1000));
 
         final boolean ONLY_HUMAN_PRIORS = false;
         final List<ExactAFCalculationTestBuilder.PriorType> priorTypes = ONLY_HUMAN_PRIORS
@@ -211,9 +250,9 @@ public class ExactAFCalculationPerformanceTest {
         for ( int iteration = 0; iteration < 1; iteration++ ) {
             for ( final int nAltAlleles : Arrays.asList(1, 2) ) {
                 for ( final int nSamples : Arrays.asList(1, 10, 100, 1000, 10000) ) {
-                        for ( final ModelParams modelToRun : modelParams) {
-                            if ( modelToRun.meetsConstraints(nAltAlleles, nSamples) ) {
-                                for ( final ExactAFCalculationTestBuilder.PriorType priorType : priorTypes ) {
+                    for ( final ModelParams modelToRun : modelParams) {
+                        if ( modelToRun.meetsConstraints(nAltAlleles, nSamples) ) {
+                            for ( final ExactAFCalculationTestBuilder.PriorType priorType : priorTypes ) {
                                 final ExactAFCalculationTestBuilder testBuilder
                                         = new ExactAFCalculationTestBuilder(nSamples, nAltAlleles, modelToRun.modelType, priorType);
 

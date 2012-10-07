@@ -89,7 +89,7 @@ public class ExactAFCalculationTestBuilder {
             nhet[i] = ACs[i] - 2 * nhomvar[i];
 
             if ( nhet[i] < 0 )
-                throw new IllegalStateException("Bug!");
+                throw new IllegalStateException("Bug! nhet[i] < 0");
         }
 
         final long calcAC = MathUtils.sum(nhet) + 2 * MathUtils.sum(nhomvar);
