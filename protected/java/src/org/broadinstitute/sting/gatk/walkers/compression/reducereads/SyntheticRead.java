@@ -44,7 +44,7 @@ public class SyntheticRead {
     private String contig;
     private int contigIndex;
     private String readName;
-    private Integer refStart;
+    private int refStart;
     private boolean hasIndelQualities = false;
     private boolean isNegativeStrand = false;
 
@@ -60,7 +60,7 @@ public class SyntheticRead {
      * @param refStart        the alignment start (reference based)
      * @param readTag         the reduce reads tag for the synthetic read
      */
-    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, Integer refStart, String readTag, boolean hasIndelQualities, boolean isNegativeRead) {
+    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, String readTag, boolean hasIndelQualities, boolean isNegativeRead) {
         final int initialCapacity = 10000;
         bases = new ArrayList<BaseIndex>(initialCapacity);
         counts = new ArrayList<Byte>(initialCapacity);
@@ -80,7 +80,7 @@ public class SyntheticRead {
         this.isNegativeStrand = isNegativeRead;
     }
 
-    public SyntheticRead(List<BaseIndex> bases, List<Byte> counts, List<Byte> quals, List<Byte> insertionQuals, List<Byte> deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, Integer refStart, boolean hasIndelQualities, boolean isNegativeRead) {
+    public SyntheticRead(List<BaseIndex> bases, List<Byte> counts, List<Byte> quals, List<Byte> insertionQuals, List<Byte> deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
         this.bases = bases;
         this.counts = counts;
         this.quals = quals;
@@ -115,11 +115,15 @@ public class SyntheticRead {
         this.mappingQuality += mappingQuality;
     }
 
-    public BaseIndex getBase(int readCoordinate) {
+    public BaseIndex getBase(final int readCoordinate) {
         return bases.get(readCoordinate);
     }
 
-   /**
+    public int getRefStart() {
+        return refStart;
+    }
+
+    /**
      * Creates a GATKSAMRecord of the synthetic read. Will return null if the read is invalid.
      *
      * Invalid reads are :

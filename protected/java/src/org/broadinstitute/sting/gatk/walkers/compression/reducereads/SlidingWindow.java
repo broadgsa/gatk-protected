@@ -291,7 +291,7 @@ public class SlidingWindow {
                 reads.addAll(finalizeAndAdd(ConsensusType.CONSENSUS));
 
                 int endOfFilteredData = findNextNonFilteredDataElement(header, start, end);
-                addToFilteredData(header, start, endOfFilteredData, isNegativeStrand);
+                reads.addAll(addToFilteredData(header, start, endOfFilteredData, isNegativeStrand));
 
                 if (endOfFilteredData <= start)
                     throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfFilteredData, start));
@@ -418,7 +418,9 @@ public class SlidingWindow {
      * @param start the first header index to add to consensus
      * @param end   the first header index NOT TO add to consensus
      */
-    private void addToFilteredData(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
+    private List<GATKSAMRecord> addToFilteredData(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
+        List<GATKSAMRecord> result = new ArrayList<GATKSAMRecord>(0);
+
         if (filteredDataConsensus == null)
             filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, header.get(start).getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
 
@@ -434,8 +436,15 @@ public class SlidingWindow {
             if (!headerElement.hasFilteredData())
                 throw new ReviewedStingException("No filtered data in " + index);
 
+            if ( filteredDataConsensus.getRefStart() + filteredDataConsensus.size() != headerElement.getLocation() ) {
+                result.add(finalizeFilteredDataConsensus());
+                filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, headerElement.getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
+            }
+
             genericAddBaseToConsensus(filteredDataConsensus, headerElement.getFilteredBaseCounts(), headerElement.getRMS());
         }
+
+        return result;
     }
 
     /**
@@ -512,9 +521,6 @@ public class SlidingWindow {
             }
         }
 
-        int refStart = windowHeader.get(start).getLocation();
-        int refStop = windowHeader.get(stop).getLocation();
-
         // Try to compress the variant region
         // the "foundEvent" protects us from trying to compress variant regions that are created by insertions
         if (canCompress && foundEvent) {
@@ -524,6 +530,9 @@ public class SlidingWindow {
         // Return all reads that overlap the variant region and remove them from the window header entirely
         // also remove all reads preceding the variant region (since they will be output as consensus right after compression
         else {
+            final int refStart = windowHeader.get(start).getLocation();
+            final int refStop = windowHeader.get(stop).getLocation();
+
             LinkedList<GATKSAMRecord> toRemove = new LinkedList<GATKSAMRecord>();
             for (GATKSAMRecord read : readsInWindow) {
                 if (read.getSoftStart() <= refStop) {
