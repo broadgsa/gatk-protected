@@ -78,8 +78,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     @Override
     public void computeLog10PNonRef(final VariantContext vc,
                                     final double[] log10AlleleFrequencyPriors,
-                                    final AFCalcResult result) {
-        combineSinglePools(vc.getGenotypes(), vc.getNAlleles(), ploidy, log10AlleleFrequencyPriors, result);
+                                    final AFCalcResultTracker resultTracker) {
+        combineSinglePools(vc.getGenotypes(), vc.getNAlleles(), ploidy, log10AlleleFrequencyPriors, resultTracker);
     }
 
 
@@ -180,13 +180,13 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * @param numAlleles                       Number of alternate alleles
      * @param ploidyPerPool                    Number of samples per pool
      * @param log10AlleleFrequencyPriors       Frequency priors
-     * @param result                           object to fill with output values
+     * @param resultTracker                           object to fill with output values
      */
     protected static void combineSinglePools(final GenotypesContext GLs,
                                              final int numAlleles,
                                              final int ploidyPerPool,
                                              final double[] log10AlleleFrequencyPriors,
-                                             final AFCalcResult result) {
+                                             final AFCalcResultTracker resultTracker) {
 
         final ArrayList<double[]> genotypeLikelihoods = getGLs(GLs);
 
@@ -203,9 +203,9 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 
         combinedPoolLikelihoods.add(set);
         for (int p=1; p<genotypeLikelihoods.size(); p++) {
-            result.reset(); // TODO -- why is this here?  It makes it hard to track the n evaluation
+            resultTracker.reset(); // TODO -- why is this here?  It makes it hard to track the n evaluation
             combinedPoolLikelihoods = fastCombineMultiallelicPool(combinedPoolLikelihoods, genotypeLikelihoods.get(p), combinedPloidy, ploidyPerPool,
-                    numAlleles, log10AlleleFrequencyPriors, result);
+                    numAlleles, log10AlleleFrequencyPriors, resultTracker);
             combinedPloidy = ploidyPerPool + combinedPloidy; // total number of chromosomes in combinedLikelihoods
         }
 
@@ -213,7 +213,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 
     public static CombinedPoolLikelihoods fastCombineMultiallelicPool(final CombinedPoolLikelihoods originalPool, double[] newGL, int originalPloidy, int newGLPloidy, int numAlleles,
                                                                       final double[] log10AlleleFrequencyPriors,
-                                                                      final AFCalcResult result) {
+                                                                      final AFCalcResultTracker resultTracker) {
 
 
 
@@ -235,10 +235,10 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         // keep processing while we have AC conformations that need to be calculated
         StateTracker stateTracker = new StateTracker();
         while ( !ACqueue.isEmpty() ) {
-            result.incNEvaluations();
+            resultTracker.incNEvaluations();
             // compute log10Likelihoods
             final ExactACset ACset = ACqueue.remove();
-            final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, result, stateTracker, ACqueue, indexesToACset);
+            final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, resultTracker, stateTracker, ACqueue, indexesToACset);
 
             // adjust max likelihood seen if needed
             if ( log10LofKs > stateTracker.getMaxLog10L())
@@ -263,7 +263,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * @param log10AlleleFrequencyPriors Prior object
      * @param originalPloidy             Total ploidy of original combined pool
      * @param newGLPloidy                Ploidy of GL vector
-     * @param result                     AFResult object
+     * @param resultTracker                     AFResult object
      * @param stateTracker          max likelihood observed so far
      * @param ACqueue                    Queue of conformations to compute
      * @param indexesToACset             AC indices of objects in queue
@@ -276,7 +276,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                                                 final double[] log10AlleleFrequencyPriors,
                                                                 final int originalPloidy,
                                                                 final int newGLPloidy,
-                                                                final AFCalcResult result,
+                                                                final AFCalcResultTracker resultTracker,
                                                                 final StateTracker stateTracker,
                                                                 final LinkedList<ExactACset> ACqueue,
                                                                 final HashMap<ExactACcounts, ExactACset> indexesToACset) {
@@ -284,7 +284,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         // compute likeihood in "set" of new set based on original likelihoods
         final int numAlleles = set.getACcounts().getCounts().length;
         final int newPloidy = set.getACsum();
-        final double log10LofK = computeLofK(set, originalPool, newGL, log10AlleleFrequencyPriors, numAlleles, originalPloidy, newGLPloidy, result);
+        final double log10LofK = computeLofK(set, originalPool, newGL, log10AlleleFrequencyPriors, numAlleles, originalPloidy, newGLPloidy, resultTracker);
 
 
         // add to new pool
@@ -339,11 +339,11 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * @param ploidy2               Ploidy of second pool
      * @param numAlleles            Number of alleles
      * @param log10AlleleFrequencyPriors Array of biallelic priors
-     * @param result                Af calculation result object                  
+     * @param resultTracker                Af calculation result object
      */
     public static void combineMultiallelicPoolNaively(CombinedPoolLikelihoods originalPool, double[] yy, int ploidy1, int ploidy2, int numAlleles,
                                                       final double[] log10AlleleFrequencyPriors,
-                                                      final AFCalcResult result) {
+                                                      final AFCalcResultTracker resultTracker) {
 /*
         final int dim1 = GenotypeLikelihoods.numLikelihoods(numAlleles, ploidy1);
         final int dim2 = GenotypeLikelihoods.numLikelihoods(numAlleles, ploidy2);
@@ -397,7 +397,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * @param numAlleles                Number of alleles (including ref)
      * @param ploidy1                   Ploidy of original pool (combined)
      * @param ploidy2                   Ploidy of new pool
-     * @param result                    AFResult object
+     * @param resultTracker                    AFResult object
      * @return                          log-likehood of requested conformation
      */
     private static double computeLofK(final ExactACset set,
@@ -405,7 +405,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                       final double[] secondGL,
                                       final double[] log10AlleleFrequencyPriors,
                                       final int numAlleles, final int ploidy1, final int ploidy2,
-                                      final AFCalcResult result) {
+                                      final AFCalcResultTracker resultTracker) {
 
         final int newPloidy = ploidy1 + ploidy2;
 
@@ -423,8 +423,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
             final double log10Lof0 = firstGLs.getGLOfACZero() + secondGL[HOM_REF_INDEX];
             set.getLog10Likelihoods()[0] = log10Lof0;
 
-            result.setLog10LikelihoodOfAFzero(log10Lof0);
-            result.setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
+            resultTracker.setLog10LikelihoodOfAFzero(log10Lof0);
+            resultTracker.setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
             return log10Lof0;
 
         }   else {
@@ -467,14 +467,14 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 
         // update the MLE if necessary
         final int altCounts[] = Arrays.copyOfRange(set.getACcounts().getCounts(),1, set.getACcounts().getCounts().length);
-        result.updateMLEifNeeded(log10LofK, altCounts);
+        resultTracker.updateMLEifNeeded(log10LofK, altCounts);
 
         // apply the priors over each alternate allele
         for (final int ACcount : altCounts ) {
             if ( ACcount > 0 )
                 log10LofK += log10AlleleFrequencyPriors[ACcount];
         }
-        result.updateMAPifNeeded(log10LofK, altCounts);
+        resultTracker.updateMAPifNeeded(log10LofK, altCounts);
 
         return log10LofK;
     }
@@ -506,12 +506,12 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * @param ploidy1               Ploidy of first pool (# of chromosomes in it)
      * @param ploidy2               Ploidy of second pool
      * @param log10AlleleFrequencyPriors Array of biallelic priors
-     * @param result                Af calculation result object
+     * @param resultTracker                Af calculation result object
      * @return                Combined likelihood vector
      */
     public static ProbabilityVector combineBiallelicPoolsNaively(final ProbabilityVector originalPool, final double[] newPLVector,
                                                                  final int ploidy1, final int ploidy2, final double[] log10AlleleFrequencyPriors,
-                                                                 final AFCalcResult result) {
+                                                                 final AFCalcResultTracker resultTracker) {
 
         final int newPloidy = ploidy1 + ploidy2;
 
@@ -536,8 +536,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 
 
         final double log10Lof0 = x[0]+y[0];
-        result.setLog10LikelihoodOfAFzero(log10Lof0);
-        result.setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
+        resultTracker.setLog10LikelihoodOfAFzero(log10Lof0);
+        resultTracker.setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
 
         double maxElement = log10Lof0;
         int maxElementIdx = 0;
@@ -579,8 +579,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
             }
 
             alleleCounts[0] = k;
-            result.updateMLEifNeeded(combinedLikelihoods[k],alleleCounts);
-            result.updateMAPifNeeded(combinedLikelihoods[k] + log10AlleleFrequencyPriors[k],alleleCounts);
+            resultTracker.updateMLEifNeeded(combinedLikelihoods[k],alleleCounts);
+            resultTracker.updateMAPifNeeded(combinedLikelihoods[k] + log10AlleleFrequencyPriors[k],alleleCounts);
 
 
         }

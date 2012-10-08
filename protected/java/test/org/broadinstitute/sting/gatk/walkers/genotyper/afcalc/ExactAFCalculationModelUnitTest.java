@@ -76,11 +76,11 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             }
         }
 
-        public AFCalcResult execute() {
+        public AFCalcResultTracker execute() {
             return getCalc().getLog10PNonRef(getVC(), getPriors());
         }
 
-        public AFCalcResult executeRef() {
+        public AFCalcResultTracker executeRef() {
             final ExactAFCalc ref = new ReferenceDiploidExactAFCalc(getCalc().nSamples, getCalc().getMaxAltAlleles());
             return ref.getLog10PNonRef(getVC(), getPriors());
         }
@@ -209,8 +209,8 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 
     @Test(enabled = true, dataProvider = "GLsWithNonInformative", dependsOnMethods = "testGLs")
     public void testGLsWithNonInformative(GetGLsTest onlyInformative, GetGLsTest withNonInformative) {
-        final AFCalcResult expected = onlyInformative.execute();
-        final AFCalcResult actual = withNonInformative.execute();
+        final AFCalcResultTracker expected = onlyInformative.execute();
+        final AFCalcResultTracker actual = withNonInformative.execute();
 
         testResultSimple(withNonInformative);
 
@@ -225,22 +225,22 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
     }
 
     private void testResultSimple(final GetGLsTest cfg) {
-        final AFCalcResult refResult = cfg.executeRef();
-        final AFCalcResult result = cfg.execute();
+        final AFCalcResultTracker refResultTracker = cfg.executeRef();
+        final AFCalcResultTracker resultTracker = cfg.execute();
 
-        compareToRefResult(refResult, result);
+        compareToRefResult(refResultTracker, resultTracker);
 
-        Assert.assertEquals(result.getNormalizedPosteriorOfAFzero() + result.getNormalizedPosteriorOfAFGTZero(), 1.0, 1e-4);
+        Assert.assertEquals(resultTracker.getNormalizedPosteriorOfAFzero() + resultTracker.getNormalizedPosteriorOfAFGTZero(), 1.0, 1e-4);
 
 //        final int minNumberOfEvaluations = cfg.getVC().getCalledChrCount();
 //        Assert.assertTrue(result.getnEvaluations() >= minNumberOfEvaluations,
 //                "Number of evaluations " + result.getnEvaluations() + " must be at least " + minNumberOfEvaluations);
-        Assert.assertNotNull(result.getAllelesUsedInGenotyping());
-        Assert.assertTrue(cfg.getAlleles().containsAll(result.getAllelesUsedInGenotyping()), "Result object has alleles not in our initial allele list");
+        Assert.assertNotNull(resultTracker.getAllelesUsedInGenotyping());
+        Assert.assertTrue(cfg.getAlleles().containsAll(resultTracker.getAllelesUsedInGenotyping()), "Result object has alleles not in our initial allele list");
 
         for ( int altAlleleI = 0; altAlleleI < cfg.numAltAlleles; altAlleleI++ ) {
             int expectedAlleleCount = cfg.getExpectedAltAC(altAlleleI);
-            int calcAC_MLE = result.getAlleleCountsOfMLE()[altAlleleI];
+            int calcAC_MLE = resultTracker.getAlleleCountsOfMLE()[altAlleleI];
 
             final Allele allele = cfg.getAlleles().get(altAlleleI+1);
             Assert.assertEquals(calcAC_MLE, expectedAlleleCount, "MLE AC not equal to expected AC for allele " + allele);
@@ -257,20 +257,20 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 //        }
     }
 
-    private void compareToRefResult(final AFCalcResult refResult,
-                                    final AFCalcResult result) {
+    private void compareToRefResult(final AFCalcResultTracker refResultTracker,
+                                    final AFCalcResultTracker resultTracker) {
         final double TOLERANCE = 1;
         // MAP may not be equal
 //        Assert.assertEquals(result.getAlleleCountsOfMAP(), refResult.getAlleleCountsOfMAP());
-        Assert.assertEquals(result.getAlleleCountsOfMLE(), refResult.getAlleleCountsOfMLE());
-        Assert.assertEquals(result.getAllelesUsedInGenotyping(), refResult.getAllelesUsedInGenotyping());
-        Assert.assertEquals(result.getLog10LikelihoodOfAFzero(), refResult.getLog10LikelihoodOfAFzero(), TOLERANCE);
+        Assert.assertEquals(resultTracker.getAlleleCountsOfMLE(), refResultTracker.getAlleleCountsOfMLE());
+        Assert.assertEquals(resultTracker.getAllelesUsedInGenotyping(), refResultTracker.getAllelesUsedInGenotyping());
+        Assert.assertEquals(resultTracker.getLog10LikelihoodOfAFzero(), refResultTracker.getLog10LikelihoodOfAFzero(), TOLERANCE);
 //        Assert.assertEquals(result.getLog10MAP(), refResult.getLog10MAP(), TOLERANCE);
 //        Assert.assertEquals(result.getLog10MLE(), refResult.getLog10MLE(), TOLERANCE);
 //        Assert.assertEquals(result.getLog10PosteriorOfAFzero(), refResult.getLog10PosteriorOfAFzero(), TOLERANCE);
 //        Assert.assertEquals(result.getLog10PosteriorsMatrixSumWithoutAFzero(), refResult.getLog10PosteriorsMatrixSumWithoutAFzero(), TOLERANCE);
-        Assert.assertEquals(result.getNormalizedPosteriorOfAFGTZero(), refResult.getNormalizedPosteriorOfAFGTZero(), 0.5);
-        Assert.assertEquals(result.getNormalizedPosteriorOfAFzero(), refResult.getNormalizedPosteriorOfAFzero(), 0.5);
+        Assert.assertEquals(resultTracker.getNormalizedPosteriorOfAFGTZero(), refResultTracker.getNormalizedPosteriorOfAFGTZero(), 0.5);
+        Assert.assertEquals(resultTracker.getNormalizedPosteriorOfAFzero(), refResultTracker.getNormalizedPosteriorOfAFzero(), 0.5);
     }
 
     @Test(enabled = true, dataProvider = "Models")
@@ -278,9 +278,9 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final Genotype BB = makePL(Arrays.asList(C, C), 20000000, 20000000, 0);
         GetGLsTest cfg = new GetGLsTest(calc, 1, Arrays.asList(BB, BB, BB), FLAT_3SAMPLE_PRIORS, "flat");
 
-        final AFCalcResult result = cfg.execute();
+        final AFCalcResultTracker resultTracker = cfg.execute();
 
-        int calculatedAlleleCount = result.getAlleleCountsOfMAP()[0];
+        int calculatedAlleleCount = resultTracker.getAlleleCountsOfMAP()[0];
         Assert.assertEquals(calculatedAlleleCount, 6);
     }
 
@@ -290,10 +290,10 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final Genotype AC = makePL(Arrays.asList(A, G), 100, 100, 100, 0, 100, 100);
         GetGLsTest cfg = new GetGLsTest(calc, 2, Arrays.asList(AB, AC), FLAT_3SAMPLE_PRIORS, "flat");
 
-        final AFCalcResult result = cfg.execute();
+        final AFCalcResultTracker resultTracker = cfg.execute();
 
-        Assert.assertEquals(result.getAlleleCountsOfMAP()[0], 1);
-        Assert.assertEquals(result.getAlleleCountsOfMAP()[1], 1);
+        Assert.assertEquals(resultTracker.getAlleleCountsOfMAP()[0], 1);
+        Assert.assertEquals(resultTracker.getAlleleCountsOfMAP()[1], 1);
     }
 
     // --------------------------------------------------------------------------------
@@ -400,9 +400,9 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final VariantContextBuilder vcb = new VariantContextBuilder(vcRoot);
         vcb.genotypes(genotypes);
 
-        final AFCalcResult result = testBuilder.makeModel().getLog10PNonRef(vcb.make(), testBuilder.makePriors());
+        final AFCalcResultTracker resultTracker = testBuilder.makeModel().getLog10PNonRef(vcb.make(), testBuilder.makePriors());
 
-        Assert.assertEquals(result.getNormalizedPosteriorOfAFGTZero(), expectedPNonRef, tolerance,
+        Assert.assertEquals(resultTracker.getNormalizedPosteriorOfAFGTZero(), expectedPNonRef, tolerance,
                 "Actual pNonRef not within tolerance " + tolerance + " of expected");
     }
 
@@ -432,17 +432,17 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             final double refPrior = 1 - QualityUtils.qualToErrorProb(log10NonRefPrior);
             final double[] priors = MathUtils.toLog10(new double[]{refPrior, (1-refPrior) / 2, (1-refPrior) / 2});
             GetGLsTest cfg = new GetGLsTest(model, 1, Arrays.asList(AB), priors, "pNonRef" + log10NonRefPrior);
-            final AFCalcResult result = cfg.execute();
-            final int actualAC = result.getAlleleCountsOfMAP()[0];
+            final AFCalcResultTracker resultTracker = cfg.execute();
+            final int actualAC = resultTracker.getAlleleCountsOfMAP()[0];
 
             final double pRefWithPrior = AB.getLikelihoods().getAsVector()[0] + priors[0];
             final double pHetWithPrior = AB.getLikelihoods().getAsVector()[1] + priors[1];
             final boolean expectNonRef = pRefWithPrior <= pHetWithPrior;
 
             if ( expectNonRef )
-                Assert.assertTrue(result.getNormalizedPosteriorOfAFGTZero() > 0.5);
+                Assert.assertTrue(resultTracker.getNormalizedPosteriorOfAFGTZero() > 0.5);
             else
-                Assert.assertTrue(result.getNormalizedPosteriorOfAFGTZero() < 0.5);
+                Assert.assertTrue(resultTracker.getNormalizedPosteriorOfAFGTZero() < 0.5);
 
             final int expectedAC = expectNonRef ? 1 : 0;
             Assert.assertEquals(actualAC, expectedAC,
@@ -468,8 +468,8 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             final double nonRefPrior = (1-refPrior) / 2;
             final double[] priors = MathUtils.toLog10(new double[]{refPrior, nonRefPrior, nonRefPrior, nonRefPrior, nonRefPrior, nonRefPrior});
             GetGLsTest cfg = new GetGLsTest(model, 2, Arrays.asList(AB, AC), priors, "pNonRef" + log10NonRefPrior);
-            final AFCalcResult result = cfg.execute();
-            final int actualAC_AB = result.getAlleleCountsOfMAP()[0];
+            final AFCalcResultTracker resultTracker = cfg.execute();
+            final int actualAC_AB = resultTracker.getAlleleCountsOfMAP()[0];
 
             final double pRefABWithPrior = AB.getLikelihoods().getAsVector()[0] + priors[0];
             final double pHetABWithPrior = AB.getLikelihoods().getAsVector()[1] + priors[1];
@@ -480,7 +480,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 
             final double nonRefPriorSecondAllele = Math.pow(nonRefPrior, 2);
             final double refPriorSecondAllele = 1 - nonRefPriorSecondAllele;
-            final int actualAC_AC = result.getAlleleCountsOfMAP()[1];
+            final int actualAC_AC = resultTracker.getAlleleCountsOfMAP()[1];
             final double pRefACWithPrior = AB.getLikelihoods().getAsVector()[0] + Math.log10(refPriorSecondAllele);
             final double pHetACWithPrior = AC.getLikelihoods().getAsVector()[3] + Math.log10(nonRefPriorSecondAllele);
             final int expectedAC_AC = pRefACWithPrior <= pHetACWithPrior ? 1 : 0;

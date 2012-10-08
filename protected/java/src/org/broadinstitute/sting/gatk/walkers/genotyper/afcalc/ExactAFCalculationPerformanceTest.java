@@ -61,7 +61,7 @@ public class ExactAFCalculationPerformanceTest {
                     final VariantContext vc = testBuilder.makeACTest(ACs, 0, nonTypePL);
 
                     timer.start();
-                    final AFCalcResult result = calc.getLog10PNonRef(vc, priors);
+                    final AFCalcResultTracker resultTracker = calc.getLog10PNonRef(vc, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     int otherAC = 0;
@@ -72,7 +72,7 @@ public class ExactAFCalculationPerformanceTest {
                     }
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);
-                    columns.addAll(Arrays.asList(runtime, result.getnEvaluations(), nonTypePL, ACs[0], nAltSeg, otherAC));
+                    columns.addAll(Arrays.asList(runtime, resultTracker.getnEvaluations(), nonTypePL, ACs[0], nAltSeg, otherAC));
                     report.addRowList(columns);
                 }
             }
@@ -127,11 +127,11 @@ public class ExactAFCalculationPerformanceTest {
                     vcb.genotypes(genotypes);
 
                     timer.start();
-                    final AFCalcResult result = calc.getLog10PNonRef(vcb.make(), priors);
+                    final AFCalcResultTracker resultTracker = calc.getLog10PNonRef(vcb.make(), priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);
-                    columns.addAll(Arrays.asList(runtime, result.getnEvaluations(), nonTypePL, position));
+                    columns.addAll(Arrays.asList(runtime, resultTracker.getnEvaluations(), nonTypePL, position));
                     report.addRowList(columns);
                 }
             }
@@ -157,11 +157,11 @@ public class ExactAFCalculationPerformanceTest {
                     final VariantContext vc = testBuilder.makeACTest(ac, nNonInformative, nonTypePL);
 
                     timer.start();
-                    final AFCalcResult result = calc.getLog10PNonRef(vc, priors);
+                    final AFCalcResultTracker resultTracker = calc.getLog10PNonRef(vc, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);
-                    columns.addAll(Arrays.asList(runtime, result.getnEvaluations(), nonTypePL, nNonInformative));
+                    columns.addAll(Arrays.asList(runtime, resultTracker.getnEvaluations(), nonTypePL, nNonInformative));
                     report.addRowList(columns);
                 }
             }
@@ -219,9 +219,9 @@ public class ExactAFCalculationPerformanceTest {
         final VariantContext vc = testBuilder.makeACTest(new int[]{ac}, 0, 100);
 
         final SimpleTimer timer = new SimpleTimer().start();
-        final AFCalcResult result = testBuilder.makeModel().getLog10PNonRef(vc, testBuilder.makePriors());
+        final AFCalcResultTracker resultTracker = testBuilder.makeModel().getLog10PNonRef(vc, testBuilder.makePriors());
         final long runtime = timer.getElapsedTimeNano();
-        logger.info("result " + result.getNormalizedPosteriorOfAFGTZero());
+        logger.info("result " + resultTracker.getNormalizedPosteriorOfAFGTZero());
         logger.info("runtime " + runtime);
     }
 
