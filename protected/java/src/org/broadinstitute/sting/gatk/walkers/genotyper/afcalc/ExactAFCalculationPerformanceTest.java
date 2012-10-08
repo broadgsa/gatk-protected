@@ -61,7 +61,7 @@ public class ExactAFCalculationPerformanceTest {
                     final VariantContext vc = testBuilder.makeACTest(ACs, 0, nonTypePL);
 
                     timer.start();
-                    final AFCalcResultTracker resultTracker = calc.getLog10PNonRef(vc, priors);
+                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vc, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     int otherAC = 0;
@@ -127,7 +127,7 @@ public class ExactAFCalculationPerformanceTest {
                     vcb.genotypes(genotypes);
 
                     timer.start();
-                    final AFCalcResultTracker resultTracker = calc.getLog10PNonRef(vcb.make(), priors);
+                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vcb.make(), priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);
@@ -157,7 +157,7 @@ public class ExactAFCalculationPerformanceTest {
                     final VariantContext vc = testBuilder.makeACTest(ac, nNonInformative, nonTypePL);
 
                     timer.start();
-                    final AFCalcResultTracker resultTracker = calc.getLog10PNonRef(vc, priors);
+                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vc, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);
@@ -219,9 +219,9 @@ public class ExactAFCalculationPerformanceTest {
         final VariantContext vc = testBuilder.makeACTest(new int[]{ac}, 0, 100);
 
         final SimpleTimer timer = new SimpleTimer().start();
-        final AFCalcResultTracker resultTracker = testBuilder.makeModel().getLog10PNonRef(vc, testBuilder.makePriors());
+        final AFCalcResult resultTracker = testBuilder.makeModel().getLog10PNonRef(vc, testBuilder.makePriors());
         final long runtime = timer.getElapsedTimeNano();
-        logger.info("result " + resultTracker.getNormalizedPosteriorOfAFGTZero());
+        logger.info("result " + resultTracker.getLog10PosteriorOfAFGT0());
         logger.info("runtime " + runtime);
     }
 
