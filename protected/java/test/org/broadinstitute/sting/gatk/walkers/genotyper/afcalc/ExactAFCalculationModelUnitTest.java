@@ -123,7 +123,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 
         for ( final int nSamples : Arrays.asList(1, 2, 3, 4) ) {
             final ExactAFCalc diploidCalc = new ReferenceDiploidExactAFCalc(nSamples, 4);
-            final ExactAFCalc optDiploidCalc = new ConstrainedDiploidExactAFCalc(nSamples, 4);
+//            final ExactAFCalc optDiploidCalc = new ConstrainedDiploidExactAFCalc(nSamples, 4);
             final ExactAFCalc generalCalc = new GeneralPloidyExactAFCalc(nSamples, 4, 2);
             final ExactAFCalc indCalc = new IndependentAllelesDiploidExactAFCalc(nSamples, 4);
 
@@ -133,7 +133,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001);
 
             for ( final double[] priors : Arrays.asList(flatPriors, humanPriors) ) { // , humanPriors) ) {
-                for ( ExactAFCalc model : Arrays.asList(diploidCalc, generalCalc, optDiploidCalc, indCalc) ) {
+                for ( ExactAFCalc model : Arrays.asList(diploidCalc, generalCalc, indCalc) ) {
                     final String priorName = priors == humanPriors ? "human" : "flat";
 
                     // bi-allelic
@@ -181,13 +181,13 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 
                 final int nSamples = samples.size();
                 final ExactAFCalc diploidCalc = new ReferenceDiploidExactAFCalc(nSamples, 4);
-                final ExactAFCalc optDiploidCalc = new ConstrainedDiploidExactAFCalc(nSamples, 4);
+//                final ExactAFCalc optDiploidCalc = new ConstrainedDiploidExactAFCalc(nSamples, 4);
                 final ExactAFCalc generalCalc = new GeneralPloidyExactAFCalc(nSamples, 4, 2);
                 final ExactAFCalc indCalc = new IndependentAllelesDiploidExactAFCalc(nSamples, 4);
 
                 final double[] priors = MathUtils.normalizeFromLog10(new double[2*nSamples+1], true);  // flat priors
 
-                for ( ExactAFCalc model : Arrays.asList(diploidCalc, optDiploidCalc, generalCalc, indCalc) ) {
+                for ( ExactAFCalc model : Arrays.asList(diploidCalc, generalCalc, indCalc) ) {
                     final GetGLsTest onlyInformative = new GetGLsTest(model, testData.nAltAlleles, testData.called, priors, "flat");
 
                     for ( int rotation = 0; rotation < nSamples; rotation++ ) {
@@ -213,14 +213,14 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final AFCalcResult actual = withNonInformative.execute();
 
         testResultSimple(withNonInformative);
-        compareAFCalcResults(actual, expected);
+        compareAFCalcResults(actual, expected, onlyInformative.getCalc());
     }
 
     private void testResultSimple(final GetGLsTest cfg) {
         final AFCalcResult refResultTracker = cfg.executeRef();
         final AFCalcResult resultTracker = cfg.execute();
 
-        compareAFCalcResults(resultTracker, refResultTracker);
+        compareAFCalcResults(resultTracker, refResultTracker, cfg.getCalc());
 
 //        final int minNumberOfEvaluations = cfg.getVC().getCalledChrCount();
 //        Assert.assertTrue(result.getnEvaluations() >= minNumberOfEvaluations,
@@ -247,7 +247,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 //        }
     }
 
-    private void compareAFCalcResults(final AFCalcResult actual, final AFCalcResult expected) {
+    private void compareAFCalcResults(final AFCalcResult actual, final AFCalcResult expected, final ExactAFCalc calc) {
         final double TOLERANCE = 1;  // TODO -- tighten up tolerances
 
         Assert.assertEquals(actual.getLog10PriorOfAFEq0(), expected.getLog10PriorOfAFEq0(), TOLERANCE);
@@ -258,6 +258,15 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         Assert.assertEquals(actual.getLog10PosteriorOfAFGT0(), expected.getLog10PosteriorOfAFGT0(), TOLERANCE);
         Assert.assertEquals(actual.getAlleleCountsOfMLE(), expected.getAlleleCountsOfMLE());
         Assert.assertEquals(actual.getAllelesUsedInGenotyping(), expected.getAllelesUsedInGenotyping());
+
+        for ( final Allele a : expected.getAllelesUsedInGenotyping() ) {
+            if ( ! a.isReference() ) {
+                Assert.assertEquals(actual.getAlleleCountAtMLE(a), expected.getAlleleCountAtMLE(a));
+                if ( ! ( calc instanceof GeneralPloidyExactAFCalc ) )
+                    // TODO -- delete when general ploidy works properly with multi-allelics
+                    Assert.assertEquals(actual.isPolymorphic(a, 0.0), expected.isPolymorphic(a, 0.0));
+            }
+        }
     }
 
     @Test(enabled = true, dataProvider = "Models")
@@ -429,7 +438,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             final double nonRefPost = Math.pow(10, pHetWithPrior) / (Math.pow(10, pRefWithPrior) + Math.pow(10, pHetWithPrior));
 
             if ( nonRefPost < 0.1 )
-                Assert.assertTrue(resultTracker.isPolymorphic(-1));
+                Assert.assertTrue(resultTracker.isPolymorphic(C, -1));
 
             final int expectedMLEAC = 1; // the MLE is independent of the prior
             Assert.assertEquals(actualAC, expectedMLEAC,
