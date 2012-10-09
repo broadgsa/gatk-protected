@@ -76,12 +76,10 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     }
 
     @Override
-    public void computeLog10PNonRef(final VariantContext vc,
-                                    final double[] log10AlleleFrequencyPriors,
-                                    final AFCalcResultTracker resultTracker) {
-        combineSinglePools(vc.getGenotypes(), vc.getNAlleles(), ploidy, log10AlleleFrequencyPriors, resultTracker);
+    public AFCalcResult computeLog10PNonRef(final VariantContext vc, final double[] log10AlleleFrequencyPriors) {
+        combineSinglePools(vc.getGenotypes(), vc.getNAlleles(), ploidy, log10AlleleFrequencyPriors, getResultTracker());
+        return resultFromTracker(vc, log10AlleleFrequencyPriors);
     }
-
 
     /**
      * Simple wrapper class to hold values of combined pool likelihoods.
@@ -145,7 +143,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
             likelihoodSums[i] = new LikelihoodSum(vc.getAlternateAllele(i));
 
         // based on the GLs, find the alternate alleles with the most probability; sum the GLs for the most likely genotype
-        final ArrayList<double[]> GLs = getGLs(vc.getGenotypes());
+        final ArrayList<double[]> GLs = getGLs(vc.getGenotypes(), true);
         for ( final double[] likelihoods : GLs ) {
 
             final int PLindexOfBestGL = MathUtils.maxElementIndex(likelihoods);
@@ -188,7 +186,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                              final double[] log10AlleleFrequencyPriors,
                                              final AFCalcResultTracker resultTracker) {
 
-        final ArrayList<double[]> genotypeLikelihoods = getGLs(GLs);
+        final ArrayList<double[]> genotypeLikelihoods = getGLs(GLs, true);
 
 
         int combinedPloidy = 0;

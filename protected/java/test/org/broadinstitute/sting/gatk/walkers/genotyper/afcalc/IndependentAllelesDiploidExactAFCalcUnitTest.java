@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 
+// SEE  private/R/pls.R if you want the truth output for these tests
 public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
     @DataProvider(name = "TestCombineGLs")
     public Object[][] makeTestCombineGLs() {
@@ -26,17 +27,29 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
         tests.add(new Object[]{1, 2, makePL( 0, 10, 20, 30, 40, 50), makePL(0, 10, 20)});
         tests.add(new Object[]{2, 2, makePL( 0, 10, 20, 30, 40, 50), makePL(0, 30, 50)});
 
-        tests.add(new Object[]{1, 2, makePL( 0, 10, 10, 10, 10, 10), makePL(0, 7, 10)});
-        tests.add(new Object[]{2, 2, makePL( 0, 10, 10, 10, 10, 10), makePL(0, 7, 10)});
+        tests.add(new Object[]{1, 2, makePL( 0, 10, 10, 10, 10, 10), makePL(0, 8, 11)});
+        tests.add(new Object[]{2, 2, makePL( 0, 10, 10, 10, 10, 10), makePL(0, 8, 11)});
 
-        tests.add(new Object[]{1, 2, makePL( 0, 1, 2, 3, 4, 5), makePL(1, 0, 3)});
-        tests.add(new Object[]{2, 2, makePL( 0, 1, 2, 3, 4, 5), makePL(0, 0, 5)});
+        tests.add(new Object[]{1, 2, makePL( 0, 1, 2, 3, 4, 5), makePL(0, 2, 5)});
+        tests.add(new Object[]{2, 2, makePL( 0, 1, 2, 3, 4, 5), makePL(0, 4, 9)});
 
-        tests.add(new Object[]{1, 2, makePL( 50, 50, 50, 50, 0, 50), makePL(50, 0, 50)});
-        tests.add(new Object[]{2, 2, makePL( 50, 50, 50, 50, 0, 50), makePL(50, 0, 50)});
+        tests.add(new Object[]{1, 2, makePL(  0, 50, 50, 50, 50, 50), makePL( 0, 47, 50)});
+        tests.add(new Object[]{2, 2, makePL(  0, 50, 50, 50, 50, 50), makePL( 0, 47, 50)});
 
-        tests.add(new Object[]{1, 2, makePL( 50, 50, 50,  0, 50, 50), makePL( 3, 0,  3)});
-        tests.add(new Object[]{2, 2, makePL( 50, 50, 50,  0, 50, 50), makePL(50, 0, 50)});
+        tests.add(new Object[]{1, 2, makePL( 50,  0, 50, 50, 50, 50), makePL(45, 0, 50)});
+        tests.add(new Object[]{2, 2, makePL( 50,  0, 50, 50, 50, 50), makePL( 0, 47, 50)});
+
+        tests.add(new Object[]{1, 2, makePL( 50, 50, 0, 50, 50, 50), makePL(45, 47,  0)});
+        tests.add(new Object[]{2, 2, makePL( 50, 50, 0, 50, 50, 50), makePL( 0, 47, 50)});
+
+        tests.add(new Object[]{1, 2, makePL( 50, 50, 50,  0, 50, 50), makePL(0, 47, 50)});
+        tests.add(new Object[]{2, 2, makePL( 50, 50, 50,  0, 50, 50), makePL(45, 0, 50)});
+
+        tests.add(new Object[]{1, 2, makePL( 50, 50, 50, 50, 0, 50), makePL(45, 0, 50)});
+        tests.add(new Object[]{2, 2, makePL( 50, 50, 50, 50, 0, 50), makePL(45, 0, 50)});
+
+        tests.add(new Object[]{1, 2, makePL( 50, 50, 50, 50, 50,  0), makePL(0, 47, 50)});
+        tests.add(new Object[]{2, 2, makePL( 50, 50, 50, 50, 50,  0), makePL(45, 47, 0)});
 
         return tests.toArray(new Object[][]{});
     }
