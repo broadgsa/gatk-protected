@@ -42,7 +42,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(CEUTRIO_BAM, "", "f5a809e3fbd9998f79b75bb2973209e1");
+        HCTestComplexVariants(CEUTRIO_BAM, "", "966da0de8466d21d79f1523488dff6bd");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {

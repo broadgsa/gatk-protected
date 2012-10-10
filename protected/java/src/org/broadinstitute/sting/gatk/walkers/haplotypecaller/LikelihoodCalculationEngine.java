@@ -40,7 +40,6 @@ import java.util.*;
 public class LikelihoodCalculationEngine {
 
     private static final double LOG_ONE_HALF = -Math.log10(2.0);
-    private static final double BEST_LIKELIHOOD_THRESHOLD = 0.1;
     private final byte constantGCP;
     private final boolean DEBUG;
     private final PairHMM pairHMM;
@@ -184,7 +183,7 @@ public class LikelihoodCalculationEngine {
                                 haplotypeLikelihood += readCounts_iii[kkk] * ( MathUtils.approximateLog10SumLog10(readLikelihoods_iii[kkk], readLikelihoods_jjj[kkk]) + LOG_ONE_HALF );
                             }
                         }
-                        haplotypeLikelihoodMatrix[iii][jjj] = Math.max(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood); // MathUtils.approximateLog10SumLog10(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood); // BUGBUG: max or sum?
+                        haplotypeLikelihoodMatrix[iii][jjj] = Math.max(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood);
                     }
                 }       
             }
@@ -323,11 +322,13 @@ public class LikelihoodCalculationEngine {
         return bestHaplotypes;
     }
 
-    public static Map<String, PerReadAlleleLikelihoodMap> partitionReadsBasedOnLikelihoods( final GenomeLocParser parser, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList, final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call) {
+    public static Map<String, PerReadAlleleLikelihoodMap> partitionReadsBasedOnLikelihoods( final GenomeLocParser parser,
+                                                                                            final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList,
+                                                                                            final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
+                                                                                            final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call) {
         final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         final GenomeLoc callLoc = parser.createGenomeLoc(call.getFirst());
         for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
-            //final Map<Allele, List<GATKSAMRecord>> alleleReadMap = new HashMap<Allele, List<GATKSAMRecord>>();
             final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
 
             final ArrayList<GATKSAMRecord> readsForThisSample = sample.getValue();
@@ -352,7 +353,7 @@ public class LikelihoodCalculationEngine {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
                 if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
                     for( final Allele a : call.getFirst().getAlleles() )
-                        likelihoodMap.add(read,a,0.0);
+                        likelihoodMap.add(read, a, 0.0);
                 }
             }
 
