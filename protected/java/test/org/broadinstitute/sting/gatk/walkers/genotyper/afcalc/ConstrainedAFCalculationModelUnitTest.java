@@ -20,7 +20,7 @@ public class ConstrainedAFCalculationModelUnitTest extends BaseTest {
     static Allele G = Allele.create("G");
 
     protected static Genotype makePL(final List<Allele> expectedGT, int ... pls) {
-        return ExactAFCalculationModelUnitTest.makePL(expectedGT, pls);
+        return AFCalcUnitTest.makePL(expectedGT, pls);
     }
 
     @DataProvider(name = "MaxACsToVisit")

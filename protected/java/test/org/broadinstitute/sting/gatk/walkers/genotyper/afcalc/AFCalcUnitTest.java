@@ -14,7 +14,7 @@ import org.testng.annotations.Test;
 import java.util.*;
 
 
-public class ExactAFCalculationModelUnitTest extends BaseTest {
+public class AFCalcUnitTest extends BaseTest {
     static Allele A = Allele.create("A", true);
     static Allele C = Allele.create("C");
     static Allele G = Allele.create("G");
@@ -27,6 +27,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
     final private static boolean INCLUDE_BIALLELIC = true;
     final private static boolean INCLUDE_TRIALLELIC = true;
     final private static boolean Guillermo_FIXME = false; // TODO -- can only be enabled when GdA fixes bug
+    final private static boolean DEBUG_ONLY = true;
 
     @BeforeSuite
     public void before() {
@@ -157,7 +158,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 
     @DataProvider(name = "badGLs")
     public Object[][] createBadGLs() {
-        final List<Genotype> genotypes = Arrays.asList(AB2, CC2, CC2, CC2);
+        final List<Genotype> genotypes = Arrays.asList(AB2, BB2, CC2, CC2);
         final int nSamples = genotypes.size();
 
         final AFCalc indCalc = AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, nSamples, 4);
@@ -172,13 +173,13 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         return GetGLsTest.getTests(GetGLsTest.class);
     }
 
-    @Test(enabled = true, dataProvider = "wellFormedGLs")
+    @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "wellFormedGLs")
     public void testBiallelicGLs(GetGLsTest cfg) {
         if ( cfg.getAlleles().size() == 2 )
             testResultSimple(cfg);
     }
 
-    @Test(enabled = true, dataProvider = "wellFormedGLs")
+    @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "wellFormedGLs")
     public void testTriallelicGLs(GetGLsTest cfg) {
         if ( cfg.getAlleles().size() > 2 )
             testResultSimple(cfg);
@@ -241,7 +242,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(enabled = true, dataProvider = "GLsWithNonInformative", dependsOnMethods = {"testBiallelicGLs", "testTriallelicGLs"})
+    @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "GLsWithNonInformative", dependsOnMethods = {"testBiallelicGLs", "testTriallelicGLs"})
     public void testGLsWithNonInformative(GetGLsTest onlyInformative, GetGLsTest withNonInformative) {
         final AFCalcResult expected = onlyInformative.execute();
         final AFCalcResult actual = withNonInformative.execute();
@@ -293,7 +294,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         }
     }
 
-    @Test(enabled = true, dataProvider = "Models")
+    @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "Models")
     public void testLargeGLs(final ExactAFCalc calc) {
         final Genotype BB = makePL(Arrays.asList(C, C), 20000000, 20000000, 0);
         GetGLsTest cfg = new GetGLsTest(calc, 1, Arrays.asList(BB, BB, BB), FLAT_3SAMPLE_PRIORS, "flat");
@@ -304,7 +305,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         Assert.assertEquals(calculatedAlleleCount, 6);
     }
 
-    @Test(enabled = true, dataProvider = "Models")
+    @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "Models")
     public void testMismatchedGLs(final ExactAFCalc calc) {
         final Genotype AB = makePL(Arrays.asList(A, C), 2000, 0, 2000, 2000, 2000, 2000);
         final Genotype AC = makePL(Arrays.asList(A, G), 100, 100, 100, 0, 100, 100);
@@ -408,7 +409,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(enabled = true, dataProvider = "PNonRef")
+    @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "PNonRef")
     private void testPNonRef(final VariantContext vcRoot,
                              AFCalcFactory.Calculation modelType,
                              ExactAFCalculationTestBuilder.PriorType priorType,
@@ -446,7 +447,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(enabled = true, dataProvider = "Models")
+    @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "Models")
     public void testBiallelicPriors(final AFCalc model) {
         final int REF_PL = 10;
         final Genotype AB = makePL(Arrays.asList(A,C), REF_PL, 0, 10000);

@@ -84,7 +84,7 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
     }
 
     private Genotype makePL(final int ... PLs) {
-        return ExactAFCalculationModelUnitTest.makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), PLs);
+        return AFCalcUnitTest.makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), PLs);
     }
 
     @Test(enabled = true, dataProvider = "TestCombineGLs")
