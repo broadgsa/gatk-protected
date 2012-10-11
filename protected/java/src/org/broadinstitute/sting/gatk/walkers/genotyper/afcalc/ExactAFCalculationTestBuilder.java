@@ -21,22 +21,15 @@ public class ExactAFCalculationTestBuilder {
 
     final int nSamples;
     final int numAltAlleles;
-    final ModelType modelType;
+    final AFCalcFactory.Calculation modelType;
     final PriorType priorType;
 
     public ExactAFCalculationTestBuilder(final int nSamples, final int numAltAlleles,
-                                         final ModelType modelType, final PriorType priorType) {
+                                         final AFCalcFactory.Calculation modelType, final PriorType priorType) {
         this.nSamples = nSamples;
         this.numAltAlleles = numAltAlleles;
         this.modelType = modelType;
         this.priorType = priorType;
-    }
-
-    public enum ModelType {
-        ReferenceDiploidExact,
-        ConstrainedDiploidExact,
-        IndependentDiploidExact,
-        GeneralExact
     }
 
     public enum PriorType {
@@ -48,14 +41,8 @@ public class ExactAFCalculationTestBuilder {
         return nSamples;
     }
 
-    public ExactAFCalc makeModel() {
-        switch (modelType) {
-            case ReferenceDiploidExact:   return new ReferenceDiploidExactAFCalc(nSamples, 4);
-            case ConstrainedDiploidExact: return new ConstrainedDiploidExactAFCalc(nSamples, 4);
-            case GeneralExact:            return new GeneralPloidyExactAFCalc(nSamples, 4, 2);
-            case IndependentDiploidExact: return new IndependentAllelesDiploidExactAFCalc(nSamples, 4);
-            default: throw new RuntimeException("Unexpected type " + modelType);
-        }
+    public AFCalc makeModel() {
+        return AFCalcFactory.createAFCalc(modelType, nSamples, 4, 4, 2);
     }
 
     public double[] makePriors() {

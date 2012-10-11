@@ -23,6 +23,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
     static Genotype AA1, AB1, BB1, NON_INFORMATIVE1;
     static Genotype AA2, AB2, AC2, BB2, BC2, CC2, NON_INFORMATIVE2;
     final double[] FLAT_3SAMPLE_PRIORS = MathUtils.normalizeFromLog10(new double[2*3+1], true);  // flat priors
+
     final private static boolean INCLUDE_BIALLELIC = true;
     final private static boolean INCLUDE_TRIALLELIC = true;
     final private static boolean Guillermo_FIXME = false; // TODO -- can only be enabled when GdA fixes bug
@@ -53,12 +54,12 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
     private class GetGLsTest extends TestDataProvider {
         GenotypesContext GLs;
         int numAltAlleles;
-        final ExactAFCalc calc;
+        final AFCalc calc;
         final int[] expectedACs;
         final double[] priors;
         final String priorName;
 
-        private GetGLsTest(final ExactAFCalc calc, int numAltAlleles, List<Genotype> arg, final double[] priors, final String priorName) {
+        private GetGLsTest(final AFCalc calc, int numAltAlleles, List<Genotype> arg, final double[] priors, final String priorName) {
             super(GetGLsTest.class);
             GLs = GenotypesContext.create(new ArrayList<Genotype>(arg));
             this.numAltAlleles = numAltAlleles;
@@ -81,7 +82,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         }
 
         public AFCalcResult executeRef() {
-            final ExactAFCalc ref = new ReferenceDiploidExactAFCalc(getCalc().nSamples, getCalc().getMaxAltAlleles());
+            final AFCalc ref = AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_REFERENCE, getCalc().nSamples, getCalc().getMaxAltAlleles());
             return ref.getLog10PNonRef(getVC(), getPriors());
         }
 
@@ -89,7 +90,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             return priors;
         }
 
-        public ExactAFCalc getCalc() {
+        public AFCalc getCalc() {
             return calc;
         }
 
@@ -122,10 +123,12 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final List<Genotype> triAllelicSamples = Arrays.asList(AA2, AB2, BB2, AC2, BC2, CC2);
 
         for ( final int nSamples : Arrays.asList(1, 2, 3, 4) ) {
-//            final ExactAFCalc diploidCalc = new ReferenceDiploidExactAFCalc(nSamples, 4);
-//            final ExactAFCalc optDiploidCalc = new ConstrainedDiploidExactAFCalc(nSamples, 4);
-            //final ExactAFCalc generalCalc = new GeneralPloidyExactAFCalc(nSamples, 4, 2);
-            final ExactAFCalc indCalc = new IndependentAllelesDiploidExactAFCalc(nSamples, 4);
+            List<AFCalc> calcs = AFCalcFactory.createAFCalcs(
+                    Arrays.asList(
+                            AFCalcFactory.Calculation.EXACT_REFERENCE,
+                            AFCalcFactory.Calculation.EXACT_INDEPENDENT,
+                            AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY
+                    ), 4, 2, 2, 2);
 
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
@@ -133,7 +136,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
             UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001);
 
             for ( final double[] priors : Arrays.asList(flatPriors, humanPriors) ) { // , humanPriors) ) {
-                for ( ExactAFCalc model : Arrays.asList(indCalc) ) {
+                for ( AFCalc model : calcs ) {
                     final String priorName = priors == humanPriors ? "human" : "flat";
 
                     // bi-allelic
@@ -157,11 +160,11 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final List<Genotype> genotypes = Arrays.asList(AB2, CC2, CC2, CC2);
         final int nSamples = genotypes.size();
 
-        final ExactAFCalc indCalc = new IndependentAllelesDiploidExactAFCalc(nSamples, 4);
+        final AFCalc indCalc = AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, nSamples, 4);
 
         final int nPriorValues = 2*nSamples+1;
         final double[] priors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
-        for ( ExactAFCalc model : Arrays.asList(indCalc) ) {
+        for ( AFCalc model : Arrays.asList(indCalc) ) {
             final String priorName = "flat";
             new GetGLsTest(model, 2, genotypes, priors, priorName);
         }
@@ -214,14 +217,16 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
                 samples.addAll(Collections.nCopies(nNonInformative, testData.nonInformative));
 
                 final int nSamples = samples.size();
-                final ExactAFCalc diploidCalc = new ReferenceDiploidExactAFCalc(nSamples, 4);
-//                final ExactAFCalc optDiploidCalc = new ConstrainedDiploidExactAFCalc(nSamples, 4);
-                //final ExactAFCalc generalCalc = new GeneralPloidyExactAFCalc(nSamples, 4, 2);
-                final ExactAFCalc indCalc = new IndependentAllelesDiploidExactAFCalc(nSamples, 4);
+                List<AFCalc> calcs = AFCalcFactory.createAFCalcs(
+                        Arrays.asList(
+                                AFCalcFactory.Calculation.EXACT_REFERENCE,
+                                AFCalcFactory.Calculation.EXACT_INDEPENDENT,
+                                AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY
+                                ), 4, 2, 2, 2);
 
                 final double[] priors = MathUtils.normalizeFromLog10(new double[2*nSamples+1], true);  // flat priors
 
-                for ( ExactAFCalc model : Arrays.asList(diploidCalc, indCalc) ) {
+                for ( AFCalc model : calcs ) {
                     final GetGLsTest onlyInformative = new GetGLsTest(model, testData.nAltAlleles, testData.called, priors, "flat");
 
                     for ( int rotation = 0; rotation < nSamples; rotation++ ) {
@@ -263,8 +268,8 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         }
     }
 
-    private void compareAFCalcResults(final AFCalcResult actual, final AFCalcResult expected, final ExactAFCalc calc, final boolean onlyPosteriorsShouldBeEqual) {
-        final double TOLERANCE = 2;  // TODO -- tighten up tolerances -- cannot be tightened up until we finalize the independent alleles model
+    private void compareAFCalcResults(final AFCalcResult actual, final AFCalcResult expected, final AFCalc calc, final boolean onlyPosteriorsShouldBeEqual) {
+        final double TOLERANCE = calc.getMaxAltAlleles() > 1 ? 2 : 0.1; // much tighter constraints on bi-allelic results
 
         if ( ! onlyPosteriorsShouldBeEqual ) {
             Assert.assertEquals(actual.getLog10PriorOfAFEq0(), expected.getLog10PriorOfAFEq0(), TOLERANCE, "Priors AF == 0");
@@ -321,14 +326,14 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final Genotype g;
         final double pNonRef, tolerance;
         final boolean canScale;
-        final List<ExactAFCalculationTestBuilder.ModelType> badModels;
+        final List<AFCalcFactory.Calculation> badModels;
         final VariantContext vc;
 
         private PNonRefData(final VariantContext vc, Genotype g, double pNonRef, double tolerance, final boolean canScale) {
-            this(vc, g, pNonRef, tolerance, canScale, Collections.<ExactAFCalculationTestBuilder.ModelType>emptyList());
+            this(vc, g, pNonRef, tolerance, canScale, Collections.<AFCalcFactory.Calculation>emptyList());
         }
 
-        private PNonRefData(final VariantContext vc, Genotype g, double pNonRef, double tolerance, final boolean canScale, final List<ExactAFCalculationTestBuilder.ModelType> badModels) {
+        private PNonRefData(final VariantContext vc, Genotype g, double pNonRef, double tolerance, final boolean canScale, final List<AFCalcFactory.Calculation> badModels) {
             this.g = g;
             this.pNonRef = pNonRef;
             this.tolerance = tolerance;
@@ -365,7 +370,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
         final VariantContext vc3 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C, G)).make();
         final ExactAFCalculationTestBuilder.PriorType priorType = ExactAFCalculationTestBuilder.PriorType.flat;
 
-        final List<ExactAFCalculationTestBuilder.ModelType> constrainedModel = Arrays.asList(ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact);
+        final List<AFCalcFactory.Calculation> constrainedModel = Arrays.asList(AFCalcFactory.Calculation.EXACT_CONSTRAINED);
 
         final double TOLERANCE = 0.5;
 
@@ -387,7 +392,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
                 new PNonRefData(vc3, makePL(GG, 10, 10, 10, 10, 10, 0), 0.9166667, TOLERANCE, false)
         );
 
-        for ( ExactAFCalculationTestBuilder.ModelType modelType : Arrays.asList(ExactAFCalculationTestBuilder.ModelType.ReferenceDiploidExact, ExactAFCalculationTestBuilder.ModelType.IndependentDiploidExact) ) {
+        for ( AFCalcFactory.Calculation modelType : Arrays.asList(AFCalcFactory.Calculation.EXACT_REFERENCE, AFCalcFactory.Calculation.EXACT_INDEPENDENT) ) {
             for ( int nNonInformative = 0; nNonInformative < 3; nNonInformative++ ) {
                 for ( final PNonRefData rootData : initialPNonRefData ) {
                     for ( int plScale = 1; plScale <= 100000; plScale *= 10 ) {
@@ -405,7 +410,7 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
 
     @Test(enabled = true, dataProvider = "PNonRef")
     private void testPNonRef(final VariantContext vcRoot,
-                             ExactAFCalculationTestBuilder.ModelType modelType,
+                             AFCalcFactory.Calculation modelType,
                              ExactAFCalculationTestBuilder.PriorType priorType,
                              final List<Genotype> genotypes,
                              final double expectedPNonRef,
@@ -433,15 +438,16 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
     public Object[][] makeModels() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{new ReferenceDiploidExactAFCalc(2, 4)});
-//        tests.add(new Object[]{new ConstrainedDiploidExactAFCalc(2, 4)});
-//        tests.add(new Object[]{new GeneralPloidyExactAFCalc(2, 4, 2)});
+        for ( final AFCalcFactory.Calculation calc : AFCalcFactory.Calculation.values() ) {
+            if ( calc.usableForParams(2, 4) )
+                tests.add(new Object[]{AFCalcFactory.createAFCalc(calc, 2, 4)});
+        }
 
         return tests.toArray(new Object[][]{});
     }
 
     @Test(enabled = true, dataProvider = "Models")
-    public void testBiallelicPriors(final ExactAFCalc model) {
+    public void testBiallelicPriors(final AFCalc model) {
         final int REF_PL = 10;
         final Genotype AB = makePL(Arrays.asList(A,C), REF_PL, 0, 10000);
 
@@ -464,143 +470,5 @@ public class ExactAFCalculationModelUnitTest extends BaseTest {
                     "actual AC with priors " + log10NonRefPrior + " not expected "
                             + expectedMLEAC + " priors " + Utils.join(",", priors));
         }
-    }
-
-    @Test(enabled = false, dataProvider = "Models")
-    public void testTriallelicPriors(final ExactAFCalc model) {
-        // TODO
-        // TODO
-        // TODO THIS SEEMS TO ID A BUG IN THE EXACT MODEL FOR MULTI-ALLELICS, AS THE
-        // TODO SECOND ALLELE ISN'T HAVING A SQUARED PRIOR.  TALK TO ERIC AND CONFIRM
-        // TODO
-        // TODO
-        final int REF_PL_AB = 10, REF_PL_AC = 20; // first AC goes, then AB
-        final Genotype AB = makePL(Arrays.asList(A,C), REF_PL_AB, 0, 10000, 10000, 10000);
-        final Genotype AC = makePL(Arrays.asList(A, G), REF_PL_AC, 10000, 10000, 0, 10000, 10000);
-
-        for ( int log10NonRefPrior = 1; log10NonRefPrior < 100*REF_PL_AC; log10NonRefPrior += 1 ) {
-            final double refPrior = 1 - QualityUtils.qualToErrorProb(log10NonRefPrior);
-            final double nonRefPrior = (1-refPrior) / 2;
-            final double[] priors = MathUtils.toLog10(new double[]{refPrior, nonRefPrior, nonRefPrior, nonRefPrior, nonRefPrior, nonRefPrior});
-            GetGLsTest cfg = new GetGLsTest(model, 2, Arrays.asList(AB, AC), priors, "pNonRef" + log10NonRefPrior);
-            final AFCalcResult resultTracker = cfg.execute();
-            final int actualAC_AB = resultTracker.getAlleleCountsOfMLE()[0];
-
-            final double pRefABWithPrior = AB.getLikelihoods().getAsVector()[0] + priors[0];
-            final double pHetABWithPrior = AB.getLikelihoods().getAsVector()[1] + priors[1];
-            final int expectedAC_AB = pRefABWithPrior <= pHetABWithPrior ? 1 : 0;
-            Assert.assertEquals(actualAC_AB, expectedAC_AB,
-                    "actual AC with priors " + log10NonRefPrior + " not expected "
-                            + expectedAC_AB + " priors " + Utils.join(",", priors));
-
-            final double nonRefPriorSecondAllele = Math.pow(nonRefPrior, 2);
-            final double refPriorSecondAllele = 1 - nonRefPriorSecondAllele;
-            final int actualAC_AC = resultTracker.getAlleleCountsOfMLE()[1];
-            final double pRefACWithPrior = AB.getLikelihoods().getAsVector()[0] + Math.log10(refPriorSecondAllele);
-            final double pHetACWithPrior = AC.getLikelihoods().getAsVector()[3] + Math.log10(nonRefPriorSecondAllele);
-            final int expectedAC_AC = pRefACWithPrior <= pHetACWithPrior ? 1 : 0;
-            Assert.assertEquals(actualAC_AC, expectedAC_AC,
-                    "actual AC with priors " + log10NonRefPrior + " not expected "
-                            + expectedAC_AC + " priors " + Utils.join(",", priors));
-        }
-    }
-
-    @DataProvider(name = "MaxACsToVisit")
-    public Object[][] makeMaxACsToVisit() {
-        List<Object[]> tests = new ArrayList<Object[]>();
-
-        final int nSamples = 10;
-        final ExactAFCalculationTestBuilder.ModelType modelType = ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact;
-
-        for (int nNonInformative = 0; nNonInformative < nSamples - 1; nNonInformative++ ) {
-            final int nChrom = (nSamples - nNonInformative) * 2;
-            for ( int i = 0; i < nChrom; i++ ) {
-                // bi-allelic
-                tests.add(new Object[]{nSamples, Arrays.asList(i), nNonInformative, modelType});
-
-                // tri-allelic
-                for ( int j = 0; j < (nChrom - i); j++)
-                    tests.add(new Object[]{nSamples, Arrays.asList(i, j), nNonInformative, modelType});
-            }
-        }
-
-        return tests.toArray(new Object[][]{});
-    }
-
-    @Test(enabled = true, dataProvider = "MaxACsToVisit")
-    public void testMaxACsToVisit(final int nSamples, final List<Integer> requestedACs, final int nNonInformative, final ExactAFCalculationTestBuilder.ModelType modelType) {
-        final int nAlts = requestedACs.size();
-        final ExactAFCalculationTestBuilder testBuilder
-                = new ExactAFCalculationTestBuilder(nSamples, nAlts, modelType,
-                ExactAFCalculationTestBuilder.PriorType.human);
-
-        final VariantContext vc = testBuilder.makeACTest(requestedACs, nNonInformative, 100);
-        final int[] maxACsToVisit = ((ConstrainedDiploidExactAFCalc)testBuilder.makeModel()).computeMaxACs(vc);
-
-        testExpectedACs(vc, maxACsToVisit);
-    }
-
-    private void testExpectedACs(final VariantContext vc, final int[] maxACsToVisit) {
-        // this is necessary because cannot ensure that the tester gives us back the
-        // requested ACs due to rounding errors
-        final List<Integer> ACs = new ArrayList<Integer>();
-        for ( final Allele a : vc.getAlternateAlleles() )
-            ACs.add(vc.getCalledChrCount(a));
-
-        for ( int i = 0; i < maxACsToVisit.length; i++ ) {
-            Assert.assertEquals(maxACsToVisit[i], (int)ACs.get(i), "Maximum AC computed wasn't equal to the max possible in the construction for alt allele " + i);
-        }
-    }
-
-    @DataProvider(name = "MaxACsGenotypes")
-    public Object[][] makeMaxACsForGenotype() {
-        List<Object[]> tests = new ArrayList<Object[]>();
-
-        final List<Allele> AA = Arrays.asList(A, A);
-        final List<Allele> AC = Arrays.asList(A, C);
-        final List<Allele> CC = Arrays.asList(C, C);
-        final List<Allele> AG = Arrays.asList(A, G);
-        final List<Allele> GG = Arrays.asList(G, G);
-        final List<Allele> CG = Arrays.asList(C, G);
-
-        final VariantContext vc2 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C)).make();
-        final VariantContext vc3 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C, G)).make();
-
-        tests.add(new Object[]{vc2, makePL(AA, 0, 10, 10)});
-        tests.add(new Object[]{vc2, makePL(AC, 10, 0, 10)});
-        tests.add(new Object[]{vc2, makePL(CC, 10, 10, 0)});
-
-        // make sure non-informative => 0
-        tests.add(new Object[]{vc2, makePL(AA, 0, 0, 0)});
-        tests.add(new Object[]{vc3, makePL(AA, 0, 0, 0, 0, 0, 0)});
-
-        // multi-allelics
-        tests.add(new Object[]{vc3, makePL(AG, 10, 10, 10, 0, 10, 10)});
-        tests.add(new Object[]{vc3, makePL(CG, 10, 10, 10, 10, 0, 10)});
-        tests.add(new Object[]{vc3, makePL(GG, 10, 10, 10, 10, 10, 0)});
-
-        // deal with non-informatives third alleles
-        tests.add(new Object[]{vc3, makePL(AC, 10, 0, 10,  0, 0, 10)});
-        tests.add(new Object[]{vc3, makePL(AC, 10, 0, 10, 10, 0, 10)});
-        tests.add(new Object[]{vc3, makePL(AC, 10, 0, 10, 10, 0,  0)});
-        tests.add(new Object[]{vc3, makePL(AC, 10, 0, 10,  0, 0,  0)});
-        tests.add(new Object[]{vc3, makePL(CC, 10, 10, 0,  0, 0, 10)});
-        tests.add(new Object[]{vc3, makePL(CC, 10, 10, 0, 10, 0, 10)});
-        tests.add(new Object[]{vc3, makePL(CC, 10, 10, 0, 10, 0,  0)});
-        tests.add(new Object[]{vc3, makePL(CC, 10, 10, 0,  0, 0,  0)});
-
-        return tests.toArray(new Object[][]{});
-    }
-
-    @Test(enabled = true, dataProvider = "MaxACsGenotypes")
-    private void testMakeACByGenotype(final VariantContext vcRoot, final Genotype g) {
-        final VariantContext vc = new VariantContextBuilder(vcRoot).genotypes(g).make();
-
-        final ExactAFCalculationTestBuilder.ModelType modelType = ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact;
-        final ExactAFCalculationTestBuilder testBuilder
-                = new ExactAFCalculationTestBuilder(1, vc.getNAlleles()-1, modelType,
-                ExactAFCalculationTestBuilder.PriorType.human);
-        final int[] maxACsToVisit = ((ConstrainedDiploidExactAFCalc)testBuilder.makeModel()).computeMaxACs(vc);
-        testExpectedACs(vc, maxACsToVisit);
     }
 }

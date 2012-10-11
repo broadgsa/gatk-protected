@@ -25,16 +25,13 @@
 
 package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
-import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GeneralPloidyGenotypeLikelihoods;
 import org.broadinstitute.sting.gatk.walkers.genotyper.ProbabilityVector;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.codecs.vcf.VCFConstants;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.variantcontext.*;
 
-import java.io.PrintStream;
 import java.util.*;
 
 public class GeneralPloidyExactAFCalc extends ExactAFCalc {
@@ -44,19 +41,14 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
     private final static boolean VERBOSE = false;
 
-    protected GeneralPloidyExactAFCalc(UnifiedArgumentCollection UAC, int N, Logger logger, PrintStream verboseWriter) {
-        super(UAC, N, logger, verboseWriter);
-        ploidy = UAC.samplePloidy;
-    }
-
-    public GeneralPloidyExactAFCalc(final int nSamples, final int maxAltAlleles, final int ploidy) {
-        super(nSamples, maxAltAlleles, maxAltAlleles, null, null, null);
+    protected GeneralPloidyExactAFCalc(final int nSamples, final int maxAltAlleles, final int maxAltAllelesForIndels, final int ploidy) {
+        super(nSamples, maxAltAlleles, maxAltAllelesForIndels, ploidy);
         this.ploidy = ploidy;
     }
 
     @Override
     protected VariantContext reduceScope(VariantContext vc) {
-        final int maxAltAlleles = vc.getType().equals(VariantContext.Type.INDEL) ? MAX_ALTERNATE_ALLELES_FOR_INDELS : MAX_ALTERNATE_ALLELES_TO_GENOTYPE;
+        final int maxAltAlleles = vc.getType().equals(VariantContext.Type.INDEL) ? maxAlternateAllelesForIndels : maxAlternateAllelesToGenotype;
 
         // don't try to genotype too many alternate alleles
         if ( vc.getAlternateAlleles().size() > maxAltAlleles) {

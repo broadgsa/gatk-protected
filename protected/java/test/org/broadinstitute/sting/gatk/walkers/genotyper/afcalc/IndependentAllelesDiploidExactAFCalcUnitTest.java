@@ -94,7 +94,7 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
 
     @Test(enabled = true, dataProvider = "TestCombineGLsWithDrops")
     private void testCombineGLsWithDrops(final int altIndex, final int nAlts, final Genotype testg, final Genotype expected, Set<Integer> allelesToDrop) {
-        final IndependentAllelesDiploidExactAFCalc calc = new IndependentAllelesDiploidExactAFCalc(1, 4);
+        final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc)AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 1, 4);
         final Genotype combined = calc.combineGLs(testg, altIndex, allelesToDrop, nAlts);
 
         Assert.assertEquals(combined.getPL(), expected.getPL(),
@@ -136,7 +136,7 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
 
     @Test(enabled = true, dataProvider = "TestMakeAlleleConditionalContexts")
     private void testMakeAlleleConditionalContexts(final VariantContext vc, final List<VariantContext> expectedVCs) {
-        final IndependentAllelesDiploidExactAFCalc calc = new IndependentAllelesDiploidExactAFCalc(1, 4);
+        final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc)AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 1, 4);
         final List<VariantContext> biAllelicVCs = calc.makeAlleleConditionalContexts(vc);
 
         Assert.assertEquals(biAllelicVCs.size(), expectedVCs.size());

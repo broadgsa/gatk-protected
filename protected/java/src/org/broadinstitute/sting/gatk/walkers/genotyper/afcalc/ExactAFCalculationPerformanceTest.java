@@ -54,7 +54,7 @@ public class ExactAFCalculationPerformanceTest {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(100) ) {
-                final ExactAFCalc calc = testBuilder.makeModel();
+                final AFCalc calc = testBuilder.makeModel();
                 final double[] priors = testBuilder.makePriors();
 
                 for ( int[] ACs : makeACs(testBuilder.numAltAlleles, testBuilder.nSamples*2) ) {
@@ -113,7 +113,7 @@ public class ExactAFCalculationPerformanceTest {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(100) ) {
-                final ExactAFCalc calc = testBuilder.makeModel();
+                final AFCalc calc = testBuilder.makeModel();
                 final double[] priors = testBuilder.makePriors();
 
                 final int[] ac = new int[testBuilder.numAltAlleles];
@@ -147,7 +147,7 @@ public class ExactAFCalculationPerformanceTest {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(100) ) {
-                final ExactAFCalc calc = testBuilder.makeModel();
+                final AFCalc calc = testBuilder.makeModel();
                 final double[] priors = testBuilder.makePriors();
 
                 final int[] ac = new int[testBuilder.numAltAlleles];
@@ -169,10 +169,10 @@ public class ExactAFCalculationPerformanceTest {
     }
 
     private static class ModelParams {
-        final ExactAFCalculationTestBuilder.ModelType modelType;
+        final AFCalcFactory.Calculation modelType;
         final int maxBiNSamples, maxTriNSamples;
 
-        private ModelParams(ExactAFCalculationTestBuilder.ModelType modelType, int maxBiNSamples, int maxTriNSamples) {
+        private ModelParams(AFCalcFactory.Calculation modelType, int maxBiNSamples, int maxTriNSamples) {
             this.modelType = modelType;
             this.maxBiNSamples = maxBiNSamples;
             this.maxTriNSamples = maxTriNSamples;
@@ -213,7 +213,7 @@ public class ExactAFCalculationPerformanceTest {
         final int ac = Integer.valueOf(args[2]);
 
         final ExactAFCalculationTestBuilder testBuilder = new ExactAFCalculationTestBuilder(nSamples, 1,
-                ExactAFCalculationTestBuilder.ModelType.IndependentDiploidExact,
+                AFCalcFactory.Calculation.EXACT_INDEPENDENT,
                 ExactAFCalculationTestBuilder.PriorType.human);
 
         final VariantContext vc = testBuilder.makeACTest(new int[]{ac}, 0, 100);
@@ -232,10 +232,10 @@ public class ExactAFCalculationPerformanceTest {
         final PrintStream out = new PrintStream(new FileOutputStream(args[1]));
 
         final List<ModelParams> modelParams = Arrays.asList(
-                new ModelParams(ExactAFCalculationTestBuilder.ModelType.ReferenceDiploidExact, 10000, 10),
+                new ModelParams(AFCalcFactory.Calculation.EXACT_REFERENCE, 10000, 10),
 //                new ModelParams(ExactAFCalculationTestBuilder.ModelType.GeneralExact, 100, 10),
-                new ModelParams(ExactAFCalculationTestBuilder.ModelType.ConstrainedDiploidExact, 10000, 100),
-                new ModelParams(ExactAFCalculationTestBuilder.ModelType.IndependentDiploidExact, 10000, 1000));
+                new ModelParams(AFCalcFactory.Calculation.EXACT_CONSTRAINED, 10000, 100),
+                new ModelParams(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 10000, 1000));
 
         final boolean ONLY_HUMAN_PRIORS = false;
         final List<ExactAFCalculationTestBuilder.PriorType> priorTypes = ONLY_HUMAN_PRIORS
