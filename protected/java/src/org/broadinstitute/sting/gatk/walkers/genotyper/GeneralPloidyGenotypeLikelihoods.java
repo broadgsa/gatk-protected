@@ -491,15 +491,15 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
             // If neighbors fall below maximum - threshold, we don't queue up THEIR own neighbors
             // and we repeat until queue is empty
             // queue of AC conformations to process
-            final LinkedList<AlleleFrequencyCalculationModel.ExactACset> ACqueue = new LinkedList<AlleleFrequencyCalculationModel.ExactACset>();
+            final LinkedList<ExactAFCalculation.ExactACset> ACqueue = new LinkedList<ExactAFCalculation.ExactACset>();
             // mapping of ExactACset indexes to the objects
-            final HashMap<AlleleFrequencyCalculationModel.ExactACcounts, AlleleFrequencyCalculationModel.ExactACset> indexesToACset = new HashMap<AlleleFrequencyCalculationModel.ExactACcounts, AlleleFrequencyCalculationModel.ExactACset>(likelihoodDim);
+            final HashMap<ExactAFCalculation.ExactACcounts, ExactAFCalculation.ExactACset> indexesToACset = new HashMap<ExactAFCalculation.ExactACcounts, ExactAFCalculation.ExactACset>(likelihoodDim);
             // add AC=0 to the queue
             final int[] zeroCounts = new int[nAlleles];
             zeroCounts[0] = numChromosomes;
 
-            AlleleFrequencyCalculationModel.ExactACset zeroSet =
-                    new AlleleFrequencyCalculationModel.ExactACset(1, new AlleleFrequencyCalculationModel.ExactACcounts(zeroCounts));
+            ExactAFCalculation.ExactACset zeroSet =
+                    new ExactAFCalculation.ExactACset(1, new ExactAFCalculation.ExactACcounts(zeroCounts));
 
             ACqueue.add(zeroSet);
             indexesToACset.put(zeroSet.ACcounts, zeroSet);
@@ -508,7 +508,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
             double maxLog10L = Double.NEGATIVE_INFINITY;
             while ( !ACqueue.isEmpty() ) {
                 // compute log10Likelihoods
-                final AlleleFrequencyCalculationModel.ExactACset ACset = ACqueue.remove();
+                final ExactAFCalculation.ExactACset ACset = ACqueue.remove();
                 final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, errorModel, alleleList, numObservations, maxLog10L, ACqueue, indexesToACset, pileup);
 
                 // adjust max likelihood seen if needed
@@ -525,8 +525,8 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
             int plIdx = 0;
             SumIterator iterator = new SumIterator(nAlleles, numChromosomes);
             while (iterator.hasNext()) {
-                AlleleFrequencyCalculationModel.ExactACset ACset =
-                       new AlleleFrequencyCalculationModel.ExactACset(1, new AlleleFrequencyCalculationModel.ExactACcounts(iterator.getCurrentVector()));
+                ExactAFCalculation.ExactACset ACset =
+                       new ExactAFCalculation.ExactACset(1, new ExactAFCalculation.ExactACcounts(iterator.getCurrentVector()));
                 // for observed base X, add Q(jX,k) to likelihood vector for all k in error model
                 //likelihood(jA,jC,jG,jT) = logsum(logPr (errorModel[k],nA*Q(jA,k) +  nC*Q(jC,k) + nG*Q(jG,k) + nT*Q(jT,k))
                 getLikelihoodOfConformation(ACset, errorModel, alleleList, numObservations, pileup);
@@ -540,14 +540,14 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
 
     }
 
-    private double calculateACConformationAndUpdateQueue(final ExactAFCalculationModel.ExactACset set,
+    private double calculateACConformationAndUpdateQueue(final DiploidExactAFCalculation.ExactACset set,
                                                          final ErrorModel errorModel,
                                                          final List<Allele> alleleList,
                                                          final List<Integer> numObservations,
                                                          final double  maxLog10L,
-                                                         final LinkedList<AlleleFrequencyCalculationModel.ExactACset> ACqueue,
-                                                         final HashMap<AlleleFrequencyCalculationModel.ExactACcounts,
-                                                         AlleleFrequencyCalculationModel.ExactACset> indexesToACset,
+                                                         final LinkedList<ExactAFCalculation.ExactACset> ACqueue,
+                                                         final HashMap<ExactAFCalculation.ExactACcounts,
+                                                                 ExactAFCalculation.ExactACset> indexesToACset,
                                                          final ReadBackedPileup pileup) {
         // compute likelihood of set
         getLikelihoodOfConformation(set, errorModel, alleleList, numObservations, pileup);
@@ -597,7 +597,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
      * @param numObservations Number of observations for each allele
      * @param pileup        Read backed pileup in case it's necessary
      */
-    public abstract void getLikelihoodOfConformation(final AlleleFrequencyCalculationModel.ExactACset ACset,
+    public abstract void getLikelihoodOfConformation(final ExactAFCalculation.ExactACset ACset,
                                                      final ErrorModel errorModel,
                                                      final List<Allele> alleleList,
                                                      final List<Integer> numObservations,
@@ -608,12 +608,12 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
 
     // Static methods
     public static void updateACset(final int[] newSetCounts,
-                                    final LinkedList<AlleleFrequencyCalculationModel.ExactACset> ACqueue,
-                                    final HashMap<AlleleFrequencyCalculationModel.ExactACcounts, AlleleFrequencyCalculationModel.ExactACset> indexesToACset) {
+                                    final LinkedList<ExactAFCalculation.ExactACset> ACqueue,
+                                    final HashMap<ExactAFCalculation.ExactACcounts, ExactAFCalculation.ExactACset> indexesToACset) {
 
-        final AlleleFrequencyCalculationModel.ExactACcounts index = new AlleleFrequencyCalculationModel.ExactACcounts(newSetCounts);
+        final ExactAFCalculation.ExactACcounts index = new ExactAFCalculation.ExactACcounts(newSetCounts);
         if ( !indexesToACset.containsKey(index) ) {
-            AlleleFrequencyCalculationModel.ExactACset newSet = new AlleleFrequencyCalculationModel.ExactACset(1, index);
+            ExactAFCalculation.ExactACset newSet = new ExactAFCalculation.ExactACset(1, index);
             indexesToACset.put(index, newSet);
             ACqueue.add(newSet);     
             if (VERBOSE)

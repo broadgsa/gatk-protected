@@ -63,7 +63,7 @@ public class BaseCountsUnitTest extends BaseTest {
 
         String name = String.format("Test-%s", params.bases);
         Assert.assertEquals(counts.totalCount(), params.bases.length(), name);
-        Assert.assertEquals(counts.countOfMostCommonBase(), params.mostCommonCount, name);
+        Assert.assertEquals(counts.countOfBase(counts.baseIndexWithMostCounts()), params.mostCommonCount, name);
         Assert.assertEquals((char)counts.baseWithMostCounts(), (char)params.mostCountBase, name);
     }
 }

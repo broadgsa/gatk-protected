@@ -31,7 +31,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "-gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "71bec55320a2f07af0d54be9d7735322");
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles_for_indels 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "71bec55320a2f07af0d54be9d7735322");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -42,7 +42,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(CEUTRIO_BAM, "", "f5a809e3fbd9998f79b75bb2973209e1");
+        HCTestComplexVariants(CEUTRIO_BAM, "", "966da0de8466d21d79f1523488dff6bd");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -80,5 +80,20 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("c29e61810c056b52a47baae0696931ea"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
+
+    // --------------------------------------------------------------------------------------------------------------
+    //
+    // testing reduced reads
+    //
+    // --------------------------------------------------------------------------------------------------------------
+
+    @Test
+    public void HCTestReducedBam() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
+                Arrays.asList("864abe729828248333aee14818c1d2e1"));
+        executeTest("HC calling on a ReducedRead BAM", spec);
+    }
+
 
 }
