@@ -627,7 +627,10 @@ public class GeneralPloidyExactAFCalculation extends ExactAFCalculation {
             // create the new likelihoods array from the alleles we are allowed to use
             final double[] originalLikelihoods = g.getLikelihoods().getAsVector();
             double[] newLikelihoods;
-            if ( numOriginalAltAlleles == numNewAltAlleles) {
+
+            // Optimization: if # of new alt alleles = 0 (pure ref call), keep original likelihoods so we skip normalization
+            // and subsetting
+            if ( numOriginalAltAlleles == numNewAltAlleles || numNewAltAlleles == 0) {
                 newLikelihoods = originalLikelihoods;
             } else {
                 newLikelihoods = GeneralPloidyGenotypeLikelihoods.subsetToAlleles(originalLikelihoods, ploidy, vc.getAlleles(), allelesToUse);
