@@ -1,6 +1,7 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.broadinstitute.sting.utils.variantcontext.Genotype;
@@ -134,7 +135,7 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
     }
 
 
-    @Test(enabled = true, dataProvider = "TestMakeAlleleConditionalContexts")
+    @Test(enabled = false, dataProvider = "TestMakeAlleleConditionalContexts")
     private void testMakeAlleleConditionalContexts(final VariantContext vc, final List<VariantContext> expectedVCs) {
         final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc)AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 1, 4);
         final List<VariantContext> biAllelicVCs = calc.makeAlleleConditionalContexts(vc);
@@ -151,4 +152,59 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
         }
     }
 
+
+    @DataProvider(name = "ThetaNTests")
+    public Object[][] makeThetaNTests() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final List<Double> log10LAlleles = Arrays.asList(0.0, -1.0, -2.0, -3.0, -4.0);
+
+        for ( final double log10pRef : Arrays.asList(-1, -2, -3) ) {
+            for ( final int ploidy : Arrays.asList(1, 2, 3, 4) ) {
+                for ( List<Double> permutations : Utils.makePermutations(log10LAlleles, ploidy, true)) {
+                    tests.add(new Object[]{permutations, Math.pow(10, log10pRef)});
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "ThetaNTests")
+    public void testThetaNTests(final List<Double> log10LAlleles, final double pRef) {
+        // biallelic
+        final double[] rawPriors = MathUtils.toLog10(new double[]{pRef, 1-pRef});
+
+        final double log10pNonRef = Math.log10(1-pRef);
+
+        final List<AFCalcResult> originalPriors = new LinkedList<AFCalcResult>();
+        final List<Double> pNonRefN = new LinkedList<Double>();
+        for ( int i = 0; i < log10LAlleles.size(); i++ ) {
+            final double log10LAllele1 = log10LAlleles.get(i);
+            final double[] L1 = MathUtils.normalizeFromLog10(new double[]{log10LAllele1, 0.0}, true);
+            final AFCalcResult result1 = new AFCalcResult(new int[]{1}, 1, Arrays.asList(A, C), L1, rawPriors, Collections.singletonMap(C, 0.0));
+            originalPriors.add(result1);
+            pNonRefN.add(log10pNonRef*(i+1));
+        }
+
+        final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc)AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 1, 2);
+        final List<AFCalcResult> thetaNPriors = calc.applyMultiAllelicPriors(originalPriors);
+
+        double prevPosterior = 0.0;
+        for ( int i = 0; i < log10LAlleles.size(); i++ ) {
+            final AFCalcResult thetaN = thetaNPriors.get(i);
+            AFCalcResult orig = null;
+            for ( final AFCalcResult x : originalPriors )
+                if ( x.getAllelesUsedInGenotyping().equals(thetaN.getAllelesUsedInGenotyping()))
+                    orig = x;
+
+            Assert.assertNotNull(orig, "couldn't find original AFCalc");
+
+            Assert.assertEquals(orig.getLog10PriorOfAFGT0(), log10pNonRef, 1e-6);
+            Assert.assertEquals(thetaN.getLog10PriorOfAFGT0(), pNonRefN.get(i), 1e-6);
+
+            Assert.assertTrue(orig.getLog10PosteriorOfAFGT0() <= prevPosterior, "AFCalc results should be sorted but " + prevPosterior + " is > original posterior " + orig.getLog10PosteriorOfAFGT0());
+            prevPosterior = orig.getLog10PosteriorOfAFGT0();
+        }
+    }
 }
