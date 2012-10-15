@@ -21,36 +21,36 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
         executeTest(testName, spec);
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testDefaultCompression() {
-        RRTest("testDefaultCompression ", L, "323dd4deabd7767efa0f2c6e7fa4189f");
+        RRTest("testDefaultCompression ", L, "1f95f3193bd9f120a73c34a0087abaf6");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testMultipleIntervals() {
         String intervals = "-L 20:10,100,000-10,100,500 -L 20:10,200,000-10,200,500 -L 20:10,300,000-10,300,500 -L 20:10,400,000-10,500,000 -L 20:10,500,050-10,500,060 -L 20:10,600,000-10,600,015 -L 20:10,700,000-10,700,110";
-        RRTest("testMultipleIntervals ", intervals, "c437fb160547ff271f8eba30e5f3ff76");
+        RRTest("testMultipleIntervals ", intervals, "79213d6ac68d56d4d72dcf511223e424");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testHighCompression() {
-        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "3a607bc3ebaf84e9dc44e005c5f8a047");
+        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "dab2aa8e3655139974bbe12a568363d9");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testLowCompression() {
         RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "7c9b4a70c2c90b0a995800aa42852e63");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testIndelCompression() {
-        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "f7b9fa44c10bc4b2247813d2b8dc1973");
+        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "1255245ed4ebeacda90f0dbb4e4da081");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testFilteredDeletionCompression() {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, DELETION_BAM) + " -o %s ";
-        executeTest("testFilteredDeletionCompression", new WalkerTestSpec(base, Arrays.asList("891bd6dcda66611f343e8ff25f34aaeb")));
+        executeTest("testFilteredDeletionCompression", new WalkerTestSpec(base, Arrays.asList("122e4e60c4412a31d0aeb3cce879e841")));
     }
 
     /**
@@ -61,20 +61,20 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
      * 
      * This bam is simplified to replicate the exact bug with the three provided intervals.
      */
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testAddingReadAfterTailingTheStash() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", STASH_L, REF, STASH_BAM) + " -o %s ";
-        executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("886b43e1f26ff18425814dc7563931c6")));
+        executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("4b590269cbe3574dbdd5bdc2bc6f5f1c")));
     }
 
     /**
      * Divide by zero bug reported by GdA and users in the forum. Happens when the downsampler goes over a region where all reads get
      * filtered out.
      */
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void testDivideByZero() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", DIVIDEBYZERO_L, REF, DIVIDEBYZERO_BAM) + " -o %s ";
-        executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("93ffdc209d4cc0fc4f0169ca9be55cc2")));
+        executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("d8d066304f7c187f182bfb50f39baa0c")));
     }
 
 }

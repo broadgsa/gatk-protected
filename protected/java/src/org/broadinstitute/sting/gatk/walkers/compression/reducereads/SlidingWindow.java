@@ -6,7 +6,6 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
-import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
@@ -56,6 +55,7 @@ public class SlidingWindow {
     private final int nContigs;
 
     private boolean allowPolyploidReductionInGeneral;
+    private CompressionStash compressionStash;
 
     /**
      * The types of synthetic reads to use in the finalizeAndAdd method
@@ -87,7 +87,7 @@ public class SlidingWindow {
     }
 
 
-    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, int nContigs, boolean allowPolyploidReduction) {
+    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, int nContigs, boolean allowPolyploidReduction, CompressionStash compressionStash) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
 
@@ -118,6 +118,7 @@ public class SlidingWindow {
         this.nContigs = nContigs;
 
         this.allowPolyploidReductionInGeneral = allowPolyploidReduction;
+        this.compressionStash = compressionStash;
     }
 
     /**
@@ -145,7 +146,7 @@ public class SlidingWindow {
      * @param variantSite  boolean array with true marking variant regions
      * @return null if nothing is variant, start/stop if there is a complete variant region, start/-1 if there is an incomplete variant region.
      */
-    private Pair<Integer, Integer> getNextVariantRegion(int from, int to, boolean[] variantSite) {
+    private SimpleGenomeLoc getNextVariantRegion(int from, int to, boolean[] variantSite) {
         boolean foundStart = false;
         int variantRegionStartIndex = 0;
         for (int i=from; i<to; i++) {
@@ -154,10 +155,10 @@ public class SlidingWindow {
                 foundStart = true;
             }
             else if(!variantSite[i] && foundStart) {
-                return(new Pair<Integer, Integer>(variantRegionStartIndex, i-1));
+                return(new SimpleGenomeLoc(contig, contigIndex, variantRegionStartIndex, i-1, true));
             }
         }
-        return (foundStart) ? new Pair<Integer, Integer>(variantRegionStartIndex, -1) : null;
+        return (foundStart) ? new SimpleGenomeLoc(contig, contigIndex, variantRegionStartIndex, to-1, false) : null;
     }
 
     /**
@@ -168,22 +169,21 @@ public class SlidingWindow {
      * @param variantSite  boolean array with true marking variant regions
      * @return a list with start/stops of variant regions following getNextVariantRegion description
      */
-    private List<Pair<Integer, Integer>> getAllVariantRegions(int from, int to, boolean[] variantSite) {
-        List<Pair<Integer,Integer>> regions = new LinkedList<Pair<Integer, Integer>>();
+    private CompressionStash getVariantRegionsFromThisSample(int from, int to, boolean[] variantSite) {
+        CompressionStash regions = new CompressionStash();
         int index = from;
         while(index < to) {
-            Pair<Integer,Integer> result = getNextVariantRegion(index, to, variantSite);
+            SimpleGenomeLoc result = getNextVariantRegion(index, to, variantSite);
             if (result == null)
                 break;
 
             regions.add(result);
-            if (result.getSecond() < 0)
+            if (result.getStop() < 0)
                 break;
-            index = result.getSecond() + 1;
+            index = result.getStop() + 1;
         }
         return regions;
     }
-
 
     /**
      * Determines if the window can be slid given the new incoming read.
@@ -203,7 +203,7 @@ public class SlidingWindow {
             boolean[] variantSite = markSites(getStartLocation(windowHeader) + readStartHeaderIndex);
             int breakpoint = Math.max(readStartHeaderIndex - contextSize - 1, 0);                                       // this is the limit of what we can close/send to consensus (non-inclusive)
 
-            List<Pair<Integer,Integer>> regions = getAllVariantRegions(0, breakpoint, variantSite);
+            CompressionStash regions = getVariantRegionsFromThisSample(0, breakpoint, variantSite);
             finalizedReads = closeVariantRegions(regions, false);
 
             List<GATKSAMRecord> readsToRemove = new LinkedList<GATKSAMRecord>();
@@ -567,26 +567,31 @@ public class SlidingWindow {
         result.addAll(addToSyntheticReads(windowHeader, 0, stop, false));
         result.addAll(finalizeAndAdd(ConsensusType.BOTH));
 
-        return result;                                                                                                  // finalized reads will be downsampled if necessary
+        return result;                                      // finalized reads will be downsampled if necessary
     }
 
 
-    private List<GATKSAMRecord> closeVariantRegions(List<Pair<Integer, Integer>> regions, boolean forceClose) {
+    private List<GATKSAMRecord> closeVariantRegions(CompressionStash regions, boolean forceClose) {
         List<GATKSAMRecord> allReads = new LinkedList<GATKSAMRecord>();
         if (!regions.isEmpty()) {
             int lastStop = -1;
-            for (Pair<Integer, Integer> region : regions) {
-                int start = region.getFirst();
-                int stop = region.getSecond();
-                if (stop < 0 && forceClose)
-                    stop = windowHeader.size() - 1;
-                if (stop >= 0) {
-                    allReads.addAll(closeVariantRegion(start, stop, regions.size() > 1));
-                    lastStop = stop;
+            for (SimpleGenomeLoc region : regions) {
+                int start = region.getStart();
+                int stop = region.getStop();
+
+                if (!region.isFinished()) {
+                    if(forceClose)                          // region is unfinished but we're forcing the close of this window
+                        stop = windowHeader.size() - 1;
+                    else
+                        continue;                           // region is unfinished and we're not forcing the close of this window
                 }
+
+                allReads.addAll(closeVariantRegion(start, stop, regions.size() > 1));
+                lastStop = stop;
             }
-            for (int i = 0; i < lastStop; i++)                                                                          // clean up the window header elements up until the end of the variant region. (we keep the last element in case the following element had a read that started with insertion)
-                windowHeader.remove();                                                                                  // todo -- can't believe java doesn't allow me to just do windowHeader = windowHeader.get(stop). Should be more efficient here!
+
+            for (int i = 0; i < lastStop; i++)              // clean up the window header elements up until the end of the variant region. (we keep the last element in case the following element had a read that started with insertion)
+                windowHeader.remove();                      // todo -- can't believe java doesn't allow me to just do windowHeader = windowHeader.get(stop). Should be more efficient here!
         }
         return allReads;
     }
@@ -626,7 +631,7 @@ public class SlidingWindow {
 
         if (!windowHeader.isEmpty()) {
             boolean[] variantSite = markSites(getStopLocation(windowHeader) + 1);
-            List<Pair<Integer,Integer>> regions = getAllVariantRegions(0, windowHeader.size(), variantSite);
+            CompressionStash regions = getVariantRegionsFromThisSample(0, windowHeader.size(), variantSite);
             finalizedReads = closeVariantRegions(regions, true);
 
             if (!windowHeader.isEmpty()) {

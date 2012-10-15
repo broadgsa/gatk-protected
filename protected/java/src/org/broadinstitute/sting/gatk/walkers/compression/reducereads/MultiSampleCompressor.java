@@ -55,11 +55,12 @@ public class MultiSampleCompressor implements Compressor {
                                  final int minBaseQual,
                                  final ReduceReads.DownsampleStrategy downsampleStrategy,
                                  final int nContigs,
-                                 final boolean allowPolyploidReduction) {
+                                 final boolean allowPolyploidReduction,
+                                 final CompressionStash compressionStash) {
         for ( String name : SampleUtils.getSAMFileSamples(header) ) {
             compressorsPerSample.put(name,
                     new SingleSampleCompressor(contextSize, downsampleCoverage,
-                                    minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs, allowPolyploidReduction));
+                                    minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs, allowPolyploidReduction, compressionStash));
         }
     }
 
