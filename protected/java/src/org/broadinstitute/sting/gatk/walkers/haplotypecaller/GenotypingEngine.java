@@ -283,7 +283,7 @@ public class GenotypingEngine {
                 final VariantContext mergedVC = VariantContextUtils.simpleMerge(genomeLocParser, eventsAtThisLoc, priorityList, VariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, VariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
                 if( mergedVC == null ) { continue; }
 
-                final HashMap<Allele, ArrayList<Haplotype>> alleleHashMap = new HashMap<Allele, ArrayList<Haplotype>>();
+                HashMap<Allele, ArrayList<Haplotype>> alleleHashMap = new HashMap<Allele, ArrayList<Haplotype>>();
                 int aCount = 0;
                 for( final Allele a : mergedVC.getAlleles() ) {
                     alleleHashMap.put(a, alleleMapper.get(aCount++)); // BUGBUG: needs to be cleaned up and merged with alleleMapper
@@ -308,9 +308,20 @@ public class GenotypingEngine {
                     }
                     genotypes.add( new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make() );
                 }
-                final VariantCallContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), UG_engine.getUAC().GLmodel);
-
+                VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), UG_engine.getUAC().GLmodel);
                 if( call != null ) {
+                    if( call.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
+                        final VariantContext vcCallTrim = VariantContextUtils.reverseTrimAlleles(call);
+                        // also, need to update the allele -> haplotype mapping
+                        final HashMap<Allele, ArrayList<Haplotype>> alleleHashMapTrim = new HashMap<Allele, ArrayList<Haplotype>>();
+                        for( int iii = 0; iii < vcCallTrim.getAlleles().size(); iii++ ) { // BUGBUG: this is assuming that the original and trimmed alleles maintain the same ordering in the VC
+                            alleleHashMapTrim.put(vcCallTrim.getAlleles().get(iii), alleleHashMap.get(call.getAlleles().get(iii)));
+                        }
+
+                        call = vcCallTrim;
+                        alleleHashMap = alleleHashMapTrim;
+                    }
+
                     returnCalls.add( new Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>>(call, alleleHashMap) );
                 }
             }
