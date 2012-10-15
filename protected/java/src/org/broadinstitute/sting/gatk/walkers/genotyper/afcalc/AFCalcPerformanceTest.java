@@ -5,15 +5,16 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.TTCCLayout;
 import org.broadinstitute.sting.gatk.report.GATKReport;
 import org.broadinstitute.sting.gatk.report.GATKReportTable;
+import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.SimpleTimer;
 import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.variantcontext.Genotype;
 import org.broadinstitute.sting.utils.variantcontext.VariantContext;
 import org.broadinstitute.sting.utils.variantcontext.VariantContextBuilder;
 
-import java.io.FileOutputStream;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -190,7 +191,8 @@ public class AFCalcPerformanceTest {
 
     public enum Operation {
         ANALYZE,
-        SINGLE
+        SINGLE,
+        EXACT_LOG
     }
     public static void main(final String[] args) throws Exception {
         final TTCCLayout layout = new TTCCLayout();
@@ -204,7 +206,34 @@ public class AFCalcPerformanceTest {
         switch ( op ) {
             case ANALYZE: analyze(args); break;
             case SINGLE: profileBig(args); break;
+            case EXACT_LOG: exactLog(args); break;
             default: throw new IllegalAccessException("unknown operation " + op);
+        }
+    }
+
+    private static void exactLog(final String[] args) throws Exception {
+        final File ref = new File(args[1]);
+        final File exactLogFile = new File(args[2]);
+        final List<Integer> startsToUse = new LinkedList<Integer>();
+
+        for ( int i = 3; i < args.length; i++ )
+            startsToUse.add(Integer.valueOf(args[i]));
+
+        final CachingIndexedFastaSequenceFile seq = new CachingIndexedFastaSequenceFile(ref);
+        final GenomeLocParser parser = new GenomeLocParser(seq);
+        final BufferedReader reader = new BufferedReader(new FileReader(exactLogFile));
+        final List<AFCalc.ExactCall> loggedCalls = AFCalc.readExactLog(reader, startsToUse, parser);
+
+        for ( final AFCalc.ExactCall call : loggedCalls ) {
+            final AFCalcTestBuilder testBuilder = new AFCalcTestBuilder(call.vc.getNSamples(), 1,
+                    AFCalcFactory.Calculation.EXACT_INDEPENDENT,
+                    AFCalcTestBuilder.PriorType.human);
+            final SimpleTimer timer = new SimpleTimer().start();
+            final AFCalcResult result = testBuilder.makeModel().getLog10PNonRef(call.vc, testBuilder.makePriors());
+            call.newNanoTime = timer.getElapsedTimeNano();
+            call.newPNonRef = result.getLog10PosteriorOfAFGT0();
+            logger.info(call);
+            logger.info("\t\t" + result);
         }
     }
 
@@ -234,7 +263,6 @@ public class AFCalcPerformanceTest {
         final List<ModelParams> modelParams = Arrays.asList(
                 new ModelParams(AFCalcFactory.Calculation.EXACT_REFERENCE, 10000, 10),
 //                new ModelParams(AFCalcTestBuilder.ModelType.GeneralExact, 100, 10),
-                new ModelParams(AFCalcFactory.Calculation.EXACT_CONSTRAINED, 10000, 100),
                 new ModelParams(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 10000, 1000));
 
         final boolean ONLY_HUMAN_PRIORS = false;

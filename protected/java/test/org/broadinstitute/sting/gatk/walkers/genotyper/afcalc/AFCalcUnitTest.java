@@ -372,16 +372,14 @@ public class AFCalcUnitTest extends BaseTest {
         final VariantContext vc3 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C, G)).make();
         final AFCalcTestBuilder.PriorType priorType = AFCalcTestBuilder.PriorType.flat;
 
-        final List<AFCalcFactory.Calculation> constrainedModel = Arrays.asList(AFCalcFactory.Calculation.EXACT_CONSTRAINED);
-
         final double TOLERANCE = 0.5;
 
         final List<PNonRefData> initialPNonRefData = Arrays.asList(
                 // bi-allelic sites
                 new PNonRefData(vc2, makePL(AA, 0, 10, 10), 0.1666667, TOLERANCE, true),
-                new PNonRefData(vc2, makePL(AA, 0,  1, 10), 0.4721084, TOLERANCE, false, constrainedModel),
-                new PNonRefData(vc2, makePL(AA, 0,  1,  1), 0.6136992, TOLERANCE, false, constrainedModel),
-                new PNonRefData(vc2, makePL(AA, 0,  5,  5), 0.3874259, TOLERANCE, false, constrainedModel),
+                new PNonRefData(vc2, makePL(AA, 0,  1, 10), 0.4721084, TOLERANCE, false),
+                new PNonRefData(vc2, makePL(AA, 0,  1,  1), 0.6136992, TOLERANCE, false),
+                new PNonRefData(vc2, makePL(AA, 0,  5,  5), 0.3874259, TOLERANCE, false),
                 new PNonRefData(vc2, makePL(AC, 10, 0, 10), 0.9166667, TOLERANCE, true),
                 new PNonRefData(vc2, makePL(CC, 10, 10, 0), 0.9166667, TOLERANCE, true),
 
