@@ -47,9 +47,9 @@ public class ConstrainedAFCalculationModelUnitTest extends BaseTest {
     @Test(enabled = true, dataProvider = "MaxACsToVisit")
     public void testMaxACsToVisit(final int nSamples, final List<Integer> requestedACs, final int nNonInformative, final AFCalcFactory.Calculation modelType) {
         final int nAlts = requestedACs.size();
-        final ExactAFCalculationTestBuilder testBuilder
-                = new ExactAFCalculationTestBuilder(nSamples, nAlts, modelType,
-                ExactAFCalculationTestBuilder.PriorType.human);
+        final AFCalcTestBuilder testBuilder
+                = new AFCalcTestBuilder(nSamples, nAlts, modelType,
+                AFCalcTestBuilder.PriorType.human);
 
         final VariantContext vc = testBuilder.makeACTest(requestedACs, nNonInformative, 100);
         final int[] maxACsToVisit = ((ConstrainedDiploidExactAFCalc)testBuilder.makeModel()).computeMaxACs(vc);
@@ -113,9 +113,9 @@ public class ConstrainedAFCalculationModelUnitTest extends BaseTest {
     private void testMakeACByGenotype(final VariantContext vcRoot, final Genotype g) {
         final VariantContext vc = new VariantContextBuilder(vcRoot).genotypes(g).make();
 
-        final ExactAFCalculationTestBuilder testBuilder
-                = new ExactAFCalculationTestBuilder(1, vc.getNAlleles()-1, AFCalcFactory.Calculation.EXACT_CONSTRAINED,
-                ExactAFCalculationTestBuilder.PriorType.human);
+        final AFCalcTestBuilder testBuilder
+                = new AFCalcTestBuilder(1, vc.getNAlleles()-1, AFCalcFactory.Calculation.EXACT_CONSTRAINED,
+                AFCalcTestBuilder.PriorType.human);
 
         final int[] maxACsToVisit = ((ConstrainedDiploidExactAFCalc)testBuilder.makeModel()).computeMaxACs(vc);
 

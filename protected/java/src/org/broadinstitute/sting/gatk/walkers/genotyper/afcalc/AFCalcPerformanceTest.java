@@ -23,8 +23,8 @@ import java.util.*;
  * Time: 10:25 AM
  * To change this template use File | Settings | File Templates.
  */
-public class ExactAFCalculationPerformanceTest {
-    final static Logger logger = Logger.getLogger(ExactAFCalculationPerformanceTest.class);
+public class AFCalcPerformanceTest {
+    final static Logger logger = Logger.getLogger(AFCalcPerformanceTest.class);
 
     private static abstract class Analysis {
         final GATKReport report;
@@ -33,7 +33,7 @@ public class ExactAFCalculationPerformanceTest {
             report = GATKReport.newSimpleReport(name, columns);
         }
 
-        public abstract void run(final ExactAFCalculationTestBuilder testBuilder,
+        public abstract void run(final AFCalcTestBuilder testBuilder,
                                  final List<Object> coreColumns);
 
         public String getName() {
@@ -50,7 +50,7 @@ public class ExactAFCalculationPerformanceTest {
             super("AnalyzeByACAndPL", Utils.append(columns, "non.type.pls", "ac", "n.alt.seg", "other.ac"));
         }
 
-        public void run(final ExactAFCalculationTestBuilder testBuilder, final List<Object> coreValues) {
+        public void run(final AFCalcTestBuilder testBuilder, final List<Object> coreValues) {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(100) ) {
@@ -109,7 +109,7 @@ public class ExactAFCalculationPerformanceTest {
             super("AnalyzeBySingletonPosition", Utils.append(columns, "non.type.pls", "position.of.singleton"));
         }
 
-        public void run(final ExactAFCalculationTestBuilder testBuilder, final List<Object> coreValues) {
+        public void run(final AFCalcTestBuilder testBuilder, final List<Object> coreValues) {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(100) ) {
@@ -143,7 +143,7 @@ public class ExactAFCalculationPerformanceTest {
             super("AnalyzeByNonInformative", Utils.append(columns, "non.type.pls", "n.non.informative"));
         }
 
-        public void run(final ExactAFCalculationTestBuilder testBuilder, final List<Object> coreValues) {
+        public void run(final AFCalcTestBuilder testBuilder, final List<Object> coreValues) {
             final SimpleTimer timer = new SimpleTimer();
 
             for ( final int nonTypePL : Arrays.asList(100) ) {
@@ -212,9 +212,9 @@ public class ExactAFCalculationPerformanceTest {
         final int nSamples = Integer.valueOf(args[1]);
         final int ac = Integer.valueOf(args[2]);
 
-        final ExactAFCalculationTestBuilder testBuilder = new ExactAFCalculationTestBuilder(nSamples, 1,
+        final AFCalcTestBuilder testBuilder = new AFCalcTestBuilder(nSamples, 1,
                 AFCalcFactory.Calculation.EXACT_INDEPENDENT,
-                ExactAFCalculationTestBuilder.PriorType.human);
+                AFCalcTestBuilder.PriorType.human);
 
         final VariantContext vc = testBuilder.makeACTest(new int[]{ac}, 0, 100);
 
@@ -233,14 +233,14 @@ public class ExactAFCalculationPerformanceTest {
 
         final List<ModelParams> modelParams = Arrays.asList(
                 new ModelParams(AFCalcFactory.Calculation.EXACT_REFERENCE, 10000, 10),
-//                new ModelParams(ExactAFCalculationTestBuilder.ModelType.GeneralExact, 100, 10),
+//                new ModelParams(AFCalcTestBuilder.ModelType.GeneralExact, 100, 10),
                 new ModelParams(AFCalcFactory.Calculation.EXACT_CONSTRAINED, 10000, 100),
                 new ModelParams(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 10000, 1000));
 
         final boolean ONLY_HUMAN_PRIORS = false;
-        final List<ExactAFCalculationTestBuilder.PriorType> priorTypes = ONLY_HUMAN_PRIORS
-                ? Arrays.asList(ExactAFCalculationTestBuilder.PriorType.values())
-                : Arrays.asList(ExactAFCalculationTestBuilder.PriorType.human);
+        final List<AFCalcTestBuilder.PriorType> priorTypes = ONLY_HUMAN_PRIORS
+                ? Arrays.asList(AFCalcTestBuilder.PriorType.values())
+                : Arrays.asList(AFCalcTestBuilder.PriorType.human);
 
         final List<Analysis> analyzes = new ArrayList<Analysis>();
         analyzes.add(new AnalyzeByACAndPL(coreColumns));
@@ -252,9 +252,9 @@ public class ExactAFCalculationPerformanceTest {
                 for ( final int nSamples : Arrays.asList(1, 10, 100, 1000, 10000) ) {
                     for ( final ModelParams modelToRun : modelParams) {
                         if ( modelToRun.meetsConstraints(nAltAlleles, nSamples) ) {
-                            for ( final ExactAFCalculationTestBuilder.PriorType priorType : priorTypes ) {
-                                final ExactAFCalculationTestBuilder testBuilder
-                                        = new ExactAFCalculationTestBuilder(nSamples, nAltAlleles, modelToRun.modelType, priorType);
+                            for ( final AFCalcTestBuilder.PriorType priorType : priorTypes ) {
+                                final AFCalcTestBuilder testBuilder
+                                        = new AFCalcTestBuilder(nSamples, nAltAlleles, modelToRun.modelType, priorType);
 
                                 for ( final Analysis analysis : analyzes ) {
                                     logger.info(Utils.join("\t", Arrays.asList(iteration, nAltAlleles, nSamples, modelToRun.modelType, priorType, analysis.getName())));

@@ -192,13 +192,19 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         set.getLog10Likelihoods()[0] = 0.0;
 
         combinedPoolLikelihoods.add(set);
-        for (int p=1; p<genotypeLikelihoods.size(); p++) {
-            resultTracker.reset(); // TODO -- why is this here?  It makes it hard to track the n evaluation
-            combinedPoolLikelihoods = fastCombineMultiallelicPool(combinedPoolLikelihoods, genotypeLikelihoods.get(p), combinedPloidy, ploidyPerPool,
-                    numAlleles, log10AlleleFrequencyPriors, resultTracker);
-            combinedPloidy = ploidyPerPool + combinedPloidy; // total number of chromosomes in combinedLikelihoods
-        }
 
+        if ( genotypeLikelihoods.size() <= 1 ) {
+            // no meaningful GLs at all, just set the tracker to non poly values
+            resultTracker.reset(); // just mimic-ing call below
+            resultTracker.setLog10LikelihoodOfAFzero(0.0);
+        } else {
+            for (int p=1; p<genotypeLikelihoods.size(); p++) {
+                resultTracker.reset(); // TODO -- why is this here?  It makes it hard to track the n evaluation
+                combinedPoolLikelihoods = fastCombineMultiallelicPool(combinedPoolLikelihoods, genotypeLikelihoods.get(p), combinedPloidy, ploidyPerPool,
+                        numAlleles, log10AlleleFrequencyPriors, resultTracker);
+                combinedPloidy = ploidyPerPool + combinedPloidy; // total number of chromosomes in combinedLikelihoods
+            }
+        }
     }
 
     public static CombinedPoolLikelihoods fastCombineMultiallelicPool(final CombinedPoolLikelihoods originalPool, double[] newGL, int originalPloidy, int newGLPloidy, int numAlleles,

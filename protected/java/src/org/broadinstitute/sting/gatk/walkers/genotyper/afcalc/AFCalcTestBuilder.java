@@ -11,11 +11,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-public class ExactAFCalculationTestBuilder {
+public class AFCalcTestBuilder {
     final static Allele A = Allele.create("A", true);
     final static Allele C = Allele.create("C");
     final static Allele G = Allele.create("G");
     final static Allele T = Allele.create("T");
+    final static Allele AA = Allele.create("AA");
+    final static Allele AT = Allele.create("AT");
+    final static Allele AG = Allele.create("AG");
 
     static int sampleNameCounter = 0;
 
@@ -24,12 +27,17 @@ public class ExactAFCalculationTestBuilder {
     final AFCalcFactory.Calculation modelType;
     final PriorType priorType;
 
-    public ExactAFCalculationTestBuilder(final int nSamples, final int numAltAlleles,
-                                         final AFCalcFactory.Calculation modelType, final PriorType priorType) {
+    public AFCalcTestBuilder(final int nSamples, final int numAltAlleles,
+                             final AFCalcFactory.Calculation modelType, final PriorType priorType) {
         this.nSamples = nSamples;
         this.numAltAlleles = numAltAlleles;
         this.modelType = modelType;
         this.priorType = priorType;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("AFCalcTestBuilder nSamples=%d nAlts=%d model=%s prior=%s", nSamples, numAltAlleles, modelType, priorType);
     }
 
     public enum PriorType {
@@ -113,7 +121,7 @@ public class ExactAFCalculationTestBuilder {
     }
 
     public List<Allele> getAlleles() {
-        return Arrays.asList(A, C, G, T).subList(0, numAltAlleles+1);
+        return Arrays.asList(A, C, G, T, AA, AT, AG).subList(0, numAltAlleles+1);
     }
 
     public List<Allele> getAlleles(final GenotypeType type, final int altI) {
