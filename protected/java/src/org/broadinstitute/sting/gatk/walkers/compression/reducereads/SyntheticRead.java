@@ -5,9 +5,9 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
-import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
@@ -44,8 +44,9 @@ public class SyntheticRead {
     private String contig;
     private int contigIndex;
     private String readName;
-    private Integer refStart;
+    private int refStart;
     private boolean hasIndelQualities = false;
+    private boolean isNegativeStrand = false;
 
     /**
      * Full initialization of the running consensus if you have all the information and are ready to
@@ -59,7 +60,7 @@ public class SyntheticRead {
      * @param refStart        the alignment start (reference based)
      * @param readTag         the reduce reads tag for the synthetic read
      */
-    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, Integer refStart, String readTag, boolean hasIndelQualities) {
+    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, String readTag, boolean hasIndelQualities, boolean isNegativeRead) {
         final int initialCapacity = 10000;
         bases = new ArrayList<BaseIndex>(initialCapacity);
         counts = new ArrayList<Byte>(initialCapacity);
@@ -76,9 +77,10 @@ public class SyntheticRead {
         this.readName = readName;
         this.refStart = refStart;
         this.hasIndelQualities = hasIndelQualities;
+        this.isNegativeStrand = isNegativeRead;
     }
 
-    public SyntheticRead(List<BaseIndex> bases, List<Byte> counts, List<Byte> quals, List<Byte> insertionQuals, List<Byte> deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, Integer refStart, boolean hasIndelQualities) {
+    public SyntheticRead(List<BaseIndex> bases, List<Byte> counts, List<Byte> quals, List<Byte> insertionQuals, List<Byte> deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
         this.bases = bases;
         this.counts = counts;
         this.quals = quals;
@@ -93,6 +95,7 @@ public class SyntheticRead {
         this.readName = readName;
         this.refStart = refStart;
         this.hasIndelQualities = hasIndelQualities;
+        this.isNegativeStrand = isNegativeRead;
     }
 
     /**
@@ -112,11 +115,15 @@ public class SyntheticRead {
         this.mappingQuality += mappingQuality;
     }
 
-    public BaseIndex getBase(int readCoordinate) {
+    public BaseIndex getBase(final int readCoordinate) {
         return bases.get(readCoordinate);
     }
 
-   /**
+    public int getRefStart() {
+        return refStart;
+    }
+
+    /**
      * Creates a GATKSAMRecord of the synthetic read. Will return null if the read is invalid.
      *
      * Invalid reads are :
@@ -133,6 +140,7 @@ public class SyntheticRead {
         read.setReferenceIndex(contigIndex);
         read.setReadPairedFlag(false);
         read.setReadUnmappedFlag(false);
+        read.setReadNegativeStrandFlag(isNegativeStrand);
         read.setCigar(buildCigar());                                        // the alignment start may change while building the cigar (leading deletions)
         read.setAlignmentStart(refStart);
         read.setReadName(readName);

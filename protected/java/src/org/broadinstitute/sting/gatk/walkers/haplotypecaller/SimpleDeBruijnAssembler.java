@@ -184,7 +184,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         for( final GATKSAMRecord read : reads ) {
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
-            final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not readuced
+            final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
             if( sequence.length > KMER_LENGTH + KMER_OVERLAP ) {
                 final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
                 for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {                    
@@ -201,7 +201,8 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                         // compute mean number of reduced read counts in current kmer span
                         final byte[] counts = Arrays.copyOfRange(reducedReadCounts,iii,iii+KMER_LENGTH+1);
                         // precise rounding can make a difference with low consensus counts
-                        countNumber = (int)Math.round((double)MathUtils.sum(counts)/counts.length);
+                        countNumber = MathUtils.arrayMax(counts);
+                      //  countNumber = (int)Math.round((double)MathUtils.sum(counts)/counts.length);
                     }
 
                     if( !badKmer ) {

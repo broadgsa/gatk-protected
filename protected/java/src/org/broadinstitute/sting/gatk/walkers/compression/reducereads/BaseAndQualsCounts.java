@@ -23,7 +23,7 @@ public class BaseAndQualsCounts extends BaseCounts {
         }
     }
 
-    public void incr(byte base, byte baseQual, byte insQual, byte delQual) {
+    public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual) {
         super.incr(base, baseQual);
         BaseIndex i = BaseIndex.byteToBase(base);
         if (i != null) {                                                                                                // do not allow Ns
@@ -32,7 +32,7 @@ public class BaseAndQualsCounts extends BaseCounts {
         }
     }
 
-    public void decr(byte base, byte baseQual, byte insQual, byte delQual) {
+    public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual) {
         super.decr(base, baseQual);
         BaseIndex i = BaseIndex.byteToBase(base);
         if (i != null) {                                                                                                // do not allow Ns
@@ -41,16 +41,15 @@ public class BaseAndQualsCounts extends BaseCounts {
         }
     }
 
-    public byte averageInsertionQualsOfMostCommonBase() {
-        return getGenericAverageQualOfMostCommonBase(sumInsertionQuals);
+    public byte averageInsertionQualsOfBase(final BaseIndex base) {
+        return getGenericAverageQualOfBase(base, sumInsertionQuals);
     }
 
-    public byte averageDeletionQualsOfMostCommonBase() {
-        return getGenericAverageQualOfMostCommonBase(sumDeletionQuals);
+    public byte averageDeletionQualsOfBase(final BaseIndex base) {
+        return getGenericAverageQualOfBase(base, sumDeletionQuals);
     }
 
-    private byte getGenericAverageQualOfMostCommonBase(Map<BaseIndex, Long> sumQuals) {
-        BaseIndex base = BaseIndex.byteToBase(baseWithMostCounts());
+    private byte getGenericAverageQualOfBase(final BaseIndex base, final Map<BaseIndex, Long> sumQuals) {
         return (byte) (sumQuals.get(base) / getCount(base));
     }
 }
