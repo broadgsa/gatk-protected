@@ -18,11 +18,8 @@ import java.io.*;
 import java.util.*;
 
 /**
- * Created with IntelliJ IDEA.
- * User: depristo
- * Date: 10/2/12
- * Time: 10:25 AM
- * To change this template use File | Settings | File Templates.
+ * A simple GATK utility (i.e, runs from command-line) for assessing the performance of
+ * the exact model
  */
 public class AFCalcPerformanceTest {
     final static Logger logger = Logger.getLogger(AFCalcPerformanceTest.class);
@@ -222,9 +219,9 @@ public class AFCalcPerformanceTest {
         final CachingIndexedFastaSequenceFile seq = new CachingIndexedFastaSequenceFile(ref);
         final GenomeLocParser parser = new GenomeLocParser(seq);
         final BufferedReader reader = new BufferedReader(new FileReader(exactLogFile));
-        final List<AFCalc.ExactCall> loggedCalls = AFCalc.readExactLog(reader, startsToUse, parser);
+        final List<ExactCallLogger.ExactCall> loggedCalls = ExactCallLogger.readExactLog(reader, startsToUse, parser);
 
-        for ( final AFCalc.ExactCall call : loggedCalls ) {
+        for ( final ExactCallLogger.ExactCall call : loggedCalls ) {
             final AFCalcTestBuilder testBuilder = new AFCalcTestBuilder(call.vc.getNSamples(), 1,
                     AFCalcFactory.Calculation.EXACT_INDEPENDENT,
                     AFCalcTestBuilder.PriorType.human);
