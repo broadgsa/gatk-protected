@@ -348,7 +348,7 @@ public class LikelihoodCalculationEngine {
                     }
                 }
             }
-            
+
             // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
             for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
