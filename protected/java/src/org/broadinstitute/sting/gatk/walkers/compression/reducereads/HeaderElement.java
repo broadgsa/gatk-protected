@@ -157,11 +157,9 @@ public class HeaderElement {
      * @return whether or not the HeaderElement is variant due to excess insertions
      */
     private boolean isVariantFromInsertions(double minIndelProportion) {
-        int numberOfBases = consensusBaseCounts.totalCount();
-        if (numberOfBases == 0 && insertionsToTheRight > 0)
-            return true;  // we only have insertions
-        else if (numberOfBases == 0)
-            return false; // we don't have anything
+        final int numberOfBases = consensusBaseCounts.totalCount();
+        if (numberOfBases == 0)
+            return (insertionsToTheRight > 0); // do we only have insertions?
 
         // if we have bases and insertions, check the ratio
         return ((double) insertionsToTheRight / numberOfBases) > minIndelProportion;

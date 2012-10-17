@@ -20,6 +20,7 @@ import java.util.Map;
 
     private final Map<BaseIndex, Integer> counts;   // keeps track of the base counts
     private final Map<BaseIndex, Long> sumQuals;    // keeps track of the quals of each base
+    private int totalCount = 0;                     // keeps track of total count since this is requested so often
 
     public BaseCounts() {
         counts = new EnumMap<BaseIndex, Integer>(BaseIndex.class);
@@ -36,49 +37,62 @@ import java.util.Map;
         baseCounts.counts.put(BaseIndex.C, countsACGT[1]);
         baseCounts.counts.put(BaseIndex.G, countsACGT[2]);
         baseCounts.counts.put(BaseIndex.T, countsACGT[3]);
+        baseCounts.totalCount = countsACGT[0] + countsACGT[1] + countsACGT[2] + countsACGT[3];
         return baseCounts;
     }
 
     @Requires("other != null")
-    public void add(BaseCounts other) {
-        for (final BaseIndex i : BaseIndex.values())
-            counts.put(i, counts.get(i) + other.counts.get(i));
+    public void add(final BaseCounts other) {
+        for (final BaseIndex i : BaseIndex.values()) {
+            final int otherCount = other.counts.get(i);
+            counts.put(i, counts.get(i) + otherCount);
+            totalCount += otherCount;
+        }
     }
 
     @Requires("other != null")
-    public void sub(BaseCounts other) {
-        for (final BaseIndex i : BaseIndex.values())
-            counts.put(i, counts.get(i) - other.counts.get(i));
+    public void sub(final BaseCounts other) {
+        for (final BaseIndex i : BaseIndex.values()) {
+            final int otherCount = other.counts.get(i);
+            counts.put(i, counts.get(i) - otherCount);
+            totalCount -= otherCount;
+        }
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
-    public void incr(byte base) {
-        final BaseIndex i = BaseIndex.byteToBase(base);
-        if (i != null) // no Ns
-            counts.put(i, counts.get(i) + 1);
-    }
-
-    @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
-    public void incr(byte base, byte qual) {
+    public void incr(final byte base) {
         final BaseIndex i = BaseIndex.byteToBase(base);
         if (i != null) { // no Ns
             counts.put(i, counts.get(i) + 1);
+            totalCount++;
+        }
+    }
+
+    @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
+    public void incr(final byte base, final byte qual) {
+        final BaseIndex i = BaseIndex.byteToBase(base);
+        if (i != null) { // no Ns
+            counts.put(i, counts.get(i) + 1);
+            totalCount++;
             sumQuals.put(i, sumQuals.get(i) + qual);
         }
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
-    public void decr(byte base) {
-        final BaseIndex i = BaseIndex.byteToBase(base);
-        if (i != null) // no Ns
-            counts.put(i, counts.get(i) - 1);
-    }
-
-    @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
-    public void decr(byte base, byte qual) {
+    public void decr(final byte base) {
         final BaseIndex i = BaseIndex.byteToBase(base);
         if (i != null) { // no Ns
             counts.put(i, counts.get(i) - 1);
+            totalCount--;
+        }
+    }
+
+    @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
+    public void decr(final byte base, final byte qual) {
+        final BaseIndex i = BaseIndex.byteToBase(base);
+        if (i != null) { // no Ns
+            counts.put(i, counts.get(i) - 1);
+            totalCount--;
             sumQuals.put(i, sumQuals.get(i) - qual);
         }
     }
@@ -131,11 +145,7 @@ import java.util.Map;
 
     @Ensures("result >= 0")
     public int totalCount() {
-        int sum = 0;
-        for (int c : counts.values())
-            sum += c;
-
-        return sum;
+        return totalCount;
     }
 
     /**
@@ -146,7 +156,7 @@ import java.util.Map;
      */
     @Ensures({"result >=0.0", "result<= 1.0"})
     public double baseCountProportion(final byte base) {
-        return (double) counts.get(BaseIndex.byteToBase(base)) / totalCount();
+        return baseCountProportion(BaseIndex.byteToBase(base));
     }
 
     /**
@@ -157,10 +167,10 @@ import java.util.Map;
      */
     @Ensures({"result >=0.0", "result<= 1.0"})
     public double baseCountProportion(final BaseIndex baseIndex) {
-        int total = totalCount();
+        final int total = totalCount();
         if (total == 0)
             return 0.0;
-        return (double) counts.get(baseIndex) / totalCount();
+        return (double) counts.get(baseIndex) / total;
     }
 
 
@@ -248,7 +258,7 @@ import java.util.Map;
         final int total = totalCountWithoutIndels();
         if (total == 0)
             return 0.0;
-        return (double) counts.get(index) / totalCountWithoutIndels();
+        return (double) counts.get(index) / total;
     }
 
     public Object[] countsArray() {
