@@ -49,7 +49,8 @@ public class GeneralPloidySNPGenotypeLikelihoodsCalculationModel extends General
                                                                                final HashMap<String, ErrorModel> perLaneErrorModels,
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
-                                                                               final boolean ignoreLaneInformation) {
+                                                                               final boolean ignoreLaneInformation,
+                                                                               final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap){
         return new GeneralPloidySNPGenotypeLikelihoods(alleles, null, UAC.samplePloidy, perLaneErrorModels, useBQAedPileup, UAC.IGNORE_LANE_INFO);
     }
 

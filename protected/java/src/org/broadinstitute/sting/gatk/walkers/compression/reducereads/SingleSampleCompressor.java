@@ -1,6 +1,5 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
@@ -8,35 +7,33 @@ import java.util.TreeSet;
 
 /**
  *
- * @author depristo
- * @version 0.1
+ * @author carneiro, depristo
+ * @version 3.0
  */
 public class SingleSampleCompressor implements Compressor {
-    protected static final Logger logger = Logger.getLogger(SingleSampleCompressor.class);
+    final private int contextSize;
+    final private int downsampleCoverage;
+    final private int minMappingQuality;
+    final private double minAltProportionToTriggerVariant;
+    final private double minIndelProportionToTriggerVariant;
+    final private int minBaseQual;
+    final private ReduceReads.DownsampleStrategy downsampleStrategy;
+    final private int nContigs;
+    final private boolean allowPolyploidReduction;
 
-    protected final int contextSize;
-    protected final int downsampleCoverage;
-    protected int minMappingQuality;
-    protected int slidingWindowCounter;
+    private SlidingWindow slidingWindow;
+    private int slidingWindowCounter;
 
-    protected final String sampleName;
 
-    protected SlidingWindow slidingWindow;
-    protected double minAltProportionToTriggerVariant;
-    protected double minIndelProportionToTriggerVariant;
-    protected int minBaseQual;
-
-    protected ReduceReads.DownsampleStrategy downsampleStrategy;
-
-    public SingleSampleCompressor(final String sampleName,
-                                  final int contextSize,
+    public SingleSampleCompressor(final int contextSize,
                                   final int downsampleCoverage,
                                   final int minMappingQuality,
                                   final double minAltProportionToTriggerVariant,
                                   final double minIndelProportionToTriggerVariant,
                                   final int minBaseQual,
-                                  final ReduceReads.DownsampleStrategy downsampleStrategy) {
-        this.sampleName = sampleName;
+                                  final ReduceReads.DownsampleStrategy downsampleStrategy,
+                                  final int nContigs,
+                                  final boolean allowPolyploidReduction) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
         this.minMappingQuality = minMappingQuality;
@@ -45,6 +42,8 @@ public class SingleSampleCompressor implements Compressor {
         this.minIndelProportionToTriggerVariant = minIndelProportionToTriggerVariant;
         this.minBaseQual = minBaseQual;
         this.downsampleStrategy = downsampleStrategy;
+        this.nContigs = nContigs;
+        this.allowPolyploidReduction = allowPolyploidReduction;
     }
 
     /**
@@ -66,7 +65,7 @@ public class SingleSampleCompressor implements Compressor {
         }
 
         if ( slidingWindow == null) {                                                  // this is the first read
-            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities());
+            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), nContigs, allowPolyploidReduction);
             slidingWindowCounter++;
         }
 
