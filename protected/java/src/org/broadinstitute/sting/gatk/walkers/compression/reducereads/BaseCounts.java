@@ -167,12 +167,8 @@ import java.util.Map;
      */
     @Ensures({"result >=0.0", "result<= 1.0"})
     public double baseCountProportion(final BaseIndex baseIndex) {
-        final int total = totalCount();
-        if (total == 0)
-            return 0.0;
-        return (double) counts.get(baseIndex) / total;
+        return (totalCount == 0) ? 0.0 : (double)counts.get(baseIndex) / (double)totalCount;
     }
-
 
     @Ensures("result != null")
     public String toString() {
@@ -239,11 +235,7 @@ import java.util.Map;
 
     @Ensures("result >=0")
     public int totalCountWithoutIndels() {
-        int sum = 0;
-        for (Map.Entry<BaseIndex, Integer> entry : counts.entrySet())
-            if (entry.getKey().isNucleotide())
-                sum += entry.getValue();
-        return sum;
+        return totalCount - counts.get(BaseIndex.D) - counts.get(BaseIndex.I);
     }
 
     /**
@@ -256,9 +248,7 @@ import java.util.Map;
     @Ensures({"result >=0.0", "result<= 1.0"})
     public double baseCountProportionWithoutIndels(final BaseIndex index) {
         final int total = totalCountWithoutIndels();
-        if (total == 0)
-            return 0.0;
-        return (double) counts.get(index) / total;
+        return (total == 0) ? 0.0 : (double)counts.get(index) / (double)total;
     }
 
     public Object[] countsArray() {
