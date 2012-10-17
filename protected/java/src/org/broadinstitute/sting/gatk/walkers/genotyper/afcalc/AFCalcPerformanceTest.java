@@ -10,6 +10,7 @@ import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.SimpleTimer;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.broadinstitute.sting.utils.variantcontext.Genotype;
 import org.broadinstitute.sting.utils.variantcontext.VariantContext;
 import org.broadinstitute.sting.utils.variantcontext.VariantContextBuilder;
@@ -225,12 +226,24 @@ public class AFCalcPerformanceTest {
             final AFCalcTestBuilder testBuilder = new AFCalcTestBuilder(call.vc.getNSamples(), 1,
                     AFCalcFactory.Calculation.EXACT_INDEPENDENT,
                     AFCalcTestBuilder.PriorType.human);
+            logger.info(call);
             final SimpleTimer timer = new SimpleTimer().start();
             final AFCalcResult result = testBuilder.makeModel().getLog10PNonRef(call.vc, testBuilder.makePriors());
-            call.newNanoTime = timer.getElapsedTimeNano();
-            call.newPNonRef = result.getLog10PosteriorOfAFGT0();
-            logger.info(call);
-            logger.info("\t\t" + result);
+            final long newNanoTime = timer.getElapsedTimeNano();
+            if ( call.originalCall.anyPolymorphic(-1) || result.anyPolymorphic(-1) ) {
+                logger.info("**** ONE IS POLY");
+            }
+            logger.info("\t\t getLog10PosteriorOfAFGT0: " + call.originalCall.getLog10PosteriorOfAFGT0() + " vs " + result.getLog10PosteriorOfAFGT0());
+            final double speedup = call.runtime / (1.0 * newNanoTime);
+            logger.info("\t\t runtime:                  " + call.runtime + " vs " + newNanoTime + " speedup " + String.format("%.2f", speedup) + "x");
+            for ( final Allele a : call.originalCall.getAllelesUsedInGenotyping() ) {
+                if ( a.isNonReference() ) {
+                    final String warningmeMLE = call.originalCall.getAlleleCountAtMLE(a) != result.getAlleleCountAtMLE(a) ? " DANGER-MLE-DIFFERENT" : "";
+                    logger.info("\t\t   MLE       " + a + ":            " + call.originalCall.getAlleleCountAtMLE(a) + " vs " + result.getAlleleCountAtMLE(a) + warningmeMLE);
+                    final String warningmePost = call.originalCall.getLog10PosteriorOfAFGt0ForAllele(a) == 0 && result.getLog10PosteriorOfAFGt0ForAllele(a) < -10 ? " DANGER-POSTERIORS-DIFFERENT" : "";
+                    logger.info("\t\t   Posterior " + a + ":            " + call.originalCall.getLog10PosteriorOfAFGt0ForAllele(a) + " vs " + result.getLog10PosteriorOfAFGt0ForAllele(a) + warningmePost);
+                }
+            }
         }
     }
 
