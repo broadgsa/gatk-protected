@@ -73,8 +73,9 @@ public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends Gener
                                                                                final HashMap<String, ErrorModel> perLaneErrorModels,
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
-                                                                               final boolean ignoreLaneInformation){
-        return new GeneralPloidyIndelGenotypeLikelihoods(alleles, logLikelihoods, ploidy,perLaneErrorModels,ignoreLaneInformation, pairModel, haplotypeMap, ref);
+                                                                               final boolean ignoreLaneInformation,
+                                                                               final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap){
+        return new GeneralPloidyIndelGenotypeLikelihoods(alleles, logLikelihoods, ploidy,perLaneErrorModels,ignoreLaneInformation, pairModel, haplotypeMap, ref, perReadAlleleLikelihoodMap);
     }
 
     protected List<Allele> getInitialAllelesToUse(final RefMetaDataTracker tracker,
@@ -90,7 +91,6 @@ public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends Gener
         if (alleles.size() > MAX_NUM_ALLELES_TO_GENOTYPE)
             alleles = alleles.subList(0,MAX_NUM_ALLELES_TO_GENOTYPE);
         if (contextType == AlignmentContextUtils.ReadOrientation.COMPLETE) {
-            IndelGenotypeLikelihoodsCalculationModel.getIndelLikelihoodMap().clear();
             haplotypeMap.clear();
         }
         IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles(alleles, ref, ref.getLocus(), haplotypeMap);
