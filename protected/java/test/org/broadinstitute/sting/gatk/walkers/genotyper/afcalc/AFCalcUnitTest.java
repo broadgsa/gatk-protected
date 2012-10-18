@@ -495,7 +495,7 @@ public class AFCalcUnitTest extends BaseTest {
 
         // list of all high-quality models in the system
         final List<AFCalcFactory.Calculation> models = Arrays.asList(
-                AFCalcFactory.Calculation.EXACT,
+                AFCalcFactory.Calculation.getDefaultModel(),
                 AFCalcFactory.Calculation.EXACT_REFERENCE,
                 AFCalcFactory.Calculation.EXACT_INDEPENDENT);
 
