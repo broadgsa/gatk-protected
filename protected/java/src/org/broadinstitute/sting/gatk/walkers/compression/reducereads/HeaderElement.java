@@ -213,11 +213,11 @@ public class HeaderElement {
         if (totalCount == 0)
             return 0;
 
-        Object[] countsArray = consensusBaseCounts.countsArray();
+        int[] countsArray = consensusBaseCounts.countsArray();
         Arrays.sort(countsArray);
         for (int i = countsArray.length-1; i>=0; i--) {
             nHaplotypes++;
-            runningCount += (Integer) countsArray[i];
+            runningCount += countsArray[i];
             if (runningCount/totalCount > minVariantProportion)
                 break;
         }
