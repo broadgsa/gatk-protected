@@ -137,18 +137,15 @@ public class GeneralPloidyAFCalculationModelUnitTest extends BaseTest {
 
     @Test(dataProvider = "getGLs")
     public void testGLs(GetGLsTest cfg) {
-
-        final AFCalcResultTracker resultTracker = new AFCalcResultTracker(cfg.numAltAlleles);
         final int len = GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(1 + cfg.numAltAlleles, cfg.ploidy * cfg.GLs.size());
         double[] priors = new double[len];  // flat priors
 
-        GeneralPloidyExactAFCalc.combineSinglePools(cfg.GLs, 1 + cfg.numAltAlleles, cfg.ploidy, priors, resultTracker);
+        final GeneralPloidyExactAFCalc calc = new GeneralPloidyExactAFCalc(cfg.GLs.size(), 1 + cfg.numAltAlleles, 1 + cfg.numAltAlleles, cfg.ploidy);
+        calc.combineSinglePools(cfg.GLs, 1 + cfg.numAltAlleles, cfg.ploidy, priors);
         int nameIndex = 1;
         for ( int allele = 0; allele < cfg.numAltAlleles; allele++, nameIndex+=2 ) {
             int expectedAlleleCount = Integer.valueOf(cfg.name.substring(nameIndex, nameIndex+1));
-            int calculatedAlleleCount = resultTracker.getAlleleCountsOfMAP()[allele];
-
-//            System.out.format( "%s Expected:%d Calc:%d\n",cfg.toString(),expectedAlleleCount, calculatedAlleleCount);
+            int calculatedAlleleCount = calc.getStateTracker().getAlleleCountsOfMAP()[allele];
             Assert.assertEquals(calculatedAlleleCount, expectedAlleleCount);
         }
     }
