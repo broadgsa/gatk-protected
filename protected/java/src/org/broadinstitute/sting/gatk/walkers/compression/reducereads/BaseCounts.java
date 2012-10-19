@@ -227,7 +227,7 @@ import com.google.java.contract.Requires;
      * @param base      base
      * @return the proportion of this base over all other bases except indels
      */
-    @Requires("index.isNucleotide()")
+    @Requires("base.isNucleotide()")
     @Ensures({"result >=0.0", "result<= 1.0"})
     public double baseCountProportionWithoutIndels(final BaseIndex base) {
         final int total = totalCountWithoutIndels();
