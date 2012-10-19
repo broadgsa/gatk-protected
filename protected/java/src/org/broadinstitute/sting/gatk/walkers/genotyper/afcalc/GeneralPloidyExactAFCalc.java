@@ -128,6 +128,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * @return                            list of numAllelesToChoose most likely alleles
      */
 
+    private static final int PL_INDEX_OF_HOM_REF = 0;
     private static List<Allele> chooseMostLikelyAlternateAlleles(VariantContext vc, int numAllelesToChoose, int ploidy) {
         final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
         final LikelihoodSum[] likelihoodSums = new LikelihoodSum[numOriginalAltAlleles];
@@ -143,7 +144,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
             // by convention, first count coming from getAlleleCountFromPLIndex comes from reference allele
             for (int k=1; k < acCount.length;k++) {
                 if (acCount[k] > 0)
-                    likelihoodSums[k-1].sum += likelihoods[PLindexOfBestGL];
+                    likelihoodSums[k-1].sum += acCount[k] * (likelihoods[PLindexOfBestGL] - likelihoods[PL_INDEX_OF_HOM_REF]);
 
             }
         }
