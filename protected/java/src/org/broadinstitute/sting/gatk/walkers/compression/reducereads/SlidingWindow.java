@@ -24,7 +24,7 @@ import java.util.*;
 public class SlidingWindow {
 
     // Sliding Window data
-    final private LinkedList<GATKSAMRecord> readsInWindow;
+    final private TreeSet<GATKSAMRecord> readsInWindow;
     final private LinkedList<HeaderElement> windowHeader;
     protected int contextSize;                                                                                          // the largest context size (between mismatches and indels)
     protected String contig;
@@ -97,7 +97,13 @@ public class SlidingWindow {
         this.MIN_MAPPING_QUALITY = minMappingQuality;
 
         this.windowHeader = new LinkedList<HeaderElement>();
-        this.readsInWindow = new LinkedList<GATKSAMRecord>();
+        this.readsInWindow = new TreeSet<GATKSAMRecord>(new Comparator<GATKSAMRecord>() {
+            @Override
+            public int compare(GATKSAMRecord read1, GATKSAMRecord read2) {
+                final int difference = read1.getSoftEnd() - read2.getSoftEnd();
+                return difference != 0 ? difference : read1.getReadName().compareTo(read2.getReadName());
+            }
+        });
 
         this.contig = contig;
         this.contigIndex = contigIndex;
@@ -195,55 +201,102 @@ public class SlidingWindow {
      * @param incomingReadUnclippedStart the incoming read's start position. Must be the unclipped start!
      * @return all reads that have fallen to the left of the sliding window after the slide
      */
-    protected List<GATKSAMRecord> slideWindow(int incomingReadUnclippedStart) {
+    protected List<GATKSAMRecord> slideWindow(final int incomingReadUnclippedStart) {
         List<GATKSAMRecord> finalizedReads = new LinkedList<GATKSAMRecord>();
 
-        if (incomingReadUnclippedStart - contextSize > getStartLocation(windowHeader)) {
-            int readStartHeaderIndex = incomingReadUnclippedStart - getStartLocation(windowHeader);
-            boolean[] variantSite = markSites(getStartLocation(windowHeader) + readStartHeaderIndex);
+        final int windowHeaderStartLocation = getStartLocation(windowHeader);
+
+        if (incomingReadUnclippedStart - contextSize > windowHeaderStartLocation) {
+            markSites(incomingReadUnclippedStart);
+            int readStartHeaderIndex = incomingReadUnclippedStart - windowHeaderStartLocation;
             int breakpoint = Math.max(readStartHeaderIndex - contextSize - 1, 0);                                       // this is the limit of what we can close/send to consensus (non-inclusive)
 
-            List<Pair<Integer,Integer>> regions = getAllVariantRegions(0, breakpoint, variantSite);
+            List<Pair<Integer,Integer>> regions = getAllVariantRegions(0, breakpoint, markedSites.getVariantSiteBitSet());
             finalizedReads = closeVariantRegions(regions, false);
 
-            List<GATKSAMRecord> readsToRemove = new LinkedList<GATKSAMRecord>();
-            final int windowHeaderStartLoc = getStartLocation(windowHeader);
-            for (final GATKSAMRecord read : readsInWindow) {                                                            // todo -- unnecessarily going through all reads in the window !! Optimize this (But remember reads are not sorted by alignment end!)
-                if (read.getSoftEnd() < windowHeaderStartLoc) {
-                    readsToRemove.add(read);
-                }
-            }
-            for (GATKSAMRecord read : readsToRemove) {
-                readsInWindow.remove(read);
+            while (!readsInWindow.isEmpty() && readsInWindow.first().getSoftEnd() < windowHeaderStartLocation) {
+                readsInWindow.pollFirst();
             }
         }
 
         return finalizedReads;
     }
 
+
+    private final class MarkedSites {
+
+        private boolean[] siteIsVariant = new boolean[0];
+        private int startLocation = 0;
+
+        public MarkedSites() {}
+
+        public boolean[] getVariantSiteBitSet() { return siteIsVariant; }
+
+        /**
+         * Updates the variant site bitset given the new startlocation and size of the region to mark.
+         *
+         * @param newStartLocation   the new start location of the bitset
+         * @param sizeOfRegion       the new size of the region to be represented
+         *
+         * @return the end position (newStartLocation + index) of the region marked by this method; the calling method is responsible for the remainder.
+         */
+        public int updateRegion(final int newStartLocation, final int sizeOfRegion) {
+            int lastPositionMarked = sizeOfRegion;
+
+            // if this is the first time we set the array and we can't reuse anything, just create a new array from scratch
+            if ( newStartLocation >= this.startLocation + siteIsVariant.length || newStartLocation < this.startLocation ) {
+                siteIsVariant = new boolean[sizeOfRegion];
+                lastPositionMarked = 0;
+            }
+            // if the dimensions change, copy what we can and continue
+            else if ( newStartLocation != this.startLocation || sizeOfRegion != siteIsVariant.length ) {
+                final boolean[] tempArray = new boolean[sizeOfRegion];
+                final int differenceInStartPositions = newStartLocation - this.startLocation;
+                lastPositionMarked = Math.min(siteIsVariant.length - differenceInStartPositions, sizeOfRegion);
+                System.arraycopy(siteIsVariant, differenceInStartPositions, tempArray, 0, lastPositionMarked);
+                siteIsVariant = null;   // explicitly allow garbage collection
+                siteIsVariant = tempArray;
+            }
+
+            this.startLocation = newStartLocation;
+
+            return lastPositionMarked + newStartLocation;
+        }
+    }
+
+    private final MarkedSites markedSites = new MarkedSites();
+
     /**
      * returns an array marked with variant and non-variant regions (it uses
      * markVariantRegions to make the marks)
      *
      * @param stop check the window from start to stop (not-inclusive)
-     * @return a boolean array with 'true' marking variant regions and false marking consensus sites
      */
-    protected boolean[] markSites(int stop) {
+    protected void markSites(final int stop) {
 
-        boolean[] markedSites = new boolean[stop - getStartLocation(windowHeader) + contextSize + 1];
+        final int windowHeaderStartLocation = getStartLocation(windowHeader);
+        final int sizeOfMarkedRegion = stop - windowHeaderStartLocation + contextSize + 1;
+        final int lastPositionMarked = markedSites.updateRegion(windowHeaderStartLocation, sizeOfMarkedRegion);
+        final int locationToProcess = Math.min(lastPositionMarked, stop - contextSize);
 
+        // update the iterator to the correct position
         Iterator<HeaderElement> headerElementIterator = windowHeader.iterator();
-        for (int i = getStartLocation(windowHeader); i < stop; i++) {
+        for (int i = windowHeaderStartLocation; i < locationToProcess; i++) {
+            if (headerElementIterator.hasNext())
+                headerElementIterator.next();
+        }
+
+        // process a contextSize worth of region from scratch in case there's a variant there
+        for (int i = locationToProcess; i < stop; i++) {
             if (headerElementIterator.hasNext()) {
                 HeaderElement headerElement = headerElementIterator.next();
 
                 if (headerElement.isVariant(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT, MIN_INDEL_BASE_PROPORTION_TO_TRIGGER_VARIANT))
-                    markVariantRegion(markedSites, i - getStartLocation(windowHeader));
+                    markVariantRegion(markedSites, i - windowHeaderStartLocation);
 
             } else
                 break;
         }
-        return markedSites;
     }
 
     /**
@@ -252,11 +305,11 @@ public class SlidingWindow {
      * @param markedSites         the boolean array to bear the marks
      * @param variantSiteLocation the location where a variant site was found
      */
-    protected void markVariantRegion(boolean[] markedSites, int variantSiteLocation) {
+    protected void markVariantRegion(final MarkedSites markedSites, final int variantSiteLocation) {
         int from = (variantSiteLocation < contextSize) ? 0 : variantSiteLocation - contextSize;
-        int to = (variantSiteLocation + contextSize + 1 > markedSites.length) ? markedSites.length : variantSiteLocation + contextSize + 1;
+        int to = (variantSiteLocation + contextSize + 1 > markedSites.getVariantSiteBitSet().length) ? markedSites.getVariantSiteBitSet().length : variantSiteLocation + contextSize + 1;
         for (int i = from; i < to; i++)
-            markedSites[i] = true;
+            markedSites.getVariantSiteBitSet()[i] = true;
     }
 
     /**
@@ -625,8 +678,8 @@ public class SlidingWindow {
         List<GATKSAMRecord> finalizedReads = new LinkedList<GATKSAMRecord>();
 
         if (!windowHeader.isEmpty()) {
-            boolean[] variantSite = markSites(getStopLocation(windowHeader) + 1);
-            List<Pair<Integer,Integer>> regions = getAllVariantRegions(0, windowHeader.size(), variantSite);
+            markSites(getStopLocation(windowHeader) + 1);
+            List<Pair<Integer,Integer>> regions = getAllVariantRegions(0, windowHeader.size(), markedSites.getVariantSiteBitSet());
             finalizedReads = closeVariantRegions(regions, true);
 
             if (!windowHeader.isEmpty()) {
@@ -635,6 +688,7 @@ public class SlidingWindow {
             }
 
         }
+
         return finalizedReads;
     }
 
