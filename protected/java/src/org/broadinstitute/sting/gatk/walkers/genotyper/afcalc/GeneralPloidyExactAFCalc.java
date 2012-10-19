@@ -136,7 +136,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
             likelihoodSums[i] = new LikelihoodSum(vc.getAlternateAllele(i));
 
         // based on the GLs, find the alternate alleles with the most probability; sum the GLs for the most likely genotype
-        final ArrayList<double[]> GLs = getGLs(vc.getGenotypes(), true);
+        final ArrayList<double[]> GLs = getGLs(vc.getGenotypes(), false);
         for ( final double[] likelihoods : GLs ) {
 
             final int PLindexOfBestGL = MathUtils.maxElementIndex(likelihoods);
