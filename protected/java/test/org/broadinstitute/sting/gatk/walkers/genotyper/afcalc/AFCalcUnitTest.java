@@ -372,16 +372,14 @@ public class AFCalcUnitTest extends BaseTest {
         final VariantContext vc3 = new VariantContextBuilder("x","1", 1, 1, Arrays.asList(A, C, G)).make();
         final AFCalcTestBuilder.PriorType priorType = AFCalcTestBuilder.PriorType.flat;
 
-        final List<AFCalcFactory.Calculation> constrainedModel = Arrays.asList(AFCalcFactory.Calculation.EXACT_CONSTRAINED);
-
         final double TOLERANCE = 0.5;
 
         final List<PNonRefData> initialPNonRefData = Arrays.asList(
                 // bi-allelic sites
                 new PNonRefData(vc2, makePL(AA, 0, 10, 10), 0.1666667, TOLERANCE, true),
-                new PNonRefData(vc2, makePL(AA, 0,  1, 10), 0.4721084, TOLERANCE, false, constrainedModel),
-                new PNonRefData(vc2, makePL(AA, 0,  1,  1), 0.6136992, TOLERANCE, false, constrainedModel),
-                new PNonRefData(vc2, makePL(AA, 0,  5,  5), 0.3874259, TOLERANCE, false, constrainedModel),
+                new PNonRefData(vc2, makePL(AA, 0,  1, 10), 0.4721084, TOLERANCE, false),
+                new PNonRefData(vc2, makePL(AA, 0,  1,  1), 0.6136992, TOLERANCE, false),
+                new PNonRefData(vc2, makePL(AA, 0,  5,  5), 0.3874259, TOLERANCE, false),
                 new PNonRefData(vc2, makePL(AC, 10, 0, 10), 0.9166667, TOLERANCE, true),
                 new PNonRefData(vc2, makePL(CC, 10, 10, 0), 0.9166667, TOLERANCE, true),
 
@@ -448,7 +446,7 @@ public class AFCalcUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(enabled = true & ! DEBUG_ONLY, dataProvider = "Models")
+    @Test(enabled = true && !DEBUG_ONLY, dataProvider = "Models")
     public void testBiallelicPriors(final AFCalc model) {
 
         for ( int REF_PL = 10; REF_PL <= 20; REF_PL += 10 ) {
@@ -456,26 +454,29 @@ public class AFCalcUnitTest extends BaseTest {
 
             for ( int log10NonRefPrior = 1; log10NonRefPrior < 10*REF_PL; log10NonRefPrior += 1 ) {
                 final double refPrior = 1 - QualityUtils.qualToErrorProb(log10NonRefPrior);
-                final double[] priors = MathUtils.normalizeFromLog10(MathUtils.toLog10(new double[]{refPrior, (1-refPrior) / 2, (1-refPrior) / 2}), true);
-                GetGLsTest cfg = new GetGLsTest(model, 1, Arrays.asList(AB), priors, "pNonRef" + log10NonRefPrior);
-                final AFCalcResult resultTracker = cfg.execute();
-                final int actualAC = resultTracker.getAlleleCountsOfMLE()[0];
+                final double nonRefPrior = (1-refPrior) / 2;
+                final double[] priors = MathUtils.normalizeFromLog10(MathUtils.toLog10(new double[]{refPrior, nonRefPrior, nonRefPrior}), true);
+                if ( ! Double.isInfinite(priors[1]) ) {
+                    GetGLsTest cfg = new GetGLsTest(model, 1, Arrays.asList(AB), priors, "pNonRef" + log10NonRefPrior);
+                    final AFCalcResult resultTracker = cfg.execute();
+                    final int actualAC = resultTracker.getAlleleCountsOfMLE()[0];
 
-                final double pRefWithPrior = AB.getLikelihoods().getAsVector()[0] + priors[0];
-                final double pHetWithPrior = AB.getLikelihoods().getAsVector()[1] + priors[1] - Math.log10(0.5);
-                final double nonRefPost = Math.pow(10, pHetWithPrior) / (Math.pow(10, pRefWithPrior) + Math.pow(10, pHetWithPrior));
-                final double log10NonRefPost = Math.log10(nonRefPost);
+                    final double pRefWithPrior = AB.getLikelihoods().getAsVector()[0] + priors[0];
+                    final double pHetWithPrior = AB.getLikelihoods().getAsVector()[1] + priors[1] - Math.log10(0.5);
+                    final double nonRefPost = Math.pow(10, pHetWithPrior) / (Math.pow(10, pRefWithPrior) + Math.pow(10, pHetWithPrior));
+                    final double log10NonRefPost = Math.log10(nonRefPost);
 
-                if ( ! Double.isInfinite(log10NonRefPost) )
-                    Assert.assertEquals(resultTracker.getLog10PosteriorOfAFGT0(), log10NonRefPost, 1e-2);
+                    if ( ! Double.isInfinite(log10NonRefPost) )
+                        Assert.assertEquals(resultTracker.getLog10PosteriorOfAFGT0(), log10NonRefPost, 1e-2);
 
-                if ( nonRefPost >= 0.9 )
-                    Assert.assertTrue(resultTracker.isPolymorphic(C, -1));
+                    if ( nonRefPost >= 0.9 )
+                        Assert.assertTrue(resultTracker.isPolymorphic(C, -1));
 
-                final int expectedMLEAC = 1; // the MLE is independent of the prior
-                Assert.assertEquals(actualAC, expectedMLEAC,
-                        "actual AC with priors " + log10NonRefPrior + " not expected "
-                                + expectedMLEAC + " priors " + Utils.join(",", priors));
+                    final int expectedMLEAC = 1; // the MLE is independent of the prior
+                    Assert.assertEquals(actualAC, expectedMLEAC,
+                            "actual AC with priors " + log10NonRefPrior + " not expected "
+                                    + expectedMLEAC + " priors " + Utils.join(",", priors));
+                }
             }
         }
     }
