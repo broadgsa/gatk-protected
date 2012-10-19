@@ -45,12 +45,16 @@ public class AFCalcTestBuilder {
         human
     }
 
+    public int getNumAltAlleles() {
+        return numAltAlleles;
+    }
+
     public int getnSamples() {
         return nSamples;
     }
 
     public AFCalc makeModel() {
-        return AFCalcFactory.createAFCalc(modelType, nSamples, 4, 4, 2);
+        return AFCalcFactory.createAFCalc(modelType, nSamples, getNumAltAlleles(), getNumAltAlleles(), 2);
     }
 
     public double[] makePriors() {

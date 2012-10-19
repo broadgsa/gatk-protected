@@ -182,20 +182,19 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     private double minIndelProportionToTriggerVariant = 0.05;
 
     /**
-     * Minimum proportion of indels in a site to trigger a variant region. Anything below this will be
-     * considered consensus.
-     */
-    @Argument(fullName = "contigs", shortName = "ctg", doc = "", required = false)
-    private int nContigs = 2;
-
-
-
-    /**
      * Downsamples the coverage of a variable region approximately (guarantees the minimum to be equal to this).
      * A value of 0 turns downsampling off.
      */
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
     private int downsampleCoverage = 250;
+
+    /**
+     * Number of chromossomes in the sample (this is used for the polyploid consensus compression). Only
+     * tested for humans (or organisms with n=2). Use at your own risk!
+     */
+    @Hidden
+    @Argument(fullName = "contigs", shortName = "ctg", doc = "", required = false)
+    private int nContigs = 2;
 
     @Hidden
     @Argument(fullName = "", shortName = "dl", doc = "", required = false)
