@@ -185,7 +185,7 @@ public class AFCalcUnitTest extends BaseTest {
             testResultSimple(cfg);
     }
 
-    @Test(enabled = true, dataProvider = "badGLs")
+    @Test(enabled = true && !DEBUG_ONLY, dataProvider = "badGLs")
     public void testBadGLs(GetGLsTest cfg) {
         testResultSimple(cfg);
     }

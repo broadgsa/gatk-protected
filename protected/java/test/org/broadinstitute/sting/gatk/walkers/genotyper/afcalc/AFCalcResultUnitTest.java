@@ -56,6 +56,11 @@ public class AFCalcResultUnitTest extends BaseTest {
             tests.add(new Object[]{new MyTest(new double[]{-1e-9, badL}, new double[]{0.0, badL})});
         }
 
+        // test that a non-ref site gets reasonable posteriors with an ~0.0 value doesn't get lost
+        for ( final double nonRefL : Arrays.asList(-100.0, -50.0, -10.0, -9.0, -8.0, -7.0, -6.0, -5.0)) {
+            tests.add(new Object[]{new MyTest(new double[]{0.0, nonRefL}, new double[]{0.0, nonRefL})});
+        }
+
         return tests.toArray(new Object[][]{});
     }
 
