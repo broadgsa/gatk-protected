@@ -52,6 +52,7 @@ import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.fragments.FragmentCollection;
 import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -113,6 +114,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false)
     protected PrintStream graphWriter = null;
+
+    /**
+     * The PairHMM implementation to use for genotype likelihood calculations. The various implementations balance a tradeoff of accuracy and runtime.
+     */
+    @Argument(fullName = "pair_hmm_implementation", shortName = "pairHMM", doc = "The PairHMM implementation to use for genotype likelihood calculations", required = false)
+    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING;
 
     @Hidden
     @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
@@ -287,7 +294,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter );
-        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, false );
+        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, OUTPUT_FULL_HAPLOTYPE_SEQUENCE );
     }
 
@@ -399,6 +406,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         activeRegion.hardClipToActiveRegion(); // only evaluate the parts of reads that are overlapping the active region
         final List<GATKSAMRecord> filteredReads = filterNonPassingReads( activeRegion ); // filter out reads from genotyping which fail mapping quality based criteria
         if( activeRegion.size() == 0 ) { return 1; } // no reads remain after filtering so nothing else to do!
+
+        // sort haplotypes to take full advantage of haplotype start offset optimizations in PairHMM
+        Collections.sort( haplotypes, new Haplotype.HaplotypeBaseComparator() );
 
         // evaluate each sample's reads against all haplotypes
         final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList = splitReadsBySample( activeRegion.getReads() );
