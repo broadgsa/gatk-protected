@@ -242,13 +242,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
         final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
         UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
-        UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY; // low values used for isActive determination only, default/user-specified values used for actual calling
-        UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY; // low values used for isActive determination only, default/user-specified values used for actual calling
-        UAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING );
-        UAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING );
 
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
         UnifiedArgumentCollection simpleUAC = new UnifiedArgumentCollection(UAC);
+        simpleUAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY; // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY; // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING );
+        simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING );
         simpleUAC.exactCallsLog = null;
         UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
 
