@@ -1,5 +1,6 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
+import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -124,12 +125,7 @@ public class AFCalcUnitTest extends BaseTest {
         final List<Genotype> triAllelicSamples = Arrays.asList(AA2, AB2, BB2, AC2, BC2, CC2);
 
         for ( final int nSamples : Arrays.asList(1, 2, 3, 4) ) {
-            List<AFCalc> calcs = AFCalcFactory.createAFCalcs(
-                    Arrays.asList(
-                            AFCalcFactory.Calculation.EXACT_REFERENCE,
-                            AFCalcFactory.Calculation.EXACT_INDEPENDENT,
-                            AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY
-                    ), 4, 2, 2, 2);
+            List<AFCalc> calcs = AFCalcFactory.createAFCalcs( Arrays.asList( AFCalcFactory.Calculation.values() ), 4, 2, 2, 2);
 
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
@@ -146,7 +142,7 @@ public class AFCalcUnitTest extends BaseTest {
                             new GetGLsTest(model, 1, genotypes, priors, priorName);
 
                     // tri-allelic
-                    if ( INCLUDE_TRIALLELIC && ( ! priorName.equals("human") || Guillermo_FIXME ) ) // || model != generalCalc ) )
+                    if ( INCLUDE_TRIALLELIC && ( ! priorName.equals("human") || Guillermo_FIXME ) && ! ( model instanceof OriginalDiploidExactAFCalc) ) // || model != generalCalc ) )
                         for ( List<Genotype> genotypes : Utils.makePermutations(triAllelicSamples, nSamples, true) )
                             new GetGLsTest(model, 2, genotypes, priors, priorName);
                 }
@@ -156,22 +152,28 @@ public class AFCalcUnitTest extends BaseTest {
         return GetGLsTest.getTests(GetGLsTest.class);
     }
 
-    @DataProvider(name = "badGLs")
-    public Object[][] createBadGLs() {
-        final List<Genotype> genotypes = Arrays.asList(AB2, BB2, CC2, CC2);
-        final int nSamples = genotypes.size();
+//    @DataProvider(name = "badGLs")
+//    public Object[][] createBadGLs() {
+//        final List<Genotype> genotypes = Arrays.asList(AB2, BB2, CC2, CC2);
+//        final int nSamples = genotypes.size();
+//
+//        final AFCalc indCalc = AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, nSamples, 4);
+//
+//        final int nPriorValues = 2*nSamples+1;
+//        final double[] priors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
+//        for ( AFCalc model : Arrays.asList(indCalc) ) {
+//            final String priorName = "flat";
+//            new GetGLsTest(model, 2, genotypes, priors, priorName);
+//        }
+//
+//        return GetGLsTest.getTests(GetGLsTest.class);
+//    }
 
-        final AFCalc indCalc = AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, nSamples, 4);
-
-        final int nPriorValues = 2*nSamples+1;
-        final double[] priors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
-        for ( AFCalc model : Arrays.asList(indCalc) ) {
-            final String priorName = "flat";
-            new GetGLsTest(model, 2, genotypes, priors, priorName);
-        }
-
-        return GetGLsTest.getTests(GetGLsTest.class);
-    }
+//
+//    @Test(enabled = true && !DEBUG_ONLY, dataProvider = "badGLs")
+//    public void testBadGLs(GetGLsTest cfg) {
+//        testResultSimple(cfg);
+//    }
 
     @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "wellFormedGLs")
     public void testBiallelicGLs(GetGLsTest cfg) {
@@ -183,11 +185,6 @@ public class AFCalcUnitTest extends BaseTest {
     public void testTriallelicGLs(GetGLsTest cfg) {
         if ( cfg.getAlleles().size() > 2 )
             testResultSimple(cfg);
-    }
-
-    @Test(enabled = true, dataProvider = "badGLs")
-    public void testBadGLs(GetGLsTest cfg) {
-        testResultSimple(cfg);
     }
 
     private static class NonInformativeData {
@@ -218,16 +215,14 @@ public class AFCalcUnitTest extends BaseTest {
                 samples.addAll(Collections.nCopies(nNonInformative, testData.nonInformative));
 
                 final int nSamples = samples.size();
-                List<AFCalc> calcs = AFCalcFactory.createAFCalcs(
-                        Arrays.asList(
-                                AFCalcFactory.Calculation.EXACT_REFERENCE,
-                                AFCalcFactory.Calculation.EXACT_INDEPENDENT,
-                                AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY
-                        ), 4, 2, 2, 2);
+                List<AFCalc> calcs = AFCalcFactory.createAFCalcs(Arrays.asList(AFCalcFactory.Calculation.values()), 4, 2, 2, 2);
 
                 final double[] priors = MathUtils.normalizeFromLog10(new double[2*nSamples+1], true);  // flat priors
 
                 for ( AFCalc model : calcs ) {
+                    if ( testData.nAltAlleles > 1 && model instanceof OriginalDiploidExactAFCalc )
+                        continue;
+
                     final GetGLsTest onlyInformative = new GetGLsTest(model, testData.nAltAlleles, testData.called, priors, "flat");
 
                     for ( int rotation = 0; rotation < nSamples; rotation++ ) {
@@ -428,6 +423,94 @@ public class AFCalcUnitTest extends BaseTest {
                 "Actual pNonRef not within tolerance " + tolerance + " of expected");
     }
 
+    @DataProvider(name = "PNonRefBiallelicSystematic")
+    public Object[][] makePNonRefBiallelicSystematic() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final List<Integer> bigNonRefPLs = Arrays.asList(0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 100, 1000);
+        final List<List<Integer>> bigDiploidPLs = removeBadPLs(Utils.makePermutations(bigNonRefPLs, 3, true));
+
+        for ( AFCalcFactory.Calculation modelType : AFCalcFactory.Calculation.values() ) {
+
+            if ( false ) { // for testing only
+                tests.add(new Object[]{modelType, toGenotypes(Arrays.asList(Arrays.asList(0,100,0)))});
+            } else {
+                if ( modelType == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY ) continue; // TODO -- GENERAL_PLOIDY DOESN'T WORK
+
+                // test all combinations of PLs for 1 sample
+                for ( final List<List<Integer>> PLsPerSample : Utils.makePermutations(bigDiploidPLs, 1, true) ) {
+                    tests.add(new Object[]{modelType, toGenotypes(PLsPerSample)});
+                }
+
+
+                final List<List<Integer>> smallDiploidPLs = new LinkedList<List<Integer>>();
+                for ( final int nonRefPL : Arrays.asList(5, 10, 20, 30) ) {
+                    for ( int i = 0; i < 2; i++ ) {
+                        List<Integer> pls = new ArrayList<Integer>(Collections.nCopies(3, nonRefPL));
+                        pls.set(i, 0);
+                        smallDiploidPLs.add(pls);
+                    }
+                }
+
+                for ( final List<List<Integer>> PLsPerSample : Utils.makePermutations(smallDiploidPLs, 5, false) ) {
+                    tests.add(new Object[]{modelType, toGenotypes(PLsPerSample)});
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    final List<List<Integer>> removeBadPLs(List<List<Integer>> listOfPLs) {
+        List<List<Integer>> clean = new LinkedList<List<Integer>>();
+
+        for ( final List<Integer> PLs : listOfPLs ) {
+            int x = PLs.get(0);
+            boolean bad = false;
+            for ( int pl1 : PLs )
+                if ( pl1 > x )
+                    bad = true;
+                else
+                    x = pl1;
+            if ( ! bad ) clean.add(PLs);
+        }
+
+        return clean;
+    }
+
+    private List<Genotype> toGenotypes(final List<List<Integer>> PLsPerSample) {
+        final List<Allele> nocall = Arrays.asList(Allele.NO_CALL, Allele.NO_CALL);
+        final List<Genotype> genotypes = new ArrayList<Genotype>(PLsPerSample.size());
+
+        for ( final List<Integer> PLs : PLsPerSample ) {
+            final int[] pls = ArrayUtils.toPrimitive(PLs.toArray(new Integer[3]));
+            final int min = MathUtils.arrayMin(pls);
+            for ( int i = 0; i < pls.length; i++ ) pls[i] -= min;
+            genotypes.add(makePL(nocall, pls));
+        }
+
+        return genotypes;
+    }
+
+    @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "PNonRefBiallelicSystematic")
+    private void PNonRefBiallelicSystematic(AFCalcFactory.Calculation modelType, final List<Genotype> genotypes) {
+        //logger.warn("Running " + modelType + " with " + genotypes);
+        final AFCalcTestBuilder refBuilder = new AFCalcTestBuilder(genotypes.size(), 1, AFCalcFactory.Calculation.EXACT_REFERENCE, AFCalcTestBuilder.PriorType.human);
+        final AFCalcTestBuilder testBuilder = new AFCalcTestBuilder(genotypes.size(), 1, modelType, AFCalcTestBuilder.PriorType.human);
+
+        final VariantContextBuilder vcb = new VariantContextBuilder("x", "1", 1, 1, Arrays.asList(A, C));
+        vcb.genotypes(genotypes);
+
+        final AFCalcResult refResult = refBuilder.makeModel().getLog10PNonRef(vcb.make(), testBuilder.makePriors());
+        final AFCalcResult testResult = testBuilder.makeModel().getLog10PNonRef(vcb.make(), testBuilder.makePriors());
+
+        final double tolerance = 1e-3;
+        Assert.assertEquals(testResult.getLog10PosteriorOfAFGT0(), refResult.getLog10PosteriorOfAFGT0(), tolerance,
+                "Actual pNonRef not within tolerance " + tolerance + " of expected");
+        Assert.assertEquals(testResult.getAlleleCountsOfMLE(), refResult.getAlleleCountsOfMLE(),
+                "Actual MLE " + Utils.join(",", testResult.getAlleleCountsOfMLE()) + " not equal to expected " + Utils.join(",", refResult.getAlleleCountsOfMLE()));
+    }
+
     // --------------------------------------------------------------------------------
     //
     // Test priors
@@ -495,7 +578,7 @@ public class AFCalcUnitTest extends BaseTest {
 
         // list of all high-quality models in the system
         final List<AFCalcFactory.Calculation> models = Arrays.asList(
-                AFCalcFactory.Calculation.EXACT,
+                AFCalcFactory.Calculation.getDefaultModel(),
                 AFCalcFactory.Calculation.EXACT_REFERENCE,
                 AFCalcFactory.Calculation.EXACT_INDEPENDENT);
 
