@@ -14,6 +14,9 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     final String DIVIDEBYZERO_BAM = validationDataLocation + "ReduceReadsDivideByZeroBug.bam";
     final String DIVIDEBYZERO_L = " -L " + validationDataLocation + "ReduceReadsDivideByZeroBug.intervals";
     final String L = " -L 20:10,100,000-10,120,000 ";
+    final String COREDUCTION_BAM_A = validationDataLocation + "coreduction.test.A.bam";
+    final String COREDUCTION_BAM_B = validationDataLocation + "coreduction.test.B.bam";
+    final String COREDUCTION_L = " -L 1:1,853,860-1,854,354 -L 1:1,884,131-1,892,057";
 
     private void RRTest(String testName, String args, String md5) {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, BAM) + " -o %s ";
@@ -75,6 +78,12 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     public void testDivideByZero() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", DIVIDEBYZERO_L, REF, DIVIDEBYZERO_BAM) + " -o %s ";
         executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("d8d066304f7c187f182bfb50f39baa0c")));
+    }
+
+    @Test(enabled = true)
+    public void testCoReduction() {
+        String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
+        executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("")));
     }
 
 }
