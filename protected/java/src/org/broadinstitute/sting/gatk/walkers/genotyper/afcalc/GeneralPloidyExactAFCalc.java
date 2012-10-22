@@ -40,22 +40,20 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
     private final static boolean VERBOSE = false;
 
-    protected GeneralPloidyExactAFCalc(final int nSamples, final int maxAltAlleles, final int maxAltAllelesForIndels, final int ploidy) {
-        super(nSamples, maxAltAlleles, maxAltAllelesForIndels, ploidy);
+    protected GeneralPloidyExactAFCalc(final int nSamples, final int maxAltAlleles, final int ploidy) {
+        super(nSamples, maxAltAlleles, ploidy);
         this.ploidy = ploidy;
     }
 
     @Override
     protected VariantContext reduceScope(VariantContext vc) {
-        final int maxAltAlleles = vc.getType().equals(VariantContext.Type.INDEL) ? maxAlternateAllelesForIndels : maxAlternateAllelesToGenotype;
-
         // don't try to genotype too many alternate alleles
-        if ( vc.getAlternateAlleles().size() > maxAltAlleles) {
-            logger.warn("this tool is currently set to genotype at most " + maxAltAlleles + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart() + " has " + (vc.getAlternateAlleles().size()) + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
+        if ( vc.getAlternateAlleles().size() > getMaxAltAlleles()) {
+            logger.warn("this tool is currently set to genotype at most " + getMaxAltAlleles() + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart() + " has " + (vc.getAlternateAlleles().size()) + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
 
-            final List<Allele> alleles = new ArrayList<Allele>(maxAltAlleles + 1);
+            final List<Allele> alleles = new ArrayList<Allele>(getMaxAltAlleles() + 1);
             alleles.add(vc.getReference());
-            alleles.addAll(chooseMostLikelyAlternateAlleles(vc, maxAltAlleles, ploidy));
+            alleles.addAll(chooseMostLikelyAlternateAlleles(vc, getMaxAltAlleles(), ploidy));
 
             VariantContextBuilder builder = new VariantContextBuilder(vc);
             builder.alleles(alleles);

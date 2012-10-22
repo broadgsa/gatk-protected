@@ -125,7 +125,7 @@ public class AFCalcUnitTest extends BaseTest {
         final List<Genotype> triAllelicSamples = Arrays.asList(AA2, AB2, BB2, AC2, BC2, CC2);
 
         for ( final int nSamples : Arrays.asList(1, 2, 3, 4) ) {
-            List<AFCalc> calcs = AFCalcFactory.createAFCalcs( Arrays.asList( AFCalcFactory.Calculation.values() ), 4, 2, 2, 2);
+            List<AFCalc> calcs = AFCalcFactory.createAFCalcs( Arrays.asList( AFCalcFactory.Calculation.values() ), 4, 2, 2);
 
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
@@ -215,7 +215,7 @@ public class AFCalcUnitTest extends BaseTest {
                 samples.addAll(Collections.nCopies(nNonInformative, testData.nonInformative));
 
                 final int nSamples = samples.size();
-                List<AFCalc> calcs = AFCalcFactory.createAFCalcs(Arrays.asList(AFCalcFactory.Calculation.values()), 4, 2, 2, 2);
+                List<AFCalc> calcs = AFCalcFactory.createAFCalcs(Arrays.asList(AFCalcFactory.Calculation.values()), 4, 2, 2);
 
                 final double[] priors = MathUtils.normalizeFromLog10(new double[2*nSamples+1], true);  // flat priors
 
