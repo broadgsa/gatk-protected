@@ -54,7 +54,7 @@ public class AFCalcTestBuilder {
     }
 
     public AFCalc makeModel() {
-        return AFCalcFactory.createAFCalc(modelType, nSamples, getNumAltAlleles(), getNumAltAlleles(), 2);
+        return AFCalcFactory.createAFCalc(modelType, nSamples, getNumAltAlleles(), 2);
     }
 
     public double[] makePriors() {
