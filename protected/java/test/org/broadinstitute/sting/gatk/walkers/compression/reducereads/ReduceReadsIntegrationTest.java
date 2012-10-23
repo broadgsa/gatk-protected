@@ -14,6 +14,9 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     final String DIVIDEBYZERO_BAM = validationDataLocation + "ReduceReadsDivideByZeroBug.bam";
     final String DIVIDEBYZERO_L = " -L " + validationDataLocation + "ReduceReadsDivideByZeroBug.intervals";
     final String L = " -L 20:10,100,000-10,120,000 ";
+    final String COREDUCTION_BAM_A = validationDataLocation + "coreduction.test.A.bam";
+    final String COREDUCTION_BAM_B = validationDataLocation + "coreduction.test.B.bam";
+    final String COREDUCTION_L = " -L 1:1,853,860-1,854,354 -L 1:1,884,131-1,892,057";
 
     private void RRTest(String testName, String args, String md5) {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, BAM) + " -o %s ";
@@ -23,28 +26,28 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testDefaultCompression() {
-        RRTest("testDefaultCompression ", L, "1f95f3193bd9f120a73c34a0087abaf6");
+        RRTest("testDefaultCompression ", L, "46ea88e32bae3072f5cd68a0db4b55f1");
     }
 
     @Test(enabled = true)
     public void testMultipleIntervals() {
         String intervals = "-L 20:10,100,000-10,100,500 -L 20:10,200,000-10,200,500 -L 20:10,300,000-10,300,500 -L 20:10,400,000-10,500,000 -L 20:10,500,050-10,500,060 -L 20:10,600,000-10,600,015 -L 20:10,700,000-10,700,110";
-        RRTest("testMultipleIntervals ", intervals, "79213d6ac68d56d4d72dcf511223e424");
+        RRTest("testMultipleIntervals ", intervals, "c3784a0b42f5456b705f9b152a4b697a");
     }
 
     @Test(enabled = true)
     public void testHighCompression() {
-        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "dab2aa8e3655139974bbe12a568363d9");
+        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "e385eb0ae5768f8507671d5303a212d5");
     }
 
     @Test(enabled = true)
     public void testLowCompression() {
-        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "7c9b4a70c2c90b0a995800aa42852e63");
+        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "6b5546be9363e493b9838542f5dc8cae");
     }
 
     @Test(enabled = true)
     public void testIndelCompression() {
-        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "1255245ed4ebeacda90f0dbb4e4da081");
+        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "f6c9ea83608f35f113cf1f62a77ee6d0");
     }
 
     @Test(enabled = true)
@@ -64,7 +67,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testAddingReadAfterTailingTheStash() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", STASH_L, REF, STASH_BAM) + " -o %s ";
-        executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("4b590269cbe3574dbdd5bdc2bc6f5f1c")));
+        executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("647b0f0f95730de8e6bc4f74186ad4df")));
     }
 
     /**
@@ -74,7 +77,13 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testDivideByZero() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", DIVIDEBYZERO_L, REF, DIVIDEBYZERO_BAM) + " -o %s ";
-        executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("d8d066304f7c187f182bfb50f39baa0c")));
+        executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("2c87985972dd43ee9dd50b463d93a511")));
+    }
+
+    @Test(enabled = true)
+    public void testCoReduction() {
+        String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
+        executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("")));
     }
 
 }

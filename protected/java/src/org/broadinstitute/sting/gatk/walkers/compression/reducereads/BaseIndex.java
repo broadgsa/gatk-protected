@@ -1,5 +1,7 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+
 /**
  * Simple byte / base index conversions
  *
@@ -56,7 +58,7 @@ public enum BaseIndex {
             case 'N':
             case 'n':
                 return N;
-            default: return null;
+            default: throw new ReviewedStingException("Tried to create a byte index for an impossible base " + base);
         }
     }
 
@@ -68,7 +70,7 @@ public enum BaseIndex {
      * @return whether or not it is a nucleotide, given the definition above
      */
     public boolean isNucleotide() {
-        return this == A || this == C || this == G || this == T || this == N;
+        return !isIndel();
     }
 
     /**
