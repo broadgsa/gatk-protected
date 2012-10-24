@@ -42,7 +42,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(CEUTRIO_BAM, "", "30598abeeb0b0ae5816ffdbf0c4044fd");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "966d338f423c86a390d685aa6336ec69");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -94,6 +94,4 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 Arrays.asList("79af83432dc4a1768b3ebffffc4d2b8f"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
-
-
 }
