@@ -27,7 +27,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import org.broadinstitute.sting.gatk.walkers.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -350,7 +350,7 @@ public class LikelihoodCalculationEngine {
         final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         final GenomeLoc callLoc = parser.createGenomeLoc(call.getFirst());
         for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
-            final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
+            final PerReadAlleleLikelihoodMap likelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
 
             final ArrayList<GATKSAMRecord> readsForThisSample = sample.getValue();
             for( int iii = 0; iii < readsForThisSample.size(); iii++ ) {

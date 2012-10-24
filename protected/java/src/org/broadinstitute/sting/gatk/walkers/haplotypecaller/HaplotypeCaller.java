@@ -424,7 +424,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                   : genotypingEngine.assignGenotypeLikelihoodsAndCallIndependentEvents( UG_engine, bestHaplotypes, fullReferenceWithPadding, getPaddedLoc(activeRegion), activeRegion.getLocation(), getToolkit().getGenomeLocParser(), activeAllelesToGenotype ) ) ) {
             if( DEBUG ) { System.out.println(callResult.getFirst().toStringWithoutGenotypes()); }
 
-            final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = LikelihoodCalculationEngine.partitionReadsBasedOnLikelihoods( getToolkit().getGenomeLocParser(), perSampleReadList, perSampleFilteredReadList, callResult );
+            final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> stratifiedReadMap = LikelihoodCalculationEngine.partitionReadsBasedOnLikelihoods( getToolkit().getGenomeLocParser(), perSampleReadList, perSampleFilteredReadList, callResult );
             final VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, callResult.getFirst());
             final Map<String, Object> myAttributes = new LinkedHashMap<String, Object>(annotatedCall.getAttributes());
 
