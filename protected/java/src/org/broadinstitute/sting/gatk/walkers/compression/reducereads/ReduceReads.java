@@ -330,7 +330,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      */
     @Override
     public ReduceReadsStash reduceInit() {
-        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs, USE_POLYPLOID_REDUCTION, compressionStash));
+        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs, USE_POLYPLOID_REDUCTION));
     }
 
     /**
