@@ -50,7 +50,7 @@ public class GeneralPloidySNPGenotypeLikelihoodsCalculationModel extends General
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
                                                                                final boolean ignoreLaneInformation,
-                                                                               final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap){
+                                                                               final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap){
         return new GeneralPloidySNPGenotypeLikelihoods(alleles, null, UAC.samplePloidy, perLaneErrorModels, useBQAedPileup, UAC.IGNORE_LANE_INFO);
     }
 
