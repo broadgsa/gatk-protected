@@ -140,7 +140,7 @@ public class LikelihoodCalculationEngine {
     }
 
     private static int computeFirstDifferingPosition( final byte[] b1, final byte[] b2 ) {
-        for( int iii = 0; iii < b1.length && iii < b2.length; iii++ ){
+        for( int iii = 0; iii < b1.length && iii < b2.length; iii++ ) {
             if( b1[iii] != b2[iii] ) {
                 return iii;
             }
