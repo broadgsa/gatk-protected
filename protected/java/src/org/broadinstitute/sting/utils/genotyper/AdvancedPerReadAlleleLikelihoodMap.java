@@ -25,16 +25,43 @@
 package org.broadinstitute.sting.utils.genotyper;
 
 
+import org.broadinstitute.sting.gatk.downsampling.AlleleBiasedDownsamplingUtils;
 import org.broadinstitute.sting.utils.classloader.ProtectedPackageSource;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
+import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 
+import java.io.PrintStream;
 import java.util.*;
 
 public class AdvancedPerReadAlleleLikelihoodMap extends StandardPerReadAlleleLikelihoodMap implements ProtectedPackageSource {
 
-    public PerReadAlleleLikelihoodMap createPerAlleleDownsampledMap(final double downsamplingFraction) {
-        return this;
+    public ReadBackedPileup createPerAlleleDownsampledBasePileup(final ReadBackedPileup pileup, final double downsamplingFraction, final PrintStream log) {
+        return AlleleBiasedDownsamplingUtils.createAlleleBiasedBasePileup(pileup, downsamplingFraction, log);
     }
- }
+
+    public void performPerAlleleDownsampling(final double downsamplingFraction, final PrintStream log) {
+        // special case removal of all or no reads
+        if ( downsamplingFraction <= 0.0 )
+            return;
+        if ( downsamplingFraction >= 1.0 ) {
+            likelihoodReadMap.clear();
+            return;
+        }
+
+        // start by stratifying the reads by the alleles they represent at this position
+        final Map<Allele, List<GATKSAMRecord>> alleleReadMap = new HashMap<Allele, List<GATKSAMRecord>>(alleles.size());
+        for ( Allele allele : alleles )
+            alleleReadMap.put(allele, new ArrayList<GATKSAMRecord>());
+
+        for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : likelihoodReadMap.entrySet() ) {
+            final Allele bestAllele = getMostLikelyAllele(entry.getValue());
+            alleleReadMap.get(bestAllele).add(entry.getKey());
+        }
+
+        // compute the reads to remove and actually remove them
+        final List<GATKSAMRecord> readsToRemove = AlleleBiasedDownsamplingUtils.selectAlleleBiasedReads(alleleReadMap, downsamplingFraction, log);
+        for ( final GATKSAMRecord read : readsToRemove )
+            likelihoodReadMap.remove(read);
+    }
+}

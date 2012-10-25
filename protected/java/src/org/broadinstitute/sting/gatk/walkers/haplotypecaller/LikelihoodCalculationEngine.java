@@ -38,6 +38,7 @@ import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.broadinstitute.sting.utils.variantcontext.VariantContext;
 
+import java.io.PrintStream;
 import java.util.*;
 
 public class LikelihoodCalculationEngine {
@@ -346,7 +347,9 @@ public class LikelihoodCalculationEngine {
     public static Map<String, PerReadAlleleLikelihoodMap> partitionReadsBasedOnLikelihoods( final GenomeLocParser parser,
                                                                                             final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList,
                                                                                             final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
-                                                                                            final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call) {
+                                                                                            final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call,
+                                                                                            final double downsamplingFraction,
+                                                                                            final PrintStream downsamplingLog ) {
         final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         final GenomeLoc callLoc = parser.createGenomeLoc(call.getFirst());
         for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
@@ -369,6 +372,9 @@ public class LikelihoodCalculationEngine {
                     }
                 }
             }
+
+            // down-sample before adding filtered reads
+            likelihoodMap.performPerAlleleDownsampling(downsamplingFraction, downsamplingLog);
 
             // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
             for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
