@@ -56,7 +56,8 @@ public class AdvancedPerReadAlleleLikelihoodMap extends StandardPerReadAlleleLik
 
         for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : likelihoodReadMap.entrySet() ) {
             final Allele bestAllele = getMostLikelyAllele(entry.getValue());
-            alleleReadMap.get(bestAllele).add(entry.getKey());
+            if ( bestAllele != Allele.NO_CALL )
+                alleleReadMap.get(bestAllele).add(entry.getKey());
         }
 
         // compute the reads to remove and actually remove them
