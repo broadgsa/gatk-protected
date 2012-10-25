@@ -72,7 +72,7 @@ public class ErrorModel  {
             haplotypeMap = new LinkedHashMap<Allele, Haplotype>();
             if (refSampleVC.isIndel()) {
                 pairModel = new PairHMMIndelErrorModel(UAC.INDEL_GAP_OPEN_PENALTY, UAC.INDEL_GAP_CONTINUATION_PENALTY,
-                        UAC.OUTPUT_DEBUG_INDEL_INFO, !UAC.DONT_DO_BANDED_INDEL_COMPUTATION);
+                        UAC.OUTPUT_DEBUG_INDEL_INFO, UAC.pairHMM);
                 IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles(refSampleVC.getAlleles(), refContext, refContext.getLocus(), haplotypeMap); // will update haplotypeMap adding elements
             }
         }

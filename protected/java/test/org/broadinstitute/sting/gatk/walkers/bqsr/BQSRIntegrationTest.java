@@ -73,11 +73,6 @@ public class BQSRIntegrationTest extends WalkerTest {
                 params.getCommandLine(),
                 Arrays.asList(params.md5));
         executeTest("testBQSR-"+params.args, spec).getFirst();
-
-        WalkerTestSpec specNT2 = new WalkerTestSpec(
-                params.getCommandLine() + " -nt 2",
-                Arrays.asList(params.md5));
-        executeTest("testBQSR-nt2-"+params.args, specNT2).getFirst();
     }
 
     @Test

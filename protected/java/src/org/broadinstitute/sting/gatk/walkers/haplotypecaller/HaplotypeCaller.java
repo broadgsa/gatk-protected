@@ -52,6 +52,7 @@ import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.fragments.FragmentCollection;
 import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -113,6 +114,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false)
     protected PrintStream graphWriter = null;
+
+    /**
+     * The PairHMM implementation to use for genotype likelihood calculations. The various implementations balance a tradeoff of accuracy and runtime.
+     */
+    @Argument(fullName = "pair_hmm_implementation", shortName = "pairHMM", doc = "The PairHMM implementation to use for genotype likelihood calculations", required = false)
+    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING;
 
     @Hidden
     @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
@@ -234,14 +241,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         samplesList.addAll( samples );
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
         final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
-        UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC.clone(), logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
-        UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY; // low values used for isActive determination only, default/user-specified values used for actual calling
-        UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY; // low values used for isActive determination only, default/user-specified values used for actual calling
-        UAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING );
-        UAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING );
+        UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
 
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
-        UnifiedArgumentCollection simpleUAC = UAC.clone();
+        UnifiedArgumentCollection simpleUAC = new UnifiedArgumentCollection(UAC);
+        simpleUAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY; // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY; // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING );
+        simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.max( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING );
         simpleUAC.exactCallsLog = null;
         UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
 
@@ -287,7 +294,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter );
-        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, false );
+        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, OUTPUT_FULL_HAPLOTYPE_SEQUENCE );
     }
 
@@ -399,6 +406,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         activeRegion.hardClipToActiveRegion(); // only evaluate the parts of reads that are overlapping the active region
         final List<GATKSAMRecord> filteredReads = filterNonPassingReads( activeRegion ); // filter out reads from genotyping which fail mapping quality based criteria
         if( activeRegion.size() == 0 ) { return 1; } // no reads remain after filtering so nothing else to do!
+
+        // sort haplotypes to take full advantage of haplotype start offset optimizations in PairHMM
+        Collections.sort( haplotypes, new Haplotype.HaplotypeBaseComparator() );
 
         // evaluate each sample's reads against all haplotypes
         final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList = splitReadsBySample( activeRegion.getReads() );

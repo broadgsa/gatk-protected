@@ -276,7 +276,10 @@ public class SlidingWindow {
 
         final int windowHeaderStartLocation = getStartLocation(windowHeader);
         final int sizeOfMarkedRegion = stop - windowHeaderStartLocation + contextSize + 1;
-        final int lastPositionMarked = markedSites.updateRegion(windowHeaderStartLocation, sizeOfMarkedRegion);
+
+        // copy over as many bits as we can from the previous calculation.  Note that we can't trust the
+        // last (contextSize - 1) worth of bits because we may not have actually looked at variant regions there.
+        final int lastPositionMarked = markedSites.updateRegion(windowHeaderStartLocation, sizeOfMarkedRegion) - contextSize - 1;
         final int locationToProcess = Math.min(lastPositionMarked, stop - contextSize);
 
         // update the iterator to the correct position

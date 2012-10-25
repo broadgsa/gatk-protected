@@ -245,7 +245,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
 
         // find the alternate allele(s) that we should be using
         final List<Allele> alleles = getFinalAllelesToUse(tracker, ref, allAllelesToUse, GLs);
-        if (alleles == null || alleles.isEmpty())
+        if (alleles == null || alleles.isEmpty() || (alleles.size() == 1 && alleles.get(0).isReference()))
             return null;
         // start making the VariantContext
         final GenomeLoc loc = ref.getLocus();

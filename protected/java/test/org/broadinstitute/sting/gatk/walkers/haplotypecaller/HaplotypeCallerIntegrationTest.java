@@ -21,7 +21,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "75013fa6a884104f0b1797502b636698");
+        HCTest(CEUTRIO_BAM, "", "1d826f852ec1457efbfa7ee828c5783a");
     }
 
     @Test
@@ -31,7 +31,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "--max_alternate_alleles_for_indels 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "3cd3363976b1937d801f9f82996f4abe");
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "53caa950535749f99d3c5b9bb61c7b60");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -42,7 +42,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(CEUTRIO_BAM, "", "30598abeeb0b0ae5816ffdbf0c4044fd");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "966d338f423c86a390d685aa6336ec69");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -53,7 +53,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "6eb9c1026225b38ba7bd3c4c218f8269");
+        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "b4ea70a446e4782bd3700ca14dd726ff");
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
@@ -64,13 +64,13 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "98d82d74e8d6a778290bee6c0df6d092");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "2581e760279291a3901a506d060bfac8");
     }
 
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("fa5c5eb996e95aed12c50d70e6dd74d7"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("c54c0c9411054bf629bfd98b616e53fc"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
@@ -94,6 +94,4 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 Arrays.asList("79af83432dc4a1768b3ebffffc4d2b8f"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
-
-
 }
