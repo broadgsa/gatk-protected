@@ -195,7 +195,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
                                          final List<Allele> allAllelesToUse,
                                          final boolean useBAQedPileup,
                                          final GenomeLocParser locParser,
-                                         final Map<String,PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                         final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
 
         HashMap<String, ErrorModel> perLaneErrorModels = getPerLaneErrorModels(tracker, ref, contexts);
         if (perLaneErrorModels == null && UAC.referenceSampleName != null)
@@ -231,7 +231,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
             ReadBackedPileup pileup = AlignmentContextUtils.stratify(sample.getValue(), contextType).getBasePileup();
             if (!perReadAlleleLikelihoodMap.containsKey(sample.getKey())){
                 // no likelihoods have been computed for this sample at this site
-                perReadAlleleLikelihoodMap.put(sample.getKey(), new PerReadAlleleLikelihoodMap());
+                perReadAlleleLikelihoodMap.put(sample.getKey(), org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap());
             }
 
             // create the GenotypeLikelihoods object
@@ -333,7 +333,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
                                                                                final boolean ignoreLaneInformation,
-                                                                               final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap);
+                                                                               final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap);
 
     protected abstract List<Allele> getInitialAllelesToUse(final RefMetaDataTracker tracker,
                                                            final ReferenceContext ref,

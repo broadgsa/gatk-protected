@@ -27,7 +27,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
     double[][] readHaplotypeLikelihoods;
 
     final byte refBase;
-    final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap;
+    final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap;
 
     public GeneralPloidyIndelGenotypeLikelihoods(final List<Allele> alleles,
                                                  final double[] logLikelihoods,
@@ -37,7 +37,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
                                                  final PairHMMIndelErrorModel pairModel,
                                                  final LinkedHashMap<Allele, Haplotype> haplotypeMap,
                                                  final ReferenceContext referenceContext,
-                                                 final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
+                                                 final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
         super(alleles, logLikelihoods, ploidy, perLaneErrorModels, ignoreLaneInformation);
         this.pairModel = pairModel;
         this.haplotypeMap = haplotypeMap;

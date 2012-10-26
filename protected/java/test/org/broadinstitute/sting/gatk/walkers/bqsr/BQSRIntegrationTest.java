@@ -5,7 +5,9 @@ import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * @author ebanks
@@ -73,11 +75,6 @@ public class BQSRIntegrationTest extends WalkerTest {
                 params.getCommandLine(),
                 Arrays.asList(params.md5));
         executeTest("testBQSR-"+params.args, spec).getFirst();
-
-        WalkerTestSpec specNT2 = new WalkerTestSpec(
-                params.getCommandLine() + " -nt 2",
-                Arrays.asList(params.md5));
-        executeTest("testBQSR-nt2-"+params.args, specNT2).getFirst();
     }
 
     @Test
@@ -123,20 +120,26 @@ public class BQSRIntegrationTest extends WalkerTest {
 
     @DataProvider(name = "PRTest")
     public Object[][] createPRTestData() {
-        return new Object[][]{
-                {new PRTest("", "ab2f209ab98ad3432e208cbd524a4c4a")},
-                {new PRTest(" -qq -1", "5226c06237b213b9e9b25a32ed92d09a")},
-                {new PRTest(" -qq 6", "b592a5c62b952a012e18adb898ea9c33")},
-                {new PRTest(" -DIQ", "8977bea0c57b808e65e9505eb648cdf7")}
-        };
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        tests.add(new Object[]{1, new PRTest(" -qq -1", "5226c06237b213b9e9b25a32ed92d09a")});
+        tests.add(new Object[]{1, new PRTest(" -qq 6", "b592a5c62b952a012e18adb898ea9c33")});
+        tests.add(new Object[]{1, new PRTest(" -DIQ", "8977bea0c57b808e65e9505eb648cdf7")});
+
+        for ( final int nct : Arrays.asList(1, 2, 4) ) {
+            tests.add(new Object[]{nct, new PRTest("", "ab2f209ab98ad3432e208cbd524a4c4a")});
+        }
+
+        return tests.toArray(new Object[][]{});
     }
 
     @Test(dataProvider = "PRTest")
-    public void testPR(PRTest params) {
+    public void testPR(final int nct, PRTest params) {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T PrintReads" +
                         " -R " + hg18Reference +
                         " -I " + privateTestDir + "HiSeq.1mb.1RG.bam" +
+                        " -nct " + nct +
                         " -BQSR " + privateTestDir + "HiSeq.20mb.1RG.table" +
                         params.args +
                         " -o %s",

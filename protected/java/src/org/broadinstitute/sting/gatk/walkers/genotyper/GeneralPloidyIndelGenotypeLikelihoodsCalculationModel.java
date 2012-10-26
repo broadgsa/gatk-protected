@@ -74,7 +74,7 @@ public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends Gener
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
                                                                                final boolean ignoreLaneInformation,
-                                                                               final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap){
+                                                                               final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap){
         return new GeneralPloidyIndelGenotypeLikelihoods(alleles, logLikelihoods, ploidy,perLaneErrorModels,ignoreLaneInformation, pairModel, haplotypeMap, ref, perReadAlleleLikelihoodMap);
     }
 
