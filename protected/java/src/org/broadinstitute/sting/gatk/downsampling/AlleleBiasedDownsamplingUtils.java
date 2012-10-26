@@ -37,12 +37,6 @@ import java.util.*;
 
 public class AlleleBiasedDownsamplingUtils {
 
-    private static final ArrayList<PileupElement>[] alleleStratifiedElements = new ArrayList[4];
-    static {
-        for ( int i = 0; i < 4; i++ )
-            alleleStratifiedElements[i] = new ArrayList<PileupElement>();
-    }
-
     /**
      * Computes an allele biased version of the given pileup
      *
@@ -51,12 +45,16 @@ public class AlleleBiasedDownsamplingUtils {
      * @param log                       logging output
      * @return allele biased pileup
      */
-    public synchronized static ReadBackedPileup createAlleleBiasedBasePileup(final ReadBackedPileup pileup, final double downsamplingFraction, final PrintStream log) {
+    public static ReadBackedPileup createAlleleBiasedBasePileup(final ReadBackedPileup pileup, final double downsamplingFraction, final PrintStream log) {
         // special case removal of all or no reads
         if ( downsamplingFraction <= 0.0 )
             return pileup;
         if ( downsamplingFraction >= 1.0 )
             return new ReadBackedPileupImpl(pileup.getLocation(), new ArrayList<PileupElement>());
+
+        final ArrayList<PileupElement>[] alleleStratifiedElements = new ArrayList[4];
+        for ( int i = 0; i < 4; i++ )
+            alleleStratifiedElements[i] = new ArrayList<PileupElement>();
 
         // start by stratifying the reads by the alleles they represent at this position
         for( final PileupElement pe : pileup ) {
