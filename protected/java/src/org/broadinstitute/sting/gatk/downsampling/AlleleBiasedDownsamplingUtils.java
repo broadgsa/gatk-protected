@@ -45,7 +45,7 @@ public class AlleleBiasedDownsamplingUtils {
      * @param log                       logging output
      * @return allele biased pileup
      */
-    public synchronized static ReadBackedPileup createAlleleBiasedBasePileup(final ReadBackedPileup pileup, final double downsamplingFraction, final PrintStream log) {
+    public static ReadBackedPileup createAlleleBiasedBasePileup(final ReadBackedPileup pileup, final double downsamplingFraction, final PrintStream log) {
         // special case removal of all or no reads
         if ( downsamplingFraction <= 0.0 )
             return pileup;
