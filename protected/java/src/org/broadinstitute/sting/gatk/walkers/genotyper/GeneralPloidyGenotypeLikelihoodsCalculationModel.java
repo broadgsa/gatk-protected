@@ -41,15 +41,6 @@ import java.util.*;
 
 public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsCalculationModel {
 
-    //protected Set<String> laneIDs;
-    public enum Model {
-        SNP,
-        INDEL,
-        POOLSNP,
-        POOLINDEL,
-        BOTH
-    }
-
     final protected UnifiedArgumentCollection UAC;
 
     protected GeneralPloidyGenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
@@ -203,7 +194,8 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
                                          final AlignmentContextUtils.ReadOrientation contextType,
                                          final List<Allele> allAllelesToUse,
                                          final boolean useBAQedPileup,
-                                         final GenomeLocParser locParser) {
+                                         final GenomeLocParser locParser,
+                                         final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
 
         HashMap<String, ErrorModel> perLaneErrorModels = getPerLaneErrorModels(tracker, ref, contexts);
         if (perLaneErrorModels == null && UAC.referenceSampleName != null)
@@ -215,8 +207,11 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
             newContext.put(DUMMY_SAMPLE_NAME,mergedContext);
             contexts = newContext;
         }
-
-        // get initial alleles to genotype
+        if (contextType == AlignmentContextUtils.ReadOrientation.COMPLETE) {
+            // starting a new site: clear allele list
+            perReadAlleleLikelihoodMap.clear(); // clean mapping sample-> per read, per allele likelihoods
+        }
+            // get initial alleles to genotype
         final List<Allele> allAlleles = new ArrayList<Allele>();
         if (allAllelesToUse == null || allAllelesToUse.isEmpty())
             allAlleles.addAll(getInitialAllelesToUse(tracker, ref,contexts,contextType,locParser, allAllelesToUse));
@@ -234,9 +229,13 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
                 continue;
 
             ReadBackedPileup pileup = AlignmentContextUtils.stratify(sample.getValue(), contextType).getBasePileup();
+            if (!perReadAlleleLikelihoodMap.containsKey(sample.getKey())){
+                // no likelihoods have been computed for this sample at this site
+                perReadAlleleLikelihoodMap.put(sample.getKey(), org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap());
+            }
 
             // create the GenotypeLikelihoods object
-            final GeneralPloidyGenotypeLikelihoods GL = getPoolGenotypeLikelihoodObject(allAlleles, null, UAC.samplePloidy, perLaneErrorModels, useBAQedPileup, ref, UAC.IGNORE_LANE_INFO);
+            final GeneralPloidyGenotypeLikelihoods GL = getPoolGenotypeLikelihoodObject(allAlleles, null, UAC.samplePloidy, perLaneErrorModels, useBAQedPileup, ref, UAC.IGNORE_LANE_INFO, perReadAlleleLikelihoodMap.get(sample.getKey()));
             // actually compute likelihoods
             final int nGoodBases = GL.add(pileup, UAC);
             if ( nGoodBases > 0 )
@@ -246,7 +245,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
 
         // find the alternate allele(s) that we should be using
         final List<Allele> alleles = getFinalAllelesToUse(tracker, ref, allAllelesToUse, GLs);
-        if (alleles == null || alleles.isEmpty())
+        if (alleles == null || alleles.isEmpty() || (alleles.size() == 1 && alleles.get(0).isReference()))
             return null;
         // start making the VariantContext
         final GenomeLoc loc = ref.getLocus();
@@ -333,7 +332,8 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
                                                                                final HashMap<String, ErrorModel> perLaneErrorModels,
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
-                                                                               final boolean ignoreLaneInformation);
+                                                                               final boolean ignoreLaneInformation,
+                                                                               final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap);
 
     protected abstract List<Allele> getInitialAllelesToUse(final RefMetaDataTracker tracker,
                                                            final ReferenceContext ref,

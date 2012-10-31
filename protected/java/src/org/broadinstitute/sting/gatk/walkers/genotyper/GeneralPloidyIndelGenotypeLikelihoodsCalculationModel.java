@@ -62,7 +62,7 @@ public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends Gener
 
 
         pairModel = new PairHMMIndelErrorModel(UAC.INDEL_GAP_OPEN_PENALTY, UAC.INDEL_GAP_CONTINUATION_PENALTY,
-                UAC.OUTPUT_DEBUG_INDEL_INFO, !UAC.DONT_DO_BANDED_INDEL_COMPUTATION);
+                UAC.OUTPUT_DEBUG_INDEL_INFO, UAC.pairHMM);
         haplotypeMap = new LinkedHashMap<Allele, Haplotype>();
     }
 
@@ -73,8 +73,9 @@ public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends Gener
                                                                                final HashMap<String, ErrorModel> perLaneErrorModels,
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
-                                                                               final boolean ignoreLaneInformation){
-        return new GeneralPloidyIndelGenotypeLikelihoods(alleles, logLikelihoods, ploidy,perLaneErrorModels,ignoreLaneInformation, pairModel, haplotypeMap, ref);
+                                                                               final boolean ignoreLaneInformation,
+                                                                               final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap){
+        return new GeneralPloidyIndelGenotypeLikelihoods(alleles, logLikelihoods, ploidy,perLaneErrorModels,ignoreLaneInformation, pairModel, haplotypeMap, ref, perReadAlleleLikelihoodMap);
     }
 
     protected List<Allele> getInitialAllelesToUse(final RefMetaDataTracker tracker,
@@ -90,7 +91,6 @@ public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends Gener
         if (alleles.size() > MAX_NUM_ALLELES_TO_GENOTYPE)
             alleles = alleles.subList(0,MAX_NUM_ALLELES_TO_GENOTYPE);
         if (contextType == AlignmentContextUtils.ReadOrientation.COMPLETE) {
-            IndelGenotypeLikelihoodsCalculationModel.getIndelLikelihoodMap().clear();
             haplotypeMap.clear();
         }
         IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles(alleles, ref, ref.getLocus(), haplotypeMap);

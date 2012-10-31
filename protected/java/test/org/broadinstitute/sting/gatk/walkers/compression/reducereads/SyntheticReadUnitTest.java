@@ -35,7 +35,7 @@ public void testBaseCounts() {
                 new TestRead(bases, quals, new Byte[] {1, 127, 51, 126},    new byte [] {1, 126, 50, 125})};
 
         for (TestRead testRead : testReads) {
-            SyntheticRead syntheticRead = new SyntheticRead(Arrays.asList(testRead.getBases()), Arrays.asList(testRead.getCounts()), Arrays.asList(testRead.getQuals()), Arrays.asList(testRead.getInsQuals()), Arrays.asList(testRead.getDelQuals()), artificialMappingQuality, GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, artificialSAMHeader, artificialGATKRG, artificialContig, artificialContigIndex, artificialReadName, artificialRefStart, false);
+            SyntheticRead syntheticRead = new SyntheticRead(Arrays.asList(testRead.getBases()), Arrays.asList(testRead.getCounts()), Arrays.asList(testRead.getQuals()), Arrays.asList(testRead.getInsQuals()), Arrays.asList(testRead.getDelQuals()), artificialMappingQuality, GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, artificialSAMHeader, artificialGATKRG, artificialContig, artificialContigIndex, artificialReadName, artificialRefStart, false, false);
             Assert.assertEquals(syntheticRead.convertBaseCounts(), testRead.getExpectedCounts());
         }
 }

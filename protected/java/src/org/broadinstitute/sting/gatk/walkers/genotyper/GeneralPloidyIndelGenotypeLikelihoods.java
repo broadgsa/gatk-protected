@@ -1,6 +1,7 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACset;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -26,6 +27,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
     double[][] readHaplotypeLikelihoods;
 
     final byte refBase;
+    final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap;
 
     public GeneralPloidyIndelGenotypeLikelihoods(final List<Allele> alleles,
                                                  final double[] logLikelihoods,
@@ -34,7 +36,8 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
                                                  final boolean ignoreLaneInformation,
                                                  final PairHMMIndelErrorModel pairModel,
                                                  final LinkedHashMap<Allele, Haplotype> haplotypeMap,
-                                                 final ReferenceContext referenceContext) {
+                                                 final ReferenceContext referenceContext,
+                                                 final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
         super(alleles, logLikelihoods, ploidy, perLaneErrorModels, ignoreLaneInformation);
         this.pairModel = pairModel;
         this.haplotypeMap = haplotypeMap;
@@ -42,6 +45,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
         this.eventLength = IndelGenotypeLikelihoodsCalculationModel.getEventLength(alleles);
         // todo - not needed if indel alleles have base at current position
         this.refBase = referenceContext.getBase();
+        this.perReadAlleleLikelihoodMap = perReadAlleleLikelihoodMap;
     }
 
     // -------------------------------------------------------------------------------------
@@ -142,8 +146,9 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
         List<Integer> numSeenBases = new ArrayList<Integer>(this.alleles.size());
 
         if (!hasReferenceSampleData) {
+ 
             final int readCounts[] = new int[pileup.getNumberOfElements()];
-            readHaplotypeLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, refContext, eventLength, IndelGenotypeLikelihoodsCalculationModel.getIndelLikelihoodMap(), readCounts);
+            readHaplotypeLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, refContext, eventLength, perReadAlleleLikelihoodMap, readCounts);
             n = readHaplotypeLikelihoods.length;
         } else {
             Allele refAllele = null;
@@ -184,12 +189,12 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
      * @param alleleList    List of alleles
      * @param numObservations Number of observations for each allele in alleleList
      */
-    public void getLikelihoodOfConformation(final AlleleFrequencyCalculationModel.ExactACset ACset,
+    public void getLikelihoodOfConformation(final ExactACset ACset,
                                             final ErrorModel errorModel,
                                             final List<Allele> alleleList,
                                             final List<Integer> numObservations,
                                             final ReadBackedPileup pileup) {
-        final int[] currentCnt = Arrays.copyOf(ACset.ACcounts.counts, alleleList.size());
+        final int[] currentCnt = Arrays.copyOf(ACset.getACcounts().getCounts(), alleleList.size());
         double p1 = 0.0;
 
         if (!hasReferenceSampleData) {
@@ -214,6 +219,6 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
             }
             p1 = MathUtils.logDotProduct(errorModel.getErrorModelVector().getProbabilityVector(minQ, maxQ), acVec);
         }
-        ACset.log10Likelihoods[0] = p1;
+        ACset.getLog10Likelihoods()[0] = p1;
    }
 }

@@ -27,25 +27,46 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.pairhmm.*;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.broadinstitute.sting.utils.variantcontext.VariantContext;
 
+import java.io.PrintStream;
 import java.util.*;
 
 public class LikelihoodCalculationEngine {
 
     private static final double LOG_ONE_HALF = -Math.log10(2.0);
-    private static final double BEST_LIKELIHOOD_THRESHOLD = 0.1;
     private final byte constantGCP;
     private final boolean DEBUG;
     private final PairHMM pairHMM;
 
-    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final boolean noBanded ) {
-        pairHMM = new PairHMM( noBanded );
+    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType ) {
+
+        switch (hmmType) {
+            case EXACT:
+                pairHMM = new ExactPairHMM();
+                break;
+            case ORIGINAL:
+                pairHMM = new OriginalPairHMM();
+                break;
+            case CACHING:
+                pairHMM = new CachingPairHMM();
+                break;
+            case LOGLESS_CACHING:
+                pairHMM = new LoglessCachingPairHMM();
+                break;
+            default:
+                throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");
+        }
+
         this.constantGCP = constantGCP;
         DEBUG = debug;
     }
@@ -69,23 +90,18 @@ public class LikelihoodCalculationEngine {
         X_METRIC_LENGTH += 2;
         Y_METRIC_LENGTH += 2;
 
-        // initial arrays to hold the probabilities of being in the match, insertion and deletion cases
-        final double[][] matchMetricArray = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
-        final double[][] XMetricArray = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
-        final double[][] YMetricArray = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
-
-        PairHMM.initializeArrays(matchMetricArray, XMetricArray, YMetricArray, X_METRIC_LENGTH);
+        // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
+        pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
 
         // for each sample's reads
-        for( final String sample : perSampleReadList.keySet() ) {
+        for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
             //if( DEBUG ) { System.out.println("Evaluating sample " + sample + " with " + perSampleReadList.get( sample ).size() + " passing reads"); }
             // evaluate the likelihood of the reads given those haplotypes
-            computeReadLikelihoods( haplotypes, perSampleReadList.get(sample), sample, matchMetricArray, XMetricArray, YMetricArray );
+            computeReadLikelihoods( haplotypes, sampleEntry.getValue(), sampleEntry.getKey() );
         }
     }
 
-    private void computeReadLikelihoods( final ArrayList<Haplotype> haplotypes, final ArrayList<GATKSAMRecord> reads, final String sample,
-                                         final double[][] matchMetricArray, final double[][] XMetricArray, final double[][] YMetricArray ) {
+    private void computeReadLikelihoods( final ArrayList<Haplotype> haplotypes, final ArrayList<GATKSAMRecord> reads, final String sample ) {
 
         final int numHaplotypes = haplotypes.size();
         final int numReads = reads.size();
@@ -113,9 +129,8 @@ public class LikelihoodCalculationEngine {
                 final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : computeFirstDifferingPosition(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
                 previousHaplotypeSeen = haplotype;
 
-                readLikelihoods[jjj][iii] = pairHMM.computeReadLikelihoodGivenHaplotype(haplotype.getBases(), read.getReadBases(),
-                        readQuals, readInsQuals, readDelQuals, overallGCP,
-                        haplotypeStart, matchMetricArray, XMetricArray, YMetricArray);
+                readLikelihoods[jjj][iii] = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(), read.getReadBases(),
+                        readQuals, readInsQuals, readDelQuals, overallGCP, haplotypeStart, jjj == 0);
                 readCounts[jjj][iii] = readCount;
             }
         }
@@ -125,12 +140,12 @@ public class LikelihoodCalculationEngine {
     }
 
     private static int computeFirstDifferingPosition( final byte[] b1, final byte[] b2 ) {
-        for( int iii = 0; iii < b1.length && iii < b2.length; iii++ ){
+        for( int iii = 0; iii < b1.length && iii < b2.length; iii++ ) {
             if( b1[iii] != b2[iii] ) {
                 return iii;
             }
         }
-        return b1.length;
+        return Math.min(b1.length, b2.length);
     }
 
     @Requires({"haplotypes.size() > 0"})
@@ -183,7 +198,7 @@ public class LikelihoodCalculationEngine {
                                 haplotypeLikelihood += readCounts_iii[kkk] * ( MathUtils.approximateLog10SumLog10(readLikelihoods_iii[kkk], readLikelihoods_jjj[kkk]) + LOG_ONE_HALF );
                             }
                         }
-                        haplotypeLikelihoodMatrix[iii][jjj] = Math.max(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood); // MathUtils.approximateLog10SumLog10(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood); // BUGBUG: max or sum?
+                        haplotypeLikelihoodMatrix[iii][jjj] = Math.max(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood);
                     }
                 }       
             }
@@ -280,7 +295,7 @@ public class LikelihoodCalculationEngine {
         final int numHaplotypes = haplotypes.size();
         final Set<String> sampleKeySet = haplotypes.get(0).getSampleKeySet(); // BUGBUG: assume all haplotypes saw the same samples
         final ArrayList<Integer> bestHaplotypesIndexList = new ArrayList<Integer>();
-        bestHaplotypesIndexList.add(0); // always start with the reference haplotype
+        bestHaplotypesIndexList.add( findReferenceIndex(haplotypes) ); // always start with the reference haplotype
         // set up the default 1-to-1 haplotype mapping object
         final ArrayList<ArrayList<Haplotype>> haplotypeMapping = new ArrayList<ArrayList<Haplotype>>();
         for( final Haplotype h : haplotypes ) {
@@ -322,19 +337,30 @@ public class LikelihoodCalculationEngine {
         return bestHaplotypes;
     }
 
-    public static Map<String, Map<Allele, List<GATKSAMRecord>>> partitionReadsBasedOnLikelihoods( final GenomeLocParser parser, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList, final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call) {
-        final Map<String, Map<Allele, List<GATKSAMRecord>>> returnMap = new HashMap<String, Map<Allele, List<GATKSAMRecord>>>();
+    public static int findReferenceIndex( final List<Haplotype> haplotypes ) {
+        for( final Haplotype h : haplotypes ) {
+            if( h.isReference() ) { return haplotypes.indexOf(h); }
+        }
+        throw new ReviewedStingException( "No reference haplotype found in the list of haplotypes!" );
+    }
+
+    public static Map<String, PerReadAlleleLikelihoodMap> partitionReadsBasedOnLikelihoods( final GenomeLocParser parser,
+                                                                                            final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList,
+                                                                                            final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
+                                                                                            final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call,
+                                                                                            final double downsamplingFraction,
+                                                                                            final PrintStream downsamplingLog ) {
+        final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         final GenomeLoc callLoc = parser.createGenomeLoc(call.getFirst());
         for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
-            final Map<Allele, List<GATKSAMRecord>> alleleReadMap = new HashMap<Allele, List<GATKSAMRecord>>();
+            final PerReadAlleleLikelihoodMap likelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+
             final ArrayList<GATKSAMRecord> readsForThisSample = sample.getValue();
             for( int iii = 0; iii < readsForThisSample.size(); iii++ ) {
                 final GATKSAMRecord read = readsForThisSample.get(iii); // BUGBUG: assumes read order in this list and haplotype likelihood list are the same!
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
                 if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
-                    final double likelihoods[] = new double[call.getFirst().getAlleles().size()];
-                    int count = 0;
-                    for( final Allele a : call.getFirst().getAlleles() ) { // find the allele with the highest haplotype likelihood
+                    for( final Allele a : call.getFirst().getAlleles() ) {
                         double maxLikelihood = Double.NEGATIVE_INFINITY;
                         for( final Haplotype h : call.getSecond().get(a) ) { // use the max likelihood from all the haplotypes which mapped to this allele (achieved via the haplotype mapper object)
                             final double likelihood = h.getReadLikelihoods(sample.getKey())[iii];
@@ -342,43 +368,26 @@ public class LikelihoodCalculationEngine {
                                 maxLikelihood = likelihood;
                             }
                         }
-                        likelihoods[count++] = maxLikelihood;
+                        likelihoodMap.add(read, a, maxLikelihood);
                     }
-                    final int bestAllele = MathUtils.maxElementIndex(likelihoods);
-                    final double bestLikelihood = likelihoods[bestAllele];
-                    Allele allele = Allele.NO_CALL;
-                    boolean isInformativeRead = false;
-                    for( final double likelihood : likelihoods ) {
-                        if( bestLikelihood - likelihood > BEST_LIKELIHOOD_THRESHOLD ) {
-                            isInformativeRead = true;
-                            break;
-                        }
-                    }
-                    // uninformative reads get the no call Allele
-                    if( isInformativeRead ) {
-                        allele = call.getFirst().getAlleles().get(bestAllele);
-                    }
-                    List<GATKSAMRecord> readList = alleleReadMap.get(allele);
-                    if( readList == null ) {
-                        readList = new ArrayList<GATKSAMRecord>();
-                        alleleReadMap.put(allele, readList);
-                    }
-                    readList.add(read);
                 }
             }
+
+            // down-sample before adding filtered reads
+            likelihoodMap.performPerAlleleDownsampling(downsamplingFraction, downsamplingLog);
+
             // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
-            List<GATKSAMRecord> readList = alleleReadMap.get(Allele.NO_CALL);
-            if( readList == null ) {
-                readList = new ArrayList<GATKSAMRecord>();
-                alleleReadMap.put(Allele.NO_CALL, readList);
-            }
             for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
                 if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
-                    readList.add(read);
+                    for( final Allele a : call.getFirst().getAlleles() ) {
+                        likelihoodMap.add(read, a, 0.0);
+                    }
                 }
             }
-            returnMap.put(sample.getKey(), alleleReadMap);
+
+            returnMap.put(sample.getKey(), likelihoodMap);
+
         }
         return returnMap;
     }

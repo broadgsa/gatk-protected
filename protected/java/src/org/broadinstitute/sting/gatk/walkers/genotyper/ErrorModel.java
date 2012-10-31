@@ -1,11 +1,11 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import com.google.java.contract.Requires;
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
@@ -53,13 +53,14 @@ public class ErrorModel  {
 
         PairHMMIndelErrorModel pairModel = null;
         LinkedHashMap<Allele, Haplotype> haplotypeMap = null;
-        HashMap<PileupElement, LinkedHashMap<Allele, Double>> indelLikelihoodMap = null;
         double[][] perReadLikelihoods = null;
 
         double[] model = new double[maxQualityScore+1];
         Arrays.fill(model,Double.NEGATIVE_INFINITY);
 
         boolean hasCalledAlleles = false;
+
+        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
         if (refSampleVC != null) {
 
             for (Allele allele : refSampleVC.getAlleles()) {
@@ -71,8 +72,7 @@ public class ErrorModel  {
             haplotypeMap = new LinkedHashMap<Allele, Haplotype>();
             if (refSampleVC.isIndel()) {
                 pairModel = new PairHMMIndelErrorModel(UAC.INDEL_GAP_OPEN_PENALTY, UAC.INDEL_GAP_CONTINUATION_PENALTY,
-                        UAC.OUTPUT_DEBUG_INDEL_INFO, !UAC.DONT_DO_BANDED_INDEL_COMPUTATION);
-                indelLikelihoodMap = new HashMap<PileupElement, LinkedHashMap<Allele, Double>>();
+                        UAC.OUTPUT_DEBUG_INDEL_INFO, UAC.pairHMM);
                 IndelGenotypeLikelihoodsCalculationModel.getHaplotypeMapFromAlleles(refSampleVC.getAlleles(), refContext, refContext.getLocus(), haplotypeMap); // will update haplotypeMap adding elements
             }
         }
@@ -92,12 +92,12 @@ public class ErrorModel  {
 
             Allele refAllele = refSampleVC.getReference();
 
-            if (refSampleVC.isIndel()) {
+            if ( refSampleVC.isIndel()) {
                 final int readCounts[] = new int[refSamplePileup.getNumberOfElements()];
                 //perReadLikelihoods = new double[readCounts.length][refSampleVC.getAlleles().size()];
                 final int eventLength = IndelGenotypeLikelihoodsCalculationModel.getEventLength(refSampleVC.getAlleles());
                 if (!haplotypeMap.isEmpty())
-                    perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, indelLikelihoodMap, readCounts);
+                    perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, perReadAlleleLikelihoodMap, readCounts);
             }
             int idx = 0;
             for (PileupElement refPileupElement : refSamplePileup) {
@@ -195,8 +195,8 @@ public class ErrorModel  {
         if (eventLength < 0 && pileupElement.isBeforeDeletionStart() && pileupElement.getEventLength() == -eventLength)
             return true;
 
-        if (eventLength > 0 && pileupElement.isBeforeInsertion() &&
-                Arrays.equals(pileupElement.getEventBases().getBytes(),alleleBases))
+                if (eventLength > 0 && pileupElement.isBeforeInsertion() &&
+                Arrays.equals(pileupElement.getEventBases().getBytes(),Arrays.copyOfRange(alleleBases,1,alleleBases.length))) // allele contains ref byte, but pileupElement's event bases doesn't
             return true;
 
         return false;
