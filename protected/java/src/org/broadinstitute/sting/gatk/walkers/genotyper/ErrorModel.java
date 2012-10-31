@@ -1,11 +1,11 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import com.google.java.contract.Requires;
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
@@ -60,7 +60,7 @@ public class ErrorModel  {
 
         boolean hasCalledAlleles = false;
 
-        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
+        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
         if (refSampleVC != null) {
 
             for (Allele allele : refSampleVC.getAlleles()) {
