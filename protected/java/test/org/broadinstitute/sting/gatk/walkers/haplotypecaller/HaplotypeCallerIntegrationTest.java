@@ -21,17 +21,17 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "1d826f852ec1457efbfa7ee828c5783a");
+        HCTest(CEUTRIO_BAM, "", "aa1df35d6e64d7ca93feb4d2dd15dd0e");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "01367428c26d3eaf9297c58bf8677dd3");
+        HCTest(NA12878_BAM, "", "186c7f322978283c01249c6de2829215");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "53caa950535749f99d3c5b9bb61c7b60");
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "de9e78a52207fe62144dba5337965469");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -42,7 +42,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "966d338f423c86a390d685aa6336ec69");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "000dbb1b48f94d017cfec127c6cabe8f");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -53,7 +53,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "b4ea70a446e4782bd3700ca14dd726ff");
+        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "16013a9203367c3d1c4ce1dcdc81ef4a");
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
@@ -64,20 +64,20 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "2581e760279291a3901a506d060bfac8");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "b369c2a6cb5c99a424551b33bae16f3b");
     }
 
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("c54c0c9411054bf629bfd98b616e53fc"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("c306140ad28515ee06c603c225217939"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
     @Test
     public void HCTestStructuralIndels() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("c642dcd93771f6f084d55de31f180d1b"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("b6c67ee8e99cc8f53a6587bb26028047"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
 
@@ -91,7 +91,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("79af83432dc4a1768b3ebffffc4d2b8f"));
+                Arrays.asList("4beb9f87ab3f316a9384c3d0dca6ebe9"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
 }

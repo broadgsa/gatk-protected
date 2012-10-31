@@ -39,55 +39,10 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
 
     // optimization: only allocate temp arrays once per thread
     private final ThreadLocal<byte[]> threadLocalTempQualArray = new ThreadLocalArray<byte[]>(EventType.values().length, byte.class);
-    private final ThreadLocal<boolean[]> threadLocalTempErrorArray = new ThreadLocalArray<boolean[]>(EventType.values().length, boolean.class);
     private final ThreadLocal<double[]> threadLocalTempFractionalErrorArray = new ThreadLocalArray<double[]>(EventType.values().length, double.class);
 
     public void initialize(final Covariate[] covariates, final RecalibrationTables recalibrationTables) {
         super.initialize(covariates, recalibrationTables);
-    }
-
-    /**
-     * Loop through the list of requested covariates and pick out the value from the read, offset, and reference
-     * Using the list of covariate values as a key, pick out the RecalDatum and increment,
-     * adding one to the number of observations and potentially one to the number of mismatches for all three
-     * categories (mismatches, insertions and deletions).
-     *
-     * @param pileupElement The pileup element to update
-     * @param refBase       The reference base at this locus
-     */
-    @Override
-    public void updateDataForPileupElement(final PileupElement pileupElement, final byte refBase) {
-        final int offset = pileupElement.getOffset();
-        final ReadCovariates readCovariates = covariateKeySetFrom(pileupElement.getRead());
-
-        byte[] tempQualArray = threadLocalTempQualArray.get();
-        boolean[] tempErrorArray = threadLocalTempErrorArray.get();
-
-        tempQualArray[EventType.BASE_SUBSTITUTION.index] = pileupElement.getQual();
-        tempErrorArray[EventType.BASE_SUBSTITUTION.index] = !BaseUtils.basesAreEqual(pileupElement.getBase(), refBase);
-        tempQualArray[EventType.BASE_INSERTION.index] = pileupElement.getBaseInsertionQual();
-        tempErrorArray[EventType.BASE_INSERTION.index] = (pileupElement.getRead().getReadNegativeStrandFlag()) ? pileupElement.isAfterInsertion() : pileupElement.isBeforeInsertion();
-        tempQualArray[EventType.BASE_DELETION.index] = pileupElement.getBaseDeletionQual();
-        tempErrorArray[EventType.BASE_DELETION.index] = (pileupElement.getRead().getReadNegativeStrandFlag()) ? pileupElement.isAfterDeletedBase() : pileupElement.isBeforeDeletedBase();
-
-        for (final EventType eventType : EventType.values()) {
-            final int[] keys = readCovariates.getKeySet(offset, eventType);
-            final int eventIndex = eventType.index;
-            final byte qual = tempQualArray[eventIndex];
-            final boolean isError = tempErrorArray[eventIndex];
-
-            // TODO: should this really be combine rather than increment?
-            combineDatumOrPutIfNecessary(recalibrationTables.getReadGroupTable(), qual, isError, keys[0], eventIndex);
-
-            incrementDatumOrPutIfNecessary(recalibrationTables.getQualityScoreTable(), qual, isError, keys[0], keys[1], eventIndex);
-
-            for (int i = 2; i < covariates.length; i++) {
-                if (keys[i] < 0)
-                    continue;
-
-                incrementDatumOrPutIfNecessary(recalibrationTables.getTable(i), qual, isError, keys[0], keys[1], keys[i], eventIndex);
-            }
-        }
     }
 
     @Override
