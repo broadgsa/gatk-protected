@@ -217,7 +217,7 @@ public class GenotypingEngine {
         }
 
         cleanUpSymbolicUnassembledEvents( haplotypes );
-        if( activeAllelesToGenotype.isEmpty() && haplotypes.get(0).getSampleKeySet().size() >= 3 ) { // if not in GGA mode and have at least 3 samples try to create MNP and complex events by looking at LD structure
+        if( activeAllelesToGenotype.isEmpty() && haplotypes.get(0).getSampleKeySet().size() >= 10 ) { // if not in GGA mode and have at least 10 samples try to create MNP and complex events by looking at LD structure
             mergeConsecutiveEventsBasedOnLD( haplotypes, startPosKeySet, ref, refLoc );
         }
         if( !activeAllelesToGenotype.isEmpty() ) { // we are in GGA mode!

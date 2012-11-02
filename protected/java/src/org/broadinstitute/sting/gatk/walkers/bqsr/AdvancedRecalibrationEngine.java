@@ -28,88 +28,31 @@ package org.broadinstitute.sting.gatk.walkers.bqsr;
 import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.classloader.ProtectedPackageSource;
-import org.broadinstitute.sting.utils.collections.NestedIntegerArray;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
-import org.broadinstitute.sting.utils.recalibration.RecalDatum;
 import org.broadinstitute.sting.utils.recalibration.RecalibrationTables;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.threading.ThreadLocalArray;
 
 public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine implements ProtectedPackageSource {
 
-    // optimizations: don't reallocate an array each time
-    private byte[] tempQualArray;
-    private boolean[] tempErrorArray;
-    private double[] tempFractionalErrorArray;
+    // optimization: only allocate temp arrays once per thread
+    private final ThreadLocal<byte[]> threadLocalTempQualArray = new ThreadLocalArray<byte[]>(EventType.values().length, byte.class);
+    private final ThreadLocal<double[]> threadLocalTempFractionalErrorArray = new ThreadLocalArray<double[]>(EventType.values().length, double.class);
 
     public void initialize(final Covariate[] covariates, final RecalibrationTables recalibrationTables) {
         super.initialize(covariates, recalibrationTables);
-        tempQualArray = new byte[EventType.values().length];
-        tempErrorArray = new boolean[EventType.values().length];
-        tempFractionalErrorArray = new double[EventType.values().length];
-    }
-
-    /**
-     * Loop through the list of requested covariates and pick out the value from the read, offset, and reference
-     * Using the list of covariate values as a key, pick out the RecalDatum and increment,
-     * adding one to the number of observations and potentially one to the number of mismatches for all three
-     * categories (mismatches, insertions and deletions).
-     *
-     * @param pileupElement The pileup element to update
-     * @param refBase       The reference base at this locus
-     */
-    @Override
-    public synchronized void updateDataForPileupElement(final PileupElement pileupElement, final byte refBase) {
-        final int offset = pileupElement.getOffset();
-        final ReadCovariates readCovariates = covariateKeySetFrom(pileupElement.getRead());
-
-        tempQualArray[EventType.BASE_SUBSTITUTION.index] = pileupElement.getQual();
-        tempErrorArray[EventType.BASE_SUBSTITUTION.index] = !BaseUtils.basesAreEqual(pileupElement.getBase(), refBase);
-        tempQualArray[EventType.BASE_INSERTION.index] = pileupElement.getBaseInsertionQual();
-        tempErrorArray[EventType.BASE_INSERTION.index] = (pileupElement.getRead().getReadNegativeStrandFlag()) ? pileupElement.isAfterInsertion() : pileupElement.isBeforeInsertion();
-        tempQualArray[EventType.BASE_DELETION.index] = pileupElement.getBaseDeletionQual();
-        tempErrorArray[EventType.BASE_DELETION.index] = (pileupElement.getRead().getReadNegativeStrandFlag()) ? pileupElement.isAfterDeletedBase() : pileupElement.isBeforeDeletedBase();
-
-        for (final EventType eventType : EventType.values()) {
-            final int[] keys = readCovariates.getKeySet(offset, eventType);
-            final int eventIndex = eventType.index;
-            final byte qual = tempQualArray[eventIndex];
-            final boolean isError = tempErrorArray[eventIndex];
-
-            final NestedIntegerArray<RecalDatum> rgRecalTable = recalibrationTables.getReadGroupTable();
-            final RecalDatum rgPreviousDatum = rgRecalTable.get(keys[0], eventIndex);
-            final RecalDatum rgThisDatum = createDatumObject(qual, isError);
-            if (rgPreviousDatum == null) // key doesn't exist yet in the map so make a new bucket and add it
-                rgRecalTable.put(rgThisDatum, keys[0], eventIndex);
-            else
-                rgPreviousDatum.combine(rgThisDatum);
-
-            final NestedIntegerArray<RecalDatum> qualRecalTable = recalibrationTables.getQualityScoreTable();
-            final RecalDatum qualPreviousDatum = qualRecalTable.get(keys[0], keys[1], eventIndex);
-            if (qualPreviousDatum == null)
-                qualRecalTable.put(createDatumObject(qual, isError), keys[0], keys[1], eventIndex);
-            else
-                qualPreviousDatum.increment(isError);
-
-            for (int i = 2; i < covariates.length; i++) {
-                if (keys[i] < 0)
-                    continue;
-                final NestedIntegerArray<RecalDatum> covRecalTable = recalibrationTables.getTable(i);
-                final RecalDatum covPreviousDatum = covRecalTable.get(keys[0], keys[1], keys[i], eventIndex);
-                if (covPreviousDatum == null)
-                    covRecalTable.put(createDatumObject(qual, isError), keys[0], keys[1], keys[i], eventIndex);
-                else
-                    covPreviousDatum.increment(isError);
-            }
-        }
     }
 
     @Override
-    public synchronized void updateDataForRead(final GATKSAMRecord read, final boolean[] skip, final double[] snpErrors, final double[] insertionErrors, final double[] deletionErrors ) {
+    public void updateDataForRead(final GATKSAMRecord read, final boolean[] skip, final double[] snpErrors, final double[] insertionErrors, final double[] deletionErrors ) {
         for( int offset = 0; offset < read.getReadBases().length; offset++ ) {
             if( !skip[offset] ) {
                 final ReadCovariates readCovariates = covariateKeySetFrom(read);
+
+                byte[] tempQualArray = threadLocalTempQualArray.get();
+                double[] tempFractionalErrorArray = threadLocalTempFractionalErrorArray.get();
 
                 tempQualArray[EventType.BASE_SUBSTITUTION.index] = read.getBaseQualities()[offset];
                 tempFractionalErrorArray[EventType.BASE_SUBSTITUTION.index] = snpErrors[offset];
@@ -124,30 +67,15 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
                     final byte qual = tempQualArray[eventIndex];
                     final double isError = tempFractionalErrorArray[eventIndex];
 
-                    final NestedIntegerArray<RecalDatum> rgRecalTable = recalibrationTables.getReadGroupTable();
-                    final RecalDatum rgPreviousDatum = rgRecalTable.get(keys[0], eventIndex);
-                    final RecalDatum rgThisDatum = createDatumObject(qual, isError);
-                    if (rgPreviousDatum == null) // key doesn't exist yet in the map so make a new bucket and add it
-                        rgRecalTable.put(rgThisDatum, keys[0], eventIndex);
-                    else
-                        rgPreviousDatum.combine(rgThisDatum);
+                    combineDatumOrPutIfNecessary(recalibrationTables.getReadGroupTable(), qual, isError, keys[0], eventIndex);
 
-                    final NestedIntegerArray<RecalDatum> qualRecalTable = recalibrationTables.getQualityScoreTable();
-                    final RecalDatum qualPreviousDatum = qualRecalTable.get(keys[0], keys[1], eventIndex);
-                    if (qualPreviousDatum == null)
-                        qualRecalTable.put(createDatumObject(qual, isError), keys[0], keys[1], eventIndex);
-                    else
-                        qualPreviousDatum.increment(1.0, isError);
+                    incrementDatumOrPutIfNecessary(recalibrationTables.getQualityScoreTable(), qual, isError, keys[0], keys[1], eventIndex);
 
                     for (int i = 2; i < covariates.length; i++) {
                         if (keys[i] < 0)
                             continue;
-                        final NestedIntegerArray<RecalDatum> covRecalTable = recalibrationTables.getTable(i);
-                        final RecalDatum covPreviousDatum = covRecalTable.get(keys[0], keys[1], keys[i], eventIndex);
-                        if (covPreviousDatum == null)
-                            covRecalTable.put(createDatumObject(qual, isError), keys[0], keys[1], keys[i], eventIndex);
-                        else
-                            covPreviousDatum.increment(1.0, isError);
+
+                        incrementDatumOrPutIfNecessary(recalibrationTables.getTable(i), qual, isError, keys[0], keys[1], keys[i], eventIndex);
                     }
                 }
             }
