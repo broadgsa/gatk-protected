@@ -20,6 +20,7 @@ public class SingleSampleCompressor implements Compressor {
     final private ReduceReads.DownsampleStrategy downsampleStrategy;
     final private int nContigs;
     final private boolean allowPolyploidReduction;
+    final CompressionStash compressionStash;
 
     private SlidingWindow slidingWindow;
     private int slidingWindowCounter;
@@ -33,7 +34,8 @@ public class SingleSampleCompressor implements Compressor {
                                   final int minBaseQual,
                                   final ReduceReads.DownsampleStrategy downsampleStrategy,
                                   final int nContigs,
-                                  final boolean allowPolyploidReduction) {
+                                  final boolean allowPolyploidReduction,
+                                  final CompressionStash compressionStash) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
         this.minMappingQuality = minMappingQuality;
@@ -44,6 +46,7 @@ public class SingleSampleCompressor implements Compressor {
         this.downsampleStrategy = downsampleStrategy;
         this.nContigs = nContigs;
         this.allowPolyploidReduction = allowPolyploidReduction;
+        this.compressionStash = compressionStash;
     }
 
     /**
@@ -65,7 +68,7 @@ public class SingleSampleCompressor implements Compressor {
         }
 
         if ( slidingWindow == null) {                                                  // this is the first read
-            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), nContigs, allowPolyploidReduction);
+            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), nContigs, allowPolyploidReduction, compressionStash);
             slidingWindowCounter++;
         }
 

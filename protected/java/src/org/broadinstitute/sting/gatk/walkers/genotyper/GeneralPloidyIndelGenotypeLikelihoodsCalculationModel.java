@@ -62,7 +62,7 @@ public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends Gener
 
 
         pairModel = new PairHMMIndelErrorModel(UAC.INDEL_GAP_OPEN_PENALTY, UAC.INDEL_GAP_CONTINUATION_PENALTY,
-                UAC.OUTPUT_DEBUG_INDEL_INFO, !UAC.DONT_DO_BANDED_INDEL_COMPUTATION);
+                UAC.OUTPUT_DEBUG_INDEL_INFO, UAC.pairHMM);
         haplotypeMap = new LinkedHashMap<Allele, Haplotype>();
     }
 
