@@ -53,7 +53,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "16013a9203367c3d1c4ce1dcdc81ef4a");
+        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "d86fae2d1b504b422b7b0cfbbdecc2c4");
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
@@ -69,8 +69,8 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("c306140ad28515ee06c603c225217939"));
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("f6326adfdf5bc147626b30a89ce06d56"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
