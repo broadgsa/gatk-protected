@@ -67,7 +67,6 @@ public class AlleleBiasedDownsamplingUtils {
                 alleleStratifiedElements[baseIndex].add(pe);
         }
 
-        // Down-sample *each* allele by the contamination fraction applied to the entire pileup.
         // Unfortunately, we need to maintain the original pileup ordering of reads or FragmentUtils will complain later.
         int numReadsToRemove = (int)(pileup.getNumberOfElements() * downsamplingFraction); // floor
         final TreeSet<PileupElement> elementsToKeep = new TreeSet<PileupElement>(new Comparator<PileupElement>() {
@@ -78,12 +77,21 @@ public class AlleleBiasedDownsamplingUtils {
             }
         });
 
+        // make a listing of allele counts
+        final int[] alleleCounts = new int[4];
+        for ( int i = 0; i < 4; i++ )
+            alleleCounts[i] = alleleStratifiedElements[i].size();
+
+        // do smart down-sampling
+        final int[] targetAlleleCounts = runSmartDownsampling(alleleCounts, numReadsToRemove);
+
         for ( int i = 0; i < 4; i++ ) {
             final ArrayList<PileupElement> alleleList = alleleStratifiedElements[i];
-            if ( alleleList.size() <= numReadsToRemove )
-                logAllElements(alleleList, log);
+            // if we don't need to remove any reads, keep them all
+            if ( alleleList.size() <= targetAlleleCounts[i] )
+                elementsToKeep.addAll(alleleList);
             else
-                elementsToKeep.addAll(downsampleElements(alleleList, numReadsToRemove, log));
+                elementsToKeep.addAll(downsampleElements(alleleList, alleleList.size() - targetAlleleCounts[i], log));
         }
 
         // clean up pointers so memory can be garbage collected if needed
@@ -91,6 +99,59 @@ public class AlleleBiasedDownsamplingUtils {
             alleleStratifiedElements[i].clear();
 
         return new ReadBackedPileupImpl(pileup.getLocation(), new ArrayList<PileupElement>(elementsToKeep));
+    }
+
+    private static int scoreAlleleCounts(final int[] alleleCounts) {
+        final int maxIndex = MathUtils.maxElementIndex(alleleCounts);
+        final int maxCount = alleleCounts[maxIndex];
+
+        int nonMaxCount = 0;
+        for ( int i = 0; i < 4; i++ ) {
+            if ( i != maxIndex )
+                nonMaxCount += alleleCounts[i];
+        }
+
+        // try to get the best score: in the het case the counts should be equal and in the hom case the non-max should be zero
+        return Math.min(Math.abs(maxCount - nonMaxCount), Math.abs(nonMaxCount));
+    }
+
+    /**
+     * Computes an allele biased version of the given pileup
+     *
+     * @param alleleCounts              the original pileup
+     * @param numReadsToRemove          fraction of total reads to remove per allele
+     * @return allele biased pileup
+     */
+    protected static int[] runSmartDownsampling(final int[] alleleCounts, final int numReadsToRemove) {
+        final int numAlleles = alleleCounts.length;
+
+        int maxScore = scoreAlleleCounts(alleleCounts);
+        int[] alleleCountsOfMax = alleleCounts;
+
+        final int numReadsToRemovePerAllele = numReadsToRemove / 2;
+
+        for ( int i = 0; i < numAlleles; i++ ) {
+            for ( int j = i; j < numAlleles; j++ ) {
+                final int[] newCounts = alleleCounts.clone();
+
+                // split these cases so we don't lose on the floor (since we divided by 2)
+                if ( i == j ) {
+                    newCounts[i] = Math.max(0, newCounts[i] - numReadsToRemove);
+                } else {
+                    newCounts[i] = Math.max(0, newCounts[i] - numReadsToRemovePerAllele);
+                    newCounts[j] = Math.max(0, newCounts[j] - numReadsToRemovePerAllele);
+                }
+
+                final int score = scoreAlleleCounts(newCounts);
+
+                if ( score < maxScore ) {
+                    maxScore = score;
+                    alleleCountsOfMax = newCounts;
+                }
+            }
+        }
+
+        return alleleCountsOfMax;
     }
 
     /**
@@ -102,7 +163,15 @@ public class AlleleBiasedDownsamplingUtils {
      * @return the list of pileup elements TO KEEP
      */
     private static List<PileupElement> downsampleElements(final ArrayList<PileupElement> elements, final int numElementsToRemove, final PrintStream log) {
+        if ( numElementsToRemove == 0 )
+            return elements;
+
         final int pileupSize = elements.size();
+        if ( numElementsToRemove == pileupSize ) {
+            logAllElements(elements, log);
+            return new ArrayList<PileupElement>(0);
+        }
+
         final BitSet itemsToRemove = new BitSet(pileupSize);
         for ( Integer selectedIndex : MathUtils.sampleIndicesWithoutReplacement(pileupSize, numElementsToRemove) ) {
             itemsToRemove.set(selectedIndex);
@@ -132,15 +201,25 @@ public class AlleleBiasedDownsamplingUtils {
         for ( final List<GATKSAMRecord> reads : alleleReadMap.values() )
             totalReads += reads.size();
 
-        // Down-sample *each* allele by the contamination fraction applied to the entire pileup.
         int numReadsToRemove = (int)(totalReads * downsamplingFraction);
-        final List<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>(numReadsToRemove * alleleReadMap.size());
-        for ( final List<GATKSAMRecord> reads : alleleReadMap.values() ) {
-            if ( reads.size() <= numReadsToRemove ) {
-                readsToRemove.addAll(reads);
-                logAllReads(reads, log);
-            } else {
-                readsToRemove.addAll(downsampleReads(reads, numReadsToRemove, log));
+
+        // make a listing of allele counts
+        final List<Allele> alleles = new ArrayList<Allele>(alleleReadMap.keySet());
+        alleles.remove(Allele.NO_CALL);    // ignore the no-call bin
+        final int numAlleles = alleles.size();
+        final int[] alleleCounts = new int[numAlleles];
+        for ( int i = 0; i < numAlleles; i++ )
+            alleleCounts[i] = alleleReadMap.get(alleles.get(i)).size();
+
+        // do smart down-sampling
+        final int[] targetAlleleCounts = runSmartDownsampling(alleleCounts, numReadsToRemove);
+
+        final List<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>(numReadsToRemove);
+        for ( int i = 0; i < numAlleles; i++ ) {
+            final List<GATKSAMRecord> alleleBin = alleleReadMap.get(alleles.get(i));
+
+            if ( alleleBin.size() > targetAlleleCounts[i] ) {
+                readsToRemove.addAll(downsampleReads(alleleBin, alleleBin.size() - targetAlleleCounts[i], log));
             }
         }
 
@@ -156,13 +235,22 @@ public class AlleleBiasedDownsamplingUtils {
      * @return the list of pileup elements TO REMOVE
      */
     private static List<GATKSAMRecord> downsampleReads(final List<GATKSAMRecord> reads, final int numElementsToRemove, final PrintStream log) {
+        final ArrayList<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>(numElementsToRemove);
+
+        if ( numElementsToRemove == 0 )
+            return readsToRemove;
+
         final int pileupSize = reads.size();
+        if ( numElementsToRemove == pileupSize ) {
+            logAllReads(reads, log);
+            return reads;
+        }
+
         final BitSet itemsToRemove = new BitSet(pileupSize);
         for ( Integer selectedIndex : MathUtils.sampleIndicesWithoutReplacement(pileupSize, numElementsToRemove) ) {
             itemsToRemove.set(selectedIndex);
         }
 
-        ArrayList<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>(pileupSize - numElementsToRemove);
         for ( int i = 0; i < pileupSize; i++ ) {
             if ( itemsToRemove.get(i) ) {
                 final GATKSAMRecord read = reads.get(i);
