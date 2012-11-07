@@ -95,7 +95,7 @@ public class AlleleBiasedDownsamplingUtilsUnitTest extends BaseTest {
         actualCounts[3] += addT;
 
         final int[] results = AlleleBiasedDownsamplingUtils.runSmartDownsampling(actualCounts, (int)(pileupSize * contaminationFraction));
-        Assert.assertTrue(countsAreEqual(actualCounts, targetCounts));
+        Assert.assertTrue(countsAreEqual(results, targetCounts));
     }
 
     private static boolean countsAreEqual(final int[] counts1, final int[] counts2) {

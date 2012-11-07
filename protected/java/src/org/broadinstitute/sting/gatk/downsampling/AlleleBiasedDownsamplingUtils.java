@@ -102,17 +102,24 @@ public class AlleleBiasedDownsamplingUtils {
     }
 
     private static int scoreAlleleCounts(final int[] alleleCounts) {
-        final int maxIndex = MathUtils.maxElementIndex(alleleCounts);
-        final int maxCount = alleleCounts[maxIndex];
+        if ( alleleCounts.length < 2 )
+            return 0;
 
-        int nonMaxCount = 0;
-        for ( int i = 0; i < 4; i++ ) {
-            if ( i != maxIndex )
-                nonMaxCount += alleleCounts[i];
-        }
+        // sort the counts (in ascending order)
+        final int[] alleleCountsCopy = alleleCounts.clone();
+        Arrays.sort(alleleCountsCopy);
 
-        // try to get the best score: in the het case the counts should be equal and in the hom case the non-max should be zero
-        return Math.min(Math.abs(maxCount - nonMaxCount), Math.abs(nonMaxCount));
+        final int maxCount = alleleCountsCopy[alleleCounts.length - 1];
+        final int nextBestCount = alleleCountsCopy[alleleCounts.length - 2];
+
+        int remainderCount = 0;
+        for ( int i = 0; i < alleleCounts.length - 2; i++ )
+            remainderCount += alleleCountsCopy[i];
+
+        // try to get the best score:
+        //    - in the het case the counts should be equal with nothing else
+        //    - in the hom case the non-max should be zero
+        return Math.min(maxCount - nextBestCount + remainderCount, Math.abs(nextBestCount + remainderCount));
     }
 
     /**
