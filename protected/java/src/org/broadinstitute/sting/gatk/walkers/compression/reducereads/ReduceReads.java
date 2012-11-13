@@ -256,7 +256,6 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         // todo -- rework the whole NO_PG_TAG thing
         final boolean preSorted = true;
         final boolean indexOnTheFly = true;
-        final boolean generateMD5 = true;
         final boolean keep_records = true;
         final SAMFileHeader.SortOrder sortOrder = SAMFileHeader.SortOrder.coordinate;
         if (nwayout) {
@@ -267,7 +266,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
             writerToUse = out;
             out.setPresorted(false);
             if (!NO_PG_TAG) {
-                Utils.setupWriter(out, toolkit, !preSorted, keep_records, this, PROGRAM_RECORD_NAME);
+                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), !preSorted, keep_records, this, PROGRAM_RECORD_NAME);
             }
         }
     }
