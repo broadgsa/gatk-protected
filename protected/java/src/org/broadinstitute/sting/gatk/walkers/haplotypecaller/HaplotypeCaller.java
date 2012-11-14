@@ -26,7 +26,6 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
@@ -41,7 +40,10 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.genotyper.*;
+import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
+import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
@@ -212,7 +214,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     private VariantAnnotatorEngine annotationEngine;
 
     // fasta reference reader to supplement the edges of the reference sequence
-    private IndexedFastaSequenceFile referenceReader;
+    private CachingIndexedFastaSequenceFile referenceReader;
 
     // reference base padding size
     private static final int REFERENCE_PADDING = 900;
@@ -324,15 +326,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                 }
             }
             if( tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ) {
-                return new ActivityProfileResult(1.0);
+                return new ActivityProfileResult(ref.getLocus(), 1.0);
             }
         }
 
         if( USE_ALLELES_TRIGGER ) {
-            return new ActivityProfileResult( tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
+            return new ActivityProfileResult( ref.getLocus(), tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
         }
 
-        if( context == null ) { return new ActivityProfileResult(0.0); }
+        if( context == null ) { return new ActivityProfileResult(ref.getLocus(), 0.0); }
 
         final List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
         noCall.add(Allele.NO_CALL);
@@ -369,7 +371,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.INDEL);
         final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
 
-        return new ActivityProfileResult( isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileResult.ActivityProfileResultState.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileResult.ActivityProfileResultState.NONE, averageHQSoftClips.mean() );
+        return new ActivityProfileResult( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileResult.ActivityProfileResultState.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileResult.ActivityProfileResultState.NONE, averageHQSoftClips.mean() );
     }
 
     //---------------------------------------------------------------------------------------------------------------
