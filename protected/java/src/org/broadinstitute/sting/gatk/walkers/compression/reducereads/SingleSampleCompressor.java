@@ -1,8 +1,10 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
+import java.util.Set;
 import java.util.TreeSet;
 
 /**
@@ -10,7 +12,7 @@ import java.util.TreeSet;
  * @author carneiro, depristo
  * @version 3.0
  */
-public class SingleSampleCompressor implements Compressor {
+public class SingleSampleCompressor {
     final private int contextSize;
     final private int downsampleCoverage;
     final private int minMappingQuality;
@@ -24,6 +26,7 @@ public class SingleSampleCompressor implements Compressor {
     private SlidingWindow slidingWindow;
     private int slidingWindowCounter;
 
+    public static Pair<Set<GATKSAMRecord>, CompressionStash> emptyPair = new Pair<Set<GATKSAMRecord>,CompressionStash>(new TreeSet<GATKSAMRecord>(), new CompressionStash());
 
     public SingleSampleCompressor(final int contextSize,
                                   final int downsampleCoverage,
@@ -46,12 +49,9 @@ public class SingleSampleCompressor implements Compressor {
         this.allowPolyploidReduction = allowPolyploidReduction;
     }
 
-    /**
-     * @{inheritDoc}
-     */
-    @Override
-    public Iterable<GATKSAMRecord> addAlignment( GATKSAMRecord read ) {
-        TreeSet<GATKSAMRecord> result = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+    public Pair<Set<GATKSAMRecord>, CompressionStash> addAlignment( GATKSAMRecord read ) {
+        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+        CompressionStash stash = new CompressionStash();
         int readOriginalStart = read.getUnclippedStart();
 
         // create a new window if:
@@ -60,7 +60,9 @@ public class SingleSampleCompressor implements Compressor {
               (readOriginalStart - contextSize > slidingWindow.getStopLocation()))) {  // this read is too far away from the end of the current sliding window
 
             // close the current sliding window
-            result.addAll(slidingWindow.close());
+            Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = slidingWindow.close();
+            reads = readsAndStash.getFirst();
+            stash = readsAndStash.getSecond();
             slidingWindow = null;                                                      // so we create a new one on the next if
         }
 
@@ -69,13 +71,16 @@ public class SingleSampleCompressor implements Compressor {
             slidingWindowCounter++;
         }
 
-        result.addAll(slidingWindow.addRead(read));
-        return result;
+        stash.addAll(slidingWindow.addRead(read));
+        return new Pair<Set<GATKSAMRecord>, CompressionStash>(reads, stash);
     }
 
-    @Override
-    public Iterable<GATKSAMRecord> close() {
-        return (slidingWindow != null) ? slidingWindow.close() : new TreeSet<GATKSAMRecord>();
+    public Pair<Set<GATKSAMRecord>, CompressionStash> close() {
+        return (slidingWindow != null) ? slidingWindow.close() : emptyPair;
+    }
+
+    public Set<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
+        return slidingWindow.closeVariantRegions(regions);
     }
 
 }
