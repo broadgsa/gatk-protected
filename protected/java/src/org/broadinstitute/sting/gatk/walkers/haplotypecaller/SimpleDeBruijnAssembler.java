@@ -369,6 +369,8 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
 
         h.setAlignmentStartHapwrtRef( swConsensus2.getAlignmentStart2wrt1() );
         h.setCigar( AlignmentUtils.leftAlignIndel(swConsensus2.getCigar(), ref, h.getBases(), swConsensus2.getAlignmentStart2wrt1(), 0) );
+        if ( haplotype.isArtificialHaplotype() )
+            h.setArtificialAllele(haplotype.getArtificialAllele());
         h.leftBreakPoint = leftBreakPoint;
         h.rightBreakPoint = rightBreakPoint;
         if( swConsensus2.getCigar().toString().contains("S") || swConsensus2.getCigar().getReferenceLength() != activeRegionStop - activeRegionStart ) { // protect against SW failures
