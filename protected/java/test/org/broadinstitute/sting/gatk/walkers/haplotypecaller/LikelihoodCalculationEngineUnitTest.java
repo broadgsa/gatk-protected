@@ -10,7 +10,6 @@ import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -102,7 +101,9 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
                     haplotypes.add(haplotype);
                 }
             }
-            return LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(haplotypes, "myTestSample");
+            final HashSet<String> sampleSet = new HashSet<String>(1);
+            sampleSet.add("myTestSample");
+            return LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sampleSet, haplotypes);
         }
     }
 

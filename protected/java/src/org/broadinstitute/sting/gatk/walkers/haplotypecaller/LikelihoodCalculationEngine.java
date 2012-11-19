@@ -148,34 +148,21 @@ public class LikelihoodCalculationEngine {
         return Math.min(b1.length, b2.length);
     }
 
-    @Requires({"haplotypes.size() > 0"})
-    @Ensures({"result.length == result[0].length", "result.length == haplotypes.size()"})
-    public static double[][] computeDiploidHaplotypeLikelihoods( final ArrayList<Haplotype> haplotypes, final String sample ) {
-        // set up the default 1-to-1 haplotype mapping object, BUGBUG: target for future optimization?
-        final ArrayList<ArrayList<Haplotype>> haplotypeMapping = new ArrayList<ArrayList<Haplotype>>();
-        for( final Haplotype h : haplotypes ) {
-            final ArrayList<Haplotype> list = new ArrayList<Haplotype>();
-            list.add(h);
-            haplotypeMapping.add(list);
-        }
-        return computeDiploidHaplotypeLikelihoods( sample, haplotypeMapping );
-    }
-
     // This function takes just a single sample and a haplotypeMapping
     @Requires({"haplotypeMapping.size() > 0"})
     @Ensures({"result.length == result[0].length", "result.length == haplotypeMapping.size()"})
-    public static double[][] computeDiploidHaplotypeLikelihoods( final String sample, final ArrayList<ArrayList<Haplotype>> haplotypeMapping ) {
+    public static double[][] computeDiploidHaplotypeLikelihoods( final String sample, final Map<Allele, List<Haplotype>> haplotypeMapping, final List<Allele> alleleOrdering ) {
         final TreeSet<String> sampleSet = new TreeSet<String>();
         sampleSet.add(sample);
-        return computeDiploidHaplotypeLikelihoods(sampleSet, haplotypeMapping);
+        return computeDiploidHaplotypeLikelihoods(sampleSet, haplotypeMapping, alleleOrdering);
     }
 
     // This function takes a set of samples to pool over and a haplotypeMapping
     @Requires({"haplotypeMapping.size() > 0"})
     @Ensures({"result.length == result[0].length", "result.length == haplotypeMapping.size()"})
-    public static double[][] computeDiploidHaplotypeLikelihoods( final Set<String> samples, final ArrayList<ArrayList<Haplotype>> haplotypeMapping ) {
+    public static double[][] computeDiploidHaplotypeLikelihoods( final Set<String> samples, final Map<Allele, List<Haplotype>> haplotypeMapping, final List<Allele> alleleOrdering ) {
 
-        final int numHaplotypes = haplotypeMapping.size();
+        final int numHaplotypes = alleleOrdering.size();
         final double[][] haplotypeLikelihoodMatrix = new double[numHaplotypes][numHaplotypes];
         for( int iii = 0; iii < numHaplotypes; iii++ ) {
             Arrays.fill(haplotypeLikelihoodMatrix[iii], Double.NEGATIVE_INFINITY);
@@ -184,9 +171,9 @@ public class LikelihoodCalculationEngine {
         // compute the diploid haplotype likelihoods
         // todo - needs to be generalized to arbitrary ploidy, cleaned and merged with PairHMMIndelErrorModel code
         for( int iii = 0; iii < numHaplotypes; iii++ ) {
-            for( int jjj = 0; jjj <= iii; jjj++ ) {                
-                for( final Haplotype iii_mapped : haplotypeMapping.get(iii) ) {
-                    for( final Haplotype jjj_mapped : haplotypeMapping.get(jjj) ) {
+            for( int jjj = 0; jjj <= iii; jjj++ ) {
+                for( final Haplotype iii_mapped : haplotypeMapping.get(alleleOrdering.get(iii)) ) {
+                    for( final Haplotype jjj_mapped : haplotypeMapping.get(alleleOrdering.get(jjj)) ) {
                         double haplotypeLikelihood = 0.0;
                         for( final String sample : samples ) {
                             final double[] readLikelihoods_iii = iii_mapped.getReadLikelihoods(sample);
@@ -200,12 +187,48 @@ public class LikelihoodCalculationEngine {
                         }
                         haplotypeLikelihoodMatrix[iii][jjj] = Math.max(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood);
                     }
-                }       
+                }
             }
         }
 
         // normalize the diploid likelihoods matrix
-        return normalizeDiploidLikelihoodMatrixFromLog10( haplotypeLikelihoodMatrix );        
+        return normalizeDiploidLikelihoodMatrixFromLog10( haplotypeLikelihoodMatrix );
+    }
+
+    // This function takes a set of samples to pool over and a haplotypeMapping
+    @Requires({"haplotypeMapping.size() > 0"})
+    @Ensures({"result.length == result[0].length", "result.length == haplotypeMapping.size()"})
+    public static double[][] computeDiploidHaplotypeLikelihoods( final Set<String> samples, final List<Haplotype> haplotypeList ) {
+
+        final int numHaplotypes = haplotypeList.size();
+        final double[][] haplotypeLikelihoodMatrix = new double[numHaplotypes][numHaplotypes];
+        for( int iii = 0; iii < numHaplotypes; iii++ ) {
+            Arrays.fill(haplotypeLikelihoodMatrix[iii], Double.NEGATIVE_INFINITY);
+        }
+
+        // compute the diploid haplotype likelihoods
+        // todo - needs to be generalized to arbitrary ploidy, cleaned and merged with PairHMMIndelErrorModel code
+        for( int iii = 0; iii < numHaplotypes; iii++ ) {
+            final Haplotype iii_haplotype = haplotypeList.get(iii);
+            for( int jjj = 0; jjj <= iii; jjj++ ) {
+                final Haplotype jjj_haplotype = haplotypeList.get(jjj);
+                double haplotypeLikelihood = 0.0;
+                for( final String sample : samples ) {
+                    final double[] readLikelihoods_iii = iii_haplotype.getReadLikelihoods(sample);
+                    final int[] readCounts_iii = iii_haplotype.getReadCounts(sample);
+                    final double[] readLikelihoods_jjj = jjj_haplotype.getReadLikelihoods(sample);
+                    for( int kkk = 0; kkk < readLikelihoods_iii.length; kkk++ ) {
+                        // Compute log10(10^x1/2 + 10^x2/2) = log10(10^x1+10^x2)-log10(2)
+                        // First term is approximated by Jacobian log with table lookup.
+                        haplotypeLikelihood += readCounts_iii[kkk] * ( MathUtils.approximateLog10SumLog10(readLikelihoods_iii[kkk], readLikelihoods_jjj[kkk]) + LOG_ONE_HALF );
+                    }
+                }
+                haplotypeLikelihoodMatrix[iii][jjj] = Math.max(haplotypeLikelihoodMatrix[iii][jjj], haplotypeLikelihood);
+            }
+        }
+
+        // normalize the diploid likelihoods matrix
+        return normalizeDiploidLikelihoodMatrixFromLog10( haplotypeLikelihoodMatrix );
     }
 
     @Requires({"likelihoodMatrix.length == likelihoodMatrix[0].length"})
@@ -296,14 +319,7 @@ public class LikelihoodCalculationEngine {
         final Set<String> sampleKeySet = haplotypes.get(0).getSampleKeySet(); // BUGBUG: assume all haplotypes saw the same samples
         final ArrayList<Integer> bestHaplotypesIndexList = new ArrayList<Integer>();
         bestHaplotypesIndexList.add( findReferenceIndex(haplotypes) ); // always start with the reference haplotype
-        // set up the default 1-to-1 haplotype mapping object
-        final ArrayList<ArrayList<Haplotype>> haplotypeMapping = new ArrayList<ArrayList<Haplotype>>();
-        for( final Haplotype h : haplotypes ) {
-            final ArrayList<Haplotype> list = new ArrayList<Haplotype>();
-            list.add(h);
-            haplotypeMapping.add(list);
-        }
-        final double[][] haplotypeLikelihoodMatrix = computeDiploidHaplotypeLikelihoods( sampleKeySet, haplotypeMapping ); // all samples pooled together
+        final double[][] haplotypeLikelihoodMatrix = computeDiploidHaplotypeLikelihoods( sampleKeySet, haplotypes ); // all samples pooled together
 
         int hap1 = 0;
         int hap2 = 0;
@@ -347,7 +363,7 @@ public class LikelihoodCalculationEngine {
     public static Map<String, PerReadAlleleLikelihoodMap> partitionReadsBasedOnLikelihoods( final GenomeLocParser parser,
                                                                                             final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList,
                                                                                             final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
-                                                                                            final Pair<VariantContext, HashMap<Allele,ArrayList<Haplotype>>> call,
+                                                                                            final Pair<VariantContext, Map<Allele,List<Haplotype>>> call,
                                                                                             final double downsamplingFraction,
                                                                                             final PrintStream downsamplingLog ) {
         final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
