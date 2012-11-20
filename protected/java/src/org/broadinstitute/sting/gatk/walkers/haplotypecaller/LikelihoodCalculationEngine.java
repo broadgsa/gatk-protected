@@ -196,8 +196,8 @@ public class LikelihoodCalculationEngine {
     }
 
     // This function takes a set of samples to pool over and a haplotypeMapping
-    @Requires({"haplotypeMapping.size() > 0"})
-    @Ensures({"result.length == result[0].length", "result.length == haplotypeMapping.size()"})
+    @Requires({"haplotypeList.size() > 0"})
+    @Ensures({"result.length == result[0].length", "result.length == haplotypeList.size()"})
     public static double[][] computeDiploidHaplotypeLikelihoods( final Set<String> samples, final List<Haplotype> haplotypeList ) {
 
         final int numHaplotypes = haplotypeList.size();
