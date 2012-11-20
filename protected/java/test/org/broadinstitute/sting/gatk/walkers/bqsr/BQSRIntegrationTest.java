@@ -91,6 +91,21 @@ public class BQSRIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testBQSRCSV() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T BaseRecalibrator" +
+                        " -R " + b36KGReference +
+                        " -I " + validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.bam" +
+                        " -knownSites " + b36dbSNP129 +
+                        " -L 1:10,000,000-10,200,000" +
+                        " -o /dev/null" +
+                        " --plot_pdf_file /dev/null" +
+                        " --intermediate_csv_file %s",
+                Arrays.asList("d1c38a3418979400630e2bca1140689c"));
+        executeTest("testBQSR-CSVfile", spec);
+    }
+
+    @Test
     public void testBQSRFailWithSolidNoCall() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 " -T BaseRecalibrator" +

@@ -3,13 +3,14 @@ package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 import net.sf.samtools.SAMFileHeader;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.SampleUtils;
+import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.SortedSet;
+import java.util.Set;
 import java.util.TreeSet;
 
 /*
@@ -41,7 +42,7 @@ import java.util.TreeSet;
  *
  * @author depristo
  */
-public class MultiSampleCompressor implements Compressor {
+public class MultiSampleCompressor {
     protected static final Logger logger = Logger.getLogger(MultiSampleCompressor.class);
 
     protected Map<String, SingleSampleCompressor> compressorsPerSample = new HashMap<String, SingleSampleCompressor>();
@@ -63,21 +64,36 @@ public class MultiSampleCompressor implements Compressor {
         }
     }
 
-    @Override
-    public Iterable<GATKSAMRecord> addAlignment(GATKSAMRecord read) {
-        String sample = read.getReadGroup().getSample();
-        SingleSampleCompressor compressor = compressorsPerSample.get(sample);
+    public Set<GATKSAMRecord> addAlignment(GATKSAMRecord read) {
+        String sampleName = read.getReadGroup().getSample();
+        SingleSampleCompressor compressor = compressorsPerSample.get(sampleName);
         if ( compressor == null )
-            throw new ReviewedStingException("No compressor for sample " + sample);
-        return compressor.addAlignment(read);
+            throw new ReviewedStingException("No compressor for sample " + sampleName);
+        Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = compressor.addAlignment(read);
+        Set<GATKSAMRecord> reads = readsAndStash.getFirst();
+        CompressionStash regions = readsAndStash.getSecond();
+
+        reads.addAll(closeVariantRegionsInAllSamples(regions));
+
+        return reads;
     }
 
-    @Override
-    public Iterable<GATKSAMRecord> close() {
-        SortedSet<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
-        for ( SingleSampleCompressor comp : compressorsPerSample.values() )
-            for ( GATKSAMRecord read : comp.close() )
-                reads.add(read);
+    public Set<GATKSAMRecord> close() {
+        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+        for ( SingleSampleCompressor sample : compressorsPerSample.values() ) {
+            Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = sample.close();
+            reads = readsAndStash.getFirst();
+        }
+        return reads;
+    }
+
+    private Set<GATKSAMRecord> closeVariantRegionsInAllSamples(CompressionStash regions) {
+        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+        if (!regions.isEmpty()) {
+            for (SingleSampleCompressor sample : compressorsPerSample.values()) {
+                reads.addAll(sample.closeVariantRegions(regions));
+            }
+        }
         return reads;
     }
 }
