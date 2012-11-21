@@ -29,9 +29,10 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTest(NA12878_BAM, "", "baabae06c85d416920be434939124d7f");
     }
 
+    // TODO -- add more tests for GGA mode, especially with input alleles that are complex variants and/or not trimmed
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "39da622b309597d7a0b082c8aa1748c9");
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf", "f2d0309fdf50d5827e9c60ed0dd07e3f");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
