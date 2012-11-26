@@ -72,7 +72,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("788176e1717bd28fc7cbc8e3efbb6100"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("ec437d2d9f3ae07d155983be0155c8ed"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
