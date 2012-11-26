@@ -51,16 +51,16 @@ public class BQSRIntegrationTest extends WalkerTest {
         String HiSeqBam = privateTestDir + "HiSeq.1mb.1RG.bam";
         String HiSeqInterval = "chr1:10,000,000-10,100,000";
         return new Object[][]{
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "387b41dc2221a1a4a782958944662b25")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "b5e26902e76abbd59f94f65c70d18165")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "a8a9c3f83269911cb61c5fe8fb98dc4a")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "f43a0473101c63ae93444c300d843e81")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "9e05e63339d4716584bfc717cab6bd0f")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "1cf9b9c9c64617dc0f3d2f203f918dbe")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "aa1949a77bc3066fee551a217c970c0d")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "4fd3c9ad97e6ac58cba644a76564c9f7")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "2620f734cce20f70ce13afd880e46e5c")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "5eb3b94e767da19a4c037ee132e4b19a")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "ab261d291b107a3da7897759c0e4fa89")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "292303f649fbb19dc05d4a0197a49eeb")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "8ced9d1094493f17fb1876b818a64541")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "abb838131e403d39820dbd66932d1ed0")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "f70d8b5358bc2f76696f14b7a807ede0")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "4c0f63e06830681560a1e9f9aad9fe98")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "be2812cd3dae3c326cf35ae3f1c8ad9e")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "8f62aa0e75770204c98d8299793cc53c")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "03c29a0c1d21f72b12daf51cec111599")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "7080b2cad02ec6e67ebc766b2dccebf8")},
                 {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "30e76055c16843b6e33e5b9bd8ced57c")},
@@ -88,6 +88,21 @@ public class BQSRIntegrationTest extends WalkerTest {
                 1, // just one output file
                 UserException.CommandLineException.class);
         executeTest("testBQSRFailWithoutDBSNP", spec);
+    }
+
+    @Test
+    public void testBQSRCSV() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T BaseRecalibrator" +
+                        " -R " + b36KGReference +
+                        " -I " + validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.bam" +
+                        " -knownSites " + b36dbSNP129 +
+                        " -L 1:10,000,000-10,200,000" +
+                        " -o /dev/null" +
+                        " --plot_pdf_file /dev/null" +
+                        " --intermediate_csv_file %s",
+                Arrays.asList("d1c38a3418979400630e2bca1140689c"));
+        executeTest("testBQSR-CSVfile", spec);
     }
 
     @Test
