@@ -253,7 +253,6 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
             intervalList.addAll(toolkit.getIntervals());
 
 
-        // todo -- rework the whole NO_PG_TAG thing
         final boolean preSorted = true;
         final boolean indexOnTheFly = true;
         final boolean keep_records = true;
