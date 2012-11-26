@@ -421,10 +421,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
         final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes ) : haplotypes );
 
-        for( final Pair<VariantContext, HashMap<Allele, ArrayList<Haplotype>>> callResult :
-                ( GENOTYPE_FULL_ACTIVE_REGION && UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
-                  ? genotypingEngine.assignGenotypeLikelihoodsAndCallHaplotypeEvents( UG_engine, bestHaplotypes, fullReferenceWithPadding, getPaddedLoc(activeRegion), activeRegion.getExtendedLoc(), getToolkit().getGenomeLocParser() )
-                  : genotypingEngine.assignGenotypeLikelihoodsAndCallIndependentEvents( UG_engine, bestHaplotypes, fullReferenceWithPadding, getPaddedLoc(activeRegion), activeRegion.getLocation(), getToolkit().getGenomeLocParser(), activeAllelesToGenotype ) ) ) {
+        for( final Pair<VariantContext, Map<Allele, List<Haplotype>>> callResult :
+                genotypingEngine.assignGenotypeLikelihoodsAndCallIndependentEvents( UG_engine, bestHaplotypes, fullReferenceWithPadding, getPaddedLoc(activeRegion), activeRegion.getLocation(), getToolkit().getGenomeLocParser(), activeAllelesToGenotype ) ) {
             if( DEBUG ) { System.out.println(callResult.getFirst().toStringWithoutGenotypes()); }
 
             final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = LikelihoodCalculationEngine.partitionReadsBasedOnLikelihoods( getToolkit().getGenomeLocParser(), perSampleReadList, perSampleFilteredReadList, callResult, UG_engine.getUAC().CONTAMINATION_FRACTION, UG_engine.getUAC().contaminationLog );
