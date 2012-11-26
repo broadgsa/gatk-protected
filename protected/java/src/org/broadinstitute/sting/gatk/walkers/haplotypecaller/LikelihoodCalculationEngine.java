@@ -169,7 +169,6 @@ public class LikelihoodCalculationEngine {
         }
 
         // compute the diploid haplotype likelihoods
-        // todo - needs to be generalized to arbitrary ploidy, cleaned and merged with PairHMMIndelErrorModel code
         for( int iii = 0; iii < numHaplotypes; iii++ ) {
             for( int jjj = 0; jjj <= iii; jjj++ ) {
                 for( final Haplotype iii_mapped : haplotypeMapping.get(alleleOrdering.get(iii)) ) {
