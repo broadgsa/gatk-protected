@@ -45,6 +45,7 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.*;
+import org.broadinstitute.sting.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.codecs.vcf.*;
@@ -295,9 +296,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Override
     public boolean includeReadsWithDeletionAtLoci() { return true; }
 
-    // enable non primary reads in the active region
+    // enable non primary and extended reads in the active region
     @Override
-    public boolean wantsNonPrimaryReads() { return true; }
+    public EnumSet<ActiveRegionReadState> desiredReadStates() {
+        return EnumSet.of(
+                ActiveRegionReadState.PRIMARY,
+                ActiveRegionReadState.NONPRIMARY,
+                ActiveRegionReadState.EXTENDED
+        );
+    }
 
     @Override
     @Ensures({"result.isActiveProb >= 0.0", "result.isActiveProb <= 1.0"})
