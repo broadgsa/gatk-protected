@@ -41,13 +41,11 @@ import java.util.*;
 public class GenotypingEngine {
 
     private final boolean DEBUG;
-    private final boolean OUTPUT_FULL_HAPLOTYPE_SEQUENCE;
     private final static List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
     private final static Allele SYMBOLIC_UNASSEMBLED_EVENT_ALLELE = Allele.create("<UNASSEMBLED_EVENT>", false);
 
-    public GenotypingEngine( final boolean DEBUG, final boolean OUTPUT_FULL_HAPLOTYPE_SEQUENCE ) {
+    public GenotypingEngine( final boolean DEBUG ) {
         this.DEBUG = DEBUG;
-        this.OUTPUT_FULL_HAPLOTYPE_SEQUENCE = OUTPUT_FULL_HAPLOTYPE_SEQUENCE;
         noCall.add(Allele.NO_CALL);
     }
 
