@@ -220,7 +220,6 @@ public class SlidingWindow {
             regions = findVariantRegions(0, breakpoint, markedSites.getVariantSiteBitSet(), !forceClose);
         }
 
-        // todo -- can be more aggressive here removing until the NEW window header start location after closing the variant regions
         while (!readsInWindow.isEmpty() && readsInWindow.first().getSoftEnd() < windowHeaderStartLocation) {
                 readsInWindow.pollFirst();
         }
@@ -607,9 +606,7 @@ public class SlidingWindow {
                     toRemove.add(read);
                 }
             }
-            for (GATKSAMRecord read : toRemove) {
-                readsInWindow.remove(read);
-            }
+            removeReadsFromWindow(toRemove);
         }
         return allReads;
     }
@@ -805,9 +802,8 @@ public class SlidingWindow {
                 hetReads.add(finalizeRunningConsensus());
         }
 
-        for (GATKSAMRecord read : toRemove) {
-            readsInWindow.remove(read);
-        }
+        removeReadsFromWindow(toRemove);
+
         return hetReads;
     }
 
@@ -922,6 +918,12 @@ public class SlidingWindow {
                     }
                     break;
             }
+        }
+    }
+
+    private void removeReadsFromWindow (List<GATKSAMRecord> readsToRemove) {
+        for (GATKSAMRecord read : readsToRemove) {
+            readsInWindow.remove(read);
         }
     }
 }
