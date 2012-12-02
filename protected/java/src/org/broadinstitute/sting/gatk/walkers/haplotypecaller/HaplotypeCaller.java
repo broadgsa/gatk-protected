@@ -202,9 +202,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     // the genotyping engine
     private GenotypingEngine genotypingEngine = null;
 
-    // the annotation engine
-    private VariantAnnotatorEngine annotationEngine;
-
     // fasta reference reader to supplement the edges of the reference sequence
     private CachingIndexedFastaSequenceFile referenceReader;
 
@@ -249,7 +246,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
 
         // initialize the output VCF header
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
+        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
         Set<VCFHeaderLine> headerInfo = new HashSet<VCFHeaderLine>();
 
@@ -282,7 +279,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
-        genotypingEngine = new GenotypingEngine( DEBUG );
+        genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine );
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -398,21 +395,23 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         Collections.sort( haplotypes, new Haplotype.HaplotypeBaseComparator() );
 
         // evaluate each sample's reads against all haplotypes
-        final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList = splitReadsBySample( activeRegion.getReads() );
-        final HashMap<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
-        likelihoodCalculationEngine.computeReadLikelihoods( haplotypes, perSampleReadList );
+        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods( haplotypes, splitReadsBySample( activeRegion.getReads() ) );
+        final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
-        final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes ) : haplotypes );
+        final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes, stratifiedReadMap ) : haplotypes );
 
-        for( final Pair<VariantContext, Map<Allele, List<Haplotype>>> callResult :
-                genotypingEngine.assignGenotypeLikelihoodsAndCallIndependentEvents( UG_engine, bestHaplotypes, fullReferenceWithPadding, getPaddedLoc(activeRegion), activeRegion.getLocation(), getToolkit().getGenomeLocParser(), activeAllelesToGenotype ) ) {
-            if( DEBUG ) { System.out.println(callResult.getFirst().toStringWithoutGenotypes()); }
-
-            final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = LikelihoodCalculationEngine.partitionReadsBasedOnLikelihoods( getToolkit().getGenomeLocParser(), perSampleReadList, perSampleFilteredReadList, callResult, UG_engine.getUAC().CONTAMINATION_FRACTION, UG_engine.getUAC().contaminationLog );
-            final VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, callResult.getFirst());
-            final Map<String, Object> myAttributes = new LinkedHashMap<String, Object>(annotatedCall.getAttributes());
-            vcfWriter.add( new VariantContextBuilder(annotatedCall).attributes(myAttributes).make() );
+        for( final VariantContext call : genotypingEngine.assignGenotypeLikelihoodsAndCallIndependentEvents( UG_engine,
+                                                                                                             bestHaplotypes,
+                                                                                                             samplesList,
+                                                                                                             stratifiedReadMap,
+                                                                                                             perSampleFilteredReadList,
+                                                                                                             fullReferenceWithPadding,
+                                                                                                             getPaddedLoc(activeRegion),
+                                                                                                             activeRegion.getLocation(),
+                                                                                                             getToolkit().getGenomeLocParser(),
+                                                                                                             activeAllelesToGenotype ) ) {
+            vcfWriter.add( call );
         }
 
         if( DEBUG ) { System.out.println("----------------------------------------------------------------------------------"); }
@@ -467,7 +466,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
                 final GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
                 // protect against INTERVALS with abnormally high coverage
-                // BUGBUG: remove when positinal downsampler is hooked up to ART/HC
+                // BUGBUG: remove when positional downsampler is hooked up to ART/HC
                 if( clippedRead.getReadLength() > 0 && activeRegion.size() < samplesList.size() * DOWNSAMPLE_PER_SAMPLE_PER_REGION ) {
                     activeRegion.add(clippedRead);
                 }
