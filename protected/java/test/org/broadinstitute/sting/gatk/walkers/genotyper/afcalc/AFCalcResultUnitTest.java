@@ -2,16 +2,14 @@ package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class AFCalcResultUnitTest extends BaseTest {
     private static class MyTest {
@@ -78,5 +76,55 @@ public class AFCalcResultUnitTest extends BaseTest {
 
         final double[] actualPosteriors = new double[]{result.getLog10PosteriorOfAFEq0(), result.getLog10PosteriorOfAFGT0()};
         Assert.assertEquals(MathUtils.sumLog10(actualPosteriors), 1.0, 1e-3, "Posteriors don't sum to 1 with 1e-3 precision");
+    }
+
+    @DataProvider(name = "TestIsPolymorphic")
+    public Object[][] makeTestIsPolymorphic() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final List<Double> pValues = new LinkedList<Double>();
+        for ( final double p : Arrays.asList(0.01, 0.1, 0.9, 0.99, 0.999) )
+            for ( final double espilon : Arrays.asList(-1e-5, 0.0, 1e-5) )
+                pValues.add(p + espilon);
+
+        for ( final double pNonRef : pValues  ) {
+            for ( final double pThreshold : pValues ) {
+                final boolean shouldBePoly = pNonRef >= pThreshold;
+                if ( pNonRef != pThreshold)
+                    // let's not deal with numerical instability
+                    tests.add(new Object[]{ pNonRef, pThreshold, shouldBePoly });
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    private AFCalcResult makePolymorphicTestData(final double pNonRef) {
+        return new AFCalcResult(
+                new int[]{0},
+                1,
+                alleles,
+                MathUtils.normalizeFromLog10(new double[]{1 - pNonRef, pNonRef}, true, false),
+                log10Even,
+                Collections.singletonMap(C, Math.log10(pNonRef)));
+    }
+
+    @Test(enabled = true, dataProvider = "TestIsPolymorphic")
+    private void testIsPolymorphic(final double pNonRef, final double pThreshold, final boolean shouldBePoly) {
+        final AFCalcResult result = makePolymorphicTestData(pNonRef);
+        final boolean actualIsPoly = result.isPolymorphic(C, Math.log10(pThreshold));
+        Assert.assertEquals(actualIsPoly, shouldBePoly,
+                "isPolymorphic with pNonRef " + pNonRef + " and threshold " + pThreshold + " returned "
+                        + actualIsPoly + " but the expected result is " + shouldBePoly);
+    }
+
+    @Test(enabled = true, dataProvider = "TestIsPolymorphic")
+    private void testIsPolymorphicQual(final double pNonRef, final double pThreshold, final boolean shouldBePoly) {
+        final AFCalcResult result = makePolymorphicTestData(pNonRef);
+        final double qual = QualityUtils.phredScaleCorrectRate(pThreshold);
+        final boolean actualIsPoly = result.isPolymorphicPhredScaledQual(C, qual);
+        Assert.assertEquals(actualIsPoly, shouldBePoly,
+                "isPolymorphic with pNonRef " + pNonRef + " and threshold " + pThreshold + " returned "
+                        + actualIsPoly + " but the expected result is " + shouldBePoly);
     }
 }
