@@ -143,8 +143,8 @@ public class LikelihoodCalculationEngine {
         return Math.min(b1.length, b2.length);
     }
 
-    @Requires({"haplotypeMapping.size() > 0"})
-    @Ensures({"result.length == result[0].length", "result.length == haplotypeMapping.size()"})
+    @Requires({"alleleOrdering.size() > 0"})
+    @Ensures({"result.length == result[0].length", "result.length == alleleOrdering.size()"})
     public static double[][] computeDiploidHaplotypeLikelihoods( final String sample,
                                                                  final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap,
                                                                  final List<Allele> alleleOrdering ) {
@@ -153,8 +153,8 @@ public class LikelihoodCalculationEngine {
         return computeDiploidHaplotypeLikelihoods(sampleSet, stratifiedReadMap, alleleOrdering);
     }
 
-    @Requires({"haplotypeMapping.size() > 0"})
-    @Ensures({"result.length == result[0].length", "result.length == haplotypeMapping.size()"})
+    @Requires({"alleleOrdering.size() > 0"})
+    @Ensures({"result.length == result[0].length", "result.length == alleleOrdering.size()"})
     public static double[][] computeDiploidHaplotypeLikelihoods( final Set<String> samples,
                                                                  final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap,
                                                                  final List<Allele> alleleOrdering ) {

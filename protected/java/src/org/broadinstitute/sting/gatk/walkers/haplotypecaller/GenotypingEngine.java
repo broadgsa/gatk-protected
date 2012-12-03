@@ -161,7 +161,7 @@ public class GenotypingEngine {
                 if( mergedVC == null ) { continue; }
 
                 // let's update the Allele keys in the mapper because they can change after merging when there are complex events
-                Map<Allele, List<Haplotype>> updatedAlleleMapper = new HashMap<Allele, List<Haplotype>>(alleleMapper.size());
+                final Map<Allele, List<Haplotype>> updatedAlleleMapper = new HashMap<Allele, List<Haplotype>>(alleleMapper.size());
                 for ( int i = 0; i < mergedVC.getNAlleles(); i++ ) {
                     final Allele oldAllele = alleleOrdering.get(i);
                     final Allele newAllele = mergedVC.getAlleles().get(i);
@@ -191,7 +191,7 @@ public class GenotypingEngine {
                     }
                     genotypes.add( new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make() );
                 }
-                VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), UG_engine.getUAC().GLmodel);
+                final VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), UG_engine.getUAC().GLmodel);
                 if( call != null ) {
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap, perSampleFilteredReadList, call );
                     VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
@@ -217,11 +217,11 @@ public class GenotypingEngine {
         for( final Map.Entry<String, PerReadAlleleLikelihoodMap> sample : perSampleReadMap.entrySet() ) {
             final PerReadAlleleLikelihoodMap likelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
 
-            for( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> mapEntry : likelihoodMap.getLikelihoodReadMap().entrySet() ) {
+            for( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> mapEntry : sample.getValue().getLikelihoodReadMap().entrySet() ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
-                if( callLoc.overlapsP(parser.createGenomeLoc(mapEntry.getKey())) ) {
-                    for( final Map.Entry<Allele,Double> a : mapEntry.getValue().entrySet() ) {
-                        likelihoodMap.add(mapEntry.getKey(), a.getKey(), a.getValue());
+                if( callLoc.overlapsP(parser.createGenomeLoc(mapEntry.getKey())) ) { // BUGBUG: This uses alignment start and stop, NOT soft start and soft end...
+                    for( final Map.Entry<Allele,Double> alleleDoubleEntry : mapEntry.getValue().entrySet() ) {
+                        likelihoodMap.add(mapEntry.getKey(), alleleDoubleEntry.getKey(), alleleDoubleEntry.getValue());
                     }
                 }
             }
@@ -230,8 +230,8 @@ public class GenotypingEngine {
             for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
                 if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
-                    for( final Allele a : call.getAlleles() ) {
-                        likelihoodMap.add(read, a, 0.0);
+                    for( final Allele allele : call.getAlleles() ) {
+                        likelihoodMap.add(read, allele, 0.0);
                     }
                 }
             }
