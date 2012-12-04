@@ -436,8 +436,8 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     @Test
     public void testNsInCigar() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + validationDataLocation + "testWithNs.bam -o %s -L 8:141799600-141814700", 1,
-                Arrays.asList("d6d40bacd540a41f305420dfea35e04a"));
+                "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + validationDataLocation + "testWithNs.bam -o %s -L 8:141813600-141813700 -out_mode EMIT_ALL_SITES", 1,
+                Arrays.asList("32f18ba50406cd8c8069ba07f2f89558"));
         executeTest("test calling on reads with Ns in CIGAR", spec);
     }
 
