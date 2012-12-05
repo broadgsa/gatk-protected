@@ -30,12 +30,16 @@ import com.google.java.contract.Requires;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.variantcontext.*;
 
+import java.io.PrintStream;
 import java.util.*;
 
 public class GenotypingEngine {
@@ -43,23 +47,27 @@ public class GenotypingEngine {
     private final boolean DEBUG;
     private final static List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
     private final static Allele SYMBOLIC_UNASSEMBLED_EVENT_ALLELE = Allele.create("<UNASSEMBLED_EVENT>", false);
+    private final VariantAnnotatorEngine annotationEngine;
 
-    public GenotypingEngine( final boolean DEBUG ) {
+    public GenotypingEngine( final boolean DEBUG, final VariantAnnotatorEngine annotationEngine ) {
         this.DEBUG = DEBUG;
+        this.annotationEngine = annotationEngine;
         noCall.add(Allele.NO_CALL);
     }
 
-    // BUGBUG: Create a class to hold this complicated return type
     @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
-    public List<Pair<VariantContext, Map<Allele, List<Haplotype>>>> assignGenotypeLikelihoodsAndCallIndependentEvents( final UnifiedGenotyperEngine UG_engine,
-                                                                                                                       final List<Haplotype> haplotypes,
-                                                                                                                       final byte[] ref,
-                                                                                                                       final GenomeLoc refLoc,
-                                                                                                                       final GenomeLoc activeRegionWindow,
-                                                                                                                       final GenomeLocParser genomeLocParser,
-                                                                                                                       final List<VariantContext> activeAllelesToGenotype ) {
+    public List<VariantContext> assignGenotypeLikelihoodsAndCallIndependentEvents( final UnifiedGenotyperEngine UG_engine,
+                                                                                   final List<Haplotype> haplotypes,
+                                                                                   final List<String> samples,
+                                                                                   final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                                                   final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
+                                                                                   final byte[] ref,
+                                                                                   final GenomeLoc refLoc,
+                                                                                   final GenomeLoc activeRegionWindow,
+                                                                                   final GenomeLocParser genomeLocParser,
+                                                                                   final List<VariantContext> activeAllelesToGenotype ) {
 
-        final ArrayList<Pair<VariantContext, Map<Allele, List<Haplotype>>>> returnCalls = new ArrayList<Pair<VariantContext, Map<Allele, List<Haplotype>>>>();
+        final List<VariantContext> returnCalls = new ArrayList<VariantContext>();
         final boolean in_GGA_mode = !activeAllelesToGenotype.isEmpty();
 
         // Using the cigar from each called haplotype figure out what events need to be written out in a VCF file
@@ -79,8 +87,8 @@ public class GenotypingEngine {
         }
 
         cleanUpSymbolicUnassembledEvents( haplotypes );
-        if( !in_GGA_mode && haplotypes.get(0).getSampleKeySet().size() >= 10 ) { // if not in GGA mode and have at least 10 samples try to create MNP and complex events by looking at LD structure
-            mergeConsecutiveEventsBasedOnLD( haplotypes, startPosKeySet, ref, refLoc );
+        if( !in_GGA_mode && samples.size() >= 10 ) { // if not in GGA mode and have at least 10 samples try to create MNP and complex events by looking at LD structure
+            mergeConsecutiveEventsBasedOnLD( haplotypes, samples, haplotypeReadMap, startPosKeySet, ref, refLoc );
         }
         if( in_GGA_mode ) {
             for( final VariantContext compVC : activeAllelesToGenotype ) {
@@ -90,7 +98,7 @@ public class GenotypingEngine {
 
         // Walk along each position in the key set and create each event to be outputted
         for( final int loc : startPosKeySet ) {
-            if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) {
+            if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) { // genotyping an event inside this active region
                 final ArrayList<VariantContext> eventsAtThisLoc = new ArrayList<VariantContext>(); // the overlapping events to merge into a common reference view
                 final ArrayList<String> priorityList = new ArrayList<String>(); // used to merge overlapping events into common reference view
 
@@ -153,7 +161,7 @@ public class GenotypingEngine {
                 if( mergedVC == null ) { continue; }
 
                 // let's update the Allele keys in the mapper because they can change after merging when there are complex events
-                Map<Allele, List<Haplotype>> updatedAlleleMapper = new HashMap<Allele, List<Haplotype>>(alleleMapper.size());
+                final Map<Allele, List<Haplotype>> updatedAlleleMapper = new HashMap<Allele, List<Haplotype>>(alleleMapper.size());
                 for ( int i = 0; i < mergedVC.getNAlleles(); i++ ) {
                     final Allele oldAllele = alleleOrdering.get(i);
                     final Allele newAllele = mergedVC.getAlleles().get(i);
@@ -167,12 +175,14 @@ public class GenotypingEngine {
                     //System.out.println("Event/haplotype allele mapping = " + alleleMapper);
                 }
 
+                final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, UG_engine.getUAC().CONTAMINATION_FRACTION, UG_engine.getUAC().contaminationLog );
+
                 // Grab the genotype likelihoods from the appropriate places in the haplotype likelihood matrix -- calculation performed independently per sample
-                final GenotypesContext genotypes = GenotypesContext.create(haplotypes.get(0).getSampleKeySet().size());
-                for( final String sample : haplotypes.get(0).getSampleKeySet() ) { // BUGBUG: assume all haplotypes saw the same samples
+                final GenotypesContext genotypes = GenotypesContext.create(samples.size());
+                for( final String sample : samples ) {
                     final int numHaplotypes = alleleMapper.size();
                     final double[] genotypeLikelihoods = new double[numHaplotypes * (numHaplotypes+1) / 2];
-                    final double[][] haplotypeLikelihoodMatrix = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleMapper, alleleOrdering);
+                    final double[][] haplotypeLikelihoodMatrix = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleReadMap, alleleOrdering);
                     int glIndex = 0;
                     for( int iii = 0; iii < numHaplotypes; iii++ ) {
                         for( int jjj = 0; jjj <= iii; jjj++ ) {
@@ -181,26 +191,56 @@ public class GenotypingEngine {
                     }
                     genotypes.add( new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make() );
                 }
-                VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), UG_engine.getUAC().GLmodel);
+                final VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), UG_engine.getUAC().GLmodel);
                 if( call != null ) {
-                    if( call.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
-                        final VariantContext vcCallTrim = VariantContextUtils.reverseTrimAlleles(call);
-                        // also, need to update the allele -> haplotype mapping
-                        final HashMap<Allele, List<Haplotype>> alleleHashMapTrim = new HashMap<Allele, List<Haplotype>>();
-                        for( int iii = 0; iii < vcCallTrim.getAlleles().size(); iii++ ) { // BUGBUG: this is assuming that the original and trimmed alleles maintain the same ordering in the VC
-                            alleleHashMapTrim.put(vcCallTrim.getAlleles().get(iii), alleleMapper.get(call.getAlleles().get(iii)));
-                        }
+                    final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap, perSampleFilteredReadList, call );
+                    VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
 
-                        call = vcCallTrim;
-                        alleleMapper = alleleHashMapTrim;
+                    if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
+                        annotatedCall = VariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
 
-                    returnCalls.add( new Pair<VariantContext, Map<Allele,List<Haplotype>>>(call, alleleMapper) );
+                    returnCalls.add( annotatedCall );
                 }
             }
         }
         return returnCalls;
     }
+
+    private static Map<String, PerReadAlleleLikelihoodMap> filterToOnlyOverlappingReads( final GenomeLocParser parser,
+                                                                                         final Map<String, PerReadAlleleLikelihoodMap> perSampleReadMap,
+                                                                                         final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
+                                                                                         final VariantContext call ) {
+
+        final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
+        final GenomeLoc callLoc = parser.createGenomeLoc(call);
+        for( final Map.Entry<String, PerReadAlleleLikelihoodMap> sample : perSampleReadMap.entrySet() ) {
+            final PerReadAlleleLikelihoodMap likelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+
+            for( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> mapEntry : sample.getValue().getLikelihoodReadMap().entrySet() ) {
+                // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
+                if( callLoc.overlapsP(parser.createGenomeLoc(mapEntry.getKey())) ) { // BUGBUG: This uses alignment start and stop, NOT soft start and soft end...
+                    for( final Map.Entry<Allele,Double> alleleDoubleEntry : mapEntry.getValue().entrySet() ) {
+                        likelihoodMap.add(mapEntry.getKey(), alleleDoubleEntry.getKey(), alleleDoubleEntry.getValue());
+                    }
+                }
+            }
+
+            // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
+            for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
+                // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
+                if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
+                    for( final Allele allele : call.getAlleles() ) {
+                        likelihoodMap.add(read, allele, 0.0);
+                    }
+                }
+            }
+
+            returnMap.put(sample.getKey(), likelihoodMap);
+        }
+        return returnMap;
+    }
+
 
     protected static void cleanUpSymbolicUnassembledEvents( final List<Haplotype> haplotypes ) {
         final ArrayList<Haplotype> haplotypesToRemove = new ArrayList<Haplotype>();
@@ -221,7 +261,41 @@ public class GenotypingEngine {
         haplotypes.removeAll(haplotypesToRemove);
     }
 
-    protected void mergeConsecutiveEventsBasedOnLD( final List<Haplotype> haplotypes, final TreeSet<Integer> startPosKeySet, final byte[] ref, final GenomeLoc refLoc ) {
+    // BUGBUG: ugh, too complicated
+    protected Map<String, PerReadAlleleLikelihoodMap> convertHaplotypeReadMapToAlleleReadMap( final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                                                              final Map<Allele, List<Haplotype>> alleleMapper,
+                                                                                              final double downsamplingFraction,
+                                                                                              final PrintStream downsamplingLog ) {
+
+        final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
+        for( final Map.Entry<String, PerReadAlleleLikelihoodMap> haplotypeReadMapEntry : haplotypeReadMap.entrySet() ) { // for each sample
+            final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+            for( final Map.Entry<Allele, List<Haplotype>> alleleMapperEntry : alleleMapper.entrySet() ) { // for each output allele
+                final List<Haplotype> mappedHaplotypes = alleleMapperEntry.getValue();
+                for( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> readEntry : haplotypeReadMapEntry.getValue().getLikelihoodReadMap().entrySet() ) { // for each read
+                    double maxLikelihood = Double.NEGATIVE_INFINITY;
+                    for( final Map.Entry<Allele,Double> alleleDoubleEntry : readEntry.getValue().entrySet() ) { // for each input allele
+                        if( mappedHaplotypes.contains( new Haplotype(alleleDoubleEntry.getKey().getBases())) ) { // exact match of haplotype base string
+                            maxLikelihood = Math.max( maxLikelihood, alleleDoubleEntry.getValue() );
+                        }
+                    }
+                    perReadAlleleLikelihoodMap.add(readEntry.getKey(), alleleMapperEntry.getKey(), maxLikelihood);
+                }
+            }
+            perReadAlleleLikelihoodMap.performPerAlleleDownsampling(downsamplingFraction, downsamplingLog); // perform contamination downsampling
+            alleleReadMap.put(haplotypeReadMapEntry.getKey(), perReadAlleleLikelihoodMap);
+        }
+
+        return alleleReadMap;
+    }
+
+    protected void mergeConsecutiveEventsBasedOnLD( final List<Haplotype> haplotypes,
+                                                    final List<String> samples,
+                                                    final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                    final TreeSet<Integer> startPosKeySet,
+                                                    final byte[] ref,
+                                                    final GenomeLoc refLoc ) {
+
         final int MAX_SIZE_TO_COMBINE = 15;
         final double MERGE_EVENTS_R2_THRESHOLD = 0.95;
         if( startPosKeySet.size() <= 1 ) { return; }
@@ -265,12 +339,13 @@ public class GenotypingEngine {
                             }
                         }
                         // count up the co-occurrences of the events for the R^2 calculation
-                        final ArrayList<Haplotype> haplotypeList = new ArrayList<Haplotype>();
-                        haplotypeList.add(h);
-                        for( final String sample : haplotypes.get(0).getSampleKeySet() ) {
+                        for( final String sample : samples ) {
                             final HashSet<String> sampleSet = new HashSet<String>(1);
                             sampleSet.add(sample);
-                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( sampleSet,  haplotypeList )[0][0];
+
+                            final List<Allele> alleleList = new ArrayList<Allele>();
+                            alleleList.add(Allele.create(h.getBases()));
+                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( sampleSet, haplotypeReadMap, alleleList )[0][0];
                             if( thisHapVC == null ) {
                                 if( nextHapVC == null ) { x11 = MathUtils.approximateLog10SumLog10(x11, haplotypeLikelihood); }
                                 else { x12 = MathUtils.approximateLog10SumLog10(x12, haplotypeLikelihood); }
