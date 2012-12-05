@@ -457,7 +457,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testReducedBamSNPs() {
-        testReducedCalling("SNP", "f5ccbc96d0d66832dd9b3c5cb6507db4");
+        testReducedCalling("SNP", "dee6590e3b7079890bc3a9cb372c297e");
     }
 
     @Test
