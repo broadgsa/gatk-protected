@@ -681,7 +681,7 @@ public class AFCalcUnitTest extends BaseTest {
 
             // must be getCalledChrCount because we cannot ensure that the VC made has our desired ACs
             Assert.assertEquals(result.getAlleleCountAtMLE(alt), vc.getCalledChrCount(alt));
-            Assert.assertEquals(result.isPolymorphic(alt, -1), (boolean)expectedPoly.get(i), "isPolymorphic for allele " + alt + " " + result.getLog10PosteriorOfAFGt0ForAllele(alt));
+            Assert.assertEquals(result.isPolymorphic(alt, -1), (boolean)expectedPoly.get(i), "isPolymorphic for allele " + alt + " " + result.getLog10PosteriorOfAFEq0ForAllele(alt));
         }
     }
 }
