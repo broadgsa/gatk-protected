@@ -62,7 +62,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testMultipleSNPAlleles() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH --dbsnp " + b37dbSNP129 + " -I " + privateTestDir + "multiallelic.snps.bam -o %s -L " + privateTestDir + "multiallelic.snps.intervals", 1,
-                Arrays.asList("d20c7a143b899f0239bf64b652ad3edb"));
+                Arrays.asList("97df6c2a8d390d43b9bdf56c979d9b09"));
         executeTest("test Multiple SNP alleles", spec);
     }
 
@@ -86,7 +86,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testMismatchedPLs() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + privateTestDir + "mismatchedPLs.bam -o %s -L 1:24020341", 1,
-                Arrays.asList("fb204e821a24d03bd3a671b6e01c449a"));
+                Arrays.asList("935ee705ffe8cc6bf1d9efcceea271c8"));
         executeTest("test mismatched PLs", spec);
     }
 
@@ -437,7 +437,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testNsInCigar() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "testWithNs.bam -o %s -L 8:141813600-141813700 -out_mode EMIT_ALL_SITES", 1,
-                Arrays.asList("32f18ba50406cd8c8069ba07f2f89558"));
+                Arrays.asList("4d36969d4f8f1094f1fb6e7e085c19f6"));
         executeTest("test calling on reads with Ns in CIGAR", spec);
     }
 
@@ -451,13 +451,13 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("c1077662411164182c5f75478344f83d"));
+                Arrays.asList("092e42a712afb660ec79ff11c55933e2"));
         executeTest("test calling on a ReducedRead BAM", spec);
     }
 
     @Test
     public void testReducedBamSNPs() {
-        testReducedCalling("SNP", "dee6590e3b7079890bc3a9cb372c297e");
+        testReducedCalling("SNP", "c0de74ab8f4f14eb3a2c5d55c200ac5f");
     }
 
     @Test
