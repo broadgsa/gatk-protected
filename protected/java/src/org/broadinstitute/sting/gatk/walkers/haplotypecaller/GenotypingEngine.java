@@ -33,7 +33,6 @@ import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.*;
-import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -449,10 +448,10 @@ public class GenotypingEngine {
 
         final ArrayList<Haplotype> undeterminedHaplotypes = new ArrayList<Haplotype>(haplotypes.size());
         for( final Haplotype h : haplotypes ) {
-            if( h.getEventMap().get(loc) == null ) { // no event at this location so this is a reference-supporting haplotype
-                alleleMapper.get(refAllele).add(h);
-            } else if( h.isArtificialHaplotype() && loc == h.getArtificialAllelePosition() && alleleMapper.containsKey(h.getArtificialAllele()) ) {
+            if( h.isArtificialHaplotype() && loc == h.getArtificialAllelePosition() && alleleMapper.containsKey(h.getArtificialAllele()) ) {
                 alleleMapper.get(h.getArtificialAllele()).add(h);
+            } else if( h.getEventMap().get(loc) == null ) { // no event at this location so let's investigate later
+                undeterminedHaplotypes.add(h);
             } else {
                 boolean haplotypeIsDetermined = false;
                 for( final VariantContext vcAtThisLoc : eventsAtThisLoc ) {
