@@ -111,11 +111,11 @@ public class AFCalcResultUnitTest extends BaseTest {
 
     @Test(enabled = true, dataProvider = "TestIsPolymorphic")
     private void testIsPolymorphic(final double pNonRef, final double pThreshold, final boolean shouldBePoly) {
-        final AFCalcResult result = makePolymorphicTestData(pNonRef);
-        final boolean actualIsPoly = result.isPolymorphic(C, Math.log10(pThreshold));
-        Assert.assertEquals(actualIsPoly, shouldBePoly,
-                "isPolymorphic with pNonRef " + pNonRef + " and threshold " + pThreshold + " returned "
-                        + actualIsPoly + " but the expected result is " + shouldBePoly);
+            final AFCalcResult result = makePolymorphicTestData(pNonRef);
+            final boolean actualIsPoly = result.isPolymorphic(C, Math.log10(1 - pThreshold));
+            Assert.assertEquals(actualIsPoly, shouldBePoly,
+                    "isPolymorphic with pNonRef " + pNonRef + " and threshold " + pThreshold + " returned "
+                            + actualIsPoly + " but the expected result is " + shouldBePoly);
     }
 
     @Test(enabled = true, dataProvider = "TestIsPolymorphic")
