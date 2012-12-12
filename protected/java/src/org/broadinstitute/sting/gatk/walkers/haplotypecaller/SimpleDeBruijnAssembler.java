@@ -282,10 +282,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         for( final VariantContext compVC : activeAllelesToGenotype ) {
             for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
                 final Haplotype insertedRefHaplotype = refHaplotype.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart());
-                if( !addHaplotype( insertedRefHaplotype, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop ) ) {
-                    return returnHaplotypes;
-                    //throw new ReviewedStingException("Unable to add reference+allele haplotype during GGA-enabled assembly: " + insertedRefHaplotype);
-                }
+                addHaplotype( insertedRefHaplotype, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, true );
             }
         }
 
@@ -293,7 +290,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
             for ( final KBestPaths.Path path : KBestPaths.getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
 
                 final Haplotype h = new Haplotype( path.getBases( graph ), path.getScore() );
-                if( addHaplotype( h, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop ) ) {
+                if( addHaplotype( h, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, false ) ) {
 
                     // for GGA mode, add the desired allele into the haplotype if it isn't already present
                     if( !activeAllelesToGenotype.isEmpty() ) {
@@ -308,7 +305,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                             //  falls into the bin for the 1bp deletion because we keep track of the artificial alleles).
                             if( vcOnHaplotype == null ) {
                                 for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
-                                    addHaplotype( h.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart()), fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop );
+                                    addHaplotype( h.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart()), fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, false );
                                 }
                             }
                         }
@@ -332,7 +329,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         return returnHaplotypes;
     }
 
-    private boolean addHaplotype( final Haplotype haplotype, final byte[] ref, final ArrayList<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop ) {
+    private boolean addHaplotype( final Haplotype haplotype, final byte[] ref, final ArrayList<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop, final boolean FORCE_INCLUSION_FOR_GGA_MODE ) {
         if( haplotype == null ) { return false; }
 
         final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( ref, haplotype.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
@@ -387,7 +384,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
             return false;
         }
 
-        if( !haplotypeList.contains(h) ) {
+        if( FORCE_INCLUSION_FOR_GGA_MODE || !haplotypeList.contains(h) ) {
             haplotypeList.add(h);
             return true;
         } else {

@@ -83,8 +83,8 @@ public class AFCalcResultUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         final List<Double> pValues = new LinkedList<Double>();
-        for ( final double p : Arrays.asList(0.01, 0.1, 0.9, 0.99, 0.999) )
-            for ( final double espilon : Arrays.asList(-1e-5, 0.0, 1e-5) )
+        for ( final double p : Arrays.asList(0.01, 0.1, 0.9, 0.99, 0.999, 1 - 1e-4, 1 - 1e-5, 1 - 1e-6) )
+            for ( final double espilon : Arrays.asList(-1e-7, 0.0, 1e-7) )
                 pValues.add(p + espilon);
 
         for ( final double pNonRef : pValues  ) {
@@ -106,16 +106,16 @@ public class AFCalcResultUnitTest extends BaseTest {
                 alleles,
                 MathUtils.normalizeFromLog10(new double[]{1 - pNonRef, pNonRef}, true, false),
                 log10Even,
-                Collections.singletonMap(C, Math.log10(pNonRef)));
+                Collections.singletonMap(C, Math.log10(1 - pNonRef)));
     }
 
     @Test(enabled = true, dataProvider = "TestIsPolymorphic")
     private void testIsPolymorphic(final double pNonRef, final double pThreshold, final boolean shouldBePoly) {
-        final AFCalcResult result = makePolymorphicTestData(pNonRef);
-        final boolean actualIsPoly = result.isPolymorphic(C, Math.log10(pThreshold));
-        Assert.assertEquals(actualIsPoly, shouldBePoly,
-                "isPolymorphic with pNonRef " + pNonRef + " and threshold " + pThreshold + " returned "
-                        + actualIsPoly + " but the expected result is " + shouldBePoly);
+            final AFCalcResult result = makePolymorphicTestData(pNonRef);
+            final boolean actualIsPoly = result.isPolymorphic(C, Math.log10(1 - pThreshold));
+            Assert.assertEquals(actualIsPoly, shouldBePoly,
+                    "isPolymorphic with pNonRef " + pNonRef + " and threshold " + pThreshold + " returned "
+                            + actualIsPoly + " but the expected result is " + shouldBePoly);
     }
 
     @Test(enabled = true, dataProvider = "TestIsPolymorphic")

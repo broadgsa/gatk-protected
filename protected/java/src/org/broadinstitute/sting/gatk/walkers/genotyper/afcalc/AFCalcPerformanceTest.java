@@ -240,8 +240,8 @@ public class AFCalcPerformanceTest {
                 if ( a.isNonReference() ) {
                     final String warningmeMLE = call.originalCall.getAlleleCountAtMLE(a) != result.getAlleleCountAtMLE(a) ? " DANGER-MLE-DIFFERENT" : "";
                     logger.info("\t\t   MLE       " + a + ":            " + call.originalCall.getAlleleCountAtMLE(a) + " vs " + result.getAlleleCountAtMLE(a) + warningmeMLE);
-                    final String warningmePost = call.originalCall.getLog10PosteriorOfAFGt0ForAllele(a) == 0 && result.getLog10PosteriorOfAFGt0ForAllele(a) < -10 ? " DANGER-POSTERIORS-DIFFERENT" : "";
-                    logger.info("\t\t   Posterior " + a + ":            " + call.originalCall.getLog10PosteriorOfAFGt0ForAllele(a) + " vs " + result.getLog10PosteriorOfAFGt0ForAllele(a) + warningmePost);
+                    final String warningmePost = call.originalCall.getLog10PosteriorOfAFEq0ForAllele(a) == 0 && result.getLog10PosteriorOfAFEq0ForAllele(a) < -10 ? " DANGER-POSTERIORS-DIFFERENT" : "";
+                    logger.info("\t\t   Posterior " + a + ":            " + call.originalCall.getLog10PosteriorOfAFEq0ForAllele(a) + " vs " + result.getLog10PosteriorOfAFEq0ForAllele(a) + warningmePost);
                 }
             }
         }

@@ -80,11 +80,11 @@ public class UnifiedGenotyperGeneralPloidyIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testMT_SNP_DISCOVERY_sp4() {
-         PC_MT_Test(CEUTRIO_BAM, " -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","dd568dc30be90135a3a8957a45a7321c");
+         PC_MT_Test(CEUTRIO_BAM, " -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","3fc6f4d458313616727c60e49c0e852b");
     }
 
     @Test(enabled = true)
     public void testMT_SNP_GGA_sp10() {
-        PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "bf793c43b635a931207170be8035b288");
+        PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "1bebbc0f28bff6fd64736ccca8839df8");
     }
 }

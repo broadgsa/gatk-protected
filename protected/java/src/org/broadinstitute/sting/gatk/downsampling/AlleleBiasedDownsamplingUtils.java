@@ -56,11 +56,14 @@ public class AlleleBiasedDownsamplingUtils {
         for ( int i = 0; i < 4; i++ )
             alleleStratifiedElements[i] = new ArrayList<PileupElement>();
 
+        // keep all of the reduced reads
+        final ArrayList<PileupElement> reducedReadPileups = new ArrayList<PileupElement>();
+
         // start by stratifying the reads by the alleles they represent at this position
         for( final PileupElement pe : pileup ) {
-            // abort if we have a reduced read - we do not want to remove it!
+            // we do not want to remove a reduced read
             if ( pe.getRead().isReducedRead() )
-                return pileup;
+                reducedReadPileups.add(pe);
 
             final int baseIndex = BaseUtils.simpleBaseToBaseIndex(pe.getBase());
             if ( baseIndex != -1 )
@@ -76,6 +79,7 @@ public class AlleleBiasedDownsamplingUtils {
                 return difference != 0 ? difference : element1.getRead().getReadName().compareTo(element2.getRead().getReadName());
             }
         });
+        elementsToKeep.addAll(reducedReadPileups);
 
         // make a listing of allele counts
         final int[] alleleCounts = new int[4];
