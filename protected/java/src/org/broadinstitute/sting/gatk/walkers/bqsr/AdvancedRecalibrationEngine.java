@@ -45,13 +45,12 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
 
     @Override
     public void updateDataForRead(final GATKSAMRecord read, final boolean[] skip, final double[] snpErrors, final double[] insertionErrors, final double[] deletionErrors ) {
+        final ReadCovariates readCovariates = covariateKeySetFrom(read);
+        byte[] tempQualArray = threadLocalTempQualArray.get();
+        double[] tempFractionalErrorArray = threadLocalTempFractionalErrorArray.get();
+
         for( int offset = 0; offset < read.getReadBases().length; offset++ ) {
             if( !skip[offset] ) {
-                final ReadCovariates readCovariates = covariateKeySetFrom(read);
-
-                byte[] tempQualArray = threadLocalTempQualArray.get();
-                double[] tempFractionalErrorArray = threadLocalTempFractionalErrorArray.get();
-
                 tempQualArray[EventType.BASE_SUBSTITUTION.index] = read.getBaseQualities()[offset];
                 tempFractionalErrorArray[EventType.BASE_SUBSTITUTION.index] = snpErrors[offset];
                 tempQualArray[EventType.BASE_INSERTION.index] = read.getBaseInsertionQualities()[offset];
