@@ -25,13 +25,11 @@ package org.broadinstitute.sting.gatk.walkers.bqsr;
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
-import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.classloader.ProtectedPackageSource;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
 import org.broadinstitute.sting.utils.recalibration.RecalibrationTables;
+import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.threading.ThreadLocalArray;
 
@@ -66,8 +64,6 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
                     final int eventIndex = eventType.index;
                     final byte qual = tempQualArray[eventIndex];
                     final double isError = tempFractionalErrorArray[eventIndex];
-
-                    combineDatumOrPutIfNecessary(recalibrationTables.getReadGroupTable(), qual, isError, keys[0], eventIndex);
 
                     incrementDatumOrPutIfNecessary(recalibrationTables.getQualityScoreTable(), qual, isError, keys[0], keys[1], eventIndex);
 
