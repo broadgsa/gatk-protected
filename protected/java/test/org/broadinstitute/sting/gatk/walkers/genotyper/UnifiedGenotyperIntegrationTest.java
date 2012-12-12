@@ -96,7 +96,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     //
     // --------------------------------------------------------------------------------------------------------------
 
-    private final static String COMPRESSED_OUTPUT_MD5 = "5b8f477c287770b5769b05591e35bc2d";
+    private final static String COMPRESSED_OUTPUT_MD5 = "3eba6c309514d1e9ee06a20a112b68e6";
 
     @Test
     public void testCompressedOutput() {
