@@ -300,7 +300,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         // Check if the read goes beyond the boundaries of the chromosome, and hard clip those boundaries.
         int chromosomeLength = ref.getGenomeLocParser().getContigInfo(read.getReferenceName()).getSequenceLength();
         if (read.getSoftStart() < 0)
-            read = ReadClipper.hardClipByReadCoordinates(read, 0, -read.getSoftStart() - 1);
+            read = ReadClipper.hardClipByReadCoordinates(read, 0, -read.getSoftStart());
         if (read.getSoftEnd() > chromosomeLength)
             read = ReadClipper.hardClipByReadCoordinates(read, chromosomeLength - read.getSoftStart() + 1, read.getReadLength() - 1);
 
