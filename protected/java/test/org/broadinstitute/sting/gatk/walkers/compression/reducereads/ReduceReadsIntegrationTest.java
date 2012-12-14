@@ -17,6 +17,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     final String COREDUCTION_BAM_A = validationDataLocation + "coreduction.test.A.bam";
     final String COREDUCTION_BAM_B = validationDataLocation + "coreduction.test.B.bam";
     final String COREDUCTION_L = " -L 1:1,853,860-1,854,354 -L 1:1,884,131-1,892,057";
+    final String OFFCONTIG_BAM = privateTestDir + "readOffb37contigMT.bam";
 
     private void RRTest(String testName, String args, String md5) {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, BAM) + " -o %s ";
@@ -84,6 +85,16 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     public void testCoReduction() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
         executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("5c30fde961a1357bf72c15144c01981b")));
+    }
+
+    /**
+     * Bug happens when reads are soft-clipped off the  contig (usually in the MT). This test guarantees no changes to the upstream code will
+     * break the current hard-clipping routine that protects reduce reads from such reads.
+     */
+    @Test(enabled = true)
+    public void testReadOffContig() {
+        String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, OFFCONTIG_BAM) + " -o %s ";
+        executeTest("testReadOffContig", new WalkerTestSpec(base, Arrays.asList("53e16367d333da0b7d40a7683a35c95f")));
     }
 
 }
