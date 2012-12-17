@@ -25,6 +25,9 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import net.sf.samtools.SAMFileHeader;
+import net.sf.samtools.SAMFileWriter;
+import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.util.SequenceUtil;
 import org.broadinstitute.sting.commandline.Argument;
 import org.broadinstitute.sting.commandline.Hidden;
@@ -45,6 +48,7 @@ import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.sam.BySampleSAMFileWriter;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 
@@ -81,12 +85,13 @@ import java.util.*;
  */
 
 @DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
-@PartitionBy(PartitionType.INTERVAL)
+@PartitionBy(PartitionType.CONTIG)
 @ReadFilters({UnmappedReadFilter.class, NotPrimaryAlignmentFilter.class, DuplicateReadFilter.class, FailsVendorQualityCheckFilter.class, BadCigarFilter.class})
 public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceReadsStash> {
 
     @Output
-    private StingSAMFileWriter out;
+    private StingSAMFileWriter out = null;
+    private SAMFileWriter writerToUse = null;
 
     /**
      * The number of bases to keep around mismatches (potential variation)
@@ -197,6 +202,10 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     private int nContigs = 2;
 
     @Hidden
+    @Argument(fullName = "nwayout", shortName = "nw", doc = "", required = false)
+    private boolean nwayout = false;
+
+    @Hidden
     @Argument(fullName = "", shortName = "dl", doc = "", required = false)
     private int debugLevel = 0;
 
@@ -222,9 +231,12 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     HashMap<String, Long> readNameHash;                                     // This hash will keep the name of the original read the new compressed name (a number).
     Long nextReadNumber = 1L;                                               // The next number to use for the compressed read name.
 
+    CompressionStash compressionStash = new CompressionStash();
+
     SortedSet<GenomeLoc> intervalList;
     
     private static final String PROGRAM_RECORD_NAME = "GATK ReduceReads";   // The name that will go in the @PG tag
+    private static final String PROGRAM_FILENAME_EXTENSION = ".reduced.bam";
 
     /**
      * Basic generic initialization of the readNameHash and the intervalList. Output initialization
@@ -240,10 +252,22 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         if (toolkit.getIntervals() != null)
             intervalList.addAll(toolkit.getIntervals());
 
-        if (!NO_PG_TAG)
-            Utils.setupWriter(out, toolkit, false, true, this, PROGRAM_RECORD_NAME);
-        else
+
+        final boolean preSorted = true;
+        final boolean indexOnTheFly = true;
+        final boolean keep_records = true;
+        final SAMFileHeader.SortOrder sortOrder = SAMFileHeader.SortOrder.coordinate;
+        if (nwayout) {
+            SAMProgramRecord programRecord = NO_PG_TAG ? null : Utils.createProgramRecord(toolkit, this, PROGRAM_RECORD_NAME);
+            writerToUse = new BySampleSAMFileWriter(toolkit, PROGRAM_FILENAME_EXTENSION, sortOrder, preSorted, indexOnTheFly, NO_PG_TAG, programRecord, true);
+        }
+        else {
+            writerToUse = out;
             out.setPresorted(false);
+            if (!NO_PG_TAG) {
+                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), !preSorted, keep_records, this, PROGRAM_RECORD_NAME);
+            }
+        }
     }
 
     /**
@@ -276,7 +300,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         // Check if the read goes beyond the boundaries of the chromosome, and hard clip those boundaries.
         int chromosomeLength = ref.getGenomeLocParser().getContigInfo(read.getReferenceName()).getSequenceLength();
         if (read.getSoftStart() < 0)
-            read = ReadClipper.hardClipByReadCoordinates(read, 0, -read.getSoftStart() - 1);
+            read = ReadClipper.hardClipByReadCoordinates(read, 0, -read.getSoftStart());
         if (read.getSoftEnd() > chromosomeLength)
             read = ReadClipper.hardClipByReadCoordinates(read, chromosomeLength - read.getSoftStart() + 1, read.getReadLength() - 1);
 
@@ -384,6 +408,9 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         // output any remaining reads in the compressor
         for (GATKSAMRecord read : stash.close())
             outputRead(read);
+
+        if (nwayout)
+            writerToUse.close();
     }
 
     /**
@@ -552,7 +579,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
         if (!DONT_COMPRESS_READ_NAMES)
             compressReadName(read);
 
-        out.addAlignment(read);
+        writerToUse.addAlignment(read);
     }
 
     /**

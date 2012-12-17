@@ -37,6 +37,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                     " -L " + interval +
                     args +
                     " -knownSites " + (reference.equals(b36KGReference) ? b36dbSNP129 : hg18dbSNP132) +
+                    " --allow_potentially_misencoded_quality_scores" +  // TODO -- remove me when we get new SOLiD bams
                     " -o %s";
         }
 
@@ -112,6 +113,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -R " + b36KGReference +
                         " -I " + privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam" +
                         " -L 1:50,000-80,000" +
+                        " --allow_potentially_misencoded_quality_scores" +  // TODO -- remove me when we get new SOLiD bams
                         " -o %s",
                 1, // just one output file
                 UserException.class);
