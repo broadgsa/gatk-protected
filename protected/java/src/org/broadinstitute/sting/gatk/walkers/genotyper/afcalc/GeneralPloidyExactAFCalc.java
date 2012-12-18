@@ -27,9 +27,10 @@ package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.gatk.walkers.genotyper.GeneralPloidyGenotypeLikelihoods;
 import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.codecs.vcf.VCFConstants;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.variantcontext.*;
+import org.broadinstitute.variant.variantcontext.*;
 
 import java.util.*;
 
@@ -532,7 +533,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
             }
 
             // if there is no mass on the (new) likelihoods, then just no-call the sample
-            if ( MathUtils.sum(newLikelihoods) > VariantContextUtils.SUM_GL_THRESH_NOCALL ) {
+            if ( MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL ) {
                 newGTs.add(GenotypeBuilder.create(g.getSampleName(), NO_CALL_ALLELES));
             }
             else {
@@ -544,7 +545,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                     gb.PL(newLikelihoods);
 
                 // if we weren't asked to assign a genotype, then just no-call the sample
-                if ( !assignGenotypes || MathUtils.sum(newLikelihoods) > VariantContextUtils.SUM_GL_THRESH_NOCALL )
+                if ( !assignGenotypes || MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL )
                     gb.alleles(NO_CALL_ALLELES);
                 else
                     assignGenotype(gb, newLikelihoods, allelesToUse, ploidy);

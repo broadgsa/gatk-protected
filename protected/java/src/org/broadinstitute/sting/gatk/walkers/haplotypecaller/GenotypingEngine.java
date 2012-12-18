@@ -36,7 +36,9 @@ import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.variantcontext.*;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.variant.variantcontext.*;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -158,7 +160,7 @@ public class GenotypingEngine {
                 }
 
                 // Merge the event to find a common reference representation
-                final VariantContext mergedVC = VariantContextUtils.simpleMerge(genomeLocParser, eventsAtThisLoc, priorityList, VariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, VariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
+                final VariantContext mergedVC = VariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, VariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, VariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
                 if( mergedVC == null ) { continue; }
 
                 // let's update the Allele keys in the mapper because they can change after merging when there are complex events
@@ -200,7 +202,7 @@ public class GenotypingEngine {
                     VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
 
                     if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
-                        annotatedCall = VariantContextUtils.reverseTrimAlleles(annotatedCall);
+                        annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
 
                     returnCalls.add( annotatedCall );

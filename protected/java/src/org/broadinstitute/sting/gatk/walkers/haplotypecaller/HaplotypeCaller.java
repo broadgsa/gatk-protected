@@ -48,8 +48,8 @@ import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
-import org.broadinstitute.sting.utils.codecs.vcf.*;
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.vcf.*;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.fragments.FragmentCollection;
@@ -61,8 +61,8 @@ import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.sting.utils.variantcontext.*;
-import org.broadinstitute.sting.utils.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.variantcontext.*;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
@@ -238,7 +238,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         samplesList.addAll( samples );
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
         final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
-        UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
+        UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
         UnifiedArgumentCollection simpleUAC = new UnifiedArgumentCollection(UAC);
@@ -248,7 +248,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.exactCallsLog = null;
-        UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, VariantContextUtils.DEFAULT_PLOIDY);
+        UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
         // initialize the output VCF header
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
