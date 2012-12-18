@@ -343,12 +343,7 @@ public class GenotypingEngine {
                         }
                         // count up the co-occurrences of the events for the R^2 calculation
                         for( final String sample : samples ) {
-                            final HashSet<String> sampleSet = new HashSet<String>(1);
-                            sampleSet.add(sample);
-
-                            final List<Allele> alleleList = new ArrayList<Allele>();
-                            alleleList.add(Allele.create(h.getBases()));
-                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( sampleSet, haplotypeReadMap, alleleList )[0][0];
+                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( Collections.singleton(sample), haplotypeReadMap, Collections.singletonList(Allele.create(h.getBases())) )[0][0];
                             if( thisHapVC == null ) {
                                 if( nextHapVC == null ) { x11 = MathUtils.approximateLog10SumLog10(x11, haplotypeLikelihood); }
                                 else { x12 = MathUtils.approximateLog10SumLog10(x12, haplotypeLikelihood); }

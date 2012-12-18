@@ -130,11 +130,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected String keepRG = null;
 
     @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = false)
-    protected int MIN_PRUNE_FACTOR = 1;
+    protected int MIN_PRUNE_FACTOR = 2;
 
     @Advanced
     @Argument(fullName="gcpHMM", shortName="gcpHMM", doc="Flat gap continuation penalty for use in the Pair HMM", required = false)
     protected int gcpHMM = 10;
+
+    @Advanced
+    @Argument(fullName="minKmer", shortName="minKmer", doc="Minimum kmer length to use in the assembly graph", required = false)
+    protected int minKmer = 11;
 
     @Argument(fullName="downsampleRegion", shortName="dr", doc="coverage, per-sample, to downsample each active region to", required = false)
     protected int DOWNSAMPLE_PER_SAMPLE_PER_REGION = 1000;
@@ -282,7 +286,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile, e);
         }
 
-        assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter );
+        assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter, minKmer );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
     }
