@@ -25,13 +25,11 @@ package org.broadinstitute.sting.gatk.walkers.bqsr;
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
-import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.classloader.ProtectedPackageSource;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
 import org.broadinstitute.sting.utils.recalibration.RecalibrationTables;
+import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.threading.ThreadLocalArray;
 
@@ -47,13 +45,12 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
 
     @Override
     public void updateDataForRead(final GATKSAMRecord read, final boolean[] skip, final double[] snpErrors, final double[] insertionErrors, final double[] deletionErrors ) {
+        final ReadCovariates readCovariates = covariateKeySetFrom(read);
+        byte[] tempQualArray = threadLocalTempQualArray.get();
+        double[] tempFractionalErrorArray = threadLocalTempFractionalErrorArray.get();
+
         for( int offset = 0; offset < read.getReadBases().length; offset++ ) {
             if( !skip[offset] ) {
-                final ReadCovariates readCovariates = covariateKeySetFrom(read);
-
-                byte[] tempQualArray = threadLocalTempQualArray.get();
-                double[] tempFractionalErrorArray = threadLocalTempFractionalErrorArray.get();
-
                 tempQualArray[EventType.BASE_SUBSTITUTION.index] = read.getBaseQualities()[offset];
                 tempFractionalErrorArray[EventType.BASE_SUBSTITUTION.index] = snpErrors[offset];
                 tempQualArray[EventType.BASE_INSERTION.index] = read.getBaseInsertionQualities()[offset];
@@ -66,8 +63,6 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
                     final int eventIndex = eventType.index;
                     final byte qual = tempQualArray[eventIndex];
                     final double isError = tempFractionalErrorArray[eventIndex];
-
-                    combineDatumOrPutIfNecessary(recalibrationTables.getReadGroupTable(), qual, isError, keys[0], eventIndex);
 
                     incrementDatumOrPutIfNecessary(recalibrationTables.getQualityScoreTable(), qual, isError, keys[0], keys[1], eventIndex);
 
