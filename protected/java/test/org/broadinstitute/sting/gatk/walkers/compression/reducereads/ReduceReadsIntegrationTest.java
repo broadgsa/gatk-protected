@@ -18,6 +18,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     final String COREDUCTION_BAM_B = validationDataLocation + "coreduction.test.B.bam";
     final String COREDUCTION_L = " -L 1:1,853,860-1,854,354 -L 1:1,884,131-1,892,057";
     final String OFFCONTIG_BAM = privateTestDir + "readOffb37contigMT.bam";
+    final String INSERTIONS_AT_EDGE_OF_CONSENSUS_BAM = privateTestDir + "rr-too-many-insertions.bam";
 
     private void RRTest(String testName, String args, String md5) {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, BAM) + " -o %s ";
@@ -28,6 +29,12 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testDefaultCompression() {
         RRTest("testDefaultCompression ", L, "98080d3c53f441564796fc143cf510da");
+    }
+
+    @Test(enabled = true)
+    public void testInsertionsAtEdgeOfConsensus() {
+        String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, INSERTIONS_AT_EDGE_OF_CONSENSUS_BAM) + " -o %s ";
+        executeTest("testInsertionsAtEdgeOfConsensus", new WalkerTestSpec(base, Arrays.asList("2a6e08a0206bd8ec7671224c4a55dae0")));
     }
 
     @Test(enabled = true)
