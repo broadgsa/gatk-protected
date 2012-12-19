@@ -146,44 +146,6 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
         Assert.assertTrue(graphEquals(graph, expectedGraph));
     }
 
-    @Test(enabled=false)
-// not ready yet
-    public void testBasicGraphCreation() {
-        final ArtificialReadPileupTestProvider refPileupTestProvider = new ArtificialReadPileupTestProvider(1,"ref");
-        final byte refBase = refPileupTestProvider.getReferenceContext().getBase();
-        final String altBase = (refBase==(byte)'A'?"C":"A");
-        final int matches = 50;
-        final int mismatches = 50;
-        Map<String,AlignmentContext> refContext = refPileupTestProvider.getAlignmentContextFromAlleles(0, altBase, new int[]{matches, mismatches}, false, 30);
-        PrintStream graphWriter = null;
-
-        try{
-            graphWriter = new PrintStream("du.txt");
-        } catch (Exception e) {}
-
-
-        SimpleDeBruijnAssembler assembler = new SimpleDeBruijnAssembler(true,graphWriter);
-        final Haplotype refHaplotype = new Haplotype(refPileupTestProvider.getReferenceContext().getBases());
-        refHaplotype.setIsReference(true);
-        assembler.createDeBruijnGraphs(refContext.get(refPileupTestProvider.getSampleNames().get(0)).getBasePileup().getReads(), refHaplotype);
-
-/*        // clean up the graphs by pruning and merging
-        for( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph : graphs ) {
-            SimpleDeBruijnAssembler.pruneGraph( graph, PRUNE_FACTOR );
-            //eliminateNonRefPaths( graph );
-            SimpleDeBruijnAssembler.mergeNodes( graph );
-        }
-  */
-        if( graphWriter != null ) {
-            assembler.printGraphs();
-        }
-
-        int k=2;
-
-        // find the best paths in the graphs
-    //    return findBestPaths( refHaplotype, fullReferenceWithPadding, refLoc, activeAllelesToGenotype, activeRegion.getExtendedLoc() );
-
-    }
     @Test(enabled = true)
     public void testEliminateNonRefPaths() {
         DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
