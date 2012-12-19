@@ -3,7 +3,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.util.ArrayList;
 

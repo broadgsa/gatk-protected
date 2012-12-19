@@ -2,10 +2,10 @@ package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GeneralPloidyGenotypeLikelihoods;
-import org.broadinstitute.sting.utils.variantcontext.Allele;
-import org.broadinstitute.sting.utils.variantcontext.Genotype;
-import org.broadinstitute.sting.utils.variantcontext.GenotypeBuilder;
-import org.broadinstitute.sting.utils.variantcontext.GenotypesContext;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
+import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.testng.Assert;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.DataProvider;

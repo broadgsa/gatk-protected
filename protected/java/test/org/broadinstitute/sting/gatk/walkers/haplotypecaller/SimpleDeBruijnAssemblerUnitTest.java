@@ -10,16 +10,11 @@ import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.walkers.genotyper.ArtificialReadPileupTestProvider;
 import org.broadinstitute.sting.utils.Haplotype;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.variantcontext.Allele;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.*;
 

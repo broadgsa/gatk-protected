@@ -4,7 +4,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.variantcontext.*;
+import org.broadinstitute.variant.variantcontext.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
