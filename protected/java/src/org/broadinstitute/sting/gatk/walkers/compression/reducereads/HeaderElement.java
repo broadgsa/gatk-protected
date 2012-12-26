@@ -39,8 +39,18 @@ public class HeaderElement {
      *
      * @param location the reference location for the new element
      */
-    public HeaderElement(int location) {
+    public HeaderElement(final int location) {
         this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, 0, location, new LinkedList<Integer>());
+    }
+
+    /**
+     * Creates a new HeaderElement with the following default values: - empty consensusBaseCounts - empty
+     * filteredBaseCounts - empty mappingQuality list
+     *
+     * @param location the reference location for the new element
+     */
+    public HeaderElement(final int location, final int insertionsToTheRight) {
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, 0, location, new LinkedList<Integer>());
     }
 
     /**
@@ -49,6 +59,7 @@ public class HeaderElement {
      * @param consensusBaseCounts  the BaseCounts object for the running consensus synthetic read
      * @param filteredBaseCounts   the BaseCounts object for the filtered data synthetic read
      * @param insertionsToTheRight number of insertions to the right of this HeaderElement
+     * @param nSoftClippedBases    number of softclipped bases of this HeaderElement
      * @param location             the reference location of this reference element
      * @param mappingQuality       the list of mapping quality values of all reads that contributed to this
      *                             HeaderElement
@@ -149,6 +160,14 @@ public class HeaderElement {
         this.insertionsToTheRight--;
         if (insertionsToTheRight < 0)
             throw new ReviewedStingException("Removed too many insertions, header is now negative!");
+    }
+
+    public boolean hasInsertionToTheRight() {
+        return insertionsToTheRight > 0;
+    }
+
+    public int numInsertionsToTheRight() {
+        return insertionsToTheRight;
     }
 
     /**

@@ -645,8 +645,15 @@ public class SlidingWindow {
                 }
             }
 
-            for (int i = 0; i <= lastStop; i++) // clean up the window header elements up until the end of the variant region. (we keep the last element in case the following element had a read that started with insertion)
-                windowHeader.remove();
+            // clean up the window header elements up until the end of the variant region.
+            // note that we keep the last element of the region in the event that the following element has a read that starts with insertion.
+            if ( lastStop >= 0 ) {
+                for (int i = 0; i < lastStop; i++)
+                    windowHeader.remove();
+                final HeaderElement lastOfRegion = windowHeader.remove();
+                if ( lastOfRegion.hasInsertionToTheRight() )
+                    windowHeader.addFirst(new HeaderElement(lastOfRegion.getLocation(), lastOfRegion.numInsertionsToTheRight()));
+            }
         }
         return allReads;
     }

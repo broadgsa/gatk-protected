@@ -11,8 +11,8 @@ import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.sting.utils.variantcontext.Allele;
-import org.broadinstitute.sting.utils.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
 import java.io.PrintStream;
@@ -28,7 +28,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
 
     private static final int KMER_OVERLAP = 5; // the additional size of a valid chunk of sequence, used to string together k-mers
     private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 11;
-    private static final byte MIN_QUALITY = (byte) 17;
+    private static final byte MIN_QUALITY = (byte) 16;
 
     // Smith-Waterman parameters originally copied from IndelRealigner
     private static final double SW_MATCH = 5.0;      // 1.0;
@@ -39,13 +39,15 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
     private final boolean DEBUG;
     private final PrintStream GRAPH_WRITER;
     private final ArrayList<DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>> graphs = new ArrayList<DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>>();
+    private final int MIN_KMER;
 
-    private int PRUNE_FACTOR = 1;
+    private int PRUNE_FACTOR = 2;
     
-    public SimpleDeBruijnAssembler( final boolean debug, final PrintStream graphWriter ) {
+    public SimpleDeBruijnAssembler( final boolean debug, final PrintStream graphWriter, final int minKmer ) {
         super();
         DEBUG = debug;
         GRAPH_WRITER = graphWriter;
+        MIN_KMER = minKmer;
     }
 
     public ArrayList<Haplotype> runLocalAssembly( final ActiveRegion activeRegion, final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final int PRUNE_FACTOR, final ArrayList<VariantContext> activeAllelesToGenotype ) {
@@ -72,8 +74,9 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
     protected void createDeBruijnGraphs( final List<GATKSAMRecord> reads, final Haplotype refHaplotype ) {
         graphs.clear();
 
+        final int maxKmer = refHaplotype.getBases().length;
         // create the graph
-        for( int kmer = 31; kmer <= 75; kmer += 6 ) {
+        for( int kmer = MIN_KMER; kmer <= maxKmer; kmer += 6 ) {
             final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
             if( createGraphFromSequences( graph, reads, kmer, refHaplotype, DEBUG ) ) {
                 graphs.add(graph);

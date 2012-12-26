@@ -36,7 +36,9 @@ import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.variantcontext.*;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.variant.variantcontext.*;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -44,13 +46,15 @@ import java.util.*;
 public class GenotypingEngine {
 
     private final boolean DEBUG;
+    private final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS;
     private final static List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
     private final static Allele SYMBOLIC_UNASSEMBLED_EVENT_ALLELE = Allele.create("<UNASSEMBLED_EVENT>", false);
     private final VariantAnnotatorEngine annotationEngine;
 
-    public GenotypingEngine( final boolean DEBUG, final VariantAnnotatorEngine annotationEngine ) {
+    public GenotypingEngine( final boolean DEBUG, final VariantAnnotatorEngine annotationEngine, final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ) {
         this.DEBUG = DEBUG;
         this.annotationEngine = annotationEngine;
+        this.USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = USE_FILTERED_READ_MAP_FOR_ANNOTATIONS;
         noCall.add(Allele.NO_CALL);
     }
 
@@ -156,7 +160,7 @@ public class GenotypingEngine {
                 }
 
                 // Merge the event to find a common reference representation
-                final VariantContext mergedVC = VariantContextUtils.simpleMerge(genomeLocParser, eventsAtThisLoc, priorityList, VariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, VariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
+                final VariantContext mergedVC = VariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, VariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, VariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
                 if( mergedVC == null ) { continue; }
 
                 // let's update the Allele keys in the mapper because they can change after merging when there are complex events
@@ -192,11 +196,13 @@ public class GenotypingEngine {
                 }
                 final VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), UG_engine.getUAC().GLmodel);
                 if( call != null ) {
-                    final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap, perSampleFilteredReadList, call );
+                    final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
+                            convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, 0.0, UG_engine.getUAC().contaminationLog ) );
+                    final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
                     VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
 
                     if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
-                        annotatedCall = VariantContextUtils.reverseTrimAlleles(annotatedCall);
+                        annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
 
                     returnCalls.add( annotatedCall );
@@ -339,12 +345,7 @@ public class GenotypingEngine {
                         }
                         // count up the co-occurrences of the events for the R^2 calculation
                         for( final String sample : samples ) {
-                            final HashSet<String> sampleSet = new HashSet<String>(1);
-                            sampleSet.add(sample);
-
-                            final List<Allele> alleleList = new ArrayList<Allele>();
-                            alleleList.add(Allele.create(h.getBases()));
-                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( sampleSet, haplotypeReadMap, alleleList )[0][0];
+                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( Collections.singleton(sample), haplotypeReadMap, Collections.singletonList(Allele.create(h.getBases())) )[0][0];
                             if( thisHapVC == null ) {
                                 if( nextHapVC == null ) { x11 = MathUtils.approximateLog10SumLog10(x11, haplotypeLikelihood); }
                                 else { x12 = MathUtils.approximateLog10SumLog10(x12, haplotypeLikelihood); }
