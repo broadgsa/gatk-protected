@@ -25,46 +25,46 @@ package org.broadinstitute.sting.gatk.walkers.bqsr;
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.classloader.ProtectedPackageSource;
+import org.broadinstitute.sting.utils.collections.NestedIntegerArray;
 import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
-import org.broadinstitute.sting.utils.recalibration.RecalibrationTables;
-import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
+import org.broadinstitute.sting.utils.recalibration.RecalDatum;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.threading.ThreadLocalArray;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine implements ProtectedPackageSource {
+    private final static Logger logger = Logger.getLogger(AdvancedRecalibrationEngine.class);
 
-    // optimization: only allocate temp arrays once per thread
-    private final ThreadLocal<byte[]> threadLocalTempQualArray = new ThreadLocalArray<byte[]>(EventType.values().length, byte.class);
-    private final ThreadLocal<double[]> threadLocalTempFractionalErrorArray = new ThreadLocalArray<double[]>(EventType.values().length, double.class);
-
-    public void initialize(final Covariate[] covariates, final RecalibrationTables recalibrationTables) {
-        super.initialize(covariates, recalibrationTables);
-    }
+    final List<NestedIntegerArray<RecalDatum>> allThreadLocalQualityScoreTables = new LinkedList<NestedIntegerArray<RecalDatum>>();
+    private ThreadLocal<NestedIntegerArray<RecalDatum>> threadLocalQualityScoreTables = new ThreadLocal<NestedIntegerArray<RecalDatum>>() {
+        @Override
+        protected synchronized NestedIntegerArray<RecalDatum> initialValue() {
+            final NestedIntegerArray<RecalDatum> table = recalibrationTables.makeQualityScoreTable();
+            allThreadLocalQualityScoreTables.add(table);
+            return table;
+        }
+    };
 
     @Override
-    public void updateDataForRead(final GATKSAMRecord read, final boolean[] skip, final double[] snpErrors, final double[] insertionErrors, final double[] deletionErrors ) {
-        final ReadCovariates readCovariates = covariateKeySetFrom(read);
-        byte[] tempQualArray = threadLocalTempQualArray.get();
-        double[] tempFractionalErrorArray = threadLocalTempFractionalErrorArray.get();
+    public void updateDataForRead( final ReadRecalibrationInfo recalInfo ) {
+        final GATKSAMRecord read = recalInfo.getRead();
+        final ReadCovariates readCovariates = recalInfo.getCovariatesValues();
+        final NestedIntegerArray<RecalDatum> qualityScoreTable = getThreadLocalQualityScoreTable();
 
         for( int offset = 0; offset < read.getReadBases().length; offset++ ) {
-            if( !skip[offset] ) {
-                tempQualArray[EventType.BASE_SUBSTITUTION.index] = read.getBaseQualities()[offset];
-                tempFractionalErrorArray[EventType.BASE_SUBSTITUTION.index] = snpErrors[offset];
-                tempQualArray[EventType.BASE_INSERTION.index] = read.getBaseInsertionQualities()[offset];
-                tempFractionalErrorArray[EventType.BASE_INSERTION.index] = insertionErrors[offset];
-                tempQualArray[EventType.BASE_DELETION.index] = read.getBaseDeletionQualities()[offset];
-                tempFractionalErrorArray[EventType.BASE_DELETION.index] = deletionErrors[offset];
+            if( ! recalInfo.skip(offset) ) {
 
                 for (final EventType eventType : EventType.values()) {
                     final int[] keys = readCovariates.getKeySet(offset, eventType);
                     final int eventIndex = eventType.index;
-                    final byte qual = tempQualArray[eventIndex];
-                    final double isError = tempFractionalErrorArray[eventIndex];
+                    final byte qual = recalInfo.getQual(eventType, offset);
+                    final double isError = recalInfo.getErrorFraction(eventType, offset);
 
-                    incrementDatumOrPutIfNecessary(recalibrationTables.getQualityScoreTable(), qual, isError, keys[0], keys[1], eventIndex);
+                    incrementDatumOrPutIfNecessary(qualityScoreTable, qual, isError, keys[0], keys[1], eventIndex);
 
                     for (int i = 2; i < covariates.length; i++) {
                         if (keys[i] < 0)
@@ -75,5 +75,25 @@ public class AdvancedRecalibrationEngine extends StandardRecalibrationEngine imp
                 }
             }
         }
+    }
+
+    /**
+     * Get a NestedIntegerArray for a QualityScore table specific to this thread
+     * @return a non-null NestedIntegerArray ready to be used to collect calibration info for the quality score covariate
+     */
+    private NestedIntegerArray<RecalDatum> getThreadLocalQualityScoreTable() {
+        return threadLocalQualityScoreTables.get();
+    }
+
+    @Override
+    public void finalizeData() {
+        // merge in all of the thread local tables
+        logger.info("Merging " + allThreadLocalQualityScoreTables.size() + " thread-local quality score tables");
+        for ( final NestedIntegerArray<RecalDatum> localTable : allThreadLocalQualityScoreTables ) {
+            recalibrationTables.combineQualityScoreTable(localTable);
+        }
+        allThreadLocalQualityScoreTables.clear(); // cleanup after ourselves
+
+        super.finalizeData();
     }
 }
