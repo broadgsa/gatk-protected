@@ -223,7 +223,7 @@ public class GenotypingEngine {
         final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         final GenomeLoc callLoc = parser.createGenomeLoc(call);
         for( final Map.Entry<String, PerReadAlleleLikelihoodMap> sample : perSampleReadMap.entrySet() ) {
-            final PerReadAlleleLikelihoodMap likelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+            final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
 
             for( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> mapEntry : sample.getValue().getLikelihoodReadMap().entrySet() ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
@@ -277,7 +277,7 @@ public class GenotypingEngine {
 
         final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         for( final Map.Entry<String, PerReadAlleleLikelihoodMap> haplotypeReadMapEntry : haplotypeReadMap.entrySet() ) { // for each sample
-            final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+            final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
             for( final Map.Entry<Allele, List<Haplotype>> alleleMapperEntry : alleleMapper.entrySet() ) { // for each output allele
                 final List<Haplotype> mappedHaplotypes = alleleMapperEntry.getValue();
                 for( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> readEntry : haplotypeReadMapEntry.getValue().getLikelihoodReadMap().entrySet() ) { // for each read

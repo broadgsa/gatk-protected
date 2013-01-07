@@ -119,7 +119,7 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
 
             if (!perReadAlleleLikelihoodMap.containsKey(sample.getKey())){
                 // no likelihoods have been computed for this sample at this site
-                perReadAlleleLikelihoodMap.put(sample.getKey(), PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap());
+                perReadAlleleLikelihoodMap.put(sample.getKey(), new PerReadAlleleLikelihoodMap());
             }
             final ReadBackedPileup pileup = context.getBasePileup();
             if (pileup != null) {

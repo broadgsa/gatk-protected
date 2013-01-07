@@ -31,6 +31,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -231,7 +232,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
             ReadBackedPileup pileup = AlignmentContextUtils.stratify(sample.getValue(), contextType).getBasePileup();
             if (!perReadAlleleLikelihoodMap.containsKey(sample.getKey())){
                 // no likelihoods have been computed for this sample at this site
-                perReadAlleleLikelihoodMap.put(sample.getKey(), org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap());
+                perReadAlleleLikelihoodMap.put(sample.getKey(), new PerReadAlleleLikelihoodMap());
             }
 
             // create the GenotypeLikelihoods object
