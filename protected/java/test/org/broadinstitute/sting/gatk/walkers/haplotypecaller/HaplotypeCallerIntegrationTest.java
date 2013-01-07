@@ -21,19 +21,19 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "7122d4f0ef94c5274aa3047cfebe08ed");
+        HCTest(CEUTRIO_BAM, "", "35c8425b44429ac7468c2cd26f8f5a42");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "6cd6e6787521c07a7bae98766fd628ab");
+        HCTest(NA12878_BAM, "", "a2c63f6e6e51a01019bdbd23125bdb15");
     }
 
     // TODO -- add more tests for GGA mode, especially with input alleles that are complex variants and/or not trimmed
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "44df2a9da4fbd2162ae44c3f2a6ef01f");
+                "d918d25b22a551cae5d70ea30d7feed1");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -44,7 +44,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "4a413eeb7a75cab0ab5370b4c08dcf8e");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "6c0c441b71848c2eea38ab5e2afe1120");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -55,7 +55,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "77cf5b5273828dd1605bb23a5aeafcaa");
+        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "0761ff5cbf279be467833fa6708bf360");
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
@@ -66,20 +66,20 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "87ca97f90e74caee35c35616c065821c");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "29f1125df5ab27cc937a144ae08ac735");
     }
 
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("3df42d0550b51eb9b55aac61e8b3c452"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("2e8e6313228b0387008437feae7f5469"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
     @Test
     public void HCTestStructuralIndels() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("4dbc72b72e3e2d9d812d5a398490e213"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("add0f4f51969b7caeea99005a7ba1aa4"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
 
@@ -93,7 +93,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("f8c2745bf71f2659a57494fcaa2c103b"));
+                Arrays.asList("8a400b0c46f41447fcc35a907e34f384"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
 }

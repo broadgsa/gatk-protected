@@ -416,16 +416,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
         final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes, stratifiedReadMap ) : haplotypes );
 
-        for( final VariantContext call : genotypingEngine.assignGenotypeLikelihoodsAndCallIndependentEvents( UG_engine,
-                                                                                                             bestHaplotypes,
-                                                                                                             samplesList,
-                                                                                                             stratifiedReadMap,
-                                                                                                             perSampleFilteredReadList,
-                                                                                                             fullReferenceWithPadding,
-                                                                                                             getPaddedLoc(activeRegion),
-                                                                                                             activeRegion.getLocation(),
-                                                                                                             getToolkit().getGenomeLocParser(),
-                                                                                                             activeAllelesToGenotype ) ) {
+        for( final VariantContext call : genotypingEngine.assignGenotypeLikelihoods( UG_engine,
+                                                                                     bestHaplotypes,
+                                                                                     samplesList,
+                                                                                     stratifiedReadMap,
+                                                                                     perSampleFilteredReadList,
+                                                                                     fullReferenceWithPadding,
+                                                                                     getPaddedLoc(activeRegion),
+                                                                                     activeRegion.getLocation(),
+                                                                                     getToolkit().getGenomeLocParser(),
+                                                                                     activeAllelesToGenotype ) ) {
             vcfWriter.add( call );
         }
 
