@@ -55,6 +55,7 @@ import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
 import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
@@ -129,6 +130,7 @@ import java.util.*;
 @PartitionBy(PartitionType.LOCUS)
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
 @ActiveRegionExtension(extension=65, maxRegion=300)
+//@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=5)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
     /**
@@ -174,6 +176,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Advanced
     @Argument(fullName="useFilteredReadsForAnnotations", shortName="useFilteredReadsForAnnotations", doc = "If specified, use the contamination-filtered read maps for the purposes of annotating variants", required=false)
     protected boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = false;
+
+    @Hidden
+    @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "If specified, the HC won't actually do any assembly or calling, it'll just run the upfront active region determination code.  Useful for benchmarking and scalability testing", required=false)
+    protected boolean justDetermineActiveRegions = false;
 
     /**
      * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
@@ -403,6 +409,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Override
     public Integer map( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker metaDataTracker ) {
+        if ( justDetermineActiveRegions )
+            // we're benchmarking ART and/or the active region determination code in the HC, just leave without doing any work
+            return 1;
 
         final ArrayList<VariantContext> activeAllelesToGenotype = new ArrayList<VariantContext>();
 

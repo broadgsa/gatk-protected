@@ -115,6 +115,11 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "29f1125df5ab27cc937a144ae08ac735");
     }
 
+    // That problem bam came from a user on the forum and it spotted a problem where the ReadClipper
+    // was modifying the GATKSamRecord and that was screwing up the traversal engine from map call to
+    // map call. So the test is there for consistency but not for correctness. I'm not sure we can trust
+    // any of the calls in that region because it is so messy. The only thing I would maybe be worried about is
+    // that the three calls that are missing happen to all be the left most calls in the region
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
