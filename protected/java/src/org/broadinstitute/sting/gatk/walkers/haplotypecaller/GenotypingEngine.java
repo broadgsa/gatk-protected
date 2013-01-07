@@ -59,16 +59,16 @@ public class GenotypingEngine {
     }
 
     @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
-    public List<VariantContext> assignGenotypeLikelihoodsAndCallIndependentEvents( final UnifiedGenotyperEngine UG_engine,
-                                                                                   final List<Haplotype> haplotypes,
-                                                                                   final List<String> samples,
-                                                                                   final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
-                                                                                   final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
-                                                                                   final byte[] ref,
-                                                                                   final GenomeLoc refLoc,
-                                                                                   final GenomeLoc activeRegionWindow,
-                                                                                   final GenomeLocParser genomeLocParser,
-                                                                                   final List<VariantContext> activeAllelesToGenotype ) {
+    public List<VariantContext> assignGenotypeLikelihoods( final UnifiedGenotyperEngine UG_engine,
+                                                           final List<Haplotype> haplotypes,
+                                                           final List<String> samples,
+                                                           final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                           final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
+                                                           final byte[] ref,
+                                                           final GenomeLoc refLoc,
+                                                           final GenomeLoc activeRegionWindow,
+                                                           final GenomeLocParser genomeLocParser,
+                                                           final List<VariantContext> activeAllelesToGenotype ) {
 
         final List<VariantContext> returnCalls = new ArrayList<VariantContext>();
         final boolean in_GGA_mode = !activeAllelesToGenotype.isEmpty();
@@ -120,7 +120,7 @@ public class GenotypingEngine {
                             priorityList.clear();
                             int alleleCount = 0;
                             for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
-                                HashSet<Allele> alleleSet = new HashSet<Allele>(2);
+                                ArrayList<Allele> alleleSet = new ArrayList<Allele>(2);
                                 alleleSet.add(compVC.getReference());
                                 alleleSet.add(compAltAllele);
                                 priorityList.add("Allele" + alleleCount);
@@ -133,45 +133,26 @@ public class GenotypingEngine {
 
                 if( eventsAtThisLoc.isEmpty() ) { continue; }
 
-                // Create the allele mapping object which maps the original haplotype alleles to the alleles present in just this event
-                Map<Allele, List<Haplotype>> alleleMapper = createAlleleMapper( loc, eventsAtThisLoc, haplotypes );
+                // Create the event mapping object which maps the original haplotype events to the events present at just this locus
+                final Map<Event, List<Haplotype>> eventMapper = createEventMapper(loc, eventsAtThisLoc, haplotypes);
 
-                final Allele refAllele = eventsAtThisLoc.get(0).getReference();
-                final ArrayList<Allele> alleleOrdering = new ArrayList<Allele>(alleleMapper.size());
-                alleleOrdering.add(refAllele);
-                for( final VariantContext vc : eventsAtThisLoc ) {
-                    alleleOrdering.add(vc.getAlternateAllele(0));
-                }
-
-                // Sanity check the priority list
-                for( final VariantContext vc : eventsAtThisLoc ) {
-                    if( !priorityList.contains(vc.getSource()) ) {
-                        throw new ReviewedStingException("Event found on haplotype that wasn't added to priority list. Something went wrong in the merging of alleles.");
-                    }
-                }
-                for( final String name : priorityList ) {
-                    boolean found = false;
-                    for( final VariantContext vc : eventsAtThisLoc ) {
-                        if(vc.getSource().equals(name)) { found = true; break; }
-                    }
-                    if( !found ) {
-                        throw new ReviewedStingException("Event added to priority list but wasn't found on any haplotype. Something went wrong in the merging of alleles.");
-                    }
-                }
+                // Sanity check the priority list for mistakes
+                sanityCheckPriorityList( priorityList, eventsAtThisLoc );
 
                 // Merge the event to find a common reference representation
                 final VariantContext mergedVC = VariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, VariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, VariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
                 if( mergedVC == null ) { continue; }
 
-                // let's update the Allele keys in the mapper because they can change after merging when there are complex events
-                final Map<Allele, List<Haplotype>> updatedAlleleMapper = new HashMap<Allele, List<Haplotype>>(alleleMapper.size());
-                for ( int i = 0; i < mergedVC.getNAlleles(); i++ ) {
-                    final Allele oldAllele = alleleOrdering.get(i);
-                    final Allele newAllele = mergedVC.getAlleles().get(i);
-                    updatedAlleleMapper.put(newAllele, alleleMapper.get(oldAllele));
-                    alleleOrdering.set(i, newAllele);
+                if( eventsAtThisLoc.size() != mergedVC.getAlternateAlleles().size() ) {
+                    throw new ReviewedStingException("Something went wrong in the merging of alleles.");
                 }
-                alleleMapper = updatedAlleleMapper;
+                final HashMap<VariantContext, Allele> mergeMap = new HashMap<VariantContext, Allele>();
+                mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
+                for(int iii = 0; iii < mergedVC.getAlternateAlleles().size(); iii++) {
+                    mergeMap.put(eventsAtThisLoc.get(iii), mergedVC.getAlternateAllele(iii)); // BUGBUG: This is assuming that the order of alleles is the same as the priority list given to simpleMerge function
+                }
+
+                final Map<Allele, List<Haplotype>> alleleMapper = createAlleleMapper(mergeMap, eventMapper);
 
                 if( DEBUG ) {
                     System.out.println("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
@@ -180,20 +161,7 @@ public class GenotypingEngine {
 
                 final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, UG_engine.getUAC().CONTAMINATION_FRACTION, UG_engine.getUAC().contaminationLog );
 
-                // Grab the genotype likelihoods from the appropriate places in the haplotype likelihood matrix -- calculation performed independently per sample
-                final GenotypesContext genotypes = GenotypesContext.create(samples.size());
-                for( final String sample : samples ) {
-                    final int numHaplotypes = alleleMapper.size();
-                    final double[] genotypeLikelihoods = new double[numHaplotypes * (numHaplotypes+1) / 2];
-                    final double[][] haplotypeLikelihoodMatrix = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleReadMap, alleleOrdering);
-                    int glIndex = 0;
-                    for( int iii = 0; iii < numHaplotypes; iii++ ) {
-                        for( int jjj = 0; jjj <= iii; jjj++ ) {
-                            genotypeLikelihoods[glIndex++] = haplotypeLikelihoodMatrix[iii][jjj]; // for example: AA,AB,BB,AC,BC,CC
-                        }
-                    }
-                    genotypes.add( new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make() );
-                }
+                final GenotypesContext genotypes = calculateGLsForThisEvent( samples, alleleReadMap, mergedVC );
                 final VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), UG_engine.getUAC().GLmodel);
                 if( call != null ) {
                     final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
@@ -210,6 +178,41 @@ public class GenotypingEngine {
             }
         }
         return returnCalls;
+    }
+
+    private GenotypesContext calculateGLsForThisEvent( final List<String> samples, final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap, final VariantContext mergedVC ) {
+        final GenotypesContext genotypes = GenotypesContext.create(samples.size());
+        // Grab the genotype likelihoods from the appropriate places in the haplotype likelihood matrix -- calculation performed independently per sample
+        for( final String sample : samples ) {
+            final int numHaplotypes = mergedVC.getAlleles().size();
+            final double[] genotypeLikelihoods = new double[numHaplotypes * (numHaplotypes+1) / 2];
+            final double[][] haplotypeLikelihoodMatrix = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleReadMap, mergedVC.getAlleles());
+            int glIndex = 0;
+            for( int iii = 0; iii < numHaplotypes; iii++ ) {
+                for( int jjj = 0; jjj <= iii; jjj++ ) {
+                    genotypeLikelihoods[glIndex++] = haplotypeLikelihoodMatrix[iii][jjj]; // for example: AA,AB,BB,AC,BC,CC
+                }
+            }
+            genotypes.add( new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make() );
+        }
+        return genotypes;
+    }
+
+    private void sanityCheckPriorityList( final ArrayList<String> priorityList, final ArrayList<VariantContext> eventsAtThisLoc ) {
+        for( final VariantContext vc : eventsAtThisLoc ) {
+            if( !priorityList.contains(vc.getSource()) ) {
+                throw new ReviewedStingException("Event found on haplotype that wasn't added to priority list. Something went wrong in the merging of alleles.");
+            }
+        }
+        for( final String name : priorityList ) {
+            boolean found = false;
+            for( final VariantContext vc : eventsAtThisLoc ) {
+                if(vc.getSource().equals(name)) { found = true; break; }
+            }
+            if( !found ) {
+                throw new ReviewedStingException("Event added to priority list but wasn't found on any haplotype. Something went wrong in the merging of alleles.");
+            }
+        }
     }
 
     private static Map<String, PerReadAlleleLikelihoodMap> filterToOnlyOverlappingReads( final GenomeLocParser parser,
@@ -437,27 +440,45 @@ public class GenotypingEngine {
         return ((pa1b1 - pa1*pb1) * (pa1b1 - pa1*pb1)) / ( pa1 * (1.0 - pa1) * pb1 * (1.0 - pb1) );
     }
 
+    protected static Map<Allele, List<Haplotype>> createAlleleMapper( final Map<VariantContext, Allele> mergeMap, final Map<Event, List<Haplotype>> eventMap ) {
+        final Map<Allele, List<Haplotype>> alleleMapper = new HashMap<Allele, List<Haplotype>>();
+        for( final Map.Entry<VariantContext, Allele> entry : mergeMap.entrySet() ) {
+            alleleMapper.put(entry.getValue(), eventMap.get(new Event(entry.getKey())));
+        }
+        return alleleMapper;
+    }
+
     @Requires({"haplotypes.size() >= eventsAtThisLoc.size() + 1"})
     @Ensures({"result.size() == eventsAtThisLoc.size() + 1"})
-    protected static Map<Allele, List<Haplotype>> createAlleleMapper( final int loc, final List<VariantContext> eventsAtThisLoc, final List<Haplotype> haplotypes ) {
+    protected static Map<Event, List<Haplotype>> createEventMapper( final int loc, final List<VariantContext> eventsAtThisLoc, final List<Haplotype> haplotypes ) {
 
-        final Map<Allele, List<Haplotype>> alleleMapper = new HashMap<Allele, List<Haplotype>>(eventsAtThisLoc.size()+1);
+        final Map<Event, List<Haplotype>> eventMapper = new HashMap<Event, List<Haplotype>>(eventsAtThisLoc.size()+1);
         final Allele refAllele = eventsAtThisLoc.get(0).getReference();
-        alleleMapper.put(refAllele, new ArrayList<Haplotype>());
-        for( final VariantContext vc : eventsAtThisLoc )
-            alleleMapper.put(vc.getAlternateAllele(0), new ArrayList<Haplotype>());
+        VariantContext refVC = eventsAtThisLoc.get(0);
+        eventMapper.put(new Event(null), new ArrayList<Haplotype>());
+        for( final VariantContext vc : eventsAtThisLoc ) {
+            eventMapper.put(new Event(vc), new ArrayList<Haplotype>());
+        }
 
         final ArrayList<Haplotype> undeterminedHaplotypes = new ArrayList<Haplotype>(haplotypes.size());
         for( final Haplotype h : haplotypes ) {
-            if( h.isArtificialHaplotype() && loc == h.getArtificialAllelePosition() && alleleMapper.containsKey(h.getArtificialAllele()) ) {
-                alleleMapper.get(h.getArtificialAllele()).add(h);
+            if( h.isArtificialHaplotype() && loc == h.getArtificialAllelePosition() ) {
+                final ArrayList<Allele> alleles = new ArrayList<Allele>(2);
+                alleles.add(refAllele);
+                alleles.add(h.getArtificialAllele());
+                final Event artificialVC = new Event( (new VariantContextBuilder()).source("artificialHaplotype")
+                                                                                            .alleles(alleles)
+                                                                                            .loc(refVC.getChr(), refVC.getStart(), refVC.getStart() + refAllele.length() - 1).make() );
+                if( eventMapper.containsKey(artificialVC) ) {
+                    eventMapper.get(artificialVC).add(h);
+                }
             } else if( h.getEventMap().get(loc) == null ) { // no event at this location so let's investigate later
                 undeterminedHaplotypes.add(h);
             } else {
                 boolean haplotypeIsDetermined = false;
                 for( final VariantContext vcAtThisLoc : eventsAtThisLoc ) {
                     if( h.getEventMap().get(loc).hasSameAllelesAs(vcAtThisLoc) ) {
-                        alleleMapper.get(vcAtThisLoc.getAlternateAllele(0)).add(h);
+                        eventMapper.get(new Event(vcAtThisLoc)).add(h);
                         haplotypeIsDetermined = true;
                         break;
                     }
@@ -469,25 +490,23 @@ public class GenotypingEngine {
         }
 
         for( final Haplotype h : undeterminedHaplotypes ) {
-            Allele matchingAllele = null;
-            for( final Map.Entry<Allele, List<Haplotype>> alleleToTest : alleleMapper.entrySet() ) {
+            Event matchingEvent = new Event(null);
+            for( final Map.Entry<Event, List<Haplotype>> eventToTest : eventMapper.entrySet() ) {
                 // don't test against the reference allele
-                if( alleleToTest.getKey().equals(refAllele) )
+                if( eventToTest.getKey().equals(new Event(null)) )
                     continue;
 
-                final Haplotype artificialHaplotype = alleleToTest.getValue().get(0);
+                final Haplotype artificialHaplotype = eventToTest.getValue().get(0);
                 if( isSubSetOf(artificialHaplotype.getEventMap(), h.getEventMap(), true) ) {
-                    matchingAllele = alleleToTest.getKey();
+                    matchingEvent = eventToTest.getKey();
                     break;
                 }
             }
 
-            if( matchingAllele == null )
-                matchingAllele = refAllele;
-            alleleMapper.get(matchingAllele).add(h);
+            eventMapper.get(matchingEvent).add(h);
         }
 
-        return alleleMapper;
+        return eventMapper;
     }
 
     protected static boolean isSubSetOf(final Map<Integer, VariantContext> subset, final Map<Integer, VariantContext> superset, final boolean resolveSupersetToSubset) {
@@ -635,5 +654,23 @@ public class GenotypingEngine {
             }
         }
         return vcs;
+    }
+
+    private static class Event {
+        public VariantContext vc;
+
+        public Event( final VariantContext vc ) {
+            this.vc = vc;
+        }
+
+        @Override
+        public boolean equals( final Object obj ) {
+            return obj instanceof Event && ((((Event) obj).vc == null && vc == null) || (((Event) obj).vc != null && vc != null && ((Event) obj).vc.hasSameAllelesAs(vc))) ;
+        }
+
+        @Override
+        public int hashCode() {
+            return (vc == null ? -1 : vc.getAlleles().hashCode());
+        }
     }
 }
