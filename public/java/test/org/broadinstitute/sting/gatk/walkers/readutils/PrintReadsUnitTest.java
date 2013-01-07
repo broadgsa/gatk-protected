@@ -1,4 +1,4 @@
-package org.broadinstitute.sting.gatk.walkers;
+package org.broadinstitute.sting.gatk.walkers.readutils;
 
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMRecord;
@@ -59,7 +59,7 @@ public class PrintReadsUnitTest extends BaseTest {
     private ReferenceContext bases = null;
     //private ReferenceContext ref = new ReferenceContext()
 
-    PrintReads walker;
+    org.broadinstitute.sting.gatk.walkers.readutils.PrintReads walker;
     ArtificialSAMFileWriter writer;
 
     @BeforeMethod
@@ -67,7 +67,7 @@ public class PrintReadsUnitTest extends BaseTest {
         trav = new ArtificialReadsTraversal();
         readTotal = ( ( trav.endingChr - trav.startingChr ) + 1 ) * trav.readsPerChr + trav.unMappedReads;
 
-        walker = new PrintReads();
+        walker = new org.broadinstitute.sting.gatk.walkers.readutils.PrintReads();
         writer = new ArtificialSAMFileWriter();
         walker.out = writer;
         walker.initialize();

@@ -28,7 +28,6 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
-import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
@@ -41,7 +40,6 @@ import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.baq.BAQ;
-import org.broadinstitute.sting.utils.classloader.GATKLiteUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.*;
 import org.broadinstitute.sting.utils.exceptions.UserException;
@@ -229,25 +227,6 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
      *
      **/
     public void initialize() {
-
-        // Check for protected modes
-        if (GATKLiteUtils.isGATKLite()) {
-            // no polyploid/pooled mode in GATK Like
-            if (UAC.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY ||
-                    UAC.referenceSampleName != null ||
-                    UAC.referenceSampleRod.isBound())  {
-                throw new UserException.NotSupportedInGATKLite("you cannot enable usage of ploidy values other than 2");
-            }
-
-            if ( UAC.CONTAMINATION_FRACTION > 0.0 ) {
-                if ( UAC.CONTAMINATION_FRACTION == StandardCallerArgumentCollection.DEFAULT_CONTAMINATION_FRACTION ) {
-                    UAC.CONTAMINATION_FRACTION = 0.0;
-                    logger.warn("setting contamination down-sampling fraction to 0.0 because it is not enabled in GATK-lite");
-                } else {
-                    throw new UserException.NotSupportedInGATKLite("you cannot enable usage of contamination down-sampling");
-                }
-            }
-        }
 
         if ( UAC.TREAT_ALL_READS_AS_SINGLE_POOL ) {
             samples.add(GenotypeLikelihoodsCalculationModel.DUMMY_SAMPLE_NAME);

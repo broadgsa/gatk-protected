@@ -55,7 +55,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
     protected SNPGenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
         super(UAC, logger);
         useAlleleFromVCF = UAC.GenotypingMode == GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES;
-        perReadAlleleLikelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+        perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
     }
 
     public VariantContext getLikelihoods(final RefMetaDataTracker tracker,

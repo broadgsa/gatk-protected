@@ -26,7 +26,7 @@ package org.broadinstitute.sting.utils.genotyper;
 
 
 import org.broadinstitute.sting.gatk.downsampling.AlleleBiasedDownsamplingUtils;
-import org.broadinstitute.sting.utils.classloader.ProtectedPackageSource;
+import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.variant.variantcontext.Allele;
@@ -34,7 +34,31 @@ import org.broadinstitute.variant.variantcontext.Allele;
 import java.io.PrintStream;
 import java.util.*;
 
-public class AdvancedPerReadAlleleLikelihoodMap extends StandardPerReadAlleleLikelihoodMap implements ProtectedPackageSource {
+public class PerReadAlleleLikelihoodMap {
+
+    public static final double INFORMATIVE_LIKELIHOOD_THRESHOLD = 0.2;
+
+    protected List<Allele> alleles;
+    protected Map<GATKSAMRecord, Map<Allele, Double>> likelihoodReadMap;
+
+    public PerReadAlleleLikelihoodMap() {}
+
+    public void add(GATKSAMRecord read, Allele a, Double likelihood) {
+        Map<Allele,Double> likelihoodMap;
+        if (likelihoodReadMap.containsKey(read)){
+            // seen pileup element before
+            likelihoodMap = likelihoodReadMap.get(read);
+        }
+        else {
+            likelihoodMap = new HashMap<Allele, Double>();
+            likelihoodReadMap.put(read,likelihoodMap);
+        }
+        likelihoodMap.put(a,likelihood);
+
+        if (!alleles.contains(a))
+            alleles.add(a);
+
+    }
 
     public ReadBackedPileup createPerAlleleDownsampledBasePileup(final ReadBackedPileup pileup, final double downsamplingFraction, final PrintStream log) {
         return AlleleBiasedDownsamplingUtils.createAlleleBiasedBasePileup(pileup, downsamplingFraction, log);
@@ -67,5 +91,65 @@ public class AdvancedPerReadAlleleLikelihoodMap extends StandardPerReadAlleleLik
         final List<GATKSAMRecord> readsToRemove = AlleleBiasedDownsamplingUtils.selectAlleleBiasedReads(alleleReadMap, downsamplingFraction, log);
         for ( final GATKSAMRecord read : readsToRemove )
             likelihoodReadMap.remove(read);
+    }
+
+    public int size() {
+        return likelihoodReadMap.size();
+    }
+
+    public void add(PileupElement p, Allele a, Double likelihood) {
+        add(p.getRead(), a, likelihood);
+    }
+
+    public boolean containsPileupElement(PileupElement p) {
+        return likelihoodReadMap.containsKey(p.getRead());
+    }
+
+    public boolean isEmpty() {
+        return likelihoodReadMap.isEmpty();
+    }
+
+    public Map<GATKSAMRecord,Map<Allele,Double>> getLikelihoodReadMap() {
+        return likelihoodReadMap;
+    }
+    public void clear() {
+        alleles.clear();
+        likelihoodReadMap.clear();
+    }
+
+    public Set<GATKSAMRecord> getStoredElements() {
+        return likelihoodReadMap.keySet();
+    }
+
+    public Collection<Map<Allele,Double>> getLikelihoodMapValues() {
+        return likelihoodReadMap.values();
+    }
+
+    public int getNumberOfStoredElements() {
+        return likelihoodReadMap.size();
+    }
+
+    public Map<Allele,Double> getLikelihoodsAssociatedWithPileupElement(PileupElement p) {
+        if (!likelihoodReadMap.containsKey(p.getRead()))
+            return null;
+
+        return likelihoodReadMap.get(p.getRead());
+    }
+
+    public static Allele getMostLikelyAllele( final Map<Allele,Double> alleleMap ) {
+        double maxLike = Double.NEGATIVE_INFINITY;
+        double prevMaxLike = Double.NEGATIVE_INFINITY;
+        Allele mostLikelyAllele = Allele.NO_CALL;
+
+        for (final Map.Entry<Allele,Double> el : alleleMap.entrySet()) {
+            if (el.getValue() > maxLike) {
+                prevMaxLike = maxLike;
+                maxLike = el.getValue();
+                mostLikelyAllele = el.getKey();
+            } else if( el.getValue() > prevMaxLike ) {
+                prevMaxLike = el.getValue();
+            }
+        }
+        return (maxLike - prevMaxLike > INFORMATIVE_LIKELIHOOD_THRESHOLD ? mostLikelyAllele : Allele.NO_CALL );
     }
 }
