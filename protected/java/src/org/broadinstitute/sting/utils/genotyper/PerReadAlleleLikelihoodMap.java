@@ -41,7 +41,10 @@ public class PerReadAlleleLikelihoodMap {
     protected List<Allele> alleles;
     protected Map<GATKSAMRecord, Map<Allele, Double>> likelihoodReadMap;
 
-    public PerReadAlleleLikelihoodMap() {}
+    public PerReadAlleleLikelihoodMap() {
+        likelihoodReadMap = new LinkedHashMap<GATKSAMRecord,Map<Allele,Double>>();
+        alleles = new ArrayList<Allele>();
+    }
 
     public void add(GATKSAMRecord read, Allele a, Double likelihood) {
         Map<Allele,Double> likelihoodMap;
