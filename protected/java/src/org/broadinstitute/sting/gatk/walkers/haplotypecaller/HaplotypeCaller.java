@@ -377,7 +377,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                 final byte qual = p.getQual();
                 if( p.isDeletion() || qual > (byte) 18) {
                     int AA = 0; final int AB = 1; int BB = 2;
-                    if( p.getBase() != ref.getBase() || p.isDeletion() || p.isBeforeDeletedBase() || p.isAfterDeletedBase() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip() ) {
+                     if( p.getBase() != ref.getBase() || p.isDeletion() || p.isBeforeDeletionStart() || p.isAfterDeletionEnd() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip() ) {
                         AA = 2;
                         BB = 0;
                         if( p.isNextToSoftClip() ) {
