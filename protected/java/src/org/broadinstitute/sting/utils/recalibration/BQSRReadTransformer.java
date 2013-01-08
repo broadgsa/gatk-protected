@@ -14,12 +14,15 @@ import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
  */
 public class BQSRReadTransformer extends ReadTransformer {
     private boolean enabled;
-    private BaseRecalibration bqsr;
+    private BaseRecalibration bqsr = null;
 
     @Override
     public ApplicationTime initializeSub(final GenomeAnalysisEngine engine, final Walker walker) {
-        this.enabled = engine.hasBaseRecalibration();
-        this.bqsr = engine.getBaseRecalibration();
+        this.enabled = engine.hasBQSRArgumentSet();
+        if ( enabled ) {
+            final BQSRArgumentSet args = engine.getBQSRArgumentSet();
+            this.bqsr = new BaseRecalibration(args.getRecalFile(), args.getQuantizationLevels(), args.shouldDisableIndelQuals(), args.getPreserveQscoresLessThan(), args.shouldEmitOriginalQuals());
+        }
         final BQSRMode mode = WalkerManager.getWalkerAnnotation(walker, BQSRMode.class);
         return mode.ApplicationTime();
     }
