@@ -57,7 +57,6 @@ import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.utils.BaseUtils;
 import org.broadinstitute.variant.variantcontext.*;
 
@@ -204,7 +203,7 @@ public class GenotypingEngine {
                     VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
 
                     if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
-                        annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
+                        annotatedCall = VariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
 
                     returnCalls.add( annotatedCall );

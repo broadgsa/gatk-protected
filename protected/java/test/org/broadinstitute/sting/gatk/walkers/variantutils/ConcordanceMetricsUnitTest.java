@@ -46,20 +46,16 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
-import com.sun.org.apache.xpath.internal.operations.Gt;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.variantutils.ConcordanceMetrics;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.variant.utils.BaseUtils;
-import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
 import org.broadinstitute.variant.variantcontext.GenotypeType;
-import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.vcf.VCFCodec;
@@ -67,7 +63,6 @@ import org.broadinstitute.variant.vcf.VCFHeader;
 import org.testng.annotations.Test;
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.PositionalBufferedStream;
-import org.broadinstitute.variant.vcf.*;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 
@@ -75,7 +70,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.StringBufferInputStream;
 import java.util.ArrayList;
-import java.util.Set;
 import java.util.Arrays;
 import java.util.List;
 import net.sf.picard.reference.ReferenceSequenceFile;

@@ -164,7 +164,7 @@ public class CombineVariantsUnitTest {
         ArrayList<VCFHeader> headers = new ArrayList<VCFHeader>();
         headers.add(one);
         headers.add(two);
-        Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, null);
+        Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, false);
         Assert.assertEquals(lines.size(), VCFHeaderUnitTest.VCF4headerStringCount);
     }
 
@@ -175,7 +175,7 @@ public class CombineVariantsUnitTest {
         ArrayList<VCFHeader> headers = new ArrayList<VCFHeader>();
         headers.add(one);
         headers.add(two);
-        Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, null);
+        Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, false);
         Assert.assertEquals(lines.size(), VCFHeaderUnitTest.VCF4headerStringCount);
     }
 
@@ -186,7 +186,7 @@ public class CombineVariantsUnitTest {
         ArrayList<VCFHeader> headers = new ArrayList<VCFHeader>();
         headers.add(one);
         headers.add(two);
-        Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, null);
+        Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, false);
         Assert.assertEquals(lines.size(), VCFHeaderUnitTest.VCF4headerStringCount);
     }
 }

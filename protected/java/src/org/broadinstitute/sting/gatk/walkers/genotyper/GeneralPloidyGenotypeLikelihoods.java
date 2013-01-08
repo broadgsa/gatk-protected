@@ -51,7 +51,7 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACcounts;
 import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACset;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;

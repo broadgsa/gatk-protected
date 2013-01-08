@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
