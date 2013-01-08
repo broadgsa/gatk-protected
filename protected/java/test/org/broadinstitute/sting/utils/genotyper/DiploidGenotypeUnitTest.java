@@ -1,6 +1,5 @@
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.utils.genotyper;
 
-import org.broadinstitute.sting.gatk.walkers.genotyper.DiploidGenotype;
 import org.testng.Assert;
 import org.broadinstitute.sting.BaseTest;
 
