@@ -104,7 +104,7 @@ public class LikelihoodCalculationEngine {
 
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final ArrayList<Haplotype> haplotypes, final ArrayList<GATKSAMRecord> reads) {
 
-        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
         final int numHaplotypes = haplotypes.size();
         for( final GATKSAMRecord read : reads ) {
             final byte[] overallGCP = new byte[read.getReadLength()];
