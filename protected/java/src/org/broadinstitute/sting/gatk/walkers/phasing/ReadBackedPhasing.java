@@ -117,7 +117,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
     protected Integer maxPhaseSites = 10; // 2^10 == 10^3 diploid haplotypes
 
     @Argument(fullName = "phaseQualityThresh", shortName = "phaseThresh", doc = "The minimum phasing quality score required to output phasing", required = false)
-    protected Double phaseQualityThresh = 10.0; // PQ = 10.0 <=> P(error) = 10^(-10/10) = 0.1, P(correct) = 0.9
+    protected Double phaseQualityThresh = 20.0; // PQ = 20.0 <=> P(error) = 10^(-20/10) = 0.01, P(correct) = 0.99
 
     @Hidden
     @Argument(fullName = "variantStatsFilePrefix", shortName = "variantStats", doc = "The prefix of the VCF/phasing statistics files [For DEBUGGING purposes only - DO NOT USE!]", required = false)
