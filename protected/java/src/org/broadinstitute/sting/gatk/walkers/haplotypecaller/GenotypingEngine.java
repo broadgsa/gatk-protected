@@ -115,19 +115,31 @@ public class GenotypingEngine {
                         }
                     }
                 } else { // we are in GGA mode!
+                    int compCount = 0;
                     for( final VariantContext compVC : activeAllelesToGenotype ) {
                         if( compVC.getStart() == loc ) {
-                            priorityList.clear();
                             int alleleCount = 0;
                             for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
                                 ArrayList<Allele> alleleSet = new ArrayList<Allele>(2);
                                 alleleSet.add(compVC.getReference());
                                 alleleSet.add(compAltAllele);
-                                priorityList.add("Allele" + alleleCount);
-                                eventsAtThisLoc.add(new VariantContextBuilder(compVC).alleles(alleleSet).source("Allele"+alleleCount).make());
+                                final String vcSourceName = "Comp" + compCount + "Allele" + alleleCount;
+                                // check if this event is already in the list of events due to a repeat in the input alleles track
+                                final VariantContext candidateEventToAdd = new VariantContextBuilder(compVC).alleles(alleleSet).source(vcSourceName).make();
+                                boolean alreadyExists = false;
+                                for( final VariantContext eventToTest : eventsAtThisLoc ) {
+                                    if( eventToTest.hasSameAllelesAs(candidateEventToAdd) ) {
+                                        alreadyExists = true;
+                                    }
+                                }
+                                if( !alreadyExists ) {
+                                    priorityList.add(vcSourceName);
+                                    eventsAtThisLoc.add(candidateEventToAdd);
+                                }
                                 alleleCount++;
                             }
                         }
+                        compCount++;
                     }
                 }
 
@@ -137,14 +149,14 @@ public class GenotypingEngine {
                 final Map<Event, List<Haplotype>> eventMapper = createEventMapper(loc, eventsAtThisLoc, haplotypes);
 
                 // Sanity check the priority list for mistakes
-                sanityCheckPriorityList( priorityList, eventsAtThisLoc );
+                validatePriorityList( priorityList, eventsAtThisLoc );
 
                 // Merge the event to find a common reference representation
                 final VariantContext mergedVC = VariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, VariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, VariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
                 if( mergedVC == null ) { continue; }
 
                 if( eventsAtThisLoc.size() != mergedVC.getAlternateAlleles().size() ) {
-                    throw new ReviewedStingException("Something went wrong in the merging of alleles.");
+                    throw new ReviewedStingException("Record size mismatch! Something went wrong in the merging of alleles.");
                 }
                 final HashMap<VariantContext, Allele> mergeMap = new HashMap<VariantContext, Allele>();
                 mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
@@ -198,7 +210,7 @@ public class GenotypingEngine {
         return genotypes;
     }
 
-    private void sanityCheckPriorityList( final ArrayList<String> priorityList, final ArrayList<VariantContext> eventsAtThisLoc ) {
+    private void validatePriorityList( final ArrayList<String> priorityList, final ArrayList<VariantContext> eventsAtThisLoc ) {
         for( final VariantContext vc : eventsAtThisLoc ) {
             if( !priorityList.contains(vc.getSource()) ) {
                 throw new ReviewedStingException("Event found on haplotype that wasn't added to priority list. Something went wrong in the merging of alleles.");
@@ -453,8 +465,7 @@ public class GenotypingEngine {
     protected static Map<Event, List<Haplotype>> createEventMapper( final int loc, final List<VariantContext> eventsAtThisLoc, final List<Haplotype> haplotypes ) {
 
         final Map<Event, List<Haplotype>> eventMapper = new HashMap<Event, List<Haplotype>>(eventsAtThisLoc.size()+1);
-        final Allele refAllele = eventsAtThisLoc.get(0).getReference();
-        VariantContext refVC = eventsAtThisLoc.get(0);
+        VariantContext refVC = eventsAtThisLoc.get(0); // the genome loc is the only safe thing to pull out of this VC because ref/alt pairs might change reference basis
         eventMapper.put(new Event(null), new ArrayList<Haplotype>());
         for( final VariantContext vc : eventsAtThisLoc ) {
             eventMapper.put(new Event(vc), new ArrayList<Haplotype>());
@@ -464,11 +475,11 @@ public class GenotypingEngine {
         for( final Haplotype h : haplotypes ) {
             if( h.isArtificialHaplotype() && loc == h.getArtificialAllelePosition() ) {
                 final ArrayList<Allele> alleles = new ArrayList<Allele>(2);
-                alleles.add(refAllele);
-                alleles.add(h.getArtificialAllele());
+                alleles.add(h.getArtificialRefAllele());
+                alleles.add(h.getArtificialAltAllele());
                 final Event artificialVC = new Event( (new VariantContextBuilder()).source("artificialHaplotype")
                                                                                             .alleles(alleles)
-                                                                                            .loc(refVC.getChr(), refVC.getStart(), refVC.getStart() + refAllele.length() - 1).make() );
+                                                                                            .loc(refVC.getChr(), refVC.getStart(), refVC.getStart() + h.getArtificialRefAllele().length() - 1).make() );
                 if( eventMapper.containsKey(artificialVC) ) {
                     eventMapper.get(artificialVC).add(h);
                 }
