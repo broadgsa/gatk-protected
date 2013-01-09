@@ -34,6 +34,11 @@ import net.sf.picard.reference.ReferenceSequenceFile;
 
 public class ConcordanceMetricsUnitTest extends BaseTest {
 
+    // todo -- coverage for several sites (3,4)
+    // todo -- coverage for calculation of table margins
+    // todo -- coverage for site concordance
+    // todo -- coverage for disjoint and mostly-disjoint sample sets
+
     private static ReferenceSequenceFile seq;
     private GenomeLocParser genomeLocParser;
 

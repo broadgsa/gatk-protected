@@ -39,6 +39,16 @@ public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantCo
     List<String> evalSamples;
     List<String> compSamples;
 
+    // todo -- integration test coverage
+    // todo -- deal with occurrences like:
+    //     Eval: 20   4000     A     C
+    //     Eval: 20   4000     A    AC
+    //     Comp: 20   4000     A     C
+    //  currently this results in a warning and skipping
+    // todo -- extend to multiple eval, multiple comp
+    // todo -- table with "proportion of overlapping sites" (not just eval/comp margins)
+
+
     public ConcordanceMetrics reduceInit() {
         Map<String,VCFHeader> headerMap = GATKVCFUtils.getVCFHeadersFromRods(getToolkit(), Arrays.asList(evalBinding,compBinding));
         VCFHeader evalHeader = headerMap.get(evalBinding.getName());
