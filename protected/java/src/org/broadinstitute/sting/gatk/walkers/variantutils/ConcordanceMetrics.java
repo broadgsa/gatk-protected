@@ -4,7 +4,6 @@ import com.google.java.contract.Ensures;
 import com.google.java.contract.Invariant;
 import com.google.java.contract.Requires;
 import org.broad.tribble.util.ParsingUtils;
-import org.broadinstitute.sting.gatk.walkers.genotyper.DiploidGenotype;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.vcf.VCFHeader;
