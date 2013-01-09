@@ -173,23 +173,33 @@ public class ConcordanceMetrics {
             return nMismatchingAlt;
         }
 
-        public int getnEvalGenotypes() {
+        public int getnEvalGenotypes(GenotypeType type) {
+            int nGeno = 0;
+            for ( GenotypeType comptype : GenotypeType.values() )
+                nGeno += genotypeCounts[type.ordinal()][comptype.ordinal()];
+            return nGeno;
+        }
+
+        public int getnCalledEvalGenotypes() {
             int nGeno = 0;
             for ( GenotypeType evalType : Arrays.asList(GenotypeType.HOM_REF,GenotypeType.HOM_VAR,GenotypeType.HET) ) {
-                for ( GenotypeType compType : GenotypeType.values() ) {
-                    nGeno += genotypeCounts[evalType.ordinal()][compType.ordinal()];
-                }
+                nGeno += getnEvalGenotypes(evalType);
             }
 
             return nGeno + nMismatchingAlt;
         }
 
-        public int getnCompGenotypes() {
+        public int getnCompGenotypes(GenotypeType type) {
+            int nGeno = 0;
+            for ( GenotypeType evaltype : GenotypeType.values() )
+                nGeno += genotypeCounts[evaltype.ordinal()][type.ordinal()];
+            return nGeno;
+        }
+
+        public int getnCalledCompGenotypes() {
             int nGeno = 0;
             for ( GenotypeType compType : Arrays.asList(GenotypeType.HOM_REF,GenotypeType.HOM_VAR,GenotypeType.HET) ) {
-                for ( GenotypeType evalType : GenotypeType.values() ) {
-                    nGeno += genotypeCounts[evalType.ordinal()][compType.ordinal()];
-                }
+                nGeno += getnCompGenotypes(compType);
             }
             return nGeno;
         }
