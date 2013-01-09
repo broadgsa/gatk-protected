@@ -210,7 +210,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
             // count number of elements in pileup
             for (PileupElement elt : pileup) {
                 if (VERBOSE)
-                    System.out.format("base:%s isNextToDel:%b isNextToIns:%b eventBases:%s eventLength:%d\n",elt.getBase(), elt.isBeforeDeletionStart(),elt.isBeforeInsertion(),elt.getEventBases(),elt.getEventLength());
+                    System.out.format("base:%s isNextToDel:%b isNextToIns:%b eventBases:%s eventLength:%d\n",elt.getBase(), elt.isBeforeDeletionStart(),elt.isBeforeInsertion(),elt.getBasesOfImmediatelyFollowingInsertion(),elt.getLengthOfImmediatelyFollowingIndel());
                 int idx =0;
                 for (Allele allele : alleles) {
                     int cnt = numSeenBases.get(idx);
