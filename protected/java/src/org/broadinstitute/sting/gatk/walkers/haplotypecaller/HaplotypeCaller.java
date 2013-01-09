@@ -137,6 +137,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected int gcpHMM = 10;
 
     @Advanced
+    @Argument(fullName="maxNumHaplotypesInPopulation", shortName="maxNumHaplotypesInPopulation", doc="Maximum number of haplotypes to consider for your population. This number will probably need to be increased when calling organisms with high heterozygosity.", required = false)
+    protected int maxNumHaplotypesInPopulation = 13;
+
+    @Advanced
     @Argument(fullName="minKmer", shortName="minKmer", doc="Minimum kmer length to use in the assembly graph", required = false)
     protected int minKmer = 11;
 
@@ -414,7 +418,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
-        final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ? likelihoodCalculationEngine.selectBestHaplotypes( haplotypes, stratifiedReadMap ) : haplotypes );
+        final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ?
+                                                      likelihoodCalculationEngine.selectBestHaplotypes( haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation ) : haplotypes );
 
         for( final VariantContext call : genotypingEngine.assignGenotypeLikelihoods( UG_engine,
                                                                                      bestHaplotypes,

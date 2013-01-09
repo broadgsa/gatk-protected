@@ -273,7 +273,7 @@ public class LikelihoodCalculationEngine {
 
     @Requires({"haplotypes.size() > 0"})
     @Ensures({"result.size() <= haplotypes.size()"})
-    public ArrayList<Haplotype> selectBestHaplotypes( final ArrayList<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap ) {
+    public ArrayList<Haplotype> selectBestHaplotypes( final ArrayList<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation ) {
 
         final int numHaplotypes = haplotypes.size();
         final Set<String> sampleKeySet = stratifiedReadMap.keySet();
@@ -287,7 +287,7 @@ public class LikelihoodCalculationEngine {
         int hap1 = 0;
         int hap2 = 0;
         //double bestElement = Double.NEGATIVE_INFINITY;
-        final int maxChosenHaplotypes = Math.min( 13, sampleKeySet.size() * 2 + 1 );
+        final int maxChosenHaplotypes = Math.min( maxNumHaplotypesInPopulation, sampleKeySet.size() * 2 + 1 );
         while( bestHaplotypesIndexList.size() < maxChosenHaplotypes ) {
             double maxElement = Double.NEGATIVE_INFINITY;
             for( int iii = 0; iii < numHaplotypes; iii++ ) {
