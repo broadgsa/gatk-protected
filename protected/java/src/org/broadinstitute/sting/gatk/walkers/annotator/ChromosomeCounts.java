@@ -35,10 +35,8 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextUtils;
 
@@ -51,12 +49,6 @@ import java.util.*;
  * of alleles in called genotypes.
  */
 public class ChromosomeCounts extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
-
-    public static final String[] keyNames = { VCFConstants.ALLELE_NUMBER_KEY, VCFConstants.ALLELE_COUNT_KEY, VCFConstants.ALLELE_FREQUENCY_KEY };
-    public static final VCFInfoHeaderLine[] descriptions = {
-            VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_FREQUENCY_KEY),
-            VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY),
-            VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_NUMBER_KEY) };
 
     private Set<String> founderIds = new HashSet<String>();
 
@@ -78,8 +70,8 @@ public class ChromosomeCounts extends InfoFieldAnnotation implements StandardAnn
     }
 
     public List<String> getKeyNames() {
-        return Arrays.asList(keyNames);
+        return Arrays.asList(ChromosomeCountConstants.keyNames);
     }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(descriptions); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(ChromosomeCountConstants.descriptions); }
 }
