@@ -92,6 +92,7 @@ public class GenotypingEngine {
         cleanUpSymbolicUnassembledEvents( haplotypes );
         if( !in_GGA_mode && samples.size() >= 10 ) { // if not in GGA mode and have at least 10 samples try to create MNP and complex events by looking at LD structure
             mergeConsecutiveEventsBasedOnLD( haplotypes, samples, haplotypeReadMap, startPosKeySet, ref, refLoc );
+            cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events
         }
         if( in_GGA_mode ) {
             for( final VariantContext compVC : activeAllelesToGenotype ) {
@@ -261,7 +262,6 @@ public class GenotypingEngine {
         return returnMap;
     }
 
-
     protected static void cleanUpSymbolicUnassembledEvents( final List<Haplotype> haplotypes ) {
         final ArrayList<Haplotype> haplotypesToRemove = new ArrayList<Haplotype>();
         for( final Haplotype h : haplotypes ) {
@@ -269,7 +269,7 @@ public class GenotypingEngine {
                 if( vc.isSymbolic() ) {
                     for( final Haplotype h2 : haplotypes ) {
                         for( final VariantContext vc2 : h2.getEventMap().values() ) {
-                            if( vc.getStart() == vc2.getStart() && vc2.isIndel() ) {
+                            if( vc.getStart() == vc2.getStart() && (vc2.isIndel() || vc2.isMNP()) ) { // unfortunately symbolic alleles can't currently be combined with non-point events
                                 haplotypesToRemove.add(h);
                                 break;
                             }
