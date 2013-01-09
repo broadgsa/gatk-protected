@@ -104,7 +104,7 @@ public class LikelihoodCalculationEngine {
 
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final ArrayList<Haplotype> haplotypes, final ArrayList<GATKSAMRecord> reads) {
 
-        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
         final int numHaplotypes = haplotypes.size();
         for( final GATKSAMRecord read : reads ) {
             final byte[] overallGCP = new byte[read.getReadLength()];
@@ -124,8 +124,8 @@ public class LikelihoodCalculationEngine {
                 final Haplotype haplotype = haplotypes.get(jjj);
 
                 // TODO -- need to test against a reference/position with non-standard bases
-                if ( !Allele.acceptableAlleleBases(haplotype.getBases(), false) )
-                    continue;
+                //if ( !Allele.acceptableAlleleBases(haplotype.getBases(), false) )
+                //    continue;
 
                 final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : computeFirstDifferingPosition(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
                 previousHaplotypeSeen = haplotype;

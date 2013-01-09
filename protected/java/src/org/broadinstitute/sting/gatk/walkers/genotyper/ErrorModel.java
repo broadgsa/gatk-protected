@@ -60,7 +60,7 @@ public class ErrorModel  {
 
         boolean hasCalledAlleles = false;
 
-        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = PerReadAlleleLikelihoodMap.getBestAvailablePerReadAlleleLikelihoodMap();
+        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
         if (refSampleVC != null) {
 
             for (Allele allele : refSampleVC.getAlleles()) {
