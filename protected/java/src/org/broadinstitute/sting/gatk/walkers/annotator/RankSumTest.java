@@ -169,8 +169,7 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
      * @return true if this base is part of a meaningful read for comparison, false otherwise
      */
     public static boolean isUsableBase(final PileupElement p, final boolean allowDeletions) {
-        return !(p.isInsertionAtBeginningOfRead() ||
-                 (! allowDeletions && p.isDeletion()) ||
+        return !((! allowDeletions && p.isDeletion()) ||
                  p.getMappingQual() == 0 ||
                  p.getMappingQual() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE ||
                  ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE); // need the unBAQed quality score here

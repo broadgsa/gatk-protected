@@ -241,7 +241,12 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
         }
 
         @Override
-        public byte getQual( final int offset ) { return BAQ.calcBAQFromTag(getRead(), offset, true); }
+        public byte getQual() {
+            if ( isDeletion() )
+                return super.getQual();
+            else
+                return BAQ.calcBAQFromTag(getRead(), offset, true);
+        }
     }
 
     private static class SampleGenotypeData {

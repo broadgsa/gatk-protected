@@ -252,7 +252,7 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
     protected int getFilteredDepth(ReadBackedPileup pileup) {
         int count = 0;
         for (PileupElement p : pileup) {
-            if (p.isDeletion() || p.isInsertionAtBeginningOfRead() || BaseUtils.isRegularBase(p.getBase()))
+            if (p.isDeletion() || BaseUtils.isRegularBase(p.getBase()))
                 count += p.getRepresentativeCount();
         }
 
