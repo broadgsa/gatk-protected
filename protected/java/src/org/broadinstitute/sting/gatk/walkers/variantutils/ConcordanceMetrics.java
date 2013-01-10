@@ -41,7 +41,7 @@ public class ConcordanceMetrics {
     public GenotypeConcordanceTable getGenotypeConcordance(String sample) {
         GenotypeConcordanceTable table = perSampleGenotypeConcordance.get(sample);
         if ( table == null )
-            throw new ReviewedStingException("Attempted to request the concordance table for a sample on which it was not calculated");
+            throw new ReviewedStingException("Attempted to request the concordance table for sample "+sample+" on which it was not calculated");
         return table;
     }
 
@@ -108,7 +108,8 @@ public class ConcordanceMetrics {
         total += concordanceCounts[GenotypeType.HOM_VAR.ordinal()][GenotypeType.HOM_REF.ordinal()];
         total += concordanceCounts[GenotypeType.HOM_VAR.ordinal()][GenotypeType.HET.ordinal()];
         // NRD is by definition incorrec/total = 1.0-correct/total
-        return 1.0 - ( (double) correct)/( (double) total);
+        // note: if there are no observations (so the ratio is NaN), set this to 100%
+        return total == 0 ? 1.0 : 1.0 - ( (double) correct)/( (double) total);
     }
 
     private static double calculateNRS(GenotypeConcordanceTable table) {
@@ -129,7 +130,9 @@ public class ConcordanceMetrics {
             }
         }
 
-        return ( (double) confirmedVariant ) / ( (double) ( confirmedVariant + unconfirmedVariant ) );
+        long total = confirmedVariant + unconfirmedVariant;
+        // note: if there are no observations (so the ratio is NaN) set this to 0%
+        return total == 0l ? 0.0 : ( (double) confirmedVariant ) / ( (double) ( total ) );
     }
 
 
