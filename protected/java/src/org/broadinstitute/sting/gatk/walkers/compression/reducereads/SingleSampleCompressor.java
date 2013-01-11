@@ -4,6 +4,7 @@ import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
+import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 
