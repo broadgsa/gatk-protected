@@ -80,7 +80,7 @@ public class SingleSampleCompressor {
     }
 
     public Set<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
-        return slidingWindow.closeVariantRegions(regions);
+        return slidingWindow == null ? Collections.<GATKSAMRecord>emptySet() : slidingWindow.closeVariantRegions(regions);
     }
 
 }
