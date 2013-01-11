@@ -46,7 +46,6 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import com.sun.org.apache.bcel.internal.generic.AALOAD;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
@@ -60,7 +59,6 @@ import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.Allele;
 
 import java.util.Arrays;
 import java.util.HashMap;
