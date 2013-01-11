@@ -682,7 +682,7 @@ public class SlidingWindow {
             int windowHeaderStart = getStartLocation(windowHeader);
 
             for (SimpleGenomeLoc region : regions) {
-                if (region.isFinished() && region.getContig() == contig && region.getStart() >= windowHeaderStart && region.getStop() <= windowHeaderStart + windowHeader.size()) {
+                if (region.isFinished() && region.getContig() == contig && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
                     int start = region.getStart() - windowHeaderStart;
                     int stop = region.getStop() - windowHeaderStart;
 
