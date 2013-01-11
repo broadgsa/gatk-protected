@@ -68,7 +68,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Variant confidence (from the QUAL field) / unfiltered depth.
+ * Variant confidence (from the QUAL field) / unfiltered depth of non-reference samples.
  *
  * Low scores are indicative of false positive calls and artifacts.  Note that QualByDepth requires sequencing
  * reads associated with the samples with polymorphic genotypes.
