@@ -95,7 +95,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(CEUTRIO_BAM, "-L 20:133041-133161",
+        HCTestComplexGGA(CEUTRIO_BAM, "-L 20:133041-133161 -L 20:300207-300337",
                 "bbbbd25b22a551cae5d70ea30d7feed1");
     }
 
