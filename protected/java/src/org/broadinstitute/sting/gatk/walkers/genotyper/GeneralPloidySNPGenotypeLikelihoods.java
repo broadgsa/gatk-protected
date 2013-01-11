@@ -323,21 +323,11 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
     public ReadBackedPileup createBAQedPileup( final ReadBackedPileup pileup ) {
         final List<PileupElement> BAQedElements = new ArrayList<PileupElement>();
         for( final PileupElement PE : pileup ) {
-            final PileupElement newPE = new BAQedPileupElement( PE );
+            final PileupElement newPE = new SNPGenotypeLikelihoodsCalculationModel.BAQedPileupElement( PE );
             BAQedElements.add( newPE );
         }
         return new ReadBackedPileupImpl( pileup.getLocation(), BAQedElements );
     }
-
-    public class BAQedPileupElement extends PileupElement {
-        public BAQedPileupElement( final PileupElement PE ) {
-            super(PE.getRead(), PE.getOffset(), PE.isDeletion(), PE.isBeforeDeletedBase(), PE.isAfterDeletedBase(), PE.isBeforeInsertion(), PE.isAfterInsertion(), PE.isNextToSoftClip());
-        }
-
-        @Override
-        public byte getQual( final int offset ) { return BAQ.calcBAQFromTag(getRead(), offset, true); }
-    }
-
 
     /**
      * Helper function that returns the phred-scaled base quality score we should use for calculating

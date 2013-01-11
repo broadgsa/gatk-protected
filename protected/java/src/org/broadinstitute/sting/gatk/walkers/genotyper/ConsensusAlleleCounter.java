@@ -99,10 +99,6 @@ public class ConsensusAlleleCounter {
                                                 Map<String, AlignmentContext> contexts,
                                                 AlignmentContextUtils.ReadOrientation contextType) {
         final Map<String, Integer> consensusIndelStrings = countConsensusAlleles(ref, contexts, contextType);
-//        logger.info("Alleles at " + ref.getLocus());
-//        for ( Map.Entry<String, Integer> elt : consensusIndelStrings.entrySet() ) {
-//            logger.info("    " + elt.getValue() + " => " + elt.getKey());
-//        }
         return consensusCountsToAlleles(ref, consensusIndelStrings);
     }
 
@@ -138,13 +134,8 @@ public class ConsensusAlleleCounter {
             final int nReadsOverall = indelPileup.getNumberOfElements();
 
             if ( nIndelReads == 0 || (nIndelReads / (1.0 * nReadsOverall)) < minFractionInOneSample ) {
-//                if ( nIndelReads > 0 )
-//                    logger.info("Skipping sample " + sample.getKey() + " with nIndelReads " + nIndelReads + " nReads " + nReadsOverall);
                 continue;
-//            } else {
-//                logger.info("### Keeping sample " + sample.getKey() + " with nIndelReads " + nIndelReads + " nReads " + nReadsOverall);
             }
-
 
             for (PileupElement p : indelPileup) {
                 final GATKSAMRecord read = ReadClipper.hardClipAdaptorSequence(p.getRead());
@@ -154,17 +145,10 @@ public class ConsensusAlleleCounter {
                     continue;
                 }
 
-/*                if (DEBUG && p.isIndel()) {
-                    System.out.format("Read: %s, cigar: %s, aln start: %d, aln end: %d, p.len:%d, Type:%s, EventBases:%s\n",
-                            read.getReadName(),read.getCigar().toString(),read.getAlignmentStart(),read.getAlignmentEnd(),
-                            p.getEventLength(),p.getType().toString(), p.getEventBases());
-                }
-   */
-                String indelString = p.getEventBases();
-
                 if ( p.isBeforeInsertion() ) {
-                    // edge case: ignore a deletion immediately preceding an insertion as p.getEventBases() returns null [EB]
-                    if ( indelString == null )
+                    final String insertionBases = p.getBasesOfImmediatelyFollowingInsertion();
+                    // edge case: ignore a deletion immediately preceding an insertion as p.getBasesOfImmediatelyFollowingInsertion() returns null [EB]
+                    if ( insertionBases == null )
                         continue;
 
                     boolean foundKey = false;
@@ -182,20 +166,20 @@ public class ConsensusAlleleCounter {
                             String s = cList.get(k).getFirst();
                             int cnt = cList.get(k).getSecond();
                             // case 1: current insertion is prefix of indel in hash map
-                            if (s.startsWith(indelString)) {
+                            if (s.startsWith(insertionBases)) {
                                 cList.set(k,new Pair<String, Integer>(s,cnt+1));
                                 foundKey = true;
                             }
-                            else if (indelString.startsWith(s)) {
+                            else if (insertionBases.startsWith(s)) {
                                 // case 2: indel stored in hash table is prefix of current insertion
                                 // In this case, new bases are new key.
                                 foundKey = true;
-                                cList.set(k,new Pair<String, Integer>(indelString,cnt+1));
+                                cList.set(k,new Pair<String, Integer>(insertionBases,cnt+1));
                             }
                         }
                         if (!foundKey)
                             // none of the above: event bases not supported by previous table, so add new key
-                            cList.add(new Pair<String, Integer>(indelString,1));
+                            cList.add(new Pair<String, Integer>(insertionBases,1));
 
                     }
                     else if (read.getAlignmentStart() == loc.getStart()+1) {
@@ -203,28 +187,28 @@ public class ConsensusAlleleCounter {
                         for (int k=0; k < cList.size(); k++) {
                             String s = cList.get(k).getFirst();
                             int cnt = cList.get(k).getSecond();
-                            if (s.endsWith(indelString)) {
+                            if (s.endsWith(insertionBases)) {
                                 // case 1: current insertion (indelString) is suffix of indel in hash map (s)
                                 cList.set(k,new Pair<String, Integer>(s,cnt+1));
                                 foundKey = true;
                             }
-                            else if (indelString.endsWith(s)) {
+                            else if (insertionBases.endsWith(s)) {
                                 // case 2: indel stored in hash table is prefix of current insertion
                                 // In this case, new bases are new key.
                                 foundKey = true;
-                                cList.set(k,new Pair<String, Integer>(indelString,cnt+1));
+                                cList.set(k,new Pair<String, Integer>(insertionBases,cnt+1));
                             }
                         }
                         if (!foundKey)
                             // none of the above: event bases not supported by previous table, so add new key
-                            cList.add(new Pair<String, Integer>(indelString,1));
+                            cList.add(new Pair<String, Integer>(insertionBases,1));
 
 
                     }
                     else {
                         // normal case: insertion somewhere in the middle of a read: add count to arrayList
-                        int cnt = consensusIndelStrings.containsKey(indelString)? consensusIndelStrings.get(indelString):0;
-                        cList.add(new Pair<String, Integer>(indelString,cnt+1));
+                        int cnt = consensusIndelStrings.containsKey(insertionBases)? consensusIndelStrings.get(insertionBases):0;
+                        cList.add(new Pair<String, Integer>(insertionBases,cnt+1));
                     }
 
                     // copy back arrayList into hashMap
@@ -234,11 +218,10 @@ public class ConsensusAlleleCounter {
                     }
 
                 }
-                else if ( p.isBeforeDeletedBase() ) {
-                    indelString = String.format("D%d",p.getEventLength());
-                    int cnt = consensusIndelStrings.containsKey(indelString)? consensusIndelStrings.get(indelString):0;
-                    consensusIndelStrings.put(indelString,cnt+1);
-
+                else if ( p.isBeforeDeletionStart() ) {
+                    final String deletionString = String.format("D%d",p.getLengthOfImmediatelyFollowingIndel());
+                    int cnt = consensusIndelStrings.containsKey(deletionString)? consensusIndelStrings.get(deletionString):0;
+                    consensusIndelStrings.put(deletionString,cnt+1);
                 }
             }
         }

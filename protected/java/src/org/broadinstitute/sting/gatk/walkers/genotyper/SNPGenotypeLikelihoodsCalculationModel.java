@@ -237,11 +237,16 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
 
     public static class BAQedPileupElement extends PileupElement {
         public BAQedPileupElement( final PileupElement PE ) {
-            super(PE.getRead(), PE.getOffset(), PE.isDeletion(), PE.isBeforeDeletedBase(), PE.isAfterDeletedBase(), PE.isBeforeInsertion(), PE.isAfterInsertion(), PE.isNextToSoftClip());
+            super(PE);
         }
 
         @Override
-        public byte getQual( final int offset ) { return BAQ.calcBAQFromTag(getRead(), offset, true); }
+        public byte getQual() {
+            if ( isDeletion() )
+                return super.getQual();
+            else
+                return BAQ.calcBAQFromTag(getRead(), offset, true);
+        }
     }
 
     private static class SampleGenotypeData {
