@@ -89,14 +89,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(CEUTRIO_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "aaaad25b22a551cae5d70ea30d7feed1");
+        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
+                "8730a9ebaeecae913dca2fb5a0d4e946");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(CEUTRIO_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "bbbbd25b22a551cae5d70ea30d7feed1");
+        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
+                "1a034b7eb572e1b6f659d6e5d57b3e76");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
