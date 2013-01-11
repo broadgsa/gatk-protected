@@ -75,11 +75,28 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTest(NA12878_BAM, "", "a2c63f6e6e51a01019bdbd23125bdb15");
     }
 
-    // TODO -- add more tests for GGA mode, especially with input alleles that are complex variants and/or not trimmed
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
                 "d918d25b22a551cae5d70ea30d7feed1");
+    }
+
+    private void HCTestComplexGGA(String bam, String args, String md5) {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleGGAComplex() {
+        HCTestComplexGGA(CEUTRIO_BAM, "-L 20:119673-119823 -L 20:121408-121538",
+                "aaaad25b22a551cae5d70ea30d7feed1");
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
+        HCTestComplexGGA(CEUTRIO_BAM, "-L 20:133041-133161",
+                "bbbbd25b22a551cae5d70ea30d7feed1");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
