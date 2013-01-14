@@ -85,6 +85,13 @@ public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantCo
         return metrics;
     }
 
+    private static double repairNaN(double d) {
+     if ( Double.isNaN(d) ) {
+      return 0.0;
+     }
+     return d;
+    }
+
     public void onTraversalDone(ConcordanceMetrics metrics) {
         GATKReport report = new GATKReport();
         GATKReportTable concordanceCounts = new GATKReportTable("GenotypeConcordance_Counts","Per-sample concordance tables: comparison counts",2+GenotypeType.values().length*GenotypeType.values().length);
@@ -126,13 +133,13 @@ public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantCo
                     int count = table.get(evalType, compType);
                     concordanceCounts.set(entry.getKey(),colKey,count);
                     if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR)
-                        concordanceEvalProportions.set(entry.getKey(),colKey,( (double) count)/table.getnEvalGenotypes(evalType));
+                        concordanceEvalProportions.set(entry.getKey(),colKey,repairNaN(( (double) count)/table.getnEvalGenotypes(evalType)));
                     if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF )
-                        concordanceCompProportions.set(entry.getKey(),colKey,( (double) count)/table.getnCompGenotypes(compType));
+                        concordanceCompProportions.set(entry.getKey(),colKey,repairNaN(( (double) count)/table.getnCompGenotypes(compType)));
                 }
             }
-            concordanceEvalProportions.set(entry.getKey(),"Mismatching_Alleles", ( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes());
-            concordanceCompProportions.set(entry.getKey(),"Mismatching_Alleles", ( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes());
+            concordanceEvalProportions.set(entry.getKey(),"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes()));
+            concordanceCompProportions.set(entry.getKey(),"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes()));
             concordanceCounts.set(entry.getKey(),"Mismatching_Alleles",table.getnMismatchingAlt());
         }
 
@@ -147,13 +154,13 @@ public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantCo
                 int count = table.get(evalType,compType);
                 concordanceCounts.set(rowKey,colKey,count);
                 if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR)
-                    concordanceEvalProportions.set(rowKey,colKey,( (double) count)/table.getnEvalGenotypes(evalType));
+                    concordanceEvalProportions.set(rowKey,colKey,repairNaN(( (double) count)/table.getnEvalGenotypes(evalType)));
                 if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF )
-                    concordanceCompProportions.set(rowKey,colKey,( (double) count)/table.getnCompGenotypes(compType));
+                    concordanceCompProportions.set(rowKey,colKey,repairNaN(( (double) count)/table.getnCompGenotypes(compType)));
             }
         }
-        concordanceEvalProportions.set(rowKey,"Mismatching_Alleles", ( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes());
-        concordanceCompProportions.set(rowKey,"Mismatching_Alleles", ( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes());
+        concordanceEvalProportions.set(rowKey,"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes()));
+        concordanceCompProportions.set(rowKey,"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes()));
         concordanceCounts.set(rowKey,"Mismatching_Alleles",table.getnMismatchingAlt());
 
         for ( Map.Entry<String,Double> nrsEntry : metrics.getPerSampleNRS().entrySet() ) {
