@@ -60,4 +60,15 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
 
         executeTest("test non-overlapping samples", spec);
     }
+
+    @Test
+    public void testMultipleRecordsPerSite() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("GenotypeConcordance.multipleRecordsTest1.eval.vcf","GenotypeConcordance.multipleRecordsTest1.comp.vcf"),
+                0,
+                Arrays.asList("fdf2cac15775c613f596c27247a76570")
+        );
+
+        executeTest("test multiple records per site",spec);
+    }
 }

@@ -64,7 +64,7 @@ import java.util.*;
 /**
  * A simple walker for performing genotype concordance calculations between two callsets
  */
-public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantContext>,ConcordanceMetrics> {
+public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,VariantContext>>,ConcordanceMetrics> {
 
     @Input(fullName="eval",shortName="eval",doc="The variants and genotypes to evaluate",required=true)
     RodBinding<VariantContext> evalBinding;
@@ -81,7 +81,6 @@ public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantCo
     List<String> evalSamples;
     List<String> compSamples;
 
-    // todo -- integration test coverage
     // todo -- deal with occurrences like:
     //     Eval: 20   4000     A     C
     //     Eval: 20   4000     A    AC
@@ -89,6 +88,7 @@ public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantCo
     //  currently this results in a warning and skipping
     // todo -- extend to multiple eval, multiple comp
     // todo -- table with "proportion of overlapping sites" (not just eval/comp margins)
+    // todo -- genotype-level filtering
 
 
     public ConcordanceMetrics reduceInit() {
@@ -101,32 +101,84 @@ public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantCo
     }
 
 
-    public Pair<VariantContext,VariantContext> map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
-        Pair<VariantContext,VariantContext> evalCompPair = null;
+    public List<Pair<VariantContext,VariantContext>> map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
+        List<Pair<VariantContext,VariantContext>> evalCompPair = new ArrayList<Pair<VariantContext,VariantContext>>(3);
         if ( tracker != null && (
                 tracker.getValues(evalBinding,ref.getLocus()).size() > 0 ||
-                tracker.getValues(compBinding,ref.getLocus()).size() > 0 ) ) {
+                        tracker.getValues(compBinding,ref.getLocus()).size() > 0 ) ) {
 
             List<VariantContext> eval = tracker.getValues(evalBinding,ref.getLocus());
             List<VariantContext> comp = tracker.getValues(compBinding,ref.getLocus());
             if ( eval.size() > 1 || comp.size() > 1 ) {
-                logger.warn("Eval or Comp Rod at position "+ref.getLocus().toString()+" has multiple records. Site will be skipped.");
-                return evalCompPair;
+                logger.info("Eval or Comp Rod at position " + ref.getLocus().toString() + " has multiple records. Resolving.");
+                evalCompPair = resolveMultipleRecords(eval,comp);
+            } else {
+                // if a rod is missing, explicitly create a variant context with 'missing' genotypes. Slow, but correct.
+                // note that if there is no eval rod there must be a comp rod, and also the reverse
+                VariantContext evalContext = eval.size() == 1 ? eval.get(0) : createEmptyContext(comp.get(0),evalSamples);
+                VariantContext compContext = comp.size() == 1 ? comp.get(0) : createEmptyContext(eval.get(0),compSamples);
+                evalContext = filterGenotypes(evalContext,ignoreFilters);
+                compContext = filterGenotypes(compContext,ignoreFilters);
+                evalCompPair.add(new Pair<VariantContext, VariantContext>(evalContext,compContext));
             }
-            // if a rod is missing, explicitly create a variant context with 'missing' genotypes. Slow, but correct.
-            // note that if there is no eval rod there must be a comp rod, and also the reverse
-            VariantContext evalContext = eval.size() == 1 ? eval.get(0) : createEmptyContext(ref,comp.get(0),evalSamples);
-            VariantContext compContext = comp.size() == 1 ? comp.get(0) : createEmptyContext(ref,eval.get(0),compSamples);
-            evalContext = filterGenotypes(evalContext,ignoreFilters);
-            compContext = filterGenotypes(compContext,ignoreFilters);
-            evalCompPair = new Pair<VariantContext, VariantContext>(evalContext,compContext);
         }
 
         return evalCompPair;
     }
 
-    public ConcordanceMetrics reduce(Pair<VariantContext,VariantContext> evalComp, ConcordanceMetrics metrics) {
-        if ( evalComp != null )
+    /**
+     * The point of this method is to match up pairs of evals and comps by their alternate alleles. Basically multiple records could
+     * exist for a site such as:
+     * Eval: 20   4000     A     C
+     * Eval: 20   4000     A    AC
+     * Comp: 20   4000     A     C
+     * So for each eval, loop through the comps. If the eval alleles (non-emptily) intersect the comp alleles, pair them up and remove
+     * that comp records. Continue until we're out of evals or comps. This is n^2, but should rarely actually happen.
+     *
+     * The remaining unpaired records get paird with an empty contexts. So in the example above we'd get a list of:
+     *  1 - (20,4000,A/C  |  20,4000,A/C)
+     *  2 - (20,4000,A/AC |    Empty    )
+     * @param evalList - list of eval variant contexts
+     * @param compList - list of comp variant contexts
+     * @return resolved pairs of the input lists
+     */
+    private List<Pair<VariantContext,VariantContext>> resolveMultipleRecords(List<VariantContext> evalList, List<VariantContext> compList) {
+        List<Pair<VariantContext,VariantContext>> resolvedPairs = new ArrayList<Pair<VariantContext,VariantContext>>(evalList.size()+compList.size()); // oversized but w/e
+        List<VariantContext> pairedEval = new ArrayList<VariantContext>(evalList.size());
+        for ( VariantContext eval : evalList ) {
+            Set<Allele> evalAlts = new HashSet<Allele>(eval.getAlternateAlleles());
+            VariantContext pairedComp = null;
+            for ( VariantContext comp : compList ) {
+                for ( Allele compAlt : comp.getAlternateAlleles() ) {
+                    if ( evalAlts.contains(compAlt) ) {
+                        // matching alt allele, pair these records
+                        pairedComp = comp;
+                        break;
+                    }
+                }
+            }
+            if ( pairedComp != null ) {
+                compList.remove(pairedComp);
+                resolvedPairs.add(new Pair<VariantContext, VariantContext>(eval,pairedComp));
+                pairedEval.add(eval);
+                if ( compList.size() < 1 )
+                    break;
+            }
+        }
+        evalList.removeAll(pairedEval);
+        for ( VariantContext unpairedEval : evalList ) {
+            resolvedPairs.add(new Pair<VariantContext, VariantContext>(unpairedEval,createEmptyContext(unpairedEval,compSamples)));
+        }
+
+        for ( VariantContext unpairedComp : compList ) {
+            resolvedPairs.add(new Pair<VariantContext, VariantContext>(createEmptyContext(unpairedComp,evalSamples),unpairedComp));
+        }
+
+        return resolvedPairs;
+    }
+
+    public ConcordanceMetrics reduce(List<Pair<VariantContext,VariantContext>> evalCompList, ConcordanceMetrics metrics) {
+        for ( Pair<VariantContext,VariantContext> evalComp : evalCompList)
             metrics.update(evalComp.getFirst(),evalComp.getSecond());
         return metrics;
     }
@@ -233,7 +285,7 @@ public class GenotypeConcordance extends RodWalker<Pair<VariantContext,VariantCo
         report.print(out);
     }
 
-    public VariantContext createEmptyContext(ReferenceContext ref, VariantContext other, List<String> samples) {
+    public VariantContext createEmptyContext(VariantContext other, List<String> samples) {
         VariantContextBuilder builder = new VariantContextBuilder();
         // set the alleles to be the same
         builder.alleles(other.getAlleles());
