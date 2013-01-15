@@ -47,6 +47,8 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
+import com.sun.corba.se.impl.logging.UtilSystemException;
+import net.sf.samtools.*;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
@@ -57,6 +59,7 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
+import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
@@ -67,6 +70,7 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.*;
+import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
@@ -141,6 +145,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false)
     protected PrintStream graphWriter = null;
+
+    /**
+     * The assembled haplotypes will be written as BAM to this file if requested.  Really for debugging purposes only.  Note that the output here
+     * does not include uninformative reads so that not every input read is emitted to the bam.
+     */
+    @Hidden
+    @Output(fullName="bamOutput", shortName="bam", doc="File to which assembled haplotypes should be written", required = false)
+    protected StingSAMFileWriter bamWriter = null;
+    private SAMFileHeader bamHeader = null;
+    private long uniqueNameCounter = 1;
+    private final String readGroupId = "ArtificialHaplotype";
 
     /**
      * The PairHMM implementation to use for genotype likelihood calculations. The various implementations balance a tradeoff of accuracy and runtime.
@@ -242,6 +257,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     // the genotyping engine
     private GenotypingEngine genotypingEngine = null;
 
+    private VariantAnnotatorEngine annotationEngine = null;
+
     // fasta reference reader to supplement the edges of the reference sequence
     private CachingIndexedFastaSequenceFile referenceReader;
 
@@ -286,7 +303,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
         // initialize the output VCF header
-        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
+        annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
         Set<VCFHeaderLine> headerInfo = new HashSet<VCFHeaderLine>();
 
@@ -320,6 +337,21 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter, minKmer );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
+
+        if ( bamWriter != null ) {
+            // prepare the bam header
+            bamHeader = new SAMFileHeader();
+            bamHeader.setSequenceDictionary(getToolkit().getSAMFileHeader().getSequenceDictionary());
+            final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(1);
+            final SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupId);
+            rg.setSample("HC");
+            rg.setSequencingCenter("BI");
+            readGroups.add(rg);
+            bamHeader.setReadGroups(readGroups);
+            bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
+            bamWriter.writeHeader(bamHeader);
+            bamWriter.setPresorted(true);
+        }
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -408,7 +440,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //---------------------------------------------------------------------------------------------------------------
 
     @Override
-    public Integer map( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker metaDataTracker ) {
+    public Integer map( final ActiveRegion activeRegion, final RefMetaDataTracker metaDataTracker ) {
         if ( justDetermineActiveRegions )
             // we're benchmarking ART and/or the active region determination code in the HC, just leave without doing any work
             return 1;
@@ -461,7 +493,28 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                                                                                      activeRegion.getLocation(),
                                                                                      getToolkit().getGenomeLocParser(),
                                                                                      activeAllelesToGenotype ) ) {
+            annotationEngine.annotateDBs(metaDataTracker, getToolkit().getGenomeLocParser().createGenomeLoc(call),  call);
             vcfWriter.add( call );
+        }
+
+        if ( bamWriter != null ) {
+            Collections.sort( haplotypes, new Haplotype.HaplotypePositionComparator() );
+            final GenomeLoc paddedRefLoc = getPaddedLoc(activeRegion);
+            for ( Haplotype haplotype : haplotypes ) {
+                // TODO -- clean up this code
+                final GATKSAMRecord record = new GATKSAMRecord(bamHeader);
+                record.setReadBases(haplotype.getBases());
+                record.setAlignmentStart(paddedRefLoc.getStart() + haplotype.getAlignmentStartHapwrtRef());
+                record.setBaseQualities(Utils.dupBytes((byte) '!', haplotype.getBases().length));
+                record.setCigar(haplotype.getCigar());
+                record.setMappingQuality(bestHaplotypes.contains(haplotype) ? 60 : 0);
+                record.setReadName("HC" + uniqueNameCounter++);
+                record.setReadUnmappedFlag(false);
+                record.setReferenceIndex(activeRegion.getReferenceLoc().getContigIndex());
+                record.setAttribute(SAMTag.RG.toString(), readGroupId);
+                record.setFlags(16);
+                bamWriter.addAlignment(record);
+            }
         }
 
         if( DEBUG ) { System.out.println("----------------------------------------------------------------------------------"); }

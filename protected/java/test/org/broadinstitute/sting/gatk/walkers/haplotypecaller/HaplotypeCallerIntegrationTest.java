@@ -75,6 +75,11 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTest(NA12878_BAM, "", "a2c63f6e6e51a01019bdbd23125bdb15");
     }
 
+    @Test(enabled = false)
+    public void testHaplotypeCallerSingleSampleWithDbsnp() {
+        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "");
+    }
+
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",

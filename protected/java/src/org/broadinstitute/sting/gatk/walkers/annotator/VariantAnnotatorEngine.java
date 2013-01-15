@@ -52,6 +52,7 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.*;
+import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.vcf.*;
 import org.broadinstitute.sting.utils.exceptions.UserException;
@@ -214,10 +215,10 @@ public class VariantAnnotatorEngine {
         Map<String, Object> infoAnnotations = new LinkedHashMap<String, Object>(vc.getAttributes());
 
         // annotate db occurrences
-        vc = annotateDBs(tracker, ref, vc, infoAnnotations);
+        vc = annotateDBs(tracker, ref.getLocus(), vc, infoAnnotations);
 
         // annotate expressions where available
-        annotateExpressions(tracker, ref, infoAnnotations);
+        annotateExpressions(tracker, ref.getLocus(), infoAnnotations);
 
         // go through all the requested info annotationTypes
         for ( InfoFieldAnnotation annotationType : requestedInfoAnnotations ) {
@@ -254,10 +255,22 @@ public class VariantAnnotatorEngine {
         return builder.genotypes(annotateGenotypes(null, null, null, vc, perReadAlleleLikelihoodMap)).make();
     }
 
-    private VariantContext annotateDBs(RefMetaDataTracker tracker, ReferenceContext ref, VariantContext vc, Map<String, Object> infoAnnotations) {
+    public VariantContext annotateDBs(final RefMetaDataTracker tracker, final GenomeLoc loc, VariantContext vc) {
+        final Map<String, Object> newInfoAnnotations = new HashMap<String, Object>(0);
+        vc = annotateDBs(tracker, loc, vc, newInfoAnnotations);
+
+        if ( !newInfoAnnotations.isEmpty() ) {
+            final VariantContextBuilder builder = new VariantContextBuilder(vc).attributes(newInfoAnnotations);
+            vc = builder.make();
+        }
+
+        return vc;
+    }
+
+    private VariantContext annotateDBs(final RefMetaDataTracker tracker, final GenomeLoc loc, VariantContext vc, final Map<String, Object> infoAnnotations) {
         for ( Map.Entry<RodBinding<VariantContext>, String> dbSet : dbAnnotations.entrySet() ) {
             if ( dbSet.getValue().equals(VCFConstants.DBSNP_KEY) ) {
-                final String rsID = VCFUtils.rsIDOfFirstRealVariant(tracker.getValues(dbSet.getKey(), ref.getLocus()), vc.getType());
+                final String rsID = VCFUtils.rsIDOfFirstRealVariant(tracker.getValues(dbSet.getKey(), loc), vc.getType());
                 
                 // add the ID if appropriate
                 if ( rsID != null ) {
@@ -273,7 +286,7 @@ public class VariantAnnotatorEngine {
                 }
             } else {
                 boolean overlapsComp = false;
-                for ( VariantContext comp : tracker.getValues(dbSet.getKey(), ref.getLocus()) ) {
+                for ( VariantContext comp : tracker.getValues(dbSet.getKey(), loc) ) {
                     if ( !comp.isFiltered() && ( !requireStrictAlleleMatch || comp.getAlleles().equals(vc.getAlleles()) ) ) {
                         overlapsComp = true;
                         break;
@@ -287,9 +300,9 @@ public class VariantAnnotatorEngine {
         return vc;
     }
 
-    private void annotateExpressions(RefMetaDataTracker tracker, ReferenceContext ref, Map<String, Object> infoAnnotations) {
+    private void annotateExpressions(final RefMetaDataTracker tracker, final GenomeLoc loc, final Map<String, Object> infoAnnotations) {
         for ( VAExpression expression : requestedExpressions ) {
-            Collection<VariantContext> VCs = tracker.getValues(expression.binding, ref.getLocus());
+            Collection<VariantContext> VCs = tracker.getValues(expression.binding, loc);
             if ( VCs.size() == 0 )
                 continue;
 
