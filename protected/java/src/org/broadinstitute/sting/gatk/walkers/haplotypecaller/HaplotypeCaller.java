@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
-import com.sun.corba.se.impl.logging.UtilSystemException;
 import net.sf.samtools.*;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
@@ -155,7 +154,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected StingSAMFileWriter bamWriter = null;
     private SAMFileHeader bamHeader = null;
     private long uniqueNameCounter = 1;
-    private final String readGroupId = "ArtificialHaplotype";
+    private final static String readGroupId = "ArtificialHaplotype";
 
     /**
      * The PairHMM implementation to use for genotype likelihood calculations. The various implementations balance a tradeoff of accuracy and runtime.
@@ -338,20 +337,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
 
-        if ( bamWriter != null ) {
-            // prepare the bam header
-            bamHeader = new SAMFileHeader();
-            bamHeader.setSequenceDictionary(getToolkit().getSAMFileHeader().getSequenceDictionary());
-            final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(1);
-            final SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupId);
-            rg.setSample("HC");
-            rg.setSequencingCenter("BI");
-            readGroups.add(rg);
-            bamHeader.setReadGroups(readGroups);
-            bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
-            bamWriter.writeHeader(bamHeader);
-            bamWriter.setPresorted(true);
-        }
+        if ( bamWriter != null )
+            setupBamWriter();
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -461,8 +448,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES && activeAllelesToGenotype.isEmpty() ) { return 0; } // No alleles found in this region so nothing to do!
 
         finalizeActiveRegion( activeRegion ); // merge overlapping fragments, clip adapter and low qual tails
-        final Haplotype referenceHaplotype = new Haplotype(activeRegion.getActiveRegionReference(referenceReader)); // Create the reference haplotype which is the bases from the reference that make up the active region
-        referenceHaplotype.setIsReference(true);
+        final Haplotype referenceHaplotype = new Haplotype(activeRegion.getActiveRegionReference(referenceReader), true); // Create the reference haplotype which is the bases from the reference that make up the active region
         final byte[] fullReferenceWithPadding = activeRegion.getFullReference(referenceReader, REFERENCE_PADDING);
         //int PRUNE_FACTOR = Math.max(MIN_PRUNE_FACTOR, determinePruneFactorFromCoverage( activeRegion ));
         final ArrayList<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, getPaddedLoc(activeRegion), MIN_PRUNE_FACTOR, activeAllelesToGenotype );
@@ -498,22 +484,19 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         if ( bamWriter != null ) {
+            // sort the haplotypes in coordinate order and then write them to the bam
             Collections.sort( haplotypes, new Haplotype.HaplotypePositionComparator() );
             final GenomeLoc paddedRefLoc = getPaddedLoc(activeRegion);
-            for ( Haplotype haplotype : haplotypes ) {
-                // TODO -- clean up this code
-                final GATKSAMRecord record = new GATKSAMRecord(bamHeader);
-                record.setReadBases(haplotype.getBases());
-                record.setAlignmentStart(paddedRefLoc.getStart() + haplotype.getAlignmentStartHapwrtRef());
-                record.setBaseQualities(Utils.dupBytes((byte) '!', haplotype.getBases().length));
-                record.setCigar(haplotype.getCigar());
-                record.setMappingQuality(bestHaplotypes.contains(haplotype) ? 60 : 0);
-                record.setReadName("HC" + uniqueNameCounter++);
-                record.setReadUnmappedFlag(false);
-                record.setReferenceIndex(activeRegion.getReferenceLoc().getContigIndex());
-                record.setAttribute(SAMTag.RG.toString(), readGroupId);
-                record.setFlags(16);
-                bamWriter.addAlignment(record);
+            for ( Haplotype haplotype : haplotypes )
+                writeHaplotype(haplotype, paddedRefLoc, bestHaplotypes.contains(haplotype));
+
+            // now, output the interesting reads for each sample
+            for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
+                for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
+                    final Allele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
+                    if ( bestAllele != Allele.NO_CALL )
+                        writeReadAgainstHaplotype(entry.getKey(), (Haplotype)bestAllele);
+                }
             }
         }
 
@@ -608,6 +591,46 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         return returnMap;
+    }
+
+    private void setupBamWriter() {
+        // prepare the bam header
+        bamHeader = new SAMFileHeader();
+        bamHeader.setSequenceDictionary(getToolkit().getSAMFileHeader().getSequenceDictionary());
+        bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
+
+        // include the original read groups plus a new artificial one for the haplotypes
+        final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(getToolkit().getSAMFileHeader().getReadGroups());
+        final SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupId);
+        rg.setSample("HC");
+        rg.setSequencingCenter("BI");
+        readGroups.add(rg);
+        bamHeader.setReadGroups(readGroups);
+
+        bamWriter.writeHeader(bamHeader);
+        bamWriter.setPresorted(true);
+    }
+
+    private void writeHaplotype(final Haplotype haplotype, final GenomeLoc paddedRefLoc, final boolean isAmongBestHaplotypes) {
+        final GATKSAMRecord record = new GATKSAMRecord(bamHeader);
+        record.setReadBases(haplotype.getBases());
+        record.setAlignmentStart(paddedRefLoc.getStart() + haplotype.getAlignmentStartHapwrtRef());
+        record.setBaseQualities(Utils.dupBytes((byte) '!', haplotype.getBases().length));
+        record.setCigar(haplotype.getCigar());
+        record.setMappingQuality(isAmongBestHaplotypes ? 60 : 0);
+        record.setReadName("HC" + uniqueNameCounter++);
+        record.setReadUnmappedFlag(false);
+        record.setReferenceIndex(paddedRefLoc.getContigIndex());
+        record.setAttribute(SAMTag.RG.toString(), readGroupId);
+        record.setFlags(16);
+        bamWriter.addAlignment(record);
+    }
+
+    private void writeReadAgainstHaplotype(final GATKSAMRecord read, final Haplotype haplotype) {
+
+
+
+
     }
 
     /*

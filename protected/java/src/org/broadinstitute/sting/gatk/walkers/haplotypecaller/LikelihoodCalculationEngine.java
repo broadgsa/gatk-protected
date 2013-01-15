@@ -138,6 +138,7 @@ public class LikelihoodCalculationEngine {
                 readQuals[kkk] = ( readQuals[kkk] > (byte) read.getMappingQuality() ? (byte) read.getMappingQuality() : readQuals[kkk] ); // cap base quality by mapping quality
                 //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
                 //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
+                // TODO -- why is Q18 hard-coded here???
                 readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
             }
 
@@ -151,7 +152,7 @@ public class LikelihoodCalculationEngine {
                 final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : computeFirstDifferingPosition(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
                 previousHaplotypeSeen = haplotype;
 
-                perReadAlleleLikelihoodMap.add(read, Allele.create(haplotype.getBases()),
+                perReadAlleleLikelihoodMap.add(read, haplotype,
                         pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(), read.getReadBases(),
                                 readQuals, readInsQuals, readDelQuals, overallGCP, haplotypeStart, jjj == 0));
             }
