@@ -67,18 +67,18 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "b8f7b741445ce6b6ea491c794ce75c17");
+        HCTest(CEUTRIO_BAM, "", "1e2671557b01ad0497557097282965fc");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "a2c63f6e6e51a01019bdbd23125bdb15");
+        HCTest(NA12878_BAM, "", "2bd237a7e1e63eebe755dbe7963e430a");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "c679ae7f04bdfda896b5c046d35e043c");
+                "a938cdd7262968597fc8eb6c1c0a69f1");
     }
 
     private void HCTestComplexGGA(String bam, String args, String md5) {
@@ -96,7 +96,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "1a034b7eb572e1b6f659d6e5d57b3e76");
+                "d590c8d6d5e58d685401b65a23846893");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -129,7 +129,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "29f1125df5ab27cc937a144ae08ac735");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "50a26224b9e863ee47a0619eb54a0323");
     }
 
     // That problem bam came from a user on the forum and it spotted a problem where the ReadClipper
@@ -140,7 +140,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("8b1b8d1bd7feac1503fc4ffa6236cff7"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("4439496472eb1e2f5c91b30ba525be37"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
