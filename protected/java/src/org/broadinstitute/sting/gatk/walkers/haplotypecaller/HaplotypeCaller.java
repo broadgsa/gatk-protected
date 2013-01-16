@@ -484,18 +484,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         if ( bamWriter != null ) {
-            // sort the haplotypes in coordinate order and then write them to the bam
-            Collections.sort( haplotypes, new Haplotype.HaplotypePositionComparator() );
+            // write the haplotypes to the bam
             final GenomeLoc paddedRefLoc = getPaddedLoc(activeRegion);
             for ( Haplotype haplotype : haplotypes )
                 writeHaplotype(haplotype, paddedRefLoc, bestHaplotypes.contains(haplotype));
 
-            // now, output the interesting reads for each sample
+            // next, output the interesting reads for each sample aligned against the appropriate haplotype
             for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
                 for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
                     final Allele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
                     if ( bestAllele != Allele.NO_CALL )
-                        writeReadAgainstHaplotype(entry.getKey(), (Haplotype)bestAllele);
+                        writeReadAgainstHaplotype(entry.getKey(), (Haplotype) bestAllele, paddedRefLoc.getStart());
                 }
             }
         }
@@ -607,8 +606,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         readGroups.add(rg);
         bamHeader.setReadGroups(readGroups);
 
+        bamWriter.setPresorted(false);
         bamWriter.writeHeader(bamHeader);
-        bamWriter.setPresorted(true);
     }
 
     private void writeHaplotype(final Haplotype haplotype, final GenomeLoc paddedRefLoc, final boolean isAmongBestHaplotypes) {
@@ -626,11 +625,60 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         bamWriter.addAlignment(record);
     }
 
-    private void writeReadAgainstHaplotype(final GATKSAMRecord read, final Haplotype haplotype) {
+    private void writeReadAgainstHaplotype(final GATKSAMRecord read, final Haplotype haplotype, final int referenceStart) {
 
+        final SWPairwiseAlignment swPairwiseAlignment = new SWPairwiseAlignment(haplotype.getBases(), read.getReadBases(), 5.0, -10.0, -22.0, -1.2);
+        final int readStartOnHaplotype = swPairwiseAlignment.getAlignmentStart2wrt1();
+        final int readStartOnReference = referenceStart + haplotype.getAlignmentStartHapwrtRef() + readStartOnHaplotype;
+        read.setAlignmentStart(readStartOnReference);
 
+        final Cigar cigar = generateReadCigarFromHaplotype(read, readStartOnHaplotype, haplotype.getCigar());
+        read.setCigar(cigar);
 
+        bamWriter.addAlignment(read);
+    }
 
+    private Cigar generateReadCigarFromHaplotype(final GATKSAMRecord read, final int readStartOnHaplotype, final Cigar haplotypeCigar) {
+
+        int currentReadPos = 0;
+        int currentHapPos = 0;
+        final List<CigarElement> readCigarElements = new ArrayList<CigarElement>();
+
+        for ( final CigarElement cigarElement : haplotypeCigar.getCigarElements() ) {
+
+            if ( cigarElement.getOperator() == CigarOperator.D ) {
+                if ( currentReadPos > 0 )
+                    readCigarElements.add(cigarElement);
+            } else if ( cigarElement.getOperator() == CigarOperator.M || cigarElement.getOperator() == CigarOperator.I ) {
+
+                final int elementLength = cigarElement.getLength();
+                final int nextReadPos = currentReadPos + elementLength;
+                final int nextHapPos = currentHapPos + elementLength;
+
+                // do we want this element?
+                if ( currentReadPos > 0 ) {
+                    // do we want the entire element?
+                    if ( nextReadPos < read.getReadLength() ) {
+                        readCigarElements.add(cigarElement);
+                        currentReadPos = nextReadPos;
+                    }
+                    // otherwise, we can finish up and return the cigar
+                    else {
+                        readCigarElements.add(new CigarElement(read.getReadLength() - currentReadPos, cigarElement.getOperator()));
+                        return new Cigar(readCigarElements);
+                    }
+                }
+                // do we want part of the element to start?
+                else if ( currentReadPos == 0 && nextHapPos > readStartOnHaplotype ) {
+                    currentReadPos = Math.min(nextHapPos - readStartOnHaplotype, read.getReadLength());
+                    readCigarElements.add(new CigarElement(currentReadPos, cigarElement.getOperator()));
+                }
+
+                currentHapPos = nextHapPos;
+            }
+        }
+
+        return new Cigar(readCigarElements);
     }
 
     /*

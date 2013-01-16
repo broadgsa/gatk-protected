@@ -145,10 +145,6 @@ public class LikelihoodCalculationEngine {
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
                 final Haplotype haplotype = haplotypes.get(jjj);
 
-                // TODO -- need to test against a reference/position with non-standard bases
-                //if ( !Allele.acceptableAlleleBases(haplotype.getBases(), false) )
-                //    continue;
-
                 final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : computeFirstDifferingPosition(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
                 previousHaplotypeSeen = haplotype;
 
