@@ -116,8 +116,8 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         else if (table1 == null)
             return annotationForOneTable(pValueForContingencyTable(table2));
         else { // take the one with the best (i.e., least significant pvalue)
-            double pvalue1 = Math.max(pValueForContingencyTable(table1), MIN_PVALUE);
-            double pvalue2 = Math.max(pValueForContingencyTable(table2), MIN_PVALUE);
+            double pvalue1 = pValueForContingencyTable(table1);
+            double pvalue2 = pValueForContingencyTable(table2);
             return annotationForOneTable(Math.max(pvalue1, pvalue2));
         }
     }
@@ -129,7 +129,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
      * @return a hash map from FS -> phred-scaled pValue
      */
     private Map<String, Object> annotationForOneTable(final double pValue) {
-        final Object value = String.format("%.3f", QualityUtils.phredScaleErrorRate(pValue));
+        final Object value = String.format("%.3f", QualityUtils.phredScaleErrorRate(Math.max(pValue, MIN_PVALUE))); // prevent INFINITYs
         return Collections.singletonMap(FS, value);
 //        Map<String, Object> map = new HashMap<String, Object>();
 //        map.put(FS, String.format("%.3f", QualityUtils.phredScaleErrorRate(pValue)));
