@@ -56,7 +56,6 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnot
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.utils.BaseUtils;
-import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -217,14 +216,14 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
             final Haplotype haplotype1 = consensusHaplotypeQueue.poll();
 
             List<Haplotype> hlist = new ArrayList<Haplotype>();
-            hlist.add(new Haplotype(haplotype1.getBases(), 60));
+            hlist.add(new Haplotype(haplotype1.getBases(), (byte)60));
 
             for (int k = 1; k < haplotypesToCompute; k++) {
                 Haplotype haplotype2 = consensusHaplotypeQueue.poll();
                 if (haplotype2 == null) {
                     haplotype2 = haplotype1;
                 } // Sometimes only the reference haplotype can be found
-                hlist.add(new Haplotype(haplotype2.getBases(), 20));
+                hlist.add(new Haplotype(haplotype2.getBases(), (byte)20));
             }
             return hlist;
         } else
@@ -236,8 +235,8 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
         final byte[] haplotypeBases = new byte[contextSize];
         Arrays.fill(haplotypeBases, (byte) REGEXP_WILDCARD);
-        final double[] baseQualities = new double[contextSize];
-        Arrays.fill(baseQualities, 0.0);
+        final byte[] baseQualities = new byte[contextSize];
+        Arrays.fill(baseQualities, (byte)0);
 
         byte[] readBases = read.getReadBases();
         readBases = AlignmentUtils.readToAlignmentByteArray(read.getCigar(), readBases); // Adjust the read bases based on the Cigar string
@@ -267,7 +266,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
                 readQuals[baseOffset] = (byte) 0;
             } // quals less than 5 are used as codes and don't have actual probabilistic meaning behind them
             haplotypeBases[i] = readBases[baseOffset];
-            baseQualities[i] = (double) readQuals[baseOffset];
+            baseQualities[i] = readQuals[baseOffset];
         }
 
         return new Haplotype(haplotypeBases, baseQualities);
@@ -286,10 +285,10 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
         final int length = a.length;
         final byte[] consensusChars = new byte[length];
-        final double[] consensusQuals = new double[length];
+        final byte[] consensusQuals = new byte[length];
 
-        final double[] qualsA = haplotypeA.getQuals();
-        final double[] qualsB = haplotypeB.getQuals();
+        final byte[] qualsA = haplotypeA.getQuals();
+        final byte[] qualsB = haplotypeB.getQuals();
 
         for (int i = 0; i < length; i++) {
             chA = a[i];
@@ -300,7 +299,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
             if ((chA == wc) && (chB == wc)) {
                 consensusChars[i] = wc;
-                consensusQuals[i] = 0.0;
+                consensusQuals[i] = 0;
             } else if ((chA == wc)) {
                 consensusChars[i] = chB;
                 consensusQuals[i] = qualsB[i];
@@ -309,7 +308,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
                 consensusQuals[i] = qualsA[i];
             } else {
                 consensusChars[i] = chA;
-                consensusQuals[i] = qualsA[i] + qualsB[i];
+                consensusQuals[i] = (byte)((int)qualsA[i] + (int)qualsB[i]);
             }
         }
 
@@ -433,12 +432,46 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
     }
 
-
     public List<String> getKeyNames() {
         return Arrays.asList("HaplotypeScore");
     }
 
     public List<VCFInfoHeaderLine> getDescriptions() {
         return Arrays.asList(new VCFInfoHeaderLine("HaplotypeScore", 1, VCFHeaderLineType.Float, "Consistency of the site with at most two segregating haplotypes"));
+    }
+
+    private static class Haplotype  {
+        private final byte[] bases;
+        private final byte[] quals;
+        private int qualitySum = -1;
+
+        public Haplotype( final byte[] bases, final byte[] quals ) {
+            this.bases = bases;
+            this.quals = quals;
+        }
+
+        public Haplotype( final byte[] bases, final byte qual ) {
+            this.bases = bases;
+            quals = new byte[bases.length];
+            Arrays.fill(quals, qual);
+        }
+
+        public double getQualitySum() {
+            if ( qualitySum == -1 ) {
+                qualitySum = 0;
+                for ( final byte qual : quals ) {
+                    qualitySum += (int)qual;
+                }
+            }
+            return qualitySum;
+        }
+
+        public byte[] getQuals() {
+            return quals.clone();
+        }
+
+        public byte[] getBases() {
+            return bases.clone();
+        }
     }
 }
