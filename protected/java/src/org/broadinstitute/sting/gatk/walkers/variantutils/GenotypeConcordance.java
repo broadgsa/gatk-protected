@@ -75,21 +75,42 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
     @Argument(fullName="ignoreFilters",doc="Filters will be ignored",required=false)
     boolean ignoreFilters = false;
 
+    @Argument(shortName="gfe", fullName="genotypeFilterExpressionEval", doc="One or more criteria to use to set EVAL genotypes to no-call. "+
+            "These genotype-level filters are only applied to the EVAL rod.", required=false)
+    public ArrayList<String> genotypeFilterExpressionsEval = new ArrayList<String>();
+
+    @Argument(shortName="gfc", fullName="genotypeFilterExpressionComp", doc="One or more criteria to use to set COMP genotypes to no-call. "+
+            "These genotype-level filters are only applied to the COMP rod.", required=false)
+    public ArrayList<String> genotypeFilterExpressionsComp = new ArrayList<String>();
+
+    @Argument(shortName="moltenize",fullName="moltenize",doc="Molten rather than tabular output")
+    public boolean moltenize = false;
+
     @Output
     PrintStream out;
 
-    List<String> evalSamples;
-    List<String> compSamples;
+    private List<String> evalSamples;
+    private List<String> compSamples;
+    private List<VariantContextUtils.JexlVCMatchExp> evalJexls = null;
+    private List<VariantContextUtils.JexlVCMatchExp> compJexls = null;
 
-    // todo -- deal with occurrences like:
-    //     Eval: 20   4000     A     C
-    //     Eval: 20   4000     A    AC
-    //     Comp: 20   4000     A     C
-    //  currently this results in a warning and skipping
-    // todo -- extend to multiple eval, multiple comp
     // todo -- table with "proportion of overlapping sites" (not just eval/comp margins)
-    // todo -- genotype-level filtering
+    // todo -- moltenize
 
+
+    public void initialize() {
+        evalJexls = initializeJexl(genotypeFilterExpressionsEval);
+        compJexls = initializeJexl(genotypeFilterExpressionsComp);
+    }
+
+    private List<VariantContextUtils.JexlVCMatchExp> initializeJexl(ArrayList<String> genotypeFilterExpressions) {
+        ArrayList<String> dummyNames = new ArrayList<String>(genotypeFilterExpressions.size());
+        int expCount = 1;
+        for ( String exp : genotypeFilterExpressions ) {
+            dummyNames.add(String.format("gfe%d",expCount++));
+        }
+        return VariantContextUtils.initializeMatchExps(dummyNames, genotypeFilterExpressions);
+    }
 
     public ConcordanceMetrics reduceInit() {
         Map<String,VCFHeader> headerMap = GATKVCFUtils.getVCFHeadersFromRods(getToolkit(), Arrays.asList(evalBinding,compBinding));
@@ -110,15 +131,19 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
             List<VariantContext> eval = tracker.getValues(evalBinding,ref.getLocus());
             List<VariantContext> comp = tracker.getValues(compBinding,ref.getLocus());
             if ( eval.size() > 1 || comp.size() > 1 ) {
-                logger.info("Eval or Comp Rod at position " + ref.getLocus().toString() + " has multiple records. Resolving.");
-                evalCompPair = resolveMultipleRecords(eval,comp);
+                if ( noDuplicateTypes(eval) && noDuplicateTypes(comp) ) {
+                    logger.info("Eval or Comp Rod at position " + ref.getLocus().toString() + " has multiple records. Resolving.");
+                    evalCompPair = resolveMultipleRecords(eval,comp);
+                } else {
+                    logger.warn("Eval or Comp Rod at position "+ref.getLocus().toString()+" has multiple records of the same type. This locus will be skipped.");
+                }
             } else {
                 // if a rod is missing, explicitly create a variant context with 'missing' genotypes. Slow, but correct.
                 // note that if there is no eval rod there must be a comp rod, and also the reverse
                 VariantContext evalContext = eval.size() == 1 ? eval.get(0) : createEmptyContext(comp.get(0),evalSamples);
                 VariantContext compContext = comp.size() == 1 ? comp.get(0) : createEmptyContext(eval.get(0),compSamples);
-                evalContext = filterGenotypes(evalContext,ignoreFilters);
-                compContext = filterGenotypes(compContext,ignoreFilters);
+                evalContext = filterGenotypes(evalContext,ignoreFilters,evalJexls);
+                compContext = filterGenotypes(compContext,ignoreFilters,compJexls);
                 evalCompPair.add(new Pair<VariantContext, VariantContext>(evalContext,compContext));
             }
         }
@@ -126,9 +151,21 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
         return evalCompPair;
     }
 
+    private boolean noDuplicateTypes(List<VariantContext> vcList) {
+        HashSet<VariantContext.Type> types = new HashSet<VariantContext.Type>(vcList.size());
+        for ( VariantContext vc : vcList ) {
+            VariantContext.Type type = vc.getType();
+            if ( types.contains(type) )
+                return false;
+            types.add(type);
+        }
+
+        return true;
+    }
+
     /**
-     * The point of this method is to match up pairs of evals and comps by their alternate alleles. Basically multiple records could
-     * exist for a site such as:
+     * The point of this method is to match up pairs of evals and comps by their type (or alternate alleles for mixed).
+     * Basically multiple records could exist for a site such as:
      * Eval: 20   4000     A     C
      * Eval: 20   4000     A    AC
      * Comp: 20   4000     A     C
@@ -146,14 +183,19 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
         List<Pair<VariantContext,VariantContext>> resolvedPairs = new ArrayList<Pair<VariantContext,VariantContext>>(evalList.size()+compList.size()); // oversized but w/e
         List<VariantContext> pairedEval = new ArrayList<VariantContext>(evalList.size());
         for ( VariantContext eval : evalList ) {
-            Set<Allele> evalAlts = new HashSet<Allele>(eval.getAlternateAlleles());
+            VariantContext.Type evalType = eval.getType();
+            Set<Allele> evalAlleles = new HashSet<Allele>(eval.getAlternateAlleles());
             VariantContext pairedComp = null;
             for ( VariantContext comp : compList ) {
-                for ( Allele compAlt : comp.getAlternateAlleles() ) {
-                    if ( evalAlts.contains(compAlt) ) {
-                        // matching alt allele, pair these records
-                        pairedComp = comp;
-                        break;
+                if ( evalType.equals(comp.getType()) ) {
+                    pairedComp = comp;
+                    break;
+                } else if ( eval.isMixed() || comp.isMixed() ) {
+                    for ( Allele compAllele : comp.getAlternateAlleles() ) {
+                        if ( evalAlleles.contains(compAllele) ) {
+                            pairedComp = comp;
+                            break;
+                        }
                     }
                 }
             }
@@ -197,83 +239,202 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
         GATKReportTable concordanceCompProportions = new GATKReportTable("GenotypeConcordance_CompProportions", "Per-sample concordance tables: proportions of genotypes called in comp",2+GenotypeType.values().length*GenotypeType.values().length);
         GATKReportTable concordanceSummary = new GATKReportTable("GenotypeConcordance_Summary","Per-sample summary statistics: NRS and NRD",2);
         GATKReportTable siteConcordance = new GATKReportTable("SiteConcordance_Summary","Site-level summary statistics",ConcordanceMetrics.SiteConcordanceType.values().length);
-        concordanceCompProportions.addColumn("Sample","%s");
-        concordanceCounts.addColumn("Sample","%s");
-        concordanceEvalProportions.addColumn("Sample","%s");
-        concordanceSummary.addColumn("Sample","%s");
-        for ( GenotypeType evalType : GenotypeType.values() ) {
-            for ( GenotypeType compType : GenotypeType.values() ) {
-                String colKey = String.format("%s_%s", evalType.toString(), compType.toString());
-                concordanceCounts.addColumn(colKey,"%d");
-                if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR)
-                    concordanceEvalProportions.addColumn(colKey,"%.3f");
-                if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF )
-                    concordanceCompProportions.addColumn(colKey,"%.3f");
-            }
-        }
-        concordanceEvalProportions.addColumn("Mismatching_Alleles","%.3f");
-        concordanceCompProportions.addColumn("Mismatching_Alleles","%.3f");
-        concordanceCounts.addColumn("Mismatching_Alleles","%d");
-        concordanceSummary.addColumn("Non-Reference Sensitivity","%.3f");
-        concordanceSummary.addColumn("Non-Reference Discrepancy","%.3f");
-        for (ConcordanceMetrics.SiteConcordanceType type : ConcordanceMetrics.SiteConcordanceType.values() ) {
-            siteConcordance.addColumn(type.toString(),"%d");
-        }
+        if ( moltenize ) {
+            concordanceCompProportions.addColumn("Sample","%s");
+            concordanceCounts.addColumn("Sample","%s");
+            concordanceEvalProportions.addColumn("Sample","%s");
+            concordanceSummary.addColumn("Sample","%s");
 
-        for ( Map.Entry<String,ConcordanceMetrics.GenotypeConcordanceTable> entry : metrics.getPerSampleGenotypeConcordance().entrySet() ) {
-            ConcordanceMetrics.GenotypeConcordanceTable table = entry.getValue();
-            concordanceEvalProportions.set(entry.getKey(),"Sample",entry.getKey());
-            concordanceCompProportions.set(entry.getKey(),"Sample",entry.getKey());
-            concordanceCounts.set(entry.getKey(),"Sample",entry.getKey());
+            concordanceCompProportions.addColumn("Eval_Genotype","%s");
+            concordanceCounts.addColumn("Eval_Genotype","%s");
+            concordanceEvalProportions.addColumn("Eval_Genotype","%s");
+            concordanceSummary.addColumn("Non-Reference_Discrepancy","%.3f");
+
+            concordanceCompProportions.addColumn("Comp_Genotype","%s");
+            concordanceCounts.addColumn("Comp_Genotype","%s");
+            concordanceEvalProportions.addColumn("Comp_Genotype","%s");
+            concordanceSummary.addColumn("Non-Reference_Sensitivity","%.3f");
+
+            concordanceCompProportions.addColumn("Proportion","%.3f");
+            concordanceCounts.addColumn("Count","%d");
+            concordanceEvalProportions.addColumn("Proportion","%.3f");
+
+            for ( Map.Entry<String,ConcordanceMetrics.GenotypeConcordanceTable> entry : metrics.getPerSampleGenotypeConcordance().entrySet() ) {
+                ConcordanceMetrics.GenotypeConcordanceTable table = entry.getValue();
+                for ( GenotypeType evalType : GenotypeType.values() ) {
+                    for ( GenotypeType compType : GenotypeType.values() ) {
+                        String rowKey = String.format("%s_%s_%s",entry.getKey(),evalType.toString(),compType.toString());
+                        concordanceCounts.set(rowKey,"Sample",entry.getKey());
+                        concordanceCounts.set(rowKey,"Eval_Genotype",evalType.toString());
+                        concordanceCounts.set(rowKey,"Comp_Genotype",evalType.toString());
+                        int count = table.get(evalType, compType);
+                        concordanceCounts.set(rowKey,"Count",count);
+                        if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR) {
+                            concordanceEvalProportions.set(rowKey,"Sample",entry.getKey());
+                            concordanceEvalProportions.set(rowKey,"Eval_Genotype",evalType.toString());
+                            concordanceEvalProportions.set(rowKey,"Comp_Genotype",evalType.toString());
+                            concordanceEvalProportions.set(rowKey,"Proportion",repairNaN(( (double) count)/table.getnEvalGenotypes(evalType)));
+                        }
+                        if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF ) {
+                            concordanceCompProportions.set(rowKey,"Sample",entry.getKey());
+                            concordanceCompProportions.set(rowKey,"Eval_Genotype",evalType.toString());
+                            concordanceCompProportions.set(rowKey,"Comp_Genotype",evalType.toString());
+                            concordanceCompProportions.set(rowKey,"Proportion",repairNaN(( (double) count)/table.getnCompGenotypes(compType)));
+                        }
+                    }
+                }
+                String mismatchKey = String.format("%s_%s",entry.getKey(),"Mismatching");
+                concordanceCounts.set(mismatchKey,"Sample",entry.getKey());
+                concordanceCounts.set(mismatchKey,"Eval_Genotype","Mismatching_Alleles");
+                concordanceCounts.set(mismatchKey,"Comp_Genotype","Mismatching_Alleles");
+                concordanceEvalProportions.set(mismatchKey,"Sample",entry.getKey());
+                concordanceEvalProportions.set(mismatchKey,"Eval_Genotype","Mismatching_Alleles");
+                concordanceEvalProportions.set(mismatchKey,"Comp_Genotype","Mismatching_Alleles");
+                concordanceCompProportions.set(mismatchKey,"Sample",entry.getKey());
+                concordanceCompProportions.set(mismatchKey,"Eval_Genotype","Mismatching_Alleles");
+                concordanceCompProportions.set(mismatchKey,"Comp_Genotype","Mismatching_Alleles");
+                concordanceEvalProportions.set(mismatchKey,"Proportion", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes()));
+                concordanceCompProportions.set(mismatchKey,"Proportion", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes()));
+                concordanceCounts.set(mismatchKey,"Count",table.getnMismatchingAlt());
+            }
+
+            String sampleKey = "ALL";
+            ConcordanceMetrics.GenotypeConcordanceTable table = metrics.getOverallGenotypeConcordance();
+            for ( GenotypeType evalType : GenotypeType.values() ) {
+                for ( GenotypeType compType : GenotypeType.values() ) {
+                    String rowKey = String.format("%s_%s_%s",sampleKey,evalType.toString(),compType.toString());
+                    concordanceCounts.set(rowKey,"Sample",sampleKey);
+                    concordanceCounts.set(rowKey,"Eval_Genotype",evalType.toString());
+                    concordanceCounts.set(rowKey,"Comp_Genotype",evalType.toString());
+                    int count = table.get(evalType, compType);
+                    concordanceCounts.set(rowKey,"Count",count);
+                    if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR) {
+                        concordanceEvalProportions.set(rowKey,"Sample",sampleKey);
+                        concordanceEvalProportions.set(rowKey,"Eval_Genotype",evalType.toString());
+                        concordanceEvalProportions.set(rowKey,"Comp_Genotype",evalType.toString());
+                        concordanceEvalProportions.set(rowKey,"Proportion",repairNaN(( (double) count)/table.getnEvalGenotypes(evalType)));
+                    }
+                    if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF ) {
+                        concordanceCompProportions.set(rowKey,"Sample",sampleKey);
+                        concordanceCompProportions.set(rowKey,"Eval_Genotype",evalType.toString());
+                        concordanceCompProportions.set(rowKey,"Comp_Genotype",evalType.toString());
+                        concordanceCompProportions.set(rowKey,"Proportion",repairNaN(( (double) count)/table.getnCompGenotypes(compType)));
+                    }
+                }
+            }
+            String rowKey = String.format("%s_%s",sampleKey,"Mismatching");
+            concordanceCounts.set(rowKey,"Sample",sampleKey);
+            concordanceCounts.set(rowKey,"Eval_Genotype","Mismatching_Alleles");
+            concordanceCounts.set(rowKey,"Comp_Genotype","Mismatching_Alleles");
+            concordanceEvalProportions.set(rowKey,"Sample",sampleKey);
+            concordanceEvalProportions.set(rowKey,"Eval_Genotype","Mismatching_Alleles");
+            concordanceEvalProportions.set(rowKey,"Comp_Genotype","Mismatching_Alleles");
+            concordanceCompProportions.set(rowKey,"Sample",sampleKey);
+            concordanceCompProportions.set(rowKey,"Eval_Genotype","Mismatching_Alleles");
+            concordanceCompProportions.set(rowKey,"Comp_Genotype","Mismatching_Alleles");
+            concordanceEvalProportions.set(rowKey,"Proportion", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes()));
+            concordanceCompProportions.set(rowKey,"Proportion", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes()));
+            concordanceCounts.set(rowKey,"Count",table.getnMismatchingAlt());
+
+            for ( Map.Entry<String,Double> nrsEntry : metrics.getPerSampleNRS().entrySet() ) {
+                concordanceSummary.set(nrsEntry.getKey(),"Sample",nrsEntry.getKey());
+                concordanceSummary.set(nrsEntry.getKey(),"Non-Reference_Sensitivity",nrsEntry.getValue());
+            }
+            for ( Map.Entry<String,Double> nrdEntry : metrics.getPerSampleNRD().entrySet() ) {
+                concordanceSummary.set(nrdEntry.getKey(),"Non-Reference_Discrepancy",nrdEntry.getValue());
+            }
+            concordanceSummary.set("ALL_NRS_NRD","Sample","ALL");
+            concordanceSummary.set("ALL_NRS_NRD","Non-Reference_Sensitivity",metrics.getOverallNRS());
+            concordanceSummary.set("ALL_NRS_NRD","Non-Reference_Discrepancy",metrics.getOverallNRD());
+
+
+            for (ConcordanceMetrics.SiteConcordanceType type : ConcordanceMetrics.SiteConcordanceType.values() ) {
+                siteConcordance.addColumn(type.toString(),"%d");
+            }
+
+            for (ConcordanceMetrics.SiteConcordanceType type : ConcordanceMetrics.SiteConcordanceType.values() ) {
+                siteConcordance.set("Comparison",type.toString(),metrics.getOverallSiteConcordance().get(type));
+            }
+
+        } else {
+            concordanceCompProportions.addColumn("Sample","%s");
+            concordanceCounts.addColumn("Sample","%s");
+            concordanceEvalProportions.addColumn("Sample","%s");
+            concordanceSummary.addColumn("Sample","%s");
+            for ( GenotypeType evalType : GenotypeType.values() ) {
+                for ( GenotypeType compType : GenotypeType.values() ) {
+                    String colKey = String.format("%s_%s", evalType.toString(), compType.toString());
+                    concordanceCounts.addColumn(colKey,"%d");
+                    if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR)
+                        concordanceEvalProportions.addColumn(colKey,"%.3f");
+                    if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF )
+                        concordanceCompProportions.addColumn(colKey,"%.3f");
+                }
+            }
+            concordanceEvalProportions.addColumn("Mismatching_Alleles","%.3f");
+            concordanceCompProportions.addColumn("Mismatching_Alleles","%.3f");
+            concordanceCounts.addColumn("Mismatching_Alleles","%d");
+            concordanceSummary.addColumn("Non-Reference Sensitivity","%.3f");
+            concordanceSummary.addColumn("Non-Reference Discrepancy","%.3f");
+            for (ConcordanceMetrics.SiteConcordanceType type : ConcordanceMetrics.SiteConcordanceType.values() ) {
+                siteConcordance.addColumn(type.toString(),"%d");
+            }
+
+            for ( Map.Entry<String,ConcordanceMetrics.GenotypeConcordanceTable> entry : metrics.getPerSampleGenotypeConcordance().entrySet() ) {
+                ConcordanceMetrics.GenotypeConcordanceTable table = entry.getValue();
+                concordanceEvalProportions.set(entry.getKey(),"Sample",entry.getKey());
+                concordanceCompProportions.set(entry.getKey(),"Sample",entry.getKey());
+                concordanceCounts.set(entry.getKey(),"Sample",entry.getKey());
+                for ( GenotypeType evalType : GenotypeType.values() ) {
+                    for ( GenotypeType compType : GenotypeType.values() ) {
+                        String colKey = String.format("%s_%s",evalType.toString(),compType.toString());
+                        int count = table.get(evalType, compType);
+                        concordanceCounts.set(entry.getKey(),colKey,count);
+                        if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR)
+                            concordanceEvalProportions.set(entry.getKey(),colKey,repairNaN(( (double) count)/table.getnEvalGenotypes(evalType)));
+                        if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF )
+                            concordanceCompProportions.set(entry.getKey(),colKey,repairNaN(( (double) count)/table.getnCompGenotypes(compType)));
+                    }
+                }
+                concordanceEvalProportions.set(entry.getKey(),"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes()));
+                concordanceCompProportions.set(entry.getKey(),"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes()));
+                concordanceCounts.set(entry.getKey(),"Mismatching_Alleles",table.getnMismatchingAlt());
+            }
+
+            String rowKey = "ALL";
+            concordanceCompProportions.set(rowKey,"Sample",rowKey);
+            concordanceEvalProportions.set(rowKey,"Sample",rowKey);
+            concordanceCounts.set(rowKey,"Sample",rowKey);
+            ConcordanceMetrics.GenotypeConcordanceTable table = metrics.getOverallGenotypeConcordance();
             for ( GenotypeType evalType : GenotypeType.values() ) {
                 for ( GenotypeType compType : GenotypeType.values() ) {
                     String colKey = String.format("%s_%s",evalType.toString(),compType.toString());
-                    int count = table.get(evalType, compType);
-                    concordanceCounts.set(entry.getKey(),colKey,count);
+                    int count = table.get(evalType,compType);
+                    concordanceCounts.set(rowKey,colKey,count);
                     if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR)
-                        concordanceEvalProportions.set(entry.getKey(),colKey,repairNaN(( (double) count)/table.getnEvalGenotypes(evalType)));
+                        concordanceEvalProportions.set(rowKey,colKey,repairNaN(( (double) count)/table.getnEvalGenotypes(evalType)));
                     if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF )
-                        concordanceCompProportions.set(entry.getKey(),colKey,repairNaN(( (double) count)/table.getnCompGenotypes(compType)));
+                        concordanceCompProportions.set(rowKey,colKey,repairNaN(( (double) count)/table.getnCompGenotypes(compType)));
                 }
             }
-            concordanceEvalProportions.set(entry.getKey(),"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes()));
-            concordanceCompProportions.set(entry.getKey(),"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes()));
-            concordanceCounts.set(entry.getKey(),"Mismatching_Alleles",table.getnMismatchingAlt());
-        }
+            concordanceEvalProportions.set(rowKey,"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes()));
+            concordanceCompProportions.set(rowKey,"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes()));
+            concordanceCounts.set(rowKey,"Mismatching_Alleles",table.getnMismatchingAlt());
 
-        String rowKey = "ALL";
-        concordanceCompProportions.set(rowKey,"Sample",rowKey);
-        concordanceEvalProportions.set(rowKey,"Sample",rowKey);
-        concordanceCounts.set(rowKey,"Sample",rowKey);
-        ConcordanceMetrics.GenotypeConcordanceTable table = metrics.getOverallGenotypeConcordance();
-        for ( GenotypeType evalType : GenotypeType.values() ) {
-            for ( GenotypeType compType : GenotypeType.values() ) {
-                String colKey = String.format("%s_%s",evalType.toString(),compType.toString());
-                int count = table.get(evalType,compType);
-                concordanceCounts.set(rowKey,colKey,count);
-                if ( evalType == GenotypeType.HET || evalType == GenotypeType.HOM_REF || evalType == GenotypeType.HOM_VAR)
-                    concordanceEvalProportions.set(rowKey,colKey,repairNaN(( (double) count)/table.getnEvalGenotypes(evalType)));
-                if ( compType == GenotypeType.HET || compType == GenotypeType.HOM_VAR || compType == GenotypeType.HOM_REF )
-                    concordanceCompProportions.set(rowKey,colKey,repairNaN(( (double) count)/table.getnCompGenotypes(compType)));
+            for ( Map.Entry<String,Double> nrsEntry : metrics.getPerSampleNRS().entrySet() ) {
+                concordanceSummary.set(nrsEntry.getKey(),"Sample",nrsEntry.getKey());
+                concordanceSummary.set(nrsEntry.getKey(),"Non-Reference Sensitivity",nrsEntry.getValue());
             }
-        }
-        concordanceEvalProportions.set(rowKey,"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledEvalGenotypes()));
-        concordanceCompProportions.set(rowKey,"Mismatching_Alleles", repairNaN(( (double) table.getnMismatchingAlt() )/table.getnCalledCompGenotypes()));
-        concordanceCounts.set(rowKey,"Mismatching_Alleles",table.getnMismatchingAlt());
+            for ( Map.Entry<String,Double> nrdEntry : metrics.getPerSampleNRD().entrySet() ) {
+                concordanceSummary.set(nrdEntry.getKey(),"Non-Reference Discrepancy",nrdEntry.getValue());
+            }
+            concordanceSummary.set("ALL","Sample","ALL");
+            concordanceSummary.set("ALL","Non-Reference Sensitivity",metrics.getOverallNRS());
+            concordanceSummary.set("ALL","Non-Reference Discrepancy",metrics.getOverallNRD());
 
-        for ( Map.Entry<String,Double> nrsEntry : metrics.getPerSampleNRS().entrySet() ) {
-            concordanceSummary.set(nrsEntry.getKey(),"Sample",nrsEntry.getKey());
-            concordanceSummary.set(nrsEntry.getKey(),"Non-Reference Sensitivity",nrsEntry.getValue());
-        }
-        for ( Map.Entry<String,Double> nrdEntry : metrics.getPerSampleNRD().entrySet() ) {
-            concordanceSummary.set(nrdEntry.getKey(),"Non-Reference Discrepancy",nrdEntry.getValue());
-        }
-        concordanceSummary.set("ALL","Sample","ALL");
-        concordanceSummary.set("ALL","Non-Reference Sensitivity",metrics.getOverallNRS());
-        concordanceSummary.set("ALL","Non-Reference Discrepancy",metrics.getOverallNRD());
-
-        for (ConcordanceMetrics.SiteConcordanceType type : ConcordanceMetrics.SiteConcordanceType.values() ) {
-            siteConcordance.set("Comparison",type.toString(),metrics.getOverallSiteConcordance().get(type));
+            for (ConcordanceMetrics.SiteConcordanceType type : ConcordanceMetrics.SiteConcordanceType.values() ) {
+                siteConcordance.set("Comparison",type.toString(),metrics.getOverallSiteConcordance().get(type));
+            }
         }
 
         report.addTable(concordanceCompProportions);
@@ -298,13 +459,32 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
         return builder.make();
     }
 
-    public VariantContext filterGenotypes(VariantContext context, boolean ignoreSiteFilter) {
+    public VariantContext filterGenotypes(VariantContext context, boolean ignoreSiteFilter, List<VariantContextUtils.JexlVCMatchExp> exps) {
         // placeholder method for genotype-level filtering. However if the site itself is filtered,
         // and such filters are not ignored, the genotype-level data should be altered to reflect this
+
         if ( ! context.isFiltered() || ignoreSiteFilter ) {
-            // todo -- add genotype-level jexl filtering here
-            return context;
+            List<Genotype> filteredGenotypes = new ArrayList<Genotype>(context.getNSamples());
+            for ( Genotype g : context.getGenotypes() ) {
+                Map<VariantContextUtils.JexlVCMatchExp, Boolean> matchMap = VariantContextUtils.match(context, g, exps);
+                boolean filtered = false;
+                for ( Boolean b : matchMap.values() ) {
+                    if ( b ) {
+                        filtered = true;
+                        break;
+                    }
+                }
+                if ( filtered ) {
+                    filteredGenotypes.add(GenotypeBuilder.create(g.getSampleName(),Arrays.asList(Allele.NO_CALL,Allele.NO_CALL),g.getExtendedAttributes()));
+                } else {
+                    filteredGenotypes.add(g);
+                }
+            }
+            VariantContextBuilder builder = new VariantContextBuilder(context);
+            builder.genotypes(filteredGenotypes);
+            return builder.make();
         }
+
         VariantContextBuilder builder = new VariantContextBuilder();
         builder.alleles(Arrays.asList(context.getReference()));
         builder.loc(context.getChr(),context.getStart(),context.getEnd());
