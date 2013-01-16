@@ -50,6 +50,7 @@ import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 public class HaplotypeCallerIntegrationTest extends WalkerTest {
     final static String REF = b37KGReference;
@@ -154,6 +155,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("add0f4f51969b7caeea99005a7ba1aa4"));
         executeTest("HCTestStructuralIndels: ", spec);
+    }
+
+    @Test
+    public void HCTestDoesNotFailOnBadRefBase() {
+        // don't care about the output - just want to make sure it doesn't fail
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o /dev/null -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2 -stand_emit_conf 2";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Collections.<String>emptyList());
+        executeTest("HCTestDoesNotFailOnBadRefBase: ", spec);
     }
 
     // --------------------------------------------------------------------------------------------------------------
