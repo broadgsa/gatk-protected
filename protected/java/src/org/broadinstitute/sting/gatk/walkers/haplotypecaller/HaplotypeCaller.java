@@ -56,7 +56,6 @@ import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
@@ -71,7 +70,7 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegionReadState;
-import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
+import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.*;
@@ -382,7 +381,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Override
     @Ensures({"result.isActiveProb >= 0.0", "result.isActiveProb <= 1.0"})
-    public ActivityProfileResult isActive( final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context ) {
+    public ActivityProfileState isActive( final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context ) {
 
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
             for( final VariantContext vc : tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()) ) {
@@ -391,15 +390,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                 }
             }
             if( tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ) {
-                return new ActivityProfileResult(ref.getLocus(), 1.0);
+                return new ActivityProfileState(ref.getLocus(), 1.0);
             }
         }
 
         if( USE_ALLELES_TRIGGER ) {
-            return new ActivityProfileResult( ref.getLocus(), tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
+            return new ActivityProfileState( ref.getLocus(), tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
         }
 
-        if( context == null ) { return new ActivityProfileResult(ref.getLocus(), 0.0); }
+        if( context == null ) { return new ActivityProfileState(ref.getLocus(), 0.0); }
 
         final List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
         noCall.add(Allele.NO_CALL);
@@ -436,7 +435,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.INDEL);
         final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
 
-        return new ActivityProfileResult( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileResult.ActivityProfileResultState.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileResult.ActivityProfileResultState.NONE, averageHQSoftClips.mean() );
+        return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
     }
 
     //---------------------------------------------------------------------------------------------------------------
