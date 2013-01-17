@@ -184,6 +184,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="downsampleRegion", shortName="dr", doc="coverage, per-sample, to downsample each active region to", required = false)
     protected int DOWNSAMPLE_PER_SAMPLE_PER_REGION = 1000;
 
+    /**
+     * If this flag is provided, the haplotype caller will include unmapped reads in the assembly and calling
+     * when these reads occur in the region being analyzed.  Typically, for paired end analyses, one pair of the
+     * read can map, but if its pair is too divergent then it may be unmapped and placed next to its mate, taking
+     * the mates contig and alignment start.  If this flag is provided the haplotype caller will see such reads,
+     * and may make use of them in assembly and calling, where possible.
+     */
+    @Argument(fullName="includeUmappedReads", shortName="unmapped", doc="If provided, unmapped reads with chromosomal coordinates (i.e., those placed to their maps) will be included in the assembly and calling", required = false)
+    protected boolean includeUnmappedReads = false;
+
     @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "If specified, use additional trigger on variants found in an external alleles file", required=false)
     protected boolean USE_ALLELES_TRIGGER = false;
 
@@ -354,11 +364,20 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     // enable non primary and extended reads in the active region
     @Override
     public EnumSet<ActiveRegionReadState> desiredReadStates() {
-        return EnumSet.of(
-                ActiveRegionReadState.PRIMARY,
-                ActiveRegionReadState.NONPRIMARY,
-                ActiveRegionReadState.EXTENDED
-        );
+        if ( includeUnmappedReads ) {
+            throw new UserException.BadArgumentValue("includeUmappedReads", "is not yet functional");
+//            return EnumSet.of(
+//                    ActiveRegionReadState.PRIMARY,
+//                    ActiveRegionReadState.NONPRIMARY,
+//                    ActiveRegionReadState.EXTENDED,
+//                    ActiveRegionReadState.UNMAPPED
+//            );
+        } else
+            return EnumSet.of(
+                    ActiveRegionReadState.PRIMARY,
+                    ActiveRegionReadState.NONPRIMARY,
+                    ActiveRegionReadState.EXTENDED
+            );
     }
 
     @Override
