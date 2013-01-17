@@ -277,7 +277,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
                 int column = isFW ? 0 : 1;
 
                 final GATKSAMRecord read = el.getKey();
-                table[row][column] += (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinate(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1);
+                table[row][column] += (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1);
             }
         }
 

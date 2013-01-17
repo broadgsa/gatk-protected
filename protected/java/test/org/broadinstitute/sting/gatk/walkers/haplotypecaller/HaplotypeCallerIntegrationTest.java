@@ -178,4 +178,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 Arrays.asList("8a400b0c46f41447fcc35a907e34f384"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
+
+    @Test
+    public void testReducedBamWithReadsNotFullySpanningDeletion() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
+                Arrays.asList("0446c11fe2ba68a14f938ebc6e71ded7"));
+        executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
+    }
 }
