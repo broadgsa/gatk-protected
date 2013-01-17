@@ -216,14 +216,14 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
             final Haplotype haplotype1 = consensusHaplotypeQueue.poll();
 
             List<Haplotype> hlist = new ArrayList<Haplotype>();
-            hlist.add(new Haplotype(haplotype1.getBases(), (byte)60));
+            hlist.add(new Haplotype(haplotype1.getBases(), 60));
 
             for (int k = 1; k < haplotypesToCompute; k++) {
                 Haplotype haplotype2 = consensusHaplotypeQueue.poll();
                 if (haplotype2 == null) {
                     haplotype2 = haplotype1;
                 } // Sometimes only the reference haplotype can be found
-                hlist.add(new Haplotype(haplotype2.getBases(), (byte)20));
+                hlist.add(new Haplotype(haplotype2.getBases(), 20));
             }
             return hlist;
         } else
@@ -285,10 +285,10 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
         final int length = a.length;
         final byte[] consensusChars = new byte[length];
-        final byte[] consensusQuals = new byte[length];
+        final int[] consensusQuals = new int[length];
 
-        final byte[] qualsA = haplotypeA.getQuals();
-        final byte[] qualsB = haplotypeB.getQuals();
+        final int[] qualsA = haplotypeA.getQuals();
+        final int[] qualsB = haplotypeB.getQuals();
 
         for (int i = 0; i < length; i++) {
             chA = a[i];
@@ -308,7 +308,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
                 consensusQuals[i] = qualsA[i];
             } else {
                 consensusChars[i] = chA;
-                consensusQuals[i] = (byte)((int)qualsA[i] + (int)qualsB[i]);
+                consensusQuals[i] = qualsA[i] + qualsB[i];
             }
         }
 
@@ -442,31 +442,38 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
     private static class Haplotype  {
         private final byte[] bases;
-        private final byte[] quals;
+        private final int[] quals;
         private int qualitySum = -1;
 
-        public Haplotype( final byte[] bases, final byte[] quals ) {
+        public Haplotype( final byte[] bases, final int[] quals ) {
             this.bases = bases;
             this.quals = quals;
         }
 
-        public Haplotype( final byte[] bases, final byte qual ) {
+        public Haplotype( final byte[] bases, final int qual ) {
             this.bases = bases;
-            quals = new byte[bases.length];
+            quals = new int[bases.length];
             Arrays.fill(quals, qual);
+        }
+
+        public Haplotype( final byte[] bases, final byte[] quals ) {
+            this.bases = bases;
+            this.quals = new int[quals.length];
+            for ( int i = 0 ; i < quals.length; i++ )
+                this.quals[i] = (int)quals[i];
         }
 
         public double getQualitySum() {
             if ( qualitySum == -1 ) {
                 qualitySum = 0;
-                for ( final byte qual : quals ) {
-                    qualitySum += (int)qual;
+                for ( final int qual : quals ) {
+                    qualitySum += qual;
                 }
             }
             return qualitySum;
         }
 
-        public byte[] getQuals() {
+        public int[] getQuals() {
             return quals.clone();
         }
 
