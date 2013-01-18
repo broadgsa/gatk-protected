@@ -84,12 +84,13 @@ public class AlleleBiasedDownsamplingUtils {
         // start by stratifying the reads by the alleles they represent at this position
         for( final PileupElement pe : pileup ) {
             // we do not want to remove a reduced read
-            if ( pe.getRead().isReducedRead() )
+            if ( pe.getRead().isReducedRead() ) {
                 reducedReadPileups.add(pe);
-
-            final int baseIndex = BaseUtils.simpleBaseToBaseIndex(pe.getBase());
-            if ( baseIndex != -1 )
-                alleleStratifiedElements[baseIndex].add(pe);
+            } else {
+                final int baseIndex = BaseUtils.simpleBaseToBaseIndex(pe.getBase());
+                if ( baseIndex != -1 )
+                    alleleStratifiedElements[baseIndex].add(pe);
+            }
         }
 
         // Unfortunately, we need to maintain the original pileup ordering of reads or FragmentUtils will complain later.

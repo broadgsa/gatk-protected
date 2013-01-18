@@ -265,24 +265,16 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
         for (PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
             for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
-                final boolean matchesRef = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue()).equals(ref,true);
-                final boolean matchesAlt = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue()).equals(alt,true);
-
-                if ( !matchesRef && !matchesAlt )
-                    continue;
-
-                boolean isFW = el.getKey().getReadNegativeStrandFlag();
-
-                int row = matchesRef ? 0 : 1;
-                int column = isFW ? 0 : 1;
-
+                final Allele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
                 final GATKSAMRecord read = el.getKey();
-                table[row][column] += (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1);
+                final int representativeCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
+                updateTable(table, mostLikelyAllele, read, ref, alt, representativeCount);
             }
         }
 
         return table;
     }
+
     /**
      Allocate and fill a 2x2 strand contingency table.  In the end, it'll look something like this:
      *             fw      rc
@@ -299,31 +291,36 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         for ( Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
             for (PileupElement p : sample.getValue().getBasePileup()) {
 
-                // ignore reduced reads because they are always on the forward strand!
-                // TODO -- when het compression is enabled in RR, we somehow need to allow those reads through into the Fisher test
-                if ( p.getRead().isReducedRead() )
-                    continue;
-
                 if ( ! RankSumTest.isUsableBase(p, false) ) // ignore deletions
                     continue;
 
                 if ( p.getQual() < minQScoreToConsider || p.getMappingQual() < minQScoreToConsider )
                     continue;
 
-                final Allele base = Allele.create(p.getBase(), false);
-                final boolean isFW = !p.getRead().getReadNegativeStrandFlag();
-
-                final boolean matchesRef = ref.equals(base, true);
-                final boolean matchesAlt = alt.equals(base, true);
-                if ( matchesRef || matchesAlt ) {
-                    int row = matchesRef ? 0 : 1;
-                    int column = isFW ? 0 : 1;
-
-                    table[row][column] += p.getRepresentativeCount();
-                }
+                updateTable(table, Allele.create(p.getBase(), false), p.getRead(), ref, alt, p.getRepresentativeCount());
             }
         }
 
         return table;
+    }
+
+    private static void updateTable(final int[][] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt, final int representativeCount) {
+        // ignore reduced reads because they are always on the forward strand!
+        // TODO -- when het compression is enabled in RR, we somehow need to allow those reads through into the Fisher test
+        if ( read.isReducedRead() )
+            return;
+
+        final boolean matchesRef = allele.equals(ref, true);
+        final boolean matchesAlt = allele.equals(alt, true);
+
+        if ( matchesRef || matchesAlt ) {
+
+            final boolean isFW = !read.getReadNegativeStrandFlag();
+
+            int row = matchesRef ? 0 : 1;
+            int column = isFW ? 0 : 1;
+
+            table[row][column] += representativeCount;
+        }
     }
 }
