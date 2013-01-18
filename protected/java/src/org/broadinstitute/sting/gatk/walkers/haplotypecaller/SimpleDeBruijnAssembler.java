@@ -338,7 +338,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         for( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph : graphs ) {
             for ( final KBestPaths.Path path : KBestPaths.getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
 
-                final Haplotype h = new Haplotype( path.getBases( graph ), path.getScore() );
+                final Haplotype h = new Haplotype( path.getBases( graph ) );
                 if( addHaplotype( h, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, false ) ) {
 
                     // for GGA mode, add the desired allele into the haplotype if it isn't already present

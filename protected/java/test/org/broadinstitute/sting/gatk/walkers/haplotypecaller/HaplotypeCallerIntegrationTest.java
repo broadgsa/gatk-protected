@@ -50,6 +50,7 @@ import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 public class HaplotypeCallerIntegrationTest extends WalkerTest {
     final static String REF = b37KGReference;
@@ -73,6 +74,11 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerSingleSample() {
         HCTest(NA12878_BAM, "", "a2c63f6e6e51a01019bdbd23125bdb15");
+    }
+
+    @Test(enabled = false)
+    public void testHaplotypeCallerSingleSampleWithDbsnp() {
+        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "");
     }
 
     @Test
@@ -151,6 +157,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         executeTest("HCTestStructuralIndels: ", spec);
     }
 
+    @Test
+    public void HCTestDoesNotFailOnBadRefBase() {
+        // don't care about the output - just want to make sure it doesn't fail
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o /dev/null -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2 -stand_emit_conf 2";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Collections.<String>emptyList());
+        executeTest("HCTestDoesNotFailOnBadRefBase: ", spec);
+    }
+
     // --------------------------------------------------------------------------------------------------------------
     //
     // testing reduced reads
@@ -163,5 +177,13 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
                 Arrays.asList("8a400b0c46f41447fcc35a907e34f384"));
         executeTest("HC calling on a ReducedRead BAM", spec);
+    }
+
+    @Test
+    public void testReducedBamWithReadsNotFullySpanningDeletion() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
+                Arrays.asList("4e8121dd9dc90478f237bd6ae4d19920"));
+        executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
     }
 }
