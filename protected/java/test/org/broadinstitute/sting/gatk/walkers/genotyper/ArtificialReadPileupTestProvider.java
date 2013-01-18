@@ -51,6 +51,7 @@ import net.sf.samtools.SAMReadGroupRecord;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.utils.locusiterator.LocusIteratorByState;
 import org.broadinstitute.variant.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
@@ -214,8 +215,7 @@ public class ArtificialReadPileupTestProvider {
             read.setReadNegativeStrandFlag(false);
             read.setReadGroup(sampleRG(sample));
 
-
-            pileupElements.add(new PileupElement(read,readOffset,false,isBeforeDeletion, false, isBeforeInsertion,false,false,altBases,Math.abs(eventLength)));
+            pileupElements.add(LocusIteratorByState.createPileupForReadAndOffset(read, readOffset));
         }
 
         return pileupElements;

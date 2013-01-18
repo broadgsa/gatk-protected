@@ -57,6 +57,8 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
 import org.broadinstitute.sting.gatk.walkers.TreeReducible;
 import org.broadinstitute.sting.utils.SampleUtils;
+import org.broadinstitute.sting.utils.interval.IntervalMergingRule;
+import org.broadinstitute.sting.utils.interval.IntervalSetRule;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.variant.vcf.*;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
@@ -180,17 +182,46 @@ public class SelectHeaders extends RodWalker<Integer, Integer> implements TreeRe
         headerLines = new LinkedHashSet<VCFHeaderLine>(getSelectedHeaders(headerLines));
 
         // Optionally add in the intervals.
-        if (includeIntervals && getToolkit().getArguments().intervals != null) {
-            for (IntervalBinding<Feature> intervalBinding : getToolkit().getArguments().intervals) {
-                String source = intervalBinding.getSource();
-                if (source == null)
-                    continue;
-                File file = new File(source);
-                if (file.exists()) {
-                    headerLines.add(new VCFHeaderLine(VCFHeader.INTERVALS_KEY, FilenameUtils.getBaseName(file.getName())));
-                } else {
-                    headerLines.add(new VCFHeaderLine(VCFHeader.INTERVALS_KEY, source));
+        if (includeIntervals) {
+            IntervalArgumentCollection intervalArguments = getToolkit().getArguments().intervalArguments;
+            if (intervalArguments.intervals != null) {
+                for (IntervalBinding<Feature> intervalBinding : intervalArguments.intervals) {
+                    String source = intervalBinding.getSource();
+                    if (source == null)
+                        continue;
+                    File file = new File(source);
+                    if (file.exists()) {
+                        headerLines.add(new VCFHeaderLine(VCFHeader.INTERVALS_KEY, FilenameUtils.getBaseName(file.getName())));
+                    } else {
+                        headerLines.add(new VCFHeaderLine(VCFHeader.INTERVALS_KEY, source));
+                    }
                 }
+            }
+
+            if (intervalArguments.excludeIntervals != null) {
+                for (IntervalBinding<Feature> intervalBinding : intervalArguments.excludeIntervals) {
+                    String source = intervalBinding.getSource();
+                    if (source == null)
+                        continue;
+                    File file = new File(source);
+                    if (file.exists()) {
+                        headerLines.add(new VCFHeaderLine(VCFHeader.EXCLUDE_INTERVALS_KEY, FilenameUtils.getBaseName(file.getName())));
+                    } else {
+                        headerLines.add(new VCFHeaderLine(VCFHeader.EXCLUDE_INTERVALS_KEY, source));
+                    }
+                }
+            }
+
+            if (intervalArguments.intervalMerging != IntervalMergingRule.ALL) {
+                headerLines.add(new VCFHeaderLine(VCFHeader.INTERVAL_MERGING_KEY, String.valueOf(intervalArguments.intervalMerging)));
+            }
+
+            if (intervalArguments.intervalSetRule != IntervalSetRule.UNION) {
+                headerLines.add(new VCFHeaderLine(VCFHeader.INTERVAL_SET_RULE_KEY, String.valueOf(intervalArguments.intervalSetRule)));
+            }
+
+            if (intervalArguments.intervalPadding != 0) {
+                headerLines.add(new VCFHeaderLine(VCFHeader.INTERVAL_PADDING_KEY, String.valueOf(intervalArguments.intervalPadding)));
             }
         }
 

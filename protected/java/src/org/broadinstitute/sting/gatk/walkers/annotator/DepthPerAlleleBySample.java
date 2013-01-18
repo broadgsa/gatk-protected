@@ -144,7 +144,7 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
                 continue; // read is non-informative
             if (!vc.getAlleles().contains(a))
                 continue; // sanity check - shouldn't be needed
-            alleleCounts.put(a, alleleCounts.get(a) + (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinate(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1));
+            alleleCounts.put(a, alleleCounts.get(a) + (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1));
         }
         final int[] counts = new int[alleleCounts.size()];
         counts[0] = alleleCounts.get(vc.getReference());

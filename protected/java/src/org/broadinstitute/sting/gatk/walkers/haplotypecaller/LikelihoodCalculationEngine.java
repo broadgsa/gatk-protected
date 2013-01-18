@@ -124,9 +124,14 @@ public class LikelihoodCalculationEngine {
     }
 
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final ArrayList<Haplotype> haplotypes, final ArrayList<GATKSAMRecord> reads) {
+        // first, a little set up to get copies of the Haplotypes that are Alleles (more efficient than creating them each time)
+        final int numHaplotypes = haplotypes.size();
+        final Map<Haplotype, Allele> alleleVersions = new HashMap<Haplotype, Allele>(numHaplotypes);
+        for ( final Haplotype haplotype : haplotypes ) {
+            alleleVersions.put(haplotype, Allele.create(haplotype.getBases()));
+        }
 
         final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
-        final int numHaplotypes = haplotypes.size();
         for( final GATKSAMRecord read : reads ) {
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
@@ -138,20 +143,17 @@ public class LikelihoodCalculationEngine {
                 readQuals[kkk] = ( readQuals[kkk] > (byte) read.getMappingQuality() ? (byte) read.getMappingQuality() : readQuals[kkk] ); // cap base quality by mapping quality
                 //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
                 //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
+                // TODO -- why is Q18 hard-coded here???
                 readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
             }
 
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
                 final Haplotype haplotype = haplotypes.get(jjj);
 
-                // TODO -- need to test against a reference/position with non-standard bases
-                //if ( !Allele.acceptableAlleleBases(haplotype.getBases(), false) )
-                //    continue;
-
                 final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : computeFirstDifferingPosition(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
                 previousHaplotypeSeen = haplotype;
 
-                perReadAlleleLikelihoodMap.add(read, Allele.create(haplotype.getBases()),
+                perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype),
                         pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(), read.getReadBases(),
                                 readQuals, readInsQuals, readDelQuals, overallGCP, haplotypeStart, jjj == 0));
             }

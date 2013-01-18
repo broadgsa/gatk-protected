@@ -272,22 +272,7 @@ public class ConcordanceMetrics {
 
         @Requires({"evalVC != null","truthVC != null"})
         private SiteConcordanceType getMatchType(VariantContext evalVC, VariantContext truthVC) {
-            if ( evalVC.isMonomorphicInSamples() )
-                return SiteConcordanceType.TRUTH_ONLY;
-            if ( truthVC.isMonomorphicInSamples() )
-                return SiteConcordanceType.EVAL_ONLY;
-
-            boolean evalSusbsetTruth = VariantContextUtils.allelesAreSubset(evalVC,truthVC);
-            boolean truthSubsetEval = VariantContextUtils.allelesAreSubset(truthVC,evalVC);
-
-            if ( evalSusbsetTruth && truthSubsetEval )
-                return SiteConcordanceType.ALLELES_MATCH;
-            else if ( evalSusbsetTruth )
-                return SiteConcordanceType.EVAL_SUBSET_TRUTH;
-            else if ( truthSubsetEval )
-                return SiteConcordanceType.EVAL_SUPERSET_TRUTH;
-
-            return SiteConcordanceType.ALLELES_DO_NOT_MATCH;
+            return SiteConcordanceType.getConcordanceType(evalVC,truthVC);
         }
 
         public int[] getSiteConcordance() {
@@ -305,6 +290,27 @@ public class ConcordanceMetrics {
         EVAL_SUBSET_TRUTH,
         ALLELES_DO_NOT_MATCH,
         EVAL_ONLY,
-        TRUTH_ONLY
+        TRUTH_ONLY;
+
+        public static SiteConcordanceType getConcordanceType(VariantContext eval, VariantContext truth) {
+            if ( eval.isMonomorphicInSamples() )
+                return TRUTH_ONLY;
+            if ( truth.isMonomorphicInSamples() )
+                return EVAL_ONLY;
+
+            boolean evalSubsetTruth = VariantContextUtils.allelesAreSubset(eval,truth);
+            boolean truthSubsetEval = VariantContextUtils.allelesAreSubset(eval,truth);
+
+            if ( evalSubsetTruth && truthSubsetEval )
+                return ALLELES_MATCH;
+
+            if ( evalSubsetTruth )
+                return EVAL_SUBSET_TRUTH;
+
+            if ( truthSubsetEval )
+                return EVAL_SUPERSET_TRUTH;
+
+            return ALLELES_DO_NOT_MATCH;
+        }
     }
 }

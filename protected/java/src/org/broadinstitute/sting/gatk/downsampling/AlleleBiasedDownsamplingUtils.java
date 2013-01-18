@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.downsampling;
 
 import net.sf.samtools.SAMReadGroupRecord;
-import net.sf.samtools.SAMRecord;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.pileup.*;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -78,30 +77,15 @@ public class AlleleBiasedDownsamplingUtils {
         for ( int i = 0; i < 4; i++ )
             alleleStratifiedElements[i] = new ArrayList<PileupElement>();
 
-        // keep all of the reduced reads
-        final ArrayList<PileupElement> reducedReadPileups = new ArrayList<PileupElement>();
-
         // start by stratifying the reads by the alleles they represent at this position
-        for( final PileupElement pe : pileup ) {
+        for ( final PileupElement pe : pileup ) {
             // we do not want to remove a reduced read
-            if ( pe.getRead().isReducedRead() )
-                reducedReadPileups.add(pe);
-
-            final int baseIndex = BaseUtils.simpleBaseToBaseIndex(pe.getBase());
-            if ( baseIndex != -1 )
-                alleleStratifiedElements[baseIndex].add(pe);
-        }
-
-        // Unfortunately, we need to maintain the original pileup ordering of reads or FragmentUtils will complain later.
-        int numReadsToRemove = (int)(pileup.getNumberOfElements() * downsamplingFraction); // floor
-        final TreeSet<PileupElement> elementsToKeep = new TreeSet<PileupElement>(new Comparator<PileupElement>() {
-            @Override
-            public int compare(PileupElement element1, PileupElement element2) {
-                final int difference = element1.getRead().getAlignmentStart() - element2.getRead().getAlignmentStart();
-                return difference != 0 ? difference : element1.getRead().getReadName().compareTo(element2.getRead().getReadName());
+            if ( !pe.getRead().isReducedRead() ) {
+                final int baseIndex = BaseUtils.simpleBaseToBaseIndex(pe.getBase());
+                if ( baseIndex != -1 )
+                    alleleStratifiedElements[baseIndex].add(pe);
             }
-        });
-        elementsToKeep.addAll(reducedReadPileups);
+        }
 
         // make a listing of allele counts
         final int[] alleleCounts = new int[4];
@@ -109,22 +93,30 @@ public class AlleleBiasedDownsamplingUtils {
             alleleCounts[i] = alleleStratifiedElements[i].size();
 
         // do smart down-sampling
+        int numReadsToRemove = (int)(pileup.getNumberOfElements() * downsamplingFraction); // floor
         final int[] targetAlleleCounts = runSmartDownsampling(alleleCounts, numReadsToRemove);
 
+        final HashSet<PileupElement> readsToRemove = new HashSet<PileupElement>(numReadsToRemove);
         for ( int i = 0; i < 4; i++ ) {
             final ArrayList<PileupElement> alleleList = alleleStratifiedElements[i];
-            // if we don't need to remove any reads, keep them all
-            if ( alleleList.size() <= targetAlleleCounts[i] )
-                elementsToKeep.addAll(alleleList);
-            else
-                elementsToKeep.addAll(downsampleElements(alleleList, alleleList.size() - targetAlleleCounts[i], log));
+            // if we don't need to remove any reads, then don't
+            if ( alleleList.size() > targetAlleleCounts[i] )
+                readsToRemove.addAll(downsampleElements(alleleList, alleleList.size() - targetAlleleCounts[i], log));
         }
 
         // clean up pointers so memory can be garbage collected if needed
         for ( int i = 0; i < 4; i++ )
             alleleStratifiedElements[i].clear();
 
-        return new ReadBackedPileupImpl(pileup.getLocation(), new ArrayList<PileupElement>(elementsToKeep));
+        // we need to keep the reads sorted because the FragmentUtils code will expect them in coordinate order and will fail otherwise
+        final List<PileupElement> readsToKeep = new ArrayList<PileupElement>(pileup.getNumberOfElements() - numReadsToRemove);
+        for ( final PileupElement pe : pileup ) {
+            if ( !readsToRemove.contains(pe) ) {
+                readsToKeep.add(pe);
+            }
+        }
+
+        return new ReadBackedPileupImpl(pileup.getLocation(), new ArrayList<PileupElement>(readsToKeep));
     }
 
     private static int scoreAlleleCounts(final int[] alleleCounts) {
@@ -188,37 +180,43 @@ public class AlleleBiasedDownsamplingUtils {
     }
 
     /**
-     * Performs allele biased down-sampling on a pileup and computes the list of elements to keep
+     * Performs allele biased down-sampling on a pileup and computes the list of elements to remove
      *
      * @param elements                  original list of records
      * @param numElementsToRemove       the number of records to remove
      * @param log                       logging output
-     * @return the list of pileup elements TO KEEP
+     * @return the list of pileup elements TO REMOVE
      */
-    private static List<PileupElement> downsampleElements(final ArrayList<PileupElement> elements, final int numElementsToRemove, final PrintStream log) {
-        if ( numElementsToRemove == 0 )
-            return elements;
+    private static <T> List<T> downsampleElements(final List<T> elements, final int numElementsToRemove, final PrintStream log) {
+        ArrayList<T> elementsToRemove = new ArrayList<T>(numElementsToRemove);
 
+        // are there no elements to remove?
+        if ( numElementsToRemove == 0 )
+            return elementsToRemove;
+
+        // should we remove all of the elements?
         final int pileupSize = elements.size();
         if ( numElementsToRemove == pileupSize ) {
             logAllElements(elements, log);
-            return new ArrayList<PileupElement>(0);
+            elementsToRemove.addAll(elements);
+            return elementsToRemove;
         }
 
+        // create a bitset describing which elements to remove
         final BitSet itemsToRemove = new BitSet(pileupSize);
         for ( Integer selectedIndex : MathUtils.sampleIndicesWithoutReplacement(pileupSize, numElementsToRemove) ) {
             itemsToRemove.set(selectedIndex);
         }
 
-        ArrayList<PileupElement> elementsToKeep = new ArrayList<PileupElement>(pileupSize - numElementsToRemove);
         for ( int i = 0; i < pileupSize; i++ ) {
-            if ( itemsToRemove.get(i) )
-                logRead(elements.get(i).getRead(), log);
-            else
-                elementsToKeep.add(elements.get(i));
+            if ( itemsToRemove.get(i) ) {
+                final T element = elements.get(i);
+                logElement(element, log);
+                elementsToRemove.add(element);
+            }
         }
 
-        return elementsToKeep;
+        return elementsToRemove;
     }
 
     /**
@@ -252,65 +250,30 @@ public class AlleleBiasedDownsamplingUtils {
             final List<GATKSAMRecord> alleleBin = alleleReadMap.get(alleles.get(i));
 
             if ( alleleBin.size() > targetAlleleCounts[i] ) {
-                readsToRemove.addAll(downsampleReads(alleleBin, alleleBin.size() - targetAlleleCounts[i], log));
+                readsToRemove.addAll(downsampleElements(alleleBin, alleleBin.size() - targetAlleleCounts[i], log));
             }
         }
 
         return readsToRemove;
     }
 
-    /**
-     * Performs allele biased down-sampling on a pileup and computes the list of elements to remove
-     *
-     * @param reads                     original list of records
-     * @param numElementsToRemove       the number of records to remove
-     * @param log                       logging output
-     * @return the list of pileup elements TO REMOVE
-     */
-    private static List<GATKSAMRecord> downsampleReads(final List<GATKSAMRecord> reads, final int numElementsToRemove, final PrintStream log) {
-        final ArrayList<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>(numElementsToRemove);
-
-        if ( numElementsToRemove == 0 )
-            return readsToRemove;
-
-        final int pileupSize = reads.size();
-        if ( numElementsToRemove == pileupSize ) {
-            logAllReads(reads, log);
-            return reads;
-        }
-
-        final BitSet itemsToRemove = new BitSet(pileupSize);
-        for ( Integer selectedIndex : MathUtils.sampleIndicesWithoutReplacement(pileupSize, numElementsToRemove) ) {
-            itemsToRemove.set(selectedIndex);
-        }
-
-        for ( int i = 0; i < pileupSize; i++ ) {
-            if ( itemsToRemove.get(i) ) {
-                final GATKSAMRecord read = reads.get(i);
-                readsToRemove.add(read);
-                logRead(read, log);
+    private static <T> void logAllElements(final List<T> elements, final PrintStream log) {
+        if ( log != null ) {
+            for ( final T obj : elements ) {
+                logElement(obj, log);
             }
         }
-
-        return readsToRemove;
     }
 
-    private static void logAllElements(final List<PileupElement> elements, final PrintStream log) {
+    private static <T> void logElement(final T obj, final PrintStream log) {
         if ( log != null ) {
-            for ( final PileupElement p : elements )
-                logRead(p.getRead(), log);
-        }
-    }
 
-    private static void logAllReads(final List<GATKSAMRecord> reads, final PrintStream log) {
-        if ( log != null ) {
-            for ( final GATKSAMRecord read : reads )
-                logRead(read, log);
-        }
-    }
+            final GATKSAMRecord read;
+            if ( obj instanceof PileupElement )
+                read = ((PileupElement)obj).getRead();
+            else
+                read = (GATKSAMRecord)obj;
 
-    private static void logRead(final SAMRecord read, final PrintStream log) {
-        if ( log != null ) {
             final SAMReadGroupRecord readGroup = read.getReadGroup();
             log.println(String.format("%s\t%s\t%s\t%s", read.getReadName(), readGroup.getSample(), readGroup.getLibrary(), readGroup.getPlatformUnit()));
         }

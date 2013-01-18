@@ -50,6 +50,7 @@ import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 public class HaplotypeCallerIntegrationTest extends WalkerTest {
     final static String REF = b37KGReference;
@@ -67,7 +68,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "35c8425b44429ac7468c2cd26f8f5a42");
+        HCTest(CEUTRIO_BAM, "", "b8f7b741445ce6b6ea491c794ce75c17");
     }
 
     @Test
@@ -75,11 +76,33 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTest(NA12878_BAM, "", "a2c63f6e6e51a01019bdbd23125bdb15");
     }
 
-    // TODO -- add more tests for GGA mode, especially with input alleles that are complex variants and/or not trimmed
+    @Test(enabled = false)
+    public void testHaplotypeCallerSingleSampleWithDbsnp() {
+        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "");
+    }
+
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "d918d25b22a551cae5d70ea30d7feed1");
+                "c679ae7f04bdfda896b5c046d35e043c");
+    }
+
+    private void HCTestComplexGGA(String bam, String args, String md5) {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleGGAComplex() {
+        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
+                "8730a9ebaeecae913dca2fb5a0d4e946");
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
+        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
+                "d590c8d6d5e58d685401b65a23846893");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -115,10 +138,15 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "29f1125df5ab27cc937a144ae08ac735");
     }
 
+    // That problem bam came from a user on the forum and it spotted a problem where the ReadClipper
+    // was modifying the GATKSamRecord and that was screwing up the traversal engine from map call to
+    // map call. So the test is there for consistency but not for correctness. I'm not sure we can trust
+    // any of the calls in that region because it is so messy. The only thing I would maybe be worried about is
+    // that the three calls that are missing happen to all be the left most calls in the region
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("2e8e6313228b0387008437feae7f5469"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("31db0a2d9eb07f86e0a89f0d97169072"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
@@ -127,6 +155,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("add0f4f51969b7caeea99005a7ba1aa4"));
         executeTest("HCTestStructuralIndels: ", spec);
+    }
+
+    @Test
+    public void HCTestDoesNotFailOnBadRefBase() {
+        // don't care about the output - just want to make sure it doesn't fail
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o /dev/null -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2 -stand_emit_conf 2";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Collections.<String>emptyList());
+        executeTest("HCTestDoesNotFailOnBadRefBase: ", spec);
     }
 
     // --------------------------------------------------------------------------------------------------------------
@@ -141,5 +177,13 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
                 Arrays.asList("8a400b0c46f41447fcc35a907e34f384"));
         executeTest("HC calling on a ReducedRead BAM", spec);
+    }
+
+    @Test
+    public void testReducedBamWithReadsNotFullySpanningDeletion() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
+                Arrays.asList("4e8121dd9dc90478f237bd6ae4d19920"));
+        executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
     }
 }

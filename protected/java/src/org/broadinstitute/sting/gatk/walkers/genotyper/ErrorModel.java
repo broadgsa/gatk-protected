@@ -214,7 +214,7 @@ public class ErrorModel  {
         if (DEBUG)
             System.out.format("PE: base:%s isNextToDel:%b isNextToIns:%b eventBases:%s eventLength:%d Allele:%s RefAllele:%s\n",
                 pileupElement.getBase(), pileupElement.isBeforeDeletionStart(),
-                pileupElement.isBeforeInsertion(),pileupElement.getEventBases(),pileupElement.getEventLength(), allele.toString(), refAllele.toString());
+                pileupElement.isBeforeInsertion(),pileupElement.getBasesOfImmediatelyFollowingInsertion(),pileupElement.getLengthOfImmediatelyFollowingIndel(), allele.toString(), refAllele.toString());
 
         //pileupElement.
         // if test allele is ref, any base mismatch, or any insertion/deletion at start of pileup count as mismatch
@@ -238,11 +238,11 @@ public class ErrorModel  {
         // for non-ref alleles,
         byte[] alleleBases = allele.getBases();
         int eventLength = alleleBases.length - refAllele.getBases().length;
-        if (eventLength < 0 && pileupElement.isBeforeDeletionStart() && pileupElement.getEventLength() == -eventLength)
+        if (eventLength < 0 && pileupElement.isBeforeDeletionStart() && pileupElement.getLengthOfImmediatelyFollowingIndel() == -eventLength)
             return true;
 
                 if (eventLength > 0 && pileupElement.isBeforeInsertion() &&
-                Arrays.equals(pileupElement.getEventBases().getBytes(),Arrays.copyOfRange(alleleBases,1,alleleBases.length))) // allele contains ref byte, but pileupElement's event bases doesn't
+                Arrays.equals(pileupElement.getBasesOfImmediatelyFollowingInsertion().getBytes(),Arrays.copyOfRange(alleleBases,1,alleleBases.length))) // allele contains ref byte, but pileupElement's event bases doesn't
             return true;
 
         return false;

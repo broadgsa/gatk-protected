@@ -938,7 +938,7 @@ public class DepthOfCoverage extends LocusWalker<Map<DoCOutputType.Partition,Map
         int nbases = 0;
         for ( byte b : BaseUtils.EXTENDED_BASES ) {
             nbases++;
-            if ( includeDeletions || b != BaseUtils.D ) {
+            if ( includeDeletions || b != BaseUtils.Base.D.base ) {
                 s.append((char)b);
                 s.append(":");
                 s.append(counts[BaseUtils.extendedBaseToBaseIndex(b)]);

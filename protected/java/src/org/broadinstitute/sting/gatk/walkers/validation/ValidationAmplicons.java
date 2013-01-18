@@ -376,7 +376,7 @@ public class ValidationAmplicons extends RodWalker<Integer,Integer> {
                 if ( lowerCaseSNPs ) {
                     sequence.append(Character.toLowerCase((char) ref.getBase()));
                 } else {
-                    sequence.append((char) BaseUtils.N);
+                    sequence.append((char) BaseUtils.Base.N.base);
                 }
 
                 rawSequence.append(Character.toUpperCase((char) ref.getBase()));
