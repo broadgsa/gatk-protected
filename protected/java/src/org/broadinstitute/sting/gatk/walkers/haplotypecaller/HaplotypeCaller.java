@@ -508,12 +508,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             for ( Haplotype haplotype : haplotypes )
                 writeHaplotype(haplotype, paddedRefLoc, bestHaplotypes.contains(haplotype));
 
+            // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
+            final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<Allele, Haplotype>(haplotypes.size());
+            for ( final Haplotype haplotype : haplotypes )
+                alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
+
             // next, output the interesting reads for each sample aligned against the appropriate haplotype
             for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
                 for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
                     final Allele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
                     if ( bestAllele != Allele.NO_CALL )
-                        writeReadAgainstHaplotype(entry.getKey(), (Haplotype) bestAllele, paddedRefLoc.getStart());
+                        writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele), paddedRefLoc.getStart());
                 }
             }
         }
