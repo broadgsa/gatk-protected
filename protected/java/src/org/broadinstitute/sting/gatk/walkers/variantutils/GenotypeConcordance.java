@@ -94,9 +94,8 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
     private List<VariantContextUtils.JexlVCMatchExp> evalJexls = null;
     private List<VariantContextUtils.JexlVCMatchExp> compJexls = null;
 
-    // todo -- table with "proportion of overlapping sites" (not just eval/comp margins)
-    // todo -- moltenize
-
+    // todo -- table with "proportion of overlapping sites" (not just eval/comp margins) [e.g. drop no-calls]
+    //  (this will break all the integration tests of course, due to new formatting)
 
     public void initialize() {
         evalJexls = initializeJexl(genotypeFilterExpressionsEval);
@@ -201,7 +200,7 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
             }
             if ( pairedComp != null ) {
                 compList.remove(pairedComp);
-                resolvedPairs.add(new Pair<VariantContext, VariantContext>(eval,pairedComp));
+                resolvedPairs.add(new Pair<VariantContext, VariantContext>(filterGenotypes(eval,ignoreFilters,evalJexls),filterGenotypes(pairedComp,ignoreFilters,compJexls)));
                 pairedEval.add(eval);
                 if ( compList.size() < 1 )
                     break;
@@ -209,11 +208,11 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
         }
         evalList.removeAll(pairedEval);
         for ( VariantContext unpairedEval : evalList ) {
-            resolvedPairs.add(new Pair<VariantContext, VariantContext>(unpairedEval,createEmptyContext(unpairedEval,compSamples)));
+            resolvedPairs.add(new Pair<VariantContext, VariantContext>(filterGenotypes(unpairedEval,ignoreFilters,evalJexls),createEmptyContext(unpairedEval,compSamples)));
         }
 
         for ( VariantContext unpairedComp : compList ) {
-            resolvedPairs.add(new Pair<VariantContext, VariantContext>(createEmptyContext(unpairedComp,evalSamples),unpairedComp));
+            resolvedPairs.add(new Pair<VariantContext, VariantContext>(createEmptyContext(unpairedComp,evalSamples),filterGenotypes(unpairedComp,ignoreFilters,compJexls)));
         }
 
         return resolvedPairs;
@@ -233,6 +232,7 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
     }
 
     public void onTraversalDone(ConcordanceMetrics metrics) {
+        // todo -- this is over 200 lines of code just to format the output and could use some serious cleanup
         GATKReport report = new GATKReport();
         GATKReportTable concordanceCounts = new GATKReportTable("GenotypeConcordance_Counts","Per-sample concordance tables: comparison counts",2+GenotypeType.values().length*GenotypeType.values().length);
         GATKReportTable concordanceEvalProportions = new GATKReportTable("GenotypeConcordance_EvalProportions", "Per-sample concordance tables: proportions of genotypes called in eval",2+GenotypeType.values().length*GenotypeType.values().length);
@@ -460,9 +460,6 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
     }
 
     public VariantContext filterGenotypes(VariantContext context, boolean ignoreSiteFilter, List<VariantContextUtils.JexlVCMatchExp> exps) {
-        // placeholder method for genotype-level filtering. However if the site itself is filtered,
-        // and such filters are not ignored, the genotype-level data should be altered to reflect this
-
         if ( ! context.isFiltered() || ignoreSiteFilter ) {
             List<Genotype> filteredGenotypes = new ArrayList<Genotype>(context.getNSamples());
             for ( Genotype g : context.getGenotypes() ) {

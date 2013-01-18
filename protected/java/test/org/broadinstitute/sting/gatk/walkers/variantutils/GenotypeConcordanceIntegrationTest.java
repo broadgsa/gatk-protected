@@ -62,6 +62,17 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testNonoverlappingSamplesMoltenized() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("GenotypeConcordanceNonOverlapTest_Eval.vcf", "GenotypeConcordanceNonOverlapTest_Comp.vcf"),
+                0,
+                Arrays.asList("")
+        );
+
+        executeTest("Test moltenized output",spec);
+    }
+
+    @Test
     public void testMultipleRecordsPerSite() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("GenotypeConcordance.multipleRecordsTest1.eval.vcf","GenotypeConcordance.multipleRecordsTest1.comp.vcf"),
@@ -70,5 +81,38 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         );
 
         executeTest("test multiple records per site",spec);
+    }
+
+    @Test
+    public void testGQFilteringEval() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfe 'GQ<30'",
+                0,
+                Arrays.asList("b7b495ccfa6d50a6be3e095d3f6d3c52")
+        );
+
+        executeTest("Test filtering on the EVAL rod",spec);
+    }
+
+    @Test
+    public void testFloatFilteringComp() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfc 'LX<0.50'",
+                0,
+                Arrays.asList("6406b16cde7960b8943edf594303afd6")
+        );
+
+        executeTest("Test filtering on the COMP rod", spec);
+    }
+
+    @Test
+    public void testCombinedFilters() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfc 'LX<0.52' -gfe 'DP<5' -gfe 'GQ<37'",
+                0,
+                Arrays.asList("26ffd06215b6177acce0ea9f35d73d31")
+        );
+
+        executeTest("Test filtering on both rods",spec);
     }
 }
