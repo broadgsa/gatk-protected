@@ -64,9 +64,9 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
     @Test
     public void testNonoverlappingSamplesMoltenized() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("GenotypeConcordanceNonOverlapTest_Eval.vcf", "GenotypeConcordanceNonOverlapTest_Comp.vcf"),
+                baseTestString("GenotypeConcordanceNonOverlapTest_Eval.vcf", "GenotypeConcordanceNonOverlapTest_Comp.vcf") + " -moltenize",
                 0,
-                Arrays.asList("")
+                Arrays.asList("370141088362d0ab7054be5249c49c11")
         );
 
         executeTest("Test moltenized output",spec);
@@ -77,7 +77,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("GenotypeConcordance.multipleRecordsTest1.eval.vcf","GenotypeConcordance.multipleRecordsTest1.comp.vcf"),
                 0,
-                Arrays.asList("fdf2cac15775c613f596c27247a76570")
+                Arrays.asList("352d59c4ac0cee5eb8ddbc9404b19ce9")
         );
 
         executeTest("test multiple records per site",spec);
