@@ -62,27 +62,75 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * A simple walker for performing genotype concordance calculations between two callsets
+ * A simple walker for performing genotype concordance calculations between two callsets. Outputs a GATK table with
+ * per-sample and aggregate counts and frequencies, a summary table for NRD/NRS, and a table for site allele overlaps.
+ *
+ * <p>
+ *  Genotype concordance takes in two callsets (vcfs) and tabulates the number of sites which overlap and share alleles,
+ *  and for each sample, the genotype-by-genotype counts (for instance, the number of sites at which a sample was
+ *  called homozygous reference in the EVAL callset, but homozygous variant in the COMP callset). It outputs these
+ *  counts as well as convenient proportions (such as the proportion of het calls in the EVAL which were called REF in
+ *  the COMP) and metrics (such as NRD and NRS).
+ *
+ *  <h2> INPUT </h2>
+ *  <p>
+ *  Genotype concordance requires two callsets (as it does a comparison): an EVAL and a COMP callset, specified via
+ *  the -eval and -comp arguments
+ *  <p>
+ *  (Optional) Jexl expressions for genotype-level filtering of EVAL or COMP genotypes, specified via the -gfe and
+ *  -cfe arguments, respectively.
+ *
+ *  <h2> OUTPUT </h2>
+ *  Genotype Concordance writes a GATK report to the specified (via -o) file, consisting of multiple tables of counts
+ *  and proportions. These tables may be optionally moltenized via the -moltenize argument.
+ *
  */
 public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,VariantContext>>,ConcordanceMetrics> {
 
+    /**
+     * The callset you want to evaluate, typically this is where you'd put 'unassessed' callsets.
+     */
     @Input(fullName="eval",shortName="eval",doc="The variants and genotypes to evaluate",required=true)
     RodBinding<VariantContext> evalBinding;
 
+    /**
+     * The callset you want to treat as 'truth'. Can also be of unknown quality for the sake of callset comparisons.
+     */
     @Input(fullName="comp",shortName="comp",doc="The variants and genotypes to compare against",required=true)
     RodBinding<VariantContext> compBinding;
 
+    /**
+     * The FILTER field of the eval and comp VCFs will be ignored. If this flag is not included, all FILTER sites will
+     * be treated as not being present in the VCF. (That is, the genotypes will be assigned UNAVAILABLE, as distinct
+     * from NO_CALL).
+     */
     @Argument(fullName="ignoreFilters",doc="Filters will be ignored",required=false)
     boolean ignoreFilters = false;
 
+    /**
+     * A genotype level JEXL expression to apply to eval genotypes. Genotypes filtered in this way will be replaced by NO_CALL.
+     * For instance: -gfe 'GQ<20' will set to no-call any genotype with genotype quality less than 20.
+     */
     @Argument(shortName="gfe", fullName="genotypeFilterExpressionEval", doc="One or more criteria to use to set EVAL genotypes to no-call. "+
             "These genotype-level filters are only applied to the EVAL rod.", required=false)
     public ArrayList<String> genotypeFilterExpressionsEval = new ArrayList<String>();
 
+    /**
+     * Identical to -gfe except the filter is applied to genotypes in the comp rod.
+     */
     @Argument(shortName="gfc", fullName="genotypeFilterExpressionComp", doc="One or more criteria to use to set COMP genotypes to no-call. "+
             "These genotype-level filters are only applied to the COMP rod.", required=false)
     public ArrayList<String> genotypeFilterExpressionsComp = new ArrayList<String>();
 
+    /**
+     * Moltenize the count and proportion tables. Rather than moltenizing per-sample data into a 2x2 table, it is fully
+     * moltenized into elements. That is, WITHOUT this argument, each row of the table begins with the sample name and
+     * proceeds directly with counts/proportions of eval/comp counts (for instance HOM_REF/HOM_REF, HOM_REF/NO_CALL).
+     *
+     * If the Moltenize argument is given, the output will begin with a sample name, followed by the contrastive genotype
+     * type (such as HOM_REF/HOM_REF), followed by the count or proportion. This will significantly increase the number of
+     * rows.
+     */
     @Argument(shortName="moltenize",fullName="moltenize",doc="Molten rather than tabular output")
     public boolean moltenize = false;
 
