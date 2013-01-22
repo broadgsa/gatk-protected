@@ -108,7 +108,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testMultipleSNPAlleles() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH --dbsnp " + b37dbSNP129 + " -I " + privateTestDir + "multiallelic.snps.bam -o %s -L " + privateTestDir + "multiallelic.snps.intervals", 1,
-                Arrays.asList("b41b95aaa2c453c9b75b3b29a9c2718e"));
+                Arrays.asList("35479a79e1ce7c15493bd77e58cadcaa"));
         executeTest("test Multiple SNP alleles", spec);
     }
 
@@ -238,12 +238,12 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testOutputParameterAllConfident() {
-        testOutputParameters("--output_mode EMIT_ALL_CONFIDENT_SITES", "9dbc9389db39cf9697e93e0bf529314f");
+        testOutputParameters("--output_mode EMIT_ALL_CONFIDENT_SITES", "5649f72de04e1391e0f2bb86843d3d72");
     }
 
     @Test
     public void testOutputParameterAllSites() {
-        testOutputParameters("--output_mode EMIT_ALL_SITES", "8b26088a035e579c4afd3b46737291e4");
+        testOutputParameters("--output_mode EMIT_ALL_SITES", "cb151bb9e90680b12714d481091ed209");
     }
 
     private void testOutputParameters(final String args, final String md5) {
@@ -497,13 +497,13 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("02175dc9731aed92837ce0db78489fc0"));
+                Arrays.asList("8b9a9fc2e7150acbe2dac91b4620f304"));
         executeTest("test calling on a ReducedRead BAM", spec);
     }
 
     @Test
     public void testReducedBamSNPs() {
-        testReducedCalling("SNP", "fe1af8b30b7f1a267f772b9aaf388f24");
+        testReducedCalling("SNP", "b5991dddbfb59366614ff8819062649f");
     }
 
     @Test

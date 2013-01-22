@@ -102,7 +102,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "1a034b7eb572e1b6f659d6e5d57b3e76");
+                "d590c8d6d5e58d685401b65a23846893");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -146,7 +146,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("8b1b8d1bd7feac1503fc4ffa6236cff7"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("31db0a2d9eb07f86e0a89f0d97169072"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
