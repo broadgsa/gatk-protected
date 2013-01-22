@@ -168,8 +168,9 @@ public class GenotypeConcordance extends RodWalker<List<Pair<VariantContext,Vari
      * Eval: 20   4000     A     C
      * Eval: 20   4000     A    AC
      * Comp: 20   4000     A     C
-     * So for each eval, loop through the comps. If the eval alleles (non-emptily) intersect the comp alleles, pair them up and remove
-     * that comp records. Continue until we're out of evals or comps. This is n^2, but should rarely actually happen.
+     * So for each eval, loop through the comps. If the types match, or for mixed types if eval alleles (non-emptily)
+     * intersect the comp alleles, pair them up and remove that comp records.
+     * Continue until we're out of evals or comps. This is n^2, but should rarely actually happen.
      *
      * The remaining unpaired records get paird with an empty contexts. So in the example above we'd get a list of:
      *  1 - (20,4000,A/C  |  20,4000,A/C)
