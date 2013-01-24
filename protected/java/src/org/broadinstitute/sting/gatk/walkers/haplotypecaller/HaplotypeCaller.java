@@ -131,7 +131,7 @@ import java.util.*;
 @DocumentedGATKFeature( groupName = "Variant Discovery Tools", extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.LOCUS)
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
-@ActiveRegionExtension(extension=65, maxRegion=300)
+@ActiveRegionTraversalParameters(extension=65, maxRegion=300)
 //@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=5)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
