@@ -190,7 +190,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
     }
 
     @Test(enabled=true)
-    public void testMismatchingAllele() {
+    public void testMismatchingAlleleInAlleleSubset() {
         Pair<VariantContext,VariantContext> data = getData2();
         VariantContext eval = data.getFirst();
         VariantContext truth = data.getSecond();
@@ -709,8 +709,13 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
         List<Pair<VariantContext,VariantContext>> data = getData7();
 
+        int idx = 0;
+        int[] expecNotMatch = new int[]{0,0,0,0,0,1,1};
         for ( Pair<VariantContext,VariantContext> varPair : data ) {
             metrics.update(varPair.getFirst(),varPair.getSecond());
+            Assert.assertEquals(metrics.getOverallSiteConcordance().get(ConcordanceMetrics.SiteConcordanceType.ALLELES_DO_NOT_MATCH),expecNotMatch[idx]);
+            logger.info(idx);
+            idx++;
         }
 
         Assert.assertEquals(metrics.getOverallSiteConcordance().get(ConcordanceMetrics.SiteConcordanceType.ALLELES_DO_NOT_MATCH),1);

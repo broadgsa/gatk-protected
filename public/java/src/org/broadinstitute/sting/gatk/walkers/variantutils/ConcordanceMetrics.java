@@ -299,7 +299,7 @@ public class ConcordanceMetrics {
                 return EVAL_ONLY;
 
             boolean evalSubsetTruth = VariantContextUtils.allelesAreSubset(eval,truth);
-            boolean truthSubsetEval = VariantContextUtils.allelesAreSubset(eval,truth);
+            boolean truthSubsetEval = VariantContextUtils.allelesAreSubset(truth,eval);
 
             if ( evalSubsetTruth && truthSubsetEval )
                 return ALLELES_MATCH;

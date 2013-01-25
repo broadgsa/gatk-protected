@@ -110,13 +110,6 @@ public class StandardCallerArgumentCollection {
     public int MAX_ALTERNATE_ALLELES = 6;
 
     /**
-     * Controls the model used to calculate the probability that a site is variant plus the various sample genotypes in the data at a given locus.
-     */
-    @Advanced
-    @Argument(fullName = "p_nonref_model", shortName = "pnrm", doc = "Non-reference probability calculation model to employ", required = false)
-    public AFCalcFactory.Calculation AFmodel = AFCalcFactory.Calculation.getDefaultModel();
-
-    /**
      * If this fraction is greater is than zero, the caller will aggressively attempt to remove contamination through biased down-sampling of reads.
      * Basically, it will ignore the contamination fraction of reads for each alternate allele.  So if the pileup contains N total bases, then we
      * will try to remove (N * contamination fraction) bases for each alternate allele.
@@ -124,6 +117,13 @@ public class StandardCallerArgumentCollection {
     @Argument(fullName = "contamination_fraction_to_filter", shortName = "contamination", doc = "Fraction of contamination in sequencing data (for all samples) to aggressively remove", required = false)
     public double CONTAMINATION_FRACTION = DEFAULT_CONTAMINATION_FRACTION;
     public static final double DEFAULT_CONTAMINATION_FRACTION = 0.05;
+
+    /**
+     * Controls the model used to calculate the probability that a site is variant plus the various sample genotypes in the data at a given locus.
+     */
+    @Hidden
+    @Argument(fullName = "p_nonref_model", shortName = "pnrm", doc = "Non-reference probability calculation model to employ", required = false)
+    public AFCalcFactory.Calculation AFmodel = AFCalcFactory.Calculation.getDefaultModel();
 
     @Hidden
     @Argument(fullName = "logRemovedReadsFromContaminationFiltering", shortName="contaminationLog", required=false)

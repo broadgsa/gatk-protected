@@ -335,16 +335,6 @@ public class VariantEvalIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testVEGenotypeConcordance() {
-        String vcfFile = "GenotypeConcordanceEval.vcf";
-
-        WalkerTestSpec spec = new WalkerTestSpec(cmdRoot + " -ST CpG --eval:VCF3 " + validationDataLocation + vcfFile + " --comp:VCF3 " + validationDataLocation + "GenotypeConcordanceComp.vcf -noEV -EV GenotypeConcordance -o %s",
-                1,
-                Arrays.asList("810d55b67de592f6375d9dfb282145ef"));
-        executeTestParallel("testVEGenotypeConcordance" + vcfFile, spec);
-    }
-
-    @Test
     public void testVEMendelianViolationEvaluator() {
         String vcfFile = "/MendelianViolationEval.vcf";
         String pedFile = "/MendelianViolationEval.ped";
@@ -355,12 +345,6 @@ public class VariantEvalIntegrationTest extends WalkerTest {
         executeTestParallel("testVEMendelianViolationEvaluator" + vcfFile, spec);
     }
 
-    @Test
-    public void testCompVsEvalAC() {
-        String extraArgs = "-T VariantEval -R "+b36KGReference+" -o %s -ST CpG -EV GenotypeConcordance --eval:evalYRI,VCF3 " + validationDataLocation + "yri.trio.gatk.ug.very.few.lines.vcf --comp:compYRI,VCF3 " + validationDataLocation + "yri.trio.gatk.fake.genotypes.ac.test.vcf";
-        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("659a15cc842f0310106fa595a26da71d"));
-        executeTestParallel("testCompVsEvalAC",spec);
-    }
 
     private static String withSelect(String cmd, String select, String name) {
         return String.format("%s -select '%s' -selectName %s", cmd, select, name);

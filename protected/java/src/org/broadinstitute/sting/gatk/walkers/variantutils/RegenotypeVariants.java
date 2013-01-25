@@ -46,94 +46,140 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.testng.annotations.Test;
+import org.broadinstitute.sting.commandline.*;
+import org.broadinstitute.sting.gatk.CommandLineGATK;
+import org.broadinstitute.sting.gatk.arguments.StandardVariantContextInputArgumentCollection;
+import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
+import org.broadinstitute.sting.gatk.walkers.RodWalker;
+import org.broadinstitute.sting.gatk.walkers.TreeReducible;
+import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyper;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
+import org.broadinstitute.sting.utils.SampleUtils;
+import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.variantcontext.*;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.vcf.*;
 
-import java.util.Arrays;
+import java.util.*;
 
-public class GenotypeConcordanceIntegrationTest extends WalkerTest {
+/**
+ * Regenotypes the variants from a VCF.  VCF records must contain PLs or GLs.
+ *
+ * <p>
+ * This tool triggers re-genotyping of the samples through the Exact Allele Frequency calculation model.  Note that this is truly the
+ * mathematically correct way to select samples from a larger set (especially when calls were generated from low coverage sequencing data);
+ * using the hard genotypes to select (i.e. the default mode of SelectVariants) can lead to false positives when errors are confused for
+ * variants in the original genotyping.  This functionality used to comprise the --regenotype option in SelectVariants but we pulled it out
+ * into its own tool for technical purposes.
+ *
+ * <h2>Input</h2>
+ * <p>
+ * A variant set to regenotype.
+ * </p>
+ *
+ * <h2>Output</h2>
+ * <p>
+ * A re-genotyped VCF.
+ * </p>
+ *
+ * <h2>Examples</h2>
+ * <pre>
+ * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ *   -R ref.fasta \
+ *   -T RegenotypeVariants \
+ *   --variant input.vcf \
+ *   -o output.vcf
+ * </pre>
+ *
+ */
+@DocumentedGATKFeature( groupName = "Variant Evaluation and Manipulation Tools", extraDocs = {CommandLineGATK.class} )
+public class RegenotypeVariants extends RodWalker<Integer, Integer> implements TreeReducible<Integer> {
 
-    protected static final String emptyMd5 = "d41d8cd98f00b204e9800998ecf8427e";
+    @ArgumentCollection protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
 
-    public static String baseTestString(String eval, String comp) {
-        return "-T GenotypeConcordance -R " + b37KGReference + " --eval " + validationDataLocation + eval + " --comp " + validationDataLocation + comp + " -o %s";
+    @Output(doc="File to which variants should be written",required=true)
+    protected VariantContextWriter vcfWriter = null;
+
+    private UnifiedGenotyperEngine UG_engine = null;
+
+    public void initialize() {
+        final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
+        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.BOTH;
+        UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES;
+        UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES;
+
+        String trackName = variantCollection.variants.getName();
+        Set<String> samples = SampleUtils.getSampleListWithVCFHeader(getToolkit(), Arrays.asList(trackName));
+        UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
+
+        final Set<VCFHeaderLine> hInfo = new HashSet<VCFHeaderLine>();
+        hInfo.addAll(GATKVCFUtils.getHeaderFields(getToolkit(), Arrays.asList(trackName)));
+        hInfo.addAll(UnifiedGenotyper.getHeaderInfo(UAC, null, null));
+
+        vcfWriter.writeHeader(new VCFHeader(hInfo, samples));
     }
 
-    @Test
-    public void testIndelConcordance() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("NA12878.Jan2013.haplotypeCaller.subset.indels.vcf", "NA12878.Jan2013.bestPractices.subset.indels.vcf"),
-                0,
-                Arrays.asList("0f29a0c6dc44066228c8cb204fd53ec0")
-        );
+    /**
+     * Subset VC record if necessary and emit the modified record (provided it satisfies criteria for printing)
+     *
+     * @param  tracker   the ROD tracker
+     * @param  ref       reference information
+     * @param  context   alignment info
+     * @return 1 if the record was printed to the output file, 0 if otherwise
+     */
+    @Override
+    public Integer map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
+        if ( tracker == null )
+            return 0;
 
-        executeTest("test indel concordance", spec);
-    }
-    
-    @Test
-    public void testNonoverlapingSamples() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("GenotypeConcordanceNonOverlapTest_Eval.vcf", "GenotypeConcordanceNonOverlapTest_Comp.vcf"),
-                0,
-                Arrays.asList("fc725022d47b4b5f8a6ef87f0f1ffe89")
-        );
+        Collection<VariantContext> vcs = tracker.getValues(variantCollection.variants, context.getLocation());
 
-        executeTest("test non-overlapping samples", spec);
-    }
+        if ( vcs == null || vcs.size() == 0) {
+            return 0;
+        }
 
-    @Test
-    public void testNonoverlappingSamplesMoltenized() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("GenotypeConcordanceNonOverlapTest_Eval.vcf", "GenotypeConcordanceNonOverlapTest_Comp.vcf") + " -moltenize",
-                0,
-                Arrays.asList("370141088362d0ab7054be5249c49c11")
-        );
+        for (VariantContext vc : vcs) {
 
-        executeTest("Test moltenized output",spec);
-    }
+            if ( vc.isPolymorphicInSamples() && hasPLs(vc) ) {
+                synchronized (UG_engine) {
+                    final VariantContextBuilder builder = new VariantContextBuilder(UG_engine.calculateGenotypes(vc)).filters(vc.getFiltersMaybeNull());
+                    VariantContextUtils.calculateChromosomeCounts(builder, false);
+                    vc = builder.make();
+                }
+            }
 
-    @Test
-    public void testMultipleRecordsPerSite() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("GenotypeConcordance.multipleRecordsTest1.eval.vcf","GenotypeConcordance.multipleRecordsTest1.comp.vcf"),
-                0,
-                Arrays.asList("352d59c4ac0cee5eb8ddbc9404b19ce9")
-        );
+            vcfWriter.add(vc);
+        }
 
-        executeTest("test multiple records per site",spec);
+        return 1;
     }
 
-    @Test
-    public void testGQFilteringEval() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfe 'GQ<30'",
-                0,
-                Arrays.asList("b7b495ccfa6d50a6be3e095d3f6d3c52")
-        );
-
-        executeTest("Test filtering on the EVAL rod",spec);
+    private boolean hasPLs(final VariantContext vc) {
+        for ( Genotype g : vc.getGenotypes() ) {
+            if ( g.hasLikelihoods() )
+                return true;
+        }
+        return false;
     }
 
-    @Test
-    public void testFloatFilteringComp() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfc 'LX<0.50'",
-                0,
-                Arrays.asList("6406b16cde7960b8943edf594303afd6")
-        );
+    @Override
+    public Integer reduceInit() { return 0; }
 
-        executeTest("Test filtering on the COMP rod", spec);
+    @Override
+    public Integer reduce(Integer value, Integer sum) { return value + sum; }
+
+    @Override
+    public Integer treeReduce(Integer lhs, Integer rhs) {
+        return lhs + rhs;
     }
 
-    @Test
-    public void testCombinedFilters() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfc 'LX<0.52' -gfe 'DP<5' -gfe 'GQ<37'",
-                0,
-                Arrays.asList("26ffd06215b6177acce0ea9f35d73d31")
-        );
-
-        executeTest("Test filtering on both rods",spec);
+    public void onTraversalDone(Integer result) {
+        logger.info(result + " records processed.");
     }
 }
