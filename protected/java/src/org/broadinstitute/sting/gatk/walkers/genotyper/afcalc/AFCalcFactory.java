@@ -70,7 +70,7 @@ public class AFCalcFactory {
      * the needs of the request (i.e., considering ploidy).
      */
     public enum Calculation {
-        /** expt. implementation -- for testing only */
+        /** default implementation */
         EXACT_INDEPENDENT(IndependentAllelesDiploidExactAFCalc.class, 2, -1),
 
         /** reference implementation of multi-allelic EXACT model.  Extremely slow for many alternate alleles */
