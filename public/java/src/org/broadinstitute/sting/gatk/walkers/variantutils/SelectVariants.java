@@ -56,15 +56,9 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
 import org.broadinstitute.sting.gatk.walkers.TreeReducible;
 import org.broadinstitute.sting.gatk.walkers.annotator.ChromosomeCountConstants;
-import org.broadinstitute.sting.gatk.walkers.annotator.ChromosomeCounts;
-import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyper;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.MendelianViolation;
 import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.variant.vcf.*;
 import org.broadinstitute.sting.utils.exceptions.UserException;
@@ -259,17 +253,6 @@ public class SelectVariants extends RodWalker<Integer, Integer> implements TreeR
 
     @Argument(fullName="excludeFiltered", shortName="ef", doc="Don't include filtered loci in the analysis", required=false)
     protected boolean EXCLUDE_FILTERED = false;
-
-    /**
-     * This argument triggers re-genotyping of the selected samples through the Exact calculation model.  Note that this is truly the
-     * mathematically correct way to select samples (especially when calls were generated from low coverage sequencing data); using the
-     * hard genotypes to select (i.e. the default mode of SelectVariants) can lead to false positives when errors are confused for variants
-     * in the original genotyping.  We decided not to set the --regenotype option as the default though as the output can be unexpected if
-     * a user is strictly comparing against the original genotypes (GTs) in the file.
-     */
-    @Argument(fullName="regenotype", shortName="regenotype", doc="re-genotype the selected samples based on their GLs (or PLs)", required=false)
-    protected Boolean REGENOTYPE = false;
-    private UnifiedGenotyperEngine UG_engine = null;
 
     /**
      * When this argument is used, we can choose to include only multiallelic or biallelic sites, depending on how many alleles are listed in the ALT column of a vcf.
@@ -471,15 +454,6 @@ public class SelectVariants extends RodWalker<Integer, Integer> implements TreeR
         SELECT_RANDOM_FRACTION = fractionRandom > 0;
         if (SELECT_RANDOM_FRACTION) logger.info("Selecting approximately " + 100.0*fractionRandom + "% of the variants at random from the variant track");
 
-        if ( REGENOTYPE ) {
-            final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
-            UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.BOTH;
-            UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES;
-            UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES;
-            UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
-            headerLines.addAll(UnifiedGenotyper.getHeaderInfo(UAC, null, null));
-        }
-
         /** load in the IDs file to a hashset for matching */
         if ( rsIDFile != null ) {
             IDsToKeep = new HashSet<String>();
@@ -557,14 +531,6 @@ public class SelectVariants extends RodWalker<Integer, Integer> implements TreeR
 
             VariantContext sub = subsetRecord(vc, EXCLUDE_NON_VARIANTS);
 
-            if ( REGENOTYPE && sub.isPolymorphicInSamples() && hasPLs(sub) ) {
-                synchronized (UG_engine) {
-                    final VariantContextBuilder builder = new VariantContextBuilder(UG_engine.calculateGenotypes(sub)).filters(sub.getFiltersMaybeNull());
-                    addAnnotations(builder, sub);
-                    sub = builder.make();
-                }
-            }
-            
             if ( (!EXCLUDE_NON_VARIANTS || sub.isPolymorphicInSamples()) && (!EXCLUDE_FILTERED || !sub.isFiltered()) ) {
                 boolean failedJexlMatch = false;
                 for ( VariantContextUtils.JexlVCMatchExp jexl : jexls ) {
@@ -596,19 +562,11 @@ public class SelectVariants extends RodWalker<Integer, Integer> implements TreeR
         return false;
     }
 
-    private boolean hasPLs(final VariantContext vc) {
-        for ( Genotype g : vc.getGenotypes() ) {
-            if ( g.hasLikelihoods() )
-                return true;
-        }
-        return false;
-    }
-
     /**
      * Checks if vc has a variant call for (at least one of) the samples.
      * @param vc the variant rod VariantContext. Here, the variant is the dataset you're looking for discordances to (e.g. HapMap)
      * @param compVCs the comparison VariantContext (discordance
-     * @return
+     * @return true if is discordant
      */
     private boolean isDiscordant (VariantContext vc, Collection<VariantContext> compVCs) {
         if (vc == null)
