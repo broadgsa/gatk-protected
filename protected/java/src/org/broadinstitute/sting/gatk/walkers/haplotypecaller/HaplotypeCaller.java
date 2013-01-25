@@ -398,7 +398,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             return new ActivityProfileState( ref.getLocus(), tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
         }
 
-        if( context == null ) { return new ActivityProfileState(ref.getLocus(), 0.0); }
+        if( context == null || context.getBasePileup().isEmpty() )
+            // if we don't have any data, just abort early
+            return new ActivityProfileState(ref.getLocus(), 0.0);
 
         final List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
         noCall.add(Allele.NO_CALL);
