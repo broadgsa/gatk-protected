@@ -48,14 +48,14 @@ package org.broadinstitute.sting.gatk.walkers.variantutils;
 
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.PositionalBufferedStream;
+import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.variant.vcf.*;
 import org.testng.Assert;
 
 import org.testng.annotations.Test;
 
 import java.io.StringBufferInputStream;
-import java.util.ArrayList;
-import java.util.Set;
+import java.util.*;
 
 /**
  * test out pieces of the combine variants code
@@ -75,6 +75,33 @@ public class CombineVariantsUnitTest {
                 "##FORMAT=<ID=HQ, Number=2, Type=Integer, Description=\"Haplotype quality\">\n"+
                 "##FORMAT=<ID=GQ, Number=1, Type=Integer, Description=\"Genotype quality\">\n"+
                 "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n";
+
+    public static String VCF4headerStringsWithSamplesName =
+                "##fileformat=VCFv4.0\n" +
+                "##filedate=2010-06-21\n"+
+                "##reference=NCBI36\n"+
+                "##INFO=<ID=GC, Number=0, Type=Flag, Description=\"Overlap with Gencode CCDS coding sequence\">\n"+
+                "##INFO=<ID=DP, Number=1, Type=Integer, Description=\"Total number of reads in haplotype window\">\n"+
+                "##INFO=<ID=AF, Number=1, Type=Float, Description=\"Dindel estimated population allele frequency\">\n"+
+                "##FILTER=<ID=NoQCALL, Description=\"Variant called by Dindel but not confirmed by QCALL\">\n"+
+                "##FORMAT=<ID=GT, Number=1, Type=String, Description=\"Genotype\">\n"+
+                "##FORMAT=<ID=HQ, Number=2, Type=Integer, Description=\"Haplotype quality\">\n"+
+                "##FORMAT=<ID=GQ, Number=1, Type=Integer, Description=\"Genotype quality\">\n"+
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA12878\tNA12891\n";
+
+    public static String VCF4headerStringsWithUniqueSamplesName =
+                "##fileformat=VCFv4.0\n" +
+                "##filedate=2010-06-21\n"+
+                "##reference=NCBI36\n"+
+                "##INFO=<ID=GC, Number=0, Type=Flag, Description=\"Overlap with Gencode CCDS coding sequence\">\n"+
+                "##INFO=<ID=DP, Number=1, Type=Integer, Description=\"Total number of reads in haplotype window\">\n"+
+                "##INFO=<ID=AF, Number=1, Type=Float, Description=\"Dindel estimated population allele frequency\">\n"+
+                "##FILTER=<ID=NoQCALL, Description=\"Variant called by Dindel but not confirmed by QCALL\">\n"+
+                "##FORMAT=<ID=GT, Number=1, Type=String, Description=\"Genotype\">\n"+
+                "##FORMAT=<ID=HQ, Number=2, Type=Integer, Description=\"Haplotype quality\">\n"+
+                "##FORMAT=<ID=GQ, Number=1, Type=Integer, Description=\"Genotype quality\">\n"+
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA12892\n";
+
 
     // altered info field
     public static String VCF4headerStringsBrokenInfo =
@@ -108,6 +135,26 @@ public class CombineVariantsUnitTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader head = (VCFHeader)codec.readHeader(new AsciiLineReader(new PositionalBufferedStream(new StringBufferInputStream(headerStr))));
         return head;
+    }
+
+    @Test
+    public void testHeadersWithSamplesNamesDuplicationThatIsNotAllowed() {
+        VCFHeader one = createHeader(VCF4headerStringsWithSamplesName);
+        VCFHeader two = createHeader(VCF4headerStringsWithSamplesName);
+        Map<String, VCFHeader> headers = new HashMap<String, VCFHeader>();
+        headers.put("VCF4headerStringsWithSamplesName",one);
+        headers.put("VCF4headerStringsWithSamplesName2",two);
+        Assert.assertEquals(SampleUtils.verifyUniqueSamplesNames(headers),false);
+    }
+
+    @Test
+    public void testHeadersWithoutSamplesNamesDuplication() {
+        VCFHeader one = createHeader(VCF4headerStringsWithSamplesName);
+        VCFHeader two = createHeader(VCF4headerStringsWithUniqueSamplesName);
+        Map<String, VCFHeader> headers = new HashMap<String, VCFHeader>();
+        headers.put("VCF4headerStringsWithSamplesName",one);
+        headers.put("VCF4headerStringsWithSamplesName2",two);
+        Assert.assertEquals(SampleUtils.verifyUniqueSamplesNames(headers),true);
     }
 
     @Test
