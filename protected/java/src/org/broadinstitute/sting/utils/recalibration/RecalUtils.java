@@ -310,7 +310,7 @@ public class RecalUtils {
                 if(sortByCols) {
                     reportTable = new GATKReportTable("RecalTable" + reportTableIndex++, "", columnNames.size(), GATKReportTable.TableSortingWay.SORT_BY_COLUMN);
                 } else {
-                    reportTable = new GATKReportTable("RecalTable" + reportTableIndex++, "", columnNames.size());
+                    reportTable = new GATKReportTable("RecalTable" + reportTableIndex++, "", columnNames.size(), GATKReportTable.TableSortingWay.DO_NOT_SORT);
                 }
                 for (final Pair<String, String> columnName : columnNames)
                     reportTable.addColumn(columnName.getFirst(), columnName.getSecond());
