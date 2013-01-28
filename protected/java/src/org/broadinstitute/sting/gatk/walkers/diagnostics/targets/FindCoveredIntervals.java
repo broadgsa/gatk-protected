@@ -85,7 +85,7 @@ public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
 
     @Override
     public GenomeLoc map(final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker tracker) {
-        if (activeRegion.isActive)
+        if (activeRegion.isActive())
             return activeRegion.getLocation();
         else
             return null;
