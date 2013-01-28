@@ -78,6 +78,9 @@ import org.apache.commons.math.optimization.fitting.GaussianFunction;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 
+import java.util.HashMap;
+import java.util.Map;
+
 
 /**
  * An individual piece of recalibration data. Each bin counts up the number of observations and the number
@@ -110,6 +113,11 @@ public class RecalDatum {
      * the empirical quality for datums that have been collapsed together (by read group and reported quality, for example)
      */
     private double empiricalQuality;
+
+    /**
+     * the empirical quality for datums that have been collapsed together (by read group and reported quality, for example)
+     */
+    private Map<Integer,Double> empiricalQualityMap;
 
     /**
      * number of bases seen in total
@@ -148,6 +156,7 @@ public class RecalDatum {
         numMismatches = _numMismatches;
         estimatedQReported = reportedQuality;
         empiricalQuality = UNINITIALIZED;
+        empiricalQualityMap = new HashMap<Integer, Double>();
     }
 
     /**
@@ -159,6 +168,7 @@ public class RecalDatum {
         this.numMismatches = copy.getNumMismatches();
         this.estimatedQReported = copy.estimatedQReported;
         this.empiricalQuality = copy.empiricalQuality;
+        empiricalQualityMap = copy.empiricalQualityMap;
     }
 
     /**
@@ -172,6 +182,7 @@ public class RecalDatum {
         increment(other.getNumObservations(), other.getNumMismatches());
         estimatedQReported = -10 * Math.log10(sumErrors / getNumObservations());
         empiricalQuality = UNINITIALIZED;
+        empiricalQualityMap = new HashMap<Integer, Double>();
     }
 
     public synchronized void setEstimatedQReported(final double estimatedQReported) {
@@ -315,21 +326,36 @@ public class RecalDatum {
     }
 
     /**
+     * Calculate empirical quality score from mismatches, observations, and the given conditional prior (expensive operation)
+     */
+    public double getEmpiricalQuality(final double conditionalPriorQ) {
+
+        final int priorQKey = MathUtils.fastRound(conditionalPriorQ);
+        Double returnQ = empiricalQualityMap.get(priorQKey);
+
+        if( returnQ == null ) {
+            // smoothing is one error and one non-error observation
+            final long mismatches = (long)(getNumMismatches() + 0.5) + SMOOTHING_CONSTANT;
+            final long observations = getNumObservations() + SMOOTHING_CONSTANT + SMOOTHING_CONSTANT;
+
+            final double empiricalQual = RecalDatum.bayesianEstimateOfEmpiricalQuality(observations, mismatches, conditionalPriorQ);
+
+            // This is the old and busted point estimate approach:
+            //final double empiricalQual = -10 * Math.log10(getEmpiricalErrorRate());
+
+            returnQ = Math.min(empiricalQual, (double) QualityUtils.MAX_RECALIBRATED_Q_SCORE);
+            empiricalQualityMap.put( priorQKey, returnQ );
+        }
+        return returnQ;
+    }
+
+    /**
      * Calculate and cache the empirical quality score from mismatches and observations (expensive operation)
      */
     @Requires("empiricalQuality == UNINITIALIZED")
     @Ensures("empiricalQuality != UNINITIALIZED")
     private synchronized void calcEmpiricalQuality() {
-
-        // smoothing is one error and one non-error observation
-        final long mismatches = (long)(getNumMismatches() + 0.5) + SMOOTHING_CONSTANT;
-        final long observations = getNumObservations() + SMOOTHING_CONSTANT + SMOOTHING_CONSTANT;
-
-        final double empiricalQual = RecalDatum.bayesianEstimateOfEmpiricalQuality(observations, mismatches, getEstimatedQReported());
-
-        // This is the old and busted point estimate approach:
-        //final double empiricalQual = -10 * Math.log10(getEmpiricalErrorRate());
-
+        final double empiricalQual = getEmpiricalQuality(getEstimatedQReported());
         empiricalQuality = Math.min(empiricalQual, (double) QualityUtils.MAX_RECALIBRATED_Q_SCORE);
     }
 
