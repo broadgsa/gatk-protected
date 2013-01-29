@@ -51,6 +51,7 @@ import com.google.java.contract.Requires;
 import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
 import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.utils.BaseUtils;
 import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.variant.variantcontext.VariantContextUtils;
@@ -60,10 +61,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-public class RepeatLengthCovariate implements ExperimentalCovariate {
+
+public class RepeatUnitAndLengthCovariate implements ExperimentalCovariate {
     final int MAX_REPEAT_LENGTH = 20;
-    final int MAX_STR_UNIT_LENGTH = 1; // =1 will restrict effectively to detecting homopolymer runs
-    public final boolean RECORD_REPUNIT_WITH_REPLENGTH = false;
+    final int MAX_STR_UNIT_LENGTH = 8;
+    public final boolean RECORD_REPUNIT_WITH_REPLENGTH = true;
     private final HashMap<String, Integer> repeatLookupTable = new HashMap<String, Integer>();
     private final HashMap<Integer, String> repeatReverseLookupTable = new HashMap<Integer, String>();
     private int nextId = 0;
