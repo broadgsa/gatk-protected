@@ -49,7 +49,7 @@ import com.google.java.contract.Requires;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
-import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
+import org.broadinstitute.sting.utils.recalibration.covariates.*;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -65,9 +65,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
-public class RepeatLengthCovariateUnitTest  {
+public class RepeatCovariatesUnitTest {
 
-    RepeatLengthCovariate covariate;
+    RepeatLengthCovariate rlCovariate;
+    RepeatUnitCovariate ruCovariate;
+    RepeatUnitAndLengthCovariate rurlCovariate;
     RecalibrationArgumentCollection RAC;
 
 
@@ -75,8 +77,12 @@ public class RepeatLengthCovariateUnitTest  {
     @BeforeClass
     public void init() {
         RAC = new RecalibrationArgumentCollection();
-        covariate = new RepeatLengthCovariate();
-        covariate.initialize(RAC);
+        rlCovariate = new RepeatLengthCovariate();
+        ruCovariate = new RepeatUnitCovariate();
+        rurlCovariate = new RepeatUnitAndLengthCovariate();
+        rlCovariate.initialize(RAC);
+        ruCovariate.initialize(RAC);
+        rurlCovariate.initialize(RAC);
     }
 
 
@@ -136,9 +142,9 @@ public class RepeatLengthCovariateUnitTest  {
     @Test(enabled = true)
     public void testManyObservations() {
         final int NUM_UNITS = 10;
-        final int MAX_REPEAT_UNIT_LENGTH = 6;
-        final int MAX_NUM_REPETITIONS = 5;
-        final int NUM_TEST_CASES = 1;
+        final int MAX_REPEAT_UNIT_LENGTH = RepeatCovariate.MAX_STR_UNIT_LENGTH;
+        final int MAX_NUM_REPETITIONS = RepeatCovariate.MAX_REPEAT_LENGTH;
+        final int NUM_TEST_CASES = 100;
 
         Random random = new Random();
 
@@ -161,28 +167,51 @@ public class RepeatLengthCovariateUnitTest  {
 
             }
 
-           // final String readBases = sb.toString();
-           final String readBases = "TTTTTTTTAATGGGGGAGGGAGGGAGACTTACTTACTTACTTACTTATCGGAATCGGATATATAACGGCTTTCTTCTTCCCCCCA";
+            final String readBases = sb.toString();
             System.out.println(readBases);
+            final int readLength = readBases.length();
 
-            final byte[] readQuals = new byte[readBases.length()];
+            final byte[] readQuals = new byte[readLength];
             Arrays.fill(readQuals,(byte)30);
-            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(readBases.getBytes(),readQuals,readBases.length()+"M");
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(readBases.getBytes(),readQuals,readLength+"M");
 
-            final ReadCovariates values = new ReadCovariates(read.getReadLength(),1);
-            covariate.recordValues( read, values);
-            final int fullReadKeySet[][] = values.getKeySet(EventType.BASE_SUBSTITUTION);
+            Covariate[] requestedCovariates = new Covariate[3];
+            requestedCovariates[0] = rlCovariate;
+            requestedCovariates[1] = ruCovariate;
+            requestedCovariates[2] = rurlCovariate;
+            ReadCovariates rc = RecalUtils.computeCovariates(read, requestedCovariates);
+
+            // check that the length is correct
+            Assert.assertEquals(rc.getMismatchesKeySet().length, readLength);
+            Assert.assertEquals(rc.getInsertionsKeySet().length, readLength);
+            Assert.assertEquals(rc.getDeletionsKeySet().length, readLength);
+
             for (int offset = 0; offset < readBases.length(); offset++) { // recalibrate all bases in the read
-                final int[] keySet = fullReadKeySet[offset];
-                final String val = covariate.formatKey(keySet[0]);
-                System.out.format("offset %d:%s\n", offset, val);
-//                final String repeatString = RepeatLengthCovariate.getBasesFromRUandNR(val);
-//                final String partialRead = readBases.substring(0,offset+1);
-               // Assert.assertTrue(partialRead.endsWith(repeatString));
-            }
-            //values.
-            int k=0;
+                // check RepeatLength
+                final String rlValM = rlCovariate.formatKey(rc.getMismatchesKeySet(offset)[0]);
+                final String rlValI = rlCovariate.formatKey(rc.getInsertionsKeySet(offset)[0]);
+                final String rlValD = rlCovariate.formatKey(rc.getDeletionsKeySet(offset)[0]);
+                // check RepeatUnit
+                final String ruValM = ruCovariate.formatKey(rc.getMismatchesKeySet(offset)[1]);
+                final String ruValI = ruCovariate.formatKey(rc.getInsertionsKeySet(offset)[1]);
+                final String ruValD = ruCovariate.formatKey(rc.getDeletionsKeySet(offset)[1]);
+                // check RepeatUnitAndLength
+                final String rurlValM = rurlCovariate.formatKey(rc.getMismatchesKeySet(offset)[2]);
+                final String rurlValI = rurlCovariate.formatKey(rc.getInsertionsKeySet(offset)[2]);
+                final String rurlValD = rurlCovariate.formatKey(rc.getDeletionsKeySet(offset)[2]);
+                // check all 3 values are identical
+                Assert.assertEquals(rlValD,rlValI);
+                Assert.assertEquals(rlValM,rlValI);
+                Assert.assertEquals(ruValD,ruValI);
+                Assert.assertEquals(ruValM,ruValI);
+                Assert.assertEquals(rurlValD,rurlValI);
+                Assert.assertEquals(rurlValM,rurlValI);
 
+
+                int fw = VariantContextUtils.findNumberofRepetitions(ruValM.getBytes(), readBases.substring(offset+1,readLength).getBytes(),true);
+                int bw = VariantContextUtils.findNumberofRepetitions(ruValM.getBytes(), readBases.substring(0,offset+1).getBytes(),false);
+                Assert.assertEquals(Math.min(fw+bw,RepeatCovariate.MAX_REPEAT_LENGTH),(int)Integer.valueOf(rlValM));
+            }
 
         }
 

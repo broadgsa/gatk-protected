@@ -61,8 +61,8 @@ import java.util.Map;
 import java.util.Set;
 
 public abstract class RepeatCovariate implements ExperimentalCovariate {
-    final int MAX_REPEAT_LENGTH = 20;
-    final int MAX_STR_UNIT_LENGTH = 8;
+    public static final int MAX_REPEAT_LENGTH = 20;
+    public static final int MAX_STR_UNIT_LENGTH = 8;
     private final HashMap<String, Integer> repeatLookupTable = new HashMap<String, Integer>();
     private final HashMap<Integer, String> repeatReverseLookupTable = new HashMap<Integer, String>();
     private int nextId = 0;
@@ -144,25 +144,17 @@ public abstract class RepeatCovariate implements ExperimentalCovariate {
                 bestRepeatUnit = bestFWRepeatUnit; // arbitrary
             }
             else {
-                // tandem repeat starting forward from current offset
-                maxRL = maxFW;
+                // tandem repeat starting forward from current offset.
+                // It could be the case that best BW unit was differnet from FW unit, but that BW still contains FW unit.
+                // For example, TTCTT(C) CCC - at (C) place, best BW unit is (TTC)2, best FW unit is (C)3.
+                // but correct representation at that place might be (C)4.
+                // Hence, if the FW and BW units don't match, check if BW unit can still be a part of FW unit and add
+                // representations to total
+                maxBW = VariantContextUtils.findNumberofRepetitions(bestFWRepeatUnit, Arrays.copyOfRange(readBases, 0, offset + 1), false);
+                maxRL = maxFW + maxBW;
                 bestRepeatUnit = bestFWRepeatUnit;
 
             }
-/*            if (maxFW > maxBW) {
-                // tandem repeat starting forward from current offset
-                maxRL = maxFW;
-                bestRepeatUnit = bestFWRepeatUnit;
-            }
-            else if (maxFW < maxBW) {
-                maxRL = maxBW;
-                bestRepeatUnit = bestBWRepeatUnit;
-            }        */
-           /* else {
-                // maxFW = maxBW but repeat units different: not in a tandem repeat.
-                maxRL = 1;
-                bestRepeatUnit = bestBWRepeatUnit; // arbitrary
-            }  */
 
         }
 
