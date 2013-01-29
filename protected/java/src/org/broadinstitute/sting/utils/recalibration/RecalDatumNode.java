@@ -51,7 +51,7 @@ import com.google.java.contract.Requires;
 import org.apache.commons.math.MathException;
 import org.apache.commons.math.stat.inference.ChiSquareTestImpl;
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
 import java.util.Collection;

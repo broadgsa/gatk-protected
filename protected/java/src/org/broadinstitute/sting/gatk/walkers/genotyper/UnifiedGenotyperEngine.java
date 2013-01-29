@@ -61,7 +61,6 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.AFCalcResult;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.classloader.PluginManager;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.utils.BaseUtils;
 import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.sting.utils.exceptions.UserException;
@@ -135,7 +134,7 @@ public class UnifiedGenotyperEngine {
     // ---------------------------------------------------------------------------------------------------------
     @Requires({"toolkit != null", "UAC != null"})
     public UnifiedGenotyperEngine(GenomeAnalysisEngine toolkit, UnifiedArgumentCollection UAC) {
-        this(toolkit, UAC, Logger.getLogger(UnifiedGenotyperEngine.class), null, null, SampleUtils.getSAMFileSamples(toolkit.getSAMFileHeader()), GATKVariantContextUtils.DEFAULT_PLOIDY);
+        this(toolkit, UAC, Logger.getLogger(UnifiedGenotyperEngine.class), null, null, SampleUtils.getSAMFileSamples(toolkit.getSAMFileHeader()), VariantContextUtils.DEFAULT_PLOIDY);
     }
 
     @Requires({"toolkit != null", "UAC != null", "logger != null", "samples != null && samples.size() > 0","ploidy>0"})
@@ -526,7 +525,7 @@ public class UnifiedGenotyperEngine {
         // if we are subsetting alleles (either because there were too many or because some were not polymorphic)
         // then we may need to trim the alleles (because the original VariantContext may have had to pad at the end).
         if ( myAlleles.size() != vc.getAlleles().size() && !limitedContext ) // limitedContext callers need to handle allele trimming on their own to keep their perReadAlleleLikelihoodMap alleles in sync
-            vcCall = GATKVariantContextUtils.reverseTrimAlleles(vcCall);
+            vcCall = VariantContextUtils.reverseTrimAlleles(vcCall);
 
         if ( annotationEngine != null && !limitedContext ) { // limitedContext callers need to handle annotations on their own by calling their own annotationEngine
             // Note: we want to use the *unfiltered* and *unBAQed* context for the annotations
@@ -663,7 +662,7 @@ public class UnifiedGenotyperEngine {
     private void determineGLModelsToUse() {
 
         String modelPrefix = "";
-        if ( !UAC.GLmodel.name().contains(GPSTRING) && UAC.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY )
+        if ( !UAC.GLmodel.name().contains(GPSTRING) && UAC.samplePloidy != VariantContextUtils.DEFAULT_PLOIDY )
             modelPrefix = GPSTRING;
 
         if ( UAC.GLmodel.name().toUpperCase().contains("BOTH") ) {

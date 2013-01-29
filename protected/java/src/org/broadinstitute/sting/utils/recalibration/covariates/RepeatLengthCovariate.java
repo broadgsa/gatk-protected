@@ -49,7 +49,7 @@ package org.broadinstitute.sting.utils.recalibration.covariates;
 import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
 import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.variantcontext.VariantContextUtils;
 
 import java.util.Arrays;
 
@@ -73,7 +73,7 @@ public class RepeatLengthCovariate implements ExperimentalCovariate {
             int maxRL = 0;
             for (int str = 1; str <= 8; str++) {
                 if (i + str <= readBytes.length) {
-                    maxRL = Math.max(maxRL, GATKVariantContextUtils.findNumberofRepetitions(
+                    maxRL = Math.max(maxRL, VariantContextUtils.findNumberofRepetitions(
                             Arrays.copyOfRange(readBytes, i, i + str),
                             Arrays.copyOfRange(readBytes, i, readBytes.length)
                     ));

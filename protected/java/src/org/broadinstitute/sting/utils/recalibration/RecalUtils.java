@@ -58,7 +58,7 @@ import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.classloader.PluginManager;
 import org.broadinstitute.sting.utils.collections.NestedIntegerArray;
 import org.broadinstitute.sting.utils.collections.NestedHashMap;
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.sting.utils.exceptions.DynamicClassResolutionException;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
@@ -310,7 +310,7 @@ public class RecalUtils {
                 if(sortByCols) {
                     reportTable = new GATKReportTable("RecalTable" + reportTableIndex++, "", columnNames.size(), GATKReportTable.TableSortingWay.SORT_BY_COLUMN);
                 } else {
-                    reportTable = new GATKReportTable("RecalTable" + reportTableIndex++, "", columnNames.size());
+                    reportTable = new GATKReportTable("RecalTable" + reportTableIndex++, "", columnNames.size(), GATKReportTable.TableSortingWay.DO_NOT_SORT);
                 }
                 for (final Pair<String, String> columnName : columnNames)
                     reportTable.addColumn(columnName.getFirst(), columnName.getSecond());

@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 

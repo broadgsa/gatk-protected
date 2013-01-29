@@ -56,7 +56,7 @@ import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.variant.variantcontext.*;

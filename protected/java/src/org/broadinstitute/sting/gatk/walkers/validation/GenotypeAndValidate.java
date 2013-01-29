@@ -328,7 +328,7 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
         if (vcfWriter != null) {
             Map<String, VCFHeader> header = GATKVCFUtils.getVCFHeadersFromRodPrefix(getToolkit(), alleles.getName());
             samples = SampleUtils.getSampleList(header, VariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
-            Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(header.values(), logger);
+            Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(header.values(), true);
             headerLines.add(new VCFHeaderLine("source", "GenotypeAndValidate"));
             vcfWriter.writeHeader(new VCFHeader(headerLines, samples));
         }

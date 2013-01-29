@@ -51,7 +51,7 @@ import org.broadinstitute.sting.gatk.report.GATKReportTable;
 import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.collections.NestedIntegerArray;
-import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.variant.utils.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
 

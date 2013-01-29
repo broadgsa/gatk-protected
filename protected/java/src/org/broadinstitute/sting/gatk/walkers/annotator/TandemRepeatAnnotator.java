@@ -53,11 +53,11 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.utils.Pair;
+import org.broadinstitute.variant.variantcontext.VariantContextUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineCount;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.util.Arrays;
@@ -79,7 +79,7 @@ public class TandemRepeatAnnotator extends InfoFieldAnnotation implements Standa
         if ( !vc.isIndel())
             return null;
 
-        Pair<List<Integer>,byte[]> result = GATKVariantContextUtils.getNumTandemRepeatUnits(vc, ref.getForwardBases());
+        Pair<List<Integer>,byte[]> result = VariantContextUtils.getNumTandemRepeatUnits(vc, ref.getForwardBases());
         if (result == null)
             return null;
 
