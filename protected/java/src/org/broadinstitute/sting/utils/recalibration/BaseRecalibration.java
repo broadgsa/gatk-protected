@@ -212,10 +212,6 @@ public class BaseRecalibration {
                     final byte recalibratedQualityScore = quantizationInfo.getQuantizedQuals().get(recalibratedQual);
 
                     quals[offset] = recalibratedQualityScore;
-                    if( quals[offset] > QualityUtils.MAX_REASONABLE_Q_SCORE ) {
-                        System.out.println("A");
-                        //calculateDeltaQCovariates(recalibrationTables, keySet, errorModel, globalDeltaQ, deltaQReported, origQual);
-                    }
                 }
             }
 

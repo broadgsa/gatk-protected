@@ -255,7 +255,7 @@ public class RecalibrationReport {
 
         final RecalDatum datum = new RecalDatum(nObservations, nErrors, (byte)1);
         datum.setEstimatedQReported(estimatedQReported);
-        //datum.setEmpiricalQuality(empiricalQuality);
+        //datum.setEmpiricalQuality(empiricalQuality); // don't set the value here because we will want to recompute with a different conditional Q score prior value
         return datum;
     }
 

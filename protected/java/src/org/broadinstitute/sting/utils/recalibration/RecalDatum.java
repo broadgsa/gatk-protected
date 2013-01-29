@@ -225,7 +225,7 @@ public class RecalDatum {
         return getEmpiricalQuality(getEstimatedQReported());
     }
 
-    public final double getEmpiricalQuality(final double conditionalPrior) {
+    public synchronized final double getEmpiricalQuality(final double conditionalPrior) {
         if (empiricalQuality == UNINITIALIZED) {
             calcEmpiricalQuality(conditionalPrior);
         }
