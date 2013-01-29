@@ -53,7 +53,7 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
-import org.broadinstitute.variant.utils.Pair;
+import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;

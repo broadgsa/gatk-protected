@@ -46,20 +46,6 @@
 
 package org.broadinstitute.sting.utils.recalibration.covariates;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
-import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.utils.BaseUtils;
-import org.broadinstitute.variant.utils.Pair;
-import org.broadinstitute.variant.variantcontext.VariantContextUtils;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-
 /**
  * Created with IntelliJ IDEA.
  * User: rpoplin

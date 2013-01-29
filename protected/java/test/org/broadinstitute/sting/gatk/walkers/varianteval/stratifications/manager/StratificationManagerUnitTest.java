@@ -52,7 +52,7 @@ package org.broadinstitute.sting.gatk.walkers.varianteval.stratifications.manage
 
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.variant.utils.Pair;
+import org.broadinstitute.sting.utils.collections.Pair;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;

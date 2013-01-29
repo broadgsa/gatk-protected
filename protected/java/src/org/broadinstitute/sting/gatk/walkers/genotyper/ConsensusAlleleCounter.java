@@ -53,7 +53,8 @@ import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
-import org.broadinstitute.variant.utils.Pair;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -288,7 +289,7 @@ public class ConsensusAlleleCounter {
         if (vcs.isEmpty())
             return Collections.emptyList(); // nothing else to do, no alleles passed minimum count criterion
 
-        final VariantContext mergedVC = VariantContextUtils.simpleMerge(vcs, null, VariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, VariantContextUtils.GenotypeMergeType.UNSORTED, false, false, null, false, false);
+        final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(vcs, null, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.UNSORTED, false, false, null, false, false);
         return mergedVC.getAlleles();
     }
 }

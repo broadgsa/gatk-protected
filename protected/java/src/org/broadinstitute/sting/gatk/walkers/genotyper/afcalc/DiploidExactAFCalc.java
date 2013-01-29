@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
 
 import java.util.*;
@@ -105,7 +106,7 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
             alleles.add(vc.getReference());
             alleles.addAll(chooseMostLikelyAlternateAlleles(vc, getMaxAltAlleles()));
             builder.alleles(alleles);
-            builder.genotypes(VariantContextUtils.subsetDiploidAlleles(vc, alleles, false));
+            builder.genotypes(GATKVariantContextUtils.subsetDiploidAlleles(vc, alleles, false));
             return builder.make();
         } else {
             return vc;
@@ -351,6 +352,6 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
                                           final List<Allele> allelesToUse,
                                           final boolean assignGenotypes,
                                           final int ploidy) {
-        return VariantContextUtils.subsetDiploidAlleles(vc, allelesToUse, assignGenotypes);
+        return GATKVariantContextUtils.subsetDiploidAlleles(vc, allelesToUse, assignGenotypes);
     }
 }

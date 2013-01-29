@@ -49,7 +49,7 @@ package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 import net.sf.samtools.SAMFileHeader;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.SampleUtils;
-import org.broadinstitute.variant.utils.Pair;
+import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
