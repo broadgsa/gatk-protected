@@ -46,83 +46,61 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.GenomeLoc;
+
+import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.SortedSet;
+import java.util.*;
 
-/**
- * GenomeLocs are very useful objects to keep track of genomic locations and perform set operations
- * with them.
- *
- * However, GenomeLocs are bound to strict validation through the GenomeLocParser and cannot
- * be created easily for small tasks that do not require the rigors of the GenomeLocParser validation
- *
- * SimpleGenomeLoc is a simple utility to create GenomeLocs without going through the parser. Should
- * only be used outside of the engine.
- *
- * User: carneiro
- * Date: 10/16/12
- * Time: 2:07 PM
- */
-public class SimpleGenomeLoc extends GenomeLoc {
-    private boolean finished;
+public class SimpleGenomeLocUnitTest extends BaseTest {
 
-    public SimpleGenomeLoc(String contigName, int contigIndex, int start, int stop, boolean finished) {
-        super(contigName,  contigIndex, start, stop);
-        this.finished = finished;
+    private static final SimpleGenomeLoc loc1 = new SimpleGenomeLoc("1", 0, 10, 20, false);
+    private static final SimpleGenomeLoc loc2 = new SimpleGenomeLoc("1", 0, 21, 30, false);
+    private static final SimpleGenomeLoc loc3 = new SimpleGenomeLoc("1", 0, 31, 40, false);
+
+    private class SGLTest {
+        public List<SimpleGenomeLoc> locs;
+
+        private SGLTest(final List<SimpleGenomeLoc> locs) {
+            this.locs = locs;
+        }
     }
 
-    public boolean isFinished() {
-        return finished;
+    @DataProvider(name = "SGLtest")
+    public Object[][] createFindVariantRegionsData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        tests.add(new Object[]{new SGLTest(Arrays.<SimpleGenomeLoc>asList(loc1))});
+        tests.add(new Object[]{new SGLTest(Arrays.<SimpleGenomeLoc>asList(loc1, loc2))});
+        tests.add(new Object[]{new SGLTest(Arrays.<SimpleGenomeLoc>asList(loc1, loc2, loc3))});
+
+        return tests.toArray(new Object[][]{});
     }
 
-    /**
-     * Merges 2 *contiguous* locs into 1
-     *
-     * @param a   SimpleGenomeLoc #1
-     * @param b   SimpleGenomeLoc #2
-     * @return one merged loc
-     */
-    @Requires("a != null && b != null")
-    public static SimpleGenomeLoc merge(SimpleGenomeLoc a, SimpleGenomeLoc b) throws ReviewedStingException {
-        if(GenomeLoc.isUnmapped(a) || GenomeLoc.isUnmapped(b)) {
-            throw new ReviewedStingException("Tried to merge unmapped genome locs");
-        }
-
-        if (!(a.contiguousP(b))) {
-            throw new ReviewedStingException("The two genome locs need to be contiguous");
-        }
-
-        return new SimpleGenomeLoc(a.getContig(), a.contigIndex,
-                Math.min(a.getStart(), b.getStart()),
-                Math.max(a.getStop(), b.getStop()),
-                a.isFinished());
+    @Test(dataProvider = "SGLtest", enabled = true)
+    public void testSimpleGenomeLoc(SGLTest test) {
+        testMerge(test.locs);
     }
 
-    /**
-     * Merges a list of *sorted* *contiguous* locs into one
-     *
-     * @param sortedLocs a sorted list of contiguous locs
-     * @return one merged loc
-     */
-    @Requires("sortedLocs != null")
-    public static SimpleGenomeLoc merge(SortedSet<SimpleGenomeLoc> sortedLocs) {
-        SimpleGenomeLoc result = null;
+    @Test(expectedExceptions = ReviewedStingException.class)
+    public void testNotContiguousLocs() {
+        final List<SimpleGenomeLoc> locs = new ArrayList<SimpleGenomeLoc>(1);
+        locs.add(loc1);
+        locs.add(loc3);
+        testMerge(locs);
+    }
 
-        for ( SimpleGenomeLoc loc : sortedLocs ) {
-            if ( loc.isUnmapped() )
-                throw new ReviewedStingException("Tried to merge unmapped genome locs");
+    private void testMerge(final List<SimpleGenomeLoc> locs) {
+        SimpleGenomeLoc result1 = locs.get(0);
+        for ( int i = 1; i < locs.size(); i++ )
+            result1 = SimpleGenomeLoc.merge(result1, locs.get(i));
 
-            if ( result == null )
-                result = loc;
-            else if ( !result.contiguousP(loc) )
-                throw new ReviewedStingException("The genome locs need to be contiguous");
-            else
-                result = merge(result, loc);
-        }
-
-        return result;
+        SimpleGenomeLoc result2 = SimpleGenomeLoc.merge(new TreeSet<SimpleGenomeLoc>(locs));
+        Assert.assertEquals(result1, result2);
+        Assert.assertEquals(result1.getStart(), locs.get(0).getStart());
+        Assert.assertEquals(result1.getStop(), locs.get(locs.size() - 1).getStop());
     }
 }

@@ -46,83 +46,89 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
-import java.util.SortedSet;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-/**
- * GenomeLocs are very useful objects to keep track of genomic locations and perform set operations
- * with them.
- *
- * However, GenomeLocs are bound to strict validation through the GenomeLocParser and cannot
- * be created easily for small tasks that do not require the rigors of the GenomeLocParser validation
- *
- * SimpleGenomeLoc is a simple utility to create GenomeLocs without going through the parser. Should
- * only be used outside of the engine.
- *
- * User: carneiro
- * Date: 10/16/12
- * Time: 2:07 PM
- */
-public class SimpleGenomeLoc extends GenomeLoc {
-    private boolean finished;
+import java.util.ArrayList;
+import java.util.List;
 
-    public SimpleGenomeLoc(String contigName, int contigIndex, int start, int stop, boolean finished) {
-        super(contigName,  contigIndex, start, stop);
-        this.finished = finished;
+public class HeaderElementUnitTest extends BaseTest {
+
+    private class HETest {
+        public byte base, baseQual, insQual, delQual;
+        public int MQ;
+        public boolean isClip;
+
+        private HETest(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int MQ, final boolean isClip) {
+            this.base = base;
+            this.baseQual = baseQual;
+            this.insQual = insQual;
+            this.delQual = delQual;
+            this.MQ = MQ;
+            this.isClip = isClip;
+        }
     }
 
-    public boolean isFinished() {
-        return finished;
+    private static final byte byteA = (byte)'A';
+    private static final byte byte10 = (byte)10;
+    private static final byte byte20 = (byte)20;
+    private static final int minBaseQual = 20;
+    private static final int minMappingQual = 20;
+
+    @DataProvider(name = "data")
+    public Object[][] createData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        tests.add(new Object[]{new HETest(byteA, byte20, byte20, byte20, 20, false)});
+        tests.add(new Object[]{new HETest(byteA, byte10, byte20, byte20, 20, false)});
+        tests.add(new Object[]{new HETest(byteA, byte20, byte20, byte20, 10, false)});
+        tests.add(new Object[]{new HETest(byteA, byte20, byte20, byte20, 20, true)});
+
+        return tests.toArray(new Object[][]{});
     }
 
-    /**
-     * Merges 2 *contiguous* locs into 1
-     *
-     * @param a   SimpleGenomeLoc #1
-     * @param b   SimpleGenomeLoc #2
-     * @return one merged loc
-     */
-    @Requires("a != null && b != null")
-    public static SimpleGenomeLoc merge(SimpleGenomeLoc a, SimpleGenomeLoc b) throws ReviewedStingException {
-        if(GenomeLoc.isUnmapped(a) || GenomeLoc.isUnmapped(b)) {
-            throw new ReviewedStingException("Tried to merge unmapped genome locs");
-        }
+    @Test(dataProvider = "data", enabled = true)
+    public void testHE(HETest test) {
 
-        if (!(a.contiguousP(b))) {
-            throw new ReviewedStingException("The two genome locs need to be contiguous");
-        }
+        HeaderElement headerElement = new HeaderElement(1000, 0);
 
-        return new SimpleGenomeLoc(a.getContig(), a.contigIndex,
-                Math.min(a.getStart(), b.getStart()),
-                Math.max(a.getStop(), b.getStop()),
-                a.isFinished());
+        // first test that if we add and then remove it, we have no data
+        headerElement.addBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+        headerElement.addInsertionToTheRight();
+        headerElement.removeBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+        headerElement.removeInsertionToTheRight();
+        testHeaderIsEmpty(headerElement);
+
+        // now, test that the data was added as expected
+        for ( int i = 0; i < 10; i++ )
+            headerElement.addBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+        testHeaderData(headerElement, test);
+
+        // test the insertion adding functionality
+        for ( int i = 0; i < 10; i++ )
+            headerElement.addInsertionToTheRight();
+        Assert.assertEquals(headerElement.numInsertionsToTheRight(), 10);
     }
 
-    /**
-     * Merges a list of *sorted* *contiguous* locs into one
-     *
-     * @param sortedLocs a sorted list of contiguous locs
-     * @return one merged loc
-     */
-    @Requires("sortedLocs != null")
-    public static SimpleGenomeLoc merge(SortedSet<SimpleGenomeLoc> sortedLocs) {
-        SimpleGenomeLoc result = null;
+    private void testHeaderIsEmpty(final HeaderElement headerElement) {
+        Assert.assertFalse(headerElement.hasConsensusData());
+        Assert.assertFalse(headerElement.hasFilteredData());
+        Assert.assertFalse(headerElement.hasInsertionToTheRight());
+        Assert.assertTrue(headerElement.isEmpty());
+        Assert.assertEquals(headerElement.getRMS(), 0.0);
+    }
 
-        for ( SimpleGenomeLoc loc : sortedLocs ) {
-            if ( loc.isUnmapped() )
-                throw new ReviewedStingException("Tried to merge unmapped genome locs");
-
-            if ( result == null )
-                result = loc;
-            else if ( !result.contiguousP(loc) )
-                throw new ReviewedStingException("The genome locs need to be contiguous");
-            else
-                result = merge(result, loc);
-        }
-
-        return result;
+    private void testHeaderData(final HeaderElement headerElement, final HETest test) {
+        Assert.assertEquals(headerElement.getRMS(), (double)test.MQ);
+        Assert.assertEquals(headerElement.isVariantFromSoftClips(), test.isClip);
+        Assert.assertFalse(headerElement.isEmpty());
+        Assert.assertFalse(headerElement.hasInsertionToTheRight());
+        Assert.assertEquals(headerElement.hasConsensusData(), headerElement.basePassesFilters(test.baseQual, minBaseQual, test.MQ, minMappingQual));
+        Assert.assertEquals(headerElement.hasFilteredData(), !headerElement.basePassesFilters(test.baseQual, minBaseQual, test.MQ, minMappingQual));
+        Assert.assertFalse(headerElement.isVariantFromMismatches(0.05));
+        Assert.assertEquals(headerElement.isVariant(0.05, 0.05), test.isClip);
     }
 }
