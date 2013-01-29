@@ -75,6 +75,7 @@ public class BaseRecalibration {
 
     private final boolean disableIndelQuals;
     private final int preserveQLessThan;
+    private final double globalQScorePrior;
     private final boolean emitOriginalQuals;
 
     private final NestedIntegerArray<Double> globalDeltaQs;
@@ -83,13 +84,13 @@ public class BaseRecalibration {
 
     /**
      * Constructor using a GATK Report file
-     * 
+     *
      * @param RECAL_FILE         a GATK Report file containing the recalibration information
      * @param quantizationLevels number of bins to quantize the quality scores
      * @param disableIndelQuals  if true, do not emit base indel qualities
      * @param preserveQLessThan  preserve quality scores less than this value
      */
-    public BaseRecalibration(final File RECAL_FILE, final int quantizationLevels, final boolean disableIndelQuals, final int preserveQLessThan, final boolean emitOriginalQuals) {
+    public BaseRecalibration(final File RECAL_FILE, final int quantizationLevels, final boolean disableIndelQuals, final int preserveQLessThan, final boolean emitOriginalQuals, final double globalQScorePrior) {
         RecalibrationReport recalibrationReport = new RecalibrationReport(RECAL_FILE);
 
         recalibrationTables = recalibrationReport.getRecalibrationTables();
@@ -102,6 +103,7 @@ public class BaseRecalibration {
 
         this.disableIndelQuals = disableIndelQuals;
         this.preserveQLessThan = preserveQLessThan;
+        this.globalQScorePrior = globalQScorePrior;
         this.emitOriginalQuals = emitOriginalQuals;
 
         logger.info("Calculating cached tables...");
@@ -264,8 +266,8 @@ public class BaseRecalibration {
         final RecalDatum empiricalQualRG = recalibrationTables.getReadGroupTable().get(rgKey, errorModel.ordinal());
 
         if (empiricalQualRG != null) {
-            final double globalDeltaQEmpirical = empiricalQualRG.getEmpiricalQuality();
-            final double aggregrateQReported = empiricalQualRG.getEstimatedQReported();
+            final double aggregrateQReported = ( globalQScorePrior > 0.0 && errorModel.equals(EventType.BASE_SUBSTITUTION) ? globalQScorePrior : empiricalQualRG.getEstimatedQReported() );
+            final double globalDeltaQEmpirical = empiricalQualRG.getEmpiricalQuality(aggregrateQReported);
             result = globalDeltaQEmpirical - aggregrateQReported;
         }
 
@@ -277,8 +279,8 @@ public class BaseRecalibration {
 
         final RecalDatum empiricalQualQS = recalibrationTables.getQualityScoreTable().get(rgKey, qualKey, errorModel.ordinal());
         if (empiricalQualQS != null) {
-            final double deltaQReportedEmpirical = empiricalQualQS.getEmpiricalQuality();
-            result = deltaQReportedEmpirical - qualFromRead - globalDeltaQ;
+            final double deltaQReportedEmpirical = empiricalQualQS.getEmpiricalQuality(globalDeltaQ + qualFromRead);
+            result = deltaQReportedEmpirical - (globalDeltaQ + qualFromRead);
         }
 
         return result;
@@ -310,8 +312,8 @@ public class BaseRecalibration {
                                             final byte qualFromRead) {
         final RecalDatum empiricalQualCO = table.get(rgKey, qualKey, tableKey, errorModel.ordinal());
         if (empiricalQualCO != null) {
-            final double deltaQCovariateEmpirical = empiricalQualCO.getEmpiricalQuality();
-            return deltaQCovariateEmpirical - qualFromRead - (globalDeltaQ + deltaQReported);
+            final double deltaQCovariateEmpirical = empiricalQualCO.getEmpiricalQuality(deltaQReported + globalDeltaQ + qualFromRead);
+            return deltaQCovariateEmpirical - (deltaQReported + globalDeltaQ + qualFromRead);
         } else {
             return 0.0;
         }

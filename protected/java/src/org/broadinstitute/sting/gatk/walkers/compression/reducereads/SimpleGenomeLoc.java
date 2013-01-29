@@ -78,6 +78,13 @@ public class SimpleGenomeLoc extends GenomeLoc {
         return finished;
     }
 
+    /**
+     * Merges 2 *contiguous* locs into 1
+     *
+     * @param a   SimpleGenomeLoc #1
+     * @param b   SimpleGenomeLoc #2
+     * @return one merged loc
+     */
     @Requires("a != null && b != null")
     public static SimpleGenomeLoc merge(SimpleGenomeLoc a, SimpleGenomeLoc b) throws ReviewedStingException {
         if(GenomeLoc.isUnmapped(a) || GenomeLoc.isUnmapped(b)) {
@@ -87,7 +94,6 @@ public class SimpleGenomeLoc extends GenomeLoc {
         if (!(a.contiguousP(b))) {
             throw new ReviewedStingException("The two genome locs need to be contiguous");
         }
-
 
         return new SimpleGenomeLoc(a.getContig(), a.contigIndex,
                 Math.min(a.getStart(), b.getStart()),
@@ -101,19 +107,22 @@ public class SimpleGenomeLoc extends GenomeLoc {
      * @param sortedLocs a sorted list of contiguous locs
      * @return one merged loc
      */
+    @Requires("sortedLocs != null")
     public static SimpleGenomeLoc merge(SortedSet<SimpleGenomeLoc> sortedLocs) {
-        SimpleGenomeLoc previousLoc = null;
-        for (SimpleGenomeLoc loc : sortedLocs) {
-            if (loc.isUnmapped()) {
+        SimpleGenomeLoc result = null;
+
+        for ( SimpleGenomeLoc loc : sortedLocs ) {
+            if ( loc.isUnmapped() )
                 throw new ReviewedStingException("Tried to merge unmapped genome locs");
-            }
-            if (previousLoc != null && !previousLoc.contiguousP(loc)) {
+
+            if ( result == null )
+                result = loc;
+            else if ( !result.contiguousP(loc) )
                 throw new ReviewedStingException("The genome locs need to be contiguous");
-            }
-            previousLoc = loc;
+            else
+                result = merge(result, loc);
         }
-        SimpleGenomeLoc firstLoc = sortedLocs.first();
-        SimpleGenomeLoc lastLoc = sortedLocs.last();
-        return merge(firstLoc, lastLoc);
+
+        return result;
     }
 }

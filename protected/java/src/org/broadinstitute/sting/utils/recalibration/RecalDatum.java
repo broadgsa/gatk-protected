@@ -77,6 +77,7 @@ import com.google.java.contract.Requires;
 import org.apache.commons.math.optimization.fitting.GaussianFunction;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
+import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
 
 /**
@@ -221,8 +222,13 @@ public class RecalDatum {
     }
 
     public final double getEmpiricalQuality() {
-        if (empiricalQuality == UNINITIALIZED)
-            calcEmpiricalQuality();
+        return getEmpiricalQuality(getEstimatedQReported());
+    }
+
+    public synchronized final double getEmpiricalQuality(final double conditionalPrior) {
+        if (empiricalQuality == UNINITIALIZED) {
+            calcEmpiricalQuality(conditionalPrior);
+        }
         return empiricalQuality;
     }
 
@@ -319,13 +325,13 @@ public class RecalDatum {
      */
     @Requires("empiricalQuality == UNINITIALIZED")
     @Ensures("empiricalQuality != UNINITIALIZED")
-    private synchronized void calcEmpiricalQuality() {
+    private synchronized void calcEmpiricalQuality(final double conditionalPrior) {
 
         // smoothing is one error and one non-error observation
         final long mismatches = (long)(getNumMismatches() + 0.5) + SMOOTHING_CONSTANT;
         final long observations = getNumObservations() + SMOOTHING_CONSTANT + SMOOTHING_CONSTANT;
 
-        final double empiricalQual = RecalDatum.bayesianEstimateOfEmpiricalQuality(observations, mismatches, getEstimatedQReported());
+        final double empiricalQual = RecalDatum.bayesianEstimateOfEmpiricalQuality(observations, mismatches, conditionalPrior);
 
         // This is the old and busted point estimate approach:
         //final double empiricalQual = -10 * Math.log10(getEmpiricalErrorRate());

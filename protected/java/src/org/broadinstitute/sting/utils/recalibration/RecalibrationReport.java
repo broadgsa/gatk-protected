@@ -246,7 +246,7 @@ public class RecalibrationReport {
     private RecalDatum getRecalDatum(final GATKReportTable reportTable, final int row, final boolean hasEstimatedQReportedColumn) {
         final long nObservations = asLong(reportTable.get(row, RecalUtils.NUMBER_OBSERVATIONS_COLUMN_NAME));
         final double nErrors = asDouble(reportTable.get(row, RecalUtils.NUMBER_ERRORS_COLUMN_NAME));
-        final double empiricalQuality = asDouble(reportTable.get(row, RecalUtils.EMPIRICAL_QUALITY_COLUMN_NAME));
+        //final double empiricalQuality = asDouble(reportTable.get(row, RecalUtils.EMPIRICAL_QUALITY_COLUMN_NAME));
 
         // the estimatedQreported column only exists in the ReadGroup table
         final double estimatedQReported = hasEstimatedQReportedColumn ?
@@ -255,7 +255,7 @@ public class RecalibrationReport {
 
         final RecalDatum datum = new RecalDatum(nObservations, nErrors, (byte)1);
         datum.setEstimatedQReported(estimatedQReported);
-        datum.setEmpiricalQuality(empiricalQuality);
+        //datum.setEmpiricalQuality(empiricalQuality); // don't set the value here because we will want to recompute with a different conditional Q score prior value
         return datum;
     }
 
