@@ -477,7 +477,7 @@ public class RecalUtils {
         }
     }
 
-    private static List<Object> generateValuesFromKeys(final List<Object> keys, final Covariate[] covariates, final Map<Covariate, String> covariateNameMap) {
+    protected static List<Object> generateValuesFromKeys(final List<Object> keys, final Covariate[] covariates, final Map<Covariate, String> covariateNameMap) {
         final List<Object> values = new ArrayList<Object>(4);
         values.add(covariates[RecalibrationTables.TableType.READ_GROUP_TABLE.ordinal()].formatKey((Integer)keys.get(0)));
         final int covariateIndex = (Integer)keys.get(1);
