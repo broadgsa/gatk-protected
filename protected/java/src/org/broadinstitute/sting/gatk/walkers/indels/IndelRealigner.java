@@ -75,7 +75,7 @@ import org.broadinstitute.sting.utils.sam.NWaySAMFileWriter;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.sting.utils.text.TextFormattingUtils;
 import org.broadinstitute.sting.utils.text.XReadLines;
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;

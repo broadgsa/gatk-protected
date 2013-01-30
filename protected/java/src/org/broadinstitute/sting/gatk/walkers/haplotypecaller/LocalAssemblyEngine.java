@@ -51,7 +51,7 @@ import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by IntelliJ IDEA.
@@ -67,5 +67,5 @@ public abstract class LocalAssemblyEngine {
     protected LocalAssemblyEngine() {
     }
 
-    public abstract ArrayList<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, int PRUNE_FACTOR, ArrayList<VariantContext> activeAllelesToGenotype);
+    public abstract List<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, int PRUNE_FACTOR, List<VariantContext> activeAllelesToGenotype);
 }

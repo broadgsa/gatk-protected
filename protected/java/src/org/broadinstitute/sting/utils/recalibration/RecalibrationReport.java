@@ -131,7 +131,7 @@ public class RecalibrationReport {
     * Combines two recalibration reports by adding all observations and errors
     *
     * Note: This method DOES NOT recalculate the empirical qualities and quantized qualities. You have to recalculate
-    * them after combining. The reason for not calculating it is because this function is inteded for combining a
+    * them after combining. The reason for not calculating it is because this function is intended for combining a
     * series of recalibration reports, and it only makes sense to calculate the empirical qualities and quantized
     * qualities after all the recalibration reports have been combined. Having the user recalculate when appropriate,
     * makes this method faster

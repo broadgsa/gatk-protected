@@ -125,19 +125,19 @@ public class BQSRGathererUnitTest extends BaseTest {
         testTablesWithColumns(originalTable, calculatedTable, columnsToTest);
 
         // test the RecalTable0 table
-        columnsToTest = Arrays.asList(RecalUtils.READGROUP_COLUMN_NAME, RecalUtils.EVENT_TYPE_COLUMN_NAME, RecalUtils.EMPIRICAL_QUALITY_COLUMN_NAME, RecalUtils.ESTIMATED_Q_REPORTED_COLUMN_NAME, RecalUtils.NUMBER_OBSERVATIONS_COLUMN_NAME, RecalUtils.NUMBER_ERRORS_COLUMN_NAME);
+        columnsToTest = Arrays.asList(RecalUtils.READGROUP_COLUMN_NAME, RecalUtils.EVENT_TYPE_COLUMN_NAME, RecalUtils.ESTIMATED_Q_REPORTED_COLUMN_NAME, RecalUtils.NUMBER_OBSERVATIONS_COLUMN_NAME, RecalUtils.NUMBER_ERRORS_COLUMN_NAME);
         originalTable = originalReport.getTable(RecalUtils.READGROUP_REPORT_TABLE_TITLE);
         calculatedTable = calculatedReport.getTable(RecalUtils.READGROUP_REPORT_TABLE_TITLE);
         testTablesWithColumns(originalTable, calculatedTable, columnsToTest);
 
         // test the RecalTable1 table
-        columnsToTest = Arrays.asList(RecalUtils.READGROUP_COLUMN_NAME, RecalUtils.QUALITY_SCORE_COLUMN_NAME, RecalUtils.EVENT_TYPE_COLUMN_NAME, RecalUtils.EMPIRICAL_QUALITY_COLUMN_NAME, RecalUtils.NUMBER_OBSERVATIONS_COLUMN_NAME, RecalUtils.NUMBER_ERRORS_COLUMN_NAME);
+        columnsToTest = Arrays.asList(RecalUtils.READGROUP_COLUMN_NAME, RecalUtils.QUALITY_SCORE_COLUMN_NAME, RecalUtils.EVENT_TYPE_COLUMN_NAME, RecalUtils.NUMBER_OBSERVATIONS_COLUMN_NAME, RecalUtils.NUMBER_ERRORS_COLUMN_NAME);
         originalTable = originalReport.getTable(RecalUtils.QUALITY_SCORE_REPORT_TABLE_TITLE);
         calculatedTable = calculatedReport.getTable(RecalUtils.QUALITY_SCORE_REPORT_TABLE_TITLE);
         testTablesWithColumns(originalTable, calculatedTable, columnsToTest);
 
         // test the RecalTable2 table
-        columnsToTest = Arrays.asList(RecalUtils.READGROUP_COLUMN_NAME, RecalUtils.QUALITY_SCORE_COLUMN_NAME, RecalUtils.COVARIATE_VALUE_COLUMN_NAME, RecalUtils.COVARIATE_NAME_COLUMN_NAME, RecalUtils.EVENT_TYPE_COLUMN_NAME, RecalUtils.EMPIRICAL_QUALITY_COLUMN_NAME, RecalUtils.NUMBER_OBSERVATIONS_COLUMN_NAME, RecalUtils.NUMBER_ERRORS_COLUMN_NAME);
+        columnsToTest = Arrays.asList(RecalUtils.READGROUP_COLUMN_NAME, RecalUtils.QUALITY_SCORE_COLUMN_NAME, RecalUtils.COVARIATE_VALUE_COLUMN_NAME, RecalUtils.COVARIATE_NAME_COLUMN_NAME, RecalUtils.EVENT_TYPE_COLUMN_NAME, RecalUtils.NUMBER_OBSERVATIONS_COLUMN_NAME, RecalUtils.NUMBER_ERRORS_COLUMN_NAME);
         originalTable = originalReport.getTable(RecalUtils.ALL_COVARIATES_REPORT_TABLE_TITLE);
         calculatedTable = calculatedReport.getTable(RecalUtils.ALL_COVARIATES_REPORT_TABLE_TITLE);
         testTablesWithColumns(originalTable, calculatedTable, columnsToTest);

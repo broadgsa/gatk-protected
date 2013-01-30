@@ -59,6 +59,7 @@ import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.R.RScriptExecutor;
 import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.sting.utils.collections.ExpandingArrayList;
@@ -66,7 +67,6 @@ import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.io.Resource;
 import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextUtils;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 
 import java.io.File;
@@ -274,7 +274,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                     datum.loc = getToolkit().getGenomeLocParser().createGenomeLoc(vc);
                     datum.originalQual = vc.getPhredScaledQual();
                     datum.isSNP = vc.isSNP() && vc.isBiallelic();
-                    datum.isTransition = datum.isSNP && VariantContextUtils.isTransition(vc);
+                    datum.isTransition = datum.isSNP && GATKVariantContextUtils.isTransition(vc);
 
                     // Loop through the training data sets and if they overlap this loci then update the prior and training status appropriately
                     dataManager.parseTrainingSets( tracker, context.getLocation(), vc, datum, TRUST_ALL_POLYMORPHIC );

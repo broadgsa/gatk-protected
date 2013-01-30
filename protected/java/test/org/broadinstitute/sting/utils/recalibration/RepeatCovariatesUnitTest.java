@@ -52,7 +52,7 @@ import org.broadinstitute.sting.utils.recalibration.covariates.*;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
