@@ -150,33 +150,36 @@ public class BaseRecalibration {
             // the rg key is constant over the whole read, the global deltaQ is too
             final int rgKey = fullReadKeySet[0][0];
             final RecalDatum empiricalQualRG = recalibrationTables.getReadGroupTable().get(rgKey, errorModel.ordinal());
-            final double epsilon = ( globalQScorePrior > 0.0 && errorModel.equals(EventType.BASE_SUBSTITUTION) ? globalQScorePrior : empiricalQualRG.getEstimatedQReported() );
 
-            for (int offset = 0; offset < readLength; offset++) { // recalibrate all bases in the read
-                final byte origQual = quals[offset];
+            if( empiricalQualRG != null ) {
+                final double epsilon = ( globalQScorePrior > 0.0 && errorModel.equals(EventType.BASE_SUBSTITUTION) ? globalQScorePrior : empiricalQualRG.getEstimatedQReported() );
 
-                // only recalibrate usable qualities (the original quality will come from the instrument -- reported quality)
-                if ( origQual >= preserveQLessThan ) {
-                    // get the keyset for this base using the error model
-                    final int[] keySet = fullReadKeySet[offset];
-                    final RecalDatum empiricalQualQS = recalibrationTables.getQualityScoreTable().get(keySet[0], keySet[1], errorModel.ordinal());
-                    final List<RecalDatum> empiricalQualCovs = new ArrayList<RecalDatum>();
-                    for (int i = 2; i < requestedCovariates.length; i++) {
-                        if (keySet[i] < 0) {
-                            continue;
+                for (int offset = 0; offset < readLength; offset++) { // recalibrate all bases in the read
+                    final byte origQual = quals[offset];
+
+                    // only recalibrate usable qualities (the original quality will come from the instrument -- reported quality)
+                    if ( origQual >= preserveQLessThan ) {
+                        // get the keyset for this base using the error model
+                        final int[] keySet = fullReadKeySet[offset];
+                        final RecalDatum empiricalQualQS = recalibrationTables.getQualityScoreTable().get(keySet[0], keySet[1], errorModel.ordinal());
+                        final List<RecalDatum> empiricalQualCovs = new ArrayList<RecalDatum>();
+                        for (int i = 2; i < requestedCovariates.length; i++) {
+                            if (keySet[i] < 0) {
+                                continue;
+                            }
+                            empiricalQualCovs.add(recalibrationTables.getTable(i).get(keySet[0], keySet[1], keySet[i], errorModel.ordinal()));
                         }
-                        empiricalQualCovs.add(recalibrationTables.getTable(i).get(keySet[0], keySet[1], keySet[i], errorModel.ordinal()));
+
+                        double recalibratedQualDouble = hierarchicalBayesianQualityEstimate( epsilon, empiricalQualRG, empiricalQualQS, empiricalQualCovs );
+
+                        // recalibrated quality is bound between 1 and MAX_QUAL
+                        final byte recalibratedQual = QualityUtils.boundQual(MathUtils.fastRound(recalibratedQualDouble), QualityUtils.MAX_RECALIBRATED_Q_SCORE);
+
+                        // return the quantized version of the recalibrated quality
+                        final byte recalibratedQualityScore = quantizationInfo.getQuantizedQuals().get(recalibratedQual);
+
+                        quals[offset] = recalibratedQualityScore;
                     }
-
-                    double recalibratedQualDouble = hierarchicalBayesianQualityEstimate( epsilon, empiricalQualRG, empiricalQualQS, empiricalQualCovs );
-
-                    // recalibrated quality is bound between 1 and MAX_QUAL
-                    final byte recalibratedQual = QualityUtils.boundQual(MathUtils.fastRound(recalibratedQualDouble), QualityUtils.MAX_RECALIBRATED_Q_SCORE);
-
-                    // return the quantized version of the recalibrated quality
-                    final byte recalibratedQualityScore = quantizationInfo.getQuantizedQuals().get(recalibratedQual);
-
-                    quals[offset] = recalibratedQualityScore;
                 }
             }
 
