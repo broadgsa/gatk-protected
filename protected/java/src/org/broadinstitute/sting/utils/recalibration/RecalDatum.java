@@ -181,6 +181,7 @@ public class RecalDatum {
         if ( Double.isNaN(estimatedQReported) ) throw new IllegalArgumentException("estimatedQReported is NaN");
 
         this.estimatedQReported = estimatedQReported;
+        empiricalQuality = UNINITIALIZED;
     }
 
     public final double getEstimatedQReported() {

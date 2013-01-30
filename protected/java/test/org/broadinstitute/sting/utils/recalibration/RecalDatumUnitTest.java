@@ -58,6 +58,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 
 public class RecalDatumUnitTest extends BaseTest {
@@ -276,5 +277,37 @@ public class RecalDatumUnitTest extends BaseTest {
         Assert.assertTrue(log10likelihood < 0.0);
         Assert.assertFalse(Double.isInfinite(log10likelihood));
         Assert.assertFalse(Double.isNaN(log10likelihood));
+    }
+
+    @Test
+    public void basicHierarchicalBayesianQualityEstimateTest() {
+        {
+            double RG_Q = 45.0;
+            RecalDatum RG = new RecalDatum( (long)10000000, (long) (10000000 * 1.0 / (Math.pow(10.0, RG_Q/10.0))), (byte)RG_Q);
+            double Q = 30.0;
+            RecalDatum QS = new RecalDatum( (long)10000000, (long) (10000000 * 1.0 / (Math.pow(10.0, Q/10.0))), (byte)Q);
+            RecalDatum COV = new RecalDatum( (long)150, (long) 1, (byte)45.0); // no data here so Bayesian prior has a huge effect on the empirical quality
+
+            Assert.assertEquals(BaseRecalibration.hierarchicalBayesianQualityEstimate( 45.0, RG, QS, Collections.singletonList(COV)), Q, 1E-4 );
+            // initial epsilon condition shouldn't matter when there are a lot of observations
+            Assert.assertEquals(BaseRecalibration.hierarchicalBayesianQualityEstimate( 25.0, RG, QS, Collections.singletonList(COV)), Q, 1E-4 );
+            Assert.assertEquals(BaseRecalibration.hierarchicalBayesianQualityEstimate( 5.0, RG, QS, Collections.singletonList(COV)), Q, 1E-4 );
+            Assert.assertEquals(BaseRecalibration.hierarchicalBayesianQualityEstimate( 65.0, RG, QS, Collections.singletonList(COV)), Q, 1E-4 );
+        }
+
+        {
+            double RG_Q = 45.0;
+            RecalDatum RG = new RecalDatum( (long)100, (long) (100 * 1.0 / (Math.pow(10.0, RG_Q/10.0))), (byte)RG_Q);
+            double Q = 30.0;
+            RecalDatum QS = new RecalDatum( (long)100, (long) (100 * 1.0 / (Math.pow(10.0, Q/10.0))), (byte)Q);
+            RecalDatum COV = new RecalDatum( (long)150, (long) 1, (byte)45.0); // no data here so Bayesian prior has a huge effect on the empirical quality
+
+            // initial epsilon condition dominates when there is no data
+            Assert.assertEquals(BaseRecalibration.hierarchicalBayesianQualityEstimate( 45.0, RG, QS, Collections.singletonList(COV)), 45.0, 1E-4 );
+            Assert.assertEquals(BaseRecalibration.hierarchicalBayesianQualityEstimate( 25.0, RG, QS, Collections.singletonList(COV)), 25.0, 1E-4 );
+            Assert.assertEquals(BaseRecalibration.hierarchicalBayesianQualityEstimate( 5.0, RG, QS, Collections.singletonList(COV)), 5.0, 1E-4 );
+            Assert.assertEquals(BaseRecalibration.hierarchicalBayesianQualityEstimate( 65.0, RG, QS, Collections.singletonList(COV)), 65.0, 1E-4 );
+        }
+
     }
 }
