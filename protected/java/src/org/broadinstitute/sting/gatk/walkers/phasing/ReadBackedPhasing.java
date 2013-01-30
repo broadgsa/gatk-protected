@@ -320,7 +320,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         VariantContext subvc = vc.subContextFromSamples(samplesToPhase);
 //        logger.debug("original VC = " + vc);
 //        logger.debug("sub      VC = " + subvc);
-        return VariantContextUtils.pruneVariantContext(subvc, KEYS_TO_KEEP_IN_REDUCED_VCF);
+        return GATKVariantContextUtils.pruneVariantContext(subvc, KEYS_TO_KEEP_IN_REDUCED_VCF);
     }
 
     private List<VariantContext> processQueue(PhasingStats phaseStats, boolean processAll) {
