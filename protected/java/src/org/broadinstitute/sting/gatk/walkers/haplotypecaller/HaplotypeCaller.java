@@ -56,6 +56,7 @@ import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
@@ -132,7 +133,7 @@ import java.util.*;
 @PartitionBy(PartitionType.LOCUS)
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
 @ActiveRegionTraversalParameters(extension=65, maxRegion=300)
-//@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=5)
+@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=20)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
     /**
@@ -179,9 +180,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Advanced
     @Argument(fullName="minKmer", shortName="minKmer", doc="Minimum kmer length to use in the assembly graph", required = false)
     protected int minKmer = 11;
-
-    @Argument(fullName="downsampleRegion", shortName="dr", doc="coverage, per-sample, to downsample each active region to", required = false)
-    protected int DOWNSAMPLE_PER_SAMPLE_PER_REGION = 1000;
 
     /**
      * If this flag is provided, the haplotype caller will include unmapped reads in the assembly and calling
@@ -463,7 +461,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             allelesToGenotype.removeAll( activeAllelesToGenotype );
         }
 
-        if( !activeRegion.isActive()) { return 0; } // Not active so nothing to do!
+        if( !activeRegion.isActive() ) { return 0; } // Not active so nothing to do!
         if( activeRegion.size() == 0 && UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) { return 0; } // No reads here so nothing to do!
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES && activeAllelesToGenotype.isEmpty() ) { return 0; } // No alleles found in this region so nothing to do!
 
@@ -474,7 +472,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         final Haplotype referenceHaplotype = new Haplotype(activeRegion.getActiveRegionReference(referenceReader), true); // Create the reference haplotype which is the bases from the reference that make up the active region
         final byte[] fullReferenceWithPadding = activeRegion.getFullReference(referenceReader, REFERENCE_PADDING);
-        //int PRUNE_FACTOR = Math.max(MIN_PRUNE_FACTOR, determinePruneFactorFromCoverage( activeRegion ));
         final ArrayList<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, fullSpanBeforeClipping, MIN_PRUNE_FACTOR, activeAllelesToGenotype );
         if( haplotypes.size() == 1 ) { return 1; } // only the reference haplotype remains so nothing else to do!
 
@@ -571,18 +568,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             finalizedReadList.addAll( FragmentUtils.mergeOverlappingPairedFragments(overlappingPair) );
         }
 
-        Collections.shuffle(finalizedReadList, GenomeAnalysisEngine.getRandomGenerator());
-
         // Loop through the reads hard clipping the adaptor and low quality tails
         final ArrayList<GATKSAMRecord> readsToUse = new ArrayList<GATKSAMRecord>(finalizedReadList.size());
         for( final GATKSAMRecord myRead : finalizedReadList ) {
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
                 final GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
-                // protect against INTERVALS with abnormally high coverage
-                // TODO BUGBUG: remove when positional downsampler is hooked up to ART/HC
-                if( activeRegion.readOverlapsRegion(clippedRead) &&
-                        clippedRead.getReadLength() > 0 && activeRegion.size() < samplesList.size() * DOWNSAMPLE_PER_SAMPLE_PER_REGION ) {
+                if( activeRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 ) {
                     readsToUse.add(clippedRead);
                 }
             }
@@ -711,24 +703,4 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         return new Cigar(readCigarElements);
     }
-
-    /*
-    private int determinePruneFactorFromCoverage( final ActiveRegion activeRegion ) {
-        final ArrayList<Integer> readLengthDistribution = new ArrayList<Integer>();
-        for( final GATKSAMRecord read : activeRegion.getReads() ) {
-            readLengthDistribution.add(read.getReadLength());
-        }
-        final double meanReadLength = MathUtils.average(readLengthDistribution);
-        final double meanCoveragePerSample = (double) activeRegion.getReads().size() / ((double) activeRegion.getExtendedLoc().size() / meanReadLength) / (double) samplesList.size();
-        int PRUNE_FACTOR = 0;
-        if( meanCoveragePerSample > 8.5 ) {
-            PRUNE_FACTOR = (int) Math.floor( Math.sqrt( meanCoveragePerSample - 5.0 ) );
-        } else if( meanCoveragePerSample > 3.0 ) {
-            PRUNE_FACTOR = 1;
-        }
-
-        if( DEBUG ) { System.out.println(String.format("Mean coverage per sample = %.1f --> prune factor = %d", meanCoveragePerSample, PRUNE_FACTOR)); }
-        return PRUNE_FACTOR;
-    }
-    */
 }
