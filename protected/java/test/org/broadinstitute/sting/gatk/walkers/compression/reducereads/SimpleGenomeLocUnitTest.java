@@ -46,89 +46,61 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.TreeSet;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-/**
- *
- * @author carneiro, depristo
- * @version 3.0
- */
-public class SingleSampleCompressor {
-    final private int contextSize;
-    final private int downsampleCoverage;
-    final private int minMappingQuality;
-    final private double minAltProportionToTriggerVariant;
-    final private double minIndelProportionToTriggerVariant;
-    final private int minBaseQual;
-    final private ReduceReads.DownsampleStrategy downsampleStrategy;
-    final private int nContigs;
-    final private boolean allowPolyploidReduction;
+import java.util.*;
 
-    private SlidingWindow slidingWindow;
-    private int slidingWindowCounter;
+public class SimpleGenomeLocUnitTest extends BaseTest {
 
-    public static Pair<Set<GATKSAMRecord>, CompressionStash> emptyPair = new Pair<Set<GATKSAMRecord>,CompressionStash>(new TreeSet<GATKSAMRecord>(), new CompressionStash());
+    private static final SimpleGenomeLoc loc1 = new SimpleGenomeLoc("1", 0, 10, 20, false);
+    private static final SimpleGenomeLoc loc2 = new SimpleGenomeLoc("1", 0, 21, 30, false);
+    private static final SimpleGenomeLoc loc3 = new SimpleGenomeLoc("1", 0, 31, 40, false);
 
-    public SingleSampleCompressor(final int contextSize,
-                                  final int downsampleCoverage,
-                                  final int minMappingQuality,
-                                  final double minAltProportionToTriggerVariant,
-                                  final double minIndelProportionToTriggerVariant,
-                                  final int minBaseQual,
-                                  final ReduceReads.DownsampleStrategy downsampleStrategy,
-                                  final int nContigs,
-                                  final boolean allowPolyploidReduction) {
-        this.contextSize = contextSize;
-        this.downsampleCoverage = downsampleCoverage;
-        this.minMappingQuality = minMappingQuality;
-        this.slidingWindowCounter = 0;
-        this.minAltProportionToTriggerVariant = minAltProportionToTriggerVariant;
-        this.minIndelProportionToTriggerVariant = minIndelProportionToTriggerVariant;
-        this.minBaseQual = minBaseQual;
-        this.downsampleStrategy = downsampleStrategy;
-        this.nContigs = nContigs;
-        this.allowPolyploidReduction = allowPolyploidReduction;
-    }
+    private class SGLTest {
+        public List<SimpleGenomeLoc> locs;
 
-    public Pair<Set<GATKSAMRecord>, CompressionStash> addAlignment( GATKSAMRecord read ) {
-        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
-        CompressionStash stash = new CompressionStash();
-        int readOriginalStart = read.getUnclippedStart();
-
-        // create a new window if:
-        if ((slidingWindow != null) &&
-            ( ( read.getReferenceIndex() != slidingWindow.getContigIndex() ) ||        // this is a brand new contig
-              (readOriginalStart - contextSize > slidingWindow.getStopLocation()))) {  // this read is too far away from the end of the current sliding window
-
-            // close the current sliding window
-            Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = slidingWindow.close();
-            reads = readsAndStash.getFirst();
-            stash = readsAndStash.getSecond();
-            slidingWindow = null;                                                      // so we create a new one on the next if
+        private SGLTest(final List<SimpleGenomeLoc> locs) {
+            this.locs = locs;
         }
-
-        if ( slidingWindow == null) {                                                  // this is the first read
-            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), nContigs, allowPolyploidReduction);
-            slidingWindowCounter++;
-        }
-
-        stash.addAll(slidingWindow.addRead(read));
-        return new Pair<Set<GATKSAMRecord>, CompressionStash>(reads, stash);
     }
 
-    public Pair<Set<GATKSAMRecord>, CompressionStash> close() {
-        return (slidingWindow != null) ? slidingWindow.close() : emptyPair;
+    @DataProvider(name = "SGLtest")
+    public Object[][] createFindVariantRegionsData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        tests.add(new Object[]{new SGLTest(Arrays.<SimpleGenomeLoc>asList(loc1))});
+        tests.add(new Object[]{new SGLTest(Arrays.<SimpleGenomeLoc>asList(loc1, loc2))});
+        tests.add(new Object[]{new SGLTest(Arrays.<SimpleGenomeLoc>asList(loc1, loc2, loc3))});
+
+        return tests.toArray(new Object[][]{});
     }
 
-    public Set<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
-        return slidingWindow == null ? Collections.<GATKSAMRecord>emptySet() : slidingWindow.closeVariantRegions(regions);
+    @Test(dataProvider = "SGLtest", enabled = true)
+    public void testSimpleGenomeLoc(SGLTest test) {
+        testMerge(test.locs);
     }
 
+    @Test(expectedExceptions = ReviewedStingException.class)
+    public void testNotContiguousLocs() {
+        final List<SimpleGenomeLoc> locs = new ArrayList<SimpleGenomeLoc>(1);
+        locs.add(loc1);
+        locs.add(loc3);
+        testMerge(locs);
+    }
+
+    private void testMerge(final List<SimpleGenomeLoc> locs) {
+        SimpleGenomeLoc result1 = locs.get(0);
+        for ( int i = 1; i < locs.size(); i++ )
+            result1 = SimpleGenomeLoc.merge(result1, locs.get(i));
+
+        SimpleGenomeLoc result2 = SimpleGenomeLoc.merge(new TreeSet<SimpleGenomeLoc>(locs));
+        Assert.assertEquals(result1, result2);
+        Assert.assertEquals(result1.getStart(), locs.get(0).getStart());
+        Assert.assertEquals(result1.getStop(), locs.get(locs.size() - 1).getStop());
+    }
 }
-

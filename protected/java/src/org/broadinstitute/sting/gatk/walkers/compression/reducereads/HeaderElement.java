@@ -244,7 +244,7 @@ public class HeaderElement {
      *
      * @return whether or not the HeaderElement is variant due to excess insertions
      */
-    private boolean isVariantFromMismatches(double minVariantProportion) {
+    protected boolean isVariantFromMismatches(double minVariantProportion) {
         BaseIndex mostCommon = consensusBaseCounts.baseIndexWithMostProbabilityWithoutIndels();
         double mostCommonProportion = consensusBaseCounts.baseCountProportionWithoutIndels(mostCommon);
         return mostCommonProportion != 0.0 && mostCommonProportion < (1 - minVariantProportion);
@@ -256,11 +256,11 @@ public class HeaderElement {
      *
      * @return true if we had more soft clipped bases contributing to this site than matches/mismatches.
      */
-    private boolean isVariantFromSoftClips() {
-        return nSoftClippedBases >= (consensusBaseCounts.totalCount() - nSoftClippedBases);
+    protected boolean isVariantFromSoftClips() {
+        return nSoftClippedBases > 0 && nSoftClippedBases >= (consensusBaseCounts.totalCount() - nSoftClippedBases);
     }
 
-    private boolean basePassesFilters(byte baseQual, int minBaseQual, int baseMappingQuality, int minMappingQual) {
+    protected boolean basePassesFilters(byte baseQual, int minBaseQual, int baseMappingQuality, int minMappingQual) {
         return baseQual >= minBaseQual && baseMappingQuality >= minMappingQual;
     }
 

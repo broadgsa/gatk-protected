@@ -46,89 +46,89 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.TreeSet;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-/**
- *
- * @author carneiro, depristo
- * @version 3.0
- */
-public class SingleSampleCompressor {
-    final private int contextSize;
-    final private int downsampleCoverage;
-    final private int minMappingQuality;
-    final private double minAltProportionToTriggerVariant;
-    final private double minIndelProportionToTriggerVariant;
-    final private int minBaseQual;
-    final private ReduceReads.DownsampleStrategy downsampleStrategy;
-    final private int nContigs;
-    final private boolean allowPolyploidReduction;
+import java.util.ArrayList;
+import java.util.List;
 
-    private SlidingWindow slidingWindow;
-    private int slidingWindowCounter;
+public class HeaderElementUnitTest extends BaseTest {
 
-    public static Pair<Set<GATKSAMRecord>, CompressionStash> emptyPair = new Pair<Set<GATKSAMRecord>,CompressionStash>(new TreeSet<GATKSAMRecord>(), new CompressionStash());
+    private class HETest {
+        public byte base, baseQual, insQual, delQual;
+        public int MQ;
+        public boolean isClip;
 
-    public SingleSampleCompressor(final int contextSize,
-                                  final int downsampleCoverage,
-                                  final int minMappingQuality,
-                                  final double minAltProportionToTriggerVariant,
-                                  final double minIndelProportionToTriggerVariant,
-                                  final int minBaseQual,
-                                  final ReduceReads.DownsampleStrategy downsampleStrategy,
-                                  final int nContigs,
-                                  final boolean allowPolyploidReduction) {
-        this.contextSize = contextSize;
-        this.downsampleCoverage = downsampleCoverage;
-        this.minMappingQuality = minMappingQuality;
-        this.slidingWindowCounter = 0;
-        this.minAltProportionToTriggerVariant = minAltProportionToTriggerVariant;
-        this.minIndelProportionToTriggerVariant = minIndelProportionToTriggerVariant;
-        this.minBaseQual = minBaseQual;
-        this.downsampleStrategy = downsampleStrategy;
-        this.nContigs = nContigs;
-        this.allowPolyploidReduction = allowPolyploidReduction;
-    }
-
-    public Pair<Set<GATKSAMRecord>, CompressionStash> addAlignment( GATKSAMRecord read ) {
-        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
-        CompressionStash stash = new CompressionStash();
-        int readOriginalStart = read.getUnclippedStart();
-
-        // create a new window if:
-        if ((slidingWindow != null) &&
-            ( ( read.getReferenceIndex() != slidingWindow.getContigIndex() ) ||        // this is a brand new contig
-              (readOriginalStart - contextSize > slidingWindow.getStopLocation()))) {  // this read is too far away from the end of the current sliding window
-
-            // close the current sliding window
-            Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = slidingWindow.close();
-            reads = readsAndStash.getFirst();
-            stash = readsAndStash.getSecond();
-            slidingWindow = null;                                                      // so we create a new one on the next if
+        private HETest(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int MQ, final boolean isClip) {
+            this.base = base;
+            this.baseQual = baseQual;
+            this.insQual = insQual;
+            this.delQual = delQual;
+            this.MQ = MQ;
+            this.isClip = isClip;
         }
-
-        if ( slidingWindow == null) {                                                  // this is the first read
-            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), nContigs, allowPolyploidReduction);
-            slidingWindowCounter++;
-        }
-
-        stash.addAll(slidingWindow.addRead(read));
-        return new Pair<Set<GATKSAMRecord>, CompressionStash>(reads, stash);
     }
 
-    public Pair<Set<GATKSAMRecord>, CompressionStash> close() {
-        return (slidingWindow != null) ? slidingWindow.close() : emptyPair;
+    private static final byte byteA = (byte)'A';
+    private static final byte byte10 = (byte)10;
+    private static final byte byte20 = (byte)20;
+    private static final int minBaseQual = 20;
+    private static final int minMappingQual = 20;
+
+    @DataProvider(name = "data")
+    public Object[][] createData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        tests.add(new Object[]{new HETest(byteA, byte20, byte20, byte20, 20, false)});
+        tests.add(new Object[]{new HETest(byteA, byte10, byte20, byte20, 20, false)});
+        tests.add(new Object[]{new HETest(byteA, byte20, byte20, byte20, 10, false)});
+        tests.add(new Object[]{new HETest(byteA, byte20, byte20, byte20, 20, true)});
+
+        return tests.toArray(new Object[][]{});
     }
 
-    public Set<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
-        return slidingWindow == null ? Collections.<GATKSAMRecord>emptySet() : slidingWindow.closeVariantRegions(regions);
+    @Test(dataProvider = "data", enabled = true)
+    public void testHE(HETest test) {
+
+        HeaderElement headerElement = new HeaderElement(1000, 0);
+
+        // first test that if we add and then remove it, we have no data
+        headerElement.addBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+        headerElement.addInsertionToTheRight();
+        headerElement.removeBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+        headerElement.removeInsertionToTheRight();
+        testHeaderIsEmpty(headerElement);
+
+        // now, test that the data was added as expected
+        for ( int i = 0; i < 10; i++ )
+            headerElement.addBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+        testHeaderData(headerElement, test);
+
+        // test the insertion adding functionality
+        for ( int i = 0; i < 10; i++ )
+            headerElement.addInsertionToTheRight();
+        Assert.assertEquals(headerElement.numInsertionsToTheRight(), 10);
     }
 
+    private void testHeaderIsEmpty(final HeaderElement headerElement) {
+        Assert.assertFalse(headerElement.hasConsensusData());
+        Assert.assertFalse(headerElement.hasFilteredData());
+        Assert.assertFalse(headerElement.hasInsertionToTheRight());
+        Assert.assertTrue(headerElement.isEmpty());
+        Assert.assertEquals(headerElement.getRMS(), 0.0);
+    }
+
+    private void testHeaderData(final HeaderElement headerElement, final HETest test) {
+        Assert.assertEquals(headerElement.getRMS(), (double)test.MQ);
+        Assert.assertEquals(headerElement.isVariantFromSoftClips(), test.isClip);
+        Assert.assertFalse(headerElement.isEmpty());
+        Assert.assertFalse(headerElement.hasInsertionToTheRight());
+        Assert.assertEquals(headerElement.hasConsensusData(), headerElement.basePassesFilters(test.baseQual, minBaseQual, test.MQ, minMappingQual));
+        Assert.assertEquals(headerElement.hasFilteredData(), !headerElement.basePassesFilters(test.baseQual, minBaseQual, test.MQ, minMappingQual));
+        Assert.assertFalse(headerElement.isVariantFromMismatches(0.05));
+        Assert.assertEquals(headerElement.isVariant(0.05, 0.05), test.isClip);
+    }
 }
-
