@@ -188,12 +188,12 @@ public class BQSRIntegrationTest extends WalkerTest {
     public Object[][] createPRTestData() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{1, new PRTest(" -qq -1", "64622d37e234e57cf472068a00b4ec89")});
-        tests.add(new Object[]{1, new PRTest(" -qq 6", "735270581d1ee836f3f99d68ecbd5f24")});
-        tests.add(new Object[]{1, new PRTest(" -DIQ", "1e3b0a11f246a238ac4c06b084142715")});
+        tests.add(new Object[]{1, new PRTest(" -qq -1", "b8d296fb78adc5cff7ce12073a69d985")});
+        tests.add(new Object[]{1, new PRTest(" -qq 6", "2ee0cedf84c1a33a807438172bc36c11")});
+        tests.add(new Object[]{1, new PRTest(" -DIQ", "46cf74900bf8b13438e6a195b3085c48")});
 
         for ( final int nct : Arrays.asList(1, 2, 4) ) {
-            tests.add(new Object[]{nct, new PRTest("", "39ecde2c2ba4a7c109e65372618a419a")});
+            tests.add(new Object[]{nct, new PRTest("", "88b88f006ebb1aade85089bfba5a9e8d")});
         }
 
         return tests.toArray(new Object[][]{});
