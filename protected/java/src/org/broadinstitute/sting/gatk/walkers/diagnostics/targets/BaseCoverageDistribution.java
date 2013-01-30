@@ -51,6 +51,8 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.report.GATKReport;
+import org.broadinstitute.sting.gatk.walkers.By;
+import org.broadinstitute.sting.gatk.walkers.DataSource;
 import org.broadinstitute.sting.gatk.walkers.LocusWalker;
 
 import java.io.PrintStream;
@@ -62,6 +64,7 @@ import java.util.Map;
  * Date: 1/27/13
  * Time: 11:16 AM
  */
+@By(DataSource.REFERENCE)
 public class BaseCoverageDistribution extends LocusWalker<Integer, Map<Integer, Long>> {
     @Output(required = true)
     private PrintStream out;
