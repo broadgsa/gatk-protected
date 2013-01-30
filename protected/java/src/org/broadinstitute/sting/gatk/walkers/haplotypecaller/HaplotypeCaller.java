@@ -305,8 +305,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         simpleUAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
+        simpleUAC.CONTAMINATION_FRACTION_FILE=null;
         simpleUAC.exactCallsLog = null;
         UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
+
+        // Currently, per-sample contamination level is only implemented for UG
+        if( UAC.CONTAMINATION_FRACTION_FILE !=null) {
+            throw new UserException("Per-Sample contamination level not supported in Haplotype Caller at this point");
+        }
+
+        // when we do implement per-sample contamination for HC, this will probably be needed.
+        // UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, samples, logger));
 
         // initialize the output VCF header
         annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());

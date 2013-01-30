@@ -519,19 +519,4 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
         executeTest("test calling on a ReducedRead BAM with " + model, spec);
     }
 
-    // --------------------------------------------------------------------------------------------------------------
-    //
-    // testing contamination down-sampling
-    //
-    // --------------------------------------------------------------------------------------------------------------
-
-    @Test
-    public void testContaminationDownsampling() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 --contamination_fraction_to_filter 0.20", 1,
-                Arrays.asList("1f9071466fc40f4c6a0f58ac8e9135fb"));
-        executeTest("test contamination_percentage_to_filter 0.20", spec);
-    }
-
-
 }

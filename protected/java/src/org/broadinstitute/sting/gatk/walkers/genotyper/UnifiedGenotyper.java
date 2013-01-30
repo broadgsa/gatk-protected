@@ -51,6 +51,7 @@ import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.downsampling.AlleleBiasedDownsamplingUtils;
 import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
 import org.broadinstitute.sting.gatk.filters.MappingQualityUnavailableFilter;
@@ -258,6 +259,8 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             if ( UAC.referenceSampleName != null )
                 samples.remove(UAC.referenceSampleName);
         }
+        if ( UAC.CONTAMINATION_FRACTION_FILE != null )
+            UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, UAC.CONTAMINATION_FRACTION, samples, logger));
 
         // check for a bad max alleles value
         if ( UAC.MAX_ALTERNATE_ALLELES > GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)

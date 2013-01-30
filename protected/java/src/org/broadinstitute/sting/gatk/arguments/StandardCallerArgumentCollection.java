@@ -50,10 +50,13 @@ import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.AFCalcFactory;
+import org.broadinstitute.sting.utils.collections.DefaultHashMap;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Created with IntelliJ IDEA.
@@ -119,6 +122,33 @@ public class StandardCallerArgumentCollection {
     public static final double DEFAULT_CONTAMINATION_FRACTION = 0.05;
 
     /**
+     *  This argument specifies a file with two columns "sample" and "contamination" specifying the contamination level for those samples.
+     *  Samples that do not appear in this file will be processed with CONTAMINATION_FRACTION
+     **/
+    @Advanced
+    @Argument(fullName = "contamination_fraction_per_sample_file", shortName = "contaminationFile", doc = "Tab-separated File containing fraction of contamination in sequencing data (per sample) to aggressively remove. Format should be \"<SampleID><TAB><Contamination>\" (Contamination is double) per line; No header.", required = false)
+    public File CONTAMINATION_FRACTION_FILE = null;
+
+    /**
+     *
+     * @return an _Immutable_ copy of the Sample-Contamination Map, defaulting to CONTAMINATION_FRACTION so that if the sample isn't in the map map(sample)==CONTAMINATION_FRACTION
+     */
+    public Map<String,Double> getSampleContamination(){
+        //make sure that the default value is set up right
+        sampleContamination.setDefaultValue(CONTAMINATION_FRACTION);
+        return Collections.unmodifiableMap(sampleContamination);
+    }
+
+    public void setSampleContamination(DefaultHashMap<String, Double> sampleContamination) {
+        this.sampleContamination.clear();
+        this.sampleContamination.putAll(sampleContamination);
+        this.sampleContamination.setDefaultValue(CONTAMINATION_FRACTION);
+    }
+
+    //Needs to be here because it uses CONTAMINATION_FRACTION
+    private DefaultHashMap<String,Double> sampleContamination = new DefaultHashMap<String,Double>(CONTAMINATION_FRACTION);
+
+    /**
      * Controls the model used to calculate the probability that a site is variant plus the various sample genotypes in the data at a given locus.
      */
     @Hidden
@@ -145,8 +175,10 @@ public class StandardCallerArgumentCollection {
         this.STANDARD_CONFIDENCE_FOR_CALLING = SCAC.STANDARD_CONFIDENCE_FOR_CALLING;
         this.STANDARD_CONFIDENCE_FOR_EMITTING = SCAC.STANDARD_CONFIDENCE_FOR_EMITTING;
         this.CONTAMINATION_FRACTION = SCAC.CONTAMINATION_FRACTION;
+        this.CONTAMINATION_FRACTION_FILE=SCAC.CONTAMINATION_FRACTION_FILE;
         this.contaminationLog = SCAC.contaminationLog;
         this.exactCallsLog = SCAC.exactCallsLog;
+        this.sampleContamination=SCAC.sampleContamination;
         this.AFmodel = SCAC.AFmodel;
     }
 }
