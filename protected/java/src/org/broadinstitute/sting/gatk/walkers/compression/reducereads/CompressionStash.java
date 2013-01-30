@@ -46,8 +46,6 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import org.broadinstitute.sting.utils.GenomeLocComparator;
-
 import java.util.Collection;
 import java.util.TreeSet;
 
@@ -63,7 +61,7 @@ import java.util.TreeSet;
  */
 public class CompressionStash extends TreeSet<SimpleGenomeLoc> {
     public CompressionStash() {
-        super(new GenomeLocComparator());
+        super();
     }
 
     /**
