@@ -64,7 +64,6 @@ import org.broadinstitute.sting.gatk.walkers.PartitionType;
 import org.broadinstitute.sting.gatk.walkers.ReadFilters;
 import org.broadinstitute.sting.gatk.walkers.ReadWalker;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocComparator;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -267,8 +266,8 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     public void initialize() {
         super.initialize();
         GenomeAnalysisEngine toolkit = getToolkit();
-        readNameHash = new HashMap<String, Long>();                         // prepare the read name hash to keep track of what reads have had their read names compressed
-        intervalList = new TreeSet<GenomeLoc>(new GenomeLocComparator());   // get the interval list from the engine. If no interval list was provided, the walker will work in WGS mode
+        readNameHash = new HashMap<String, Long>();           // prepare the read name hash to keep track of what reads have had their read names compressed
+        intervalList = new TreeSet<GenomeLoc>();              // get the interval list from the engine. If no interval list was provided, the walker will work in WGS mode
 
         if (toolkit.getIntervals() != null)
             intervalList.addAll(toolkit.getIntervals());

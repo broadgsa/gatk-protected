@@ -63,7 +63,7 @@ import java.util.TreeSet;
  */
 public class CompressionStash extends TreeSet<FinishedGenomeLoc> {
     public CompressionStash() {
-        super(new GenomeLocComparator());
+        super();
     }
 
     /**
