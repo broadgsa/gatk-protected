@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.utils.recalibration;
 
+import com.google.java.contract.Ensures;
 import net.sf.samtools.SAMTag;
 import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
@@ -188,6 +189,7 @@ public class BaseRecalibration {
         }
     }
 
+    @Ensures("result > 0.0")
     protected static double hierarchicalBayesianQualityEstimate( final double epsilon, final RecalDatum empiricalQualRG, final RecalDatum empiricalQualQS, final List<RecalDatum> empiricalQualCovs ) {
         final double globalDeltaQ = ( empiricalQualRG == null ? 0.0 : empiricalQualRG.getEmpiricalQuality(epsilon) - epsilon );
         final double deltaQReported = ( empiricalQualQS == null ? 0.0 : empiricalQualQS.getEmpiricalQuality(globalDeltaQ + epsilon) - (globalDeltaQ + epsilon) );
