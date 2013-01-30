@@ -53,6 +53,7 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
+import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.recalibration.EventType;
@@ -213,7 +214,7 @@ public class SlidingWindow {
      * @return null if nothing is variant, start/stop if there is a complete variant region, start/-1 if there is an incomplete variant region.  All coordinates returned are global.
      */
     @Requires({"from >= 0", "from <= to", "to <= variantSite.length"})
-    private SimpleGenomeLoc findNextVariantRegion(int from, int to, boolean[] variantSite, boolean closeLastRegion) {
+    private FinishedGenomeLoc findNextVariantRegion(int from, int to, boolean[] variantSite, boolean closeLastRegion) {
         boolean foundStart = false;
         final int windowHeaderStart = getStartLocation(windowHeader);
         int variantRegionStartIndex = 0;
@@ -223,12 +224,12 @@ public class SlidingWindow {
                 foundStart = true;
             }
             else if(!variantSite[i] && foundStart) {
-                return(new SimpleGenomeLoc(contig, contigIndex, windowHeaderStart + variantRegionStartIndex, windowHeaderStart + i - 1, true));
+                return(new FinishedGenomeLoc(contig, contigIndex, windowHeaderStart + variantRegionStartIndex, windowHeaderStart + i - 1, true));
             }
         }
         final int refStart = windowHeaderStart + variantRegionStartIndex;
         final int refStop  = windowHeaderStart + to - 1;
-        return (foundStart && closeLastRegion) ? new SimpleGenomeLoc(contig, contigIndex, refStart, refStop, true) : null;
+        return (foundStart && closeLastRegion) ? new FinishedGenomeLoc(contig, contigIndex, refStart, refStop, true) : null;
     }
 
     /**
@@ -248,7 +249,7 @@ public class SlidingWindow {
         int index = from;
         while(index < to) {
             // returns results in global coordinates
-            SimpleGenomeLoc result = findNextVariantRegion(index, to, variantSite, closeLastRegion);
+            FinishedGenomeLoc result = findNextVariantRegion(index, to, variantSite, closeLastRegion);
             if (result == null)
                 break;
 
@@ -699,8 +700,8 @@ public class SlidingWindow {
             int lastStop = -1;
             int windowHeaderStart = getStartLocation(windowHeader);
 
-            for (SimpleGenomeLoc region : regions) {
-                if (region.isFinished() && region.getContig() == contig && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
+            for (GenomeLoc region : regions) {
+                if (((FinishedGenomeLoc)region).isFinished() && region.getContig() == contig && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
                     int start = region.getStart() - windowHeaderStart;
                     int stop = region.getStop() - windowHeaderStart;
 

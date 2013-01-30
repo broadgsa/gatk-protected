@@ -50,7 +50,7 @@ import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.walkers.Walker;
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;

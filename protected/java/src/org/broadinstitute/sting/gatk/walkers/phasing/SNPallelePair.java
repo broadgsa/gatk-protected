@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.phasing;
 
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.Genotype;

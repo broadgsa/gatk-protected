@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import org.broadinstitute.sting.utils.GenomeLocComparator;
+import org.broadinstitute.sting.utils.*;
 
 import java.util.Collection;
 import java.util.TreeSet;
@@ -61,22 +61,22 @@ import java.util.TreeSet;
  * Date: 10/15/12
  * Time: 4:08 PM
  */
-public class CompressionStash extends TreeSet<SimpleGenomeLoc> {
+public class CompressionStash extends TreeSet<FinishedGenomeLoc> {
     public CompressionStash() {
-        super(new GenomeLocComparator());
+        super();
     }
 
     /**
-     * Adds a SimpleGenomeLoc to the stash and merges it with any overlapping (and contiguous) existing loc
+     * Adds a UnvalidatingGenomeLoc to the stash and merges it with any overlapping (and contiguous) existing loc
      * in the stash.
      *
      * @param insertLoc the new loc to be inserted
      * @return true if the loc, or it's merged version, wasn't present in the list before.
      */
     @Override
-    public boolean add(SimpleGenomeLoc insertLoc) {
-        TreeSet<SimpleGenomeLoc> removedLocs = new TreeSet<SimpleGenomeLoc>();
-        for (SimpleGenomeLoc existingLoc : this) {
+    public boolean add(FinishedGenomeLoc insertLoc) {
+        TreeSet<FinishedGenomeLoc> removedLocs = new TreeSet<FinishedGenomeLoc>();
+        for (FinishedGenomeLoc existingLoc : this) {
             if (existingLoc.isPast(insertLoc)) {
                 break;                                          // if we're past the loc we're done looking for overlaps.
             }
@@ -87,17 +87,17 @@ public class CompressionStash extends TreeSet<SimpleGenomeLoc> {
                 removedLocs.add(existingLoc);                   // list the original loc for merging
             }
         }
-        for (SimpleGenomeLoc loc : removedLocs) {
+        for (GenomeLoc loc : removedLocs) {
             this.remove(loc);                                   // remove all locs that will be merged
         }
         removedLocs.add(insertLoc);                             // add the new loc to the list of locs that will be merged
-        return super.add(SimpleGenomeLoc.merge(removedLocs));   // merge them all into one loc and add to the stash
+        return super.add(new FinishedGenomeLoc(GenomeLoc.merge(removedLocs), insertLoc.isFinished()));
     }
 
     @Override
-    public boolean addAll(Collection<? extends SimpleGenomeLoc> locs) {
+    public boolean addAll(Collection<? extends FinishedGenomeLoc> locs) {
         boolean result = false;
-        for (SimpleGenomeLoc loc : locs) {
+        for (final FinishedGenomeLoc loc : locs) {
             result |= this.add(loc);
         }
         return result;

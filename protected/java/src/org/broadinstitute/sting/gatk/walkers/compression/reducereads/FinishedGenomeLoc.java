@@ -46,11 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import com.google.java.contract.Requires;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-
-import java.util.SortedSet;
+import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
 
 /**
  * GenomeLocs are very useful objects to keep track of genomic locations and perform set operations
@@ -59,70 +56,27 @@ import java.util.SortedSet;
  * However, GenomeLocs are bound to strict validation through the GenomeLocParser and cannot
  * be created easily for small tasks that do not require the rigors of the GenomeLocParser validation
  *
- * SimpleGenomeLoc is a simple utility to create GenomeLocs without going through the parser. Should
+ * UnvalidatingGenomeLoc is a simple utility to create GenomeLocs without going through the parser. Should
  * only be used outside of the engine.
  *
  * User: carneiro
  * Date: 10/16/12
  * Time: 2:07 PM
  */
-public class SimpleGenomeLoc extends GenomeLoc {
+public class FinishedGenomeLoc extends UnvalidatingGenomeLoc {
     private boolean finished;
 
-    public SimpleGenomeLoc(String contigName, int contigIndex, int start, int stop, boolean finished) {
-        super(contigName,  contigIndex, start, stop);
+    public FinishedGenomeLoc(final String contigName, final int contigIndex, final int start, final int stop, final boolean finished) {
+        super(contigName, contigIndex, start, stop);
+        this.finished = finished;
+    }
+
+    public FinishedGenomeLoc(final GenomeLoc loc, final boolean finished) {
+        super(loc.getContig(), loc.getContigIndex(), loc.getStart(), loc.getStop());
         this.finished = finished;
     }
 
     public boolean isFinished() {
         return finished;
-    }
-
-    /**
-     * Merges 2 *contiguous* locs into 1
-     *
-     * @param a   SimpleGenomeLoc #1
-     * @param b   SimpleGenomeLoc #2
-     * @return one merged loc
-     */
-    @Requires("a != null && b != null")
-    public static SimpleGenomeLoc merge(SimpleGenomeLoc a, SimpleGenomeLoc b) throws ReviewedStingException {
-        if(GenomeLoc.isUnmapped(a) || GenomeLoc.isUnmapped(b)) {
-            throw new ReviewedStingException("Tried to merge unmapped genome locs");
-        }
-
-        if (!(a.contiguousP(b))) {
-            throw new ReviewedStingException("The two genome locs need to be contiguous");
-        }
-
-        return new SimpleGenomeLoc(a.getContig(), a.contigIndex,
-                Math.min(a.getStart(), b.getStart()),
-                Math.max(a.getStop(), b.getStop()),
-                a.isFinished());
-    }
-
-    /**
-     * Merges a list of *sorted* *contiguous* locs into one
-     *
-     * @param sortedLocs a sorted list of contiguous locs
-     * @return one merged loc
-     */
-    @Requires("sortedLocs != null")
-    public static SimpleGenomeLoc merge(SortedSet<SimpleGenomeLoc> sortedLocs) {
-        SimpleGenomeLoc result = null;
-
-        for ( SimpleGenomeLoc loc : sortedLocs ) {
-            if ( loc.isUnmapped() )
-                throw new ReviewedStingException("Tried to merge unmapped genome locs");
-
-            if ( result == null )
-                result = loc;
-            else if ( !result.contiguousP(loc) )
-                throw new ReviewedStingException("The genome locs need to be contiguous");
-            else
-                result = merge(result, loc);
-        }
-
-        return result;
     }
 }

@@ -59,7 +59,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.HasGenomeLocation;
 import org.broadinstitute.sting.utils.SampleUtils;
