@@ -91,11 +91,11 @@ public class LikelihoodCalculationEngine {
         DEBUG = debug;
     }
 
-    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final ArrayList<Haplotype> haplotypes, final HashMap<String, ArrayList<GATKSAMRecord>> perSampleReadList ) {
+    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
 
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         int X_METRIC_LENGTH = 0;
-        for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
+        for( final Map.Entry<String, List<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
             for( final GATKSAMRecord read : sample.getValue() ) {
                 final int readLength = read.getReadLength();
                 if( readLength > X_METRIC_LENGTH ) { X_METRIC_LENGTH = readLength; }
@@ -115,7 +115,7 @@ public class LikelihoodCalculationEngine {
         pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
 
         // for each sample's reads
-        for( final Map.Entry<String, ArrayList<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
+        for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
             //if( DEBUG ) { System.out.println("Evaluating sample " + sample + " with " + perSampleReadList.get( sample ).size() + " passing reads"); }
             // evaluate the likelihood of the reads given those haplotypes
             stratifiedReadMap.put(sampleEntry.getKey(), computeReadLikelihoods(haplotypes, sampleEntry.getValue()));
@@ -123,7 +123,7 @@ public class LikelihoodCalculationEngine {
         return stratifiedReadMap;
     }
 
-    private PerReadAlleleLikelihoodMap computeReadLikelihoods( final ArrayList<Haplotype> haplotypes, final ArrayList<GATKSAMRecord> reads) {
+    private PerReadAlleleLikelihoodMap computeReadLikelihoods( final List<Haplotype> haplotypes, final List<GATKSAMRecord> reads) {
         // first, a little set up to get copies of the Haplotypes that are Alleles (more efficient than creating them each time)
         final int numHaplotypes = haplotypes.size();
         final Map<Haplotype, Allele> alleleVersions = new HashMap<Haplotype, Allele>(numHaplotypes);
@@ -235,72 +235,13 @@ public class LikelihoodCalculationEngine {
         return likelihoodMatrix;
     }
 
-    /*
     @Requires({"haplotypes.size() > 0"})
     @Ensures({"result.size() <= haplotypes.size()"})
-    public ArrayList<Haplotype> selectBestHaplotypes( final ArrayList<Haplotype> haplotypes ) {
-
-        // BUGBUG: This function needs a lot of work. Need to use 4-gamete test or Tajima's D to decide to break up events into separate pieces for genotyping
-
-        final int numHaplotypes = haplotypes.size();
-        final Set<String> sampleKeySet = haplotypes.get(0).getSampleKeySet(); // BUGBUG: assume all haplotypes saw the same samples
-        final ArrayList<Integer> bestHaplotypesIndexList = new ArrayList<Integer>();
-        bestHaplotypesIndexList.add(0); // always start with the reference haplotype
-        final double[][][] haplotypeLikelihoodMatrix = new double[sampleKeySet.size()][numHaplotypes][numHaplotypes];
-
-        int sampleCount = 0;
-        for( final String sample : sampleKeySet ) {
-            haplotypeLikelihoodMatrix[sampleCount++] = computeDiploidHaplotypeLikelihoods( haplotypes, sample );
-        }
-
-        int hap1 = 0;
-        int hap2 = 0;
-        int chosenSample = 0;
-        //double bestElement = Double.NEGATIVE_INFINITY;
-        final int maxChosenHaplotypes = Math.min( 15, sampleKeySet.size() * 2 + 1 );
-        while( bestHaplotypesIndexList.size() < maxChosenHaplotypes ) {
-            double maxElement = Double.NEGATIVE_INFINITY;
-            for( int kkk = 0; kkk < sampleCount; kkk++ ) {
-                for( int iii = 0; iii < numHaplotypes; iii++ ) {
-                    for( int jjj = 0; jjj <= iii; jjj++ ) {
-                        if( haplotypeLikelihoodMatrix[kkk][iii][jjj] > maxElement ) {
-                            maxElement = haplotypeLikelihoodMatrix[kkk][iii][jjj];
-                            hap1 = iii;
-                            hap2 = jjj;
-                            chosenSample = kkk;
-                        }
-                    }
-                }
-            }
-            if( maxElement == Double.NEGATIVE_INFINITY ) { break; }
-
-            if( !bestHaplotypesIndexList.contains(hap1) ) { bestHaplotypesIndexList.add(hap1); }
-            if( !bestHaplotypesIndexList.contains(hap2) ) { bestHaplotypesIndexList.add(hap2); }
-
-            for( int iii = 0; iii < numHaplotypes; iii++ ) {
-                for( int jjj = 0; jjj <= iii; jjj++ ) {
-                    haplotypeLikelihoodMatrix[chosenSample][iii][jjj] = Double.NEGATIVE_INFINITY;
-                }
-            }
-        }
-
-        if( DEBUG ) { System.out.println("Chose " + (bestHaplotypesIndexList.size() - 1) + " alternate haplotypes to genotype in all samples."); }
-
-        final ArrayList<Haplotype> bestHaplotypes = new ArrayList<Haplotype>();
-        for( final int hIndex : bestHaplotypesIndexList ) {
-            bestHaplotypes.add( haplotypes.get(hIndex) );
-        }
-        return bestHaplotypes;
-    }
-    */
-
-    @Requires({"haplotypes.size() > 0"})
-    @Ensures({"result.size() <= haplotypes.size()"})
-    public ArrayList<Haplotype> selectBestHaplotypes( final ArrayList<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation ) {
+    public List<Haplotype> selectBestHaplotypes( final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation ) {
 
         final int numHaplotypes = haplotypes.size();
         final Set<String> sampleKeySet = stratifiedReadMap.keySet();
-        final ArrayList<Integer> bestHaplotypesIndexList = new ArrayList<Integer>();
+        final List<Integer> bestHaplotypesIndexList = new ArrayList<Integer>();
         bestHaplotypesIndexList.add( findReferenceIndex(haplotypes) ); // always start with the reference haplotype
         final List<Allele> haplotypesAsAlleles = new ArrayList<Allele>();
         for( final Haplotype h : haplotypes ) { haplotypesAsAlleles.add(Allele.create(h.getBases())); }
@@ -332,7 +273,7 @@ public class LikelihoodCalculationEngine {
 
         if( DEBUG ) { System.out.println("Chose " + (bestHaplotypesIndexList.size() - 1) + " alternate haplotypes to genotype in all samples."); }
 
-        final ArrayList<Haplotype> bestHaplotypes = new ArrayList<Haplotype>();
+        final List<Haplotype> bestHaplotypes = new ArrayList<Haplotype>();
         for( final int hIndex : bestHaplotypesIndexList ) {
             bestHaplotypes.add( haplotypes.get(hIndex) );
         }

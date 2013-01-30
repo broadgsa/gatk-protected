@@ -84,7 +84,7 @@ public class GenotypingEngine {
                                                            final List<Haplotype> haplotypes,
                                                            final List<String> samples,
                                                            final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
-                                                           final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
+                                                           final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
                                                            final byte[] ref,
                                                            final GenomeLoc refLoc,
                                                            final GenomeLoc activeRegionWindow,
@@ -124,12 +124,12 @@ public class GenotypingEngine {
         // Walk along each position in the key set and create each event to be outputted
         for( final int loc : startPosKeySet ) {
             if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) { // genotyping an event inside this active region
-                final ArrayList<VariantContext> eventsAtThisLoc = new ArrayList<VariantContext>(); // the overlapping events to merge into a common reference view
-                final ArrayList<String> priorityList = new ArrayList<String>(); // used to merge overlapping events into common reference view
+                final List<VariantContext> eventsAtThisLoc = new ArrayList<VariantContext>(); // the overlapping events to merge into a common reference view
+                final List<String> priorityList = new ArrayList<String>(); // used to merge overlapping events into common reference view
 
                 if( !in_GGA_mode ) {
                     for( final Haplotype h : haplotypes ) {
-                        final HashMap<Integer,VariantContext> eventMap = h.getEventMap();
+                        final Map<Integer,VariantContext> eventMap = h.getEventMap();
                         final VariantContext vc = eventMap.get(loc);
                         if( vc != null && !containsVCWithMatchingAlleles(eventsAtThisLoc, vc) ) {
                             eventsAtThisLoc.add(vc);
@@ -142,7 +142,7 @@ public class GenotypingEngine {
                         if( compVC.getStart() == loc ) {
                             int alleleCount = 0;
                             for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
-                                ArrayList<Allele> alleleSet = new ArrayList<Allele>(2);
+                                List<Allele> alleleSet = new ArrayList<Allele>(2);
                                 alleleSet.add(compVC.getReference());
                                 alleleSet.add(compAltAllele);
                                 final String vcSourceName = "Comp" + compCount + "Allele" + alleleCount;
@@ -180,7 +180,7 @@ public class GenotypingEngine {
                 if( eventsAtThisLoc.size() != mergedVC.getAlternateAlleles().size() ) {
                     throw new ReviewedStingException("Record size mismatch! Something went wrong in the merging of alleles.");
                 }
-                final HashMap<VariantContext, Allele> mergeMap = new HashMap<VariantContext, Allele>();
+                final Map<VariantContext, Allele> mergeMap = new HashMap<VariantContext, Allele>();
                 mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
                 for(int iii = 0; iii < mergedVC.getAlternateAlleles().size(); iii++) {
                     mergeMap.put(eventsAtThisLoc.get(iii), mergedVC.getAlternateAllele(iii)); // BUGBUG: This is assuming that the order of alleles is the same as the priority list given to simpleMerge function
@@ -232,7 +232,7 @@ public class GenotypingEngine {
         return genotypes;
     }
 
-    private void validatePriorityList( final ArrayList<String> priorityList, final ArrayList<VariantContext> eventsAtThisLoc ) {
+    private void validatePriorityList( final List<String> priorityList, final List<VariantContext> eventsAtThisLoc ) {
         for( final VariantContext vc : eventsAtThisLoc ) {
             if( !priorityList.contains(vc.getSource()) ) {
                 throw new ReviewedStingException("Event found on haplotype that wasn't added to priority list. Something went wrong in the merging of alleles.");
@@ -251,7 +251,7 @@ public class GenotypingEngine {
 
     private static Map<String, PerReadAlleleLikelihoodMap> filterToOnlyOverlappingReads( final GenomeLocParser parser,
                                                                                          final Map<String, PerReadAlleleLikelihoodMap> perSampleReadMap,
-                                                                                         final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList,
+                                                                                         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
                                                                                          final VariantContext call ) {
 
         final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
@@ -284,7 +284,7 @@ public class GenotypingEngine {
     }
 
     protected static void cleanUpSymbolicUnassembledEvents( final List<Haplotype> haplotypes ) {
-        final ArrayList<Haplotype> haplotypesToRemove = new ArrayList<Haplotype>();
+        final List<Haplotype> haplotypesToRemove = new ArrayList<Haplotype>();
         for( final Haplotype h : haplotypes ) {
             for( final VariantContext vc : h.getEventMap().values() ) {
                 if( vc.isSymbolic() ) {
@@ -407,7 +407,7 @@ public class GenotypingEngine {
 
                             // remove the old event from the eventMap on every haplotype and the start pos key set, replace with merged event
                             for( final Haplotype h : haplotypes ) {
-                                final HashMap<Integer, VariantContext> eventMap = h.getEventMap();
+                                final Map<Integer, VariantContext> eventMap = h.getEventMap();
                                 if( eventMap.containsKey(thisStart) && eventMap.containsKey(nextStart) ) {
                                     eventMap.remove(thisStart);
                                     eventMap.remove(nextStart);
@@ -418,7 +418,7 @@ public class GenotypingEngine {
                             boolean containsStart = false;
                             boolean containsNext = false;
                             for( final Haplotype h : haplotypes ) {
-                                final HashMap<Integer, VariantContext> eventMap = h.getEventMap();
+                                final Map<Integer, VariantContext> eventMap = h.getEventMap();
                                 if( eventMap.containsKey(thisStart) ) { containsStart = true; }
                                 if( eventMap.containsKey(nextStart) ) { containsNext = true; }
                             }
@@ -457,7 +457,7 @@ public class GenotypingEngine {
         if( refBases.length == altBases.length ) { // insertion + deletion of same length creates an MNP --> trim common prefix bases off the beginning of the allele
             while( iii < refBases.length && refBases[iii] == altBases[iii] ) { iii++; }
         }
-        final ArrayList<Allele> mergedAlleles = new ArrayList<Allele>();
+        final List<Allele> mergedAlleles = new ArrayList<Allele>();
         mergedAlleles.add( Allele.create( ArrayUtils.subarray(refBases, iii, refBases.length), true ) );
         mergedAlleles.add( Allele.create( ArrayUtils.subarray(altBases, iii, altBases.length), false ) );
         return new VariantContextBuilder("merged", thisVC.getChr(), thisVC.getStart() + iii, nextVC.getEnd(), mergedAlleles).make();
@@ -492,10 +492,10 @@ public class GenotypingEngine {
             eventMapper.put(new Event(vc), new ArrayList<Haplotype>());
         }
 
-        final ArrayList<Haplotype> undeterminedHaplotypes = new ArrayList<Haplotype>(haplotypes.size());
+        final List<Haplotype> undeterminedHaplotypes = new ArrayList<Haplotype>(haplotypes.size());
         for( final Haplotype h : haplotypes ) {
             if( h.isArtificialHaplotype() && loc == h.getArtificialAllelePosition() ) {
-                final ArrayList<Allele> alleles = new ArrayList<Allele>(2);
+                final List<Allele> alleles = new ArrayList<Allele>(2);
                 alleles.add(h.getArtificialRefAllele());
                 alleles.add(h.getArtificialAltAllele());
                 final Event artificialVC = new Event( (new VariantContextBuilder()).source("artificialHaplotype")
@@ -572,13 +572,13 @@ public class GenotypingEngine {
     }
 
     @Ensures({"result.size() == haplotypeAllelesForSample.size()"})
-    protected static List<Allele> findEventAllelesInSample( final List<Allele> eventAlleles, final List<Allele> haplotypeAlleles, final List<Allele> haplotypeAllelesForSample, final ArrayList<ArrayList<Haplotype>> alleleMapper, final ArrayList<Haplotype> haplotypes ) {
+    protected static List<Allele> findEventAllelesInSample( final List<Allele> eventAlleles, final List<Allele> haplotypeAlleles, final List<Allele> haplotypeAllelesForSample, final List<List<Haplotype>> alleleMapper, final List<Haplotype> haplotypes ) {
         if( haplotypeAllelesForSample.contains(Allele.NO_CALL) ) { return noCall; }
-        final ArrayList<Allele> eventAllelesForSample = new ArrayList<Allele>();
+        final List<Allele> eventAllelesForSample = new ArrayList<Allele>();
         for( final Allele a : haplotypeAllelesForSample ) {
             final Haplotype haplotype = haplotypes.get(haplotypeAlleles.indexOf(a));
             for( int iii = 0; iii < alleleMapper.size(); iii++ ) {
-                final ArrayList<Haplotype> mappedHaplotypes = alleleMapper.get(iii);
+                final List<Haplotype> mappedHaplotypes = alleleMapper.get(iii);
                 if( mappedHaplotypes.contains(haplotype) ) {
                     eventAllelesForSample.add(eventAlleles.get(iii));
                     break;
@@ -597,8 +597,8 @@ public class GenotypingEngine {
         return false;
     }
 
-    protected static HashMap<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final int alignmentStartHapwrtRef, final Cigar cigar, final byte[] ref, final byte[] alignment, final GenomeLoc refLoc, final String sourceNameToAdd ) {
-        final HashMap<Integer,VariantContext> vcs = new HashMap<Integer,VariantContext>();
+    protected static Map<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final int alignmentStartHapwrtRef, final Cigar cigar, final byte[] ref, final byte[] alignment, final GenomeLoc refLoc, final String sourceNameToAdd ) {
+        final Map<Integer,VariantContext> vcs = new HashMap<Integer,VariantContext>();
 
         int refPos = alignmentStartHapwrtRef;
         if( refPos < 0 ) { return null; } // Protection against SW failures
@@ -609,7 +609,7 @@ public class GenotypingEngine {
             switch( ce.getOperator() ) {
                 case I:
                 {
-                    final ArrayList<Allele> insertionAlleles = new ArrayList<Allele>();
+                    final List<Allele> insertionAlleles = new ArrayList<Allele>();
                     final int insertionStart = refLoc.getStart() + refPos - 1;
                     final byte refByte = ref[refPos-1];
                     if( BaseUtils.isRegularBase(refByte) ) {
@@ -639,7 +639,7 @@ public class GenotypingEngine {
                 case D:
                 {
                     final byte[] deletionBases = Arrays.copyOfRange( ref, refPos - 1, refPos + elementLength );  // add padding base
-                    final ArrayList<Allele> deletionAlleles = new ArrayList<Allele>();
+                    final List<Allele> deletionAlleles = new ArrayList<Allele>();
                     final int deletionStart = refLoc.getStart() + refPos - 1;
                     // BUGBUG: how often does this symbolic deletion allele case happen?
                     //if( haplotype != null && ( (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 >= deletionStart && haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 < deletionStart + elementLength)
@@ -667,7 +667,7 @@ public class GenotypingEngine {
                         final byte altByte = alignment[alignmentPos];
                         if( refByte != altByte ) { // SNP!
                             if( BaseUtils.isRegularBase(refByte) && BaseUtils.isRegularBase(altByte) ) {
-                                final ArrayList<Allele> snpAlleles = new ArrayList<Allele>();
+                                final List<Allele> snpAlleles = new ArrayList<Allele>();
                                 snpAlleles.add( Allele.create( refByte, true ) );
                                 snpAlleles.add( Allele.create( altByte, false ) );
                                 vcs.put(refLoc.getStart() + refPos, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), refLoc.getStart() + refPos, refLoc.getStart() + refPos, snpAlleles).make());

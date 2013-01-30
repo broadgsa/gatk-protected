@@ -84,7 +84,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
 
     private final boolean DEBUG;
     private final PrintStream GRAPH_WRITER;
-    private final ArrayList<DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>> graphs = new ArrayList<DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>>();
+    private final List<DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>> graphs = new ArrayList<DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>>();
     private final int MIN_KMER;
 
     private int PRUNE_FACTOR = 2;
@@ -96,7 +96,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         MIN_KMER = minKmer;
     }
 
-    public ArrayList<Haplotype> runLocalAssembly( final ActiveRegion activeRegion, final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final int PRUNE_FACTOR, final ArrayList<VariantContext> activeAllelesToGenotype ) {
+    public List<Haplotype> runLocalAssembly( final ActiveRegion activeRegion, final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final int PRUNE_FACTOR, final List<VariantContext> activeAllelesToGenotype ) {
         this.PRUNE_FACTOR = PRUNE_FACTOR;
 
         // create the graphs
@@ -168,7 +168,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     protected static void pruneGraph( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final int pruneFactor ) {
-        final ArrayList<DeBruijnEdge> edgesToRemove = new ArrayList<DeBruijnEdge>();
+        final List<DeBruijnEdge> edgesToRemove = new ArrayList<DeBruijnEdge>();
         for( final DeBruijnEdge e : graph.edgeSet() ) {
             if( e.getMultiplicity() <= pruneFactor && !e.getIsRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
                 edgesToRemove.add(e);
@@ -177,7 +177,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         graph.removeAllEdges(edgesToRemove);
 
         // Run through the graph and clean up singular orphaned nodes
-        final ArrayList<DeBruijnVertex> verticesToRemove = new ArrayList<DeBruijnVertex>();
+        final List<DeBruijnVertex> verticesToRemove = new ArrayList<DeBruijnVertex>();
         for( final DeBruijnVertex v : graph.vertexSet() ) {
             if( graph.inDegreeOf(v) == 0 && graph.outDegreeOf(v) == 0 ) {
                 verticesToRemove.add(v);
@@ -187,7 +187,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     protected static void eliminateNonRefPaths( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
-        final ArrayList<DeBruijnVertex> verticesToRemove = new ArrayList<DeBruijnVertex>();
+        final List<DeBruijnVertex> verticesToRemove = new ArrayList<DeBruijnVertex>();
         boolean done = false;
         while( !done ) {
             done = true;
@@ -313,8 +313,8 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     @Ensures({"result.contains(refHaplotype)"})
-    private ArrayList<Haplotype> findBestPaths( final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final ArrayList<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow ) {
-        final ArrayList<Haplotype> returnHaplotypes = new ArrayList<Haplotype>();
+    private List<Haplotype> findBestPaths( final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final List<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow ) {
+        final List<Haplotype> returnHaplotypes = new ArrayList<Haplotype>();
 
         // add the reference haplotype separately from all the others
         final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( fullReferenceWithPadding, refHaplotype.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
@@ -343,7 +343,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
 
                     // for GGA mode, add the desired allele into the haplotype if it isn't already present
                     if( !activeAllelesToGenotype.isEmpty() ) {
-                        final HashMap<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), fullReferenceWithPadding, h.getBases(), refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
+                        final Map<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), fullReferenceWithPadding, h.getBases(), refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
                         for( final VariantContext compVC : activeAllelesToGenotype ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
                             final VariantContext vcOnHaplotype = eventMap.get(compVC.getStart());
 
@@ -378,7 +378,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         return returnHaplotypes;
     }
 
-    private boolean addHaplotype( final Haplotype haplotype, final byte[] ref, final ArrayList<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop, final boolean FORCE_INCLUSION_FOR_GGA_MODE ) {
+    private boolean addHaplotype( final Haplotype haplotype, final byte[] ref, final List<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop, final boolean FORCE_INCLUSION_FOR_GGA_MODE ) {
         if( haplotype == null ) { return false; }
 
         final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( ref, haplotype.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
