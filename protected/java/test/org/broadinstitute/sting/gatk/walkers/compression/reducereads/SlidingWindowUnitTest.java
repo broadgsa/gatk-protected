@@ -46,14 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMReadGroupRecord;
-import net.sf.samtools.SAMRecord;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
-import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.sting.utils.sam.ArtificialSingleSampleReadStream;
-import org.broadinstitute.sting.utils.sam.ArtificialSingleSampleReadStreamAnalyzer;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -70,31 +63,31 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     private static final int variantRegionLength = 1000;
     private static final int globalStartPosition = 1000000;
-    private static final SimpleGenomeLoc loc90to95 = new SimpleGenomeLoc("1", 0, 1000090, 1000095, false);
-    private static final SimpleGenomeLoc loc96to99 = new SimpleGenomeLoc("1", 0, 1000096, 1000099, false);
-    private static final SimpleGenomeLoc loc100to110 = new SimpleGenomeLoc("1", 0, 1000100, 1000110, false);
-    private static final SimpleGenomeLoc loc999 = new SimpleGenomeLoc("1", 0, 1000999, 1000999, false);
+    private static final FinishedGenomeLoc loc90to95 = new FinishedGenomeLoc("1", 0, 1000090, 1000095, false);
+    private static final FinishedGenomeLoc loc96to99 = new FinishedGenomeLoc("1", 0, 1000096, 1000099, false);
+    private static final FinishedGenomeLoc loc100to110 = new FinishedGenomeLoc("1", 0, 1000100, 1000110, false);
+    private static final FinishedGenomeLoc loc999 = new FinishedGenomeLoc("1", 0, 1000999, 1000999, false);
 
     private class FindVariantRegionsTest {
-        public List<SimpleGenomeLoc> locs, expectedResult;
+        public List<FinishedGenomeLoc> locs, expectedResult;
         public boolean[] variantRegionBitset;
 
-        private FindVariantRegionsTest(final List<SimpleGenomeLoc> locs) {
+        private FindVariantRegionsTest(final List<FinishedGenomeLoc> locs) {
             this.locs = locs;
             this.expectedResult = locs;
             variantRegionBitset = createBitset(locs);
         }
 
-        private FindVariantRegionsTest(final List<SimpleGenomeLoc> locs, final List<SimpleGenomeLoc> expectedResult) {
+        private FindVariantRegionsTest(final List<FinishedGenomeLoc> locs, final List<FinishedGenomeLoc> expectedResult) {
             this.locs = locs;
             this.expectedResult = expectedResult;
             variantRegionBitset = createBitset(locs);
         }
     }
 
-    private static boolean[] createBitset(final List<SimpleGenomeLoc> locs) {
+    private static boolean[] createBitset(final List<FinishedGenomeLoc> locs) {
         boolean[] variantRegionBitset = new boolean[variantRegionLength];
-        for ( SimpleGenomeLoc loc : locs ) {
+        for ( FinishedGenomeLoc loc : locs ) {
             final int stop = loc.getStop() - globalStartPosition;
             for ( int i = loc.getStart() - globalStartPosition; i <= stop; i++ )
                 variantRegionBitset[i] = true;
@@ -106,11 +99,11 @@ public class SlidingWindowUnitTest extends BaseTest {
     public Object[][] createFindVariantRegionsData() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<SimpleGenomeLoc>asList(loc90to95))});
-        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<SimpleGenomeLoc>asList(loc90to95, loc100to110))});
-        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<SimpleGenomeLoc>asList(loc90to95, loc96to99, loc100to110), Arrays.<SimpleGenomeLoc>asList(new SimpleGenomeLoc("1", 0, 1000090, 1000110, false)))});
-        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<SimpleGenomeLoc>asList(loc90to95, loc999))});
-        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<SimpleGenomeLoc>asList(loc999))});
+        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<FinishedGenomeLoc>asList(loc90to95))});
+        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<FinishedGenomeLoc>asList(loc90to95, loc100to110))});
+        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<FinishedGenomeLoc>asList(loc90to95, loc96to99, loc100to110), Arrays.<FinishedGenomeLoc>asList(new FinishedGenomeLoc("1", 0, 1000090, 1000110, false)))});
+        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<FinishedGenomeLoc>asList(loc90to95, loc999))});
+        tests.add(new Object[]{new FindVariantRegionsTest(Arrays.<FinishedGenomeLoc>asList(loc999))});
 
         return tests.toArray(new Object[][]{});
     }
@@ -120,7 +113,7 @@ public class SlidingWindowUnitTest extends BaseTest {
         final SlidingWindow slidingWindow = new SlidingWindow("1", 0, globalStartPosition);
         final CompressionStash locs = slidingWindow.findVariantRegions(0, variantRegionLength, test.variantRegionBitset, true);
         int index = 0;
-        for ( final SimpleGenomeLoc loc : locs ) {
+        for ( final FinishedGenomeLoc loc : locs ) {
             Assert.assertTrue(loc.equals(test.expectedResult.get(index++)));
         }
     }
@@ -128,7 +121,7 @@ public class SlidingWindowUnitTest extends BaseTest {
     @Test(enabled = true)
     public void testNoClosingRegions() {
         final SlidingWindow slidingWindow = new SlidingWindow("1", 0, globalStartPosition);
-        final CompressionStash locs = slidingWindow.findVariantRegions(0, variantRegionLength, createBitset(Arrays.<SimpleGenomeLoc>asList(loc90to95, loc999)), false);
+        final CompressionStash locs = slidingWindow.findVariantRegions(0, variantRegionLength, createBitset(Arrays.<FinishedGenomeLoc>asList(loc90to95, loc999)), false);
         Assert.assertEquals(locs.size(), 1);
         Assert.assertEquals(locs.iterator().next(), loc90to95);
     }
