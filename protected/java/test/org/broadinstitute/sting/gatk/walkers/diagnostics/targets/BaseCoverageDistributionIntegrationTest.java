@@ -46,118 +46,52 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
-import org.broadinstitute.sting.commandline.Output;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.report.GATKReport;
-import org.broadinstitute.sting.gatk.walkers.LocusWalker;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.WalkerTest;
+import org.testng.annotations.Test;
 
-import java.io.PrintStream;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.Arrays;
 
 /**
- * User: carneiro
- * Date: 1/27/13
- * Time: 11:16 AM
+ * Short one line description of the walker.
+ *
+ * <p> [Long description of the walker] </p>
+ *
+ *
+ * <h2>Input</h2> <p> [Description of the Input] </p>
+ *
+ * <h2>Output</h2> <p> [Description of the Output] </p>
+ *
+ * <h2>Examples</h2>
+ * <pre>
+ *    java
+ *      -jar GenomeAnalysisTK.jar
+ *      -T [walker name]
+ *  </pre>
+ *
+ * @author Mauricio Carneiro
+ * @since 2/6/13
  */
-public class BaseCoverageDistribution extends LocusWalker<Integer, Map<Integer, Long>> {
-    @Output(required = true)
-    private PrintStream out;
+public class BaseCoverageDistributionIntegrationTest extends WalkerTest {
+    final static String REF = hg18Reference;
+    final String bam = validationDataLocation + "small_bam_for_countloci.withRG.bam";
 
-    private GenomeLoc previousLocus = null;
-    private long uncoveredBases = 0L;
-    private final LinkedList<GenomeLoc> intervalList = new LinkedList<GenomeLoc>();
-
-    @Override
-    public boolean includeReadsWithDeletionAtLoci() {
-        return true;
+    private void DTTest(String testName, String args, String md5) {
+        String base = String.format("-T BaseCoverageDistribution -R %s -I %s", REF, bam) + " -o %s ";
+        WalkerTestSpec spec = new WalkerTestSpec(base + args, Arrays.asList(md5));
+        executeTest(testName, spec);
     }
 
-    @Override
-    public void initialize() {
-        if (getToolkit().getIntervals() != null)
-            intervalList.addAll(getToolkit().getIntervals());
+    @Test(enabled = true)
+    public void testSingleInterval() {
+        DTTest("testSingleInterval ", "-L " + "chr1:90000-100000", "45368696dc008d1a07fb2b05fbafd1f4");
+    }
+    @Test(enabled = true)
+    public void testMultipleIntervals() {
+        DTTest("testMultipleIntervals ", "-L chr1:10-20 -L chr1:40-100 -L chr1:10,000-11,000 -L chr1:40,000-60,000 -L chr1:76,000-99,000 ", "45dafe59e5e54451b88c914d6ecbddc6");
     }
 
-    @Override
-    public Integer map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
-        GenomeLoc currentLocus = ref.getLocus();
-        tallyUncoveredBases(currentLocus);
-        previousLocus = currentLocus;
-        System.out.println("DEBUG: " + currentLocus + " - " + context.getBasePileup().getReads().size() + " - " + uncoveredBases);
-        return context.getBasePileup().getReads().size(); // I want the reads instead of the base pileup because I want to count deletions.
-    }
-
-    @Override
-    public Map<Integer, Long> reduceInit() {
-        return new HashMap<Integer, Long>(10000);
-    }
-
-    @Override
-    public Map<Integer, Long> reduce(Integer value, Map<Integer, Long> sum) {
-        Long curr = sum.get(value);
-        if (curr == null)
-            curr = 0L;
-        sum.put(value, curr + 1);
-        return sum;
-    }
-
-    @Override
-    public void onTraversalDone(Map<Integer, Long> result) {
-        tallyUncoveredBasesTillEndOfTraversal();
-        GATKReport report = GATKReport.newSimpleReport("BaseCoverageDistribution", "Coverage", "Count");
-        report.addRow(0, uncoveredBases);
-        for (Map.Entry<Integer, Long> entry : result.entrySet()) {
-            report.addRow(entry.getKey(), entry.getValue());
-        }
-        report.print(out);
-    }
-
-    private void tallyUncoveredBasesTillEndOfTraversal() {
-        GenomeLocParser parser = getToolkit().getGenomeLocParser();
-        GenomeLoc lastLocus;
-        if (intervalList.isEmpty()) { //whole genome, add up all contigs past previousLocus
-            int lastContigLength = getToolkit().getSAMFileHeader().getSequence(0).getSequenceLength();
-            String lastContigName = getToolkit().getSAMFileHeader().getSequence(0).getSequenceName();
-            int lastContigIndex = getToolkit().getSAMFileHeader().getSequence(0).getSequenceIndex();
-            lastLocus = parser.createGenomeLoc(lastContigName, lastContigIndex, 1, lastContigLength);
-        } else {
-            GenomeLoc lastInterval = intervalList.getLast();
-            lastLocus = parser.createGenomeLoc(lastInterval.getContig(), lastInterval.getContigIndex(), lastInterval.getStop(), lastInterval.getStop());
-        }
-        tallyUncoveredBases(lastLocus);
-    }
-
-    private void tallyUncoveredBases(GenomeLoc currentLocus) {
-        long distance = 0;
-        if (previousLocus == null) { // first base visited
-            GenomeLocParser parser = getToolkit().getGenomeLocParser();
-            if (intervalList.isEmpty()) { // if this is whole genome (no intervals requested), add what we missed.
-                final GenomeLoc zeroLoc = parser.createGenomeLoc(getToolkit().getSAMFileHeader().getSequence(0).getSequenceName(), 0, 1, 1);
-                System.out.println("ZEROLOC: " + zeroLoc.toString());
-                distance += currentLocus.distanceAcrossContigs(zeroLoc, getToolkit().getSAMFileHeader());
-            } else { // if we are running on an interval list, add all intervals before the current locus to the uncovered bases counter
-                while (!intervalList.peek().containsP(currentLocus)) {
-                    GenomeLoc interval = intervalList.removeFirst();
-                    distance += interval.size();
-                }
-                distance += currentLocus.getStart() - intervalList.peek().getStart(); // now this is the interval that contains the current locus. Discount the bases from the beginning.
-            }
-        } else {
-            final GenomeLoc previousInterval = intervalList.peekFirst();  // peekFirst returns null if interval list is empty (WGS).
-            distance = currentLocus.distanceAcrossContigs(previousLocus, getToolkit().getSAMFileHeader()) - 1;
-            if (previousInterval != null && !previousInterval.containsP(currentLocus)) {
-                intervalList.removeFirst(); // we're done with the previous interval
-                final GenomeLoc currentInterval = intervalList.peekFirst();
-                distance -= currentInterval.distanceAcrossContigs(previousInterval, getToolkit().getSAMFileHeader()) - 1;
-            }
-        }
-
-        uncoveredBases += distance;
+    @Test(enabled = true)
+    public void testNoIntervals() {
+        DTTest("testNoIntervals ", "", ""); // needs to be checked... is not tallying 0's correctly!
     }
 }
