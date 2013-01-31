@@ -74,7 +74,7 @@ public class CompressionStash extends TreeSet<FinishedGenomeLoc> {
      * @return true if the loc, or it's merged version, wasn't present in the list before.
      */
     @Override
-    public boolean add(FinishedGenomeLoc insertLoc) {
+    public boolean add(final FinishedGenomeLoc insertLoc) {
         TreeSet<FinishedGenomeLoc> removedLocs = new TreeSet<FinishedGenomeLoc>();
         for (FinishedGenomeLoc existingLoc : this) {
             if (existingLoc.isPast(insertLoc)) {
@@ -87,10 +87,10 @@ public class CompressionStash extends TreeSet<FinishedGenomeLoc> {
                 removedLocs.add(existingLoc);                   // list the original loc for merging
             }
         }
-        for (GenomeLoc loc : removedLocs) {
-            this.remove(loc);                                   // remove all locs that will be merged
-        }
+
+        this.removeAll(removedLocs);                            // remove all locs that will be merged
         removedLocs.add(insertLoc);                             // add the new loc to the list of locs that will be merged
+
         return super.add(new FinishedGenomeLoc(GenomeLoc.merge(removedLocs), insertLoc.isFinished()));
     }
 

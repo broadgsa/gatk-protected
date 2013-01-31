@@ -141,7 +141,10 @@ public class SlidingWindow {
     protected SlidingWindow(final String contig, final int contigIndex, final int startLocation) {
         this.contig = contig;
         this.contigIndex = contigIndex;
+
+        contextSize = 10;
         nContigs = 1;
+
         this.windowHeader = new LinkedList<HeaderElement>();
         windowHeader.addFirst(new HeaderElement(startLocation));
         this.readsInWindow = new TreeSet<GATKSAMRecord>();
@@ -293,7 +296,7 @@ public class SlidingWindow {
     }
 
 
-    private final class MarkedSites {
+    protected final class MarkedSites {
 
         private boolean[] siteIsVariant = new boolean[0];
         private int startLocation = 0;
@@ -301,6 +304,8 @@ public class SlidingWindow {
         public MarkedSites() {}
 
         public boolean[] getVariantSiteBitSet() { return siteIsVariant; }
+
+        protected int getStartLocation() { return startLocation; }
 
         /**
          * Updates the variant site bitset given the new startlocation and size of the region to mark.
