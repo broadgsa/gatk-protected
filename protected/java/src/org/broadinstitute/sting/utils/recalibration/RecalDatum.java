@@ -201,7 +201,7 @@ public class RecalDatum {
      * Returns the error rate (in real space) of this interval, or 0 if there are no observations
      * @return the empirical error rate ~= N errors / N obs
      */
-    @Ensures("result >= 0.0")
+    @Ensures({"result >= 0.0"})
     public double getEmpiricalErrorRate() {
         if ( numObservations == 0 )
             return 0.0;
