@@ -152,10 +152,10 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                     final DeBruijnVertex addedVertex = new DeBruijnVertex( ArrayUtils.addAll(incomingVertex.getSequence(), outgoingVertex.getSuffix()), outgoingVertex.kmer );
                     graph.addVertex(addedVertex);
                     for( final DeBruijnEdge edge : outEdges ) {
-                        graph.addEdge(addedVertex, graph.getEdgeTarget(edge), new DeBruijnEdge(edge.getIsRef(), edge.getMultiplicity()));
+                        graph.addEdge(addedVertex, graph.getEdgeTarget(edge), new DeBruijnEdge(edge.isRef(), edge.getMultiplicity()));
                     }
                     for( final DeBruijnEdge edge : inEdges ) {
-                        graph.addEdge(graph.getEdgeSource(edge), addedVertex, new DeBruijnEdge(edge.getIsRef(), edge.getMultiplicity()));
+                        graph.addEdge(graph.getEdgeSource(edge), addedVertex, new DeBruijnEdge(edge.isRef(), edge.getMultiplicity()));
                     }
 
                     graph.removeVertex( incomingVertex );
@@ -170,7 +170,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
     protected static void pruneGraph( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final int pruneFactor ) {
         final List<DeBruijnEdge> edgesToRemove = new ArrayList<DeBruijnEdge>();
         for( final DeBruijnEdge e : graph.edgeSet() ) {
-            if( e.getMultiplicity() <= pruneFactor && !e.getIsRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
+            if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
                 edgesToRemove.add(e);
             }
         }
@@ -195,7 +195,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                 if( graph.inDegreeOf(v) == 0 || graph.outDegreeOf(v) == 0 ) {
                     boolean isRefNode = false;
                     for( final DeBruijnEdge e : graph.edgesOf(v) ) {
-                        if( e.getIsRef() ) {
+                        if( e.isRef() ) {
                             isRefNode = true;
                             break;
                         }
@@ -299,10 +299,10 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                 if( edge.getMultiplicity() > PRUNE_FACTOR ) {
                     GRAPH_WRITER.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= PRUNE_FACTOR ? "style=dotted,color=grey" : "label=\""+ edge.getMultiplicity() +"\"") + "];");
                 }
-                if( edge.getIsRef() ) {
+                if( edge.isRef() ) {
                     GRAPH_WRITER.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [color=red];");
                 }
-                if( !edge.getIsRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
+                if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
             }
             for( final DeBruijnVertex v : graph.vertexSet() ) {
                 final String label = ( graph.inDegreeOf(v) == 0 ? v.toString() : v.getSuffixString() );
@@ -338,7 +338,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         for( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph : graphs ) {
             for ( final KBestPaths.Path path : KBestPaths.getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
 
-                final Haplotype h = new Haplotype( path.getBases( graph ) );
+                final Haplotype h = new Haplotype( path.getBases() );
                 if( addHaplotype( h, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, false ) ) {
 
                     // for GGA mode, add the desired allele into the haplotype if it isn't already present

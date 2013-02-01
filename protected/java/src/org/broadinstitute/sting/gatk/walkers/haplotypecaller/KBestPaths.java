@@ -46,8 +46,14 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
+import com.google.java.contract.Ensures;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.sting.utils.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
 import java.io.Serializable;
@@ -55,7 +61,7 @@ import java.util.*;
 
 /**
  * Created by IntelliJ IDEA.
- * User: ebanks
+ * User: ebanks, rpoplin
  * Date: Mar 23, 2011
  */
 // Class for finding the K best paths (as determined by the sum of multiplicities of the edges) in a graph.
@@ -72,28 +78,47 @@ public class KBestPaths {
     protected static class Path {
 
         // the last vertex seen in the path
-        private DeBruijnVertex lastVertex;
+        private final DeBruijnVertex lastVertex;
 
         // the list of edges comprising the path
-        private ArrayList<DeBruijnEdge> edges;
+        private final List<DeBruijnEdge> edges;
 
         // the scores for the path
-        private int totalScore = 0, lowestEdge = -1;
+        private final int totalScore;
+        private final int lowestEdge;
 
-        public Path( final DeBruijnVertex initialVertex ) {
+        // the graph from which this path originated
+        private final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph;
+
+        // used in the bubble state machine to apply Smith-Waterman to the bubble sequence
+        private final double SW_MATCH = 15.0;
+        private final double SW_MISMATCH = -15.0;
+        private final double SW_GAP = -25.0;
+        private final double SW_GAP_EXTEND = -1.2;
+
+        public Path( final DeBruijnVertex initialVertex, final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
             lastVertex = initialVertex;
             edges = new ArrayList<DeBruijnEdge>(0);
+            totalScore = 0;
+            lowestEdge = -1;
+            this.graph = graph;
         }
 
-        public Path( final Path p, final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge edge ) {
-            lastVertex = graph.getEdgeTarget(edge);
+        public Path( final Path p, final DeBruijnEdge edge ) {
+            graph = p.graph;
+            lastVertex = p.graph.getEdgeTarget(edge);
             edges = new ArrayList<DeBruijnEdge>(p.edges);
             edges.add(edge);
             totalScore = p.totalScore + edge.getMultiplicity();
             lowestEdge = ( p.lowestEdge == -1 ) ? edge.getMultiplicity() : Math.min(p.lowestEdge, edge.getMultiplicity());
         }
 
-        public boolean containsEdge( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge edge ) {
+        /**
+         * Does this path contain the given edge
+         * @param edge  the given edge to test
+         * @return      true if the edge is found in this path
+         */
+        public boolean containsEdge( final DeBruijnEdge edge ) {
             final DeBruijnVertex targetVertex = graph.getEdgeTarget(edge);
             for( final DeBruijnEdge e : edges ) {
                 if( e.equals(graph, edge) || graph.getEdgeTarget(e).equals(targetVertex) ) {
@@ -104,7 +129,7 @@ public class KBestPaths {
             return false;
         }
 
-        public ArrayList<DeBruijnEdge> getEdges() { return edges; }
+        public List<DeBruijnEdge> getEdges() { return edges; }
 
         public int getScore() { return totalScore; }
 
@@ -112,7 +137,12 @@ public class KBestPaths {
 
         public DeBruijnVertex getLastVertexInPath() { return lastVertex; }
 
-        public byte[] getBases( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
+        /**
+         * The base sequence for this path. Pull the full sequence for the source of the path and then the suffix for all subsequent nodes
+         * @return  non-null sequence of bases corresponding to this path
+         */
+        @Ensures({"result != null"})
+        public byte[] getBases() {
             if( edges.size() == 0 ) { return lastVertex.getSequence(); }
             
             byte[] bases = graph.getEdgeSource( edges.get(0) ).getSequence();
@@ -120,6 +150,142 @@ public class KBestPaths {
                 bases = ArrayUtils.addAll(bases, graph.getEdgeTarget( e ).getSuffix());
             }
             return bases;
+        }
+
+        /**
+         * Calculate the cigar string for this path using a bubble traversal of the assembly graph and running a Smith-Waterman alignment on each bubble
+         */
+        @Ensures("result != null")
+        public Cigar calculateCigar() {
+
+            final Cigar cigar = new Cigar();
+            // special case for paths that start on reference but not at the reference source node
+            if( edges.get(0).isRef() && !isRefSource(graph, edges.get(0)) ) {
+                for( final CigarElement ce : calculateCigarForCompleteBubble(graph, null, null, graph.getEdgeSource(edges.get(0))).getCigarElements() ) {
+                    cigar.add(ce);
+                }
+            }
+
+            // reset the bubble state machine
+            final BubbleStateMachine bsm = new BubbleStateMachine(cigar);
+
+            for( final DeBruijnEdge e : edges ) {
+                if( e.equals(graph, edges.get(0)) ) {
+                    advanceBubbleStateMachine( bsm, graph, graph.getEdgeSource(e), null );
+                }
+                advanceBubbleStateMachine( bsm, graph, graph.getEdgeTarget(e), e );
+            }
+
+            // special case for paths that don't end on reference
+            if( bsm.inBubble ) {
+                for( final CigarElement ce : calculateCigarForCompleteBubble(graph, bsm.bubbleBytes, bsm.lastSeenReferenceNode, null).getCigarElements() ) {
+                    bsm.cigar.add(ce);
+                }
+            } else if( edges.get(edges.size()-1).isRef() && !isRefSink(graph, edges.get(edges.size()-1)) ) { // special case for paths that end of the reference but haven't completed the entire reference circuit
+                for( final CigarElement ce : calculateCigarForCompleteBubble(graph, bsm.bubbleBytes, graph.getEdgeTarget(edges.get(edges.size()-1)), null).getCigarElements() ) {
+                    bsm.cigar.add(ce);
+                }
+            }
+
+            return AlignmentUtils.consolidateCigar(bsm.cigar);
+        }
+
+        private void advanceBubbleStateMachine( final BubbleStateMachine bsm, final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex node, final DeBruijnEdge e ) {
+            if( isReferenceNode( graph, node ) ) {
+                if( !bsm.inBubble ) { // just add the ref bases as M's in the Cigar string, and don't do anything else
+                    if( e !=null && !e.isRef() ) {
+                        if( referencePathExists( graph, graph.getEdgeSource(e), node) ) {
+                            for( final CigarElement ce : calculateCigarForCompleteBubble(graph, null, graph.getEdgeSource(e), node).getCigarElements() ) {
+                                bsm.cigar.add(ce);
+                            }
+                            bsm.cigar.add( new CigarElement( getAdditionalSequence(graph, node).length, CigarOperator.M) );
+                        } else if ( graph.getEdgeSource(e).equals(graph.getEdgeTarget(e)) ) { // alt edge at ref node points to itself
+                            bsm.cigar.add( new CigarElement( getAdditionalSequence(graph, node).length, CigarOperator.I) );
+                        } else {
+                            bsm.inBubble = true;
+                            bsm.bubbleBytes = null;
+                            bsm.lastSeenReferenceNode = graph.getEdgeSource(e);
+                            bsm.bubbleBytes = ArrayUtils.addAll( bsm.bubbleBytes, getAdditionalSequence(graph, node) );
+                        }
+                    } else {
+                        bsm.cigar.add( new CigarElement( getAdditionalSequence(graph, node).length, CigarOperator.M) );
+                    }
+                } else if( bsm.lastSeenReferenceNode != null && !referencePathExists( graph, bsm.lastSeenReferenceNode, node ) ) { // add bases to the bubble string until we get back to the reference path
+                    bsm.bubbleBytes = ArrayUtils.addAll( bsm.bubbleBytes, getAdditionalSequence(graph, node) );
+                } else { // close the bubble and use a local SW to determine the Cigar string
+                    for( final CigarElement ce : calculateCigarForCompleteBubble(graph, bsm.bubbleBytes, bsm.lastSeenReferenceNode, node).getCigarElements() ) {
+                        bsm.cigar.add(ce);
+                    }
+                    bsm.inBubble = false;
+                    bsm.bubbleBytes = null;
+                    bsm.lastSeenReferenceNode = null;
+                    bsm.cigar.add( new CigarElement( getAdditionalSequence(graph, node).length, CigarOperator.M) );
+                }
+            } else { // non-ref vertex
+                if( bsm.inBubble ) { // just keep accumulating until we get back to the reference path
+                    bsm.bubbleBytes = ArrayUtils.addAll( bsm.bubbleBytes, getAdditionalSequence(graph, node) );
+                } else { // open up a bubble
+                    bsm.inBubble = true;
+                    bsm.bubbleBytes = null;
+                    bsm.lastSeenReferenceNode = (e != null ? graph.getEdgeSource(e) : null );
+                    bsm.bubbleBytes = ArrayUtils.addAll( bsm.bubbleBytes, getAdditionalSequence(graph, node) );
+                }
+            }
+        }
+
+        private Cigar calculateCigarForCompleteBubble( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final byte[] bubbleBytes, final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex ) {
+            final byte[] refBytes = getReferenceBytes(graph, fromVertex, toVertex);
+            final Cigar cigar = new Cigar();
+
+            // add padding to anchor ref/alt bases in the SW matrix
+            byte[] padding = "XXXXXX".getBytes();
+            boolean goodAlignment = false;
+            SWPairwiseAlignment swConsensus = null;
+            while( !goodAlignment && padding.length < 1000 ) {
+                padding = ArrayUtils.addAll(padding, padding); // double the size of the padding each time
+                final byte[] reference = ArrayUtils.addAll( ArrayUtils.addAll(padding, refBytes), padding );
+                final byte[] alternate = ArrayUtils.addAll( ArrayUtils.addAll(padding, bubbleBytes), padding );
+                swConsensus = new SWPairwiseAlignment( reference, alternate, SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
+                if( swConsensus.getAlignmentStart2wrt1() == 0 && !swConsensus.getCigar().toString().contains("S") && swConsensus.getCigar().getReferenceLength() == reference.length ) {
+                    goodAlignment = true;
+                }
+            }
+            if( !goodAlignment && swConsensus != null ) {
+                throw new ReviewedStingException("SmithWaterman offset failure: " + (refBytes == null ? "-" : new String(refBytes)) + " against " + new String(bubbleBytes) + " = " + swConsensus.getCigar());
+            }
+
+            if( swConsensus != null ) {
+                final Cigar swCigar = swConsensus.getCigar();
+                for( int iii = 0; iii < swCigar.numCigarElements(); iii++ ) {
+                    // now we need to remove the padding from the cigar string
+                    int length = swCigar.getCigarElement(iii).getLength();
+                    if( iii == 0 ) { length -= padding.length; }
+                    if( iii == swCigar.numCigarElements() - 1 ) { length -= padding.length; }
+                    if( length > 0 ) {
+                        cigar.add( new CigarElement(length, swCigar.getCigarElement(iii).getOperator()) );
+                    }
+                }
+                if( (refBytes == null && cigar.getReferenceLength() != 0) || ( refBytes != null && cigar.getReferenceLength() != refBytes.length ) ) {
+                    throw new ReviewedStingException("SmithWaterman cigar failure: " + (refBytes == null ? "-" : new String(refBytes)) + " against " + new String(bubbleBytes) + " = " + swConsensus.getCigar());
+                }
+            }
+
+            return cigar;
+        }
+
+        // class to keep track of the bubble state machine
+        protected static class BubbleStateMachine {
+            public boolean inBubble = false;
+            public byte[] bubbleBytes = null;
+            public DeBruijnVertex lastSeenReferenceNode = null;
+            public Cigar cigar = null;
+
+            public BubbleStateMachine( final Cigar initialCigar ) {
+                inBubble = false;
+                bubbleBytes = null;
+                lastSeenReferenceNode = null;
+                cigar = initialCigar;
+            }
         }
     }
 
@@ -130,12 +296,12 @@ public class KBestPaths {
         }
     }
 
-    //protected static class PathComparatorLowestEdge implements Comparator<Path>, Serializable {
-    //    @Override
-    //    public int compare(final Path path1, final Path path2) {
-    //        return path2.lowestEdge - path1.lowestEdge;
-    //    }
-    //}
+    protected static class PathComparatorLowestEdge implements Comparator<Path>, Serializable {
+        @Override
+        public int compare(final Path path1, final Path path2) {
+            return path2.lowestEdge - path1.lowestEdge;
+        }
+    }
 
     public static List<Path> getKBestPaths( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final int k ) {
         if( k > MAX_PATHS_TO_HOLD/2 ) { throw new ReviewedStingException("Asked for more paths than MAX_PATHS_TO_HOLD!"); }
@@ -144,7 +310,7 @@ public class KBestPaths {
         // run a DFS for best paths
         for( final DeBruijnVertex v : graph.vertexSet() ) {
             if( graph.inDegreeOf(v) == 0 ) {
-                findBestPaths(graph, new Path(v), bestPaths);
+                findBestPaths(new Path(v, graph), bestPaths);
             }
         }
 
@@ -153,14 +319,14 @@ public class KBestPaths {
         return bestPaths.subList(0, Math.min(k, bestPaths.size()));
     }
 
-    private static void findBestPaths( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final Path path, final List<Path> bestPaths ) {
-        findBestPaths(graph, path, bestPaths, new MyInt());
+    private static void findBestPaths( final Path path, final List<Path> bestPaths ) {
+        findBestPaths(path, bestPaths, new MyInt());
     }
 
-    private static void findBestPaths( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final Path path, final List<Path> bestPaths, MyInt n ) {
+    private static void findBestPaths( final Path path, final List<Path> bestPaths, final MyInt n ) {
 
         // did we hit the end of a path?
-        if ( allOutgoingEdgesHaveBeenVisited(graph, path) ) {
+        if ( allOutgoingEdgesHaveBeenVisited(path) ) {
             if ( bestPaths.size() >= MAX_PATHS_TO_HOLD ) {
                 // clean out some low scoring paths
                 Collections.sort(bestPaths, new PathComparatorTotalScore() );
@@ -172,27 +338,253 @@ public class KBestPaths {
         } else {
             // recursively run DFS
             final ArrayList<DeBruijnEdge> edgeArrayList = new ArrayList<DeBruijnEdge>();
-            edgeArrayList.addAll(graph.outgoingEdgesOf(path.lastVertex));
+            edgeArrayList.addAll(path.graph.outgoingEdgesOf(path.lastVertex));
             Collections.sort(edgeArrayList, new DeBruijnEdge.EdgeWeightComparator());
             Collections.reverse(edgeArrayList);
             for ( final DeBruijnEdge edge : edgeArrayList ) {
                 // make sure the edge is not already in the path
-                if ( path.containsEdge(graph, edge) )
+                if ( path.containsEdge(edge) )
                     continue;
 
-                final Path newPath = new Path(path, graph, edge);
+                final Path newPath = new Path(path, edge);
                 n.val++;
-                findBestPaths(graph, newPath, bestPaths, n);
+                findBestPaths(newPath, bestPaths, n);
             }
         }
     }
 
-    private static boolean allOutgoingEdgesHaveBeenVisited( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final Path path ) {
-        for( final DeBruijnEdge edge : graph.outgoingEdgesOf(path.lastVertex) ) {
-            if( !path.containsEdge(graph, edge) ) {
+    private static boolean allOutgoingEdgesHaveBeenVisited( final Path path ) {
+        for( final DeBruijnEdge edge : path.graph.outgoingEdgesOf(path.lastVertex) ) {
+            if( !path.containsEdge(edge) ) {
                 return false;
             }
         }
         return true;
+    }
+
+    /****************************************************************
+     *      Collection of graph functions used by KBestPaths        *
+     ***************************************************************/
+
+    /**
+     * Test if the vertex is on a reference path in the graph. If so it is referred to as a reference node
+     * @param graph the graph from which the vertex originated
+     * @param v     the vertex to test
+     * @return      true if the vertex is on the reference path
+     */
+    public static boolean isReferenceNode( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
+        for( final DeBruijnEdge e : graph.edgesOf(v) ) {
+            if( e.isRef() ) { return true; }
+        }
+        return false;
+    }
+
+    /**
+     * Is this edge a source edge (the source vertex of the edge is a source node in the graph)
+     * @param graph the graph from which the edge originated
+     * @param e     the edge to test
+     * @return      true if the source vertex of the edge is a source node in the graph
+     */
+    public static boolean isSource( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge e ) {
+        return graph.inDegreeOf(graph.getEdgeSource(e)) == 0;
+    }
+
+    /**
+     * Is this vertex a source vertex
+     * @param graph the graph from which the vertex originated
+     * @param v     the vertex to test
+     * @return      true if the vertex is a source vertex
+     */
+    public static boolean isSource( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
+        return graph.inDegreeOf(v) == 0;
+    }
+
+    /**
+     * Pull the added base sequence implied by visiting this node in a path
+     * @param graph the graph from which the vertex originated
+     * @param v     the vertex whose sequence to grab
+     * @return      non-null sequence of bases corresponding to this node in the graph
+     */
+    @Ensures({"result != null"})
+    public static byte[] getAdditionalSequence( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
+        return ( isSource(graph, v) ? v.getSequence() : v.getSuffix() );
+    }
+
+    /**
+     * Is this edge both a reference edge and a source edge for the reference path
+     * @param graph the graph from which the edge originated
+     * @param e     the edge to test
+     * @return      true if the edge is both a reference edge and a reference path source edge
+     */
+    public static boolean isRefSource( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge e ) {
+        for( final DeBruijnEdge edgeToTest : graph.incomingEdgesOf(graph.getEdgeSource(e)) ) {
+            if( edgeToTest.isRef() ) { return false; }
+        }
+        return true;
+    }
+
+    /**
+     * Is this vertex both a reference node and a source node for the reference path
+     * @param graph the graph from which the vertex originated
+     * @param v     the vertex to test
+     * @return      true if the vertex is both a reference node and a reference path source node
+     */
+    public static boolean isRefSource( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
+        for( final DeBruijnEdge edgeToTest : graph.incomingEdgesOf(v) ) {
+            if( edgeToTest.isRef() ) { return false; }
+        }
+        return true;
+    }
+
+    /**
+     * Is this edge both a reference edge and a sink edge for the reference path
+     * @param graph the graph from which the edge originated
+     * @param e     the edge to test
+     * @return      true if the edge is both a reference edge and a reference path sink edge
+     */
+    public static boolean isRefSink( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge e ) {
+        for( final DeBruijnEdge edgeToTest : graph.outgoingEdgesOf(graph.getEdgeTarget(e)) ) {
+            if( edgeToTest.isRef() ) { return false; }
+        }
+        return true;
+    }
+
+    /**
+     * Is this vertex both a reference node and a sink node for the reference path
+     * @param graph the graph from which the node originated
+     * @param v     the node to test
+     * @return      true if the vertex is both a reference node and a reference path sink node
+     */
+    public static boolean isRefSink( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
+        for( final DeBruijnEdge edgeToTest : graph.outgoingEdgesOf(v) ) {
+            if( edgeToTest.isRef() ) { return false; }
+        }
+        return true;
+    }
+
+    public static DeBruijnEdge getReferenceSourceEdge( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
+        for( final DeBruijnEdge e : graph.edgeSet() ) {
+            if( e.isRef() && isRefSource(graph, e) ) {
+                return e;
+            }
+        }
+        throw new ReviewedStingException("All reference graphs should have a source node");
+    }
+
+    public static DeBruijnVertex getReferenceSourceVertex( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
+        for( final DeBruijnVertex v : graph.vertexSet() ) {
+            if( isReferenceNode(graph, v) && isRefSource(graph, v) ) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    public static DeBruijnEdge getReferenceSinkEdge( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
+        for( final DeBruijnEdge e : graph.edgeSet() ) {
+            if( e.isRef() && isRefSink(graph, e) ) {
+                return e;
+            }
+        }
+        throw new ReviewedStingException("All reference graphs should have a sink node");
+    }
+
+    public static DeBruijnVertex getReferenceSinkVertex( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
+        for( final DeBruijnVertex v : graph.vertexSet() ) {
+            if( isReferenceNode(graph, v) && isRefSink(graph, v) ) {
+                return v;
+            }
+        }
+        throw new ReviewedStingException("All reference graphs should have a sink node");
+    }
+
+    public static DeBruijnEdge getNextReferenceEdge( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge e ) {
+        if( e == null ) { return null; }
+        for( final DeBruijnEdge edgeToTest : graph.outgoingEdgesOf(graph.getEdgeTarget(e)) ) {
+            if( edgeToTest.isRef() ) {
+                return edgeToTest;
+            }
+        }
+        return null;
+    }
+
+    public static DeBruijnVertex getNextReferenceVertex( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
+        if( v == null ) { return null; }
+        for( final DeBruijnEdge edgeToTest : graph.outgoingEdgesOf(v) ) {
+            if( edgeToTest.isRef() ) {
+                return graph.getEdgeTarget(edgeToTest);
+            }
+        }
+        return null;
+    }
+
+    public static DeBruijnEdge getPrevReferenceEdge( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge e ) {
+        for( final DeBruijnEdge edgeToTest : graph.incomingEdgesOf(graph.getEdgeSource(e)) ) {
+            if( edgeToTest.isRef() ) {
+                return edgeToTest;
+            }
+        }
+        return null;
+    }
+
+    public static DeBruijnVertex getPrevReferenceVertex( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
+        for( final DeBruijnEdge edgeToTest : graph.incomingEdgesOf(v) ) {
+            if( isReferenceNode(graph, graph.getEdgeSource(edgeToTest)) ) {
+                return graph.getEdgeSource(edgeToTest);
+            }
+        }
+        return null;
+    }
+
+    public static boolean referencePathExists(final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge fromEdge, final DeBruijnEdge toEdge) {
+        DeBruijnEdge e = fromEdge;
+        if( e == null ) {
+            return false;
+        }
+        while( !e.equals(graph, toEdge) ) {
+            e = getNextReferenceEdge(graph, e);
+            if( e == null ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean referencePathExists(final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex) {
+        DeBruijnVertex v = fromVertex;
+        if( v == null ) {
+            return false;
+        }
+        v = getNextReferenceVertex(graph, v);
+        if( v == null ) {
+            return false;
+        }
+        while( !v.equals(toVertex) ) {
+            v = getNextReferenceVertex(graph, v);
+            if( v == null ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // fromVertex (exclusive) -> toVertex (exclusive)
+    public static byte[] getReferenceBytes( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex ) {
+        byte[] bytes = null;
+        if( fromVertex != null && toVertex != null && !referencePathExists(graph, fromVertex, toVertex) ) {
+            throw new ReviewedStingException("Asked for a reference path which doesn't exist. " + fromVertex + " --> "  + toVertex);
+        }
+        DeBruijnVertex v = fromVertex;
+        if( v == null ) {
+            v = getReferenceSourceVertex(graph);
+            bytes = ArrayUtils.addAll( bytes, getAdditionalSequence(graph, v) );
+        }
+        v = getNextReferenceVertex(graph, v);
+        while( (toVertex != null && !v.equals(toVertex)) || (toVertex == null && v != null) ) {
+            bytes = ArrayUtils.addAll( bytes, getAdditionalSequence(graph, v) );
+            // advance along the reference path
+            v = getNextReferenceVertex(graph, v);
+        }
+        return bytes;
     }
 }

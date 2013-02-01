@@ -86,7 +86,7 @@ public class DeBruijnEdge {
         multiplicity = value;
     }
 
-    public boolean getIsRef() {
+    public boolean isRef() {
         return isRef;
     }
 

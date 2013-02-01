@@ -93,7 +93,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
         haplotypeAlleles.add( Allele.create("AACA", false) );
         haplotypeAlleles.add( Allele.create("CATA", false) );
         haplotypeAlleles.add( Allele.create("CACA", false) );
-        final ArrayList<Haplotype> haplotypes = new ArrayList<Haplotype>();
+        final List<Haplotype> haplotypes = new ArrayList<Haplotype>();
         haplotypes.add(new Haplotype("AATA".getBytes()));
         haplotypes.add(new Haplotype("AACA".getBytes()));
         haplotypes.add(new Haplotype("CATA".getBytes()));
@@ -101,11 +101,11 @@ public class GenotypingEngineUnitTest extends BaseTest {
         final List<Allele> haplotypeAllelesForSample = new ArrayList<Allele>();
         haplotypeAllelesForSample.add( Allele.create("CATA", false) );
         haplotypeAllelesForSample.add( Allele.create("CACA", false) );
-        final ArrayList<ArrayList<Haplotype>> alleleMapper = new ArrayList<ArrayList<Haplotype>>();
-        ArrayList<Haplotype> Aallele = new ArrayList<Haplotype>();
+        final List<List<Haplotype>> alleleMapper = new ArrayList<List<Haplotype>>();
+        List<Haplotype> Aallele = new ArrayList<Haplotype>();
         Aallele.add(haplotypes.get(0));
         Aallele.add(haplotypes.get(1));
-        ArrayList<Haplotype> Callele = new ArrayList<Haplotype>();
+        List<Haplotype> Callele = new ArrayList<Haplotype>();
         Callele.add(haplotypes.get(2));
         Callele.add(haplotypes.get(3));
         alleleMapper.add(Aallele);
@@ -135,7 +135,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
         haplotypeAlleles.add( Allele.create("TACA", false) );
         haplotypeAlleles.add( Allele.create("TTCA", false) );
         haplotypeAlleles.add( Allele.create("TTTA", false) );
-        final ArrayList<Haplotype> haplotypes = new ArrayList<Haplotype>();
+        final List<Haplotype> haplotypes = new ArrayList<Haplotype>();
         haplotypes.add(new Haplotype("AATA".getBytes()));
         haplotypes.add(new Haplotype("AACA".getBytes()));
         haplotypes.add(new Haplotype("CATA".getBytes()));
@@ -146,14 +146,14 @@ public class GenotypingEngineUnitTest extends BaseTest {
         final List<Allele> haplotypeAllelesForSample = new ArrayList<Allele>();
         haplotypeAllelesForSample.add( Allele.create("TTTA", false) );
         haplotypeAllelesForSample.add( Allele.create("AATA", true) );
-        final ArrayList<ArrayList<Haplotype>> alleleMapper = new ArrayList<ArrayList<Haplotype>>();
-        ArrayList<Haplotype> Aallele = new ArrayList<Haplotype>();
+        final List<List<Haplotype>> alleleMapper = new ArrayList<List<Haplotype>>();
+        List<Haplotype> Aallele = new ArrayList<Haplotype>();
         Aallele.add(haplotypes.get(0));
         Aallele.add(haplotypes.get(1));
-        ArrayList<Haplotype> Callele = new ArrayList<Haplotype>();
+        List<Haplotype> Callele = new ArrayList<Haplotype>();
         Callele.add(haplotypes.get(2));
         Callele.add(haplotypes.get(3));
-        ArrayList<Haplotype> Tallele = new ArrayList<Haplotype>();
+        List<Haplotype> Tallele = new ArrayList<Haplotype>();
         Tallele.add(haplotypes.get(4));
         Tallele.add(haplotypes.get(5));
         Tallele.add(haplotypes.get(6));
@@ -187,16 +187,16 @@ public class GenotypingEngineUnitTest extends BaseTest {
     private class BasicGenotypingTestProvider extends TestDataProvider {
         byte[] ref;
         byte[] hap;
-        HashMap<Integer,Byte> expected;
+        Map<Integer,Byte> expected;
 
-        public BasicGenotypingTestProvider(String refString, String hapString, HashMap<Integer, Byte> expected) {
+        public BasicGenotypingTestProvider(String refString, String hapString, Map<Integer, Byte> expected) {
             super(BasicGenotypingTestProvider.class, String.format("Haplotype to VCF test: ref = %s, alignment = %s", refString,hapString));
             ref = refString.getBytes();
             hap = hapString.getBytes();
             this.expected = expected;
         }
         
-        public HashMap<Integer,VariantContext> calcAlignment() {
+        public Map<Integer,VariantContext> calcAlignment() {
             final SWPairwiseAlignment alignment = new SWPairwiseAlignment(ref, hap);
             return GenotypingEngine.generateVCsFromAlignment( new Haplotype(hap), alignment.getAlignmentStart2wrt1(), alignment.getCigar(), ref, hap, genomeLocParser.createGenomeLoc("4",1,1+ref.length), "name");
         }
@@ -206,14 +206,14 @@ public class GenotypingEngineUnitTest extends BaseTest {
     public Object[][] makeBasicGenotypingTests() {
 
         for( int contextSize : new int[]{0,1,5,9,24,36} ) {
-            HashMap<Integer, Byte> map = new HashMap<Integer, Byte>();
+            Map<Integer, Byte> map = new HashMap<Integer, Byte>();
             map.put(1 + contextSize, (byte)'M');
             final String context = Utils.dupString('G', contextSize);
             new BasicGenotypingTestProvider(context + "AGCTCGCATCGCGAGCATCGACTAGCCGATAG" + context, "CGCTCGCATCGCGAGCATCGACTAGCCGATAG", map);
         }
 
         for( int contextSize : new int[]{0,1,5,9,24,36} ) {
-            HashMap<Integer, Byte> map = new HashMap<Integer, Byte>();
+            Map<Integer, Byte> map = new HashMap<Integer, Byte>();
             map.put(2 + contextSize, (byte)'M');
             map.put(21 + contextSize, (byte)'M');
             final String context = Utils.dupString('G', contextSize);
@@ -221,7 +221,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
         }
 
         for( int contextSize : new int[]{0,1,5,9,24,36} ) {
-            HashMap<Integer, Byte> map = new HashMap<Integer, Byte>();
+            Map<Integer, Byte> map = new HashMap<Integer, Byte>();
             map.put(1 + contextSize, (byte)'M');
             map.put(20 + contextSize, (byte)'I');
             final String context = Utils.dupString('G', contextSize);
@@ -229,7 +229,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
         }
 
         for( int contextSize : new int[]{0,1,5,9,24,36} ) {
-            HashMap<Integer, Byte> map = new HashMap<Integer, Byte>();
+            Map<Integer, Byte> map = new HashMap<Integer, Byte>();
             map.put(1 + contextSize, (byte)'M');
             map.put(20 + contextSize, (byte)'D');
             final String context = Utils.dupString('G', contextSize);
@@ -237,7 +237,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
         }
 
         for( int contextSize : new int[]{1,5,9,24,36} ) {
-            HashMap<Integer, Byte> map = new HashMap<Integer, Byte>();
+            Map<Integer, Byte> map = new HashMap<Integer, Byte>();
             map.put(1, (byte)'M');
             map.put(20, (byte)'D');
             final String context = Utils.dupString('G', contextSize);
@@ -245,7 +245,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
         }
 
         for( int contextSize : new int[]{0,1,5,9,24,36} ) {
-            HashMap<Integer, Byte> map = new HashMap<Integer, Byte>();
+            Map<Integer, Byte> map = new HashMap<Integer, Byte>();
             map.put(2 + contextSize, (byte)'M');
             map.put(20 + contextSize, (byte)'I');
             map.put(30 + contextSize, (byte)'D');
@@ -254,7 +254,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
         }
 
         for( int contextSize : new int[]{0,1,5,9,24,36} ) {
-            HashMap<Integer, Byte> map = new HashMap<Integer, Byte>();
+            Map<Integer, Byte> map = new HashMap<Integer, Byte>();
             map.put(1 + contextSize, (byte)'M');
             map.put(20 + contextSize, (byte)'D');
             map.put(28 + contextSize, (byte)'M');
@@ -267,8 +267,8 @@ public class GenotypingEngineUnitTest extends BaseTest {
     
     @Test(dataProvider = "BasicGenotypingTestProvider", enabled = true)
     public void testHaplotypeToVCF(BasicGenotypingTestProvider cfg) {
-        HashMap<Integer,VariantContext> calculatedMap = cfg.calcAlignment();
-        HashMap<Integer,Byte> expectedMap = cfg.expected;
+        Map<Integer,VariantContext> calculatedMap = cfg.calcAlignment();
+        Map<Integer,Byte> expectedMap = cfg.expected;
         logger.warn(String.format("Test: %s", cfg.toString()));
         if(!compareVCMaps(calculatedMap, expectedMap)) {
             logger.warn("calc map = " + calculatedMap);
@@ -420,9 +420,9 @@ public class GenotypingEngineUnitTest extends BaseTest {
     }
     
     /**
-     * Private function to compare HashMap of VCs, it only checks the types and start locations of the VariantContext
+     * Private function to compare Map of VCs, it only checks the types and start locations of the VariantContext
      */
-    private boolean compareVCMaps(HashMap<Integer, VariantContext> calc, HashMap<Integer, Byte> expected) {
+    private boolean compareVCMaps(Map<Integer, VariantContext> calc, Map<Integer, Byte> expected) {
         if( !calc.keySet().equals(expected.keySet()) ) { return false; } // sanity check
         for( Integer loc : expected.keySet() ) {
             Byte type = expected.get(loc);

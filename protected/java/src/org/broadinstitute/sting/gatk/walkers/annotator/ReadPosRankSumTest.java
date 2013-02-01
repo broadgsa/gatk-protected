@@ -107,7 +107,7 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
             final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate( read.getSoftStart(), read.getCigar(), refLoc, ReadUtils.ClippingTail.RIGHT_TAIL, true );
             if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED )
                 continue;
-            int readPos = AlignmentUtils.calcAlignmentByteArrayOffset( read.getCigar(), offset, false, false, 0, 0 );
+            int readPos = AlignmentUtils.calcAlignmentByteArrayOffset( read.getCigar(), offset, false, 0, 0 );
             final int numAlignedBases = AlignmentUtils.getNumAlignedBasesCountingSoftClips( read );
             if (readPos > numAlignedBases / 2)
                 readPos = numAlignedBases - (readPos + 1);
