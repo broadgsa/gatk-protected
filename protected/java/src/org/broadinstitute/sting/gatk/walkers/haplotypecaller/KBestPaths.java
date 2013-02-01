@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
@@ -85,7 +86,6 @@ public class KBestPaths {
 
         // the scores for the path
         private final int totalScore;
-        private final int lowestEdge;
 
         // the graph from which this path originated
         private final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph;
@@ -100,17 +100,17 @@ public class KBestPaths {
             lastVertex = initialVertex;
             edges = new ArrayList<DeBruijnEdge>(0);
             totalScore = 0;
-            lowestEdge = -1;
             this.graph = graph;
         }
 
         public Path( final Path p, final DeBruijnEdge edge ) {
+            if( !p.graph.getEdgeSource(edge).equals(p.lastVertex) ) { throw new IllegalStateException("Edges added to path must be contiguous."); }
+
             graph = p.graph;
             lastVertex = p.graph.getEdgeTarget(edge);
             edges = new ArrayList<DeBruijnEdge>(p.edges);
             edges.add(edge);
             totalScore = p.totalScore + edge.getMultiplicity();
-            lowestEdge = ( p.lowestEdge == -1 ) ? edge.getMultiplicity() : Math.min(p.lowestEdge, edge.getMultiplicity());
         }
 
         /**
@@ -119,21 +119,36 @@ public class KBestPaths {
          * @return      true if the edge is found in this path
          */
         public boolean containsEdge( final DeBruijnEdge edge ) {
-            final DeBruijnVertex targetVertex = graph.getEdgeTarget(edge);
             for( final DeBruijnEdge e : edges ) {
-                if( e.equals(graph, edge) || graph.getEdgeTarget(e).equals(targetVertex) ) {
+                if( e.equals(graph, edge) ) {
                     return true;
                 }
             }
-            
+
             return false;
         }
 
+        public int numInPath( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge edge ) {
+            int numInPath = 0;
+            for( final DeBruijnEdge e : edges ) {
+                if( e.equals(graph, edge) ) {
+                    numInPath++;
+                }
+            }
+
+            return numInPath;
+        }
+
+
+        public boolean containsRefEdge() {
+            for( final DeBruijnEdge e : edges ) {
+                if( e.isRef() ) { return true; }
+            }
+            return false;
+        }
         public List<DeBruijnEdge> getEdges() { return edges; }
 
         public int getScore() { return totalScore; }
-
-        public int getLowestEdge() { return lowestEdge; }
 
         public DeBruijnVertex getLastVertexInPath() { return lastVertex; }
 
@@ -150,6 +165,17 @@ public class KBestPaths {
                 bases = ArrayUtils.addAll(bases, graph.getEdgeTarget( e ).getSuffix());
             }
             return bases;
+        }
+
+        /**
+         * Pull the added base sequence implied by visiting this node in a path
+         * @param graph the graph from which the vertex originated
+         * @param v     the vertex whose sequence to grab
+         * @return      non-null sequence of bases corresponding to this node in the graph
+         */
+        @Ensures({"result != null"})
+        public byte[] getAdditionalSequence( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
+            return ( edges.size()==0 || graph.getEdgeSource(edges.get(0)).equals(v) ? v.getSequence() : v.getSuffix() );
         }
 
         /**
@@ -190,6 +216,7 @@ public class KBestPaths {
             return AlignmentUtils.consolidateCigar(bsm.cigar);
         }
 
+        @Requires({"bsm != null", "graph != null", "node != null"})
         private void advanceBubbleStateMachine( final BubbleStateMachine bsm, final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex node, final DeBruijnEdge e ) {
             if( isReferenceNode( graph, node ) ) {
                 if( !bsm.inBubble ) { // just add the ref bases as M's in the Cigar string, and don't do anything else
@@ -233,8 +260,11 @@ public class KBestPaths {
             }
         }
 
+        @Requires({"graph != null"})
+        @Ensures({"result != null", "result.getReadLength() == bubbleBytes.length"})
         private Cigar calculateCigarForCompleteBubble( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final byte[] bubbleBytes, final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex ) {
-            final byte[] refBytes = getReferenceBytes(graph, fromVertex, toVertex);
+            final byte[] refBytes = getReferenceBytes(this, graph, fromVertex, toVertex);
+
             final Cigar cigar = new Cigar();
 
             // add padding to anchor ref/alt bases in the SW matrix
@@ -293,13 +323,6 @@ public class KBestPaths {
         @Override
         public int compare(final Path path1, final Path path2) {
             return path1.totalScore - path2.totalScore;
-        }
-    }
-
-    protected static class PathComparatorLowestEdge implements Comparator<Path>, Serializable {
-        @Override
-        public int compare(final Path path1, final Path path2) {
-            return path2.lowestEdge - path1.lowestEdge;
         }
     }
 
@@ -397,17 +420,6 @@ public class KBestPaths {
      */
     public static boolean isSource( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
         return graph.inDegreeOf(v) == 0;
-    }
-
-    /**
-     * Pull the added base sequence implied by visiting this node in a path
-     * @param graph the graph from which the vertex originated
-     * @param v     the vertex whose sequence to grab
-     * @return      non-null sequence of bases corresponding to this node in the graph
-     */
-    @Ensures({"result != null"})
-    public static byte[] getAdditionalSequence( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex v ) {
-        return ( isSource(graph, v) ? v.getSequence() : v.getSuffix() );
     }
 
     /**
@@ -569,7 +581,7 @@ public class KBestPaths {
     }
 
     // fromVertex (exclusive) -> toVertex (exclusive)
-    public static byte[] getReferenceBytes( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex ) {
+    public static byte[] getReferenceBytes( final Path path, final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex ) {
         byte[] bytes = null;
         if( fromVertex != null && toVertex != null && !referencePathExists(graph, fromVertex, toVertex) ) {
             throw new ReviewedStingException("Asked for a reference path which doesn't exist. " + fromVertex + " --> "  + toVertex);
@@ -577,11 +589,11 @@ public class KBestPaths {
         DeBruijnVertex v = fromVertex;
         if( v == null ) {
             v = getReferenceSourceVertex(graph);
-            bytes = ArrayUtils.addAll( bytes, getAdditionalSequence(graph, v) );
+            bytes = ArrayUtils.addAll( bytes, path.getAdditionalSequence(graph, v) );
         }
         v = getNextReferenceVertex(graph, v);
         while( (toVertex != null && !v.equals(toVertex)) || (toVertex == null && v != null) ) {
-            bytes = ArrayUtils.addAll( bytes, getAdditionalSequence(graph, v) );
+            bytes = ArrayUtils.addAll( bytes, path.getAdditionalSequence(graph, v) );
             // advance along the reference path
             v = getNextReferenceVertex(graph, v);
         }

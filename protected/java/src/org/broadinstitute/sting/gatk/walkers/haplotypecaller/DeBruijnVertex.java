@@ -46,6 +46,9 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Invariant;
+
 import java.util.Arrays;
 
 /**
@@ -54,6 +57,7 @@ import java.util.Arrays;
  * Date: Mar 23, 2011
  */
 // simple node class for storing kmer sequences
+@Invariant("kmer > 0")
 public class DeBruijnVertex {
 
     protected final byte[] sequence;
@@ -82,10 +86,12 @@ public class DeBruijnVertex {
         return new String( getSuffix() );
     }
 
+    @Ensures("result != null")
     public byte[] getSequence() {
         return sequence.clone();
     }
 
+    @Ensures("result != null")
     public byte[] getSuffix() {
         return Arrays.copyOfRange( sequence, kmer - 1, sequence.length );
     }

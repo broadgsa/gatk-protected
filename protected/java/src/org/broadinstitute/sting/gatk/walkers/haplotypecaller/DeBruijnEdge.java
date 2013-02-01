@@ -94,10 +94,12 @@ public class DeBruijnEdge {
         this.isRef = isRef;
     }
 
+    // For use when comparing edges pulled from the same graph
     public boolean equals( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge edge ) {
         return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
     }
 
+    // For use when comparing edges across graphs!
     public boolean equals( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final DeBruijnEdge edge, final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph2 ) {
         return (graph.getEdgeSource(this).equals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph2.getEdgeTarget(edge)));
     }
