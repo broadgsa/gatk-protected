@@ -139,8 +139,8 @@ public class RepeatCovariatesUnitTest {
     @Test(enabled = true)
     public void testManyObservations() {
         final int NUM_UNITS = 10;
-        final int MAX_REPEAT_UNIT_LENGTH = RepeatCovariate.MAX_STR_UNIT_LENGTH;
-        final int MAX_NUM_REPETITIONS = RepeatCovariate.MAX_REPEAT_LENGTH;
+        final int MAX_REPEAT_UNIT_LENGTH = RAC.MAX_STR_UNIT_LENGTH;
+        final int MAX_NUM_REPETITIONS = RAC.MAX_REPEAT_LENGTH;
         final int NUM_TEST_CASES = 100;
 
         Random random = new Random();
@@ -207,7 +207,7 @@ public class RepeatCovariatesUnitTest {
 
                 int fw = GATKVariantContextUtils.findNumberofRepetitions(ruValM.getBytes(), readBases.substring(offset+1,readLength).getBytes(),true);
                 int bw = GATKVariantContextUtils.findNumberofRepetitions(ruValM.getBytes(), readBases.substring(0,offset+1).getBytes(),false);
-                Assert.assertEquals(Math.min(fw+bw,RepeatCovariate.MAX_REPEAT_LENGTH),(int)Integer.valueOf(rlValM));
+                Assert.assertEquals(Math.min(fw+bw,RAC.MAX_REPEAT_LENGTH),(int)Integer.valueOf(rlValM));
             }
 
         }

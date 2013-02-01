@@ -61,8 +61,8 @@ import java.util.Map;
 import java.util.Set;
 
 public abstract class RepeatCovariate implements ExperimentalCovariate {
-    public static final int MAX_REPEAT_LENGTH = 20;
-    public static final int MAX_STR_UNIT_LENGTH = 8;
+    protected int MAX_REPEAT_LENGTH;
+    protected int MAX_STR_UNIT_LENGTH;
     private final HashMap<String, Integer> repeatLookupTable = new HashMap<String, Integer>();
     private final HashMap<Integer, String> repeatReverseLookupTable = new HashMap<Integer, String>();
     private int nextId = 0;
@@ -70,6 +70,8 @@ public abstract class RepeatCovariate implements ExperimentalCovariate {
     // Initialize any member variables using the command-line arguments passed to the walkers
     @Override
     public void initialize(final RecalibrationArgumentCollection RAC) {
+        MAX_STR_UNIT_LENGTH = RAC.MAX_STR_UNIT_LENGTH;
+        MAX_REPEAT_LENGTH = RAC.MAX_REPEAT_LENGTH;
     }
 
     @Override
