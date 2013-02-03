@@ -54,6 +54,8 @@ import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.Random;
+
 /**
  * @author carneiro
  * @since 4/21/12
@@ -62,16 +64,8 @@ public class ReadCovariatesUnitTest {
 
     @Test(enabled = false)
     public void testCovariateGeneration() {
+         final RecalibrationArgumentCollection RAC = new RecalibrationArgumentCollection();
         final String RGID = "id";
-        final int length = 10;
-        final RecalibrationArgumentCollection RAC = new RecalibrationArgumentCollection();
-        GATKSAMRecord read = ReadUtils.createRandomRead(length, false);
-        GATKSAMReadGroupRecord rg = new GATKSAMReadGroupRecord(RGID);
-        rg.setPlatform("illumina");
-        read.setReadGroup(rg);
-        final byte[] mQuals = read.getBaseQualities(EventType.BASE_SUBSTITUTION);
-        final byte[] iQuals = read.getBaseQualities(EventType.BASE_INSERTION);
-        final byte[] dQuals = read.getBaseQualities(EventType.BASE_DELETION);
 
         ReadGroupCovariate rgCov = new ReadGroupCovariate();
         QualityScoreCovariate qsCov = new QualityScoreCovariate();
@@ -89,33 +83,52 @@ public class ReadCovariatesUnitTest {
         requestedCovariates[2] = coCov;
         requestedCovariates[3] = cyCov;
 
-        ReadCovariates rc = RecalUtils.computeCovariates(read, requestedCovariates);
+        final int NUM_READS = 100;
+        final Random rnd = new Random();
 
-        // check that the length is correct
-        Assert.assertEquals(rc.getMismatchesKeySet().length, length);
-        Assert.assertEquals(rc.getInsertionsKeySet().length, length);
-        Assert.assertEquals(rc.getDeletionsKeySet().length, length);
+        final String[] readGroups = {"RG1", "RG2", "RGbla"};
+        for (int idx = 0; idx < NUM_READS; idx++) {
+            for (final String rgs : readGroups) {
+                final int length = 10 + rnd.nextInt(100); // random read length, at least 10 bp long
+                final GATKSAMRecord read = ReadUtils.createRandomRead(length, false);
+                final GATKSAMReadGroupRecord rg = new GATKSAMReadGroupRecord(rgs);
+                rg.setPlatform("illumina");
+                read.setReadGroup(rg);
+                read.setReadNegativeStrandFlag(rnd.nextBoolean());
+                final byte[] mQuals = read.getBaseQualities(EventType.BASE_SUBSTITUTION);
+                final byte[] iQuals = read.getBaseQualities(EventType.BASE_INSERTION);
+                final byte[] dQuals = read.getBaseQualities(EventType.BASE_DELETION);
+                ReadCovariates rc = RecalUtils.computeCovariates(read, requestedCovariates);
 
-        for (int i = 0; i < length; i++) {
-            // check that read group is always the same
-            Assert.assertEquals(rgCov.formatKey(rc.getMismatchesKeySet(i)[0]), RGID);
-            Assert.assertEquals(rgCov.formatKey(rc.getInsertionsKeySet(i)[0]), RGID);
-            Assert.assertEquals(rgCov.formatKey(rc.getDeletionsKeySet(i)[0]),  RGID);
+                // check that the length is correct
+                Assert.assertEquals(rc.getMismatchesKeySet().length, length);
+                Assert.assertEquals(rc.getInsertionsKeySet().length, length);
+                Assert.assertEquals(rc.getDeletionsKeySet().length, length);
 
-            // check quality score
-            Assert.assertEquals(qsCov.formatKey(rc.getMismatchesKeySet(i)[1]), "" + mQuals[i]);
-            Assert.assertEquals(qsCov.formatKey(rc.getInsertionsKeySet(i)[1]), "" + iQuals[i]);
-            Assert.assertEquals(qsCov.formatKey(rc.getDeletionsKeySet(i)[1]),  "" + dQuals[i]);
+                for (int i = 0; i < length; i++) {
+                    // check that read group is always the same
+                    Assert.assertEquals(rgCov.formatKey(rc.getMismatchesKeySet(i)[0]), rgs);
+                    Assert.assertEquals(rgCov.formatKey(rc.getInsertionsKeySet(i)[0]), rgs);
+                    Assert.assertEquals(rgCov.formatKey(rc.getDeletionsKeySet(i)[0]),  rgs);
 
-            // check context
-            Assert.assertEquals(coCov.formatKey(rc.getMismatchesKeySet(i)[2]), ContextCovariateUnitTest.expectedContext(read, i, RAC.MISMATCHES_CONTEXT_SIZE));
-            Assert.assertEquals(coCov.formatKey(rc.getInsertionsKeySet(i)[2]), ContextCovariateUnitTest.expectedContext(read, i, RAC.INDELS_CONTEXT_SIZE));
-            Assert.assertEquals(coCov.formatKey(rc.getDeletionsKeySet(i)[2]),  ContextCovariateUnitTest.expectedContext(read, i, RAC.INDELS_CONTEXT_SIZE));
+                    // check quality score
+                    Assert.assertEquals(qsCov.formatKey(rc.getMismatchesKeySet(i)[1]), "" + mQuals[i]);
+                    Assert.assertEquals(qsCov.formatKey(rc.getInsertionsKeySet(i)[1]), "" + iQuals[i]);
+                    Assert.assertEquals(qsCov.formatKey(rc.getDeletionsKeySet(i)[1]),  "" + dQuals[i]);
 
-            // check cycle
-            Assert.assertEquals(cyCov.formatKey(rc.getMismatchesKeySet(i)[3]), "" + (i+1));
-            Assert.assertEquals(cyCov.formatKey(rc.getInsertionsKeySet(i)[3]), "" + (i+1));
-            Assert.assertEquals(cyCov.formatKey(rc.getDeletionsKeySet(i)[3]),  "" + (i+1));
+                    // check context
+                    Assert.assertEquals(coCov.formatKey(rc.getMismatchesKeySet(i)[2]), ContextCovariateUnitTest.expectedContext(read, i, RAC.MISMATCHES_CONTEXT_SIZE));
+                    Assert.assertEquals(coCov.formatKey(rc.getInsertionsKeySet(i)[2]), ContextCovariateUnitTest.expectedContext(read, i, RAC.INDELS_CONTEXT_SIZE));
+                    Assert.assertEquals(coCov.formatKey(rc.getDeletionsKeySet(i)[2]),  ContextCovariateUnitTest.expectedContext(read, i, RAC.INDELS_CONTEXT_SIZE));
+
+                    // check cycle
+                    Assert.assertEquals(cyCov.formatKey(rc.getMismatchesKeySet(i)[3]), "" + (i+1));
+                    Assert.assertEquals(cyCov.formatKey(rc.getInsertionsKeySet(i)[3]), "" + (i+1));
+                    Assert.assertEquals(cyCov.formatKey(rc.getDeletionsKeySet(i)[3]),  "" + (i+1));
+                }
+
+            }
+
         }
 
     }
