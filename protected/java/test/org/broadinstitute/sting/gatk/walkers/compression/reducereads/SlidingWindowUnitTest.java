@@ -47,6 +47,9 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
@@ -258,24 +261,48 @@ public class SlidingWindowUnitTest extends BaseTest {
 
             // then add the permuted reads
             for ( final GenomeLoc loc : locs )
-                myReads.add(createVariantRead(loc, readsShouldBeLowQuality, variantBaseShouldBeLowQuality));
+                myReads.add(createVariantRead(loc, readsShouldBeLowQuality, variantBaseShouldBeLowQuality, CigarOperator.M));
         }
 
-        private GATKSAMRecord createVariantRead(final GenomeLoc loc, final boolean readShouldBeLowQuality, final boolean variantBaseShouldBeLowQuality) {
+        private ConsensusCreationTest(final List<GenomeLoc> locs, final CigarOperator operator, final int expectedNumberOfReads) {
+            this.expectedNumberOfReads = expectedNumberOfReads;
+
+            // first, add the basic reads to the collection
+            myReads.addAll(basicReads);
+
+            // then add the permuted reads
+            for ( final GenomeLoc loc : locs )
+                myReads.add(createVariantRead(loc, false, false, operator));
+        }
+
+        private GATKSAMRecord createVariantRead(final GenomeLoc loc, final boolean readShouldBeLowQuality,
+                                                final boolean variantBaseShouldBeLowQuality, final CigarOperator operator) {
 
             final int startPos = loc.getStart() - 50;
 
             final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "myRead" + startPos, 0, startPos, readLength);
+
             final byte[] bases = Utils.dupBytes((byte) 'A', readLength);
-            // create a mismatch
-            bases[50] = 'C';
+            // create a mismatch if requested
+            if ( operator == CigarOperator.M )
+                bases[50] = 'C';
             read.setReadBases(bases);
+
             final byte[] baseQuals = Utils.dupBytes((byte) 30, readLength);
             if ( variantBaseShouldBeLowQuality )
                 baseQuals[50] = (byte)10;
             read.setBaseQualities(baseQuals);
             final byte mappingQual = readShouldBeLowQuality ? (byte)10 : (byte)30;
             read.setMappingQuality(mappingQual);
+
+            if ( operator != CigarOperator.M ) {
+                final List<CigarElement> elements = new ArrayList<CigarElement>(3);
+                elements.add(new CigarElement(operator == CigarOperator.D ? 50 : 51, CigarOperator.M));
+                elements.add(new CigarElement(1, operator));
+                elements.add(new CigarElement(operator == CigarOperator.D ? 50 : 48, CigarOperator.M));
+                read.setCigar(new Cigar(elements));
+            }
+
             return read;
         }
     }
@@ -314,6 +341,16 @@ public class SlidingWindowUnitTest extends BaseTest {
         // test mixture
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), true, false, 2)});
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), false, true, 3)});
+
+        // test I/D operators
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.D, 9)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.D, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.D, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.D, 11)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.I, 9)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.I, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.I, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.I, 11)});
 
         return tests.toArray(new Object[][]{});
     }
