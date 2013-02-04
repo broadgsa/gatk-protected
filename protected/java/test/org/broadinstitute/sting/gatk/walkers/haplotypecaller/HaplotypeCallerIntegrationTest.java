@@ -68,12 +68,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "72ce6a5e46644dfd73aeffba9d6131ea");
+        HCTest(CEUTRIO_BAM, "", "e623c11a2d0e533a4b7fc7e51a7d7d6f");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "f9d696391f1f337092d70e3abcd32bfb");
+        HCTest(NA12878_BAM, "", "fe373ccdd2c40c1bed8d7d3cd61cc9c1");
     }
 
     @Test(enabled = false)
@@ -84,7 +84,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "4e8beb2cdc3d77427f14acf37cea2bd0");
+                "21a0eae5dbed776ebae471f5e83fca3d");
     }
 
     private void HCTestComplexGGA(String bam, String args, String md5) {
@@ -102,7 +102,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "1d244f2adbc72a0062eb673d56cbb5a8");
+                "efc571f7b64bc13849b0776c4951dadb");
     }
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
@@ -113,7 +113,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "a1bc844f62a9cb60dbb70d00ad36b85d");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "3312875416a1a4274a864977effd0afa");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -146,7 +146,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("103c91c4a78164949e166d3d27eb459b"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("5ac992d47aa6b7c220e5bb7c07444de1"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
