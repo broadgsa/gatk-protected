@@ -82,6 +82,7 @@ import java.util.*;
  * genotype of each sample. The system can either emit just the variant sites or complete genotypes (which includes
  * homozygous reference calls) satisfying some phred-scaled confidence value. The genotyper can make accurate calls on
  * both single sample data and multi-sample data.
+ * </p>
  *
  * <h2>Input</h2>
  * <p>
@@ -109,7 +110,7 @@ import java.util.*;
  *
  * <p>
  * The above command will call all of the samples in your provided BAM files [-I arguments] together and produce a VCF file
- * with sites and genotypes for all samples. The easiest way to get the dbSNP file is from the GATK resource bundle. Several
+ * with sites and genotypes for all samples. The easiest way to get the dbSNP file is from the GATK resource bundle (see Guide FAQs for details). Several
  * arguments have parameters that should be chosen based on the average coverage per sample in your data. See the detailed
  * argument descriptions below.
  * </p>
@@ -132,7 +133,7 @@ import java.util.*;
  * <li>The system can be very aggressive in calling variants. In the 1000 genomes project for pilot 2 (deep coverage of ~35x)
  * we expect the raw Qscore > 50 variants to contain at least ~10% FP calls. We use extensive post-calling filters to eliminate
  * most of these FPs. Variant Quality Score Recalibration is a tool to perform this filtering.</li>
- * <li>We only handle diploid genotypes</li>
+ * <li>The generalized ploidy model can be used to handle non-diploid or pooled samples (see the -ploidy argument in the table below).</li>
  * </ul>
  *
  */
@@ -160,9 +161,9 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
     /**
      * If a call overlaps with a record from the provided comp track, the INFO field will be annotated
-     *  as such in the output with the track name (e.g. -comp:FOO will have 'FOO' in the INFO field).
-     *  Records that are filtered in the comp track will be ignored.
-     *  Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
+     * as such in the output with the track name (e.g. -comp:FOO will have 'FOO' in the INFO field).
+     * Records that are filtered in the comp track will be ignored.
+     * Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
      */
     @Input(fullName="comp", shortName = "comp", doc="comparison VCF file", required=false)
     public List<RodBinding<VariantContext>> comps = Collections.emptyList();
