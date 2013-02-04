@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
 import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Haplotype;
@@ -96,7 +97,24 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         MIN_KMER = minKmer;
     }
 
+    /**
+     * Main entry point into the assembly engine. Build a set of deBruijn graphs out of the provided reference sequence and list of reads
+     * @param activeRegion              ActiveRegion object holding the reads which are to be used during assembly
+     * @param refHaplotype              reference haplotype object
+     * @param fullReferenceWithPadding  byte array holding the reference sequence with padding
+     * @param refLoc                    GenomeLoc object corresponding to the reference sequence with padding
+     * @param PRUNE_FACTOR              prune kmers from the graph if their weight is <= this value
+     * @param activeAllelesToGenotype   the alleles to inject into the haplotypes during GGA mode
+     * @return                          a non-empty list of all the haplotypes that are produced during assembly
+     */
+    @Ensures({"result.contains(refHaplotype)"})
     public List<Haplotype> runLocalAssembly( final ActiveRegion activeRegion, final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final int PRUNE_FACTOR, final List<VariantContext> activeAllelesToGenotype ) {
+        if( activeRegion == null ) { throw new IllegalArgumentException("Assembly engine cannot be used with a null ActiveRegion."); }
+        if( refHaplotype == null ) { throw new IllegalArgumentException("Reference haplotype cannot be null."); }
+        if( fullReferenceWithPadding.length != refLoc.size() ) { throw new IllegalArgumentException("Reference bases and reference loc must be the same size."); }
+        if( PRUNE_FACTOR < 0 ) { throw new IllegalArgumentException("Pruning factor cannot be negative"); }
+
+        // set the pruning factor for this run of the assembly engine
         this.PRUNE_FACTOR = PRUNE_FACTOR;
 
         // create the graphs
@@ -109,31 +127,35 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
             mergeNodes( graph );
         }
 
+        // print the graphs if the appropriate debug option has been turned on
         if( GRAPH_WRITER != null ) {
             printGraphs();
         }
 
-        // find the best paths in the graphs
+        // find the best paths in the graphs and return them as haplotypes
         return findBestPaths( refHaplotype, fullReferenceWithPadding, refLoc, activeAllelesToGenotype, activeRegion.getExtendedLoc() );
     }
 
+    @Requires({"reads != null", "refHaplotype != null"})
     protected void createDeBruijnGraphs( final List<GATKSAMRecord> reads, final Haplotype refHaplotype ) {
         graphs.clear();
 
         final int maxKmer = refHaplotype.getBases().length;
-        // create the graph
+        // create the graph for each possible kmer
         for( int kmer = MIN_KMER; kmer <= maxKmer; kmer += 6 ) {
-            final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-            if( createGraphFromSequences( graph, reads, kmer, refHaplotype, DEBUG ) ) {
+            final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph = createGraphFromSequences( reads, kmer, refHaplotype, DEBUG );
+            if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
                 graphs.add(graph);
             }
         }
     }
 
+    @Requires({"graph != null"})
     protected static void mergeNodes( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
         boolean foundNodesToMerge = true;
         while( foundNodesToMerge ) {
             foundNodesToMerge = false;
+
             for( final DeBruijnEdge e : graph.edgeSet() ) {
                 final DeBruijnVertex outgoingVertex = graph.getEdgeTarget(e);
                 final DeBruijnVertex incomingVertex = graph.getEdgeSource(e);
@@ -211,25 +233,26 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         }
     }
 
-    private static boolean createGraphFromSequences( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final Collection<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
+    @Requires({"reads != null", "KMER_LENGTH > 0", "refHaplotype != null"})
+    protected static DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
+
+        final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
+
+        // First pull kmers from the reference haplotype and add them to the graph
         final byte[] refSequence = refHaplotype.getBases();
         if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
             final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
-            for (int i = 0; i < kmersInSequence - 1; i++) {
-                // get the kmers
-                final byte[] kmer1 = new byte[KMER_LENGTH];
-                System.arraycopy(refSequence, i, kmer1, 0, KMER_LENGTH);
-                final byte[] kmer2 = new byte[KMER_LENGTH];
-                System.arraycopy(refSequence, i+1, kmer2, 0, KMER_LENGTH);
-                if( !addKmersToGraph(graph, kmer1, kmer2, true) ) {
+            for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
+                if( !addKmersToGraph(graph, Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true) ) {
                     if( DEBUG ) {
                         System.out.println("Cycle detected in reference graph for kmer = " + KMER_LENGTH + " ...skipping");
                     }
-                    return false;
+                    return null;
                 }
             }
         }
 
+        // Next pull kmers out of every read and throw them on the graph
         for( final GATKSAMRecord read : reads ) {
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
@@ -245,31 +268,28 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                             break;
                         }
                     }
-                    int countNumber = 1;
-                    if (read.isReducedRead()) {
-                        // compute mean number of reduced read counts in current kmer span
-                        final byte[] counts = Arrays.copyOfRange(reducedReadCounts,iii,iii+KMER_LENGTH+1);
-                        // precise rounding can make a difference with low consensus counts
-                        countNumber = MathUtils.arrayMax(counts);
-                      //  countNumber = (int)Math.round((double)MathUtils.sum(counts)/counts.length);
-                    }
-
                     if( !badKmer ) {
-                        // get the kmers
-                        final byte[] kmer1 = new byte[KMER_LENGTH];
-                        System.arraycopy(sequence, iii, kmer1, 0, KMER_LENGTH);
-                        final byte[] kmer2 = new byte[KMER_LENGTH];
-                        System.arraycopy(sequence, iii+1, kmer2, 0, KMER_LENGTH);
+                        int countNumber = 1;
+                        if( read.isReducedRead() ) {
+                            // compute mean number of reduced read counts in current kmer span
+                            // precise rounding can make a difference with low consensus counts
+                            countNumber = MathUtils.arrayMax(Arrays.copyOfRange(reducedReadCounts, iii, iii + KMER_LENGTH));
+                        }
 
-                        for (int k=0; k < countNumber; k++)
+                        final byte[] kmer1 = Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH);
+                        final byte[] kmer2 = Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH);
+
+                        for( int kkk=0; kkk < countNumber; kkk++ ) {
                             addKmersToGraph(graph, kmer1, kmer2, false);
+                        }
                     }
                 }
             }
         }
-        return true;
+        return graph;
     }
 
+    @Requires({"graph != null", "kmer1.length > 0", "kmer2.length > 0"})
     protected static boolean addKmersToGraph( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final byte[] kmer1, final byte[] kmer2, final boolean isRef ) {
 
         final int numVertexBefore = graph.vertexSet().size();
@@ -378,6 +398,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         return returnHaplotypes;
     }
 
+    // this function is slated for removal when SWing is removed
     private boolean addHaplotype( final Haplotype haplotype, final byte[] ref, final List<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop, final boolean FORCE_INCLUSION_FOR_GGA_MODE ) {
         if( haplotype == null ) { return false; }
 

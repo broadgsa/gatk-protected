@@ -56,6 +56,7 @@ import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.walkers.genotyper.ArtificialReadPileupTestProvider;
 import org.broadinstitute.sting.utils.Haplotype;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -297,5 +298,16 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
             if( !found ) { return false; }
         }
         return true;
+    }
+
+    @Test(enabled = true)
+    public void testReferenceCycleGraph() {
+        String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
+        String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
+        final DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> g1 = SimpleDeBruijnAssembler.createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), false);
+        final DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> g2 = SimpleDeBruijnAssembler.createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), false);
+
+        Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
+        Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
     }
 }
