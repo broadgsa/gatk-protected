@@ -53,12 +53,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * Basic unit test for BaseCounts in reduced reads
  */
 public class BaseCountsUnitTest extends BaseTest {
+
     private class BaseCountsTest {
         public String bases;
         public byte mostCountBase;
@@ -71,9 +73,8 @@ public class BaseCountsUnitTest extends BaseTest {
         }
     }
 
-
-    @DataProvider(name = "data")
-    public Object[][] createData1() {
+    @DataProvider(name = "counting")
+    public Object[][] createCountingData() {
         List<BaseCountsTest> params = new ArrayList<BaseCountsTest>();
 
         params.add(new BaseCountsTest("A", 'A', 1 ));
@@ -94,7 +95,7 @@ public class BaseCountsUnitTest extends BaseTest {
         return params2.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "data", enabled = true)
+    @Test(dataProvider = "counting", enabled = true)
     public void testCounting(BaseCountsTest params) {
         BaseCounts counts = new BaseCounts();
 
@@ -137,12 +138,64 @@ public class BaseCountsUnitTest extends BaseTest {
             counts.decr((byte)'A');
             Assert.assertEquals(counts.countOfBase(BaseIndex.A), countsFromArray.countOfBase(BaseIndex.A) - 1);
         }
-
-
     }
 
     private static int ACGTcounts(final BaseCounts baseCounts) {
         return baseCounts.totalCountWithoutIndels() - baseCounts.countOfBase(BaseIndex.N);
     }
 
+
+    //////////////////////////////////
+    // TEST FOR QUALS IN BASECOUNTS //
+    //////////////////////////////////
+
+    private class BaseCountsQualsTest {
+        public final List<Integer> quals;
+
+        private BaseCountsQualsTest(final List<Integer> quals) {
+            this.quals = quals;
+        }
+    }
+
+    @DataProvider(name = "quals")
+    public Object[][] createQualsData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final int[] quals = new int[]{ 0, 5, 10, 15, 20, 30, 40, 50 };
+
+        for ( final int qual1 : quals ) {
+            for ( final int qual2 : quals ) {
+                for ( final int qual3 : quals ) {
+                    tests.add(new Object[]{new BaseCountsQualsTest(Arrays.asList(qual1, qual2, qual3))});
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "quals", enabled = true)
+    public void testQuals(BaseCountsQualsTest test) {
+        BaseCounts counts = new BaseCounts();
+
+        for ( int qual : test.quals )
+            counts.incr(BaseIndex.A, (byte)qual);
+
+        final int actualSum = (int)counts.getSumQuals((byte)'A');
+        final int expectedSum = qualSum(test.quals);
+        Assert.assertEquals(actualSum, expectedSum);
+
+        final int actualAverage = (int)counts.averageQuals((byte)'A');
+        Assert.assertEquals(actualAverage, expectedSum / test.quals.size());
+
+        // test both proportion methods
+        Assert.assertEquals(counts.baseCountProportion(BaseIndex.A), counts.baseCountProportion((byte)'A'));
+    }
+
+    private static int qualSum(final List<Integer> quals) {
+        int sum = 0;
+        for ( final int qual : quals )
+            sum += qual;
+        return sum;
+    }
 }

@@ -143,7 +143,7 @@ import com.google.java.contract.Requires;
 
     @Ensures("result >= 0")
     public byte averageQuals(final byte base) {
-        return (byte) (getSumQuals(base) / countOfBase(base));
+        return averageQuals(BaseIndex.byteToBase(base));
     }
 
     @Ensures("result >= 0")
@@ -230,12 +230,6 @@ import com.google.java.contract.Requires;
                 maxI = i;
         }
         return maxI;
-    }
-
-    private boolean hasHigherCount(final BaseIndex targetIndex, final BaseIndex testIndex) {
-        final int targetCount = counts[targetIndex.index];
-        final int testCount = counts[testIndex.index];
-        return  ( targetCount > testCount || (targetCount == testCount && sumQuals[targetIndex.index] > sumQuals[testIndex.index]) );
     }
 
     public byte baseWithMostProbability() {

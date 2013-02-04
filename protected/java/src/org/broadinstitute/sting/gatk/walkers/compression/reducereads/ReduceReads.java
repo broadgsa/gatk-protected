@@ -212,14 +212,6 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
     private int downsampleCoverage = 250;
 
-    /**
-     * Number of chromossomes in the sample (this is used for the polyploid consensus compression). Only
-     * tested for humans (or organisms with n=2). Use at your own risk!
-     */
-    @Hidden
-    @Argument(fullName = "contigs", shortName = "ctg", doc = "", required = false)
-    private int nContigs = 2;
-
     @Hidden
     @Argument(fullName = "nwayout", shortName = "nw", doc = "", required = false)
     private boolean nwayout = false;
@@ -371,7 +363,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      */
     @Override
     public ReduceReadsStash reduceInit() {
-        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs, USE_POLYPLOID_REDUCTION));
+        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, USE_POLYPLOID_REDUCTION));
     }
 
     /**

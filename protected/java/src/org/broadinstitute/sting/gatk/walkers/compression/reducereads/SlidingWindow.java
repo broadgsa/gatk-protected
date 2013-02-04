@@ -102,8 +102,6 @@ public class SlidingWindow {
     protected ReduceReads.DownsampleStrategy downsampleStrategy;
     private boolean hasIndelQualities;
 
-    private final int nContigs;
-
     private boolean allowPolyploidReductionInGeneral;
 
     private static CompressionStash emptyRegions = new CompressionStash();
@@ -143,14 +141,13 @@ public class SlidingWindow {
         this.contigIndex = contigIndex;
 
         contextSize = 10;
-        nContigs = 1;
 
         this.windowHeader = new LinkedList<HeaderElement>();
         windowHeader.addFirst(new HeaderElement(startLocation));
         this.readsInWindow = new TreeSet<GATKSAMRecord>();
     }
 
-    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, int nContigs, boolean allowPolyploidReduction) {
+    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, boolean allowPolyploidReduction) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
 
@@ -184,7 +181,6 @@ public class SlidingWindow {
         
         this.downsampleStrategy = downsampleStrategy;
         this.hasIndelQualities = hasIndelQualities;
-        this.nContigs = nContigs;
 
         this.allowPolyploidReductionInGeneral = allowPolyploidReduction;
     }
@@ -644,43 +640,43 @@ public class SlidingWindow {
      */
     @Requires({"start >= 0 && (stop >= start || stop == 0)"})
     @Ensures("result != null")
-    private List<GATKSAMRecord> compressVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
+    protected List<GATKSAMRecord> compressVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
         List<GATKSAMRecord> allReads = new LinkedList<GATKSAMRecord>();
 
         // Try to compress into a polyploid consensus
-        int nHaplotypes = 0;
+        int nVariantPositions = 0;
         int hetRefPosition = -1;
         boolean canCompress = true;
-        boolean foundEvent = false;
         Object[] header = windowHeader.toArray();
 
         // foundEvent will remain false if we don't allow polyploid reduction
         if ( allowPolyploidReductionInGeneral && !disallowPolyploidReductionAtThisPosition ) {
             for (int i = start; i<=stop; i++) {
-                nHaplotypes = ((HeaderElement) header[i]).getNumberOfHaplotypes(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
-                if (nHaplotypes > nContigs) {
+
+                int nAlleles = ((HeaderElement) header[i]).getNumberOfAlleles(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
+
+                // we will only work on diploid cases because we just don't want to handle/test other scenarios
+                if ( nAlleles > 2 ) {
                     canCompress = false;
                     break;
+                } else if ( nAlleles == 2 ) {
+                    nVariantPositions++;
                 }
 
-                // guarantees that there is only 1 site in the variant region that needs more than one haplotype
-                if (nHaplotypes > 1) {
-                    if (!foundEvent) {
-                        foundEvent = true;
-                        hetRefPosition = i;
-                    }
-                    else {
-                        canCompress = false;
-                        break;
-                    }
+                // make sure that there is only 1 site in the variant region that contains more than one allele
+                if ( nVariantPositions == 1 ) {
+                    hetRefPosition = i;
+                } else if ( nVariantPositions > 1 ) {
+                    canCompress = false;
+                    break;
                 }
             }
         }
 
-        // Try to compress the variant region
-        // the "foundEvent" protects us from trying to compress variant regions that are created by insertions
-        if (canCompress && foundEvent) {
-            allReads = createPolyploidConsensus(start, stop, nHaplotypes, ((HeaderElement) header[hetRefPosition]).getLocation());
+        // Try to compress the variant region; note that using the hetRefPosition protects us from trying to compress
+        // variant regions that are created by insertions (since we can't confirm here that they represent the same allele)
+        if ( canCompress && hetRefPosition != -1 ) {
+            allReads = createPolyploidConsensus(start, stop, ((HeaderElement) header[hetRefPosition]).getLocation());
         }
 
         // Return all reads that overlap the variant region and remove them from the window header entirely
@@ -846,19 +842,17 @@ public class SlidingWindow {
      *
      * @param start   the first window header index in the variant region (inclusive)
      * @param stop    the last window header index of the variant region (inclusive)
-     * @param nHaplotypes       the number of haplotypes to use
      * @param hetRefPosition    reference position (in global coordinates) of the het site
      * @return a non-null list of all reads contained in the variant region as a polyploid consensus
      */
-    // TODO -- Why do we need the nHaplotypes argument?  It is not enforced at all... [EB]
     @Requires({"start >= 0 && (stop >= start || stop == 0)"})
     @Ensures("result != null")
-    private List<GATKSAMRecord> createPolyploidConsensus(final int start, final int stop, final int nHaplotypes, final int hetRefPosition) {
+    private List<GATKSAMRecord> createPolyploidConsensus(final int start, final int stop, final int hetRefPosition) {
         // we will create two (positive strand, negative strand) headers for each contig
         List<LinkedList<HeaderElement>> headersPosStrand = new ArrayList<LinkedList<HeaderElement>>();
         List<LinkedList<HeaderElement>> headersNegStrand = new ArrayList<LinkedList<HeaderElement>>();
         List<GATKSAMRecord> hetReads = new LinkedList<GATKSAMRecord>();
-        Map<Byte, Integer> haplotypeHeaderMap = new HashMap<Byte, Integer>(nHaplotypes);
+        Map<Byte, Integer> haplotypeHeaderMap = new HashMap<Byte, Integer>(2);
         int currentHaplotype = 0;
         int refStart = windowHeader.get(start).getLocation();
         int refStop = windowHeader.get(stop).getLocation();

@@ -131,4 +131,69 @@ public class HeaderElementUnitTest extends BaseTest {
         Assert.assertFalse(headerElement.isVariantFromMismatches(0.05));
         Assert.assertEquals(headerElement.isVariant(0.05, 0.05), test.isClip);
     }
+
+
+    private class AllelesTest {
+        public final int[] counts;
+        public final double proportion;
+
+        private AllelesTest(final int[] counts, final double proportion) {
+            this.counts = counts;
+            this.proportion = proportion;
+        }
+    }
+
+    @DataProvider(name = "alleles")
+    public Object[][] createAllelesData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final int[] counts = new int[]{ 0, 5, 10, 15, 20 };
+        final double [] proportions = new double[]{ 0.0, 0.05, 0.10, 0.50, 1.0 };
+
+        for ( final int count1 : counts ) {
+            for ( final int count2 : counts ) {
+                for ( final int count3 : counts ) {
+                    for ( final int count4 : counts ) {
+                        for ( final double proportion : proportions ) {
+                            tests.add(new Object[]{new AllelesTest(new int[]{count1, count2, count3, count4}, proportion)});
+                        }
+                    }
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "alleles", enabled = true)
+    public void testAlleles(AllelesTest test) {
+
+        HeaderElement headerElement = new HeaderElement(1000, 0);
+        for ( int i = 0; i < test.counts.length; i++ ) {
+            BaseIndex base = BaseIndex.values()[i];
+            for ( int j = 0; j < test.counts[i]; j++ )
+                headerElement.addBase(base.b, byte20, byte10, byte10, byte20, minBaseQual, minMappingQual, false);
+        }
+
+        final int nAllelesSeen = headerElement.getNumberOfAlleles(test.proportion);
+        final int nAllelesExpected = calculateExpectedAlleles(test.counts, test.proportion);
+
+        Assert.assertEquals(nAllelesSeen, nAllelesExpected);
+    }
+
+    private static int calculateExpectedAlleles(final int[] counts, final double proportion) {
+        double total = 0.0;
+        for ( final int count : counts ) {
+            total += count;
+        }
+
+        final int minCount = (int)(proportion * total);
+
+        int result = 0;
+        for ( final int count : counts ) {
+            if ( count > 0 && count >= minCount )
+                result++;
+        }
+        return result;
+    }
 }

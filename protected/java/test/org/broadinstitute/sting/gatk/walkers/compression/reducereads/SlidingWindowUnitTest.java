@@ -51,7 +51,6 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
@@ -357,7 +356,7 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     @Test(dataProvider = "ConsensusCreation", enabled = true)
     public void testConsensusCreationTest(ConsensusCreationTest test) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, 1, false);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
         final Pair<Set<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
@@ -390,7 +389,7 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     @Test(dataProvider = "Downsampling", enabled = true)
     public void testDownsamplingTest(DSTest test) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, test.dcov, ReduceReads.DownsampleStrategy.Normal, false, 1, false);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, test.dcov, ReduceReads.DownsampleStrategy.Normal, false, false);
         final List<GATKSAMRecord> result = slidingWindow.downsampleVariantRegion(basicReads);
 
         Assert.assertEquals(result.size(), Math.min(test.dcov, basicReads.size()));
@@ -438,7 +437,7 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     @Test(dataProvider = "ConsensusQuals", enabled = true)
     public void testConsensusQualsTest(QualsTest test) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, minUsableConsensusQual, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, 1, false);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, minUsableConsensusQual, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
         final Pair<Set<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
