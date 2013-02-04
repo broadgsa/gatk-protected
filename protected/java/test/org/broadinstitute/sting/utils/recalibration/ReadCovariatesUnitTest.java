@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.utils.recalibration;
 
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
 import org.broadinstitute.sting.utils.recalibration.covariates.*;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
@@ -84,7 +85,7 @@ public class ReadCovariatesUnitTest {
         requestedCovariates[3] = cyCov;
 
         final int NUM_READS = 100;
-        final Random rnd = new Random();
+        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
 
         final String[] readGroups = {"RG1", "RG2", "RGbla"};
         for (int idx = 0; idx < NUM_READS; idx++) {
