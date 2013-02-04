@@ -46,12 +46,14 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
+import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.recalibration.EventType;
@@ -135,6 +137,18 @@ public class SlidingWindow {
         return header.isEmpty() ? -1 : header.peek().getLocation();
     }
 
+    // for testing only
+    protected SlidingWindow(final String contig, final int contigIndex, final int startLocation) {
+        this.contig = contig;
+        this.contigIndex = contigIndex;
+
+        contextSize = 10;
+        nContigs = 1;
+
+        this.windowHeader = new LinkedList<HeaderElement>();
+        windowHeader.addFirst(new HeaderElement(startLocation));
+        this.readsInWindow = new TreeSet<GATKSAMRecord>();
+    }
 
     public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, int nContigs, boolean allowPolyploidReduction) {
         this.contextSize = contextSize;
@@ -193,14 +207,17 @@ public class SlidingWindow {
     }
 
     /**
-     * returns the next complete or incomplete variant region between 'from' (inclusive) and 'to' (exclusive)
+     * Returns the next complete (or incomplete if closeLastRegion is true) variant region between 'from' (inclusive) and 'to' (exclusive)
+     * but converted to global coordinates.
      *
-     * @param from         beginning window header index of the search window (inclusive)
-     * @param to           end window header index of the search window (exclusive)
+     * @param from         beginning window header index of the search window (inclusive); note that this uses local coordinates
+     * @param to           end window header index of the search window (exclusive); note that this uses local coordinates
      * @param variantSite  boolean array with true marking variant regions
-     * @return null if nothing is variant, start/stop if there is a complete variant region, start/-1 if there is an incomplete variant region.
+     * @param closeLastRegion  if the last index is variant (so it's an incomplete region), should we close (and return as an interval) the location or ignore it?
+     * @return null if nothing is variant, start/stop if there is a complete variant region, start/-1 if there is an incomplete variant region.  All coordinates returned are global.
      */
-    private SimpleGenomeLoc findNextVariantRegion(int from, int to, boolean[] variantSite, boolean forceClose) {
+    @Requires({"from >= 0", "from <= to", "to <= variantSite.length"})
+    private FinishedGenomeLoc findNextVariantRegion(int from, int to, boolean[] variantSite, boolean closeLastRegion) {
         boolean foundStart = false;
         final int windowHeaderStart = getStartLocation(windowHeader);
         int variantRegionStartIndex = 0;
@@ -210,27 +227,32 @@ public class SlidingWindow {
                 foundStart = true;
             }
             else if(!variantSite[i] && foundStart) {
-                return(new SimpleGenomeLoc(contig, contigIndex, windowHeaderStart + variantRegionStartIndex, windowHeaderStart + i - 1, true));
+                return(new FinishedGenomeLoc(contig, contigIndex, windowHeaderStart + variantRegionStartIndex, windowHeaderStart + i - 1, true));
             }
         }
         final int refStart = windowHeaderStart + variantRegionStartIndex;
         final int refStop  = windowHeaderStart + to - 1;
-        return (foundStart && forceClose) ? new SimpleGenomeLoc(contig, contigIndex, refStart, refStop, true) : null;
+        return (foundStart && closeLastRegion) ? new FinishedGenomeLoc(contig, contigIndex, refStart, refStop, true) : null;
     }
 
     /**
      * Creates a list with all the complete and incomplete variant regions within 'from' (inclusive) and 'to' (exclusive)
      *
-     * @param from         beginning window header index of the search window (inclusive)
-     * @param to           end window header index of the search window (exclusive)
+     * @param from         beginning window header index of the search window (inclusive); note that this uses local coordinates
+     * @param to           end window header index of the search window (exclusive); note that this uses local coordinates
      * @param variantSite  boolean array with true marking variant regions
-     * @return a list with start/stops of variant regions following findNextVariantRegion description
+     * @return a list with start/stops of variant regions following findNextVariantRegion description in global coordinates
      */
-    private CompressionStash findVariantRegions(int from, int to, boolean[] variantSite, boolean forceClose) {
+    @Requires({"from >= 0", "from <= to", "to <= variantSite.length"})
+    @Ensures("result != null")
+    protected CompressionStash findVariantRegions(int from, int to, boolean[] variantSite, boolean closeLastRegion) {
+        final int windowHeaderStart = getStartLocation(windowHeader);
+
         CompressionStash regions = new CompressionStash();
         int index = from;
         while(index < to) {
-            SimpleGenomeLoc result = findNextVariantRegion(index, to, variantSite, forceClose);
+            // returns results in global coordinates
+            FinishedGenomeLoc result = findNextVariantRegion(index, to, variantSite, closeLastRegion);
             if (result == null)
                 break;
 
@@ -238,7 +260,7 @@ public class SlidingWindow {
             if (!result.isFinished())
                 break;
 
-            index = result.getStop() + 1;
+            index = result.getStop() - windowHeaderStart + 1; // go back to local coordinates
         }
         return regions;
     }
@@ -274,7 +296,7 @@ public class SlidingWindow {
     }
 
 
-    private final class MarkedSites {
+    protected final class MarkedSites {
 
         private boolean[] siteIsVariant = new boolean[0];
         private int startLocation = 0;
@@ -282,6 +304,8 @@ public class SlidingWindow {
         public MarkedSites() {}
 
         public boolean[] getVariantSiteBitSet() { return siteIsVariant; }
+
+        protected int getStartLocation() { return startLocation; }
 
         /**
          * Updates the variant site bitset given the new startlocation and size of the region to mark.
@@ -681,8 +705,8 @@ public class SlidingWindow {
             int lastStop = -1;
             int windowHeaderStart = getStartLocation(windowHeader);
 
-            for (SimpleGenomeLoc region : regions) {
-                if (region.isFinished() && region.getContig() == contig && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
+            for (GenomeLoc region : regions) {
+                if (((FinishedGenomeLoc)region).isFinished() && region.getContig() == contig && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
                     int start = region.getStart() - windowHeaderStart;
                     int stop = region.getStop() - windowHeaderStart;
 

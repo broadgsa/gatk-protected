@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
+import net.sf.samtools.*;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
@@ -57,6 +58,7 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
+import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
@@ -67,8 +69,9 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.*;
+import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegionReadState;
-import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
+import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.*;
@@ -129,8 +132,8 @@ import java.util.*;
 @DocumentedGATKFeature( groupName = "Variant Discovery Tools", extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.LOCUS)
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
-@ActiveRegionExtension(extension=65, maxRegion=300)
-//@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=5)
+@ActiveRegionTraversalParameters(extension=65, maxRegion=300)
+@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=20)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
     /**
@@ -141,6 +144,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false)
     protected PrintStream graphWriter = null;
+
+    /**
+     * The assembled haplotypes will be written as BAM to this file if requested.  Really for debugging purposes only.  Note that the output here
+     * does not include uninformative reads so that not every input read is emitted to the bam.
+     */
+    @Hidden
+    @Output(fullName="bamOutput", shortName="bam", doc="File to which assembled haplotypes should be written", required = false)
+    protected StingSAMFileWriter bamWriter = null;
+    private SAMFileHeader bamHeader = null;
+    private long uniqueNameCounter = 1;
+    private final static String readGroupId = "ArtificialHaplotype";
 
     /**
      * The PairHMM implementation to use for genotype likelihood calculations. The various implementations balance a tradeoff of accuracy and runtime.
@@ -167,8 +181,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="minKmer", shortName="minKmer", doc="Minimum kmer length to use in the assembly graph", required = false)
     protected int minKmer = 11;
 
-    @Argument(fullName="downsampleRegion", shortName="dr", doc="coverage, per-sample, to downsample each active region to", required = false)
-    protected int DOWNSAMPLE_PER_SAMPLE_PER_REGION = 1000;
+    /**
+     * If this flag is provided, the haplotype caller will include unmapped reads in the assembly and calling
+     * when these reads occur in the region being analyzed.  Typically, for paired end analyses, one pair of the
+     * read can map, but if its pair is too divergent then it may be unmapped and placed next to its mate, taking
+     * the mates contig and alignment start.  If this flag is provided the haplotype caller will see such reads,
+     * and may make use of them in assembly and calling, where possible.
+     */
+    @Argument(fullName="includeUmappedReads", shortName="unmapped", doc="If provided, unmapped reads with chromosomal coordinates (i.e., those placed to their maps) will be included in the assembly and calling", required = false)
+    protected boolean includeUnmappedReads = false;
 
     @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "If specified, use additional trigger on variants found in an external alleles file", required=false)
     protected boolean USE_ALLELES_TRIGGER = false;
@@ -242,6 +263,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     // the genotyping engine
     private GenotypingEngine genotypingEngine = null;
 
+    private VariantAnnotatorEngine annotationEngine = null;
+
     // fasta reference reader to supplement the edges of the reference sequence
     private CachingIndexedFastaSequenceFile referenceReader;
 
@@ -251,10 +274,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     // bases with quality less than or equal to this value are trimmed off the tails of the reads
     private static final byte MIN_TAIL_QUALITY = 20;
 
-    private ArrayList<String> samplesList = new ArrayList<String>();
+    private List<String> samplesList = new ArrayList<String>();
     private final static double LOG_ONE_HALF = -Math.log10(2.0);
     private final static double LOG_ONE_THIRD = -Math.log10(3.0);
-    private final ArrayList<VariantContext> allelesToGenotype = new ArrayList<VariantContext>();
+    private final List<VariantContext> allelesToGenotype = new ArrayList<VariantContext>();
 
     private final static Allele FAKE_REF_ALLELE = Allele.create("N", true); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
     private final static Allele FAKE_ALT_ALLELE = Allele.create("<FAKE_ALT>", false); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
@@ -286,7 +309,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
         // initialize the output VCF header
-        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
+        annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
         Set<VCFHeaderLine> headerInfo = new HashSet<VCFHeaderLine>();
 
@@ -320,6 +343,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter, minKmer );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
+
+        if ( bamWriter != null )
+            setupBamWriter();
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -335,16 +361,25 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     // enable non primary and extended reads in the active region
     @Override
     public EnumSet<ActiveRegionReadState> desiredReadStates() {
-        return EnumSet.of(
-                ActiveRegionReadState.PRIMARY,
-                ActiveRegionReadState.NONPRIMARY,
-                ActiveRegionReadState.EXTENDED
-        );
+        if ( includeUnmappedReads ) {
+            throw new UserException.BadArgumentValue("includeUmappedReads", "is not yet functional");
+//            return EnumSet.of(
+//                    ActiveRegionReadState.PRIMARY,
+//                    ActiveRegionReadState.NONPRIMARY,
+//                    ActiveRegionReadState.EXTENDED,
+//                    ActiveRegionReadState.UNMAPPED
+//            );
+        } else
+            return EnumSet.of(
+                    ActiveRegionReadState.PRIMARY,
+                    ActiveRegionReadState.NONPRIMARY,
+                    ActiveRegionReadState.EXTENDED
+            );
     }
 
     @Override
     @Ensures({"result.isActiveProb >= 0.0", "result.isActiveProb <= 1.0"})
-    public ActivityProfileResult isActive( final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context ) {
+    public ActivityProfileState isActive( final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context ) {
 
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
             for( final VariantContext vc : tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()) ) {
@@ -353,15 +388,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                 }
             }
             if( tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ) {
-                return new ActivityProfileResult(ref.getLocus(), 1.0);
+                return new ActivityProfileState(ref.getLocus(), 1.0);
             }
         }
 
         if( USE_ALLELES_TRIGGER ) {
-            return new ActivityProfileResult( ref.getLocus(), tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
+            return new ActivityProfileState( ref.getLocus(), tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
         }
 
-        if( context == null ) { return new ActivityProfileResult(ref.getLocus(), 0.0); }
+        if( context == null || context.getBasePileup().isEmpty() )
+            // if we don't have any data, just abort early
+            return new ActivityProfileState(ref.getLocus(), 0.0);
 
         final List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
         noCall.add(Allele.NO_CALL);
@@ -392,13 +429,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             genotypes.add( new GenotypeBuilder(sample.getKey()).alleles(noCall).PL(genotypeLikelihoods).make() );
         }
 
-        final ArrayList<Allele> alleles = new ArrayList<Allele>();
+        final List<Allele> alleles = new ArrayList<Allele>();
         alleles.add( FAKE_REF_ALLELE );
         alleles.add( FAKE_ALT_ALLELE );
         final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.INDEL);
         final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
 
-        return new ActivityProfileResult( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileResult.ActivityProfileResultState.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileResult.ActivityProfileResultState.NONE, averageHQSoftClips.mean() );
+        return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -408,12 +445,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //---------------------------------------------------------------------------------------------------------------
 
     @Override
-    public Integer map( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker metaDataTracker ) {
+    public Integer map( final ActiveRegion activeRegion, final RefMetaDataTracker metaDataTracker ) {
         if ( justDetermineActiveRegions )
             // we're benchmarking ART and/or the active region determination code in the HC, just leave without doing any work
             return 1;
 
-        final ArrayList<VariantContext> activeAllelesToGenotype = new ArrayList<VariantContext>();
+        final List<VariantContext> activeAllelesToGenotype = new ArrayList<VariantContext>();
 
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
             for( final VariantContext vc : allelesToGenotype ) {
@@ -424,16 +461,18 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             allelesToGenotype.removeAll( activeAllelesToGenotype );
         }
 
-        if( !activeRegion.isActive ) { return 0; } // Not active so nothing to do!
+        if( !activeRegion.isActive() ) { return 0; } // Not active so nothing to do!
         if( activeRegion.size() == 0 && UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) { return 0; } // No reads here so nothing to do!
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES && activeAllelesToGenotype.isEmpty() ) { return 0; } // No alleles found in this region so nothing to do!
 
         finalizeActiveRegion( activeRegion ); // merge overlapping fragments, clip adapter and low qual tails
-        final Haplotype referenceHaplotype = new Haplotype(activeRegion.getActiveRegionReference(referenceReader)); // Create the reference haplotype which is the bases from the reference that make up the active region
-        referenceHaplotype.setIsReference(true);
+
+        // note this operation must be performed before we clip the reads down, as this must correspond to the full reference region
+        final GenomeLoc fullSpanBeforeClipping = getPaddedLoc(activeRegion);
+
+        final Haplotype referenceHaplotype = new Haplotype(activeRegion.getActiveRegionReference(referenceReader), true); // Create the reference haplotype which is the bases from the reference that make up the active region
         final byte[] fullReferenceWithPadding = activeRegion.getFullReference(referenceReader, REFERENCE_PADDING);
-        //int PRUNE_FACTOR = Math.max(MIN_PRUNE_FACTOR, determinePruneFactorFromCoverage( activeRegion ));
-        final ArrayList<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, getPaddedLoc(activeRegion), MIN_PRUNE_FACTOR, activeAllelesToGenotype );
+        final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, fullSpanBeforeClipping, MIN_PRUNE_FACTOR, activeAllelesToGenotype );
         if( haplotypes.size() == 1 ) { return 1; } // only the reference haplotype remains so nothing else to do!
 
         activeRegion.hardClipToActiveRegion(); // only evaluate the parts of reads that are overlapping the active region
@@ -445,10 +484,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         // evaluate each sample's reads against all haplotypes
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods( haplotypes, splitReadsBySample( activeRegion.getReads() ) );
-        final Map<String, ArrayList<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
+        final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
-        final ArrayList<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ?
+        final List<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ?
                                                       likelihoodCalculationEngine.selectBestHaplotypes( haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation ) : haplotypes );
 
         for( final VariantContext call : genotypingEngine.assignGenotypeLikelihoods( UG_engine,
@@ -457,11 +496,32 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                                                                                      stratifiedReadMap,
                                                                                      perSampleFilteredReadList,
                                                                                      fullReferenceWithPadding,
-                                                                                     getPaddedLoc(activeRegion),
+                                                                                     fullSpanBeforeClipping,
                                                                                      activeRegion.getLocation(),
                                                                                      getToolkit().getGenomeLocParser(),
                                                                                      activeAllelesToGenotype ) ) {
+            annotationEngine.annotateDBs(metaDataTracker, getToolkit().getGenomeLocParser().createGenomeLoc(call),  call);
             vcfWriter.add( call );
+        }
+
+        if ( bamWriter != null ) {
+            // write the haplotypes to the bam
+            for ( Haplotype haplotype : haplotypes )
+                writeHaplotype(haplotype, fullSpanBeforeClipping, bestHaplotypes.contains(haplotype));
+
+            // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
+            final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<Allele, Haplotype>(haplotypes.size());
+            for ( final Haplotype haplotype : haplotypes )
+                alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
+
+            // next, output the interesting reads for each sample aligned against the appropriate haplotype
+            for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
+                for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
+                    final Allele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
+                    if ( bestAllele != Allele.NO_CALL )
+                        writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele), fullSpanBeforeClipping.getStart());
+                }
+            }
         }
 
         if( DEBUG ) { System.out.println("----------------------------------------------------------------------------------"); }
@@ -498,8 +558,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     private void finalizeActiveRegion( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
         if( DEBUG ) { System.out.println("\nAssembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
-        final ArrayList<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>();
-        final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( ReadUtils.sortReadsByCoordinate(activeRegion.getReads()) );
+        final List<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>();
+        final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( activeRegion.getReads() );
         activeRegion.clearReads();
 
         // Join overlapping paired reads to create a single longer read
@@ -508,24 +568,22 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             finalizedReadList.addAll( FragmentUtils.mergeOverlappingPairedFragments(overlappingPair) );
         }
 
-        Collections.shuffle(finalizedReadList, GenomeAnalysisEngine.getRandomGenerator());
-
         // Loop through the reads hard clipping the adaptor and low quality tails
+        final List<GATKSAMRecord> readsToUse = new ArrayList<GATKSAMRecord>(finalizedReadList.size());
         for( final GATKSAMRecord myRead : finalizedReadList ) {
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
                 final GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
-                // protect against INTERVALS with abnormally high coverage
-                // BUGBUG: remove when positional downsampler is hooked up to ART/HC
-                if( clippedRead.getReadLength() > 0 && activeRegion.size() < samplesList.size() * DOWNSAMPLE_PER_SAMPLE_PER_REGION ) {
-                    activeRegion.add(clippedRead);
+                if( activeRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 ) {
+                    readsToUse.add(clippedRead);
                 }
             }
         }
+        activeRegion.addAll(ReadUtils.sortReadsByCoordinate(readsToUse));
     }
 
     private List<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
-        final ArrayList<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>();
+        final List<GATKSAMRecord> readsToRemove = new ArrayList<GATKSAMRecord>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
             if( rec.getReadLength() < 24 || rec.getMappingQuality() < 20 || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
                 readsToRemove.add(rec);
@@ -536,15 +594,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     }
 
     private GenomeLoc getPaddedLoc( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
-        final int padLeft = Math.max(activeRegion.getReferenceLoc().getStart()-REFERENCE_PADDING, 1);
-        final int padRight = Math.min(activeRegion.getReferenceLoc().getStop()+REFERENCE_PADDING, referenceReader.getSequenceDictionary().getSequence(activeRegion.getReferenceLoc().getContig()).getSequenceLength());
-        return getToolkit().getGenomeLocParser().createGenomeLoc(activeRegion.getReferenceLoc().getContig(), padLeft, padRight);
+        final int padLeft = Math.max(activeRegion.getReadSpanLoc().getStart()-REFERENCE_PADDING, 1);
+        final int padRight = Math.min(activeRegion.getReadSpanLoc().getStop()+REFERENCE_PADDING, referenceReader.getSequenceDictionary().getSequence(activeRegion.getReadSpanLoc().getContig()).getSequenceLength());
+        return getToolkit().getGenomeLocParser().createGenomeLoc(activeRegion.getReadSpanLoc().getContig(), padLeft, padRight);
     }
 
-    private HashMap<String, ArrayList<GATKSAMRecord>> splitReadsBySample( final List<GATKSAMRecord> reads ) {
-        final HashMap<String, ArrayList<GATKSAMRecord>> returnMap = new HashMap<String, ArrayList<GATKSAMRecord>>();
+    private Map<String, List<GATKSAMRecord>> splitReadsBySample( final List<GATKSAMRecord> reads ) {
+        final Map<String, List<GATKSAMRecord>> returnMap = new HashMap<String, List<GATKSAMRecord>>();
         for( final String sample : samplesList) {
-            ArrayList<GATKSAMRecord> readList = returnMap.get( sample );
+            List<GATKSAMRecord> readList = returnMap.get( sample );
             if( readList == null ) {
                 readList = new ArrayList<GATKSAMRecord>();
                 returnMap.put(sample, readList);
@@ -557,23 +615,92 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         return returnMap;
     }
 
-    /*
-    private int determinePruneFactorFromCoverage( final ActiveRegion activeRegion ) {
-        final ArrayList<Integer> readLengthDistribution = new ArrayList<Integer>();
-        for( final GATKSAMRecord read : activeRegion.getReads() ) {
-            readLengthDistribution.add(read.getReadLength());
-        }
-        final double meanReadLength = MathUtils.average(readLengthDistribution);
-        final double meanCoveragePerSample = (double) activeRegion.getReads().size() / ((double) activeRegion.getExtendedLoc().size() / meanReadLength) / (double) samplesList.size();
-        int PRUNE_FACTOR = 0;
-        if( meanCoveragePerSample > 8.5 ) {
-            PRUNE_FACTOR = (int) Math.floor( Math.sqrt( meanCoveragePerSample - 5.0 ) );
-        } else if( meanCoveragePerSample > 3.0 ) {
-            PRUNE_FACTOR = 1;
+    private void setupBamWriter() {
+        // prepare the bam header
+        bamHeader = new SAMFileHeader();
+        bamHeader.setSequenceDictionary(getToolkit().getSAMFileHeader().getSequenceDictionary());
+        bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
+
+        // include the original read groups plus a new artificial one for the haplotypes
+        final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(getToolkit().getSAMFileHeader().getReadGroups());
+        final SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupId);
+        rg.setSample("HC");
+        rg.setSequencingCenter("BI");
+        readGroups.add(rg);
+        bamHeader.setReadGroups(readGroups);
+
+        bamWriter.setPresorted(false);
+        bamWriter.writeHeader(bamHeader);
+    }
+
+    private void writeHaplotype(final Haplotype haplotype, final GenomeLoc paddedRefLoc, final boolean isAmongBestHaplotypes) {
+        final GATKSAMRecord record = new GATKSAMRecord(bamHeader);
+        record.setReadBases(haplotype.getBases());
+        record.setAlignmentStart(paddedRefLoc.getStart() + haplotype.getAlignmentStartHapwrtRef());
+        record.setBaseQualities(Utils.dupBytes((byte) '!', haplotype.getBases().length));
+        record.setCigar(haplotype.getCigar());
+        record.setMappingQuality(isAmongBestHaplotypes ? 60 : 0);
+        record.setReadName("HC" + uniqueNameCounter++);
+        record.setReadUnmappedFlag(false);
+        record.setReferenceIndex(paddedRefLoc.getContigIndex());
+        record.setAttribute(SAMTag.RG.toString(), readGroupId);
+        record.setFlags(16);
+        bamWriter.addAlignment(record);
+    }
+
+    private void writeReadAgainstHaplotype(final GATKSAMRecord read, final Haplotype haplotype, final int referenceStart) {
+
+        final SWPairwiseAlignment swPairwiseAlignment = new SWPairwiseAlignment(haplotype.getBases(), read.getReadBases(), 5.0, -10.0, -22.0, -1.2);
+        final int readStartOnHaplotype = swPairwiseAlignment.getAlignmentStart2wrt1();
+        final int readStartOnReference = referenceStart + haplotype.getAlignmentStartHapwrtRef() + readStartOnHaplotype;
+        read.setAlignmentStart(readStartOnReference);
+
+        final Cigar cigar = generateReadCigarFromHaplotype(read, readStartOnHaplotype, haplotype.getCigar());
+        read.setCigar(cigar);
+
+        bamWriter.addAlignment(read);
+    }
+
+    private Cigar generateReadCigarFromHaplotype(final GATKSAMRecord read, final int readStartOnHaplotype, final Cigar haplotypeCigar) {
+
+        int currentReadPos = 0;
+        int currentHapPos = 0;
+        final List<CigarElement> readCigarElements = new ArrayList<CigarElement>();
+
+        for ( final CigarElement cigarElement : haplotypeCigar.getCigarElements() ) {
+
+            if ( cigarElement.getOperator() == CigarOperator.D ) {
+                if ( currentReadPos > 0 )
+                    readCigarElements.add(cigarElement);
+            } else if ( cigarElement.getOperator() == CigarOperator.M || cigarElement.getOperator() == CigarOperator.I ) {
+
+                final int elementLength = cigarElement.getLength();
+                final int nextReadPos = currentReadPos + elementLength;
+                final int nextHapPos = currentHapPos + elementLength;
+
+                // do we want this element?
+                if ( currentReadPos > 0 ) {
+                    // do we want the entire element?
+                    if ( nextReadPos < read.getReadLength() ) {
+                        readCigarElements.add(cigarElement);
+                        currentReadPos = nextReadPos;
+                    }
+                    // otherwise, we can finish up and return the cigar
+                    else {
+                        readCigarElements.add(new CigarElement(read.getReadLength() - currentReadPos, cigarElement.getOperator()));
+                        return new Cigar(readCigarElements);
+                    }
+                }
+                // do we want part of the element to start?
+                else if ( currentReadPos == 0 && nextHapPos > readStartOnHaplotype ) {
+                    currentReadPos = Math.min(nextHapPos - readStartOnHaplotype, read.getReadLength());
+                    readCigarElements.add(new CigarElement(currentReadPos, cigarElement.getOperator()));
+                }
+
+                currentHapPos = nextHapPos;
+            }
         }
 
-        if( DEBUG ) { System.out.println(String.format("Mean coverage per sample = %.1f --> prune factor = %d", meanCoveragePerSample, PRUNE_FACTOR)); }
-        return PRUNE_FACTOR;
+        return new Cigar(readCigarElements);
     }
-    */
 }

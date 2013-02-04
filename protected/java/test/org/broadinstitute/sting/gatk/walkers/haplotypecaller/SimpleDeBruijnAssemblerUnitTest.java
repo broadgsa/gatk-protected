@@ -78,7 +78,7 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
         }
 
         public DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> expectedGraph() {
-            DeBruijnVertex v = new DeBruijnVertex(sequence, 0);
+            DeBruijnVertex v = new DeBruijnVertex(sequence, KMER_LENGTH);
             DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
             graph.addVertex(v);
             return graph;
@@ -127,12 +127,12 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
         DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
         DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> expectedGraph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
 
-        DeBruijnVertex v = new DeBruijnVertex("ATGG".getBytes(), 0);
-        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA".getBytes(), 0);
-        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT".getBytes(), 0);
-        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG".getBytes(), 0);
-        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC".getBytes(), 0);
-        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC".getBytes(), 0);
+        DeBruijnVertex v = new DeBruijnVertex("ATGG".getBytes(), 1);
+        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA".getBytes(), 1);
+        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT".getBytes(), 1);
+        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG".getBytes(), 1);
+        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC".getBytes(), 1);
+        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC".getBytes(), 1);
 
         graph.addVertex(v);
         graph.addVertex(v2);
@@ -192,12 +192,12 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
         DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
         DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> expectedGraph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
 
-        DeBruijnVertex v = new DeBruijnVertex("ATGG".getBytes(), 0);
-        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA".getBytes(), 0);
-        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT".getBytes(), 0);
-        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG".getBytes(), 0);
-        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC".getBytes(), 0);
-        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC".getBytes(), 0);
+        DeBruijnVertex v = new DeBruijnVertex("ATGG".getBytes(), 1);
+        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA".getBytes(), 1);
+        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT".getBytes(), 1);
+        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG".getBytes(), 1);
+        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC".getBytes(), 1);
+        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC".getBytes(), 1);
         
         graph.addVertex(v);
         graph.addVertex(v2);

@@ -46,20 +46,16 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
-import com.sun.org.apache.xpath.internal.operations.Gt;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.variantutils.ConcordanceMetrics;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
-import org.broadinstitute.variant.utils.BaseUtils;
-import org.broadinstitute.variant.variantcontext.*;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
 import org.broadinstitute.variant.variantcontext.GenotypeType;
-import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.vcf.VCFCodec;
@@ -67,7 +63,6 @@ import org.broadinstitute.variant.vcf.VCFHeader;
 import org.testng.annotations.Test;
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.PositionalBufferedStream;
-import org.broadinstitute.variant.vcf.*;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 
@@ -75,7 +70,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.StringBufferInputStream;
 import java.util.ArrayList;
-import java.util.Set;
 import java.util.Arrays;
 import java.util.List;
 import net.sf.picard.reference.ReferenceSequenceFile;
@@ -111,8 +105,8 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
     private Pair<VariantContext,VariantContext> getData1() {
 
-        Allele reference_A = Allele.create(BaseUtils.A,true);
-        Allele alt_C = Allele.create(BaseUtils.C);
+        Allele reference_A = Allele.create(BaseUtils.Base.A.base,true);
+        Allele alt_C = Allele.create(BaseUtils.Base.C.base);
 
         Genotype sam_1_1_eval = GenotypeBuilder.create("test1_sample1", Arrays.asList(reference_A,reference_A));
         Genotype sam_1_2_eval = GenotypeBuilder.create("test1_sample2", Arrays.asList(reference_A,alt_C));
@@ -160,9 +154,9 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
     private Pair<VariantContext,VariantContext> getData2() {
 
-        Allele reference_A = Allele.create(BaseUtils.A,true);
-        Allele alt_C = Allele.create(BaseUtils.C);
-        Allele alt_T = Allele.create(BaseUtils.T);
+        Allele reference_A = Allele.create(BaseUtils.Base.A.base,true);
+        Allele alt_C = Allele.create(BaseUtils.Base.C.base);
+        Allele alt_T = Allele.create(BaseUtils.Base.T.base);
 
         Genotype sam_1_1_eval = GenotypeBuilder.create("test1_sample1", Arrays.asList(reference_A,reference_A));
         Genotype sam_1_2_eval = GenotypeBuilder.create("test1_sample2", Arrays.asList(reference_A,alt_T));
@@ -190,7 +184,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
     }
 
     @Test(enabled=true)
-    public void testMismatchingAllele() {
+    public void testMismatchingAlleleInAlleleSubset() {
         Pair<VariantContext,VariantContext> data = getData2();
         VariantContext eval = data.getFirst();
         VariantContext truth = data.getSecond();
@@ -213,10 +207,10 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
     private Pair<VariantContext,VariantContext> getData3() {
 
-        Allele reference_ACT = Allele.create(new byte[]{BaseUtils.A,BaseUtils.C,BaseUtils.T},true);
-        Allele alt_AC = Allele.create(new byte[]{BaseUtils.A,BaseUtils.C});
-        Allele alt_A = Allele.create(BaseUtils.A);
-        Allele alt_ATT = Allele.create(new byte[]{BaseUtils.A,BaseUtils.T,BaseUtils.T});
+        Allele reference_ACT = Allele.create(new byte[]{BaseUtils.Base.A.base,BaseUtils.Base.C.base,BaseUtils.Base.T.base},true);
+        Allele alt_AC = Allele.create(new byte[]{BaseUtils.Base.A.base,BaseUtils.Base.C.base});
+        Allele alt_A = Allele.create(BaseUtils.Base.A.base);
+        Allele alt_ATT = Allele.create(new byte[]{BaseUtils.Base.A.base,BaseUtils.Base.T.base,BaseUtils.Base.T.base});
 
         Genotype sam_1_1_eval = GenotypeBuilder.create("test1_sample1", Arrays.asList(reference_ACT,alt_ATT));
         Genotype sam_1_2_eval = GenotypeBuilder.create("test1_sample2", Arrays.asList(alt_A,alt_A));
@@ -267,9 +261,9 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
     private Pair<VariantContext,VariantContext> getData4() {
 
-        Allele reference_A = Allele.create(BaseUtils.A,true);
-        Allele alt_C = Allele.create(BaseUtils.C);
-        Allele alt_T = Allele.create(BaseUtils.T);
+        Allele reference_A = Allele.create(BaseUtils.Base.A.base,true);
+        Allele alt_C = Allele.create(BaseUtils.Base.C.base);
+        Allele alt_T = Allele.create(BaseUtils.Base.T.base);
 
         Genotype sam_1_1_eval = GenotypeBuilder.create("test1_sample1", Arrays.asList(reference_A,reference_A));
         Genotype sam_1_2_eval = GenotypeBuilder.create("test1_sample2", Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
@@ -316,9 +310,9 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
     private Pair<VariantContext,VariantContext> getData5() {
 
-        Allele reference_A = Allele.create(BaseUtils.A,true);
-        Allele alt_C = Allele.create(BaseUtils.C);
-        Allele alt_T = Allele.create(BaseUtils.T);
+        Allele reference_A = Allele.create(BaseUtils.Base.A.base,true);
+        Allele alt_C = Allele.create(BaseUtils.Base.C.base);
+        Allele alt_T = Allele.create(BaseUtils.Base.T.base);
 
         Genotype sam_1_1_eval = GenotypeBuilder.create("test1_sample1", Arrays.asList(reference_A,reference_A));
         Genotype sam_1_2_eval = GenotypeBuilder.create("test1_sample2", new ArrayList<Allele>(0));
@@ -368,8 +362,8 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
     private List<Pair<VariantContext,VariantContext>> getData6() {
 
-        Allele reference_A = Allele.create(BaseUtils.A,true);
-        Allele alt_C = Allele.create(BaseUtils.C);
+        Allele reference_A = Allele.create(BaseUtils.Base.A.base,true);
+        Allele alt_C = Allele.create(BaseUtils.Base.C.base);
 
 
         // site 1 -
@@ -396,8 +390,8 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
         Pair<VariantContext,VariantContext> testDataSite1 = new Pair<VariantContext, VariantContext>(eval_1_builder.make(),truth_1_builder.make());
 
-        reference_A = Allele.create(BaseUtils.A,true);
-        Allele alt_T = Allele.create(BaseUtils.T);
+        reference_A = Allele.create(BaseUtils.Base.A.base,true);
+        Allele alt_T = Allele.create(BaseUtils.Base.T.base);
 
         // site 2 -
         //  sample 1: no-call/hom-ref
@@ -421,7 +415,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
         Pair<VariantContext,VariantContext> testDataSite2 = new Pair<VariantContext, VariantContext>(eval_1_builder.make(),truth_1_builder.make());
 
-        Allele alt_G = Allele.create(BaseUtils.G);
+        Allele alt_G = Allele.create(BaseUtils.Base.G.base);
 
         // site 3 -
         //  sample 1: alleles do not match
@@ -605,10 +599,10 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
     public List<Pair<VariantContext,VariantContext>> getData7() {
 
-        Allele ref1 = Allele.create(BaseUtils.T,true);
-        Allele alt1 = Allele.create(BaseUtils.C);
-        Allele alt2 = Allele.create(BaseUtils.G);
-        Allele alt3 = Allele.create(BaseUtils.A);
+        Allele ref1 = Allele.create(BaseUtils.Base.T.base,true);
+        Allele alt1 = Allele.create(BaseUtils.Base.C.base);
+        Allele alt2 = Allele.create(BaseUtils.Base.G.base);
+        Allele alt3 = Allele.create(BaseUtils.Base.A.base);
 
         GenomeLoc loc1 = genomeLocParser.createGenomeLoc("chr1",1,1);
         VariantContextBuilder site1Eval = new VariantContextBuilder();
@@ -709,8 +703,13 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
 
         List<Pair<VariantContext,VariantContext>> data = getData7();
 
+        int idx = 0;
+        int[] expecNotMatch = new int[]{0,0,0,0,0,1,1};
         for ( Pair<VariantContext,VariantContext> varPair : data ) {
             metrics.update(varPair.getFirst(),varPair.getSecond());
+            Assert.assertEquals(metrics.getOverallSiteConcordance().get(ConcordanceMetrics.SiteConcordanceType.ALLELES_DO_NOT_MATCH),expecNotMatch[idx]);
+            logger.info(idx);
+            idx++;
         }
 
         Assert.assertEquals(metrics.getOverallSiteConcordance().get(ConcordanceMetrics.SiteConcordanceType.ALLELES_DO_NOT_MATCH),1);

@@ -223,6 +223,18 @@ public class RecalibrationArgumentCollection {
     @Output(fullName = "recal_table_update_log", shortName = "recal_table_update_log", required = false, doc = "If provided, log all updates to the recalibration tables to the given file. For debugging/testing purposes only")
     public PrintStream RECAL_TABLE_UPDATE_LOG = null;
 
+    /**
+     * The repeat covariate will use a context of this size to calculate it's covariate value for base insertions and deletions
+     */
+    @Hidden
+    @Argument(fullName = "max_str_unit_length", shortName = "maxstr", doc = "Max size of the k-mer context to be used for repeat covariates", required = false)
+    public int MAX_STR_UNIT_LENGTH = 8;
+
+    @Hidden
+    @Argument(fullName = "max_repeat_length", shortName = "maxrep", doc = "Max number of repetitions to be used for repeat covariates", required = false)
+    public int MAX_REPEAT_LENGTH = 20;
+
+
     public File existingRecalibrationReport = null;
 
     public GATKReportTable generateReportTable(final String covariateNames) {

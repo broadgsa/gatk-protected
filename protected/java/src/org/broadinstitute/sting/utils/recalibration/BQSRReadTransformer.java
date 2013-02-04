@@ -67,7 +67,7 @@ public class BQSRReadTransformer extends ReadTransformer {
         this.enabled = engine.hasBQSRArgumentSet();
         if ( enabled ) {
             final BQSRArgumentSet args = engine.getBQSRArgumentSet();
-            this.bqsr = new BaseRecalibration(args.getRecalFile(), args.getQuantizationLevels(), args.shouldDisableIndelQuals(), args.getPreserveQscoresLessThan(), args.shouldEmitOriginalQuals());
+            this.bqsr = new BaseRecalibration(args.getRecalFile(), args.getQuantizationLevels(), args.shouldDisableIndelQuals(), args.getPreserveQscoresLessThan(), args.shouldEmitOriginalQuals(), args.getGlobalQScorePrior());
         }
         final BQSRMode mode = WalkerManager.getWalkerAnnotation(walker, BQSRMode.class);
         return mode.ApplicationTime();

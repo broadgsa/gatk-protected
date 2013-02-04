@@ -230,19 +230,6 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testRegenotype() {
-        String testFile = privateTestDir + "combine.3.vcf";
-
-        WalkerTestSpec spec = new WalkerTestSpec(
-                "-T SelectVariants -R " + b36KGReference + " -regenotype -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
-                1,
-                Arrays.asList("46ff472fc7ef6734ad01170028d5924a")
-        );
-
-        executeTest("testRegenotype--" + testFile, spec);
-    }
-
-    @Test
     public void testRemoveMLE() {
         String testFile = privateTestDir + "vcfexample.withMLE.vcf";
 
@@ -253,19 +240,6 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         );
 
         executeTest("testRemoveMLE--" + testFile, spec);
-    }
-
-    @Test
-    public void testRemoveMLEAndRegenotype() {
-        String testFile = privateTestDir + "vcfexample.withMLE.vcf";
-
-        WalkerTestSpec spec = new WalkerTestSpec(
-                "-T SelectVariants -R " + b36KGReference + " -regenotype -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
-                1,
-                Arrays.asList("46ff472fc7ef6734ad01170028d5924a")
-        );
-
-        executeTest("testRemoveMLEAndRegenotype--" + testFile, spec);
     }
 
     @Test

@@ -50,7 +50,7 @@ package org.broadinstitute.sting.utils.pairhmm;
 // the imports for unit testing.
 
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;

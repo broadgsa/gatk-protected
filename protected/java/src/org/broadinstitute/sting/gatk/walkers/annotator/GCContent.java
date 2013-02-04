@@ -54,7 +54,7 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
@@ -95,9 +95,9 @@ public class GCContent extends InfoFieldAnnotation implements ExperimentalAnnota
 
         for ( byte base : ref.getBases() ) {
             int baseIndex = BaseUtils.simpleBaseToBaseIndex(base);
-            if ( baseIndex == BaseUtils.gIndex || baseIndex == BaseUtils.cIndex )
+            if ( baseIndex == BaseUtils.Base.G.ordinal() || baseIndex == BaseUtils.Base.C.ordinal() )
                 gc++;
-            else if ( baseIndex == BaseUtils.aIndex || baseIndex == BaseUtils.tIndex )
+            else if ( baseIndex == BaseUtils.Base.A.ordinal() || baseIndex == BaseUtils.Base.T.ordinal() )
                 at++;
             else
                 ; // ignore

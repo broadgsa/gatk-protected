@@ -52,19 +52,19 @@ import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.ActiveRegionExtension;
+import org.broadinstitute.sting.gatk.walkers.ActiveRegionTraversalParameters;
 import org.broadinstitute.sting.gatk.walkers.ActiveRegionWalker;
 import org.broadinstitute.sting.gatk.walkers.PartitionBy;
 import org.broadinstitute.sting.gatk.walkers.PartitionType;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.activeregion.ActivityProfileResult;
+import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 
 import java.io.PrintStream;
 
 @DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.CONTIG)
-@ActiveRegionExtension(extension = 0, maxRegion = 50000)
+@ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)
 public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
     @Output(required = true)
     private PrintStream out;
@@ -74,18 +74,18 @@ public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
 
     @Override
     // Look to see if the region has sufficient coverage
-    public ActivityProfileResult isActive(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
+    public ActivityProfileState isActive(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
 
         int depth = ThresHolder.DEFAULTS.getFilteredCoverage(context.getBasePileup());
 
         // note the linear probability scale
-        return new ActivityProfileResult(ref.getLocus(), Math.min(depth / coverageThreshold, 1));
+        return new ActivityProfileState(ref.getLocus(), Math.min(depth / coverageThreshold, 1));
 
     }
 
     @Override
     public GenomeLoc map(final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker tracker) {
-        if (activeRegion.isActive)
+        if (activeRegion.isActive())
             return activeRegion.getLocation();
         else
             return null;

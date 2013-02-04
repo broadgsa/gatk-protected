@@ -77,6 +77,7 @@ import com.google.java.contract.Requires;
 import org.apache.commons.math.optimization.fitting.GaussianFunction;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
+import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
 
 /**
@@ -180,6 +181,7 @@ public class RecalDatum {
         if ( Double.isNaN(estimatedQReported) ) throw new IllegalArgumentException("estimatedQReported is NaN");
 
         this.estimatedQReported = estimatedQReported;
+        empiricalQuality = UNINITIALIZED;
     }
 
     public final double getEstimatedQReported() {
@@ -199,7 +201,7 @@ public class RecalDatum {
      * Returns the error rate (in real space) of this interval, or 0 if there are no observations
      * @return the empirical error rate ~= N errors / N obs
      */
-    @Ensures("result >= 0.0")
+    @Ensures({"result >= 0.0"})
     public double getEmpiricalErrorRate() {
         if ( numObservations == 0 )
             return 0.0;
@@ -221,8 +223,13 @@ public class RecalDatum {
     }
 
     public final double getEmpiricalQuality() {
-        if (empiricalQuality == UNINITIALIZED)
-            calcEmpiricalQuality();
+        return getEmpiricalQuality(getEstimatedQReported());
+    }
+
+    public synchronized final double getEmpiricalQuality(final double conditionalPrior) {
+        if (empiricalQuality == UNINITIALIZED) {
+            calcEmpiricalQuality(conditionalPrior);
+        }
         return empiricalQuality;
     }
 
@@ -319,13 +326,13 @@ public class RecalDatum {
      */
     @Requires("empiricalQuality == UNINITIALIZED")
     @Ensures("empiricalQuality != UNINITIALIZED")
-    private synchronized void calcEmpiricalQuality() {
+    private synchronized void calcEmpiricalQuality(final double conditionalPrior) {
 
         // smoothing is one error and one non-error observation
         final long mismatches = (long)(getNumMismatches() + 0.5) + SMOOTHING_CONSTANT;
         final long observations = getNumObservations() + SMOOTHING_CONSTANT + SMOOTHING_CONSTANT;
 
-        final double empiricalQual = RecalDatum.bayesianEstimateOfEmpiricalQuality(observations, mismatches, getEstimatedQReported());
+        final double empiricalQual = RecalDatum.bayesianEstimateOfEmpiricalQuality(observations, mismatches, conditionalPrior);
 
         // This is the old and busted point estimate approach:
         //final double empiricalQual = -10 * Math.log10(getEmpiricalErrorRate());

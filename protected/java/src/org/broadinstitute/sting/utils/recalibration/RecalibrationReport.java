@@ -131,7 +131,7 @@ public class RecalibrationReport {
     * Combines two recalibration reports by adding all observations and errors
     *
     * Note: This method DOES NOT recalculate the empirical qualities and quantized qualities. You have to recalculate
-    * them after combining. The reason for not calculating it is because this function is inteded for combining a
+    * them after combining. The reason for not calculating it is because this function is intended for combining a
     * series of recalibration reports, and it only makes sense to calculate the empirical qualities and quantized
     * qualities after all the recalibration reports have been combined. Having the user recalculate when appropriate,
     * makes this method faster
@@ -246,7 +246,7 @@ public class RecalibrationReport {
     private RecalDatum getRecalDatum(final GATKReportTable reportTable, final int row, final boolean hasEstimatedQReportedColumn) {
         final long nObservations = asLong(reportTable.get(row, RecalUtils.NUMBER_OBSERVATIONS_COLUMN_NAME));
         final double nErrors = asDouble(reportTable.get(row, RecalUtils.NUMBER_ERRORS_COLUMN_NAME));
-        final double empiricalQuality = asDouble(reportTable.get(row, RecalUtils.EMPIRICAL_QUALITY_COLUMN_NAME));
+        //final double empiricalQuality = asDouble(reportTable.get(row, RecalUtils.EMPIRICAL_QUALITY_COLUMN_NAME));
 
         // the estimatedQreported column only exists in the ReadGroup table
         final double estimatedQReported = hasEstimatedQReportedColumn ?
@@ -255,7 +255,7 @@ public class RecalibrationReport {
 
         final RecalDatum datum = new RecalDatum(nObservations, nErrors, (byte)1);
         datum.setEstimatedQReported(estimatedQReported);
-        datum.setEmpiricalQuality(empiricalQuality);
+        //datum.setEmpiricalQuality(empiricalQuality); // don't set the value here because we will want to recompute with a different conditional Q score prior value
         return datum;
     }
 

@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import net.sf.samtools.SAMUtils;
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.exceptions.UserException;
@@ -425,7 +425,7 @@ public class DiploidSNPGenotypeLikelihoods implements Cloneable {
         byte qual = p.getQual();
 
         if ( qual > SAMUtils.MAX_PHRED_SCORE )
-            throw new UserException.MalformedBAM(p.getRead(), String.format("the maximum allowed quality score is %d, but a quality of %d was observed in read %s.  Perhaps your BAM incorrectly encodes the quality scores in Sanger format; see http://en.wikipedia.org/wiki/FASTQ_format for more details", SAMUtils.MAX_PHRED_SCORE, qual, p.getRead().getReadName()));
+            throw new UserException.MisencodedBAM(p.getRead(), "we encountered an extremely high quality score (" + (int)qual + ")");
         if ( capBaseQualsAtMappingQual )
             qual = (byte)Math.min((int)qual, p.getMappingQual());
         if ( (int)qual < minBaseQual )

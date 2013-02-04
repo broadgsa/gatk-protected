@@ -60,7 +60,7 @@ import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.variant.utils.BaseUtils;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.collections.Pair;
@@ -280,7 +280,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
      * @param hasEvents a vector a vectors of 0 (no event) and 1 (has event)
      * @return the total number of events across all hasEvent arrays
      */
-    private int nEvents(final int[]... hasEvents) {
+    protected static int nEvents(final int[]... hasEvents) {
         int n = 0;
         for ( final int[] hasEvent : hasEvents ) {
             n += MathUtils.sum(hasEvent);
@@ -302,7 +302,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
         return ReadUtils.isSOLiDRead(read) && RAC.SOLID_RECAL_MODE != RecalUtils.SOLID_RECAL_MODE.DO_NOTHING && !RecalUtils.isColorSpaceConsistent(read, offset);
     }
 
-    protected boolean[] calculateKnownSites( final GATKSAMRecord read, final List<Feature> features ) {
+    protected static boolean[] calculateKnownSites( final GATKSAMRecord read, final List<Feature> features ) {
         final int readLength = read.getReadBases().length;
         final boolean[] knownSites = new boolean[readLength];
         Arrays.fill(knownSites, false);
@@ -464,7 +464,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
      * @return a BAQ-style non-null byte[] counting NO_BAQ_UNCERTAINTY values
      * // TODO -- could be optimized avoiding this function entirely by using this inline if the calculation code above
      */
-    private byte[] flatBAQArray(final GATKSAMRecord read) {
+    protected  static byte[] flatBAQArray(final GATKSAMRecord read) {
         final byte[] baq = new byte[read.getReadLength()];
         Arrays.fill(baq, NO_BAQ_UNCERTAINTY);
         return baq;
