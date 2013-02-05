@@ -661,14 +661,14 @@ public class SlidingWindow {
                     break;
                 } else if ( nAlleles == 2 ) {
                     nVariantPositions++;
-                }
 
-                // make sure that there is only 1 site in the variant region that contains more than one allele
-                if ( nVariantPositions == 1 ) {
-                    hetRefPosition = i;
-                } else if ( nVariantPositions > 1 ) {
-                    canCompress = false;
-                    break;
+                    // make sure that there is only 1 site in the variant region that contains more than one allele
+                    if ( nVariantPositions == 1 ) {
+                        hetRefPosition = i;
+                    } else if ( nVariantPositions > 1 ) {
+                        canCompress = false;
+                        break;
+                    }
                 }
             }
         }
@@ -867,6 +867,7 @@ public class SlidingWindow {
                     // check if the read contains the het site
                     if (read.getSoftStart() <= hetRefPosition && read.getSoftEnd() >= hetRefPosition) {
                         int readPos = ReadUtils.getReadCoordinateForReferenceCoordinate(read, hetRefPosition, ReadUtils.ClippingTail.LEFT_TAIL);
+                        // TODO -- THIS IS A HUGE BUG AS IT WILL NOT WORK FOR DELETIONS; see commented out unit test
                         byte base = read.getReadBases()[readPos];
                         byte qual = read.getBaseQualities(EventType.BASE_SUBSTITUTION)[readPos];
 
