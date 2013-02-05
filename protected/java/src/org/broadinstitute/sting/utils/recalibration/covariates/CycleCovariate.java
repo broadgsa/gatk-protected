@@ -136,9 +136,6 @@ public class CycleCovariate implements StandardCovariate {
 
             final int MAX_CYCLE_FOR_INDELS = readLength - CUSHION_FOR_INDELS - 1;
             for (int i = 0; i < readLength; i++) {
-                if ( cycle > MAXIMUM_CYCLE_VALUE )
-                    throw new UserException("The maximum allowed value for the cycle is " + MAXIMUM_CYCLE_VALUE + ", but a larger cycle was detected in read " + read.getReadName() + ".  Please use the --maximum_cycle_value argument to increase this value (at the expense of requiring more memory to run)");
-
                 final int substitutionKey = keyFromCycle(cycle);
                 final int indelKey = (i < CUSHION_FOR_INDELS || i > MAX_CYCLE_FOR_INDELS) ? -1 : substitutionKey;
                 values.addCovariate(substitutionKey, indelKey, indelKey, i);
@@ -268,9 +265,12 @@ public class CycleCovariate implements StandardCovariate {
         return (MAXIMUM_CYCLE_VALUE << 1) + 1;
     }
 
-    private static int keyFromCycle(final int cycle) {
+    private int keyFromCycle(final int cycle) {
         // no negative values because values must fit into the first few bits of the long
         int result = Math.abs(cycle);
+        if ( result > MAXIMUM_CYCLE_VALUE )
+            throw new UserException("The maximum allowed value for the cycle is " + MAXIMUM_CYCLE_VALUE + ", but a larger cycle (" + result + ") was detected.  Please use the --maximum_cycle_value argument to increase this value (at the expense of requiring more memory to run)");
+
         result = result << 1; // shift so we can add the "sign" bit
         if ( cycle < 0 )
             result++; // negative cycles get the lower-most bit set

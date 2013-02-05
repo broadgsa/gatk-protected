@@ -262,8 +262,12 @@ public class RecalibrationArgumentCollection {
         argumentsTable.set("indels_context_size", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, INDELS_CONTEXT_SIZE);
         argumentsTable.addRowID("mismatches_default_quality", true);
         argumentsTable.set("mismatches_default_quality", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, MISMATCHES_DEFAULT_QUALITY);
+        argumentsTable.addRowID("deletions_default_quality", true);
+        argumentsTable.set("deletions_default_quality", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, DELETIONS_DEFAULT_QUALITY);
         argumentsTable.addRowID("insertions_default_quality", true);
         argumentsTable.set("insertions_default_quality", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, INSERTIONS_DEFAULT_QUALITY);
+        argumentsTable.addRowID("maximum_cycle_value", true);
+        argumentsTable.set("maximum_cycle_value", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, MAXIMUM_CYCLE_VALUE);
         argumentsTable.addRowID("low_quality_tail", true);
         argumentsTable.set("low_quality_tail", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, LOW_QUAL_TAIL);
         argumentsTable.addRowID("default_platform", true);

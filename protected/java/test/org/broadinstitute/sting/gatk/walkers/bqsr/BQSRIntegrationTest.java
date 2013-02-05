@@ -94,26 +94,27 @@ public class BQSRIntegrationTest extends WalkerTest {
         }
     }
 
+    private static final String HiSeqBam = privateTestDir + "HiSeq.1mb.1RG.bam";
+    private static final String HiSeqInterval = "chr1:10,000,000-10,100,000";
+
     @DataProvider(name = "BQSRTest")
     public Object[][] createBQSRTestData() {
-        String HiSeqBam = privateTestDir + "HiSeq.1mb.1RG.bam";
-        String HiSeqInterval = "chr1:10,000,000-10,100,000";
         return new Object[][]{
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "6b3f252718f59cf9fd3f7612f73a35bf")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "863576ac9ff0b0e02f2e84aef15923a7")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "03e28f48201a35c70d1cf48e9f45364f")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "6e3c5635d387a1c428a7c9c88ad26488")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "6507adcb94bacde4cdee9caa9f14f24b")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "399bbb4bf80764dfc644b2f95d824615")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "34d70899253c2b3343ca9ae944291c30")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "e61fa47bfc08433f0cd55558e2081548")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "5c2622c63225b8b04990baf0ae4de07c")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "ee7191d83d7d5bb957dc4595883c32f1")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "da92f4730356f479c2c2b71497cfac6d")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "8075595113b48c0c7ead08ce41bef9fe")},
-                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "be05834841c5690c66910270521d5c32")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "e61fa47bfc08433f0cd55558e2081548")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "8ee0b498dbbc95ce76393a0f089fec92")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "61fd466b5e94d2d67e116f6f67c9f939")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "e08b5bcdb64f4beea03730e5631a14ca")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "448a45dc154c95d1387cb5cdddb67071")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "c1e7999e445d51bbe2e775dac5325643")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "a57c16918cdfe12d55a89c21bf195279")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "836dccacf48ccda6b2843d07e8f1ef4d")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "0fb2aedc2f8d66b5821cb570f15a8c4d")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "c9953f020a65c1603a6d71aeeb1b95f3")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "85a120b7d86b61597b86b9e93decbdfc")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "5248dc49aec0323c74b496bb4928c73c")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "cb52f267e0010f849f50b0bf1de474a1")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "1425a5063ee757dbfc013df24e65a67a")},
+                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "c1c3cda8caceed619d3d439c3990cd26")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "c9953f020a65c1603a6d71aeeb1b95f3")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "5bfff0c699345cca12a9b33acf95588f")},
         };
     }
 
@@ -212,4 +213,33 @@ public class BQSRIntegrationTest extends WalkerTest {
                 Arrays.asList(params.md5));
         executeTest("testPrintReads-"+params.args, spec).getFirst();
     }
+
+    @Test
+    public void testPRNoFailWithHighMaxCycle() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T PrintReads" +
+                        " -R " + hg18Reference +
+                        " -I " + HiSeqBam +
+                        " -L " + HiSeqInterval +
+                        " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.highMaxCycle.table" +
+                        " -o /dev/null",
+                0,
+                Arrays.<String>asList());
+        executeTest("testPRNoFailWithHighMaxCycle", spec);
+    }
+
+    @Test
+    public void testPRFailWithLowMaxCycle() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T PrintReads" +
+                        " -R " + hg18Reference +
+                        " -I " + HiSeqBam +
+                        " -L " + HiSeqInterval +
+                        " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.lowMaxCycle.table" +
+                        " -o /dev/null",
+                0,
+                UserException.class);
+        executeTest("testPRFailWithLowMaxCycle", spec);
+    }
+
 }

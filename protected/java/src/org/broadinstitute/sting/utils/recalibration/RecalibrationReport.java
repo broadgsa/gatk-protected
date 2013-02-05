@@ -322,6 +322,9 @@ public class RecalibrationReport {
             else if (argument.equals("deletions_default_quality"))
                 RAC.DELETIONS_DEFAULT_QUALITY = Byte.parseByte((String) value);
 
+            else if (argument.equals("maximum_cycle_value"))
+                RAC.MAXIMUM_CYCLE_VALUE = Integer.parseInt((String) value);
+
             else if (argument.equals("low_quality_tail"))
                 RAC.LOW_QUAL_TAIL = Byte.parseByte((String) value);
 
