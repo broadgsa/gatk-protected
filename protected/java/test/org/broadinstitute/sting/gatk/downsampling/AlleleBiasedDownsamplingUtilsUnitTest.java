@@ -46,9 +46,17 @@
 
 package org.broadinstitute.sting.gatk.downsampling;
 
+import org.apache.log4j.Logger;
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.io.File;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -126,4 +134,75 @@ public class AlleleBiasedDownsamplingUtilsUnitTest extends BaseTest {
         }
         return true;
     }
+
+
+    @Test
+    public void testLoadContaminationFile1(){
+        Logger logger=org.apache.log4j.Logger.getRootLogger();
+
+        final String ArtificalBAMLocation = privateTestDir + "ArtificallyContaminatedBams/";
+        final File ContamFile1=new File(ArtificalBAMLocation+"contamination.case.1.txt");
+
+        Map<String,Double> Contam1=new HashMap<String,Double>();
+        Set<String> Samples1=new HashSet<String>();
+
+        Contam1.put("NA11918",0.15);
+        Samples1.addAll(Contam1.keySet());
+        testLoadFile(ContamFile1,Samples1,Contam1,logger);
+
+        Contam1.put("NA12842",0.13);
+        Samples1.addAll(Contam1.keySet());
+        testLoadFile(ContamFile1,Samples1,Contam1,logger);
+
+        Samples1.add("DUMMY");
+        testLoadFile(ContamFile1,Samples1,Contam1,logger);
+   }
+
+    private static void testLoadFile(final File file, final Set<String> Samples, final Map<String,Double> map, Logger logger){
+        Map<String,Double> loadedMap = AlleleBiasedDownsamplingUtils.loadContaminationFile(file,0.0,Samples,logger);
+        Assert.assertTrue(loadedMap.equals(map));
+    }
+
+    @Test
+    public void testLoadContaminationFiles(){
+        Logger logger=org.apache.log4j.Logger.getRootLogger();
+        final String ArtificalBAMLocation = privateTestDir + "ArtificallyContaminatedBams/";
+
+        for(int i=1; i<=5; i++){
+            File ContamFile=new File(ArtificalBAMLocation+String.format("contamination.case.%d.txt",i));
+            Assert.assertTrue(AlleleBiasedDownsamplingUtils.loadContaminationFile(ContamFile,0.0,null,logger).size()==2);
+        }
+
+    }
+
+    @Test(expectedExceptions = UserException.MalformedFile.class)
+    public void testLoadBrokenContaminationFile1(){
+        testLoadBrokenContaminationFile(1);
+    }
+
+    @Test(expectedExceptions = UserException.MalformedFile.class)
+    public void testLoadBrokenContaminationFile2(){
+        testLoadBrokenContaminationFile(2);
+    }
+    @Test(expectedExceptions = UserException.MalformedFile.class)
+    public void testLoadBrokenContaminationFile3(){
+        testLoadBrokenContaminationFile(3);
+    }
+
+    @Test(expectedExceptions = UserException.MalformedFile.class)
+    public void testLoadBrokenContaminationFile4(){
+        testLoadBrokenContaminationFile(4);
+    }
+
+
+    public void testLoadBrokenContaminationFile(final int i){
+        Logger logger=org.apache.log4j.Logger.getRootLogger();
+        final String ArtificalBAMLocation = privateTestDir + "ArtificallyContaminatedBams/";
+
+        File ContaminationFile=new File(ArtificalBAMLocation+String.format("contamination.case.broken.%d.txt",i));
+        AlleleBiasedDownsamplingUtils.loadContaminationFile(ContaminationFile,0.0,null,logger);
+
+    }
+
+
 }

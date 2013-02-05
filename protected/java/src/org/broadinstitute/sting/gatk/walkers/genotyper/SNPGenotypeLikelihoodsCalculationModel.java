@@ -101,9 +101,11 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
         // calculate the GLs
         ArrayList<SampleGenotypeData> GLs = new ArrayList<SampleGenotypeData>(contexts.size());
         for ( Map.Entry<String, AlignmentContext> sample : contexts.entrySet() ) {
+        // Down-sample with bias according to the contamination level (global or per file)
             ReadBackedPileup pileup = AlignmentContextUtils.stratify(sample.getValue(), contextType).getBasePileup();
-            if ( UAC.CONTAMINATION_FRACTION > 0.0 )
-                pileup = perReadAlleleLikelihoodMap.createPerAlleleDownsampledBasePileup(pileup, UAC.CONTAMINATION_FRACTION, UAC.contaminationLog);
+            final Double contamination =  UAC.getSampleContamination().get(sample.getKey());
+            if( contamination > 0.0 ) //no need to enter if no contamination reduction
+                pileup = perReadAlleleLikelihoodMap.createPerAlleleDownsampledBasePileup(pileup,contamination, UAC.contaminationLog);
             if ( useBAQedPileup )
                 pileup = createBAQedPileup(pileup);
 
