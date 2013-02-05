@@ -52,20 +52,21 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
  * Date: 3/27/12
  */
 
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.walkers.genotyper.ArtificialReadPileupTestProvider;
 import org.broadinstitute.sting.utils.Haplotype;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.jgrapht.graph.DefaultDirectedGraph;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.PrintStream;
 import java.util.*;
 
-public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
+public class DeBruijnAssemblerUnitTest extends BaseTest {
 
 
     private class MergeNodesWithNoVariationTestProvider extends TestDataProvider {
@@ -78,16 +79,16 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
             KMER_LENGTH = kmer;
         }
 
-        public DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> expectedGraph() {
+        public DeBruijnAssemblyGraph expectedGraph() {
             DeBruijnVertex v = new DeBruijnVertex(sequence, KMER_LENGTH);
-            DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
+            DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
             graph.addVertex(v);
             return graph;
         }
 
-        public DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> calcGraph() {
+        public DeBruijnAssemblyGraph calcGraph() {
 
-            DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
+            DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
             final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
             for (int i = 0; i < kmersInSequence - 1; i++) {
                 // get the kmers
@@ -96,9 +97,9 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
                 final byte[] kmer2 = new byte[KMER_LENGTH];
                 System.arraycopy(sequence, i+1, kmer2, 0, KMER_LENGTH);
 
-                SimpleDeBruijnAssembler.addKmersToGraph(graph, kmer1, kmer2, false);
+                graph.addKmersToGraph(kmer1, kmer2, false);
             }
-            SimpleDeBruijnAssembler.mergeNodes(graph);
+            DeBruijnAssembler.mergeNodes(graph);
             return graph;
         }
     }
@@ -125,8 +126,8 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
 
     @Test(enabled = true)
     public void testPruneGraph() {
-        DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-        DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> expectedGraph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
+        DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
+        DeBruijnAssemblyGraph expectedGraph = new DeBruijnAssemblyGraph();
 
         DeBruijnVertex v = new DeBruijnVertex("ATGG".getBytes(), 1);
         DeBruijnVertex v2 = new DeBruijnVertex("ATGGA".getBytes(), 1);
@@ -155,12 +156,12 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
         expectedGraph.addEdge(v3, v4, new DeBruijnEdge(false, 5));
         expectedGraph.addEdge(v4, v5, new DeBruijnEdge(false, 3));
 
-        SimpleDeBruijnAssembler.pruneGraph(graph, 2);
+        DeBruijnAssembler.pruneGraph(graph, 2);
 
         Assert.assertTrue(graphEquals(graph, expectedGraph));
 
-        graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-        expectedGraph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
+        graph = new DeBruijnAssemblyGraph();
+        expectedGraph = new DeBruijnAssemblyGraph();
 
         graph.addVertex(v);
         graph.addVertex(v2);
@@ -183,103 +184,12 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
         expectedGraph.addEdge(v3, v4, new DeBruijnEdge(false, 5));
         expectedGraph.addEdge(v4, v5, new DeBruijnEdge(false, 3));
 
-        SimpleDeBruijnAssembler.pruneGraph(graph, 2);
+        DeBruijnAssembler.pruneGraph(graph, 2);
 
         Assert.assertTrue(graphEquals(graph, expectedGraph));
     }
 
-    @Test(enabled = true)
-    public void testEliminateNonRefPaths() {
-        DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-        DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> expectedGraph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-
-        DeBruijnVertex v = new DeBruijnVertex("ATGG".getBytes(), 1);
-        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA".getBytes(), 1);
-        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT".getBytes(), 1);
-        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG".getBytes(), 1);
-        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC".getBytes(), 1);
-        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC".getBytes(), 1);
-        
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new DeBruijnEdge(false));
-        graph.addEdge(v2, v3, new DeBruijnEdge(true));
-        graph.addEdge(v3, v4, new DeBruijnEdge(true));
-        graph.addEdge(v4, v5, new DeBruijnEdge(true));
-        graph.addEdge(v5, v6, new DeBruijnEdge(false));
-
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v2, v3, new DeBruijnEdge());
-        expectedGraph.addEdge(v3, v4, new DeBruijnEdge());
-        expectedGraph.addEdge(v4, v5, new DeBruijnEdge());
-
-        SimpleDeBruijnAssembler.eliminateNonRefPaths(graph);
-
-        Assert.assertTrue(graphEquals(graph, expectedGraph));
-
-        
-        
-        
-        graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-        expectedGraph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new DeBruijnEdge(true));
-        graph.addEdge(v2, v3, new DeBruijnEdge(true));
-        graph.addEdge(v4, v5, new DeBruijnEdge(false));
-        graph.addEdge(v5, v6, new DeBruijnEdge(false));
-
-        expectedGraph.addVertex(v);
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addEdge(v, v2, new DeBruijnEdge());
-        expectedGraph.addEdge(v2, v3, new DeBruijnEdge());
-
-        SimpleDeBruijnAssembler.eliminateNonRefPaths(graph);
-
-        Assert.assertTrue(graphEquals(graph, expectedGraph));
-
-
-
-        graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-        expectedGraph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new DeBruijnEdge(true));
-        graph.addEdge(v2, v3, new DeBruijnEdge(true));
-        graph.addEdge(v4, v5, new DeBruijnEdge(false));
-        graph.addEdge(v5, v6, new DeBruijnEdge(false));
-        graph.addEdge(v4, v2, new DeBruijnEdge(false));
-
-        expectedGraph.addVertex(v);
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addEdge(v, v2, new DeBruijnEdge());
-        expectedGraph.addEdge(v2, v3, new DeBruijnEdge());
-
-        SimpleDeBruijnAssembler.eliminateNonRefPaths(graph);
-
-        Assert.assertTrue(graphEquals(graph, expectedGraph));
-    }
-
-    private boolean graphEquals(DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> g1, DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> g2) {
+    private boolean graphEquals(DeBruijnAssemblyGraph g1, DeBruijnAssemblyGraph g2) {
         if( !(g1.vertexSet().containsAll(g2.vertexSet()) && g2.vertexSet().containsAll(g1.vertexSet())) ) {
             return false;
         }
@@ -304,10 +214,53 @@ public class SimpleDeBruijnAssemblerUnitTest extends BaseTest {
     public void testReferenceCycleGraph() {
         String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
         String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> g1 = SimpleDeBruijnAssembler.createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), false);
-        final DefaultDirectedGraph<DeBruijnVertex,DeBruijnEdge> g2 = SimpleDeBruijnAssembler.createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), false);
+        final DeBruijnAssemblyGraph g1 = DeBruijnAssembler.createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), false);
+        final DeBruijnAssemblyGraph g2 = DeBruijnAssembler.createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), false);
 
         Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
         Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
     }
+
+    @Test(enabled = true)
+    public void testLeftAlignCigarSequentially() {
+        String preRefString = "GATCGATCGATC";
+        String postRefString = "TTT";
+        String refString = "ATCGAGGAGAGCGCCCCG";
+        String indelString1 = "X";
+        String indelString2 = "YZ";
+        int refIndel1 = 10;
+        int refIndel2 = 12;
+
+        for ( final int indelSize1 : Arrays.asList(1, 2, 3, 4) ) {
+            for ( final int indelOp1 : Arrays.asList(1, -1) ) {
+                for ( final int indelSize2 : Arrays.asList(1, 2, 3, 4) ) {
+                    for ( final int indelOp2 : Arrays.asList(1, -1) ) {
+
+                        Cigar expectedCigar = new Cigar();
+                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
+                        expectedCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
+                        expectedCigar.add(new CigarElement((indelOp1 < 0 ? refIndel1 - indelSize1 : refIndel1), CigarOperator.M));
+                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
+                        expectedCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
+                        expectedCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2 - indelSize2) * 2 : refIndel2 * 2), CigarOperator.M));
+                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
+
+                        Cigar givenCigar = new Cigar();
+                        givenCigar.add(new CigarElement(refString.length() + refIndel1/2, CigarOperator.M));
+                        givenCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
+                        givenCigar.add(new CigarElement((indelOp1 < 0 ? (refIndel1/2 - indelSize1) : refIndel1/2) + refString.length() + refIndel2/2 * 2, CigarOperator.M));
+                        givenCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
+                        givenCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2/2 - indelSize2) * 2 : refIndel2/2 * 2) + refString.length(), CigarOperator.M));
+
+                        String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
+                        String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
+
+                        Cigar calculatedCigar = DeBruijnAssembler.leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
+                        Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
+                    }
+                }
+            }
+        }
+    }
+
 }

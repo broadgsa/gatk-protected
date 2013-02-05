@@ -142,7 +142,6 @@ public class GenotypingEngine {
             if( DEBUG ) {
                 System.out.println( h.toString() );
                 System.out.println( "> Cigar = " + h.getCigar() );
-                System.out.println( "> Left and right breaks = (" + h.leftBreakPoint + " , " + h.rightBreakPoint + ")");
                 System.out.println( ">> Events = " + h.getEventMap());
             }
         }
@@ -665,7 +664,8 @@ public class GenotypingEngine {
         if( refPos < 0 ) { return null; } // Protection against SW failures
         int alignmentPos = 0;
 
-        for( final CigarElement ce : cigar.getCigarElements() ) {
+        for( int cigarIndex = 0; cigarIndex < cigar.numCigarElements(); cigarIndex++ ) {
+            final CigarElement ce = cigar.getCigarElement(cigarIndex);
             final int elementLength = ce.getLength();
             switch( ce.getOperator() ) {
                 case I:
@@ -676,7 +676,7 @@ public class GenotypingEngine {
                     if( BaseUtils.isRegularBase(refByte) ) {
                         insertionAlleles.add( Allele.create(refByte, true) );
                     }
-                    if( (haplotype.leftBreakPoint != 0 || haplotype.rightBreakPoint != 0) && (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1 || haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1) ) {
+                    if( cigarIndex == 0 || cigarIndex == cigar.getCigarElements().size() - 1 ) { // if the insertion isn't completely resolved in the haplotype then make it a symbolic allele
                         insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
                     } else {
                         byte[] insertionBases = new byte[]{};
@@ -702,20 +702,12 @@ public class GenotypingEngine {
                     final byte[] deletionBases = Arrays.copyOfRange( ref, refPos - 1, refPos + elementLength );  // add padding base
                     final List<Allele> deletionAlleles = new ArrayList<Allele>();
                     final int deletionStart = refLoc.getStart() + refPos - 1;
-                    // BUGBUG: how often does this symbolic deletion allele case happen?
-                    //if( haplotype != null && ( (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 >= deletionStart && haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 < deletionStart + elementLength)
-                    //        || (haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 >= deletionStart && haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 < deletionStart + elementLength) ) ) {
-                    //    deletionAlleles.add( Allele.create(ref[refPos-1], true) );
-                    //    deletionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
-                    //    vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart, deletionAlleles).make());
-                    //} else {
                     final byte refByte = ref[refPos-1];
                     if( BaseUtils.isRegularBase(refByte) && BaseUtils.isAllRegularBases(deletionBases) ) {
                         deletionAlleles.add( Allele.create(deletionBases, true) );
                         deletionAlleles.add( Allele.create(refByte, false) );
                         vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart + elementLength, deletionAlleles).make());
                     }
-                    //}
                     refPos += elementLength;
                     break;
                 }
