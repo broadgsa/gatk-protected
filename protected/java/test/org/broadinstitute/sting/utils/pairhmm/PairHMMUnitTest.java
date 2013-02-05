@@ -50,6 +50,7 @@ package org.broadinstitute.sting.utils.pairhmm;
 // the imports for unit testing.
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.testng.Assert;
@@ -197,11 +198,10 @@ public class PairHMMUnitTest extends BaseTest {
         return BasicLikelihoodTestProvider.getTests(BasicLikelihoodTestProvider.class);
     }
 
-    final Random random = new Random(87860573);
     @DataProvider(name = "OptimizedLikelihoodTestProvider")
     public Object[][] makeOptimizedLikelihoodTests() {
-        // context on either side is ACGTTGCA REF ACGTTGCA
-        // test all combinations
+        GenomeAnalysisEngine.resetRandomGenerator();
+        final Random random = GenomeAnalysisEngine.getRandomGenerator();
         final List<Integer> baseQuals = EXTENSIVE_TESTING ? Arrays.asList(10, 30, 40, 60) : Arrays.asList(30);
         final List<Integer> indelQuals = EXTENSIVE_TESTING ? Arrays.asList(20, 40, 60) : Arrays.asList(40);
         final List<Integer> gcps = EXTENSIVE_TESTING ? Arrays.asList(10, 20, 30) : Arrays.asList(10);
@@ -254,8 +254,8 @@ public class PairHMMUnitTest extends BaseTest {
         double optimizedLogL = cfg.calcLogL( cachingHMM, false );
         double loglessLogL = cfg.calcLogL( loglessHMM, false );
         //logger.warn(String.format("Test: logL calc=%.2f optimized=%.2f logless=%.2f expected=%.2f for %s", calculatedLogL, optimizedLogL, loglessLogL, expectedLogL, cfg.toString()));
-        Assert.assertEquals(optimizedLogL, calculatedLogL, cfg.toleranceFromReference());
-        Assert.assertEquals(loglessLogL, exactLogL, cfg.toleranceFromExact());
+        Assert.assertEquals(optimizedLogL, calculatedLogL, cfg.toleranceFromReference(), String.format("Test: logL calc=%.2f optimized=%.2f logless=%.2f expected=%.2f for %s", calculatedLogL, optimizedLogL, loglessLogL, exactLogL, cfg.toString()));
+        Assert.assertEquals(loglessLogL, exactLogL, cfg.toleranceFromExact(), String.format("Test: logL calc=%.2f optimized=%.2f logless=%.2f expected=%.2f for %s", calculatedLogL, optimizedLogL, loglessLogL, exactLogL, cfg.toString()));
     }
 
     @Test
