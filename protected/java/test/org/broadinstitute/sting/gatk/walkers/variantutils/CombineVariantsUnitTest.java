@@ -62,6 +62,27 @@ import java.util.*;
  */
 public class CombineVariantsUnitTest {
 
+    public static int VCF4headerStringCount = 16;
+
+    public static String VCF4headerStrings =
+                    "##fileformat=VCFv4.0\n"+
+                    "##filedate=2010-06-21\n"+
+                    "##reference=NCBI36\n"+
+                    "##INFO=<ID=GC, Number=0, Type=Flag, Description=\"Overlap with Gencode CCDS coding sequence\">\n"+
+                    "##INFO=<ID=DP, Number=1, Type=Integer, Description=\"Total number of reads in haplotype window\">\n"+
+                    "##INFO=<ID=AF, Number=A, Type=Float, Description=\"Dindel estimated population allele frequency\">\n"+
+                    "##INFO=<ID=CA, Number=1, Type=String, Description=\"Pilot 1 callability mask\">\n"+
+                    "##INFO=<ID=HP, Number=1, Type=Integer, Description=\"Reference homopolymer tract length\">\n"+
+                    "##INFO=<ID=NS, Number=1, Type=Integer, Description=\"Number of samples with data\">\n"+
+                    "##INFO=<ID=DB, Number=0, Type=Flag, Description=\"dbSNP membership build 129 - type match and indel sequence length match within 25 bp\">\n"+
+                    "##INFO=<ID=NR, Number=1, Type=Integer, Description=\"Number of reads covering non-ref variant on reverse strand\">\n"+
+                    "##INFO=<ID=NF, Number=1, Type=Integer, Description=\"Number of reads covering non-ref variant on forward strand\">\n"+
+                    "##FILTER=<ID=NoQCALL, Description=\"Variant called by Dindel but not confirmed by QCALL\">\n"+
+                    "##FORMAT=<ID=GT, Number=1, Type=String, Description=\"Genotype\">\n"+
+                    "##FORMAT=<ID=HQ, Number=2, Type=Integer, Description=\"Haplotype quality\">\n"+
+                    "##FORMAT=<ID=GQ, Number=1, Type=Integer, Description=\"Genotype quality\">\n"+
+                    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n";
+
     // this header is a small subset of the header in VCFHeaderUnitTest: VCF4headerStrings
     public static String VCF4headerStringsSmallSubset =
                 "##fileformat=VCFv4.0\n" +
@@ -159,34 +180,34 @@ public class CombineVariantsUnitTest {
 
     @Test
     public void testHeadersWhereOneIsAStrictSubsetOfTheOther() {
-        VCFHeader one = createHeader(VCFHeaderUnitTest.VCF4headerStrings);
+        VCFHeader one = createHeader(VCF4headerStrings);
         VCFHeader two = createHeader(VCF4headerStringsSmallSubset);
         ArrayList<VCFHeader> headers = new ArrayList<VCFHeader>();
         headers.add(one);
         headers.add(two);
         Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, false);
-        Assert.assertEquals(lines.size(), VCFHeaderUnitTest.VCF4headerStringCount);
+        Assert.assertEquals(lines.size(), VCF4headerStringCount);
     }
 
     @Test(expectedExceptions=IllegalStateException.class)
     public void testHeadersInfoDifferentValues() {
-        VCFHeader one = createHeader(VCFHeaderUnitTest.VCF4headerStrings);
+        VCFHeader one = createHeader(VCF4headerStrings);
         VCFHeader two = createHeader(VCF4headerStringsBrokenInfo);
         ArrayList<VCFHeader> headers = new ArrayList<VCFHeader>();
         headers.add(one);
         headers.add(two);
         Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, false);
-        Assert.assertEquals(lines.size(), VCFHeaderUnitTest.VCF4headerStringCount);
+        Assert.assertEquals(lines.size(), VCF4headerStringCount);
     }
 
     @Test
     public void testHeadersFormatDifferentValues() {
-        VCFHeader one = createHeader(VCFHeaderUnitTest.VCF4headerStrings);
+        VCFHeader one = createHeader(VCF4headerStrings);
         VCFHeader two = createHeader(VCF4headerStringsBrokenFormat);
         ArrayList<VCFHeader> headers = new ArrayList<VCFHeader>();
         headers.add(one);
         headers.add(two);
         Set<VCFHeaderLine> lines = VCFUtils.smartMergeHeaders(headers, false);
-        Assert.assertEquals(lines.size(), VCFHeaderUnitTest.VCF4headerStringCount);
+        Assert.assertEquals(lines.size(), VCF4headerStringCount);
     }
 }
