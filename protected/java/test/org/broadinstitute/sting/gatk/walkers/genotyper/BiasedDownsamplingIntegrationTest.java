@@ -47,15 +47,18 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.Random;
 
 public class BiasedDownsamplingIntegrationTest extends WalkerTest {
 
     private final static String baseCommand1 = "-T UnifiedGenotyper -R " + b36KGReference + " --no_cmdline_in_header -glm BOTH -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
     private final static String baseCommand2 = "-T UnifiedGenotyper -R " + hg19Reference + " --no_cmdline_in_header -glm BOTH -L 20:1,000,000-5,000,000";
+    private final static String baseCommand3 = "-T UnifiedGenotyper -R " + hg19Reference + " --no_cmdline_in_header -glm BOTH -L 20:4,000,000-5,000,000";
     private final String ArtificalBAMLocation = privateTestDir + "ArtificallyContaminatedBams/";
 
     // --------------------------------------------------------------------------------------------------------------
@@ -206,6 +209,40 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
     }
 
 
+    private void testPerSampleEqualsFlat(final String bam1, final String bam2, final String persampleFile, final Double downsampling, final String md5) {
+        final String command =  baseCommand3 + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s  ";
+
+        WalkerTestSpec spec = new WalkerTestSpec( command +" -contaminationFile " + persampleFile, 1, Arrays.asList(md5));
+        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+
+        rnd.setSeed(123451); // so that the two test cases have a hope of giving the same result
+        executeTest("test contamination on Artificial Contamination, with per-sample file on " + bam1 + " and " + bam2 + " with " + persampleFile, spec);
+
+        spec = new WalkerTestSpec(command + "-contamination " + downsampling.toString(), 1, Arrays.asList(md5));
+
+        rnd.setSeed(123451); // so that the two test cases have a hope of giving the same result
+        executeTest("test contamination on Artificial Contamination, with flat contamination on " + bam1 + " and " + bam2 + " with " + downsampling.toString(), spec);
+
+    }
+
+    // verify that inputing a file with an effectively flat contamination level is equivalent to handing in a flat contamination level
+
+    @Test
+    public void testPerSampleEqualsFlatContaminationCase1() {
+        testPerSampleEqualsFlat("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.6.txt", 0.0, "");
+    }
+
+    @Test
+    public void testPerSampleEqualsFlatContaminationCase2() {
+        testPerSampleEqualsFlat("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.7.txt", 0.15, "");
+    }
+
+    @Test
+    public void testPerSampleEqualsFlatContaminationCase3() {
+        testPerSampleEqualsFlat("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.8.txt", 0.3, "");
+    }
+
+
     // --------------------------------------------------------------------------------------------------------------
     //
     // testing HaplotypeCaller Contamination Removal
@@ -244,23 +281,19 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
         executeTest("HC test contamination on Artificial Contamination (flat) on " + bam1 + " and " + bam2 + " downsampling " + downsampling.toString(), spec);
     }
 
-    // TODO -- Yossi will fix with JIRA GSA-765
-    @Test(enabled = false)
+    @Test
     public void testHCFlatContaminationCase1() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "9fc24de333e8cba3f6b41ad8cc1362d8");
+        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "a55335e075b4ebaea31f54b88a96e829");
     }
 
-    // TODO -- Yossi will fix with JIRA GSA-765
-    @Test(enabled = false)
+    @Test
     public void testHCFlatContaminationCase2() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "57b5291ec216bf071b3c80b70f0f69bb");
+        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "68ea1c00e9e3f831e519a206ae7fa6b1");
     }
 
-    // TODO -- Yossi will fix with JIRA GSA-765
-    @Test(enabled = false)
+    @Test
     public void testHCFlatContaminationCase3() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "c875633954a299c9f082159b5b24aa57");
+        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "1e93cdc054216f0d81b0d1ae92320cfc");
     }
-
 
 }
