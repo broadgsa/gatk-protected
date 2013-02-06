@@ -57,7 +57,6 @@ import java.util.Arrays;
  */
 
 public class LoglessCachingPairHMM extends CachingPairHMM {
-
     protected static final double SCALE_FACTOR_LOG10 = 300.0;
 
     protected static final double [] firstRowConstantMatrix = {
@@ -71,14 +70,10 @@ public class LoglessCachingPairHMM extends CachingPairHMM {
 
     @Override
     public void initialize( final int READ_MAX_LENGTH, final int HAPLOTYPE_MAX_LENGTH ) {
+        super.initialize(READ_MAX_LENGTH, HAPLOTYPE_MAX_LENGTH);
 
-        // M, X, and Y arrays are of size read and haplotype + 1 because of an extra column for initial conditions and + 1 to consider the final base in a non-global alignment
-        final int X_METRIC_LENGTH = READ_MAX_LENGTH + 2;
-        final int Y_METRIC_LENGTH = HAPLOTYPE_MAX_LENGTH + 2;
-
-        matchMetricArray = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
-        XMetricArray = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
-        YMetricArray = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
+        constantMatrix = new double[X_METRIC_LENGTH][6];
+        distanceMatrix = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
 
         for( int iii=0; iii < X_METRIC_LENGTH; iii++ ) {
             Arrays.fill(matchMetricArray[iii], 0.0);
@@ -87,10 +82,8 @@ public class LoglessCachingPairHMM extends CachingPairHMM {
         }
 
         // the initial condition
-        matchMetricArray[1][1] = Math.pow(10.0, SCALE_FACTOR_LOG10); // Math.log10(1.0);
-
-        constantMatrix = new double[X_METRIC_LENGTH][6];
-        distanceMatrix = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
+        matchMetricArray[1][1] = Math.pow(10.0, SCALE_FACTOR_LOG10) / nPotentialXStarts; // Math.log10(1.0);
+        firstRowConstantMatrix[4] = firstRowConstantMatrix[5] = 1.0;
 
         // fill in the first row
         for( int jjj = 2; jjj < Y_METRIC_LENGTH; jjj++ ) {
@@ -108,14 +101,9 @@ public class LoglessCachingPairHMM extends CachingPairHMM {
                                                             final int hapStartIndex,
                                                             final boolean recacheReadValues ) {
 
-        if( recacheReadValues ) {
+        if ( recacheReadValues )
             initializeConstants( insertionGOP, deletionGOP, overallGCP );
-        }
         initializeDistanceMatrix( haplotypeBases, readBases, readQuals, hapStartIndex );
-
-        // M, X, and Y arrays are of size read and haplotype + 1 because of an extra column for initial conditions and + 1 to consider the final base in a non-global alignment
-        final int X_METRIC_LENGTH = readBases.length + 2;
-        final int Y_METRIC_LENGTH = haplotypeBases.length + 2;
 
         for (int i = 2; i < X_METRIC_LENGTH; i++) {
             for (int j = hapStartIndex+1; j < Y_METRIC_LENGTH; j++) {
