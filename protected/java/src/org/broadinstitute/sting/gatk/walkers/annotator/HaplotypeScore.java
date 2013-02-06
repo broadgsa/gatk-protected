@@ -180,7 +180,8 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
         for (final PileupElement p : pileup) {
             final Haplotype haplotypeFromRead = getHaplotypeFromRead(p, contextSize, locus);
-            candidateHaplotypeQueue.add(haplotypeFromRead);
+            if ( haplotypeFromRead != null )
+                candidateHaplotypeQueue.add(haplotypeFromRead);
         }
 
         // Now that priority queue has been built with all reads at context, we need to merge and find possible segregating haplotypes
@@ -230,8 +231,18 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
             return null;
     }
 
+    /**
+     * Return a haplotype object constructed from the read or null if read's cigar is null
+     *
+     * @param p                pileup element representing the read
+     * @param contextSize      the context size to use
+     * @param locus            the position
+     * @return possibly null Haplotype object constructed from the read
+     */
     private Haplotype getHaplotypeFromRead(final PileupElement p, final int contextSize, final int locus) {
         final GATKSAMRecord read = p.getRead();
+        if ( read.getCigar() == null )
+            return null;
 
         final byte[] haplotypeBases = new byte[contextSize];
         Arrays.fill(haplotypeBases, (byte) REGEXP_WILDCARD);
@@ -347,6 +358,10 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         double expected = 0.0;
         double mismatches = 0.0;
 
+        final GATKSAMRecord read = p.getRead();
+        if ( read.getCigar() == null )
+            return 0.0;
+
         // What's the expected mismatch rate under the model that this read is actually sampled from
         // this haplotype?  Let's assume the consensus base c is a random choice one of A, C, G, or T, and that
         // the observed base is actually from a c with an error rate e.  Since e is the rate at which we'd
@@ -358,14 +373,12 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         // the chance that it is actually a mismatch is 1 - e, since any of the other 3 options would be a mismatch.
         // so the probability-weighted mismatch rate is sum_i ( matched ? e_i / 3 : 1 - e_i ) for i = 1 ... n
         final byte[] haplotypeBases = haplotype.getBases();
-        final GATKSAMRecord read = p.getRead();
         byte[] readBases = read.getReadBases();
 
         readBases = AlignmentUtils.readToAlignmentByteArray(p.getRead().getCigar(), readBases); // Adjust the read bases based on the Cigar string
         byte[] readQuals = read.getBaseQualities();
         readQuals = AlignmentUtils.readToAlignmentByteArray(p.getRead().getCigar(), readQuals); // Shift the location of the qual scores based on the Cigar string
-        int readOffsetFromPileup = p.getOffset();
-        readOffsetFromPileup = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, read.getAlignmentStart(), locus);
+        int readOffsetFromPileup = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, read.getAlignmentStart(), locus);
         final int baseOffsetStart = readOffsetFromPileup - (contextSize - 1) / 2;
 
         for (int i = 0; i < contextSize; i++) {

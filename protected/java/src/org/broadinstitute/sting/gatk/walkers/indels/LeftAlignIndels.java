@@ -110,7 +110,7 @@ public class LeftAlignIndels extends ReadWalker<Integer, Integer> {
         // move existing indels (for 1 indel reads only) to leftmost position within identical sequence
         int numBlocks = AlignmentUtils.getNumAlignmentBlocks(read);
         if ( numBlocks == 2 ) {
-            Cigar newCigar = AlignmentUtils.leftAlignIndel(IndelRealigner.unclipCigar(read.getCigar()), ref.getBases(), read.getReadBases(), 0, 0);
+            Cigar newCigar = AlignmentUtils.leftAlignIndel(IndelRealigner.unclipCigar(read.getCigar()), ref.getBases(), read.getReadBases(), 0, 0, true);
             newCigar = IndelRealigner.reclipCigar(newCigar, read);
             read.setCigar(newCigar);
         }
