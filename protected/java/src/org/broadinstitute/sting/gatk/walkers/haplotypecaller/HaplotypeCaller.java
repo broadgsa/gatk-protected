@@ -509,7 +509,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                                                                                      activeRegion.getLocation(),
                                                                                      getToolkit().getGenomeLocParser(),
                                                                                      activeAllelesToGenotype ) ) {
-            annotationEngine.annotateDBs(metaDataTracker, getToolkit().getGenomeLocParser().createGenomeLoc(call),  call);
+            // TODO -- uncomment this line once ART-based walkers have a proper RefMetaDataTracker.
+            // annotationEngine.annotateDBs(metaDataTracker, getToolkit().getGenomeLocParser().createGenomeLoc(call),  call);
             vcfWriter.add( call );
         }
 
