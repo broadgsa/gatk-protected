@@ -46,10 +46,12 @@
 
 package org.broadinstitute.sting.utils.recalibration;
 
+import net.sf.samtools.SAMFileHeader;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.report.GATKReport;
 import org.broadinstitute.sting.gatk.report.GATKReportTable;
 import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
+import org.broadinstitute.sting.gatk.walkers.compression.reducereads.ReduceReads;
 import org.broadinstitute.sting.utils.classloader.JVMUtils;
 import org.broadinstitute.sting.utils.recalibration.covariates.*;
 import org.broadinstitute.sting.utils.BaseUtils;
@@ -847,7 +849,6 @@ public class RecalUtils {
         }
     }
 
-
     /**
      * creates a datum object with one observation and one or zero error
      *
@@ -857,5 +858,21 @@ public class RecalUtils {
      */
     private static RecalDatum createDatumObject(final byte reportedQual, final double isError) {
         return new RecalDatum(1, isError, reportedQual);
+    }
+
+    /**
+     * Checks for invalid BAMs that are being used with BQSR and fails with a UserException if it finds one
+     *
+     * @param headers                  sam file headers being passed into the GATK engine
+     * @param allowBqsrOnReducedBams   should we allow BQSR on reduced bams?
+     */
+    public static void checkForInvalidRecalBams(final List<SAMFileHeader> headers, final boolean allowBqsrOnReducedBams) {
+        // for now, the only check we make is against reduced bams
+        if ( !allowBqsrOnReducedBams ) {
+            for ( final SAMFileHeader header : headers ) {
+                if ( header.getProgramRecord(ReduceReads.PROGRAM_RECORD_NAME) != null )
+                    throw new UserException.BadInput("base quality score recalibration should absolutely not be run on reduced BAM files!  Please run ReduceReads only after BQSR has been performed");
+            }
+        }
     }
 }
