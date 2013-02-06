@@ -45,6 +45,7 @@
 */
 
 package org.broadinstitute.sting.utils.genotyper;
+
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.sting.utils.BaseUtils;
@@ -79,7 +80,6 @@ import org.broadinstitute.sting.utils.sam.GATKSamRecordFactory;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
-import org.broadinstitute.variant.variantcontext.VariantContextTestProvider;
 import org.broadinstitute.variant.vcf.VCFCodec;
 import java.io.File;
 import java.io.FileNotFoundException;
