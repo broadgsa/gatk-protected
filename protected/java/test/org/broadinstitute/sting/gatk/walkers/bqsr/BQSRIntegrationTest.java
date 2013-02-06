@@ -170,6 +170,19 @@ public class BQSRIntegrationTest extends WalkerTest {
         executeTest("testBQSRFailWithSolidNoCall", spec);
     }
 
+    @Test
+    public void testBQSRFailWithReducedBam() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T BaseRecalibrator" +
+                        " -R " + b37KGReference +
+                        " -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam" +
+                        " -L 1:67,225,396-67,288,518" +
+                        " -o /dev/null",
+                0,
+                UserException.class);
+        executeTest("testBQSRFailWithReducedBam", spec);
+    }
+
     private static class PRTest {
         final String args;
         final String md5;
@@ -241,5 +254,4 @@ public class BQSRIntegrationTest extends WalkerTest {
                 UserException.class);
         executeTest("testPRFailWithLowMaxCycle", spec);
     }
-
 }

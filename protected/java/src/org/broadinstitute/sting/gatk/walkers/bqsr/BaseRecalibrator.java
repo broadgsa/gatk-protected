@@ -214,6 +214,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
         }
 
         initializeRecalibrationEngine();
+        RecalUtils.checkForInvalidRecalBams(getToolkit().getSAMFileHeaders(), getToolkit().getArguments().ALLOW_BQSR_ON_REDUCED_BAMS);
         minimumQToUse = getToolkit().getArguments().PRESERVE_QSCORES_LESS_THAN;
         referenceReader = getToolkit().getReferenceDataSource().getReference();
     }

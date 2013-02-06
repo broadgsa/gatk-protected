@@ -242,11 +242,10 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     HashMap<String, Long> readNameHash;                                     // This hash will keep the name of the original read the new compressed name (a number).
     Long nextReadNumber = 1L;                                               // The next number to use for the compressed read name.
 
-    CompressionStash compressionStash = new CompressionStash();
-
     SortedSet<GenomeLoc> intervalList;
-    
-    private static final String PROGRAM_RECORD_NAME = "GATK ReduceReads";   // The name that will go in the @PG tag
+
+    // IMPORTANT: DO NOT CHANGE THE VALUE OF THIS CONSTANT VARIABLE; IT IS NOW PERMANENTLY THE @PG NAME THAT EXTERNAL TOOLS LOOK FOR IN THE BAM HEADER
+    public static final String PROGRAM_RECORD_NAME = "GATK ReduceReads";   // The name that will go in the @PG tag
     private static final String PROGRAM_FILENAME_EXTENSION = ".reduced.bam";
 
     /**

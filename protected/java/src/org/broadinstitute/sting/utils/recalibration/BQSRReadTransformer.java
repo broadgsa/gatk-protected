@@ -66,6 +66,13 @@ public class BQSRReadTransformer extends ReadTransformer {
     public ApplicationTime initializeSub(final GenomeAnalysisEngine engine, final Walker walker) {
         this.enabled = engine.hasBQSRArgumentSet();
         if ( enabled ) {
+            // TODO -- See important note below about applying BQSR to a reduced BAM file:
+            // If it is important to make sure that BQSR is not applied (as opposed to having the covariates computed) against a reduced bam file,
+            // we need to figure out how to make this work.  The problem is that the ReadTransformers are initialized before the ReadDataSource
+            // inside the GenomeAnalysisEngine, so we generate a NPE when trying to retrieve the SAMFileHeaders.  Ultimately, I don't think this is
+            // a necessary check anyways since we disallow running BaseRecalibrator on reduced bams (so we can't generate the recal tables to use here).
+            // Although we could add this check to the apply() method below, it's kind of ugly and inefficient.
+            // The call here would be: RecalUtils.checkForInvalidRecalBams(engine.getSAMFileHeaders(), engine.getArguments().ALLOW_BQSR_ON_REDUCED_BAMS);
             final BQSRArgumentSet args = engine.getBQSRArgumentSet();
             this.bqsr = new BaseRecalibration(args.getRecalFile(), args.getQuantizationLevels(), args.shouldDisableIndelQuals(), args.getPreserveQscoresLessThan(), args.shouldEmitOriginalQuals(), args.getGlobalQScorePrior());
         }
