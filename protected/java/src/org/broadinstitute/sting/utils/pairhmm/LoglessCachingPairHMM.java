@@ -46,22 +46,25 @@
 
 package org.broadinstitute.sting.utils.pairhmm;
 
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
 import org.broadinstitute.sting.utils.QualityUtils;
-
-import java.util.Arrays;
 
 /**
  * Created with IntelliJ IDEA.
  * User: rpoplin, carneiro
  * Date: 10/16/12
  */
-
 public class LoglessCachingPairHMM extends PairHMM {
     protected static final double SCALE_FACTOR_LOG10 = 300.0;
 
     double[][] constantMatrix = null; // The cache
     double[][] distanceMatrix = null; // The cache
+    boolean constantsAreInitialized = false;
 
+    /**
+     * Cached data structure that describes the first row's edge condition in the HMM
+     */
     protected static final double [] firstRowConstantMatrix = {
             QualityUtils.qualToProb((byte) (DEFAULT_GOP + DEFAULT_GOP)),
             QualityUtils.qualToProb(DEFAULT_GCP),
@@ -71,53 +74,48 @@ public class LoglessCachingPairHMM extends PairHMM {
             1.0
     };
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public void initialize( final int READ_MAX_LENGTH, final int HAPLOTYPE_MAX_LENGTH ) {
-        super.initialize(READ_MAX_LENGTH, HAPLOTYPE_MAX_LENGTH);
+    public void initialize( final int readMaxLength, final int haplotypeMaxLength) {
+        super.initialize(readMaxLength, haplotypeMaxLength);
 
-        constantMatrix = new double[X_METRIC_LENGTH][6];
-        distanceMatrix = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
-
-        // TODO -- this shouldn't be necessary
-        for( int iii=0; iii < X_METRIC_LENGTH; iii++ ) {
-            Arrays.fill(matchMetricArray[iii], 0.0);
-            Arrays.fill(XMetricArray[iii], 0.0);
-            Arrays.fill(YMetricArray[iii], 0.0);
-        }
-
-        // the initial condition
-        matchMetricArray[1][1] = Math.pow(10.0, SCALE_FACTOR_LOG10) / nPotentialXStarts; // Math.log10(1.0);
-        firstRowConstantMatrix[4] = firstRowConstantMatrix[5] = 1.0;
-
-        // fill in the first row
-        for( int jjj = 2; jjj < Y_METRIC_LENGTH; jjj++ ) {
-            updateCell(1, jjj, 1.0, firstRowConstantMatrix, matchMetricArray, XMetricArray, YMetricArray);
-        }
+        constantMatrix = new double[X_METRIC_MAX_LENGTH][6];
+        distanceMatrix = new double[X_METRIC_MAX_LENGTH][Y_METRIC_MAX_LENGTH];
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public double computeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
-                                                            final byte[] readBases,
-                                                            final byte[] readQuals,
-                                                            final byte[] insertionGOP,
-                                                            final byte[] deletionGOP,
-                                                            final byte[] overallGCP,
-                                                            final int hapStartIndex,
-                                                            final boolean recacheReadValues ) {
-
-        if ( recacheReadValues )
-            initializeConstants( insertionGOP, deletionGOP, overallGCP );
+    public double subComputeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
+                                                               final byte[] readBases,
+                                                               final byte[] readQuals,
+                                                               final byte[] insertionGOP,
+                                                               final byte[] deletionGOP,
+                                                               final byte[] overallGCP,
+                                                               final int hapStartIndex,
+                                                               final boolean recacheReadValues ) {
+        if ( ! constantsAreInitialized || recacheReadValues )
+            initializeConstants( haplotypeBases.length, readBases.length, insertionGOP, deletionGOP, overallGCP );
         initializeDistanceMatrix( haplotypeBases, readBases, readQuals, hapStartIndex );
 
-        for (int i = 2; i < X_METRIC_LENGTH; i++) {
-            for (int j = hapStartIndex+1; j < Y_METRIC_LENGTH; j++) {
+        // NOTE NOTE NOTE -- because of caching we need to only operate over X and Y according to this
+        // read and haplotype lengths, not the max lengths
+        final int readXMetricLength = readBases.length + 2;
+        final int hapYMetricLength = haplotypeBases.length + 2;
+
+        for (int i = 2; i < readXMetricLength; i++) {
+            // +1 here is because hapStartIndex is 0-based, but our matrices are 1 based
+            for (int j = hapStartIndex+1; j < hapYMetricLength; j++) {
                 updateCell(i, j, distanceMatrix[i][j], constantMatrix[i], matchMetricArray, XMetricArray, YMetricArray);
             }
         }
 
         // final probability is the log10 sum of the last element in all three state arrays
-        final int endI = X_METRIC_LENGTH - 1;
-        final int endJ = Y_METRIC_LENGTH - 1;
+        final int endI = readXMetricLength - 1;
+        final int endJ = hapYMetricLength - 1;
         return Math.log10( matchMetricArray[endI][endJ] + XMetricArray[endI][endJ] + YMetricArray[endI][endJ] ) - SCALE_FACTOR_LOG10;
     }
 
@@ -152,13 +150,32 @@ public class LoglessCachingPairHMM extends PairHMM {
     /**
      * Initializes the matrix that holds all the constants related to quality scores.
      *
+     * @param haplotypeSize the number of bases in the haplotype we are testing
+     * @param readSize the number of bases in the read we are testing
      * @param insertionGOP   insertion quality scores of the read
      * @param deletionGOP    deletion quality scores of the read
      * @param overallGCP     overall gap continuation penalty
      */
-    public void initializeConstants( final byte[] insertionGOP,
-                                     final byte[] deletionGOP,
-                                     final byte[] overallGCP ) {
+    @Requires({
+            "haplotypeSize > 0",
+            "readSize > 0",
+            "insertionGOP != null && insertionGOP.length == readSize",
+            "deletionGOP != null && deletionGOP.length == readSize",
+            "overallGCP != null && overallGCP.length == readSize"
+    })
+    @Ensures("constantsAreInitialized")
+    private void initializeConstants( final int haplotypeSize,
+                                      final int readSize,
+                                      final byte[] insertionGOP,
+                                      final byte[] deletionGOP,
+                                      final byte[] overallGCP ) {
+        // the initial condition -- must be here because it needs that actual read and haplotypes, not the maximum in init
+        matchMetricArray[1][1] = Math.pow(10.0, SCALE_FACTOR_LOG10) / getNPotentialXStarts(haplotypeSize, readSize);
+
+        // fill in the first row
+        for( int jjj = 2; jjj < Y_METRIC_MAX_LENGTH; jjj++ ) {
+            updateCell(1, jjj, 1.0, firstRowConstantMatrix, matchMetricArray, XMetricArray, YMetricArray);
+        }
 
         final int l = insertionGOP.length;
         constantMatrix[1] = firstRowConstantMatrix;
@@ -173,6 +190,9 @@ public class LoglessCachingPairHMM extends PairHMM {
         }
         constantMatrix[l+1][4] = 1.0;
         constantMatrix[l+1][5] = 1.0;
+
+        // note that we initialized the constants
+        constantsAreInitialized = true;
     }
 
     /**
