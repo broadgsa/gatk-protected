@@ -69,10 +69,7 @@ import com.google.java.contract.Requires;
     public BaseCounts() {
         counts = new int[BaseIndex.values().length];
         sumQuals = new long[BaseIndex.values().length];
-        for (final BaseIndex i : BaseIndex.values()) {
-            counts[i.index] = 0;
-            sumQuals[i.index] = 0L;
-        }
+        // Java primitive arrays comes zero-filled, so no need to do it explicitly.
     }
 
     public static BaseCounts createWithCounts(int[] countsACGT) {
