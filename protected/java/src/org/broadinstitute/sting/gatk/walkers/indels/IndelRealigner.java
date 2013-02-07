@@ -767,7 +767,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         final double improvement = (bestConsensus == null ? -1 : ((double)(totalRawMismatchSum - bestConsensus.mismatchSum))/10.0);
         if ( improvement >= LOD_THRESHOLD ) {
 
-            bestConsensus.cigar = AlignmentUtils.leftAlignIndel(bestConsensus.cigar, reference, bestConsensus.str, bestConsensus.positionOnReference, bestConsensus.positionOnReference);
+            bestConsensus.cigar = AlignmentUtils.leftAlignIndel(bestConsensus.cigar, reference, bestConsensus.str, bestConsensus.positionOnReference, bestConsensus.positionOnReference, true);
 
            // start cleaning the appropriate reads
             for ( Pair<Integer, Integer> indexPair : bestConsensus.readIndexes ) {
@@ -926,7 +926,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
             // first, move existing indels (for 1 indel reads only) to leftmost position within identical sequence
             int numBlocks = AlignmentUtils.getNumAlignmentBlocks(read);
             if ( numBlocks == 2 ) {
-                Cigar newCigar = AlignmentUtils.leftAlignIndel(unclipCigar(read.getCigar()), reference, read.getReadBases(), read.getAlignmentStart()-leftmostIndex, 0);
+                Cigar newCigar = AlignmentUtils.leftAlignIndel(unclipCigar(read.getCigar()), reference, read.getReadBases(), read.getAlignmentStart()-leftmostIndex, 0, true);
                 aRead.setCigar(newCigar, false);
             }
 

@@ -87,7 +87,7 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         if (alleleLikelihoodMap == null) {
             // use old UG SNP-based version if we don't have per-read allele likelihoods
             for ( final PileupElement p : pileup ) {
-                if ( isUsableBase(p) ) {
+                if ( isUsableBase(p) && p.getRead().getCigar() != null ) {
                     int readPos = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, 0, 0);
 
                     readPos = getFinalReadPosition(p.getRead(),readPos);
@@ -105,7 +105,7 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : alleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
             final GATKSAMRecord read = el.getKey();
             final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate( read.getSoftStart(), read.getCigar(), refLoc, ReadUtils.ClippingTail.RIGHT_TAIL, true );
-            if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED )
+            if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED || read.getCigar() == null )
                 continue;
             int readPos = AlignmentUtils.calcAlignmentByteArrayOffset( read.getCigar(), offset, false, 0, 0 );
             final int numAlignedBases = AlignmentUtils.getNumAlignedBasesCountingSoftClips( read );

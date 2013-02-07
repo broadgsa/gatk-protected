@@ -404,7 +404,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
 
         final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( ref, haplotype.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
         haplotype.setAlignmentStartHapwrtRef( swConsensus.getAlignmentStart2wrt1() );
-        haplotype.setCigar( AlignmentUtils.leftAlignIndel(swConsensus.getCigar(), ref, haplotype.getBases(), swConsensus.getAlignmentStart2wrt1(), 0) );
+        haplotype.setCigar( AlignmentUtils.leftAlignIndel(swConsensus.getCigar(), ref, haplotype.getBases(), swConsensus.getAlignmentStart2wrt1(), 0, true) );
 
         if( swConsensus.getCigar().toString().contains("S") || swConsensus.getCigar().getReferenceLength() < 60 ) { // protect against SW failures
             return false;
@@ -445,7 +445,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         final SWPairwiseAlignment swConsensus2 = new SWPairwiseAlignment( ref, h.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
 
         h.setAlignmentStartHapwrtRef( swConsensus2.getAlignmentStart2wrt1() );
-        h.setCigar( AlignmentUtils.leftAlignIndel(swConsensus2.getCigar(), ref, h.getBases(), swConsensus2.getAlignmentStart2wrt1(), 0) );
+        h.setCigar( AlignmentUtils.leftAlignIndel(swConsensus2.getCigar(), ref, h.getBases(), swConsensus2.getAlignmentStart2wrt1(), 0, true) );
         if ( haplotype.isArtificialHaplotype() ) {
             h.setArtificialEvent(haplotype.getArtificialEvent());
         }
