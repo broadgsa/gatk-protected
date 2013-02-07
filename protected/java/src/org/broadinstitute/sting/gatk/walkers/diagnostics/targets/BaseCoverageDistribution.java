@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
+import org.broadinstitute.sting.commandline.Argument;
 import org.broadinstitute.sting.commandline.Output;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
@@ -56,18 +57,75 @@ import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
 /**
+ * Simple walker to plot the coverage distribution per base.
+ *
+ * <p>
+ *  Features of this walker:
+ *  <li>includes a smart counting of uncovered bases without visiting the uncovered loci.</li>
+ *  <li>includes reads with deletions in the loci (optionally can be turned off)</li>
+ * </p>
+ *
+ * <h2>Input</h2>
+ * <p>
+ * The BAM file and an optional interval list (works for WGS as well)
+ * </p>
+ *
+ * <h2>Output</h2>
+ * <p>
+ * A GATK Report with the coverage distribution per base
+ *
+ * <p/>
+ * <h2>Examples</h2>
+ * <pre>
+ * java -Xmx4g -jar GenomeAnalysisTK.jar \
+ *   -R ref.fasta \
+ *   -T BaseCoverageDistribution \
+ *   -I myData.bam \
+ *   -L interesting.intervals \
+ *   -fd \
+ *   -o report.grp
+ * </pre>
  * User: carneiro
  * Date: 1/27/13
  * Time: 11:16 AM
  */
-public class BaseCoverageDistribution extends LocusWalker<Integer, Map<Integer, Long>> {
-    @Output(required = true)
+public class BaseCoverageDistribution extends LocusWalker<ArrayList<Integer>, Map<Integer, ArrayList<Long>>> {
+    /**
+     * The output GATK Report table
+     */
+    @Output(required = true, doc = "The output GATK Report table")
     private PrintStream out;
+
+    /**
+     * Whether or not a deletion should be counted towards the coverage of a site
+     */
+    @Argument(required = false, shortName="del", fullName = "include_deletions", doc ="whether or not to include reads with deletions on the loci in the pileup")
+    private boolean includeDeletions = true;
+
+    /**
+     * Whether or not to calculate and output a filtered coverage distribution. Bases will be filtered according to the
+     * minimum_mapping_quality and minimum_base_quality parameters below.
+     */
+    @Argument(required = false, shortName="fd", fullName = "filtered_distribution", doc ="calculate and report the filtered coverage distribution of bases")
+    private boolean calculateFilteredDistribution = false;
+
+    /**
+     * The minimum mapping quality a read must have to be counted towards the filtered coverage of a site
+     */
+    @Argument(required = false, shortName="mmq", fullName = "minimum_mapping_quality", doc ="minimum mapping quality of a read to include it in the filtered coverage distribution")
+    private byte minMappingQuality = 20;
+
+    /**
+     * The minimum base quality a base must have to be counted towards the filtered coverage of a site
+     */
+    @Argument(required = false, shortName="mbq", fullName = "minimum_base_quality", doc ="minimum base quality of a base to include it in the filtered coverage distribution")
+    private byte minBaseQuality = 17;
 
     private GenomeLoc previousLocus = null;
     private long uncoveredBases = 0L;
@@ -75,57 +133,123 @@ public class BaseCoverageDistribution extends LocusWalker<Integer, Map<Integer, 
 
     @Override
     public boolean includeReadsWithDeletionAtLoci() {
-        return true;
+        return includeDeletions;
     }
 
     @Override
     public void initialize() {
         if (getToolkit().getIntervals() != null)
-            intervalList.addAll(getToolkit().getIntervals());
+            intervalList.addAll(getToolkit().getIntervals()); // if the user provided intervals, keep track of them for uncovered bases calculation
     }
 
     @Override
-    public Integer map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
+    public ArrayList<Integer> map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
+        ArrayList<Integer> result = new ArrayList<Integer>(2);
         GenomeLoc currentLocus = ref.getLocus();
         tallyUncoveredBases(currentLocus);
         previousLocus = currentLocus;
-        System.out.println("DEBUG: " + currentLocus + " - " + context.getBasePileup().getReads().size() + " - " + uncoveredBases);
-        return context.getBasePileup().getReads().size(); // I want the reads instead of the base pileup because I want to count deletions.
+        result.add(context.getBasePileup().getReads().size()); // I want the reads instead of the base pileup because I want to count deletions.
+        if (calculateFilteredDistribution)
+            result.add(context.getBasePileup().getBaseAndMappingFilteredPileup(minBaseQuality, minMappingQuality).getReads().size()); // filtered pileup
+        else {
+            result.add(result.get(0)); // repeat the same value as the unfiltered pileup if filters are not on
+        }
+        return result;
     }
 
     @Override
-    public Map<Integer, Long> reduceInit() {
-        return new HashMap<Integer, Long>(10000);
+    public Map<Integer, ArrayList<Long>> reduceInit() {
+        return new HashMap<Integer, ArrayList<Long>>(10000);
     }
 
     @Override
-    public Map<Integer, Long> reduce(Integer value, Map<Integer, Long> sum) {
-        Long curr = sum.get(value);
-        if (curr == null)
-            curr = 0L;
-        sum.put(value, curr + 1);
+    public  Map<Integer, ArrayList<Long>> reduce(ArrayList<Integer> value, Map<Integer, ArrayList<Long>> sum) {
+        final int unfilteredCoverage = value.get(0);
+        final int filteredCoverage = value.get(1);
+        incrementSumArray(sum, unfilteredCoverage, 0);
+        incrementSumArray(sum, filteredCoverage, 1);
         return sum;
     }
 
     @Override
-    public void onTraversalDone(Map<Integer, Long> result) {
+    public void onTraversalDone(Map<Integer, ArrayList<Long>> result) {
         tallyUncoveredBasesTillEndOfTraversal();
-        GATKReport report = GATKReport.newSimpleReport("BaseCoverageDistribution", "Coverage", "Count");
-        report.addRow(0, uncoveredBases);
-        for (Map.Entry<Integer, Long> entry : result.entrySet()) {
-            report.addRow(entry.getKey(), entry.getValue());
+        GATKReport report;
+
+        if (calculateFilteredDistribution) {
+            report = GATKReport.newSimpleReport("BaseCoverageDistribution", "Coverage", "Count", "Filtered");
+        } else {
+            report = GATKReport.newSimpleReport("BaseCoverageDistribution", "Coverage", "Count");
+            report.addRow(0, uncoveredBases); // preemptively add the uncovered bases row (since they'll never exist in the Map)
+        }
+
+        for (Map.Entry<Integer, ArrayList<Long>> entry : result.entrySet()) {
+            final ArrayList<Long> values = entry.getValue();
+            final int coverage = entry.getKey();
+            if (calculateFilteredDistribution) {
+                if (coverage == 0) { // special case for the uncovered bases. The filtered pileups may have an entry, but the unfiltered ones won't.
+                    report.addRow(coverage, uncoveredBases, uncoveredBases + values.get(1));
+                } else {
+                    report.addRow(coverage, values.get(0), values.get(1));
+                }
+            } else {
+                report.addRow(coverage, values.get(0));
+            }
+        }
+        // In case the filtered distribution never had a pileup filtered down to zero coverage, output the overall uncovered bases for both
+        if (calculateFilteredDistribution && !result.containsKey(0)) {
+            report.addRow(0, uncoveredBases, uncoveredBases);
         }
         report.print(out);
     }
 
+    /**
+     * Initializes the ArrayList if needed. Returns the initialized element (or previously initialized)
+     * this method is used directly by the incrementSumArray.
+     *
+     * @param sum      the map
+     * @param coverage the key to the map to extract the array list
+     * @return if the ArrayList exists, return it. Otherwise, initialize it with 0 counters.
+     */
+    private ArrayList<Long> initializeSumArray(final Map<Integer, ArrayList<Long>> sum, final int coverage) {
+        ArrayList<Long> curr = sum.get(coverage);
+        if (curr == null) {
+            curr = new ArrayList<Long>(2);
+            curr.add(0L); // number of bases with this unfiltered coverage
+            curr.add(0L); // number of bases with this filtered coverage
+            sum.put(coverage, curr);
+        }
+        return curr;
+    }
+
+    /**
+     * Increments the counter for the given arrayindex (type of coverage : filtered or unfiltered) initializing if necessary
+     *
+     * @param sum        the hash
+     * @param coverage   the hash key
+     * @param arrayIndex which distribution to increment, 0 for unfiltered, 1 for filtered.
+     */
+    private void incrementSumArray(final Map<Integer, ArrayList<Long>> sum, final int coverage, final int arrayIndex) {
+        final ArrayList<Long> currentTally = initializeSumArray(sum, coverage);
+        currentTally.set(arrayIndex, currentTally.get(arrayIndex) + 1);
+    }
+
+    /**
+     * Counts all the uncovered loci after the end of traversal.
+     *
+     * - Modifies the global variable uncoveredBases
+     * - Uses global variables: intervalList and previousLocus
+     *
+     * takes into account that the traversal may have been due over a set of intervals, or over the whole genome.
+     */
     private void tallyUncoveredBasesTillEndOfTraversal() {
         GenomeLocParser parser = getToolkit().getGenomeLocParser();
         GenomeLoc lastLocus;
-        if (intervalList.isEmpty()) { //whole genome, add up all contigs past previousLocus
-            int lastContigLength = getToolkit().getSAMFileHeader().getSequence(0).getSequenceLength();
-            String lastContigName = getToolkit().getSAMFileHeader().getSequence(0).getSequenceName();
-            int lastContigIndex = getToolkit().getSAMFileHeader().getSequence(0).getSequenceIndex();
-            lastLocus = parser.createGenomeLoc(lastContigName, lastContigIndex, 1, lastContigLength);
+        if (intervalList.isEmpty()) { // whole genome, add up all contigs past previousLocus
+            final int lastContigIndex = getToolkit().getSAMFileHeader().getSequenceDictionary().size() - 1;
+            final int lastContigLength = getToolkit().getSAMFileHeader().getSequence(lastContigIndex).getSequenceLength();
+            final String lastContigName = getToolkit().getSAMFileHeader().getSequence(lastContigIndex).getSequenceName();
+            lastLocus = parser.createGenomeLoc(lastContigName, lastContigIndex, lastContigLength, lastContigLength);
         } else {
             GenomeLoc lastInterval = intervalList.getLast();
             lastLocus = parser.createGenomeLoc(lastInterval.getContig(), lastInterval.getContigIndex(), lastInterval.getStop(), lastInterval.getStop());
@@ -133,13 +257,26 @@ public class BaseCoverageDistribution extends LocusWalker<Integer, Map<Integer, 
         tallyUncoveredBases(lastLocus);
     }
 
+    /**
+     * Counts all the uncovered loci that have been skipped since the last visited locus. This method allows coverage
+     * tools to run with @By(DataSource.READS) instead of @By(DataSource.REFERENCE), while still accurately calculating
+     * uncovered bases
+     *
+     * //todo -- make this a generic capability of DepthOfCoverage and DiagnoseTargets
+     *
+     * - Modifies the global variable uncoveredBases
+     * - Uses global variables: intervalList and previousLocus
+     *
+     * takes into account that the traversal may have been due over a set of intervals, or over the whole genome.
+     *
+     * @param currentLocus the locus we are visiting right now
+     */
     private void tallyUncoveredBases(GenomeLoc currentLocus) {
         long distance = 0;
         if (previousLocus == null) { // first base visited
             GenomeLocParser parser = getToolkit().getGenomeLocParser();
             if (intervalList.isEmpty()) { // if this is whole genome (no intervals requested), add what we missed.
                 final GenomeLoc zeroLoc = parser.createGenomeLoc(getToolkit().getSAMFileHeader().getSequence(0).getSequenceName(), 0, 1, 1);
-                System.out.println("ZEROLOC: " + zeroLoc.toString());
                 distance += currentLocus.distanceAcrossContigs(zeroLoc, getToolkit().getSAMFileHeader());
             } else { // if we are running on an interval list, add all intervals before the current locus to the uncovered bases counter
                 while (!intervalList.peek().containsP(currentLocus)) {

@@ -47,27 +47,12 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
 
 /**
- * Short one line description of the walker.
- *
- * <p> [Long description of the walker] </p>
- *
- *
- * <h2>Input</h2> <p> [Description of the Input] </p>
- *
- * <h2>Output</h2> <p> [Description of the Output] </p>
- *
- * <h2>Examples</h2>
- * <pre>
- *    java
- *      -jar GenomeAnalysisTK.jar
- *      -T [walker name]
- *  </pre>
- *
  * @author Mauricio Carneiro
  * @since 2/6/13
  */
@@ -75,23 +60,31 @@ public class BaseCoverageDistributionIntegrationTest extends WalkerTest {
     final static String REF = hg18Reference;
     final String bam = validationDataLocation + "small_bam_for_countloci.withRG.bam";
 
-    private void DTTest(String testName, String args, String md5) {
-        String base = String.format("-T BaseCoverageDistribution -R %s -I %s", REF, bam) + " -o %s ";
+    @DataProvider(name = "BasicArguments")
+    public Object[][] basicArgumentsDataProvider() {
+        return new Object[][] {
+                // Tests simple counting on one interval with everything in the same contig including tallying of uncovered bases.
+                {"testSingleInterval ", "-L chr1:90000-100000", "45368696dc008d1a07fb2b05fbafd1f4"},
+                // Tests specially the tallying of uncovered bases across multiple intervals. Makes sure it's only adding the bases present in the intervals requested.
+                {"testMultipleIntervals ", "-L chr1:10-20 -L chr1:40-100 -L chr1:10,000-11,000 -L chr1:40,000-60,000 -L chr1:76,000-99,000 ", "45dafe59e5e54451b88c914d6ecbddc6"},
+                // Tests adding the entire genome around every covered base as uncovered. Especially tests the tally in the beginning and end of the run, adding up all chromosomes not visited (this test file only has reads on chr1).
+                {"testNoIntervals ", "", "c399f780f0b7da6be2614d837c368d1c"},
+
+                // the following three tests are equivalent but now include the filtered distribution option. These tests are aimed at the filtered distribution output.
+                {"testFilteredSingleInterval ", "-fd -L chr1:90000-100000", "7017cf191bf54e85111972a882e1d5fa"},
+                {"testFilteredMultipleIntervals ", "-fd -L chr1:10-20 -L chr1:40-100 -L chr1:10,000-11,000 -L chr1:40,000-60,000 -L chr1:76,000-99,000 ", "75d11cc02210676d6c19939fb0b9ab2e"},
+                {"testFilteredNoIntervals ", "-fd ", "e7abfa6c7be493de4557a64f66688148"},
+        };
+    }
+
+    @Test(dataProvider = "BasicArguments", enabled = true)
+    private void BaseCoverageDistributionTest(String testName, String args, String md5) {
+        String base = String.format("-T BaseCoverageDistribution -R %s -I %s ", REF, bam) + " -o %s ";
         WalkerTestSpec spec = new WalkerTestSpec(base + args, Arrays.asList(md5));
         executeTest(testName, spec);
     }
 
-    @Test(enabled = true)
-    public void testSingleInterval() {
-        DTTest("testSingleInterval ", "-L " + "chr1:90000-100000", "45368696dc008d1a07fb2b05fbafd1f4");
-    }
-    @Test(enabled = true)
-    public void testMultipleIntervals() {
-        DTTest("testMultipleIntervals ", "-L chr1:10-20 -L chr1:40-100 -L chr1:10,000-11,000 -L chr1:40,000-60,000 -L chr1:76,000-99,000 ", "45dafe59e5e54451b88c914d6ecbddc6");
-    }
 
-    @Test(enabled = true)
-    public void testNoIntervals() {
-        DTTest("testNoIntervals ", "", ""); // needs to be checked... is not tallying 0's correctly!
-    }
+
+
 }
