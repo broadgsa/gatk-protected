@@ -72,10 +72,10 @@ public class LikelihoodCalculationEngine {
 
         switch (hmmType) {
             case EXACT:
-                pairHMM = new ExactPairHMM();
+                pairHMM = new Log10PairHMM(true);
                 break;
             case ORIGINAL:
-                pairHMM = new OriginalPairHMM();
+                pairHMM = new Log10PairHMM(false);
                 break;
             case LOGLESS_CACHING:
                 pairHMM = new LoglessCachingPairHMM();

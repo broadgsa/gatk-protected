@@ -66,8 +66,8 @@ import java.util.Random;
 public class PairHMMUnitTest extends BaseTest {
     private final static boolean DEBUG = false;
     final static boolean EXTENSIVE_TESTING = false; // TODO -- should be true
-    PairHMM exactHMM = new ExactPairHMM(); // the log truth implementation
-    PairHMM originalHMM = new OriginalPairHMM(); // the reference implementation
+    PairHMM exactHMM = new Log10PairHMM(true); // the log truth implementation
+    PairHMM originalHMM = new Log10PairHMM(false); // the reference implementation
     PairHMM loglessHMM = new LoglessCachingPairHMM();
 
     private List<PairHMM> getHMMs() {
@@ -114,11 +114,11 @@ public class PairHMMUnitTest extends BaseTest {
         }
 
         public double getTolerance(final PairHMM hmm) {
-            if ( hmm instanceof ExactPairHMM || hmm instanceof LoglessCachingPairHMM )
+            if ( hmm instanceof LoglessCachingPairHMM )
                 return toleranceFromExact();
-            if ( hmm instanceof OriginalPairHMM )
-                return toleranceFromReference();
-            else
+            if ( hmm instanceof Log10PairHMM ) {
+                return ((Log10PairHMM)hmm).isDoingExactLog10Calculations() ? toleranceFromExact() : toleranceFromReference();
+            } else
                 return toleranceFromTheoretical();
         }
 
