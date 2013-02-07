@@ -68,12 +68,11 @@ public class PairHMMUnitTest extends BaseTest {
     final static boolean EXTENSIVE_TESTING = false; // TODO -- should be true
     PairHMM exactHMM = new ExactPairHMM(); // the log truth implementation
     PairHMM originalHMM = new OriginalPairHMM(); // the reference implementation
-    PairHMM cachingHMM = new CachingPairHMM();
     PairHMM loglessHMM = new LoglessCachingPairHMM();
 
     private List<PairHMM> getHMMs() {
         // TODO -- re-enable loglessHMM tests
-        return Arrays.asList(exactHMM, originalHMM, cachingHMM);
+        return Arrays.asList(exactHMM, originalHMM);
         //return Arrays.asList(exactHMM, originalHMM, cachingHMM, loglessHMM);
     }
 

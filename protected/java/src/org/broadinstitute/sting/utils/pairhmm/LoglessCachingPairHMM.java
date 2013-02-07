@@ -56,8 +56,11 @@ import java.util.Arrays;
  * Date: 10/16/12
  */
 
-public class LoglessCachingPairHMM extends CachingPairHMM {
+public class LoglessCachingPairHMM extends PairHMM {
     protected static final double SCALE_FACTOR_LOG10 = 300.0;
+
+    double[][] constantMatrix = null; // The cache
+    double[][] distanceMatrix = null; // The cache
 
     protected static final double [] firstRowConstantMatrix = {
             QualityUtils.qualToProb((byte) (DEFAULT_GOP + DEFAULT_GOP)),
@@ -75,6 +78,7 @@ public class LoglessCachingPairHMM extends CachingPairHMM {
         constantMatrix = new double[X_METRIC_LENGTH][6];
         distanceMatrix = new double[X_METRIC_LENGTH][Y_METRIC_LENGTH];
 
+        // TODO -- this shouldn't be necessary
         for( int iii=0; iii < X_METRIC_LENGTH; iii++ ) {
             Arrays.fill(matchMetricArray[iii], 0.0);
             Arrays.fill(XMetricArray[iii], 0.0);

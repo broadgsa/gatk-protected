@@ -121,7 +121,6 @@ public class PairHMMIndelErrorModel {
             case ORIGINAL:
                 pairHMM = new OriginalPairHMM();
                 break;
-            case CACHING:
             case LOGLESS_CACHING:                //TODO: still not tested so please do not use yet
                 //pairHMM = new LoglessCachingPairHMM(); //TODO - add it back when the figure out how to use the protected LoglessCachingPairHMM class
                 throw new UserException.BadArgumentValue("pairHMM"," this option (LOGLESS_CACHING in UG) is still under development");

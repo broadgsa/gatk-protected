@@ -77,9 +77,6 @@ public class LikelihoodCalculationEngine {
             case ORIGINAL:
                 pairHMM = new OriginalPairHMM();
                 break;
-            case CACHING:
-                pairHMM = new CachingPairHMM();
-                break;
             case LOGLESS_CACHING:
                 pairHMM = new LoglessCachingPairHMM();
                 break;
