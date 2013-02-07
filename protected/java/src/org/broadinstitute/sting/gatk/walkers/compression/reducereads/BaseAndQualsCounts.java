@@ -60,10 +60,7 @@ public class BaseAndQualsCounts extends BaseCounts {
         super();
         this.sumInsertionQuals = new long[BaseIndex.values().length];
         this.sumDeletionQuals  = new long[BaseIndex.values().length];
-        for (final BaseIndex i : BaseIndex.values()) {
-            sumInsertionQuals[i.index] = 0L;
-            sumDeletionQuals[i.index] = 0L;
-        }
+        // Java primitive arrays comes zero-filled, so no need to do it explicitly.
     }
 
     public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual) {
