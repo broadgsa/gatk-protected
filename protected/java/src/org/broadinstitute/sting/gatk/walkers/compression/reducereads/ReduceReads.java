@@ -627,9 +627,10 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     private void compressReadName(GATKSAMRecord read) {
         String name = read.getReadName();
         String compressedName = read.isReducedRead() ? "C" : "";
-        if (readNameHash.containsKey(name))
-            compressedName += readNameHash.get(name).toString();
-        else {
+        final Long readNumber = readNameHash.get(name);
+        if (readNumber != null) {
+            compressedName += readNumber.toString();
+        } else {
             readNameHash.put(name, nextReadNumber);
             compressedName += nextReadNumber.toString();
             nextReadNumber++;
