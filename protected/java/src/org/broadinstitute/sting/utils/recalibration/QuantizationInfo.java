@@ -76,7 +76,7 @@ public class QuantizationInfo {
     }
     
     public QuantizationInfo(final RecalibrationTables recalibrationTables, final int quantizationLevels) {
-        final Long [] qualHistogram = new Long[QualityUtils.MAX_QUAL_SCORE+1]; // create a histogram with the empirical quality distribution
+        final Long [] qualHistogram = new Long[QualityUtils.MAX_SAM_QUAL_SCORE +1]; // create a histogram with the empirical quality distribution
         for (int i = 0; i < qualHistogram.length; i++)
             qualHistogram[i] = 0L;
 
@@ -100,7 +100,7 @@ public class QuantizationInfo {
     }
 
     public void noQuantization() {
-        this.quantizationLevels = QualityUtils.MAX_QUAL_SCORE;
+        this.quantizationLevels = QualityUtils.MAX_SAM_QUAL_SCORE;
         for (int i = 0; i < this.quantizationLevels; i++)
             quantizedQuals.set(i, (byte) i);
     }
@@ -124,7 +124,7 @@ public class QuantizationInfo {
         quantizedTable.addColumn(RecalUtils.QUANTIZED_COUNT_COLUMN_NAME);
         quantizedTable.addColumn(RecalUtils.QUANTIZED_VALUE_COLUMN_NAME);
 
-        for (int qual = 0; qual <= QualityUtils.MAX_QUAL_SCORE; qual++) {
+        for (int qual = 0; qual <= QualityUtils.MAX_SAM_QUAL_SCORE; qual++) {
             quantizedTable.set(qual, RecalUtils.QUALITY_SCORE_COLUMN_NAME, qual);
             quantizedTable.set(qual, RecalUtils.QUANTIZED_COUNT_COLUMN_NAME, empiricalQualCounts.get(qual));
             quantizedTable.set(qual, RecalUtils.QUANTIZED_VALUE_COLUMN_NAME, quantizedQuals.get(qual));

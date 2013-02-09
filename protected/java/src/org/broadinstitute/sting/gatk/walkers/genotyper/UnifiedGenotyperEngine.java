@@ -613,7 +613,7 @@ public class UnifiedGenotyperEngine {
             P_of_ref *= 1.0 - (theta / 2.0) * getRefBinomialProb(depth);
         }
 
-        return new VariantCallContext(vc, QualityUtils.phredScaleErrorRate(1.0 - P_of_ref) >= UAC.STANDARD_CONFIDENCE_FOR_CALLING, false);
+        return new VariantCallContext(vc, QualityUtils.phredScaleCorrectRate(P_of_ref) >= UAC.STANDARD_CONFIDENCE_FOR_CALLING, false);
     }
 
     protected void printVerboseData(String pos, VariantContext vc, double PofF, double phredScaledConfidence, final GenotypeLikelihoodsCalculationModel.Model model) {

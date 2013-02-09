@@ -179,6 +179,6 @@ public final class ReadRecalibrationInfo {
     }
 
     private boolean validQual(final byte result) {
-        return result >= 0 && result <= QualityUtils.MAX_QUAL_SCORE;
+        return result >= 0 && result <= QualityUtils.MAX_SAM_QUAL_SCORE;
     }
 }

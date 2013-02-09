@@ -162,7 +162,7 @@ public class QualQuantizer {
             "nObservations >= 0",
             "nErrors >= 0",
             "nErrors <= nObservations",
-            "fixedQual >= -1 && fixedQual <= QualityUtils.MAX_QUAL_SCORE",
+            "fixedQual >= -1 && fixedQual <= QualityUtils.MAX_SAM_QUAL_SCORE",
             "mergeOrder >= 0"})
     protected final class QualInterval implements Comparable<QualInterval> {
         final int qStart, qEnd, fixedQual, level;
@@ -224,10 +224,10 @@ public class QualQuantizer {
         /**
          * @return the QUAL of the error rate of this interval, or the fixed qual if this interval was created with a fixed qual.
          */
-        @Ensures("result >= 0 && result <= QualityUtils.MAX_QUAL_SCORE")
+        @Ensures("result >= 0 && result <= QualityUtils.MAX_SAM_QUAL_SCORE")
         public byte getQual() {
             if ( ! hasFixedQual() )
-                return QualityUtils.probToQual(1-getErrorRate(), 0);
+                return QualityUtils.errorProbToQual(getErrorRate());
             else
                 return (byte)fixedQual;
         }
