@@ -102,7 +102,7 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
 
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseCommand2 + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s ", 1,
-                Arrays.asList("e5fe7246526916af104a6f3e5dd67297"));
+                Arrays.asList("e2e5a8dd313f8d7e382e7d49dfac59a2"));
         executeTest("test contamination on Artificial Contamination (flat) on " + bam1 + " and " + bam2 + " with default downsampling.", spec);
     }
 
@@ -115,47 +115,47 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
 
     @Test
     public void testFlatContaminationCase1() {
-        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "e5fe7246526916af104a6f3e5dd67297");
+        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "e2e5a8dd313f8d7e382e7d49dfac59a2");
     }
 
     @Test
     public void testFlatContaminationCase2() {
-        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "ff490f52dc47ed54c5b9bffae73e819d");
+        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "549737002f98775fea8f46e7ea174dde");
     }
 
     @Test
     public void testFlatContaminationCase3() {
-        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "5efd81caff20fa39da4446ef854d81cc");
+        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "529d82c2a33fcc303a5dc55de2d56979");
     }
 
     @Test
     public void testFlatContaminationCase4() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.1, "48e6da2d78caa693a177e38b6d35c63f");
+        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.1, "b5689972fbb7d230a372ee5f0da1c6d7");
     }
 
     @Test
     public void testFlatContaminationCase5() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.2, "02dd71427c2ead3c4444d00ad211a79d");
+        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.2, "9dceee2e921b53fbc1ce137a7e0b7b74");
     }
 
     @Test
     public void testFlatContaminationCase6() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.3, "b4271277813dc9146cb247d4495ee843");
+        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.3, "d6a74061033503af80dcaea065bfa075");
     }
 
     @Test
     public void testFlatContaminationCase7() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "acdf3c236a9d05885d4be890a39aa48d");
+        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "7d1b5efab58a1b8f9d99fcf5af82f15a");
     }
 
     @Test
     public void testFlatContaminationCase8() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "8f16a8bd41a18e14e17710f3f1baaaf5");
+        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "a7f8d5c79626aff59d7f426f79d8816e");
     }
 
     @Test
     public void testFlatContaminationCase9() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.3, "06110b035fd3f1e87ea4f27b7500096d");
+        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.3, "fcf482398b7c908e3e2d1e4d5da6377b");
     }
 
     private void testPerSampleContamination(String bam1, String bam2, String persampleFile, final String md5) {
@@ -167,42 +167,42 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
 
     @Test
     public void testPerSampleContaminationCase1() {
-        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.1.txt", "4510dd668891ad378cd8b6f8da1dc35d");
+        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.1.txt", "e00278527a294833259e9e411728e395");
     }
 
     @Test
     public void testPerSampleContaminationCase2() {
-        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.2.txt", "d8a0d0024574da7249d682e145f1c286");
+        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.2.txt", "a443e793f0b0e2ffce1b751634d706e2");
     }
 
     @Test
     public void testPerSampleContaminationCase3() {
-        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.3.txt", "2014464dbbaa62279fb79791a1a7ff6a");
+        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.3.txt", "e11d83a7815ce757afbcf7689568cb25");
     }
 
     @Test
     public void testPerSampleContaminationCase4() {
-        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.4.txt", "26382eda9dddb910fc7e2bdf3b83f42e");
+        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.4.txt", "615042eeeffe042bd1c86279d34f80b6");
     }
 
     @Test
     public void testPerSampleContaminationCase5() {
-        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.1.txt", "ca54f5c4f249d5e461b407696f3851d2");
+        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.1.txt", "9bc99fc79ca34744bf26cb19ee4ef44d");
     }
 
     @Test
     public void testPerSampleContaminationCase6() {
-        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.2.txt", "37c8cc33faec5324de6e007180186823");
+        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.2.txt", "143626fe5fce765d6c997a64f058a813");
     }
 
     @Test
     public void testPerSampleContaminationCase7() {
-        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.3.txt", "57fa162f9d3487605997cdf6d11448b6");
+        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.3.txt", "f2593674cef894eda4e0be9cf3158f57");
     }
 
     @Test
     public void testPerSampleContaminationCase8() {
-        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.4.txt", "4ee1bbf61c5e5c018cc78d521e3ed334");
+        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.4.txt", "fb7ce0740767ae3896b3e552026da1e4");
     }
 
 
@@ -218,7 +218,7 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
         final String baseCommand = "-T HaplotypeCaller -R " + b36KGReference + " --no_cmdline_in_header --dbsnp " + b36dbSNP129;
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -contamination 0.20", 1,
-                Arrays.asList("c23c69b3c5a337a818f963c87940b041"));
+                Arrays.asList("1b2d71f72b49e36325a3cb7aeab37270"));
         executeTest("HC calling with contamination_percentage_to_filter 0.20", spec);
     }
 
@@ -244,17 +244,20 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
         executeTest("HC test contamination on Artificial Contamination (flat) on " + bam1 + " and " + bam2 + " downsampling " + downsampling.toString(), spec);
     }
 
-    @Test
+    // TODO -- Yossi will fix with JIRA GSA-765
+    @Test(enabled = false)
     public void testHCFlatContaminationCase1() {
         testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "9fc24de333e8cba3f6b41ad8cc1362d8");
     }
 
-    @Test
+    // TODO -- Yossi will fix with JIRA GSA-765
+    @Test(enabled = false)
     public void testHCFlatContaminationCase2() {
         testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "57b5291ec216bf071b3c80b70f0f69bb");
     }
 
-    @Test
+    // TODO -- Yossi will fix with JIRA GSA-765
+    @Test(enabled = false)
     public void testHCFlatContaminationCase3() {
         testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "c875633954a299c9f082159b5b24aa57");
     }

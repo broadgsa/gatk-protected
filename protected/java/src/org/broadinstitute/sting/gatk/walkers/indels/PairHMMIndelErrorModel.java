@@ -48,14 +48,12 @@ package org.broadinstitute.sting.gatk.walkers.indels;
 
 import com.google.java.contract.Ensures;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.pairhmm.ExactPairHMM;
-//import org.broadinstitute.sting.utils.pairhmm.LoglessCachingPairHMM;
-import org.broadinstitute.sting.utils.pairhmm.OriginalPairHMM;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -67,6 +65,8 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+//import org.broadinstitute.sting.utils.pairhmm.LoglessCachingPairHMM;
 
 
 public class PairHMMIndelErrorModel {
@@ -116,12 +116,11 @@ public class PairHMMIndelErrorModel {
 
         switch (hmmType) {
             case EXACT:
-                pairHMM = new ExactPairHMM();
+                pairHMM = new Log10PairHMM(true);
                 break;
             case ORIGINAL:
-                pairHMM = new OriginalPairHMM();
+                pairHMM = new Log10PairHMM(false);
                 break;
-            case CACHING:
             case LOGLESS_CACHING:                //TODO: still not tested so please do not use yet
                 //pairHMM = new LoglessCachingPairHMM(); //TODO - add it back when the figure out how to use the protected LoglessCachingPairHMM class
                 throw new UserException.BadArgumentValue("pairHMM"," this option (LOGLESS_CACHING in UG) is still under development");

@@ -91,8 +91,6 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
         if (vc.isSNP() && stratifiedContexts != null)
             return annotatePileup(ref, stratifiedContexts, vc);
-        else if (stratifiedPerReadAlleleLikelihoodMap != null && vc.isVariant())
-            return annotateWithLikelihoods(stratifiedPerReadAlleleLikelihoodMap, vc);
         else
             return null;
     }
@@ -131,31 +129,6 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         final Map<String, Object> map = new HashMap<String, Object>();
         map.put(getKeyNames().get(0), String.format("%.4f", scoreRA.mean()));
         return map;
-    }
-
-    private Map<String, Object> annotateWithLikelihoods(final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
-                                                        final VariantContext vc) {
-
-        final MathUtils.RunningAverage scoreRA = new MathUtils.RunningAverage();
-        for (final Genotype genotype : vc.getGenotypes()) {
-            final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = stratifiedPerReadAlleleLikelihoodMap.get(genotype.getSampleName());
-            if (perReadAlleleLikelihoodMap == null)
-                continue;
-
-            Double d = scoreIndelsAgainstHaplotypes(perReadAlleleLikelihoodMap);
-            if (d == null)
-                continue;
-           scoreRA.add(d); // Taking the simple average of all sample's score since the score can be negative and the RMS doesn't make sense
-        }
-
- //       if (scoreRA.observationCount() == 0)
- //           return null;
-
-        // annotate the score in the info field
-        final Map<String, Object> map = new HashMap<String, Object>();
-        map.put(getKeyNames().get(0), String.format("%.4f", scoreRA.mean()));
-        return map;
-
     }
 
     private static class HaplotypeComparator implements Comparator<Haplotype>, Serializable {
@@ -410,39 +383,6 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         }
 
         return mismatches - expected;
-    }
-
-
-    private Double scoreIndelsAgainstHaplotypes(final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
-        final ArrayList<double[]> haplotypeScores = new ArrayList<double[]>();
-
-        if (perReadAlleleLikelihoodMap.isEmpty())
-            return null;
-
-        for (Map<Allele,Double> el : perReadAlleleLikelihoodMap.getLikelihoodMapValues()) {
-
-            // retrieve likelihood information corresponding to this read
-            // Score all the reads in the pileup, even the filtered ones
-            final double[] scores = new double[el.size()];
-            int i = 0;
-            for (Map.Entry<Allele, Double> a : el.entrySet()) {
-                scores[i++] = -a.getValue();
-                if (DEBUG) {
-                    System.out.printf("  vs. haplotype %d = %f%n", i - 1, scores[i - 1]);
-                }
-            }
-
-            haplotypeScores.add(scores);
-        }
-
-        // indel likelihoods are strict log-probs, not phred scored
-        double overallScore = 0.0;
-        for (final double[] readHaplotypeScores : haplotypeScores) {
-            overallScore += MathUtils.arrayMin(readHaplotypeScores);
-        }
-
-        return overallScore;
-
     }
 
     public List<String> getKeyNames() {

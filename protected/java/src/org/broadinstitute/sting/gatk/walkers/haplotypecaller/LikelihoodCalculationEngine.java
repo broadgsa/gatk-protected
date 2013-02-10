@@ -72,13 +72,10 @@ public class LikelihoodCalculationEngine {
 
         switch (hmmType) {
             case EXACT:
-                pairHMM = new ExactPairHMM();
+                pairHMM = new Log10PairHMM(true);
                 break;
             case ORIGINAL:
-                pairHMM = new OriginalPairHMM();
-                break;
-            case CACHING:
-                pairHMM = new CachingPairHMM();
+                pairHMM = new Log10PairHMM(false);
                 break;
             case LOGLESS_CACHING:
                 pairHMM = new LoglessCachingPairHMM();
@@ -150,7 +147,7 @@ public class LikelihoodCalculationEngine {
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
                 final Haplotype haplotype = haplotypes.get(jjj);
 
-                final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : computeFirstDifferingPosition(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
+                final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : PairHMM.findFirstPositionWhereHaplotypesDiffer(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
                 previousHaplotypeSeen = haplotype;
 
                 perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype),
@@ -159,15 +156,6 @@ public class LikelihoodCalculationEngine {
             }
         }
         return perReadAlleleLikelihoodMap;
-    }
-
-    private static int computeFirstDifferingPosition( final byte[] b1, final byte[] b2 ) {
-        for( int iii = 0; iii < b1.length && iii < b2.length; iii++ ) {
-            if( b1[iii] != b2[iii] ) {
-                return iii;
-            }
-        }
-        return Math.min(b1.length, b2.length);
     }
 
     @Requires({"alleleOrdering.size() > 0"})
