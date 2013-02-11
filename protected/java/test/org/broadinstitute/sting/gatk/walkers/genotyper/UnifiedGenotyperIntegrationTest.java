@@ -387,7 +387,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
         executeTest("test MultiSample Pilot2 indels with alleles passed in and emitting all sites", spec);
     }
 
-    @Test
+    @Test(timeOut = 20*1000*60) // this guy can take a long time because it's two steps, so give it 12 minutes
     public void testMultiSampleIndels1() {
         // since we're going to test the MD5s with GGA only do one here
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
@@ -397,7 +397,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
         WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
                 baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + result.get(0).getAbsolutePath() + " -I " + validationDataLocation +
-                        "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10450700-10551000", 1,
+                        "low_coverage_CEU.chr1.10k-11k.bam -o %s -L " + result.get(0).getAbsolutePath(), 1,
                 Arrays.asList("08b3a85be00c8f6a4fefd3c671463ecf"));
         executeTest("test MultiSample Pilot1 CEU indels using GENOTYPE_GIVEN_ALLELES", spec2);
     }
