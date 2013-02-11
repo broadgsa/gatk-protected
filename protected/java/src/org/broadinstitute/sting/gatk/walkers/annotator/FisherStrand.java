@@ -142,7 +142,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
     public List<VCFInfoHeaderLine> getDescriptions() {
         return Arrays.asList(
-            new VCFInfoHeaderLine(FS, 1, VCFHeaderLineType.Float, "Phred-scaled p-value using Fisher's exact test to detect strand bias"));
+                new VCFInfoHeaderLine(FS, 1, VCFHeaderLineType.Float, "Phred-scaled p-value using Fisher's exact test to detect strand bias"));
     }
 
     private Double pValueForContingencyTable(int[][] originalTable) {
@@ -176,7 +176,8 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         //System.out.printf("P-cutoff: %f\n", pCutoff);
         //System.out.printf("P-value: %f\n\n", pValue);
 
-       return pValue;
+        // min is necessary as numerical precision can result in pValue being slightly greater than 1.0
+        return Math.min(pValue, 1.0);
     }
 
     private static int [][] copyContingencyTable(int [][] t) {
@@ -222,14 +223,14 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
         // calculate in log space so we don't die with high numbers
         double pCutoff = Arithmetic.logFactorial(rowSums[0])
-                         + Arithmetic.logFactorial(rowSums[1])
-                         + Arithmetic.logFactorial(colSums[0])
-                         + Arithmetic.logFactorial(colSums[1])
-                         - Arithmetic.logFactorial(table[0][0])
-                         - Arithmetic.logFactorial(table[0][1])
-                         - Arithmetic.logFactorial(table[1][0])
-                         - Arithmetic.logFactorial(table[1][1])
-                         - Arithmetic.logFactorial(N);
+                + Arithmetic.logFactorial(rowSums[1])
+                + Arithmetic.logFactorial(colSums[0])
+                + Arithmetic.logFactorial(colSums[1])
+                - Arithmetic.logFactorial(table[0][0])
+                - Arithmetic.logFactorial(table[0][1])
+                - Arithmetic.logFactorial(table[1][0])
+                - Arithmetic.logFactorial(table[1][1])
+                - Arithmetic.logFactorial(N);
         return Math.exp(pCutoff);
     }
 
