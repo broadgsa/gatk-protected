@@ -103,6 +103,10 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         }
 
         for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : alleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
+            final Allele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+            if (a.isNoCall())
+                continue; // read is non-informative
+
             final GATKSAMRecord read = el.getKey();
             final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate( read.getSoftStart(), read.getCigar(), refLoc, ReadUtils.ClippingTail.RIGHT_TAIL, true );
             if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED || read.getCigar() == null )
@@ -112,17 +116,10 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
             if (readPos > numAlignedBases / 2)
                 readPos = numAlignedBases - (readPos + 1);
 
-//            int readPos = getOffsetFromClippedReadStart(el.getKey(), el.getKey().getOffset());
-  //          readPos = getFinalReadPosition(el.getKey().getRead(),readPos);
-
-            final Allele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (a.isNoCall())
-                continue; // read is non-informative
             if (a.isReference())
                 refQuals.add((double)readPos);
             else if (allAlleles.contains(a))
                 altQuals.add((double)readPos);
-
         }
     }
 
