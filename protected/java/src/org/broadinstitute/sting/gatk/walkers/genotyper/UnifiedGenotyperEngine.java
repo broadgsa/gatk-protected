@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
+import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.commandline.RodBinding;
@@ -136,6 +137,10 @@ public class UnifiedGenotyperEngine {
     @Requires({"toolkit != null", "UAC != null"})
     public UnifiedGenotyperEngine(GenomeAnalysisEngine toolkit, UnifiedArgumentCollection UAC) {
         this(toolkit, UAC, Logger.getLogger(UnifiedGenotyperEngine.class), null, null, SampleUtils.getSAMFileSamples(toolkit.getSAMFileHeader()), GATKVariantContextUtils.DEFAULT_PLOIDY);
+    }
+
+    protected UnifiedGenotyperEngine(GenomeAnalysisEngine toolkit, Set<String> samples, UnifiedArgumentCollection UAC) {
+        this(toolkit, UAC, Logger.getLogger(UnifiedGenotyperEngine.class), null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
     }
 
     @Requires({"toolkit != null", "UAC != null", "logger != null", "samples != null && samples.size() > 0","ploidy>0"})
@@ -577,43 +582,53 @@ public class UnifiedGenotyperEngine {
     }
 
     private final static double[] binomialProbabilityDepthCache = new double[10000];
+    private final static double REF_BINOMIAL_PROB_LOG10_0_5 = Math.log10(0.5);
+
     static {
         for ( int i = 1; i < binomialProbabilityDepthCache.length; i++ ) {
-            binomialProbabilityDepthCache[i] = MathUtils.binomialProbability(0, i, 0.5);
+            binomialProbabilityDepthCache[i] = MathUtils.log10BinomialProbability(i, 0, REF_BINOMIAL_PROB_LOG10_0_5);
         }
     }
 
-    private final double getRefBinomialProb(final int depth) {
+    private final double getRefBinomialProbLog10(final int depth) {
         if ( depth < binomialProbabilityDepthCache.length )
             return binomialProbabilityDepthCache[depth];
         else
-            return MathUtils.binomialProbability(0, depth, 0.5);
+            return MathUtils.log10BinomialProbability(depth, 0, REF_BINOMIAL_PROB_LOG10_0_5);
     }
-
 
     private VariantCallContext estimateReferenceConfidence(VariantContext vc, Map<String, AlignmentContext> contexts, double theta, boolean ignoreCoveredSamples, double initialPofRef) {
         if ( contexts == null )
             return null;
 
-        double P_of_ref = initialPofRef;
+        double log10POfRef = Math.log10(initialPofRef);
 
         // for each sample that we haven't examined yet
         for ( String sample : samples ) {
-            boolean isCovered = contexts.containsKey(sample);
-            if ( ignoreCoveredSamples && isCovered )
+            final AlignmentContext context = contexts.get(sample);
+            if ( ignoreCoveredSamples && context != null )
                 continue;
-
-
-            int depth = 0;
-
-            if ( isCovered ) {
-                depth = contexts.get(sample).getBasePileup().depthOfCoverage();
-            }
-
-            P_of_ref *= 1.0 - (theta / 2.0) * getRefBinomialProb(depth);
+            final int depth = context == null ? 0 : context.getBasePileup().depthOfCoverage();
+            log10POfRef += estimateLog10ReferenceConfidenceForOneSample(depth, theta);
         }
 
-        return new VariantCallContext(vc, QualityUtils.phredScaleCorrectRate(P_of_ref) >= UAC.STANDARD_CONFIDENCE_FOR_CALLING, false);
+        return new VariantCallContext(vc, QualityUtils.phredScaleLog10CorrectRate(log10POfRef) >= UAC.STANDARD_CONFIDENCE_FOR_CALLING, false);
+    }
+
+    /**
+     * Compute the log10 probability of a sample with sequencing depth and no alt allele is actually truly homozygous reference
+     *
+     * Assumes the sample is diploid
+     *
+     * @param depth the depth of the sample
+     * @param theta the heterozygosity of this species (between 0 and 1)
+     * @return a valid log10 probability of the sample being hom-ref
+     */
+    @Requires({"depth >= 0", "theta >= 0.0 && theta <= 1.0"})
+    @Ensures("MathUtils.goodLog10Probability(result)")
+    protected double estimateLog10ReferenceConfidenceForOneSample(final int depth, final double theta) {
+        final double log10PofNonRef = Math.log10(theta / 2.0) + getRefBinomialProbLog10(depth);
+        return MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));
     }
 
     protected void printVerboseData(String pos, VariantContext vc, double PofF, double phredScaledConfidence, final GenotypeLikelihoodsCalculationModel.Model model) {
