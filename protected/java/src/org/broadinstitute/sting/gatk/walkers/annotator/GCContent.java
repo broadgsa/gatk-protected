@@ -55,6 +55,7 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ExperimentalAn
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.BaseUtils;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
@@ -69,7 +70,7 @@ import java.util.Map;
 /**
  * The GC content (# GC bases / # all bases) of the reference within 50 bp +/- this site
  */
-@DocumentedGATKFeature( groupName = "Diagnostics and Quality Control Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 public class GCContent extends InfoFieldAnnotation implements ExperimentalAnnotation {
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,

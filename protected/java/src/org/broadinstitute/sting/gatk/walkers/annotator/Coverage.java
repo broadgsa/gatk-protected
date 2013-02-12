@@ -75,7 +75,7 @@ import java.util.Map;
  * over all samples.  Note though that the DP is affected by downsampling (-dcov), so the max value one can obtain for
  * N samples with -dcov D is N * D
  */
-public class DepthOfCoverage extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+public class Coverage extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,

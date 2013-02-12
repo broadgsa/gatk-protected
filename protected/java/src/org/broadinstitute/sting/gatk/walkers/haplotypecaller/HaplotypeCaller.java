@@ -73,6 +73,7 @@ import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.*;
 import org.broadinstitute.sting.utils.exceptions.UserException;
@@ -129,7 +130,7 @@ import java.util.*;
  * @since 8/22/11
  */
 
-@DocumentedGATKFeature( groupName = "Variant Discovery Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.LOCUS)
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
 @ActiveRegionTraversalParameters(extension=65, maxRegion=300)
