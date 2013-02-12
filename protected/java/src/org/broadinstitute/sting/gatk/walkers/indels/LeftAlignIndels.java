@@ -87,7 +87,7 @@ import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
  * </pre>
  *
  */
-@DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = "BAM Processing Tools", extraDocs = {CommandLineGATK.class} )
 public class LeftAlignIndels extends ReadWalker<Integer, Integer> {
 
     @Output(required=false, doc="Output bam")

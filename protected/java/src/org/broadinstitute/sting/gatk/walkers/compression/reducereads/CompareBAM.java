@@ -87,7 +87,7 @@ import java.util.Map;
  * @since 10/30/11
  */
 
-@DocumentedGATKFeature( groupName = "Quality Control and Simple Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = "Diagnostics and Quality Control Tools", extraDocs = {CommandLineGATK.class} )
 @ReadFilters({UnmappedReadFilter.class,NotPrimaryAlignmentFilter.class,DuplicateReadFilter.class,FailsVendorQualityCheckFilter.class})
 public class CompareBAM extends LocusWalker<Map<CompareBAM.TestName, Boolean>, CompareBAM.TestResults> {
     @Argument(required = true,  shortName = "rr",  fullName = "reduced_readgroup", doc = "The read group ID corresponding to the compressed BAM being tested") public String reducedReadGroupID;

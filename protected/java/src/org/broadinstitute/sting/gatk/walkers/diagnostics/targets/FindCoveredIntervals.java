@@ -62,7 +62,7 @@ import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 
 import java.io.PrintStream;
 
-@DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = "Diagnostics and Quality Control Tools", extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.CONTIG)
 @ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)
 public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {

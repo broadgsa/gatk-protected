@@ -104,7 +104,7 @@ import java.util.*;
  * @author Mauricio Carneiro, Roger Zurawicki
  * @since 5/8/12
  */
-@DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = "Diagnostics and Quality Control Tools", extraDocs = {CommandLineGATK.class} )
 @By(value = DataSource.READS)
 @PartitionBy(PartitionType.INTERVAL)
 public class DiagnoseTargets extends LocusWalker<Long, Long> {

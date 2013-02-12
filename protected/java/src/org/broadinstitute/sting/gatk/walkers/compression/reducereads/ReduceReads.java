@@ -102,7 +102,7 @@ import java.util.*;
  * </pre>
  */
 
-@DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = "BAM Processing Tools", extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.CONTIG)
 @ReadFilters({UnmappedReadFilter.class, NotPrimaryAlignmentFilter.class, DuplicateReadFilter.class, FailsVendorQualityCheckFilter.class, BadCigarFilter.class})
 @Downsample(by=DownsampleType.BY_SAMPLE, toCoverage=40)
