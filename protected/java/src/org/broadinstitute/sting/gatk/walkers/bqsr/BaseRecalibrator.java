@@ -127,7 +127,7 @@ import java.util.List;
  * </pre>
  */
 
-@DocumentedGATKFeature(groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class})
+@DocumentedGATKFeature(groupName = "BAM Processing Tools", extraDocs = {CommandLineGATK.class})
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
 @ReadFilters({MappingQualityZeroFilter.class, MappingQualityUnavailableFilter.class, UnmappedReadFilter.class, NotPrimaryAlignmentFilter.class, DuplicateReadFilter.class, FailsVendorQualityCheckFilter.class})
 @PartitionBy(PartitionType.READ)

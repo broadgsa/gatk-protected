@@ -133,7 +133,7 @@ import java.util.*;
  *
  * @author ebanks
  */
-@DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = "BAM Processing Tools", extraDocs = {CommandLineGATK.class} )
 @BAQMode(QualityMode = BAQ.QualityMode.ADD_TAG, ApplicationTime = ReadTransformer.ApplicationTime.ON_OUTPUT)
 public class IndelRealigner extends ReadWalker<Integer, Integer> {
 

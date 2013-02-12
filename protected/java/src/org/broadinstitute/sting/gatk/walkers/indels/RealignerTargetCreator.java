@@ -117,7 +117,7 @@ import java.util.TreeSet;
  *
  * @author ebanks
  */
-@DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = "BAM Processing Tools", extraDocs = {CommandLineGATK.class} )
 @ReadFilters({MappingQualityZeroFilter.class, MappingQualityUnavailableFilter.class, BadMateFilter.class, Platform454Filter.class, BadCigarFilter.class})
 @Reference(window=@Window(start=-1,stop=50))
 @Allows(value={DataSource.READS, DataSource.REFERENCE})
