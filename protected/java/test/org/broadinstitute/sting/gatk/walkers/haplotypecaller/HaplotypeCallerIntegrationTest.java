@@ -68,7 +68,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "042b76d4ba0c8f76e2e9cadd1c20d90d");
+        HCTest(CEUTRIO_BAM, "", "1e49fd927d79594a993ea6c4a1d10004");
     }
 
     @Test
@@ -99,7 +99,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 "76d4c4a112cf60080adf74c3e116d1fb");
     }
 
-    @Test(enabled = false) // TODO -- https://jira.broadinstitute.org/browse/GSA-722
+    @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
                 "23a4bfa0300683d8cf2ec16ce96e89ad");
@@ -146,7 +146,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("866406b43d22a262b2d852e7252eb430"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("598d245498c0d0b55e263f0a061a77e3"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
