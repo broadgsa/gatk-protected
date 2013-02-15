@@ -67,6 +67,7 @@ import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.recalibration.*;
 import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -127,7 +128,7 @@ import java.util.List;
  * </pre>
  */
 
-@DocumentedGATKFeature(groupName = "BAM Processing Tools", extraDocs = {CommandLineGATK.class})
+@DocumentedGATKFeature(groupName = HelpConstants.DOCS_CAT_DATA, extraDocs = {CommandLineGATK.class})
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
 @ReadFilters({MappingQualityZeroFilter.class, MappingQualityUnavailableFilter.class, UnmappedReadFilter.class, NotPrimaryAlignmentFilter.class, DuplicateReadFilter.class, FailsVendorQualityCheckFilter.class})
 @PartitionBy(PartitionType.READ)

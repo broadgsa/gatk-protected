@@ -57,6 +57,7 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
 import org.broadinstitute.sting.utils.SampleUtils;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.VCFHeader;
@@ -212,7 +213,7 @@ import static org.broadinstitute.sting.utils.IndelUtils.isInsideExtendedIndel;
  * @since ${DATE}
  */
 
-@DocumentedGATKFeature( groupName = "Validation Utilities", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VALIDATION, extraDocs = {CommandLineGATK.class} )
 @Requires(value={DataSource.READS, DataSource.REFERENCE})
 @Allows(value={DataSource.READS, DataSource.REFERENCE})
 @By(DataSource.REFERENCE)

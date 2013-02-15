@@ -262,7 +262,7 @@ public class BaseCoverageDistribution extends LocusWalker<ArrayList<Integer>, Ma
      * tools to run with @By(DataSource.READS) instead of @By(DataSource.REFERENCE), while still accurately calculating
      * uncovered bases
      *
-     * //todo -- make this a generic capability of DepthOfCoverage and DiagnoseTargets
+     * //todo -- make this a generic capability of Coverage and DiagnoseTargets
      *
      * - Modifies the global variable uncoveredBases
      * - Uses global variables: intervalList and previousLocus

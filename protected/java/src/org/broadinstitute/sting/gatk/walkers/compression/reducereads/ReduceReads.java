@@ -66,6 +66,7 @@ import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.sam.BySampleSAMFileWriter;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
@@ -102,7 +103,7 @@ import java.util.*;
  * </pre>
  */
 
-@DocumentedGATKFeature( groupName = "BAM Processing Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_DATA, extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.CONTIG)
 @ReadFilters({UnmappedReadFilter.class, NotPrimaryAlignmentFilter.class, DuplicateReadFilter.class, FailsVendorQualityCheckFilter.class, BadCigarFilter.class})
 @Downsample(by=DownsampleType.BY_SAMPLE, toCoverage=40)
