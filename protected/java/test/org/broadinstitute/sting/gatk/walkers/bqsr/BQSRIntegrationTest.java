@@ -220,6 +220,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -R " + hg18Reference +
                         " -I " + privateTestDir + "HiSeq.1mb.1RG.bam" +
                         " -nct " + nct +
+                        " --no_pg_tag" +
                         " -BQSR " + privateTestDir + "HiSeq.20mb.1RG.table" +
                         params.args +
                         " -o %s",
@@ -234,6 +235,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -R " + hg18Reference +
                         " -I " + HiSeqBam +
                         " -L " + HiSeqInterval +
+                        " --no_pg_tag" +
                         " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.highMaxCycle.table" +
                         " -o /dev/null",
                 0,
@@ -248,6 +250,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -R " + hg18Reference +
                         " -I " + HiSeqBam +
                         " -L " + HiSeqInterval +
+                        " --no_pg_tag" +
                         " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.lowMaxCycle.table" +
                         " -o /dev/null",
                 0,
