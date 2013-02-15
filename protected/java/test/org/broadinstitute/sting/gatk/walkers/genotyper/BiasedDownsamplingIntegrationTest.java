@@ -288,12 +288,12 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
 
     @Test
     public void testHCFlatContaminationCase2() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "68ea1c00e9e3f831e519a206ae7fa6b1");
+        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "5b0c3dfd6885dd0b0dfc4d979e1bef67");
     }
 
     @Test
     public void testHCFlatContaminationCase3() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "1e93cdc054216f0d81b0d1ae92320cfc");
+        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "68c23ceccd4d10fccd1b59432b374c5c");
     }
 
 }
