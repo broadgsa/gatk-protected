@@ -1017,7 +1017,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             // Determine the phase at this position:
             this.maxEntry = hapTable.maxEntry();
 
-            // convert posteriorProb to PHRED scale, but do NOT cap the quality as in QualityUtils.probToQual(posteriorProb):
+            // convert posteriorProb to PHRED scale, but do NOT cap the quality as in QualityUtils.trueProbToQual(posteriorProb):
             PreciseNonNegativeDouble sumErrorProbs = new PreciseNonNegativeDouble(ZERO);
             for (PhasingTable.PhasingTableEntry pte : hapTable) {
                 if (pte != maxEntry)

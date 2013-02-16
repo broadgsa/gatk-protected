@@ -74,10 +74,10 @@ package org.broadinstitute.sting.utils.recalibration;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Invariant;
 import com.google.java.contract.Requires;
+import net.sf.samtools.SAMUtils;
 import org.apache.commons.math.optimization.fitting.GaussianFunction;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
 
 /**
@@ -100,6 +100,7 @@ import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
         "numMismatches <= numObservations"
 })
 public class RecalDatum {
+    public final static byte MAX_RECALIBRATED_Q_SCORE = SAMUtils.MAX_PHRED_SCORE;
     private static final double UNINITIALIZED = -1.0;
 
     /**
@@ -337,7 +338,7 @@ public class RecalDatum {
         // This is the old and busted point estimate approach:
         //final double empiricalQual = -10 * Math.log10(getEmpiricalErrorRate());
 
-        empiricalQuality = Math.min(empiricalQual, (double) QualityUtils.MAX_RECALIBRATED_Q_SCORE);
+        empiricalQuality = Math.min(empiricalQual, (double) MAX_RECALIBRATED_Q_SCORE);
     }
 
     //static final boolean DEBUG = false;
@@ -369,7 +370,12 @@ public class RecalDatum {
         return Qemp;
     }
 
-    static private final double[] log10QempPriorCache = new double[QualityUtils.MAX_GATK_USABLE_Q_SCORE + 1];
+    /**
+     * Quals above this value should be capped down to this value (because they are too high)
+     * in the base quality score recalibrator
+     */
+    public final static byte MAX_GATK_USABLE_Q_SCORE = 40;
+    static private final double[] log10QempPriorCache = new double[MAX_GATK_USABLE_Q_SCORE + 1];
     static {
         // f(x) = a + b*exp(-((x - c)^2 / (2*d^2)))
         // Note that b is the height of the curve's peak, c is the position of the center of the peak, and d controls the width of the "bell".
@@ -379,7 +385,7 @@ public class RecalDatum {
         final double GF_d = 0.5;   // with these parameters, deltas can shift at most ~20 Q points
 
         final GaussianFunction gaussian = new GaussianFunction(GF_a, GF_b, GF_c, GF_d);
-        for ( int i = 0; i <= QualityUtils.MAX_GATK_USABLE_Q_SCORE; i++ ) {
+        for ( int i = 0; i <= MAX_GATK_USABLE_Q_SCORE; i++ ) {
             double log10Prior = Math.log10(gaussian.value((double) i));
             if ( Double.isInfinite(log10Prior) )
                 log10Prior = -Double.MAX_VALUE;
@@ -388,7 +394,7 @@ public class RecalDatum {
     }
 
     static protected double log10QempPrior(final double Qempirical, final double Qreported) {
-        final int difference = Math.min(Math.abs((int) (Qempirical - Qreported)), QualityUtils.MAX_GATK_USABLE_Q_SCORE);
+        final int difference = Math.min(Math.abs((int) (Qempirical - Qreported)), MAX_GATK_USABLE_Q_SCORE);
         //if ( DEBUG )
         //    System.out.println(String.format("Qemp = %f, log10Priors = %f", Qempirical, log10QempPriorCache[difference]));
         return log10QempPriorCache[difference];

@@ -50,7 +50,6 @@ package org.broadinstitute.sting.utils.recalibration;
 // the imports for unit testing.
 
 
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
@@ -58,7 +57,6 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -207,8 +205,8 @@ public class RecalDatumUnitTest extends BaseTest {
 
     @Test
     public void testlog10QempPrior() {
-        for ( int Qemp = 0; Qemp <= QualityUtils.MAX_QUAL_SCORE; Qemp++ ) {
-            for ( int Qrep = 0; Qrep <= QualityUtils.MAX_QUAL_SCORE; Qrep++ ) {
+        for ( int Qemp = 0; Qemp <= QualityUtils.MAX_SAM_QUAL_SCORE; Qemp++ ) {
+            for ( int Qrep = 0; Qrep <= QualityUtils.MAX_SAM_QUAL_SCORE; Qrep++ ) {
                 final double log10prior = RecalDatum.log10QempPrior(Qemp, Qrep);
                 Assert.assertTrue(log10prior < 0.0);
                 Assert.assertFalse(Double.isInfinite(log10prior));
@@ -219,7 +217,7 @@ public class RecalDatumUnitTest extends BaseTest {
         final int Qrep = 20;
         int maxQemp = -1;
         double maxQempValue = -Double.MAX_VALUE;
-        for ( int Qemp = 0; Qemp <= QualityUtils.MAX_QUAL_SCORE; Qemp++ ) {
+        for ( int Qemp = 0; Qemp <= QualityUtils.MAX_SAM_QUAL_SCORE; Qemp++ ) {
             final double log10prior = RecalDatum.log10QempPrior(Qemp, Qrep);
             if ( log10prior > maxQempValue ) {
                 maxQemp = Qemp;

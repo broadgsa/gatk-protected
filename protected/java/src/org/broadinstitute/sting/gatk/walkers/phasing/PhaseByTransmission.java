@@ -57,6 +57,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.samples.Sample;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
@@ -395,7 +396,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
 
             int phredScoreTransmission = -1;
             if(transmissionProb != NO_TRANSMISSION_PROB){
-                double dphredScoreTransmission = MathUtils.log10ProbabilityToPhredScale(Math.log10(1-(transmissionProb)));
+                double dphredScoreTransmission = QualityUtils.phredScaleLog10ErrorRate(Math.log10(1 - (transmissionProb)));
                 phredScoreTransmission = dphredScoreTransmission < Byte.MAX_VALUE ? (byte)dphredScoreTransmission : Byte.MAX_VALUE;
             }
            //Handle null, missing and unavailable genotypes

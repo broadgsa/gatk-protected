@@ -44,81 +44,62 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.recalibration.covariates;
+package org.broadinstitute.sting.gatk.walkers.genotyper;
 
-import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
-import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
-import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-/*
- * Copyright (c) 2009 The Broad Institute
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- */
+// the imports for unit testing.
 
-/**
- * Created by IntelliJ IDEA.
- * User: rpoplin
- * Date: Nov 3, 2009
- *
- * The Reported Quality Score covariate.
- */
 
-public class QualityScoreCovariate implements RequiredCovariate {
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
+import org.broadinstitute.sting.gatk.arguments.GATKArgumentCollection;
+import org.broadinstitute.sting.utils.MathUtils;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-    // Initialize any member variables using the command-line arguments passed to the walkers
-    @Override
-    public void initialize(final RecalibrationArgumentCollection RAC) {}
+import java.util.*;
 
-    @Override
-    public void recordValues(final GATKSAMRecord read, final ReadCovariates values) {
-        final byte[] baseQualities = read.getBaseQualities();
-        final byte[] baseInsertionQualities = read.getBaseInsertionQualities();
-        final byte[] baseDeletionQualities = read.getBaseDeletionQualities();
+public class UnifiedGenotyperEngineUnitTest extends BaseTest {
+    private final static double TOLERANCE = 1e-5;
+    private UnifiedGenotyperEngine ugEngine;
 
-        for (int i = 0; i < baseQualities.length; i++) {
-            values.addCovariate((int)baseQualities[i], (int)baseInsertionQualities[i], (int)baseDeletionQualities[i], i);
+    @BeforeClass
+    public void setUp() throws Exception {
+        final GenomeAnalysisEngine engine = new GenomeAnalysisEngine();
+        engine.setArguments(new GATKArgumentCollection());
+        final UnifiedArgumentCollection args = new UnifiedArgumentCollection();
+        final Set<String> fakeSamples = Collections.singleton("fake");
+        ugEngine = new UnifiedGenotyperEngine(engine, fakeSamples, args);
+    }
+
+    private UnifiedGenotyperEngine getEngine() {
+        return ugEngine;
+    }
+
+    @DataProvider(name = "ReferenceQualityCalculation")
+    public Object[][] makeReferenceQualityCalculation() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        final double p = Math.log10(0.5);
+        for ( final double theta : Arrays.asList(0.1, 0.01, 0.001) ) {
+            for ( final int depth : Arrays.asList(0, 1, 2, 10, 100, 1000, 10000) ) {
+                final double log10PofNonRef = Math.log10(theta / 2.0) + MathUtils.log10BinomialProbability(depth, 0, p);
+                final double log10POfRef = MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));
+                tests.add(new Object[]{depth, theta, log10POfRef});
+            }
         }
+
+        return tests.toArray(new Object[][]{});
     }
 
-    // Used to get the covariate's value from input csv file during on-the-fly recalibration
-    @Override
-    public final Object getValue(final String str) {
-        return Byte.parseByte(str);
-    }
-
-    @Override
-    public String formatKey(final int key) {
-        return String.format("%d", key);
-    }
-
-    @Override
-    public int keyFromValue(final Object value) {
-        return (value instanceof String) ? (int)Byte.parseByte((String) value) : (int)(Byte) value;
-    }
-
-    @Override
-    public int maximumKeyValue() {
-        return QualityUtils.MAX_SAM_QUAL_SCORE;
+    @Test(dataProvider = "ReferenceQualityCalculation")
+    public void testReferenceQualityCalculation(final int depth, final double theta, final double expected) {
+        final double ref = getEngine().estimateLog10ReferenceConfidenceForOneSample(depth, theta);
+        Assert.assertTrue(MathUtils.goodLog10Probability(ref), "Reference calculation wasn't a well formed log10 prob " + ref);
+        Assert.assertEquals(ref, expected, TOLERANCE, "Failed reference confidence for single sample");
     }
 }

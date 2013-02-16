@@ -267,7 +267,7 @@ public class DiploidSNPGenotypeLikelihoods implements Cloneable {
     //
     // -------------------------------------------------------------------------------------
 
-    static DiploidSNPGenotypeLikelihoods[][][][][] CACHE = new DiploidSNPGenotypeLikelihoods[BaseUtils.BASES.length][QualityUtils.MAX_QUAL_SCORE+1][BaseUtils.BASES.length+1][QualityUtils.MAX_QUAL_SCORE+1][MAX_PLOIDY];
+    static DiploidSNPGenotypeLikelihoods[][][][][] CACHE = new DiploidSNPGenotypeLikelihoods[BaseUtils.BASES.length][QualityUtils.MAX_SAM_QUAL_SCORE +1][BaseUtils.BASES.length+1][QualityUtils.MAX_SAM_QUAL_SCORE +1][MAX_PLOIDY];
 
     protected boolean inCache(byte observedBase1, byte qualityScore1, byte observedBase2, byte qualityScore2, int ploidy) {
         return getCache(CACHE, observedBase1, qualityScore1, observedBase2, qualityScore2, ploidy) != null;

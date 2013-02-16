@@ -67,7 +67,7 @@ public class RecalibrationReportUnitTest {
         final Random random = new Random();
         final int nObservations = random.nextInt(maxObservations);
         final int nErrors = Math.min(random.nextInt(maxErrors), nObservations);
-        final int qual = random.nextInt(QualityUtils.MAX_QUAL_SCORE);
+        final int qual = random.nextInt(QualityUtils.MAX_SAM_QUAL_SCORE);
         return new RecalDatum((long)nObservations, (double)nErrors, (byte)qual);
     }
 
@@ -75,10 +75,10 @@ public class RecalibrationReportUnitTest {
     public void testOutput() {
         final int length = 100;
 
-        List<Byte> quals = new ArrayList<Byte>(QualityUtils.MAX_QUAL_SCORE + 1);
-        List<Long> counts = new ArrayList<Long>(QualityUtils.MAX_QUAL_SCORE + 1);
+        List<Byte> quals = new ArrayList<Byte>(QualityUtils.MAX_SAM_QUAL_SCORE + 1);
+        List<Long> counts = new ArrayList<Long>(QualityUtils.MAX_SAM_QUAL_SCORE + 1);
 
-        for (int i = 0;  i<= QualityUtils.MAX_QUAL_SCORE; i++) {
+        for (int i = 0;  i<= QualityUtils.MAX_SAM_QUAL_SCORE; i++) {
             quals.add((byte) i);
             counts.add(1L);
         }
