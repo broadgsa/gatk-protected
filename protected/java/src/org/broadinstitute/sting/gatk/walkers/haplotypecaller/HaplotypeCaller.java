@@ -270,7 +270,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     private CachingIndexedFastaSequenceFile referenceReader;
 
     // reference base padding size
-    private static final int REFERENCE_PADDING = 900;
+    private static final int REFERENCE_PADDING = 400;
 
     // bases with quality less than or equal to this value are trimmed off the tails of the reads
     private static final byte MIN_TAIL_QUALITY = 20;
