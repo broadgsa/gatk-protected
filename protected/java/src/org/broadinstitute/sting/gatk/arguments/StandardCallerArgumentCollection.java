@@ -113,6 +113,15 @@ public class StandardCallerArgumentCollection {
     public int MAX_ALTERNATE_ALLELES = 6;
 
     /**
+     * By default, the prior specified with the argument --heterozygosity/-hets is used for variant discovery at a particular locus.
+     * If This argument is true, the heterozygosity prior will not be used - main application is for population studies where prior might not be appropriate,
+     * as for example when the ancestral status of the reference allele is not known.
+     */
+    @Advanced
+    @Argument(fullName = "dont_use_site_prior", shortName = "noPrior", doc = "If true, skip prior for variant discovery", required = false)
+    public boolean ignoreHeterozygosityPrior = false;
+
+    /**
      * If this fraction is greater is than zero, the caller will aggressively attempt to remove contamination through biased down-sampling of reads.
      * Basically, it will ignore the contamination fraction of reads for each alternate allele.  So if the pileup contains N total bases, then we
      * will try to remove (N * contamination fraction) bases for each alternate allele.
@@ -180,5 +189,6 @@ public class StandardCallerArgumentCollection {
         this.exactCallsLog = SCAC.exactCallsLog;
         this.sampleContamination=SCAC.sampleContamination;
         this.AFmodel = SCAC.AFmodel;
+        this.ignoreHeterozygosityPrior = SCAC.ignoreHeterozygosityPrior;
     }
 }
