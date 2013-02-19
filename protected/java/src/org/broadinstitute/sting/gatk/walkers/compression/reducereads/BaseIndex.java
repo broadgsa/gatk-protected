@@ -69,6 +69,12 @@ public enum BaseIndex {
 
     public byte getByte() { return b; }
 
+    /**
+     * Ordinal is stored in SyntheticRead rather than enum to save object reference, and store as byte for compactness.
+     * It is stored as byte, and this method merely eliminates a cast.
+     */
+    public byte getOrdinalByte() { return (byte)ordinal(); }
+
     private BaseIndex(char base, int index) {
         this.b = (byte)base;
         this.index = index;
