@@ -96,7 +96,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGAComplex() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "262e4c9a55baf1936a65612cfb1f6f81");
+                "719402122fe92cfe7a3fa6b7cdb66f26");
     }
 
     @Test
@@ -113,7 +113,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "fa55ef57354d1f69dabae711bc09b62e");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "88ae6e7b34514043bfc78b1ecf29a341");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {

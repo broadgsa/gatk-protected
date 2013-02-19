@@ -108,6 +108,9 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
                 continue; // read is non-informative
 
             final GATKSAMRecord read = el.getKey();
+            if ( read.getSoftStart() + read.getCigar().getReadLength() <= refLoc ) { // make sure the read actually covers the requested ref loc
+                continue;
+            }
             final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate( read.getSoftStart(), read.getCigar(), refLoc, ReadUtils.ClippingTail.RIGHT_TAIL, true );
             if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED || read.getCigar() == null )
                 continue;

@@ -132,7 +132,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testMismatchedPLs() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + privateTestDir + "mismatchedPLs.bam -o %s -L 1:24020341", 1,
-                Arrays.asList("0636c9ad2a83713c8d2cb08154043222"));
+                Arrays.asList("de2c5707c1805d17d70acaecd36b7372"));
         executeTest("test mismatched PLs", spec);
     }
 
