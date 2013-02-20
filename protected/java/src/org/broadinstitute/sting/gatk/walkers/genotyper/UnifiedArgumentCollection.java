@@ -150,6 +150,7 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
        Generalized ploidy argument (debug only): When building site error models, ignore lane information and build only
        sample-level error model
      */
+    @Hidden
     @Argument(fullName = "ignoreLaneInfo", shortName = "ignoreLane", doc = "Ignore lane when building error model, error model is then per-site", required = false)
     public boolean IGNORE_LANE_INFO = false;
 
@@ -157,6 +158,7 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
         Generalized ploidy argument: VCF file that contains truth calls for reference sample. If a reference sample is included through argument -refsample,
         then this argument is required.
      */
+    @Hidden
     @Input(fullName="reference_sample_calls", shortName = "referenceCalls", doc="VCF file with the truth callset for the reference sample", required=false)
     RodBinding<VariantContext> referenceSampleRod;
 
@@ -165,6 +167,7 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
         that a bar-coded reference sample be included with the polyploid/pooled data in a sequencing experimental design.
         If argument is absent, no per-site error model is included and calling is done with a generalization of traditional statistical calling.
      */
+    @Hidden
     @Argument(shortName="refsample", fullName="reference_sample_name", doc="Reference sample name.", required=false)
     String referenceSampleName;
 
@@ -174,6 +177,10 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
     @Argument(shortName="ploidy", fullName="sample_ploidy", doc="Plody (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy).", required=false)
     public int samplePloidy = GATKVariantContextUtils.DEFAULT_PLOIDY;
 
+
+    /**
+     * The following argument are for debug-only tweaks when running generalized ploidy with a reference sample
+     */
     @Hidden
     @Argument(shortName="minqs", fullName="min_quality_score", doc="Min quality score to consider. Smaller numbers process faster. Default: Q1.", required=false)
     byte minQualityScore= 1;
