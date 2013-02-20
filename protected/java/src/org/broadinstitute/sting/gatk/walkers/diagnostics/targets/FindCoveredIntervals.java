@@ -70,6 +70,9 @@ public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
     @Output(required = true)
     private PrintStream out;
 
+    @Argument(fullName = "uncovered", shortName = "u", required = false, doc = "output intervals that fail the coverage threshold instead")
+    private boolean outputUncovered = false;
+
     @Argument(fullName = "coverage_threshold", shortName = "cov", doc = "The minimum allowable coverage to be considered covered", required = false)
     private int coverageThreshold = 20;
 
@@ -86,10 +89,10 @@ public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
 
     @Override
     public GenomeLoc map(final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker tracker) {
-        if (activeRegion.isActive())
+        if ((!outputUncovered && activeRegion.isActive()) || (outputUncovered && !activeRegion.isActive()))
             return activeRegion.getLocation();
-        else
-            return null;
+
+        return null;
     }
 
     @Override
