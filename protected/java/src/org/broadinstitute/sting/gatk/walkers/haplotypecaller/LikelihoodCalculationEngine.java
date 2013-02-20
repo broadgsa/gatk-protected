@@ -125,7 +125,7 @@ public class LikelihoodCalculationEngine {
         final int numHaplotypes = haplotypes.size();
         final Map<Haplotype, Allele> alleleVersions = new HashMap<Haplotype, Allele>(numHaplotypes);
         for ( final Haplotype haplotype : haplotypes ) {
-            alleleVersions.put(haplotype, Allele.create(haplotype.getBases()));
+            alleleVersions.put(haplotype, Allele.create(haplotype, true));
         }
 
         final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
@@ -232,7 +232,7 @@ public class LikelihoodCalculationEngine {
         final List<Integer> bestHaplotypesIndexList = new ArrayList<Integer>();
         bestHaplotypesIndexList.add( findReferenceIndex(haplotypes) ); // always start with the reference haplotype
         final List<Allele> haplotypesAsAlleles = new ArrayList<Allele>();
-        for( final Haplotype h : haplotypes ) { haplotypesAsAlleles.add(Allele.create(h.getBases())); }
+        for( final Haplotype h : haplotypes ) { haplotypesAsAlleles.add(Allele.create(h, true)); }
 
         final double[][] haplotypeLikelihoodMatrix = computeDiploidHaplotypeLikelihoods( sampleKeySet, stratifiedReadMap, haplotypesAsAlleles ); // all samples pooled together
 
