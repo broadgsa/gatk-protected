@@ -46,7 +46,6 @@
 
 package org.broadinstitute.sting.gatk.walkers.indels;
 
-import com.google.java.contract.Requires;
 import net.sf.samtools.*;
 import net.sf.samtools.util.RuntimeIOException;
 import net.sf.samtools.util.SequenceUtil;
@@ -61,7 +60,10 @@ import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.BAQMode;
 import org.broadinstitute.sting.gatk.walkers.ReadWalker;
-import org.broadinstitute.sting.utils.*;
+import org.broadinstitute.sting.utils.BaseUtils;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.SWPairwiseAlignment;
+import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -76,7 +78,6 @@ import org.broadinstitute.sting.utils.sam.NWaySAMFileWriter;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.sting.utils.text.TextFormattingUtils;
 import org.broadinstitute.sting.utils.text.XReadLines;
-import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
@@ -309,7 +310,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     private boolean sawReadInCurrentInterval = false;
 
     // the reads and known indels that fall into the current interval
-    private final ReadBin readsToClean = new ReadBin();
+    private ReadBin readsToClean;
     private final ArrayList<GATKSAMRecord> readsNotToClean = new ArrayList<GATKSAMRecord>();
     private final ArrayList<VariantContext> knownIndelsToTry = new ArrayList<VariantContext>();
     private final HashSet<Object> indelRodsSeen = new HashSet<Object>();
@@ -372,6 +373,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     }
 
     public void initialize() {
+        readsToClean = new ReadBin(getToolkit().getGenomeLocParser(), REFERENCE_PADDING);
 
         if ( N_WAY_OUT == null && writer == null ) {
             throw new UserException.CommandLineException("Either -o or -nWayOut must be specified");
@@ -469,12 +471,14 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         try {
             final String version = headerInfo.getString("org.broadinstitute.sting.gatk.version");
             programRecord.setProgramVersion(version);
-        } catch (MissingResourceException e) {}
+        } catch (MissingResourceException e) {
+            // this is left empty on purpose (perhaps Andrey knows why?)
+        }
         programRecord.setCommandLine(getToolkit().createApproximateCommandLineArgumentString(getToolkit(), this));
         return programRecord;
     }
 
-    private void emit(final SAMRecord read) {
+    private void emit(final GATKSAMRecord read) {
 
         // check to see whether the read was modified by looking at the temporary tag
         boolean wasModified = readsActuallyCleaned.contains(read);
@@ -530,7 +534,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
                 readsToClean.add(read);
 
                 // add the rods to the list of known variants
-                populateKnownIndels(metaDataTracker, ref);
+                populateKnownIndels(metaDataTracker);
             }
 
             if ( readsToClean.size() + readsNotToClean.size() >= MAX_READS ) {
@@ -539,6 +543,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
             }
         }
         else {  // the read is past the current interval
+            logger.debug(currentInterval.toString() + "\t" + read.getAlignmentStart() );
             cleanAndCallMap(ref, read, metaDataTracker, readLoc);
         }
 
@@ -642,7 +647,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         }
     }
 
-    private void populateKnownIndels(RefMetaDataTracker metaDataTracker, ReferenceContext ref) {
+    private void populateKnownIndels(RefMetaDataTracker metaDataTracker) {
         for ( final VariantContext vc : metaDataTracker.getValues(known) ) {
             if ( indelRodsSeen.contains(vc) )
                 continue;
@@ -705,10 +710,8 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         // if ( debugOn ) System.out.println("------\nChecking consenses...\n--------\n");
 
         Consensus bestConsensus = null;
-        Iterator<Consensus> iter = altConsenses.iterator();
 
-        while ( iter.hasNext() ) {
-            Consensus consensus = iter.next();
+        for (Consensus consensus : altConsenses) {
             //logger.debug("Trying new consensus: " + consensus.cigar + " " + new String(consensus.str));
 
 //            if ( DEBUG ) {
@@ -723,34 +726,34 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
 
             // if ( debugOn ) System.out.println("Consensus: "+consensus.str);
 
-            for ( int j = 0; j < altReads.size(); j++ ) {
+            for (int j = 0; j < altReads.size(); j++) {
                 AlignedRead toTest = altReads.get(j);
                 Pair<Integer, Integer> altAlignment = findBestOffset(consensus.str, toTest, leftmostIndex);
 
                 // the mismatch score is the min of its alignment vs. the reference and vs. the alternate
                 int myScore = altAlignment.second;
 
-                if ( myScore > toTest.getAlignerMismatchScore() || myScore >= toTest.getMismatchScoreToReference() )
+                if (myScore > toTest.getAlignerMismatchScore() || myScore >= toTest.getMismatchScoreToReference())
                     myScore = toTest.getMismatchScoreToReference();
-                // keep track of reads that align better to the alternate consensus.
-                // By pushing alignments with equal scores to the alternate, it means we'll over-call (het -> hom non ref) but are less likely to under-call (het -> ref, het non ref -> het)
+                    // keep track of reads that align better to the alternate consensus.
+                    // By pushing alignments with equal scores to the alternate, it means we'll over-call (het -> hom non ref) but are less likely to under-call (het -> ref, het non ref -> het)
                 else
                     consensus.readIndexes.add(new Pair<Integer, Integer>(j, altAlignment.first));
 
                 //logger.debug(consensus.cigar +  " vs. " + toTest.getRead().getReadName() + "-" + toTest.getRead().getReadString() + " => " + myScore + " vs. " + toTest.getMismatchScoreToReference());
-                if ( !toTest.getRead().getDuplicateReadFlag() )
+                if (!toTest.getRead().getDuplicateReadFlag())
                     consensus.mismatchSum += myScore;
 
                 // optimization: once the mismatch sum is higher than the best consensus, quit since this one can't win
                 //  THIS MUST BE DISABLED IF WE DECIDE TO ALLOW MORE THAN ONE ALTERNATE CONSENSUS!
-                if ( bestConsensus != null && consensus.mismatchSum > bestConsensus.mismatchSum )
+                if (bestConsensus != null && consensus.mismatchSum > bestConsensus.mismatchSum)
                     break;
             }
 
             //logger.debug("Mismatch sum of new consensus: " + consensus.mismatchSum);
-            if ( bestConsensus == null || bestConsensus.mismatchSum > consensus.mismatchSum) {
+            if (bestConsensus == null || bestConsensus.mismatchSum > consensus.mismatchSum) {
                 // we do not need this alt consensus, release memory right away!!
-                if ( bestConsensus != null )
+                if (bestConsensus != null)
                     bestConsensus.readIndexes.clear();
                 bestConsensus = consensus;
                 //logger.debug("New consensus " + bestConsensus.cigar +  " is now best consensus");
@@ -796,9 +799,9 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
                     StringBuilder str = new StringBuilder();
                     str.append(reads.get(0).getReferenceName());
                     int position = bestConsensus.positionOnReference + bestConsensus.cigar.getCigarElement(0).getLength();
-                    str.append("\t" + (leftmostIndex + position - 1));
+                    str.append("\t").append(leftmostIndex + position - 1);
                     CigarElement ce = bestConsensus.cigar.getCigarElement(1);
-                    str.append("\t" + ce.getLength() + "\t" + ce.getOperator() + "\t");
+                    str.append("\t").append(ce.getLength()).append("\t").append(ce.getOperator()).append("\t");
                     int length = ce.getLength();
                     if ( ce.getOperator() == CigarOperator.D ) {
                         for ( int i = 0; i < length; i++)
@@ -807,7 +810,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
                         for ( int i = 0; i < length; i++)
                             str.append((char)bestConsensus.str[position+i]);
                     }
-                    str.append("\t" + (((double)(totalRawMismatchSum - bestConsensus.mismatchSum))/10.0) + "\n");
+                    str.append("\t").append((((double) (totalRawMismatchSum - bestConsensus.mismatchSum)) / 10.0)).append("\n");
                     try {
                         indelOutput.write(str.toString());
                         indelOutput.flush();
@@ -913,7 +916,6 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
                                                 final byte[] reference) {
 
         long totalRawMismatchSum = 0L;
-
         for ( final GATKSAMRecord read : reads ) {
 
             // we can not deal with screwy records
@@ -1278,23 +1280,22 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         for ( int i=0; i < reference.length; i++ )
             originalMismatchBases[i] = totalOriginalBases[i] = cleanedMismatchBases[i] = totalCleanedBases[i] = 0;
 
-        for (int i=0; i < reads.size(); i++) {
-            final AlignedRead read = reads.get(i);
-            if ( read.getRead().getAlignmentBlocks().size() > 1 )
-                 continue;
+        for (final AlignedRead read : reads) {
+            if (read.getRead().getAlignmentBlocks().size() > 1)
+                continue;
 
             int refIdx = read.getOriginalAlignmentStart() - leftmostIndex;
             final byte[] readStr = read.getReadBases();
             final byte[] quals = read.getBaseQualities();
 
-            for (int j=0; j < readStr.length; j++, refIdx++ ) {
-                if ( refIdx < 0 || refIdx >= reference.length ) {
+            for (int j = 0; j < readStr.length; j++, refIdx++) {
+                if (refIdx < 0 || refIdx >= reference.length) {
                     //System.out.println( "Read: "+read.getRead().getReadName() + "; length = " + readStr.length() );
                     //System.out.println( "Ref left: "+ leftmostIndex +"; ref length=" + reference.length() + "; read alignment start: "+read.getOriginalAlignmentStart() );
                     break;
                 }
                 totalOriginalBases[refIdx] += quals[j];
-                if ( readStr[j] != reference[refIdx] )
+                if (readStr[j] != reference[refIdx])
                     originalMismatchBases[refIdx] += quals[j];
             }
 
@@ -1302,18 +1303,18 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
             refIdx = read.getAlignmentStart() - leftmostIndex;
             int altIdx = 0;
             Cigar c = read.getCigar();
-            for (int j = 0 ; j < c.numCigarElements() ; j++) {
+            for (int j = 0; j < c.numCigarElements(); j++) {
                 CigarElement ce = c.getCigarElement(j);
                 int elementLength = ce.getLength();
-                switch ( ce.getOperator() ) {
+                switch (ce.getOperator()) {
                     case M:
                     case EQ:
                     case X:
-                        for (int k = 0 ; k < elementLength ; k++, refIdx++, altIdx++ ) {
-                            if ( refIdx >= reference.length )
+                        for (int k = 0; k < elementLength; k++, refIdx++, altIdx++) {
+                            if (refIdx >= reference.length)
                                 break;
                             totalCleanedBases[refIdx] += quals[altIdx];
-                            if ( readStr[altIdx] != reference[refIdx] )
+                            if (readStr[altIdx] != reference[refIdx])
                                 cleanedMismatchBases[refIdx] += quals[altIdx];
                         }
                         break;
@@ -1348,8 +1349,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
             }
             if ( snpsOutput != null ) {
                     if ( didMismatch ) {
-                        sb.append(reads.get(0).getRead().getReferenceName() + ":");
-                        sb.append((leftmostIndex + i));
+                        sb.append(reads.get(0).getRead().getReferenceName()).append(":").append(leftmostIndex + i);
                         if ( stillMismatches )
                             sb.append(" SAME_SNP\n");
                         else
@@ -1603,52 +1603,4 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         }
     }
 
-    private class ReadBin implements HasGenomeLocation {
-
-        private final ArrayList<GATKSAMRecord> reads = new ArrayList<GATKSAMRecord>();
-        private byte[] reference = null;
-        private GenomeLoc loc = null;
-
-        public ReadBin() { }
-
-        // Return false if we can't process this read bin because the reads are not correctly overlapping.
-        // This can happen if e.g. there's a large known indel with no overlapping reads.
-        public void add(GATKSAMRecord read) {
-
-            GenomeLoc locForRead = getToolkit().getGenomeLocParser().createGenomeLoc(read);
-            if ( loc == null )
-                loc = locForRead;
-            else if ( locForRead.getStop() > loc.getStop() )
-                loc = getToolkit().getGenomeLocParser().createGenomeLoc(loc.getContig(), loc.getStart(), locForRead.getStop());
-
-            reads.add(read);
-        }
-
-        public List<GATKSAMRecord> getReads() { return reads; }
-
-        @Requires("referenceReader.isUppercasingBases()")
-        public byte[] getReference(CachingIndexedFastaSequenceFile referenceReader) {
-            // set up the reference if we haven't done so yet
-            if ( reference == null ) {
-                // first, pad the reference to handle deletions in narrow windows (e.g. those with only 1 read)
-                int padLeft = Math.max(loc.getStart()-REFERENCE_PADDING, 1);
-                int padRight = Math.min(loc.getStop()+REFERENCE_PADDING, referenceReader.getSequenceDictionary().getSequence(loc.getContig()).getSequenceLength());
-                loc = getToolkit().getGenomeLocParser().createGenomeLoc(loc.getContig(), padLeft, padRight);
-                reference = referenceReader.getSubsequenceAt(loc.getContig(), loc.getStart(), loc.getStop()).getBases();
-            }
-
-            return reference;
-        }
-
-        public GenomeLoc getLocation() { return loc; }
-
-        public int size() { return reads.size(); }
-
-        public void clear() {
-            reads.clear();
-            reference = null;
-            loc = null;
-        }
-
-    }
 }
