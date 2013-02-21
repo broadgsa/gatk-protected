@@ -368,7 +368,7 @@ public class GenotypingEngine {
                 for( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> readEntry : haplotypeReadMapEntry.getValue().getLikelihoodReadMap().entrySet() ) { // for each read
                     double maxLikelihood = Double.NEGATIVE_INFINITY;
                     for( final Map.Entry<Allele,Double> alleleDoubleEntry : readEntry.getValue().entrySet() ) { // for each input allele
-                        if( mappedHaplotypes.contains( new Haplotype(alleleDoubleEntry.getKey().getBases())) ) { // exact match of haplotype base string
+                        if( mappedHaplotypes.contains( new Haplotype(alleleDoubleEntry.getKey())) ) { // exact match of haplotype base string
                             maxLikelihood = Math.max( maxLikelihood, alleleDoubleEntry.getValue() );
                         }
                     }
@@ -442,7 +442,7 @@ public class GenotypingEngine {
                         }
                         // count up the co-occurrences of the events for the R^2 calculation
                         for( final String sample : samples ) {
-                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( Collections.singleton(sample), haplotypeReadMap, Collections.singletonList(Allele.create(h.getBases())) )[0][0];
+                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( Collections.singleton(sample), haplotypeReadMap, Collections.singletonList(Allele.create(h, true)) )[0][0];
                             if( thisHapVC == null ) {
                                 if( nextHapVC == null ) { x11 = MathUtils.approximateLog10SumLog10(x11, haplotypeLikelihood); }
                                 else { x12 = MathUtils.approximateLog10SumLog10(x12, haplotypeLikelihood); }
