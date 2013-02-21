@@ -137,7 +137,7 @@ public class LikelihoodCalculationEngine {
             final byte[] readInsQuals = read.getBaseInsertionQualities();
             final byte[] readDelQuals = read.getBaseDeletionQualities();
             for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
-                readQuals[kkk] = ( readQuals[kkk] > (byte) read.getMappingQuality() ? (byte) read.getMappingQuality() : readQuals[kkk] ); // cap base quality by mapping quality
+                readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
                 //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
                 //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
                 // TODO -- why is Q18 hard-coded here???
