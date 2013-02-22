@@ -427,7 +427,7 @@ public class DiploidSNPGenotypeLikelihoods implements Cloneable {
         if ( qual > SAMUtils.MAX_PHRED_SCORE )
             throw new UserException.MisencodedBAM(p.getRead(), "we encountered an extremely high quality score (" + (int)qual + ")");
         if ( capBaseQualsAtMappingQual )
-            qual = (byte)Math.min((int)qual, p.getMappingQual());
+            qual = (byte) Math.min( 0xff & qual, p.getMappingQual());
         if ( (int)qual < minBaseQual )
             qual = (byte)0;
 
