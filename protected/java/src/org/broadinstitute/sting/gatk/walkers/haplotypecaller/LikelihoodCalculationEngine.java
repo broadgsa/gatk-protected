@@ -133,7 +133,8 @@ public class LikelihoodCalculationEngine {
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
             Haplotype previousHaplotypeSeen = null;
-            final byte[] readQuals = read.getBaseQualities();
+            // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
+            final byte[] readQuals = read.getBaseQualities().clone();
             final byte[] readInsQuals = read.getBaseInsertionQualities();
             final byte[] readDelQuals = read.getBaseDeletionQualities();
             for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
