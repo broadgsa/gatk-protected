@@ -46,10 +46,10 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
-import java.util.LinkedList;
 
 /**
  * The element that describes the header of the sliding window.
@@ -64,7 +64,7 @@ public class HeaderElement {
     private int insertionsToTheRight;                                                                                   // How many reads in this site had insertions to the immediate right
     private int nSoftClippedBases;                                                                                      // How many bases in this site came from soft clipped bases
     private int location;                                                                                               // Genome location of this site (the sliding window knows which contig we're at
-    private LinkedList<Integer> mappingQuality;                                                                         // keeps the mapping quality of each read that contributed to this element (site)
+    private IntArrayList mappingQuality;                                                                         // keeps the mapping quality of each read that contributed to this element (site)
 
     public int getLocation() {
         return location;
@@ -85,7 +85,7 @@ public class HeaderElement {
      * @param location the reference location for the new element
      */
     public HeaderElement(final int location) {
-        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, 0, location, new LinkedList<Integer>());
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, 0, location, new IntArrayList());
     }
 
     /**
@@ -95,7 +95,7 @@ public class HeaderElement {
      * @param location the reference location for the new element
      */
     public HeaderElement(final int location, final int insertionsToTheRight) {
-        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, 0, location, new LinkedList<Integer>());
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, 0, location, new IntArrayList());
     }
 
     /**
@@ -109,7 +109,7 @@ public class HeaderElement {
      * @param mappingQuality       the list of mapping quality values of all reads that contributed to this
      *                             HeaderElement
      */
-    public HeaderElement(BaseAndQualsCounts consensusBaseCounts, BaseAndQualsCounts filteredBaseCounts, int insertionsToTheRight, int nSoftClippedBases, int location, LinkedList<Integer> mappingQuality) {
+    public HeaderElement(BaseAndQualsCounts consensusBaseCounts, BaseAndQualsCounts filteredBaseCounts, int insertionsToTheRight, int nSoftClippedBases, int location, IntArrayList mappingQuality) {
         this.consensusBaseCounts = consensusBaseCounts;
         this.filteredBaseCounts = filteredBaseCounts;
         this.insertionsToTheRight = insertionsToTheRight;

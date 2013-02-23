@@ -46,6 +46,9 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
@@ -227,7 +230,7 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     private static final int readLength = 100;
     private static final int testRegionSize = 1000;
-    private final List<GATKSAMRecord> basicReads = new ArrayList<GATKSAMRecord>(20);
+    private final ObjectList<GATKSAMRecord> basicReads = new ObjectArrayList<GATKSAMRecord>(20);
     private IndexedFastaSequenceFile seq;
     private SAMFileHeader header;
 
@@ -364,7 +367,7 @@ public class SlidingWindowUnitTest extends BaseTest {
         SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
-        Pair<Set<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
+        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
 
         Assert.assertEquals(result.getFirst().size(), test.expectedNumberOfReads);
 
@@ -403,7 +406,7 @@ public class SlidingWindowUnitTest extends BaseTest {
     @Test(dataProvider = "Downsampling", enabled = true)
     public void testDownsamplingTest(DSTest test) {
         final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, test.dcov, ReduceReads.DownsampleStrategy.Normal, false, false);
-        final List<GATKSAMRecord> result = slidingWindow.downsampleVariantRegion(basicReads);
+        final ObjectList<GATKSAMRecord> result = slidingWindow.downsampleVariantRegion(basicReads);
 
         Assert.assertEquals(result.size(), Math.min(test.dcov, basicReads.size()));
     }
@@ -453,7 +456,7 @@ public class SlidingWindowUnitTest extends BaseTest {
         final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, minUsableConsensusQual, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
-        final Pair<Set<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
+        final Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
 
         Assert.assertEquals(result.getFirst().size(), 1);
         final GATKSAMRecord read = result.getFirst().iterator().next();

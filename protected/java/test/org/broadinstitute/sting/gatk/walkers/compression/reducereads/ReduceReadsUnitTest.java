@@ -46,82 +46,66 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.sf.samtools.SAMFileHeader;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class SyntheticReadUnitTest extends BaseTest {
-    final SAMFileHeader artificialSAMHeader = ArtificialSAMUtils.createArtificialSamHeader(1, 1, 1);
-    final GATKSAMReadGroupRecord artificialGATKRG = new GATKSAMReadGroupRecord("synthetic");
-    final String artificialContig = "1";
-    final int artificialContigIndex = 0;
-    final String artificialReadName = "synth";
-    final int artificialRefStart = 1;
-    final double artificialMappingQuality = 60;
+import java.util.Random;
 
-@Test
-public void testBaseCounts() {
-        BaseIndex [] bases = new BaseIndex[] {BaseIndex.A,BaseIndex.A,BaseIndex.A,BaseIndex.A};
-        byte[] quals = new byte[] {20, 20, 20, 20 };
 
-        TestRead [] testReads = new TestRead [] {
-                new TestRead(bases, quals, new byte[] {100, 100, 100, 101}, new byte [] {100, 0, 0, 1}),
-                new TestRead(bases, quals, new byte[] {1, 100, 100, 0},     new byte [] {1, 99, 99, -1}),
-                new TestRead(bases, quals, new byte[] {127, 100, 0, 1},     new byte [] {127, -27, -127, -126}),
-                new TestRead(bases, quals, new byte[] {1, 127, 51, 126},    new byte [] {1, 126, 50, 125})};
+public class ReduceReadsUnitTest extends BaseTest {
 
-        for (TestRead testRead : testReads) {
-            SyntheticRead syntheticRead = new SyntheticRead(new ObjectArrayList<BaseIndex>(testRead.getBases()), new ByteArrayList(testRead.getCounts()), new ByteArrayList(testRead.getQuals()), new ByteArrayList(testRead.getInsQuals()), new ByteArrayList(testRead.getDelQuals()), artificialMappingQuality, GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, artificialSAMHeader, artificialGATKRG, artificialContig, artificialContigIndex, artificialReadName, artificialRefStart, false, false);
-            Assert.assertEquals(syntheticRead.convertBaseCounts(), testRead.getExpectedCounts());
+    Random random = new Random(987743);
+    Object2LongOpenHashMap<String> hash = new Object2LongOpenHashMap<String>();
+    long nextNumber = 0L;
+
+    /**
+     * Combinatorial unit test data provider example.
+     *
+     * Creates data for testMyData test function, containing two arguments, start and size at each value
+     *
+     * @return Object[][] for testng DataProvider
+     */
+    @DataProvider(name = "ReadNameProvider")
+    public Object[][] readNameProvider() {
+        final int readNameLength = 4;
+        final int nReads = 100000;
+        final int charVariety = 20;
+        ObjectArrayList<Object[]> tests = new ObjectArrayList<Object[]>();
+        ObjectOpenHashSet<String> truthSet = new ObjectOpenHashSet<String>();
+        byte[] bytes = new byte[readNameLength];
+        for ( int i = 0; i<nReads; i++) {
+            random.nextBytes(bytes);
+            StringBuilder readNameBuilder = new StringBuilder(readNameLength);
+            for (byte b : bytes) {
+                readNameBuilder.append((char) ('a' + Math.abs(b) % charVariety));
+            }
+            String readName = readNameBuilder.toString();
+            tests.add(new Object[]{readName, truthSet.contains(readName)});
+            truthSet.add(readName);
         }
-}
 
-private class TestRead {
-    BaseIndex[] bases;
-    byte[] quals;
-    byte[] insQuals;
-    byte[] delQuals;
-    byte[] counts;
-    byte[] expectedCounts;
-
-    private TestRead(BaseIndex[] bases, byte[] quals, byte[] counts, byte[] expectedCounts) {
-        this.bases = bases;
-        this.quals = quals;
-        this.insQuals = quals;
-        this.delQuals = quals;
-        this.counts = counts;
-        this.expectedCounts = expectedCounts;
+        return tests.toArray(new Object[][]{});
     }
 
-    public BaseIndex[] getBases() {
-        return bases;
+    /**
+     * Test the read name compression functionality
+     */
+    @Test(dataProvider = "ReadNameProvider")
+    public void testReadNameCompression(final String name, final boolean alreadySeen) {
+        GATKSAMRecord read = GATKSAMRecord.createRandomRead(1);
+        read.setReadName(name);
+        final int previousHashSize = hash.keySet().size();
+        final long previousNumber = nextNumber;
+        nextNumber = ReduceReads.compressReadName(hash, read, nextNumber);
+        Assert.assertEquals(hash.keySet().size(), alreadySeen ? previousHashSize : previousHashSize + 1);
+        Assert.assertEquals(nextNumber, alreadySeen ? previousNumber : previousNumber + 1);
+        Assert.assertTrue(hash.containsKey(name));
     }
-
-    public byte[] getQuals() {
-        return quals;
-    }
-
-    public byte[] getInsQuals() {
-        return insQuals;
-    }
-
-    public byte[] getDelQuals() {
-        return delQuals;
-    }
-
-    public byte[] getCounts() {
-        return counts;
-    }
-
-    public byte[] getExpectedCounts() {
-        return expectedCounts;
-    }
-}
 
 }
