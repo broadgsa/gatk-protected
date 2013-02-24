@@ -50,7 +50,6 @@ import com.google.java.contract.Ensures;
 import net.sf.samtools.*;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
-import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
@@ -133,8 +132,8 @@ import java.util.*;
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.LOCUS)
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
-@ActiveRegionTraversalParameters(extension=65, maxRegion=300)
-@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=20)
+@ActiveRegionTraversalParameters(extension=85, maxRegion=300)
+@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=30)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
     /**
@@ -270,7 +269,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     private CachingIndexedFastaSequenceFile referenceReader;
 
     // reference base padding size
-    private static final int REFERENCE_PADDING = 400;
+    private static final int REFERENCE_PADDING = 500;
 
     // bases with quality less than or equal to this value are trimmed off the tails of the reads
     private static final byte MIN_TAIL_QUALITY = 20;
@@ -350,7 +349,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile, e);
         }
 
-        assemblyEngine = new SimpleDeBruijnAssembler( DEBUG, graphWriter, minKmer );
+        assemblyEngine = new DeBruijnAssembler( DEBUG, graphWriter, minKmer );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
 
@@ -475,17 +474,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         if( activeRegion.size() == 0 && UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) { return 0; } // No reads here so nothing to do!
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES && activeAllelesToGenotype.isEmpty() ) { return 0; } // No alleles found in this region so nothing to do!
 
-        finalizeActiveRegion( activeRegion ); // merge overlapping fragments, clip adapter and low qual tails
-
-        // note this operation must be performed before we clip the reads down, as this must correspond to the full reference region
-        final GenomeLoc fullSpanBeforeClipping = getPaddedLoc(activeRegion);
+        finalizeActiveRegion(activeRegion); // merge overlapping fragments, clip adapter and low qual tails
 
         final Haplotype referenceHaplotype = new Haplotype(activeRegion.getActiveRegionReference(referenceReader), true); // Create the reference haplotype which is the bases from the reference that make up the active region
-        final byte[] fullReferenceWithPadding = activeRegion.getFullReference(referenceReader, REFERENCE_PADDING);
-        final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, fullSpanBeforeClipping, MIN_PRUNE_FACTOR, activeAllelesToGenotype );
+        final byte[] fullReferenceWithPadding = activeRegion.getActiveRegionReference(referenceReader, REFERENCE_PADDING);
+        final GenomeLoc paddedReferenceLoc = getPaddedLoc(activeRegion);
+
+        final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, MIN_PRUNE_FACTOR, activeAllelesToGenotype );
         if( haplotypes.size() == 1 ) { return 1; } // only the reference haplotype remains so nothing else to do!
 
-        activeRegion.hardClipToActiveRegion(); // only evaluate the parts of reads that are overlapping the active region
         final List<GATKSAMRecord> filteredReads = filterNonPassingReads( activeRegion ); // filter out reads from genotyping which fail mapping quality based criteria
         if( activeRegion.size() == 0 ) { return 1; } // no reads remain after filtering so nothing else to do!
 
@@ -506,7 +503,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                                                                                      stratifiedReadMap,
                                                                                      perSampleFilteredReadList,
                                                                                      fullReferenceWithPadding,
-                                                                                     fullSpanBeforeClipping,
+                                                                                     paddedReferenceLoc,
                                                                                      activeRegion.getLocation(),
                                                                                      getToolkit().getGenomeLocParser(),
                                                                                      activeAllelesToGenotype ) ) {
@@ -518,7 +515,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         if ( bamWriter != null ) {
             // write the haplotypes to the bam
             for ( Haplotype haplotype : haplotypes )
-                writeHaplotype(haplotype, fullSpanBeforeClipping, bestHaplotypes.contains(haplotype));
+                writeHaplotype(haplotype, paddedReferenceLoc, bestHaplotypes.contains(haplotype));
 
             // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
             final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<Allele, Haplotype>(haplotypes.size());
@@ -530,7 +527,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                 for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
                     final Allele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
                     if ( bestAllele != Allele.NO_CALL )
-                        writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele), fullSpanBeforeClipping.getStart());
+                        writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele), paddedReferenceLoc.getStart());
                 }
             }
         }
@@ -584,7 +581,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         for( final GATKSAMRecord myRead : finalizedReadList ) {
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
-                final GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
+                GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
+                clippedRead = ReadClipper.hardClipToRegion( clippedRead, activeRegion.getExtendedLoc().getStart(), activeRegion.getExtendedLoc().getStop() );
                 if( activeRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 ) {
                     readsToUse.add(clippedRead);
                 }
@@ -605,9 +603,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     }
 
     private GenomeLoc getPaddedLoc( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
-        final int padLeft = Math.max(activeRegion.getReadSpanLoc().getStart()-REFERENCE_PADDING, 1);
-        final int padRight = Math.min(activeRegion.getReadSpanLoc().getStop()+REFERENCE_PADDING, referenceReader.getSequenceDictionary().getSequence(activeRegion.getReadSpanLoc().getContig()).getSequenceLength());
-        return getToolkit().getGenomeLocParser().createGenomeLoc(activeRegion.getReadSpanLoc().getContig(), padLeft, padRight);
+        final int padLeft = Math.max(activeRegion.getExtendedLoc().getStart()-REFERENCE_PADDING, 1);
+        final int padRight = Math.min(activeRegion.getExtendedLoc().getStop()+REFERENCE_PADDING, referenceReader.getSequenceDictionary().getSequence(activeRegion.getExtendedLoc().getContig()).getSequenceLength());
+        return getToolkit().getGenomeLocParser().createGenomeLoc(activeRegion.getExtendedLoc().getContig(), padLeft, padRight);
     }
 
     private Map<String, List<GATKSAMRecord>> splitReadsBySample( final List<GATKSAMRecord> reads ) {

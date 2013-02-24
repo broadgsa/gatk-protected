@@ -255,7 +255,7 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
         final String baseCommand = "-T HaplotypeCaller -R " + b36KGReference + " --no_cmdline_in_header --dbsnp " + b36dbSNP129;
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -contamination 0.20", 1,
-                Arrays.asList("1b2d71f72b49e36325a3cb7aeab37270"));
+                Arrays.asList("3a66513cdfef46f315d5ada8a104822f"));
         executeTest("HC calling with contamination_percentage_to_filter 0.20", spec);
     }
 
@@ -283,17 +283,17 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
 
     @Test
     public void testHCFlatContaminationCase1() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "a55335e075b4ebaea31f54b88a96e829");
+        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "0b9d6aabd5ab448f0a2d32f24ff64840");
     }
 
     @Test
     public void testHCFlatContaminationCase2() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "5b0c3dfd6885dd0b0dfc4d979e1bef67");
+        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "a4ef4a6ce557a6b9666e234fad5c7c80");
     }
 
     @Test
     public void testHCFlatContaminationCase3() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "68c23ceccd4d10fccd1b59432b374c5c");
+        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "bacc98eb2baa5bb1777da24cf0f84913");
     }
 
 }

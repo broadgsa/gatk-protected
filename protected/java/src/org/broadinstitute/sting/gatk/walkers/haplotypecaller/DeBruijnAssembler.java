@@ -48,19 +48,20 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.jgrapht.graph.DefaultDirectedGraph;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -71,13 +72,15 @@ import java.util.*;
  * Date: Mar 14, 2011
  */
 
-public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
+public class DeBruijnAssembler extends LocalAssemblyEngine {
 
     private static final int KMER_OVERLAP = 5; // the additional size of a valid chunk of sequence, used to string together k-mers
-    private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 11;
+    private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 12;
     private static final byte MIN_QUALITY = (byte) 16;
+    private static final int MAX_POSSIBLE_KMER = 75;
+    private static final int GRAPH_KMER_STEP = 6;
 
-    // Smith-Waterman parameters originally copied from IndelRealigner
+    // Smith-Waterman parameters originally copied from IndelRealigner, only used during GGA mode
     private static final double SW_MATCH = 5.0;      // 1.0;
     private static final double SW_MISMATCH = -10.0;  //-1.0/3.0;
     private static final double SW_GAP = -22.0;       //-1.0-1.0/3.0;
@@ -85,12 +88,12 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
 
     private final boolean DEBUG;
     private final PrintStream GRAPH_WRITER;
-    private final List<DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>> graphs = new ArrayList<DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>>();
+    private final List<DeBruijnAssemblyGraph> graphs = new ArrayList<DeBruijnAssemblyGraph>();
     private final int MIN_KMER;
 
     private int PRUNE_FACTOR = 2;
     
-    public SimpleDeBruijnAssembler( final boolean debug, final PrintStream graphWriter, final int minKmer ) {
+    public DeBruijnAssembler(final boolean debug, final PrintStream graphWriter, final int minKmer) {
         super();
         DEBUG = debug;
         GRAPH_WRITER = graphWriter;
@@ -120,13 +123,6 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         // create the graphs
         createDeBruijnGraphs( activeRegion.getReads(), refHaplotype );
 
-        // clean up the graphs by pruning and merging
-        for( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph : graphs ) {
-            pruneGraph( graph, PRUNE_FACTOR );
-            //eliminateNonRefPaths( graph );
-            mergeNodes( graph );
-        }
-
         // print the graphs if the appropriate debug option has been turned on
         if( GRAPH_WRITER != null ) {
             printGraphs();
@@ -140,18 +136,25 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
     protected void createDeBruijnGraphs( final List<GATKSAMRecord> reads, final Haplotype refHaplotype ) {
         graphs.clear();
 
-        final int maxKmer = refHaplotype.getBases().length;
+        final int maxKmer = Math.min(MAX_POSSIBLE_KMER, refHaplotype.getBases().length - KMER_OVERLAP);
         // create the graph for each possible kmer
-        for( int kmer = MIN_KMER; kmer <= maxKmer; kmer += 6 ) {
-            final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph = createGraphFromSequences( reads, kmer, refHaplotype, DEBUG );
+        for( int kmer = maxKmer; kmer >= MIN_KMER; kmer -= GRAPH_KMER_STEP ) {
+            final DeBruijnAssemblyGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, DEBUG );
             if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
-                graphs.add(graph);
+                // do a series of steps to clean up the raw assembly graph to make it analysis-ready
+                pruneGraph(graph, PRUNE_FACTOR);
+                cleanNonRefPaths(graph);
+                mergeNodes(graph);
+                if( graph.getReferenceSourceVertex() != null ) { // if the graph contains interesting variation from the reference
+                    sanityCheckReferenceGraph(graph, refHaplotype);
+                    graphs.add(graph);
+                }
             }
         }
     }
 
     @Requires({"graph != null"})
-    protected static void mergeNodes( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
+    protected static void mergeNodes( final DeBruijnAssemblyGraph graph ) {
         boolean foundNodesToMerge = true;
         while( foundNodesToMerge ) {
             foundNodesToMerge = false;
@@ -159,7 +162,8 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
             for( final DeBruijnEdge e : graph.edgeSet() ) {
                 final DeBruijnVertex outgoingVertex = graph.getEdgeTarget(e);
                 final DeBruijnVertex incomingVertex = graph.getEdgeSource(e);
-                if( !outgoingVertex.equals(incomingVertex) && graph.inDegreeOf(outgoingVertex) == 1 && graph.outDegreeOf(incomingVertex) == 1) {
+                if( !outgoingVertex.equals(incomingVertex) && graph.outDegreeOf(incomingVertex) == 1 && graph.inDegreeOf(outgoingVertex) == 1 &&
+                    graph.inDegreeOf(incomingVertex) <= 1 && graph.outDegreeOf(outgoingVertex) <= 1 && graph.isReferenceNode(incomingVertex) == graph.isReferenceNode(outgoingVertex) ) {
                     final Set<DeBruijnEdge> outEdges = graph.outgoingEdgesOf(outgoingVertex);
                     final Set<DeBruijnEdge> inEdges = graph.incomingEdgesOf(incomingVertex);
                     if( inEdges.size() == 1 && outEdges.size() == 1 ) {
@@ -189,7 +193,42 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         }
     }
 
-    protected static void pruneGraph( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final int pruneFactor ) {
+    protected static void cleanNonRefPaths( final DeBruijnAssemblyGraph graph ) {
+        if( graph.getReferenceSourceVertex() == null || graph.getReferenceSinkVertex() == null ) {
+            return;
+        }
+        // Remove non-ref edges connected before and after the reference path
+        final Set<DeBruijnEdge> edgesToCheck = new HashSet<DeBruijnEdge>();
+        edgesToCheck.addAll(graph.incomingEdgesOf(graph.getReferenceSourceVertex()));
+        while( !edgesToCheck.isEmpty() ) {
+            final DeBruijnEdge e = edgesToCheck.iterator().next();
+            if( !e.isRef() ) {
+                edgesToCheck.addAll( graph.incomingEdgesOf(graph.getEdgeSource(e)) );
+                graph.removeEdge(e);
+            }
+            edgesToCheck.remove(e);
+        }
+        edgesToCheck.addAll(graph.outgoingEdgesOf(graph.getReferenceSinkVertex()));
+        while( !edgesToCheck.isEmpty() ) {
+            final DeBruijnEdge e = edgesToCheck.iterator().next();
+            if( !e.isRef() ) {
+                edgesToCheck.addAll( graph.outgoingEdgesOf(graph.getEdgeTarget(e)) );
+                graph.removeEdge(e);
+            }
+            edgesToCheck.remove(e);
+        }
+
+        // Run through the graph and clean up singular orphaned nodes
+        final List<DeBruijnVertex> verticesToRemove = new ArrayList<DeBruijnVertex>();
+        for( final DeBruijnVertex v : graph.vertexSet() ) {
+            if( graph.inDegreeOf(v) == 0 && graph.outDegreeOf(v) == 0 ) {
+                verticesToRemove.add(v);
+            }
+        }
+        graph.removeAllVertices(verticesToRemove);
+    }
+
+    protected static void pruneGraph( final DeBruijnAssemblyGraph graph, final int pruneFactor ) {
         final List<DeBruijnEdge> edgesToRemove = new ArrayList<DeBruijnEdge>();
         for( final DeBruijnEdge e : graph.edgeSet() ) {
             if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
@@ -208,42 +247,32 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         graph.removeAllVertices(verticesToRemove);
     }
 
-    protected static void eliminateNonRefPaths( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph ) {
-        final List<DeBruijnVertex> verticesToRemove = new ArrayList<DeBruijnVertex>();
-        boolean done = false;
-        while( !done ) {
-            done = true;
-            for( final DeBruijnVertex v : graph.vertexSet() ) {
-                if( graph.inDegreeOf(v) == 0 || graph.outDegreeOf(v) == 0 ) {
-                    boolean isRefNode = false;
-                    for( final DeBruijnEdge e : graph.edgesOf(v) ) {
-                        if( e.isRef() ) {
-                            isRefNode = true;
-                            break;
-                        }
-                    }
-                    if( !isRefNode ) {
-                        done = false;
-                        verticesToRemove.add(v);
-                    }
-                }
-            }
-            graph.removeAllVertices(verticesToRemove);
-            verticesToRemove.clear();
+    protected static void sanityCheckReferenceGraph(final DeBruijnAssemblyGraph graph, final Haplotype refHaplotype) {
+        if( graph.getReferenceSourceVertex() == null ) {
+            throw new IllegalStateException("All reference graphs must have a reference source vertex.");
+        }
+        if( graph.getReferenceSinkVertex() == null ) {
+            throw new IllegalStateException("All reference graphs must have a reference sink vertex.");
+        }
+        if( !Arrays.equals(graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true), refHaplotype.getBases()) ) {
+            throw new IllegalStateException("Mismatch between the reference haplotype and the reference assembly graph path." +
+                    " graph = " + new String(graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true)) +
+                    " haplotype = " + new String(refHaplotype.getBases())
+            );
         }
     }
 
     @Requires({"reads != null", "KMER_LENGTH > 0", "refHaplotype != null"})
-    protected static DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
+    protected static DeBruijnAssemblyGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
 
-        final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
+        final DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
 
         // First pull kmers from the reference haplotype and add them to the graph
         final byte[] refSequence = refHaplotype.getBases();
         if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
             final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
             for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-                if( !addKmersToGraph(graph, Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true) ) {
+                if( !graph.addKmersToGraph(Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true) ) {
                     if( DEBUG ) {
                         System.out.println("Cycle detected in reference graph for kmer = " + KMER_LENGTH + " ...skipping");
                     }
@@ -280,7 +309,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                         final byte[] kmer2 = Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH);
 
                         for( int kkk=0; kkk < countNumber; kkk++ ) {
-                            addKmersToGraph(graph, kmer1, kmer2, false);
+                            graph.addKmersToGraph(kmer1, kmer2, false);
                         }
                     }
                 }
@@ -289,32 +318,9 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         return graph;
     }
 
-    @Requires({"graph != null", "kmer1.length > 0", "kmer2.length > 0"})
-    protected static boolean addKmersToGraph( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph, final byte[] kmer1, final byte[] kmer2, final boolean isRef ) {
-
-        final int numVertexBefore = graph.vertexSet().size();
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1, kmer1.length );
-        graph.addVertex(v1);
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2, kmer2.length );
-        graph.addVertex(v2);
-        if( isRef && graph.vertexSet().size() == numVertexBefore ) { return false; }
-
-        final DeBruijnEdge targetEdge = graph.getEdge(v1, v2);
-        if ( targetEdge == null ) {
-            graph.addEdge(v1, v2, new DeBruijnEdge( isRef ));
-        } else {
-            if( isRef ) {
-                targetEdge.setIsRef( true );
-            }
-            targetEdge.setMultiplicity(targetEdge.getMultiplicity() + 1);
-        }
-        return true;
-    }
-
     protected void printGraphs() {
-        int count = 0;
-        for( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph : graphs ) {
-            GRAPH_WRITER.println("digraph kmer" + count++ +" {");
+        GRAPH_WRITER.println("digraph assemblyGraphs {");
+        for( final DeBruijnAssemblyGraph graph : graphs ) {
             for( final DeBruijnEdge edge : graph.edgeSet() ) {
                 if( edge.getMultiplicity() > PRUNE_FACTOR ) {
                     GRAPH_WRITER.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= PRUNE_FACTOR ? "style=dotted,color=grey" : "label=\""+ edge.getMultiplicity() +"\"") + "];");
@@ -325,24 +331,23 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
                 if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
             }
             for( final DeBruijnVertex v : graph.vertexSet() ) {
-                final String label = ( graph.inDegreeOf(v) == 0 ? v.toString() : v.getSuffixString() );
-                GRAPH_WRITER.println("\t" + v.toString() + " [label=\"" + label + "\"]");
+                GRAPH_WRITER.println("\t" + v.toString() + " [label=\"" + new String(graph.getAdditionalSequence(v)) + "\"]");
             }
-            GRAPH_WRITER.println("}");
         }
+        GRAPH_WRITER.println("}");
     }
 
+    @Requires({"refWithPadding.length > refHaplotype.getBases().length", "refLoc.containsP(activeRegionWindow)"})
     @Ensures({"result.contains(refHaplotype)"})
-    private List<Haplotype> findBestPaths( final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final List<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow ) {
-        final List<Haplotype> returnHaplotypes = new ArrayList<Haplotype>();
+    private List<Haplotype> findBestPaths( final Haplotype refHaplotype, final byte[] refWithPadding, final GenomeLoc refLoc, final List<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow ) {
 
-        // add the reference haplotype separately from all the others
-        final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( fullReferenceWithPadding, refHaplotype.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
-        refHaplotype.setAlignmentStartHapwrtRef( swConsensus.getAlignmentStart2wrt1() );
-        refHaplotype.setCigar( swConsensus.getCigar() );
-        if( !returnHaplotypes.add( refHaplotype ) ) {
-            throw new ReviewedStingException("Unable to add reference haplotype during assembly: " + refHaplotype);
-        }
+        // add the reference haplotype separately from all the others to ensure that it is present in the list of haplotypes
+        final List<Haplotype> returnHaplotypes = new ArrayList<Haplotype>();
+        refHaplotype.setAlignmentStartHapwrtRef(activeRegionWindow.getStart() - refLoc.getStart());
+        final Cigar c = new Cigar();
+        c.add(new CigarElement(refHaplotype.getBases().length, CigarOperator.M));
+        refHaplotype.setCigar(c);
+        returnHaplotypes.add( refHaplotype );
 
         final int activeRegionStart = refHaplotype.getAlignmentStartHapwrtRef();
         final int activeRegionStop = refHaplotype.getAlignmentStartHapwrtRef() + refHaplotype.getCigar().getReferenceLength();
@@ -351,30 +356,50 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         for( final VariantContext compVC : activeAllelesToGenotype ) {
             for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
                 final Haplotype insertedRefHaplotype = refHaplotype.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart());
-                addHaplotype( insertedRefHaplotype, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, true );
+                addHaplotypeForGGA( insertedRefHaplotype, refWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, true );
             }
         }
 
-        for( final DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph : graphs ) {
+        for( final DeBruijnAssemblyGraph graph : graphs ) {
             for ( final KBestPaths.Path path : KBestPaths.getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
+                Haplotype h = new Haplotype( path.getBases() );
+                if( !returnHaplotypes.contains(h) ) {
+                    final Cigar cigar = path.calculateCigar();
+                    if( cigar.isEmpty() ) {
+                        throw new IllegalStateException("Smith-Waterman alignment failure. Cigar = " + cigar + " with reference length " + cigar.getReferenceLength() + " but expecting reference length of " + refHaplotype.getCigar().getReferenceLength());
+                    } else if ( pathIsTooDivergentFromReference(cigar) || cigar.getReferenceLength() < 60 ) { // N cigar elements means that a bubble was too divergent from the reference so skip over this path
+                        continue;
+                    } else if( cigar.getReferenceLength() != refHaplotype.getCigar().getReferenceLength() ) { // SW failure
+                        throw new IllegalStateException("Smith-Waterman alignment failure. Cigar = " + cigar + " with reference length " + cigar.getReferenceLength() + " but expecting reference length of " + refHaplotype.getCigar().getReferenceLength());
+                    }
+                    h.setCigar(cigar);
 
-                final Haplotype h = new Haplotype( path.getBases() );
-                if( addHaplotype( h, fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, false ) ) {
+                    // extend partial haplotypes which are anchored in the reference to include the full active region
+                    h = extendPartialHaplotype(h, activeRegionStart, refWithPadding);
+                    final Cigar leftAlignedCigar = leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(h.getCigar()), refWithPadding, h.getBases(), activeRegionStart, 0);
+                    if( leftAlignedCigar.getReferenceLength() != refHaplotype.getCigar().getReferenceLength() ) { // left alignment failure
+                        continue;
+                    }
+                    if( !returnHaplotypes.contains(h) ) {
+                        h.setAlignmentStartHapwrtRef(activeRegionStart);
+                        h.setCigar( leftAlignedCigar );
+                        returnHaplotypes.add(h);
 
-                    // for GGA mode, add the desired allele into the haplotype if it isn't already present
-                    if( !activeAllelesToGenotype.isEmpty() ) {
-                        final Map<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), fullReferenceWithPadding, h.getBases(), refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
-                        for( final VariantContext compVC : activeAllelesToGenotype ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
-                            final VariantContext vcOnHaplotype = eventMap.get(compVC.getStart());
+                        // for GGA mode, add the desired allele into the haplotype if it isn't already present
+                        if( !activeAllelesToGenotype.isEmpty() ) {
+                            final Map<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), refWithPadding, h.getBases(), refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
+                            for( final VariantContext compVC : activeAllelesToGenotype ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
+                                final VariantContext vcOnHaplotype = eventMap.get(compVC.getStart());
 
-                            // This if statement used to additionally have:
-                            //      "|| !vcOnHaplotype.hasSameAllelesAs(compVC)"
-                            //  but that can lead to problems downstream when e.g. you are injecting a 1bp deletion onto
-                            //  a haplotype that already contains a 1bp insertion (so practically it is reference but
-                            //  falls into the bin for the 1bp deletion because we keep track of the artificial alleles).
-                            if( vcOnHaplotype == null ) {
-                                for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
-                                    addHaplotype( h.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart()), fullReferenceWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, false );
+                                // This if statement used to additionally have:
+                                //      "|| !vcOnHaplotype.hasSameAllelesAs(compVC)"
+                                //  but that can lead to problems downstream when e.g. you are injecting a 1bp deletion onto
+                                //  a haplotype that already contains a 1bp insertion (so practically it is reference but
+                                //  falls into the bin for the 1bp deletion because we keep track of the artificial alleles).
+                                if( vcOnHaplotype == null ) {
+                                    for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
+                                        addHaplotypeForGGA( h.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart()), refWithPadding, returnHaplotypes, activeRegionStart, activeRegionStop, false );
+                                    }
                                 }
                             }
                         }
@@ -383,7 +408,7 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
             }
         }
 
-        if( DEBUG ) { 
+        if( DEBUG ) {
             if( returnHaplotypes.size() > 1 ) {
                 System.out.println("Found " + returnHaplotypes.size() + " candidate haplotypes to evaluate every read against.");
             } else {
@@ -391,15 +416,124 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
             }
             for( final Haplotype h : returnHaplotypes ) {
                 System.out.println( h.toString() );
-                System.out.println( "> Cigar = " + h.getCigar() );
+                System.out.println( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() );
             }
         }
-
         return returnHaplotypes;
     }
 
-    // this function is slated for removal when SWing is removed
-    private boolean addHaplotype( final Haplotype haplotype, final byte[] ref, final List<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop, final boolean FORCE_INCLUSION_FOR_GGA_MODE ) {
+    /**
+     * Extend partial haplotypes which are anchored in the reference to include the full active region
+     * @param haplotype             the haplotype to extend
+     * @param activeRegionStart     the place where the active region starts in the ref byte array
+     * @param refWithPadding        the full reference byte array with padding which encompasses the active region
+     * @return                      a haplotype fully extended to encompass the active region
+     */
+    @Requires({"haplotype != null", "activeRegionStart > 0", "refWithPadding != null", "refWithPadding.length > 0"})
+    @Ensures({"result != null", "result.getCigar() != null"})
+    private Haplotype extendPartialHaplotype( final Haplotype haplotype, final int activeRegionStart, final byte[] refWithPadding ) {
+        final Cigar cigar = haplotype.getCigar();
+        final Cigar newCigar = new Cigar();
+        byte[] newHaplotypeBases = haplotype.getBases();
+        int refPos = activeRegionStart;
+        int hapPos = 0;
+        for( CigarElement ce : cigar.getCigarElements() ) {
+            switch (ce.getOperator()) {
+                case M:
+                    refPos += ce.getLength();
+                    hapPos += ce.getLength();
+                    newCigar.add(ce);
+                    break;
+                case I:
+                    hapPos += ce.getLength();
+                    newCigar.add(ce);
+                    break;
+                case D:
+                    refPos += ce.getLength();
+                    newCigar.add(ce);
+                    break;
+                case X:
+                    newHaplotypeBases = ArrayUtils.addAll( Arrays.copyOfRange(newHaplotypeBases, 0, hapPos),
+                            ArrayUtils.addAll(Arrays.copyOfRange(refWithPadding, refPos, refPos + ce.getLength()),
+                                    Arrays.copyOfRange(newHaplotypeBases, hapPos, newHaplotypeBases.length)));
+                    refPos += ce.getLength();
+                    hapPos += ce.getLength();
+                    newCigar.add(new CigarElement(ce.getLength(), CigarOperator.M));
+                    break;
+                default:
+                    throw new IllegalStateException("Unsupported cigar operator detected: " + ce.getOperator());
+            }
+        }
+        final Haplotype returnHaplotype = new Haplotype(newHaplotypeBases, haplotype.isReference());
+        returnHaplotype.setCigar( newCigar );
+        return returnHaplotype;
+    }
+
+    /**
+     * We use CigarOperator.N as the signal that an incomplete or too divergent bubble was found during bubble traversal
+     * @param c the cigar to test
+     * @return  true if we should skip over this path
+     */
+    @Requires("c != null")
+    private boolean pathIsTooDivergentFromReference( final Cigar c ) {
+        for( final CigarElement ce : c.getCigarElements() ) {
+            if( ce.getOperator().equals(CigarOperator.N) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Left align the given cigar sequentially. This is needed because AlignmentUtils doesn't accept cigars with more than one indel in them.
+     * This is a target of future work to incorporate and generalize into AlignmentUtils for use by others.
+     * @param cigar     the cigar to left align
+     * @param refSeq    the reference byte array
+     * @param readSeq   the read byte array
+     * @param refIndex  0-based alignment start position on ref
+     * @param readIndex 0-based alignment start position on read
+     * @return          the left-aligned cigar
+     */
+    @Ensures({"cigar != null", "refSeq != null", "readSeq != null", "refIndex >= 0", "readIndex >= 0"})
+    protected static Cigar leftAlignCigarSequentially(final Cigar cigar, final byte[] refSeq, final byte[] readSeq, int refIndex, int readIndex) {
+        final Cigar cigarToReturn = new Cigar();
+        Cigar cigarToAlign = new Cigar();
+        for (int i = 0; i < cigar.numCigarElements(); i++) {
+            final CigarElement ce = cigar.getCigarElement(i);
+            if (ce.getOperator() == CigarOperator.D || ce.getOperator() == CigarOperator.I) {
+                cigarToAlign.add(ce);
+                for( final CigarElement toAdd : AlignmentUtils.leftAlignIndel(cigarToAlign, refSeq, readSeq, refIndex, readIndex, false).getCigarElements() ) {
+                    cigarToReturn.add(toAdd);
+                }
+                refIndex += cigarToAlign.getReferenceLength();
+                readIndex += cigarToAlign.getReadLength();
+                cigarToAlign = new Cigar();
+            } else {
+                cigarToAlign.add(ce);
+            }
+        }
+        if( !cigarToAlign.isEmpty() ) {
+            for( final CigarElement toAdd : cigarToAlign.getCigarElements() ) {
+                cigarToReturn.add(toAdd);
+            }
+        }
+        return cigarToReturn;
+    }
+
+    /**
+     * Take a haplotype which was generated by injecting an allele into a string of bases and run SW against the reference to determine the variants on the haplotype.
+     * Unfortunately since this haplotype didn't come from the assembly graph you can't straightforwardly use the bubble traversal algorithm to get this information.
+     * This is a target for future work as we rewrite the HaplotypeCaller to be more bubble-caller based.
+     * @param haplotype                     the candidate haplotype
+     * @param ref                           the reference bases to align against
+     * @param haplotypeList                 the current list of haplotypes
+     * @param activeRegionStart             the start of the active region in the reference byte array
+     * @param activeRegionStop              the stop of the active region in the reference byte array
+     * @param FORCE_INCLUSION_FOR_GGA_MODE  if true will include in the list even if it already exists
+     * @return                              true if the candidate haplotype was successfully incorporated into the haplotype list
+     */
+    @Requires({"ref != null", "ref.length >= activeRegionStop - activeRegionStart"})
+    private boolean addHaplotypeForGGA( final Haplotype haplotype, final byte[] ref, final List<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop, final boolean FORCE_INCLUSION_FOR_GGA_MODE ) {
         if( haplotype == null ) { return false; }
 
         final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( ref, haplotype.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
@@ -411,33 +545,21 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
 
         haplotype.setCigar( AlignmentUtils.leftAlignIndel(swConsensus.getCigar(), ref, haplotype.getBases(), swConsensus.getAlignmentStart2wrt1(), 0, true) );
 
-        final int hapStart = ReadUtils.getReadCoordinateForReferenceCoordinate( haplotype.getAlignmentStartHapwrtRef(), haplotype.getCigar(), activeRegionStart, ReadUtils.ClippingTail.LEFT_TAIL, true );
+        final int hapStart = ReadUtils.getReadCoordinateForReferenceCoordinate(haplotype.getAlignmentStartHapwrtRef(), haplotype.getCigar(), activeRegionStart, ReadUtils.ClippingTail.LEFT_TAIL, true);
         int hapStop = ReadUtils.getReadCoordinateForReferenceCoordinate( haplotype.getAlignmentStartHapwrtRef(), haplotype.getCigar(), activeRegionStop, ReadUtils.ClippingTail.RIGHT_TAIL, true );
         if( hapStop == ReadUtils.CLIPPING_GOAL_NOT_REACHED && activeRegionStop == haplotype.getAlignmentStartHapwrtRef() + haplotype.getCigar().getReferenceLength() ) {
             hapStop = activeRegionStop; // contract for getReadCoordinateForReferenceCoordinate function says that if read ends at boundary then it is outside of the clipping goal
         }
         byte[] newHaplotypeBases;
         // extend partial haplotypes to contain the full active region sequence
-        int leftBreakPoint = 0;
-        int rightBreakPoint = 0;
         if( hapStart == ReadUtils.CLIPPING_GOAL_NOT_REACHED && hapStop == ReadUtils.CLIPPING_GOAL_NOT_REACHED ) {
             newHaplotypeBases = ArrayUtils.addAll( ArrayUtils.addAll( ArrayUtils.subarray(ref, activeRegionStart, swConsensus.getAlignmentStart2wrt1()),
-                                                   haplotype.getBases()),
-                                                   ArrayUtils.subarray(ref, swConsensus.getAlignmentStart2wrt1() + swConsensus.getCigar().getReferenceLength(), activeRegionStop) );
-            leftBreakPoint = swConsensus.getAlignmentStart2wrt1() - activeRegionStart;
-            rightBreakPoint = leftBreakPoint + haplotype.getBases().length;
-            //newHaplotypeBases = haplotype.getBases();
-            //return false; // piece of haplotype isn't anchored within the active region so don't build a haplotype out of it
+                    haplotype.getBases()),
+                    ArrayUtils.subarray(ref, swConsensus.getAlignmentStart2wrt1() + swConsensus.getCigar().getReferenceLength(), activeRegionStop) );
         } else if( hapStart == ReadUtils.CLIPPING_GOAL_NOT_REACHED ) {
-            //return false;
             newHaplotypeBases = ArrayUtils.addAll( ArrayUtils.subarray(ref, activeRegionStart, swConsensus.getAlignmentStart2wrt1()), ArrayUtils.subarray(haplotype.getBases(), 0, hapStop) );
-            //newHaplotypeBases = ArrayUtils.subarray(haplotype.getBases(), 0, hapStop);
-            leftBreakPoint = swConsensus.getAlignmentStart2wrt1() - activeRegionStart;
         } else if( hapStop == ReadUtils.CLIPPING_GOAL_NOT_REACHED ) {
-            //return false;
             newHaplotypeBases = ArrayUtils.addAll( ArrayUtils.subarray(haplotype.getBases(), hapStart, haplotype.getBases().length), ArrayUtils.subarray(ref, swConsensus.getAlignmentStart2wrt1() + swConsensus.getCigar().getReferenceLength(), activeRegionStop) );
-            //newHaplotypeBases = ArrayUtils.subarray(haplotype.getBases(), hapStart, haplotype.getBases().length);
-            rightBreakPoint = haplotype.getBases().length - hapStart;
         } else {
             newHaplotypeBases = ArrayUtils.subarray(haplotype.getBases(), hapStart, hapStop);
         }
@@ -449,8 +571,6 @@ public class SimpleDeBruijnAssembler extends LocalAssemblyEngine {
         if ( haplotype.isArtificialHaplotype() ) {
             h.setArtificialEvent(haplotype.getArtificialEvent());
         }
-        h.leftBreakPoint = leftBreakPoint;
-        h.rightBreakPoint = rightBreakPoint;
         if( swConsensus2.getCigar().toString().contains("S") || swConsensus2.getCigar().getReferenceLength() != activeRegionStop - activeRegionStart || swConsensus2.getAlignmentStart2wrt1() < 0 ) { // protect against unhelpful haplotype alignments
             return false;
         }
