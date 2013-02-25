@@ -82,11 +82,12 @@ public class PairHMMUnitTest extends BaseTest {
     //
     // --------------------------------------------------------------------------------
 
-    private class BasicLikelihoodTestProvider extends TestDataProvider {
+    private class BasicLikelihoodTestProvider {
         final String ref, read;
         final byte[] refBasesWithContext, readBasesWithContext;
         final int baseQual, insQual, delQual, gcp;
         final int expectedQual;
+        final boolean left, right;
         final static String CONTEXT = "ACGTAATGACGATTGCA";
         final static String LEFT_FLANK = "GATTTATCATCGAGTCTGC";
         final static String RIGHT_FLANK = "CATGGATCGTTATCAGCTATCTCGAGGGATTCACTTAACAGTTTTA";
@@ -96,7 +97,6 @@ public class PairHMMUnitTest extends BaseTest {
         }
 
         public BasicLikelihoodTestProvider(final String ref, final String read, final int baseQual, final int insQual, final int delQual, final int expectedQual, final int gcp, final boolean left, final boolean right) {
-            super(BasicLikelihoodTestProvider.class, String.format("ref=%s read=%s b/i/d/c quals = %d/%d/%d/%d l/r flank = %b/%b e[qual]=%d", ref, read, baseQual, insQual, delQual, gcp, left, right, expectedQual));
             this.baseQual = baseQual;
             this.delQual = delQual;
             this.insQual = insQual;
@@ -104,9 +104,16 @@ public class PairHMMUnitTest extends BaseTest {
             this.read = read;
             this.ref = ref;
             this.expectedQual = expectedQual;
+            this.left = left;
+            this.right = right;
 
             refBasesWithContext = asBytes(ref, left, right);
             readBasesWithContext = asBytes(read, false, false);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ref=%s read=%s b/i/d/c quals = %d/%d/%d/%d l/r flank = %b/%b e[qual]=%d", ref, read, baseQual, insQual, delQual, gcp, left, right, expectedQual);
         }
 
         public double expectedLogL(final PairHMM hmm) {
@@ -178,6 +185,8 @@ public class PairHMMUnitTest extends BaseTest {
         final List<Integer> gcps = EXTENSIVE_TESTING ? Arrays.asList(8, 10, 20) : Arrays.asList(10);
         final List<Integer> sizes = EXTENSIVE_TESTING ? Arrays.asList(2,3,4,5,7,8,9,10,20,30,35) : Arrays.asList(2);
 
+        final List<Object[]> tests = new ArrayList<Object[]>();
+
         for ( final int baseQual : baseQuals ) {
             for ( final int indelQual : indelQuals ) {
                 for ( final int gcp : gcps ) {
@@ -188,7 +197,7 @@ public class PairHMMUnitTest extends BaseTest {
                             final String ref  = new String(new byte[]{refBase});
                             final String read = new String(new byte[]{readBase});
                             final int expected = refBase == readBase ? 0 : baseQual;
-                            new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp);
+                            tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp)});
                         }
                     }
 
@@ -204,10 +213,10 @@ public class PairHMMUnitTest extends BaseTest {
                                 final String ref = insertionP ? small : big;
                                 final String read = insertionP ? big : small;
 
-                                new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp);
-                                new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, true, false);
-                                new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, false, true);
-                                new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, true, true);
+                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp)});
+                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, true, false)});
+                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, false, true)});
+                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, true, true)});
                             }
                         }
                     }
@@ -215,7 +224,7 @@ public class PairHMMUnitTest extends BaseTest {
             }
         }
 
-        return BasicLikelihoodTestProvider.getTests(BasicLikelihoodTestProvider.class);
+        return tests.toArray(new Object[][]{});
     }
 
     @DataProvider(name = "OptimizedLikelihoodTestProvider")
@@ -226,6 +235,8 @@ public class PairHMMUnitTest extends BaseTest {
         final List<Integer> indelQuals = EXTENSIVE_TESTING ? Arrays.asList(20, 40, 60) : Arrays.asList(40);
         final List<Integer> gcps = EXTENSIVE_TESTING ? Arrays.asList(10, 20, 30) : Arrays.asList(10);
         final List<Integer> sizes = EXTENSIVE_TESTING ? Arrays.asList(3, 20, 50, 90, 160) : Arrays.asList(2);
+
+        final List<Object[]> tests = new ArrayList<Object[]>();
 
         for ( final int baseQual : baseQuals ) {
             for ( final int indelQual : indelQuals ) {
@@ -243,14 +254,14 @@ public class PairHMMUnitTest extends BaseTest {
 
                             for ( final boolean leftFlank : Arrays.asList(true, false) )
                                 for ( final boolean rightFlank : Arrays.asList(true, false) )
-                                    new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, -0, gcp, leftFlank, rightFlank);
+                                    tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, -0, gcp, leftFlank, rightFlank)});
                         }
                     }
                 }
             }
         }
 
-        return BasicLikelihoodTestProvider.getTests(BasicLikelihoodTestProvider.class);
+        return tests.toArray(new Object[][]{});
     }
 
     @Test(enabled = !DEBUG, dataProvider = "BasicLikelihoodTestProvider")
@@ -262,7 +273,7 @@ public class PairHMMUnitTest extends BaseTest {
                 double expectedLogL = cfg.expectedLogL(hmm);
 
                 // compare to our theoretical expectation with appropriate tolerance
-                Assert.assertEquals(actualLogL, expectedLogL, cfg.toleranceFromTheoretical(), "Failed with hmm " + hmm + (hmm instanceof Log10PairHMM ? " (" + ((Log10PairHMM)hmm).isDoingExactLog10Calculations() + ")" : ""));
+                Assert.assertEquals(actualLogL, expectedLogL, cfg.toleranceFromTheoretical(), "Failed with hmm " + hmm);
                 // compare to the exact reference implementation with appropriate tolerance
                 Assert.assertEquals(actualLogL, exactLogL, cfg.getTolerance(hmm), "Failed with hmm " + hmm);
                 Assert.assertTrue(MathUtils.goodLog10Probability(actualLogL), "Bad log10 likelihood " + actualLogL);
