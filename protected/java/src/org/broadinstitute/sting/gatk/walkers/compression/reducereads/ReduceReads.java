@@ -626,21 +626,27 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * Compresses the read name using the readNameHash if we have already compressed
      * this read name before.
      *
-     * @param read any read
+     * @param hash           the hash table containing the read name to compressed read name map
+     * @param read           any read
+     * @param nextReadNumber the number to use in the compressed read name in case this is a new read name
+     * @return the next number to use in the compressed read name
      */
-    protected static long compressReadName(Object2LongOpenHashMap<String> hash, GATKSAMRecord read, long nextReadNumber) {
+    protected static long compressReadName(final Object2LongOpenHashMap<String> hash, final GATKSAMRecord read, final long nextReadNumber) {
         final String name = read.getReadName();
+        final StringBuilder compressedName = new StringBuilder();
         long result = nextReadNumber;
-        String compressedName = read.isReducedRead() ? "C" : "";
+        if (read.isReducedRead()) {
+            compressedName.append("C");
+        }
         final Long readNumber = hash.get(name);
         if (readNumber != null) {
-            compressedName += readNumber.toString();
+            compressedName.append(readNumber);
         } else {
             hash.put(name, nextReadNumber);
-            compressedName += "" + nextReadNumber;
+            compressedName.append(nextReadNumber);
             result++;
         }
-        read.setReadName(compressedName);
+        read.setReadName(compressedName.toString());
         return result;
     }
 
