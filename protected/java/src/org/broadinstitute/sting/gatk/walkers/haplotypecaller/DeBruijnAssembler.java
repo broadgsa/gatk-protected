@@ -75,9 +75,8 @@ import java.util.*;
 public class DeBruijnAssembler extends LocalAssemblyEngine {
 
     private static final int KMER_OVERLAP = 5; // the additional size of a valid chunk of sequence, used to string together k-mers
-    private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 12;
+    private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 11;
     private static final byte MIN_QUALITY = (byte) 16;
-    private static final int MAX_POSSIBLE_KMER = 75;
     private static final int GRAPH_KMER_STEP = 6;
 
     // Smith-Waterman parameters originally copied from IndelRealigner, only used during GGA mode
@@ -136,7 +135,9 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     protected void createDeBruijnGraphs( final List<GATKSAMRecord> reads, final Haplotype refHaplotype ) {
         graphs.clear();
 
-        final int maxKmer = Math.min(MAX_POSSIBLE_KMER, refHaplotype.getBases().length - KMER_OVERLAP);
+        final int maxKmer = ReadUtils.getMaxReadLength(reads) - KMER_OVERLAP - 1;
+        if( maxKmer < MIN_KMER ) { throw new IllegalStateException("Reads are too small for use in assembly."); }
+
         // create the graph for each possible kmer
         for( int kmer = maxKmer; kmer >= MIN_KMER; kmer -= GRAPH_KMER_STEP ) {
             final DeBruijnAssemblyGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, DEBUG );
