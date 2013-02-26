@@ -46,12 +46,14 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
+import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.recalibration.EventType;
@@ -100,8 +102,6 @@ public class SlidingWindow {
     protected ReduceReads.DownsampleStrategy downsampleStrategy;
     private boolean hasIndelQualities;
 
-    private final int nContigs;
-
     private boolean allowPolyploidReductionInGeneral;
 
     private static CompressionStash emptyRegions = new CompressionStash();
@@ -135,8 +135,19 @@ public class SlidingWindow {
         return header.isEmpty() ? -1 : header.peek().getLocation();
     }
 
+    // for testing only
+    protected SlidingWindow(final String contig, final int contigIndex, final int startLocation) {
+        this.contig = contig;
+        this.contigIndex = contigIndex;
 
-    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, int nContigs, boolean allowPolyploidReduction) {
+        contextSize = 10;
+
+        this.windowHeader = new LinkedList<HeaderElement>();
+        windowHeader.addFirst(new HeaderElement(startLocation));
+        this.readsInWindow = new TreeSet<GATKSAMRecord>();
+    }
+
+    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, boolean allowPolyploidReduction) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
 
@@ -170,7 +181,6 @@ public class SlidingWindow {
         
         this.downsampleStrategy = downsampleStrategy;
         this.hasIndelQualities = hasIndelQualities;
-        this.nContigs = nContigs;
 
         this.allowPolyploidReductionInGeneral = allowPolyploidReduction;
     }
@@ -184,8 +194,10 @@ public class SlidingWindow {
      * sliding process.
      *
      * @param read the read
-     * @return a list of reads that have been finished by sliding the window.
+     * @return a non-null list of reads (in the CompressionStash) that have been finished by sliding the window.
      */
+    @Requires({"read != null"})
+    @Ensures("result != null")
     public CompressionStash addRead(GATKSAMRecord read) {
         addToHeader(windowHeader, read);                                                                                // update the window header counts
         readsInWindow.add(read);                                                                                        // add read to sliding reads
@@ -193,14 +205,17 @@ public class SlidingWindow {
     }
 
     /**
-     * returns the next complete or incomplete variant region between 'from' (inclusive) and 'to' (exclusive)
+     * Returns the next complete (or incomplete if closeLastRegion is true) variant region between 'from' (inclusive) and 'to' (exclusive)
+     * but converted to global coordinates.
      *
-     * @param from         beginning window header index of the search window (inclusive)
-     * @param to           end window header index of the search window (exclusive)
+     * @param from         beginning window header index of the search window (inclusive) in local (to the windowHeader) coordinates
+     * @param to           end window header index of the search window (exclusive) in local (to the windowHeader) coordinates
      * @param variantSite  boolean array with true marking variant regions
-     * @return null if nothing is variant, start/stop if there is a complete variant region, start/-1 if there is an incomplete variant region.
+     * @param closeLastRegion  if the last index is variant (so it's an incomplete region), should we close (and return as an interval) the location or ignore it?
+     * @return null if nothing is variant, start/stop if there is a complete variant region, start/-1 if there is an incomplete variant region.  All coordinates returned are global.
      */
-    private SimpleGenomeLoc findNextVariantRegion(int from, int to, boolean[] variantSite, boolean forceClose) {
+    @Requires({"from >= 0", "from <= to", "to <= variantSite.length"})
+    private FinishedGenomeLoc findNextVariantRegion(int from, int to, boolean[] variantSite, boolean closeLastRegion) {
         boolean foundStart = false;
         final int windowHeaderStart = getStartLocation(windowHeader);
         int variantRegionStartIndex = 0;
@@ -210,27 +225,32 @@ public class SlidingWindow {
                 foundStart = true;
             }
             else if(!variantSite[i] && foundStart) {
-                return(new SimpleGenomeLoc(contig, contigIndex, windowHeaderStart + variantRegionStartIndex, windowHeaderStart + i - 1, true));
+                return(new FinishedGenomeLoc(contig, contigIndex, windowHeaderStart + variantRegionStartIndex, windowHeaderStart + i - 1, true));
             }
         }
         final int refStart = windowHeaderStart + variantRegionStartIndex;
         final int refStop  = windowHeaderStart + to - 1;
-        return (foundStart && forceClose) ? new SimpleGenomeLoc(contig, contigIndex, refStart, refStop, true) : null;
+        return (foundStart && closeLastRegion) ? new FinishedGenomeLoc(contig, contigIndex, refStart, refStop, true) : null;
     }
 
     /**
      * Creates a list with all the complete and incomplete variant regions within 'from' (inclusive) and 'to' (exclusive)
      *
-     * @param from         beginning window header index of the search window (inclusive)
-     * @param to           end window header index of the search window (exclusive)
+     * @param from         beginning window header index of the search window (inclusive) in local (to the windowHeader) coordinates
+     * @param to           end window header index of the search window (exclusive) in local (to the windowHeader) coordinates
      * @param variantSite  boolean array with true marking variant regions
-     * @return a list with start/stops of variant regions following findNextVariantRegion description
+     * @return a list with start/stops of variant regions following findNextVariantRegion description in global coordinates
      */
-    private CompressionStash findVariantRegions(int from, int to, boolean[] variantSite, boolean forceClose) {
+    @Requires({"from >= 0", "from <= to", "to <= variantSite.length"})
+    @Ensures("result != null")
+    protected CompressionStash findVariantRegions(int from, int to, boolean[] variantSite, boolean closeLastRegion) {
+        final int windowHeaderStart = getStartLocation(windowHeader);
+
         CompressionStash regions = new CompressionStash();
         int index = from;
         while(index < to) {
-            SimpleGenomeLoc result = findNextVariantRegion(index, to, variantSite, forceClose);
+            // returns results in global coordinates
+            FinishedGenomeLoc result = findNextVariantRegion(index, to, variantSite, closeLastRegion);
             if (result == null)
                 break;
 
@@ -238,7 +258,7 @@ public class SlidingWindow {
             if (!result.isFinished())
                 break;
 
-            index = result.getStop() + 1;
+            index = result.getStop() - windowHeaderStart + 1; // go back to local coordinates
         }
         return regions;
     }
@@ -274,7 +294,7 @@ public class SlidingWindow {
     }
 
 
-    private final class MarkedSites {
+    protected final class MarkedSites {
 
         private boolean[] siteIsVariant = new boolean[0];
         private int startLocation = 0;
@@ -282,6 +302,8 @@ public class SlidingWindow {
         public MarkedSites() {}
 
         public boolean[] getVariantSiteBitSet() { return siteIsVariant; }
+
+        protected int getStartLocation() { return startLocation; }
 
         /**
          * Updates the variant site bitset given the new startlocation and size of the region to mark.
@@ -371,10 +393,14 @@ public class SlidingWindow {
      * 
      * If adding a sequence with gaps, it will finalize multiple consensus reads and keep the last running consensus
      *
-     * @param start the first header index to add to consensus
-     * @param end   the first header index NOT TO add to consensus
-     * @return a list of consensus reads generated by this call. Empty list if no consensus was generated.
+     * @param header  the window header
+     * @param start   the first header index to add to consensus
+     * @param end     the first header index NOT TO add to consensus
+     * @param isNegativeStrand  should the synthetic read be represented as being on the negative strand?
+     * @return a non-null list of consensus reads generated by this call. Empty list if no consensus was generated.
      */
+    @Requires({"start >= 0 && (end >= start || end == 0)"})
+    @Ensures("result != null")
     protected List<GATKSAMRecord> addToSyntheticReads(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
         LinkedList<GATKSAMRecord> reads = new LinkedList<GATKSAMRecord>();
         if (start < end) {
@@ -426,7 +452,7 @@ public class SlidingWindow {
      * Finalizes one or more synthetic reads.
      *
      * @param type the synthetic reads you want to close
-     * @return the GATKSAMRecords generated by finalizing the synthetic reads
+     * @return a possibly null list of GATKSAMRecords generated by finalizing the synthetic reads
      */
     private List<GATKSAMRecord> finalizeAndAdd(ConsensusType type) {
         GATKSAMRecord read = null;
@@ -455,7 +481,7 @@ public class SlidingWindow {
      *
      * @param start beginning of the filtered region
      * @param upTo  limit to search for another consensus element
-     * @return next position with consensus data or empty
+     * @return next position in local coordinates (relative to the windowHeader) with consensus data; otherwise, the start position
      */
     private int findNextNonConsensusElement(LinkedList<HeaderElement> header, int start, int upTo) {
         Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
@@ -477,7 +503,7 @@ public class SlidingWindow {
      *
      * @param start beginning of the region
      * @param upTo  limit to search for
-     * @return next position with no filtered data
+     * @return next position in local coordinates (relative to the windowHeader) with no filtered data; otherwise, the start position
      */
     private int findNextNonFilteredDataElement(LinkedList<HeaderElement> header, int start, int upTo) {
         Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
@@ -499,7 +525,7 @@ public class SlidingWindow {
      *
      * @param start beginning of the region
      * @param upTo  limit to search for
-     * @return next position with non-empty element
+     * @return next position in local coordinates (relative to the windowHeader) with non-empty element; otherwise, the start position
      */
     private int findNextNonEmptyElement(LinkedList<HeaderElement> header, int start, int upTo) {
         ListIterator<HeaderElement> headerElementIterator = header.listIterator(start);
@@ -520,12 +546,16 @@ public class SlidingWindow {
     /**
      * Adds bases to the filtered data synthetic read.
      * 
-     * Different from the addToConsensus method, this method assumes a contiguous sequence of filteredData
-     * bases.
+     * Different from the addToConsensus method, this method assumes a contiguous sequence of filteredData bases.
      *
-     * @param start the first header index to add to consensus
-     * @param end   the first header index NOT TO add to consensus
+     * @param header  the window header
+     * @param start   the first header index to add to consensus
+     * @param end     the first header index NOT TO add to consensus
+     * @param isNegativeStrand  should the synthetic read be represented as being on the negative strand?
+     * @return a non-null list of GATKSAMRecords representing finalized filtered consensus data. Empty list if no consensus was generated.
      */
+    @Requires({"start >= 0 && (end >= start || end == 0)"})
+    @Ensures("result != null")
     private List<GATKSAMRecord> addToFilteredData(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
         List<GATKSAMRecord> result = new ArrayList<GATKSAMRecord>(0);
 
@@ -561,9 +591,12 @@ public class SlidingWindow {
      * Different from the addToConsensus method, this method assumes a contiguous sequence of filteredData
      * bases.
      *
+     * @param header  the window header
      * @param start the first header index to add to consensus
      * @param end   the first header index NOT TO add to consensus
+     * @param isNegativeStrand  should the synthetic read be represented as being on the negative strand?
      */
+    @Requires({"start >= 0 && (end >= start || end == 0)"})
     private void addToRunningConsensus(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
         if (runningConsensus == null)
             runningConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, consensusReadName + consensusCounter++, header.get(start).getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
@@ -597,32 +630,42 @@ public class SlidingWindow {
         syntheticRead.add(base, count, qual, insQual, delQual, rms);
     }
 
-    private List<GATKSAMRecord> compressVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
+    /**
+     * Method to compress a variant region and return the associated reduced reads
+     *
+     * @param start   the first window header index in the variant region (inclusive)
+     * @param stop    the last window header index of the variant region (inclusive)
+     * @param disallowPolyploidReductionAtThisPosition       should we disallow polyploid (het) compression here?
+     * @return a non-null list of all reads contained in the variant region
+     */
+    @Requires({"start >= 0 && (stop >= start || stop == 0)"})
+    @Ensures("result != null")
+    protected List<GATKSAMRecord> compressVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
         List<GATKSAMRecord> allReads = new LinkedList<GATKSAMRecord>();
 
         // Try to compress into a polyploid consensus
-        int nHaplotypes = 0;
+        int nVariantPositions = 0;
         int hetRefPosition = -1;
         boolean canCompress = true;
-        boolean foundEvent = false;
         Object[] header = windowHeader.toArray();
 
         // foundEvent will remain false if we don't allow polyploid reduction
         if ( allowPolyploidReductionInGeneral && !disallowPolyploidReductionAtThisPosition ) {
             for (int i = start; i<=stop; i++) {
-                nHaplotypes = ((HeaderElement) header[i]).getNumberOfHaplotypes(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
-                if (nHaplotypes > nContigs) {
+
+                int nAlleles = ((HeaderElement) header[i]).getNumberOfAlleles(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
+
+                // we will only work on diploid cases because we just don't want to handle/test other scenarios
+                if ( nAlleles > 2 ) {
                     canCompress = false;
                     break;
-                }
+                } else if ( nAlleles == 2 ) {
+                    nVariantPositions++;
 
-                // guarantees that there is only 1 site in the variant region that needs more than one haplotype
-                if (nHaplotypes > 1) {
-                    if (!foundEvent) {
-                        foundEvent = true;
+                    // make sure that there is only 1 site in the variant region that contains more than one allele
+                    if ( nVariantPositions == 1 ) {
                         hetRefPosition = i;
-                    }
-                    else {
+                    } else if ( nVariantPositions > 1 ) {
                         canCompress = false;
                         break;
                     }
@@ -630,10 +673,10 @@ public class SlidingWindow {
             }
         }
 
-        // Try to compress the variant region
-        // the "foundEvent" protects us from trying to compress variant regions that are created by insertions
-        if (canCompress && foundEvent) {
-            allReads = createPolyploidConsensus(start, stop, nHaplotypes, ((HeaderElement) header[hetRefPosition]).getLocation());
+        // Try to compress the variant region; note that using the hetRefPosition protects us from trying to compress
+        // variant regions that are created by insertions (since we can't confirm here that they represent the same allele)
+        if ( canCompress && hetRefPosition != -1 ) {
+            allReads = createPolyploidConsensus(start, stop, ((HeaderElement) header[hetRefPosition]).getLocation());
         }
 
         // Return all reads that overlap the variant region and remove them from the window header entirely
@@ -660,11 +703,13 @@ public class SlidingWindow {
     /**
      * Finalizes a variant region, any adjacent synthetic reads.
      *
-     * @param start the first window header index in the variant region (inclusive)
-     * @param stop  the last window header index of the variant region (inclusive)
-     * @return all reads contained in the variant region plus any adjacent synthetic reads
+     * @param start   the first window header index in the variant region (inclusive)
+     * @param stop    the last window header index of the variant region (inclusive)
+     * @param disallowPolyploidReductionAtThisPosition       should we disallow polyploid (het) compression here?
+     * @return a non-null list of all reads contained in the variant region plus any adjacent synthetic reads
      */
-    @Requires("start <= stop")
+    @Requires({"start >= 0 && (stop >= start || stop == 0)"})
+    @Ensures("result != null")
     protected List<GATKSAMRecord> closeVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
         List<GATKSAMRecord> allReads = compressVariantRegion(start, stop, disallowPolyploidReductionAtThisPosition);
 
@@ -681,8 +726,8 @@ public class SlidingWindow {
             int lastStop = -1;
             int windowHeaderStart = getStartLocation(windowHeader);
 
-            for (SimpleGenomeLoc region : regions) {
-                if (region.isFinished() && region.getContig() == contig && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
+            for (GenomeLoc region : regions) {
+                if (((FinishedGenomeLoc)region).isFinished() && region.getContig() == contig && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
                     int start = region.getStart() - windowHeaderStart;
                     int stop = region.getStop() - windowHeaderStart;
 
@@ -709,9 +754,11 @@ public class SlidingWindow {
      *
      * It will use the downsampling strategy defined by the SlidingWindow
      *
-     * @param allReads the reads to select from (all reads that cover the window)
-     * @return a list of reads selected by the downsampler to cover the window to at least the desired coverage
+     * @param allReads  a non-null list of reads to select from (all reads that cover the window)
+     * @return a non-null list of reads selected by the downsampler to cover the window to at least the desired coverage
      */
+    @Requires({"allReads != null"})
+    @Ensures("result != null")
     protected List<GATKSAMRecord> downsampleVariantRegion(final List<GATKSAMRecord> allReads) {
         int nReads = allReads.size();
         if (nReads == 0)
@@ -731,8 +778,9 @@ public class SlidingWindow {
      * regions that still exist regardless of being able to fulfill the
      * context size requirement in the end.
      *
-     * @return All reads generated
+     * @return A non-null set/list of all reads generated
      */
+    @Ensures("result != null")
     public Pair<Set<GATKSAMRecord>, CompressionStash> close() {
         // mark variant regions
         Set<GATKSAMRecord> finalizedReads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
@@ -756,7 +804,7 @@ public class SlidingWindow {
     /**
      * generates the SAM record for the running consensus read and resets it (to null)
      *
-     * @return the read contained in the running consensus
+     * @return the read contained in the running consensus or null
      */
     protected GATKSAMRecord finalizeRunningConsensus() {
         GATKSAMRecord finalizedRead = null;
@@ -774,7 +822,7 @@ public class SlidingWindow {
     /**
      * generates the SAM record for the filtered data consensus and resets it (to null)
      *
-     * @return the read contained in the running consensus
+     * @return the read contained in the running consensus or null
      */
     protected GATKSAMRecord finalizeFilteredDataConsensus() {
         GATKSAMRecord finalizedRead = null;
@@ -789,14 +837,22 @@ public class SlidingWindow {
         return finalizedRead;
     }
 
-
-
-    private List<GATKSAMRecord> createPolyploidConsensus(int start, int stop, int nHaplotypes, int hetRefPosition) {
+    /**
+     * Finalizes a variant region, any adjacent synthetic reads.
+     *
+     * @param start   the first window header index in the variant region (inclusive)
+     * @param stop    the last window header index of the variant region (inclusive)
+     * @param hetRefPosition    reference position (in global coordinates) of the het site
+     * @return a non-null list of all reads contained in the variant region as a polyploid consensus
+     */
+    @Requires({"start >= 0 && (stop >= start || stop == 0)"})
+    @Ensures("result != null")
+    private List<GATKSAMRecord> createPolyploidConsensus(final int start, final int stop, final int hetRefPosition) {
         // we will create two (positive strand, negative strand) headers for each contig
         List<LinkedList<HeaderElement>> headersPosStrand = new ArrayList<LinkedList<HeaderElement>>();
         List<LinkedList<HeaderElement>> headersNegStrand = new ArrayList<LinkedList<HeaderElement>>();
         List<GATKSAMRecord> hetReads = new LinkedList<GATKSAMRecord>();
-        Map<Byte, Integer> haplotypeHeaderMap = new HashMap<Byte, Integer>(nHaplotypes);
+        Map<Byte, Integer> haplotypeHeaderMap = new HashMap<Byte, Integer>(2);
         int currentHaplotype = 0;
         int refStart = windowHeader.get(start).getLocation();
         int refStop = windowHeader.get(stop).getLocation();
@@ -811,6 +867,7 @@ public class SlidingWindow {
                     // check if the read contains the het site
                     if (read.getSoftStart() <= hetRefPosition && read.getSoftEnd() >= hetRefPosition) {
                         int readPos = ReadUtils.getReadCoordinateForReferenceCoordinate(read, hetRefPosition, ReadUtils.ClippingTail.LEFT_TAIL);
+                        // TODO -- THIS IS A HUGE BUG AS IT WILL NOT WORK FOR DELETIONS; see commented out unit test
                         byte base = read.getReadBases()[readPos];
                         byte qual = read.getBaseQualities(EventType.BASE_SUBSTITUTION)[readPos];
 
@@ -878,7 +935,7 @@ public class SlidingWindow {
      * @param read the incoming read to be added to the sliding window
      * @param removeRead if we are removing the read from the header or adding
      */
-    private void updateHeaderCounts(LinkedList<HeaderElement> header, GATKSAMRecord read, boolean removeRead) {
+    private void updateHeaderCounts(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final boolean removeRead) {
         byte[] bases = read.getReadBases();
         byte[] quals = read.getBaseQualities();
         byte[] insQuals = read.getExistingBaseInsertionQualities();
