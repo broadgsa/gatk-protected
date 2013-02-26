@@ -46,10 +46,12 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
+import it.unimi.dsi.fastutil.objects.ObjectSortedSet;
 import org.broadinstitute.sting.utils.*;
 
 import java.util.Collection;
-import java.util.TreeSet;
+
 
 /**
  * A stash of regions that must be kept uncompressed in all samples
@@ -61,7 +63,7 @@ import java.util.TreeSet;
  * Date: 10/15/12
  * Time: 4:08 PM
  */
-public class CompressionStash extends TreeSet<FinishedGenomeLoc> {
+public class CompressionStash extends ObjectAVLTreeSet<FinishedGenomeLoc> {
     public CompressionStash() {
         super();
     }
@@ -75,7 +77,7 @@ public class CompressionStash extends TreeSet<FinishedGenomeLoc> {
      */
     @Override
     public boolean add(final FinishedGenomeLoc insertLoc) {
-        TreeSet<FinishedGenomeLoc> removedLocs = new TreeSet<FinishedGenomeLoc>();
+        ObjectSortedSet<FinishedGenomeLoc> removedLocs = new ObjectAVLTreeSet<FinishedGenomeLoc>();
         for (FinishedGenomeLoc existingLoc : this) {
             if (existingLoc.isPast(insertLoc)) {
                 break;                                          // if we're past the loc we're done looking for overlaps.

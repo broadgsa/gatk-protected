@@ -47,6 +47,8 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 import com.google.java.contract.Requires;
+import it.unimi.dsi.fastutil.bytes.ByteArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
@@ -57,10 +59,8 @@ import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+
 
 /**
  * Running Consensus is a read that is compressed as a sliding window travels over the reads
@@ -123,7 +123,7 @@ public class SyntheticRead {
     }
     
     
-    private final List<SingleBaseInfo> basesCountsQuals;
+    private final ObjectArrayList<SingleBaseInfo> basesCountsQuals;
     private double mappingQuality;                                                                                      // the average of the rms of the mapping qualities of all the reads that contributed to this consensus
     private String readTag;
 
@@ -151,7 +151,7 @@ public class SyntheticRead {
      */
     public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, String readTag, boolean hasIndelQualities, boolean isNegativeRead) {
         final int initialCapacity = 10000;
-        basesCountsQuals = new ArrayList<SingleBaseInfo>(initialCapacity);
+        basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(initialCapacity);
         mappingQuality = 0.0;
 
         this.readTag = readTag;
@@ -165,8 +165,8 @@ public class SyntheticRead {
         this.isNegativeStrand = isNegativeRead;
     }
 
-    public SyntheticRead(List<BaseIndex> bases, List<Byte> counts, List<Byte> quals, List<Byte> insertionQuals, List<Byte> deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
-        basesCountsQuals = new ArrayList<SingleBaseInfo>(bases.size());
+    public SyntheticRead(ObjectArrayList<BaseIndex> bases, ByteArrayList counts, ByteArrayList quals, ByteArrayList insertionQuals, ByteArrayList deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
+        basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(bases.size());
         for (int i = 0; i < bases.size(); ++i) {
             basesCountsQuals.add(new SingleBaseInfo(bases.get(i).getOrdinalByte(), counts.get(i), quals.get(i), insertionQuals.get(i), deletionQuals.get(i)));
         }
@@ -316,7 +316,7 @@ public class SyntheticRead {
      * @return the cigar string for the synthetic read
      */
     private Cigar buildCigar() {
-        LinkedList<CigarElement> cigarElements = new LinkedList<CigarElement>();
+        ObjectArrayList<CigarElement> cigarElements = new ObjectArrayList<CigarElement>();
         CigarOperator cigarOperator = null;
         int length = 0;
         for (final SingleBaseInfo singleBaseInfo : basesCountsQuals) {
