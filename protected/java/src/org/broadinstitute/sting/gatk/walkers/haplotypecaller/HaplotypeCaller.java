@@ -133,7 +133,7 @@ import java.util.*;
 @PartitionBy(PartitionType.LOCUS)
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
 @ActiveRegionTraversalParameters(extension=85, maxRegion=300)
-@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=30)
+@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=250)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
 
     /**
