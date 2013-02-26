@@ -78,8 +78,8 @@ public class LoglessCachingPairHMM extends PairHMM {
      * {@inheritDoc}
      */
     @Override
-    public void initialize( final int readMaxLength, final int haplotypeMaxLength) {
-        super.initialize(readMaxLength, haplotypeMaxLength);
+    public void initialize( final int haplotypeMaxLength, final int readMaxLength) {
+        super.initialize(haplotypeMaxLength, readMaxLength);
 
         constantMatrix = new double[X_METRIC_MAX_LENGTH][6];
         distanceMatrix = new double[X_METRIC_MAX_LENGTH][Y_METRIC_MAX_LENGTH];

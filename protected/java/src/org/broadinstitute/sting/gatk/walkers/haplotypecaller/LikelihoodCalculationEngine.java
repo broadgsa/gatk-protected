@@ -109,7 +109,7 @@ public class LikelihoodCalculationEngine {
         Y_METRIC_LENGTH += 2;
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+        pairHMM.initialize(Y_METRIC_LENGTH, X_METRIC_LENGTH);
 
         // for each sample's reads
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
