@@ -46,6 +46,8 @@
 
 package org.broadinstitute.sting.utils.recalibration;
 
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
 import net.sf.samtools.SAMFileHeader;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.report.GATKReport;
@@ -59,7 +61,6 @@ import org.broadinstitute.sting.utils.R.RScriptExecutor;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.classloader.PluginManager;
 import org.broadinstitute.sting.utils.collections.NestedIntegerArray;
-import org.broadinstitute.sting.utils.collections.NestedHashMap;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.DynamicClassResolutionException;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -423,7 +424,7 @@ public class RecalUtils {
 
     private static void writeCSV(final PrintStream deltaTableFile, final RecalibrationTables recalibrationTables, final String recalibrationMode, final Covariate[] requestedCovariates, final boolean printHeader) {
 
-        final NestedHashMap deltaTable = new NestedHashMap();
+        final NestedIntegerArray<RecalDatum> deltaTable = createDeltaTable(recalibrationTables, requestedCovariates.length);
 
         // add the quality score table to the delta table
         final NestedIntegerArray<RecalDatum> qualTable = recalibrationTables.getQualityScoreTable();
@@ -470,24 +471,57 @@ public class RecalUtils {
             covariateNameMap.put(covariate, parseCovariateName(covariate));
 
         // print each data line
-        for (final NestedHashMap.Leaf leaf : deltaTable.getAllLeaves()) {
+        for (final NestedIntegerArray.Leaf<RecalDatum> leaf : deltaTable.getAllLeaves()) {
             final List<Object> deltaKeys = generateValuesFromKeys(leaf.keys, requestedCovariates, covariateNameMap);
-            final RecalDatum deltaDatum = (RecalDatum)leaf.value;
+            final RecalDatum deltaDatum = leaf.value;
             deltaTableFile.print(Utils.join(",", deltaKeys));
             deltaTableFile.print("," + deltaDatum.stringForCSV());
             deltaTableFile.println("," + recalibrationMode);
         }
     }
 
-    protected static List<Object> generateValuesFromKeys(final List<Object> keys, final Covariate[] covariates, final Map<Covariate, String> covariateNameMap) {
+    /*
+     * Return an initialized nested integer array with appropriate dimensions for use with the delta tables
+     *
+     * @param recalibrationTables     the recal tables
+     * @param numCovariates           the total number of covariates being used
+     * @return a non-null nested integer array
+     */
+    @Requires("recalibrationTables != null && numCovariates > 0")
+    @Ensures("result != null")
+    private static NestedIntegerArray<RecalDatum> createDeltaTable(final RecalibrationTables recalibrationTables, final int numCovariates) {
+
+        final int[] dimensionsForDeltaTable = new int[4];
+
+        // initialize the dimensions with those of the qual table to start with
+        final NestedIntegerArray<RecalDatum> qualTable = recalibrationTables.getQualityScoreTable();
+        final int[] dimensionsOfQualTable = qualTable.getDimensions();
+        dimensionsForDeltaTable[0] = dimensionsOfQualTable[0];    // num read groups
+        dimensionsForDeltaTable[1] = numCovariates + 1;           // num covariates
+        dimensionsForDeltaTable[2] = dimensionsOfQualTable[1];
+        dimensionsForDeltaTable[3] = dimensionsOfQualTable[2];
+
+        // now, update the dimensions based on the optional covariate tables as needed
+        for ( int i = RecalibrationTables.TableType.OPTIONAL_COVARIATE_TABLES_START.ordinal(); i < numCovariates; i++ ) {
+            final NestedIntegerArray<RecalDatum> covTable = recalibrationTables.getTable(i);
+            final int[] dimensionsOfCovTable = covTable.getDimensions();
+            dimensionsForDeltaTable[2] = Math.max(dimensionsForDeltaTable[2], dimensionsOfCovTable[2]);
+            dimensionsForDeltaTable[3] = Math.max(dimensionsForDeltaTable[3], dimensionsOfCovTable[3]);
+        }
+
+        return new NestedIntegerArray<RecalDatum>(dimensionsForDeltaTable);
+    }
+
+    protected static List<Object> generateValuesFromKeys(final int[] keys, final Covariate[] covariates, final Map<Covariate, String> covariateNameMap) {
         final List<Object> values = new ArrayList<Object>(4);
-        values.add(covariates[RecalibrationTables.TableType.READ_GROUP_TABLE.ordinal()].formatKey((Integer)keys.get(0)));
-        final int covariateIndex = (Integer)keys.get(1);
+        values.add(covariates[RecalibrationTables.TableType.READ_GROUP_TABLE.ordinal()].formatKey(keys[0]));
+
+        final int covariateIndex = keys[1];
+        final int covariateKey = keys[2];
         final Covariate covariate = covariateIndex == covariates.length ? covariates[RecalibrationTables.TableType.QUALITY_SCORE_TABLE.ordinal()] : covariates[covariateIndex];
-        final int covariateKey = (Integer)keys.get(2);
         values.add(covariate.formatKey(covariateKey));
         values.add(covariateNameMap.get(covariate));
-        values.add(EventType.eventFrom((Integer)keys.get(3)).prettyPrint());
+        values.add(EventType.eventFrom(keys[3]).prettyPrint());
 
         return values;
     }
@@ -501,20 +535,14 @@ public class RecalUtils {
      * @param deltaKey the key to the table
      * @param recalDatum the recal datum to combine with the accuracyDatum element in the table
      */
-    private static void addToDeltaTable(final NestedHashMap deltaTable, final int[] deltaKey, final RecalDatum recalDatum) {
-        Object[] wrappedKey = wrapKeys(deltaKey);
-        final RecalDatum deltaDatum = (RecalDatum)deltaTable.get(wrappedKey); // check if we already have a RecalDatum for this key
+    private static void addToDeltaTable(final NestedIntegerArray<RecalDatum> deltaTable, final int[] deltaKey, final RecalDatum recalDatum) {
+        final RecalDatum deltaDatum = deltaTable.get(deltaKey); // check if we already have a RecalDatum for this key
         if (deltaDatum == null)
-            deltaTable.put(new RecalDatum(recalDatum), wrappedKey); // if we don't have a key yet, create a new one with the same values as the curent datum
+            // if we don't have a key yet, create a new one with the same values as the current datum
+            deltaTable.put(new RecalDatum(recalDatum), deltaKey);
         else
-            deltaDatum.combine(recalDatum); // if we do have a datum, combine it with this one.
-    }
-
-    private static Object[] wrapKeys(final int[] keys) {
-        final Object[] wrappedKeys = new Object[keys.length];
-        for (int i = 0; i < keys.length; i++)
-            wrappedKeys[i] = keys[i];
-        return wrappedKeys;
+            // if we do have a datum, combine it with this one
+            deltaDatum.combine(recalDatum);
     }
 
     /**
