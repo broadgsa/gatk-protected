@@ -91,9 +91,12 @@ import java.util.TreeSet;
  *     <li>Running the realigner over those intervals (see the IndelRealigner tool)</li>
  *     </ol>
  *     <p>
- * An important note: the input BAM(s), reference, and known indel file(s) should be the same ones to be used for the IndelRealigner step.
+ * Important note 1: the input BAM(s), reference, and known indel file(s) should be the same ones to be used for the IndelRealigner step.
  * <p>
- * Another important note: because reads produced from the 454 technology inherently contain false indels, the realigner will not currently work with them
+ * Important note 2: when multiple potential indels are found by the tool in the same general region, the tool will choose the most likely
+ * one for realignment to the exclusion of the others.  This is a known limitation of the tool.
+ * <p>
+ * Important note 3: because reads produced from the 454 technology inherently contain false indels, the realigner will not currently work with them
  * (or with reads from similar technologies).   This tool also ignores MQ0 reads and reads with consecutive indel operators in the CIGAR string.
  *
  * <h2>Input</h2>
