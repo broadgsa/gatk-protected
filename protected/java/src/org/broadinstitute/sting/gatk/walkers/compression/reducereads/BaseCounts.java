@@ -62,70 +62,107 @@ import com.google.java.contract.Requires;
     public final static BaseIndex MAX_BASE_INDEX_WITH_NO_COUNTS = BaseIndex.N;
     public final static byte MAX_BASE_WITH_NO_COUNTS = MAX_BASE_INDEX_WITH_NO_COUNTS.getByte();
 
-    private final int[] counts;       // keeps track of the base counts
-    private final long[] sumQuals;    // keeps track of the quals of each base
+
+    private int count_A = 0;              // keeps track of the base counts
+    private int sumQual_A = 0;            // keeps track of the quals of each base
+    private int count_C = 0;
+    private int sumQual_C = 0;
+    private int count_G = 0;
+    private int sumQual_G = 0;
+    private int count_T = 0;
+    private int sumQual_T = 0;
+    private int count_D = 0;
+    private int sumQual_D = 0;
+    private int count_I = 0;
+    private int sumQual_I = 0;
+    private int count_N = 0;
+    private int sumQual_N = 0;
     private int totalCount = 0;       // keeps track of total count since this is requested so often
 
-    public BaseCounts() {
-        counts = new int[BaseIndex.values().length];
-        sumQuals = new long[BaseIndex.values().length];
-        // Java primitive arrays comes zero-filled, so no need to do it explicitly.
-    }
 
     public static BaseCounts createWithCounts(int[] countsACGT) {
         BaseCounts baseCounts = new BaseCounts();
-        baseCounts.counts[BaseIndex.A.index] = countsACGT[0];
-        baseCounts.counts[BaseIndex.C.index] = countsACGT[1];
-        baseCounts.counts[BaseIndex.G.index] = countsACGT[2];
-        baseCounts.counts[BaseIndex.T.index] = countsACGT[3];
+        baseCounts.count_A = countsACGT[0];
+        baseCounts.count_C = countsACGT[1];
+        baseCounts.count_G = countsACGT[2];
+        baseCounts.count_T = countsACGT[3];
         baseCounts.totalCount = countsACGT[0] + countsACGT[1] + countsACGT[2] + countsACGT[3];
         return baseCounts;
     }
 
     @Requires("other != null")
     public void add(final BaseCounts other) {
-        for (final BaseIndex i : BaseIndex.values()) {
-            final int otherCount = other.counts[i.index];
-            counts[i.index] += otherCount;
-            totalCount += otherCount;
-        }
+        this.count_A += other.count_A;
+        this.count_C += other.count_C;
+        this.count_G += other.count_G;
+        this.count_T += other.count_T;
+        this.count_D += other.count_D;
+        this.count_I += other.count_I;
+        this.count_N += other.count_N;
+        this.totalCount += other.totalCount;
     }
 
     @Requires("other != null")
     public void sub(final BaseCounts other) {
-        for (final BaseIndex i : BaseIndex.values()) {
-            final int otherCount = other.counts[i.index];
-            counts[i.index] -= otherCount;
-            totalCount -= otherCount;
-        }
+        this.count_A -= other.count_A;
+        this.count_C -= other.count_C;
+        this.count_G -= other.count_G;
+        this.count_T -= other.count_T;
+        this.count_D -= other.count_D;
+        this.count_I -= other.count_I;
+        this.count_N -= other.count_N;
+        this.totalCount -= other.totalCount;
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
     public void incr(final byte base) {
-        final BaseIndex i = BaseIndex.byteToBase(base);
-        counts[i.index]++;
-        totalCount++;
+        add(BaseIndex.byteToBase(base), 1);
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
     public void incr(final BaseIndex base, final byte qual) {
-        counts[base.index]++;
-        totalCount++;
-        sumQuals[base.index] += qual;
+        switch (base) {
+            case A: ++count_A; sumQual_A += qual; break;
+            case C: ++count_C; sumQual_C += qual; break;
+            case G: ++count_G; sumQual_G += qual; break;
+            case T: ++count_T; sumQual_T += qual; break;
+            case D: ++count_D; sumQual_D += qual; break;
+            case I: ++count_I; sumQual_I += qual; break;
+            case N: ++count_N; sumQual_N += qual; break;
+        }
+        ++totalCount;
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
     public void decr(final byte base) {
-        final BaseIndex i = BaseIndex.byteToBase(base);
-        counts[i.index]--;
-        totalCount--;
+        add(BaseIndex.byteToBase(base), -1);
+    }
+
+    private void add(final BaseIndex base, int amount) {
+        switch(base) {
+            case A: count_A += amount; break;
+            case C: count_C += amount; break;
+            case G: count_G += amount; break;
+            case T: count_T += amount; break;
+            case D: count_D += amount; break;
+            case I: count_I += amount; break;
+            case N: count_N += amount; break;
+        }
+        totalCount += amount;
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
     public void decr(final BaseIndex base, final byte qual) {
-        counts[base.index]--;
-        totalCount--;
-        sumQuals[base.index] -= qual;
+        switch (base) {
+            case A: --count_A; sumQual_A -= qual; break;
+            case C: --count_C; sumQual_C -= qual; break;
+            case G: --count_G; sumQual_G -= qual; break;
+            case T: --count_T; sumQual_T -= qual; break;
+            case D: --count_D; sumQual_D -= qual; break;
+            case I: --count_I; sumQual_I -= qual; break;
+            case N: --count_N; sumQual_N -= qual; break;
+        }
+        --totalCount;
     }
 
     @Ensures("result >= 0")
@@ -135,7 +172,16 @@ import com.google.java.contract.Requires;
 
     @Ensures("result >= 0")
     public long getSumQuals(final BaseIndex base) {
-        return sumQuals[base.index];
+        switch (base) {
+            case A: return sumQual_A;
+            case C: return sumQual_C;
+            case G: return sumQual_G;
+            case T: return sumQual_T;
+            case D: return sumQual_D;
+            case I: return sumQual_I;
+            case N: return sumQual_N;
+            default: throw new IllegalArgumentException(base.name());
+        }
     }
 
     @Ensures("result >= 0")
@@ -155,12 +201,21 @@ import com.google.java.contract.Requires;
 
     @Ensures("result >= 0")
     public int countOfBase(final BaseIndex base) {
-        return counts[base.index];
+        switch (base) {
+            case A: return count_A;
+            case C: return count_C;
+            case G: return count_G;
+            case T: return count_T;
+            case D: return count_D;
+            case I: return count_I;
+            case N: return count_N;
+            default: throw new IllegalArgumentException(base.name());
+        }
     }
 
     @Ensures("result >= 0")
     public long sumQualsOfBase(final BaseIndex base) {
-        return sumQuals[base.index];
+        return getSumQuals(base);
     }
 
     @Ensures("result >= 0")
@@ -193,14 +248,14 @@ import com.google.java.contract.Requires;
      */
     @Ensures({"result >=0.0", "result<= 1.0"})
     public double baseCountProportion(final BaseIndex baseIndex) {
-        return (totalCount == 0) ? 0.0 : (double)counts[baseIndex.index] / (double)totalCount;
+        return (totalCount == 0) ? 0.0 : (double)countOfBase(baseIndex) / (double)totalCount;
     }
 
     @Ensures("result != null")
     public String toString() {
         StringBuilder b = new StringBuilder();
         for (final BaseIndex i : BaseIndex.values()) {
-            b.append(i.toString()).append("=").append(counts[i.index]).append(",");
+            b.append(i.toString()).append("=").append(countOfBase(i)).append(",");
         }
         return b.toString();
     }
@@ -213,7 +268,7 @@ import com.google.java.contract.Requires;
     public BaseIndex baseIndexWithMostCounts() {
         BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
         for (final BaseIndex i : BaseIndex.values()) {
-            if (counts[i.index] > counts[maxI.index])
+            if (countOfBase(i) > countOfBase(maxI))
                 maxI = i;
         }
         return maxI;
@@ -223,7 +278,7 @@ import com.google.java.contract.Requires;
     public BaseIndex baseIndexWithMostCountsWithoutIndels() {
         BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
         for (final BaseIndex i : BaseIndex.values()) {
-            if (i.isNucleotide() && counts[i.index] > counts[maxI.index])
+            if (i.isNucleotide() && countOfBase(i) > countOfBase(maxI))
                 maxI = i;
         }
         return maxI;
@@ -237,25 +292,25 @@ import com.google.java.contract.Requires;
     public BaseIndex baseIndexWithMostProbability() {
         BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
         for (final BaseIndex i : BaseIndex.values()) {
-            if (sumQuals[i.index] > sumQuals[maxI.index])
+            if (getSumQuals(i) > getSumQuals(maxI))
                 maxI = i;
         }
-        return (sumQuals[maxI.index] > 0L ? maxI : baseIndexWithMostCounts());
+        return (getSumQuals(maxI) > 0L ? maxI : baseIndexWithMostCounts());
     }
 
     @Ensures("result != null")
     public BaseIndex baseIndexWithMostProbabilityWithoutIndels() {
         BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
         for (final BaseIndex i : BaseIndex.values()) {
-            if (i.isNucleotide() && sumQuals[i.index] > sumQuals[maxI.index])
+            if (i.isNucleotide() && getSumQuals(i) > getSumQuals(maxI))
                 maxI = i;
         }
-        return (sumQuals[maxI.index] > 0L ? maxI : baseIndexWithMostCountsWithoutIndels());
+        return (getSumQuals(maxI) > 0L ? maxI : baseIndexWithMostCountsWithoutIndels());
     }
 
     @Ensures("result >=0")
     public int totalCountWithoutIndels() {
-        return totalCount - counts[BaseIndex.D.index] - counts[BaseIndex.I.index];
+        return totalCount - countOfBase(BaseIndex.D) - countOfBase(BaseIndex.I);
     }
 
     /**
@@ -268,10 +323,6 @@ import com.google.java.contract.Requires;
     @Ensures({"result >=0.0", "result<= 1.0"})
     public double baseCountProportionWithoutIndels(final BaseIndex base) {
         final int total = totalCountWithoutIndels();
-        return (total == 0) ? 0.0 : (double)counts[base.index] / (double)total;
-    }
-
-    public int[] countsArray() {
-        return counts.clone();
+        return (total == 0) ? 0.0 : (double)countOfBase(base) / (double)total;
     }
 }
