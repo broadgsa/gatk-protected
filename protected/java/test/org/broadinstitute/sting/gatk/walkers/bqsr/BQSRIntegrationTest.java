@@ -151,7 +151,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -sortAllCols" +
                         " --plot_pdf_file /dev/null" +
                         " --intermediate_csv_file %s",
-                Arrays.asList("dd6e0e1e3f53f8ae0c8f5de21ded6ee9"));
+                Arrays.asList("90ad19143024684e3c4410dc8fd2bd9d"));
         executeTest("testBQSR-CSVfile", spec);
     }
 
