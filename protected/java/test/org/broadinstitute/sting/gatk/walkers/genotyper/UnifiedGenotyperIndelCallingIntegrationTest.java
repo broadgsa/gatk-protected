@@ -44,105 +44,154 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 
-public class HaplotypeCallerIntegrationTest extends WalkerTest {
-    final static String REF = b37KGReference;
-    final static String NA12878_BAM = validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.bam";
-    final static String NA12878_CHR20_BAM = validationDataLocation + "NA12878.HiSeq.WGS.bwa.cleaned.recal.hg19.20.bam";
-    final static String CEUTRIO_BAM = validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam";
-    final static String NA12878_RECALIBRATED_BAM = privateTestDir + "NA12878.100kb.BQSRv2.example.bam";
-    final static String INTERVALS_FILE = validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals";
+public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
 
-    private void HCTest(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s -L %s", REF, bam, INTERVALS_FILE) + " --no_cmdline_in_header -o %s -minPruning 3";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCaller: args=" + args, spec);
+    private final static String baseCommandIndels = "-T UnifiedGenotyper -R " + b36KGReference + " --no_cmdline_in_header -glm INDEL -mbq 20 -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
+    private final static String baseCommandIndelsb37 = "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -mbq 20 --dbsnp " + b37dbSNP132;
+
+    // --------------------------------------------------------------------------------------------------------------
+    //
+    // testing indel caller
+    //
+    // --------------------------------------------------------------------------------------------------------------
+    // Basic indel testing with SLX data
+    @Test
+    public void testSimpleIndels() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                baseCommandIndels +
+                        " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam" +
+                        " -o %s" +
+                        " -L 1:10,000,000-10,500,000",
+                1,
+                Arrays.asList("1cb469b9cc8e6c70430021540bf1af8b"));
+
+        executeTest(String.format("test indel caller in SLX"), spec);
+    }
+
+    // Basic indel testing with SLX data
+    @Test
+    public void testIndelsWithLowMinAlleleCnt() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                baseCommandIndels +
+                        " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam" +
+                        " -o %s" +
+                        " -minIndelCnt 1" +
+                        " -L 1:10,000,000-10,100,000",
+                1,
+                Arrays.asList("c7e59f9ab718df4c604626a0f51af606"));
+
+        executeTest(String.format("test indel caller in SLX with low min allele count"), spec);
     }
 
     @Test
-    public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "aac5517a0a64ad291b6b00825d982f7f");
+    public void testMultiTechnologyIndels() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                baseCommandIndels +
+                        " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.allTechs.bam" +
+                        " -o %s" +
+                        " -L 1:10,000,000-10,500,000",
+                1,
+                Arrays.asList("4bebbe4ed4a7554285a3b4bb7311101c"));
+
+        executeTest(String.format("test indel calling, multiple technologies"), spec);
     }
 
     @Test
-    public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "3bfab723fb0f3a65998d82152b67ed15");
-    }
-
-    @Test(enabled = false)
-    public void testHaplotypeCallerSingleSampleWithDbsnp() {
-        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "");
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "283524b3e3397634d4cf0dc2b8723002");
-    }
-
-    private void HCTestIndelQualityScores(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " -L 20:10,005,000-10,025,000 --no_cmdline_in_header -o %s -minPruning 2";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerIndelQualityScores: args=" + args, spec);
+    public void testWithIndelAllelesPassedIn1() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "indelAllelesForUG.vcf -I " + validationDataLocation +
+                        "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,100,000", 1,
+                Arrays.asList("86880ec78755ae91cb5bb34a0631a32c"));
+        executeTest("test MultiSample Pilot2 indels with alleles passed in", spec);
     }
 
     @Test
-    public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "f1f867dbbe3747f16a0d9e5f11e6ed64");
+    public void testWithIndelAllelesPassedIn2() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                baseCommandIndels + " --output_mode EMIT_ALL_SITES --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles "
+                        + privateTestDir + "indelAllelesForUG.vcf -I " + validationDataLocation +
+                        "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,100,000", 1,
+                Arrays.asList("2584d5e3ade1b548f1fe9cdcafbe1b28"));
+        executeTest("test MultiSample Pilot2 indels with alleles passed in and emitting all sites", spec);
     }
 
-    // This problem bam came from a user on the forum and it spotted a problem where the ReadClipper
-    // was modifying the GATKSamRecord and that was screwing up the traversal engine from map call to
-    // map call. So the test is there for consistency but not for correctness. I'm not sure we can trust
-    // any of the calls in that region because it is so messy.
-    @Test
-    public void HCTestProblematicReadsModifiedInActiveRegions() {
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("ccd30e226f097a40cdeebaa035a290a7"));
-        executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
+    @Test(timeOut = 20*1000*60) // this guy can take a long time because it's two steps, so give it 12 minutes
+    public void testMultiSampleIndels1() {
+        // since we're going to test the MD5s with GGA only do one here
+        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
+                baseCommandIndels + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10450700-10551000", 1,
+                Arrays.asList(""));
+        List<File> result = executeTest("test MultiSample Pilot1 CEU indels", spec1).getFirst();
+
+        WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
+                baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + result.get(0).getAbsolutePath() + " -I " + validationDataLocation +
+                        "low_coverage_CEU.chr1.10k-11k.bam -o %s -L " + result.get(0).getAbsolutePath(), 1,
+                Arrays.asList("08b3a85be00c8f6a4fefd3c671463ecf"));
+        executeTest("test MultiSample Pilot1 CEU indels using GENOTYPE_GIVEN_ALLELES", spec2);
     }
 
     @Test
-    public void HCTestStructuralIndels() {
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("a17e95c1191e3aef7892586fe38ca050"));
-        executeTest("HCTestStructuralIndels: ", spec);
+    public void testGGAwithNoEvidenceInReads() {
+        final String vcf = "small.indel.test.vcf";
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                baseCommandIndelsb37 + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + privateTestDir + vcf + " -I " + validationDataLocation +
+                        "NA12878.HiSeq.WGS.bwa.cleaned.recal.hg19.20.bam -o %s -L " + validationDataLocation + vcf, 1,
+                Arrays.asList("d76eacc4021b78ccc0a9026162e814a7"));
+        executeTest("test GENOTYPE_GIVEN_ALLELES with no evidence in reads", spec);
     }
 
     @Test
-    public void HCTestDoesNotFailOnBadRefBase() {
-        // don't care about the output - just want to make sure it doesn't fail
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o /dev/null -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2 -stand_emit_conf 2";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Collections.<String>emptyList());
-        executeTest("HCTestDoesNotFailOnBadRefBase: ", spec);
+    public void testBaseIndelQualityScores() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                baseCommandIndelsb37 +
+                        " -I " + privateTestDir + "NA12878.100kb.BQSRv2.example.bam" +
+                        " -o %s" +
+                        " -L 20:10,000,000-10,100,000",
+                1,
+                Arrays.asList("8a7966e4b67334bca6083670c5a16b67"));
+
+        executeTest(String.format("test UG with base indel quality scores"), spec);
     }
 
     // --------------------------------------------------------------------------------------------------------------
     //
-    // testing reduced reads
+    // testing MinIndelFraction
     //
     // --------------------------------------------------------------------------------------------------------------
 
+    final static String assessMinIndelFraction = baseCommandIndelsb37 + " -I " + validationDataLocation
+            + "978604.bam -L 1:978,586-978,626 -o %s --sites_only -rf Sample -goodSM 7377 -goodSM 22-0022 -goodSM 134 -goodSM 344029-53 -goodSM 14030";
+
     @Test
-    public void HCTestReducedBam() {
+    public void testMinIndelFraction0() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("adb08cb25e902cfe0129404a682b2169"));
-        executeTest("HC calling on a ReducedRead BAM", spec);
+                assessMinIndelFraction + " -minIndelFrac 0.0", 1,
+                Arrays.asList("556c214366e82e4682e753ce93307a4e"));
+        executeTest("test minIndelFraction 0.0", spec);
     }
 
     @Test
-    public void testReducedBamWithReadsNotFullySpanningDeletion() {
+    public void testMinIndelFraction25() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
-                Arrays.asList("6debe567cd5ed7eb5756b6605a151f56"));
-        executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
+                assessMinIndelFraction + " -minIndelFrac 0.25", 1,
+                Arrays.asList("1df02b805d9dfbd532fa3632875a989d"));
+        executeTest("test minIndelFraction 0.25", spec);
+    }
+
+    @Test
+    public void testMinIndelFraction100() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                assessMinIndelFraction + " -minIndelFrac 1", 1,
+                Arrays.asList("3f07efb768e08650a7ce333edd4f9a52"));
+        executeTest("test minIndelFraction 1.0", spec);
     }
 }
