@@ -44,93 +44,55 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
+import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.*;
+
 import java.util.Arrays;
 
-/**
- * Created by IntelliJ IDEA.
- * User: delangel
- * Date: 4/5/12
- * Time: 11:28 AM
- * To change this template use File | Settings | File Templates.
- */
-public class UnifiedGenotyperGeneralPloidyIntegrationTest extends WalkerTest {
-    final static String REF = b37KGReference;
-    final String CEUTRIO_BAM = "/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37.list";
-    final String LSV_BAM = validationDataLocation +"93pools_NA12878_ref_chr20_40m_41m.bam";
-    final String REFSAMPLE_MT_CALLS = comparisonDataLocation + "Unvalidated/mtDNA/NA12878.snp.vcf";
-    final String REFSAMPLE_NAME = "NA12878";
-    final String MTINTERVALS = "MT:1-1000";
-    final String LSVINTERVALS = "20:40,500,000-41,000,000";
-    final String LSVINTERVALS_SHORT = "20:40,500,000-40,501,000";
-    final String NA12891_CALLS = comparisonDataLocation + "Unvalidated/mtDNA/NA12891.snp.vcf";
-    final String NA12878_WG_CALLS = comparisonDataLocation + "Unvalidated/NA12878/CEUTrio.HiSeq.WGS.b37_decoy.recal.ts_95.snp_indel_combined.vcf";
-    final String LSV_ALLELES = validationDataLocation + "ALL.chr20_40m_41m.largeScaleValidationSites.vcf";
+public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
 
-    private void PC_MT_Test(String bam, String args, String name, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -ignoreLane ",
-                REF, bam, MTINTERVALS, REFSAMPLE_MT_CALLS, REFSAMPLE_NAME) + " --no_cmdline_in_header -o %s";
+    private void HCTestComplexVariants(String bam, String args, String md5) {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
+        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleComplex() {
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "a960722c1ae2b6f774d3443a7e5ac27d");
+    }
+
+    private void HCTestSymbolicVariants(String bam, String args, String md5) {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
+        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
+    }
+
+    // TODO -- need a better symbolic allele test
+    @Test
+    public void testHaplotypeCallerSingleSampleSymbolic() {
+        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "56f2ef9acc6c0d267cf2b7a447d87fb7");
+    }
+
+    private void HCTestComplexGGA(String bam, String args, String md5) {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testPoolCaller:"+name+" args=" + args, spec);
+        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
     }
 
-    private void PC_LSV_Test(String args, String name, String model, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -glm %s -ignoreLane ",
-                REF, LSV_BAM, LSVINTERVALS, NA12878_WG_CALLS, REFSAMPLE_NAME, model) + " --no_cmdline_in_header -o %s";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testPoolCaller:"+name+" args=" + args, spec);
+    @Test
+    public void testHaplotypeCallerMultiSampleGGAComplex() {
+        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
+                "417174e043dbb8b86cc3871da9b50536");
     }
 
-    private void PC_LSV_Test_short(String args, String name, String model, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -glm %s -ignoreLane ",
-                REF, LSV_BAM, LSVINTERVALS_SHORT, NA12878_WG_CALLS, REFSAMPLE_NAME, model) + " --no_cmdline_in_header -o %s";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testPoolCaller:"+name+" args=" + args, spec);
-    }
-
-    private void PC_LSV_Test_NoRef(String args, String name, String model, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s -glm %s -ignoreLane",
-                REF, LSV_BAM, LSVINTERVALS, model) + " --no_cmdline_in_header -o %s";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testPoolCaller:"+name+" args=" + args, spec);
-    }
-
-    @Test(enabled = true)
-    public void testSNP_ACS_Pools() {
-        PC_LSV_Test_short(" -maxAltAlleles 1 -ploidy 6 -out_mode EMIT_ALL_CONFIDENT_SITES","LSV_SNP_ACS","SNP","df0e67c975ef74d593f1c704daab1705");
-    }
-
-    @Test(enabled = true)
-    public void testBOTH_GGA_Pools() {
-        PC_LSV_Test(String.format(" -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_BOTH_GGA","BOTH","71f16e19b7d52e8edee46f4121e59f54");
-    }
-
-    @Test(enabled = true)
-    public void testINDEL_GGA_Pools() {
-        PC_LSV_Test(String.format(" -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",LSV_ALLELES),"LSV_INDEL_GGA","INDEL","3f7d763c654f1d708323f369ea4a099b");
-    }
-
-    @Test(enabled = true)
-    public void testINDEL_maxAltAlleles2_ploidy3_Pools_noRef() {
-        PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","3a321896c4b8b6457973c76c486da4d4");
-    }
-
-    @Test(enabled = true)
-    public void testINDEL_maxAltAlleles2_ploidy1_Pools_noRef() {
-        PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 1","LSV_INDEL_DISC_NOREF_p1","INDEL","5812da66811887d834d0379a33e655c0");
-    }
-
-    @Test(enabled = true)
-    public void testMT_SNP_DISCOVERY_sp4() {
-         PC_MT_Test(CEUTRIO_BAM, " -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","3fc6f4d458313616727c60e49c0e852b");
-    }
-
-    @Test(enabled = true)
-    public void testMT_SNP_GGA_sp10() {
-        PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "1bebbc0f28bff6fd64736ccca8839df8");
+    @Test
+    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
+        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
+                "f2df7a8f53ce449e4a8e8f8496e7c745");
     }
 }
