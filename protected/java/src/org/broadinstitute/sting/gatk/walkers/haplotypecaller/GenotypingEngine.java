@@ -80,6 +80,39 @@ public class GenotypingEngine {
     }
 
     /**
+     * Carries the result of a call to #assignGenotypeLikelihoods
+     */
+    public static class CalledHaplotypes {
+        private final List<VariantContext> calls;
+        private final Set<Haplotype> calledHaplotypes;
+
+        protected CalledHaplotypes(final List<VariantContext> calls, final Set<Haplotype> calledHaplotypes) {
+            if ( calls == null ) throw new IllegalArgumentException("calls cannot be null");
+            if ( calledHaplotypes == null ) throw new IllegalArgumentException("calledHaplotypes cannot be null");
+            if ( Utils.xor(calls.isEmpty(), calledHaplotypes.isEmpty()) )
+                throw new IllegalArgumentException("Calls and calledHaplotypes should both be empty or both not but got calls=" + calls + " calledHaplotypes=" + calledHaplotypes);
+            this.calls = calls;
+            this.calledHaplotypes = calledHaplotypes;
+        }
+
+        /**
+         * Get the list of calls made at this location
+         * @return a non-null (but potentially empty) list of calls
+         */
+        public List<VariantContext> getCalls() {
+            return calls;
+        }
+
+        /**
+         * Get the set of haplotypes that we actually called (i.e., underlying one of the VCs in getCalls().
+         * @return a non-null set of haplotypes
+         */
+        public Set<Haplotype> getCalledHaplotypes() {
+            return calledHaplotypes;
+        }
+    }
+
+    /**
      * Main entry point of class - given a particular set of haplotypes, samples and reference context, compute
      * genotype likelihoods and assemble into a list of variant contexts and genomic events ready for calling
      *
@@ -93,21 +126,21 @@ public class GenotypingEngine {
      * @param activeRegionWindow                     Active window
      * @param genomeLocParser                        GenomeLocParser
      * @param activeAllelesToGenotype                Alleles to genotype
-     * @return                                       List of VC's with genotyped events
+     * @return                                       A CalledHaplotypes object containing a list of VC's with genotyped events and called haplotypes
      */
     @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
     @Ensures("result != null")
     // TODO - can this be refactored? this is hard to follow!
-    public List<VariantContext> assignGenotypeLikelihoods( final UnifiedGenotyperEngine UG_engine,
-                                                           final List<Haplotype> haplotypes,
-                                                           final List<String> samples,
-                                                           final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
-                                                           final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
-                                                           final byte[] ref,
-                                                           final GenomeLoc refLoc,
-                                                           final GenomeLoc activeRegionWindow,
-                                                           final GenomeLocParser genomeLocParser,
-                                                           final List<VariantContext> activeAllelesToGenotype ) {
+    public CalledHaplotypes assignGenotypeLikelihoods( final UnifiedGenotyperEngine UG_engine,
+                                                       final List<Haplotype> haplotypes,
+                                                       final List<String> samples,
+                                                       final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                       final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
+                                                       final byte[] ref,
+                                                       final GenomeLoc refLoc,
+                                                       final GenomeLoc activeRegionWindow,
+                                                       final GenomeLocParser genomeLocParser,
+                                                       final List<VariantContext> activeAllelesToGenotype ) {
         // sanity check input arguments
         if (UG_engine == null)
             throw new IllegalArgumentException("UG_Engine input can't be null, got "+UG_engine);
@@ -156,6 +189,8 @@ public class GenotypingEngine {
                 startPosKeySet.add( compVC.getStart() );
             }
         }
+
+        final Set<Haplotype> calledHaplotypes = new HashSet<Haplotype>();
 
         // Walk along each position in the key set and create each event to be outputted
         for( final int loc : startPosKeySet ) {
@@ -239,6 +274,10 @@ public class GenotypingEngine {
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
                     VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
 
+                    // maintain the set of all called haplotypes
+                    for ( final Allele calledAllele : call.getAlleles() )
+                        calledHaplotypes.addAll(alleleMapper.get(calledAllele));
+
                     if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
                         annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
@@ -247,7 +286,7 @@ public class GenotypingEngine {
                 }
             }
         }
-        return returnCalls;
+        return new CalledHaplotypes(returnCalls, calledHaplotypes);
     }
 
     /**

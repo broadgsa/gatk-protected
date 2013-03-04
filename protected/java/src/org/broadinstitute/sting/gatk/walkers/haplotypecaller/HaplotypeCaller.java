@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
-import net.sf.samtools.*;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
@@ -72,22 +71,23 @@ import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
-import org.broadinstitute.sting.utils.help.HelpConstants;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.vcf.*;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.fragments.FragmentCollection;
 import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.vcf.*;
 
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
@@ -146,15 +146,39 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected PrintStream graphWriter = null;
 
     /**
-     * The assembled haplotypes will be written as BAM to this file if requested.  Really for debugging purposes only.  Note that the output here
-     * does not include uninformative reads so that not every input read is emitted to the bam.
+     * The assembled haplotypes will be written as BAM to this file if requested.  Really for debugging purposes only.
+     * Note that the output here does not include uninformative reads so that not every input read is emitted to the bam.
+     *
+     * Turning on this mode may result in serious performance cost for the HC.  It's really only approprate to
+     * use in specific areas where you want to better understand why the HC is making specific calls.
+     *
+     * The reads are written out containing a HC tag (integer) that encodes which haplotype each read best matches
+     * according to the haplotype caller's likelihood calculation.  The use of this tag is primarily intended
+     * to allow good coloring of reads in IGV.  Simply go to Color Alignments By > Tag and enter HC to more
+     * easily see which reads go with these haplotype.
+     *
+     * Note that the haplotypes (called or all, depending on mode) are emitted as single reads covering the entire
+     * active region, coming from read HC and a special read group.
+     *
+     * Note that only reads that are actually informative about the haplotypes are emitted.  By informative we mean
+     * that there's a meaningful difference in the likelihood of the read coming from one haplotype compared to
+     * its next best haplotype.
+     *
+     * The best way to visualize the output of this mode is with IGV.  Tell IGV to color the alignments by tag,
+     * and give it the HC tag, so you can see which reads support each haplotype.  Finally, you can tell IGV
+     * to group by sample, which will separate the potential haplotypes from the reads.  All of this can be seen
+     * in the following screenshot: https://www.dropbox.com/s/xvy7sbxpf13x5bp/haplotypecaller%20bamout%20for%20docs.png
+     *
      */
-    @Hidden
-    @Output(fullName="bamOutput", shortName="bam", doc="File to which assembled haplotypes should be written", required = false)
+    @Output(fullName="bamOutput", shortName="bamout", doc="File to which assembled haplotypes should be written", required = false)
     protected StingSAMFileWriter bamWriter = null;
-    private SAMFileHeader bamHeader = null;
-    private long uniqueNameCounter = 1;
-    private final static String readGroupId = "ArtificialHaplotype";
+    private HaplotypeBAMWriter haplotypeBAMWriter;
+
+    /**
+     * The type of BAM output we want to see.
+     */
+    @Output(fullName="bamWriterType", shortName="bamWriterType", doc="How should haplotypes be written to the BAM?", required = false)
+    public HaplotypeBAMWriter.Type bamWriterType = HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES;
 
     /**
      * The PairHMM implementation to use for genotype likelihood calculations. The various implementations balance a tradeoff of accuracy and runtime.
@@ -354,7 +378,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
 
         if ( bamWriter != null )
-            setupBamWriter();
+            haplotypeBAMWriter = HaplotypeBAMWriter.create(bamWriterType, bamWriter, getToolkit().getSAMFileHeader());
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -497,39 +521,25 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         final List<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ?
                                                       likelihoodCalculationEngine.selectBestHaplotypes( haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation ) : haplotypes );
 
-        for( final VariantContext call : genotypingEngine.assignGenotypeLikelihoods( UG_engine,
-                                                                                     bestHaplotypes,
-                                                                                     samplesList,
-                                                                                     stratifiedReadMap,
-                                                                                     perSampleFilteredReadList,
-                                                                                     fullReferenceWithPadding,
-                                                                                     paddedReferenceLoc,
-                                                                                     activeRegion.getLocation(),
-                                                                                     getToolkit().getGenomeLocParser(),
-                                                                                     activeAllelesToGenotype ) ) {
+        final GenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods( UG_engine,
+                bestHaplotypes,
+                samplesList,
+                stratifiedReadMap,
+                perSampleFilteredReadList,
+                fullReferenceWithPadding,
+                paddedReferenceLoc,
+                activeRegion.getLocation(),
+                getToolkit().getGenomeLocParser(),
+                activeAllelesToGenotype );
+
+        for( final VariantContext call : calledHaplotypes.getCalls() ) {
             // TODO -- uncomment this line once ART-based walkers have a proper RefMetaDataTracker.
             // annotationEngine.annotateDBs(metaDataTracker, getToolkit().getGenomeLocParser().createGenomeLoc(call),  call);
             vcfWriter.add( call );
         }
 
         if ( bamWriter != null ) {
-            // write the haplotypes to the bam
-            for ( Haplotype haplotype : haplotypes )
-                writeHaplotype(haplotype, paddedReferenceLoc, bestHaplotypes.contains(haplotype));
-
-            // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
-            final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<Allele, Haplotype>(haplotypes.size());
-            for ( final Haplotype haplotype : haplotypes )
-                alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
-
-            // next, output the interesting reads for each sample aligned against the appropriate haplotype
-            for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-                for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
-                    final Allele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
-                    if ( bestAllele != Allele.NO_CALL )
-                        writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele), paddedReferenceLoc.getStart());
-                }
-            }
+            haplotypeBAMWriter.writeReadsAlignedToHaplotypes(haplotypes, paddedReferenceLoc, bestHaplotypes, calledHaplotypes.getCalledHaplotypes(), stratifiedReadMap);
         }
 
         if( DEBUG ) { System.out.println("----------------------------------------------------------------------------------"); }
@@ -624,92 +634,5 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         return returnMap;
     }
 
-    private void setupBamWriter() {
-        // prepare the bam header
-        bamHeader = new SAMFileHeader();
-        bamHeader.setSequenceDictionary(getToolkit().getSAMFileHeader().getSequenceDictionary());
-        bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
 
-        // include the original read groups plus a new artificial one for the haplotypes
-        final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(getToolkit().getSAMFileHeader().getReadGroups());
-        final SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupId);
-        rg.setSample("HC");
-        rg.setSequencingCenter("BI");
-        readGroups.add(rg);
-        bamHeader.setReadGroups(readGroups);
-
-        bamWriter.setPresorted(false);
-        bamWriter.writeHeader(bamHeader);
-    }
-
-    private void writeHaplotype(final Haplotype haplotype, final GenomeLoc paddedRefLoc, final boolean isAmongBestHaplotypes) {
-        final GATKSAMRecord record = new GATKSAMRecord(bamHeader);
-        record.setReadBases(haplotype.getBases());
-        record.setAlignmentStart(paddedRefLoc.getStart() + haplotype.getAlignmentStartHapwrtRef());
-        record.setBaseQualities(Utils.dupBytes((byte) '!', haplotype.getBases().length));
-        record.setCigar(haplotype.getCigar());
-        record.setMappingQuality(isAmongBestHaplotypes ? 60 : 0);
-        record.setReadName("HC" + uniqueNameCounter++);
-        record.setReadUnmappedFlag(false);
-        record.setReferenceIndex(paddedRefLoc.getContigIndex());
-        record.setAttribute(SAMTag.RG.toString(), readGroupId);
-        record.setFlags(16);
-        bamWriter.addAlignment(record);
-    }
-
-    private void writeReadAgainstHaplotype(final GATKSAMRecord read, final Haplotype haplotype, final int referenceStart) {
-
-        final SWPairwiseAlignment swPairwiseAlignment = new SWPairwiseAlignment(haplotype.getBases(), read.getReadBases(), 5.0, -10.0, -22.0, -1.2);
-        final int readStartOnHaplotype = swPairwiseAlignment.getAlignmentStart2wrt1();
-        final int readStartOnReference = referenceStart + haplotype.getAlignmentStartHapwrtRef() + readStartOnHaplotype;
-        read.setAlignmentStart(readStartOnReference);
-
-        final Cigar cigar = generateReadCigarFromHaplotype(read, readStartOnHaplotype, haplotype.getCigar());
-        read.setCigar(cigar);
-
-        bamWriter.addAlignment(read);
-    }
-
-    private Cigar generateReadCigarFromHaplotype(final GATKSAMRecord read, final int readStartOnHaplotype, final Cigar haplotypeCigar) {
-
-        int currentReadPos = 0;
-        int currentHapPos = 0;
-        final List<CigarElement> readCigarElements = new ArrayList<CigarElement>();
-
-        for ( final CigarElement cigarElement : haplotypeCigar.getCigarElements() ) {
-
-            if ( cigarElement.getOperator() == CigarOperator.D ) {
-                if ( currentReadPos > 0 )
-                    readCigarElements.add(cigarElement);
-            } else if ( cigarElement.getOperator() == CigarOperator.M || cigarElement.getOperator() == CigarOperator.I ) {
-
-                final int elementLength = cigarElement.getLength();
-                final int nextReadPos = currentReadPos + elementLength;
-                final int nextHapPos = currentHapPos + elementLength;
-
-                // do we want this element?
-                if ( currentReadPos > 0 ) {
-                    // do we want the entire element?
-                    if ( nextReadPos < read.getReadLength() ) {
-                        readCigarElements.add(cigarElement);
-                        currentReadPos = nextReadPos;
-                    }
-                    // otherwise, we can finish up and return the cigar
-                    else {
-                        readCigarElements.add(new CigarElement(read.getReadLength() - currentReadPos, cigarElement.getOperator()));
-                        return new Cigar(readCigarElements);
-                    }
-                }
-                // do we want part of the element to start?
-                else if ( currentReadPos == 0 && nextHapPos > readStartOnHaplotype ) {
-                    currentReadPos = Math.min(nextHapPos - readStartOnHaplotype, read.getReadLength());
-                    readCigarElements.add(new CigarElement(currentReadPos, cigarElement.getOperator()));
-                }
-
-                currentHapPos = nextHapPos;
-            }
-        }
-
-        return new Cigar(readCigarElements);
-    }
 }
