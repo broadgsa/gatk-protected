@@ -136,7 +136,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         graphs.clear();
 
         final int maxKmer = ReadUtils.getMaxReadLength(reads) - KMER_OVERLAP - 1;
-        if( maxKmer < MIN_KMER ) { throw new IllegalStateException("Reads are too small for use in assembly."); }
+        if( maxKmer < MIN_KMER ) { return; } // Reads are too small for assembly so don't try to create any assembly graphs
 
         // create the graph for each possible kmer
         for( int kmer = maxKmer; kmer >= MIN_KMER; kmer -= GRAPH_KMER_STEP ) {
