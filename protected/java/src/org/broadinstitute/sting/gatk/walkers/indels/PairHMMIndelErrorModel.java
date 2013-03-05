@@ -397,7 +397,7 @@ public class PairHMMIndelErrorModel {
 
                         if (previousHaplotypeSeen == null) {
                             //no need to reallocate arrays for each new haplotype, as length won't change
-                            pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+                            pairHMM.initialize(Y_METRIC_LENGTH, X_METRIC_LENGTH);
                         }
 
                         int startIndexInHaplotype = 0;
