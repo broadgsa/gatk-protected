@@ -63,6 +63,9 @@ public class BQSRReadTransformer extends ReadTransformer {
     private BaseRecalibration bqsr = null;
 
     @Override
+    public OrderingConstraint getOrderingConstraint() { return OrderingConstraint.MUST_BE_FIRST; }
+
+    @Override
     public ApplicationTime initializeSub(final GenomeAnalysisEngine engine, final Walker walker) {
         this.enabled = engine.hasBQSRArgumentSet();
         if ( enabled ) {
