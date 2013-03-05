@@ -146,38 +146,38 @@ public class RecalibrationArgumentCollection {
     public RecalUtils.SOLID_NOCALL_STRATEGY SOLID_NOCALL_STRATEGY = RecalUtils.SOLID_NOCALL_STRATEGY.THROW_EXCEPTION;
 
     /**
-     * The context covariate will use a context of this size to calculate it's covariate value for base mismatches
+     * The context covariate will use a context of this size to calculate its covariate value for base mismatches. Must be between 1 and 13 (inclusive). Note that higher values will increase runtime and required java heap size.
      */
-    @Argument(fullName = "mismatches_context_size", shortName = "mcs", doc = "size of the k-mer context to be used for base mismatches", required = false)
+    @Argument(fullName = "mismatches_context_size", shortName = "mcs", doc = "Size of the k-mer context to be used for base mismatches", required = false)
     public int MISMATCHES_CONTEXT_SIZE = 2;
 
     /**
-     * The context covariate will use a context of this size to calculate it's covariate value for base insertions and deletions
+     * The context covariate will use a context of this size to calculate its covariate value for base insertions and deletions. Must be between 1 and 13 (inclusive). Note that higher values will increase runtime and required java heap size.
      */
-    @Argument(fullName = "indels_context_size", shortName = "ics", doc = "size of the k-mer context to be used for base insertions and deletions", required = false)
+    @Argument(fullName = "indels_context_size", shortName = "ics", doc = "Size of the k-mer context to be used for base insertions and deletions", required = false)
     public int INDELS_CONTEXT_SIZE = 3;
 
     /**
      * The cycle covariate will generate an error if it encounters a cycle greater than this value.
      * This argument is ignored if the Cycle covariate is not used.
      */
-    @Argument(fullName = "maximum_cycle_value", shortName = "maxCycle", doc = "the maximum cycle value permitted for the Cycle covariate", required = false)
+    @Argument(fullName = "maximum_cycle_value", shortName = "maxCycle", doc = "The maximum cycle value permitted for the Cycle covariate", required = false)
     public int MAXIMUM_CYCLE_VALUE = 500;
 
     /**
-     * A default base qualities to use as a prior (reported quality) in the mismatch covariate model. This value will replace all base qualities in the read for this default value. Negative value turns it off (default is off)
+     * A default base qualities to use as a prior (reported quality) in the mismatch covariate model. This value will replace all base qualities in the read for this default value. Negative value turns it off. [default is off]
      */
     @Argument(fullName = "mismatches_default_quality", shortName = "mdq", doc = "default quality for the base mismatches covariate", required = false)
     public byte MISMATCHES_DEFAULT_QUALITY = -1;
 
     /**
-     * A default base qualities to use as a prior (reported quality) in the insertion covariate model. This parameter is used for all reads without insertion quality scores for each base. (default is on)
+     * A default base qualities to use as a prior (reported quality) in the insertion covariate model. This parameter is used for all reads without insertion quality scores for each base. [default is on]
      */
     @Argument(fullName = "insertions_default_quality", shortName = "idq", doc = "default quality for the base insertions covariate", required = false)
     public byte INSERTIONS_DEFAULT_QUALITY = 45;
 
     /**
-     * A default base qualities to use as a prior (reported quality) in the mismatch covariate model. This value will replace all base qualities in the read for this default value. Negative value turns it off (default is off)
+     * A default base qualities to use as a prior (reported quality) in the mismatch covariate model. This value will replace all base qualities in the read for this default value. Negative value turns it off. [default is on]
      */
     @Argument(fullName = "deletions_default_quality", shortName = "ddq", doc = "default quality for the base deletions covariate", required = false)
     public byte DELETIONS_DEFAULT_QUALITY = 45;

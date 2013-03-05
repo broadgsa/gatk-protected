@@ -65,10 +65,16 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 import java.util.*;
 
 /**
+ * Likelihood of the site being a mendelian violation versus the likelihood of the site transmitting according to mendelian rules.
+ *
+ * <p>
  * Given a variant context, uses the genotype likelihoods to assess the likelihood of the site being a mendelian violation
  * versus the likelihood of the site transmitting according to mendelian rules. This assumes that the organism is
  * diploid. When multiple trios are present, the annotation is simply the maximum of the likelihood ratios, rather than
  * the strict 1-Prod(1-p_i) calculation, as this can scale poorly for uncertain sites and many trios.
+ * </p>
+ *
+ * <p>Note that this annotation can only be used with VariantAnnotator (not with UnifiedGenotyper or HaplotypeCaller).</p>
  */
 
 public class MVLikelihoodRatio extends InfoFieldAnnotation implements ExperimentalAnnotation, RodRequiringAnnotation {

@@ -90,7 +90,7 @@ import java.util.*;
  *     <li>In trios: If two individuals are missing, the remaining individual is phased if it is homozygous. No phasing probability is emitted.</li>
  * </ul>
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * <ul>
  *     <li>A VCF variant set containing trio(s) and/or parent/child pair(s).</li>
@@ -108,12 +108,12 @@ import java.util.*;
  *     </ul>
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * An VCF with genotypes recalibrated as most likely under the familial constraint and phased by descent where non ambiguous..
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \

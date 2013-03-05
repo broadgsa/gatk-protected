@@ -79,17 +79,17 @@ import java.util.*;
  * variants in the original genotyping.  This functionality used to comprise the --regenotype option in SelectVariants but we pulled it out
  * into its own tool for technical purposes.
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * A variant set to regenotype.
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A re-genotyped VCF.
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \

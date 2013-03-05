@@ -69,15 +69,15 @@ import java.util.Map;
  * <p>
  * This is a test walker used for asserting that the ReduceReads procedure is not making blatant mistakes when compressing bam files.
  * </p>
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * Two BAM files (using -I) with different read group IDs
  * </p>
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * [Output description]
  * </p>
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  *    java
  *      -jar GenomeAnalysisTK.jar

@@ -63,6 +63,31 @@ import org.broadinstitute.sting.utils.help.HelpConstants;
 
 import java.io.PrintStream;
 
+/**
+ * Outputs a list of intervals that are covered above a given threshold.
+ *
+ * <p>The list can be used as an interval list for other walkers. Note that if the -uncovered argument is given, the tool will instead output intervals that fail the coverage threshold.</p>
+ *
+ * <h3>Input</h3>
+ * <p>
+ * One or more BAM files.
+ * </p>
+ *
+ * <h3>Output</h3>
+ * <p>
+ * List of covered (or uncovered) intervals.
+ * </p>
+ *
+ * <h3>Example</h3>
+ * <pre>
+ * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ *   -T FindCoveredIntervals \
+ *   -R ref.fasta \
+ *   -I my_file.bam \
+ *   -o output.list
+ * </pre>
+ *
+ */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.CONTIG)
 @ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)

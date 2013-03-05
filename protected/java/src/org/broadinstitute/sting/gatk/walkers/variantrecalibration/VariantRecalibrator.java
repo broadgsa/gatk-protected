@@ -80,6 +80,7 @@ import java.util.*;
  *
  * <p>
  * This walker is the first pass in a two-stage processing step. This walker is designed to be used in conjunction with ApplyRecalibration walker.
+ *</p>
  *
  * <p>
  * The purpose of the variant recalibrator is to assign a well-calibrated probability to each variant call in a call set.
@@ -91,24 +92,26 @@ import java.util.*;
  * error model can then be applied to both known and novel variation discovered in the call set of interest to evaluate the
  * probability that each call is real. The score that gets added to the INFO field of each variant is called the VQSLOD. It is
  * the log odds ratio of being a true variant versus being false under the trained Gaussian mixture model.
+ * </p>
  *
  * <p>
  * NOTE: In order to create the model reporting plots Rscript needs to be in your environment PATH (this is the scripting version of R, not the interactive version).
  * See <a target="r-project" href="http://www.r-project.org">http://www.r-project.org</a> for more info on how to download and install R.
+ * </p>
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * The input raw variants to be recalibrated.
  * <p>
  * Known, truth, and training sets to be used by the algorithm. How these various sets are used is described below.
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A recalibration table file in VCF format that is used by the ApplyRecalibration walker.
  * <p>
  * A tranches file which shows various metrics of the recalibration callset as a function of making several slices through the data.
  *
- * <h2>Example</h2>
+ * <h3>Example</h3>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
  *   -T VariantRecalibrator \
@@ -152,7 +155,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      * Known - The known / novel status of a variant isn't used by the algorithm itself and is only used for reporting / display purposes.
      * Bad - In addition to using the worst 3% of variants as compared to the Gaussian mixture model, we can also supplement the list with a database of known bad variants.
      */
-    @Input(fullName="resource", shortName = "resource", doc="A list of sites for which to apply a prior probability of being correct but which aren't used by the algorithm", required=false)
+    @Input(fullName="resource", shortName = "resource", doc="A list of sites for which to apply a prior probability of being correct but which aren't used by the algorithm (training and truth sets are required to run)", required=true)
     public List<RodBinding<VariantContext>> resource = Collections.emptyList();
 
     /////////////////////////////
@@ -170,7 +173,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     /**
      * The expected transition / tranversion ratio of true novel variants in your targeted region (whole genome, exome, specific
      * genes), which varies greatly by the CpG and GC content of the region. See expected Ti/Tv ratios section of the GATK best
-     * practices wiki documentation for more information. Normal whole genome values are 2.15 and for whole exome 3.2. Note
+     * practices documentation (http://www.broadinstitute.org/gatk/guide/topic?name=best-practices) for more information. Normal whole genome values are 2.15 and for whole exome 3.2. Note
      * that this parameter is used for display purposes only and isn't used anywhere in the algorithm!
      */
     @Argument(fullName="target_titv", shortName="titv", doc="The expected novel Ti/Tv ratio to use when calculating FDR tranches and for display on the optimization curve output figures. (approx 2.15 for whole genome experiments). ONLY USED FOR PLOTTING PURPOSES!", required=false)

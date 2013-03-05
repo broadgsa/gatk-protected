@@ -63,7 +63,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Largest contiguous homopolymer run of the variant allele in either direction on the reference.  Computed only for bi-allelic sites.
+ * Largest contiguous homopolymer run of the variant allele in either direction on the reference.
+ *
+ * <p>Computed only for bi-allelic sites.</p>
+ *
+ * <h3>Note that this annotation is no longer supported, as we have found that it does not give satisfactory results. Use at your own risk!</h3>
  */
 public class HomopolymerRun extends InfoFieldAnnotation {
 

@@ -72,11 +72,11 @@ import java.util.Map;
 
 
 /**
- * The depth of coverage of each VCF allele in this sample.
+ * The depth of coverage of each allele per sample
  *
- * The AD and DP are complementary fields that are two important ways of thinking about the depth of the data for this
+ * <p>The AD and DP are complementary fields that are two important ways of thinking about the depth of the data for this
  * sample at this site.  While the sample-level (FORMAT) DP field describes the total depth of reads that passed the
- * Unified Genotyper's internal quality control metrics (like MAPQ > 17, for example), the AD values (one for each of
+ * caller's internal quality control metrics (like MAPQ > 17, for example), the AD values (one for each of
  * REF and ALT fields) is the unfiltered count of all reads that carried with them the
  * REF and ALT alleles. The reason for this distinction is that the DP is in some sense reflective of the
  * power I have to determine the genotype of the sample at this site, while the AD tells me how many times
@@ -86,10 +86,12 @@ import java.util.Map;
  * normally be excluded from the statistical calculations going into GQ and QUAL. Please note, however, that
  * the AD isn't necessarily calculated exactly for indels. Only reads which are statistically favoring one allele over the other are counted.
  * Because of this fact, the sum of AD may be different than the individual sample depth, especially when there are
- * many non-informatice reads.
- * Because the AD includes reads and bases that were filtered by the Unified Genotyper and in case of indels is based on a statistical computation,
+ * many non-informative reads.</p>
+ *
+ * <p>Because the AD includes reads and bases that were filtered by the caller and in case of indels is based on a statistical computation,
  * <b>one should not base assumptions about the underlying genotype based on it</b>;
- * instead, the genotype likelihoods (PLs) are what determine the genotype calls.
+ * instead, the genotype likelihoods (PLs) are what determine the genotype calls.</p>
+ *
  */
 public class DepthPerAlleleBySample extends GenotypeAnnotation implements StandardAnnotation {
 
