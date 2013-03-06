@@ -119,6 +119,6 @@ public class QualityScoreCovariate implements RequiredCovariate {
 
     @Override
     public int maximumKeyValue() {
-        return QualityUtils.MAX_QUAL_SCORE;
+        return QualityUtils.MAX_SAM_QUAL_SCORE;
     }
 }

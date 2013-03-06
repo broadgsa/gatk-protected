@@ -55,6 +55,7 @@ import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.ReadWalker;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
@@ -87,7 +88,7 @@ import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
  * </pre>
  *
  */
-@DocumentedGATKFeature( groupName = "BAM Processing and Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_DATA, extraDocs = {CommandLineGATK.class} )
 public class LeftAlignIndels extends ReadWalker<Integer, Integer> {
 
     @Output(required=false, doc="Output bam")
@@ -110,7 +111,7 @@ public class LeftAlignIndels extends ReadWalker<Integer, Integer> {
         // move existing indels (for 1 indel reads only) to leftmost position within identical sequence
         int numBlocks = AlignmentUtils.getNumAlignmentBlocks(read);
         if ( numBlocks == 2 ) {
-            Cigar newCigar = AlignmentUtils.leftAlignIndel(IndelRealigner.unclipCigar(read.getCigar()), ref.getBases(), read.getReadBases(), 0, 0);
+            Cigar newCigar = AlignmentUtils.leftAlignIndel(IndelRealigner.unclipCigar(read.getCigar()), ref.getBases(), read.getReadBases(), 0, 0, true);
             newCigar = IndelRealigner.reclipCigar(newCigar, read);
             read.setCigar(newCigar);
         }

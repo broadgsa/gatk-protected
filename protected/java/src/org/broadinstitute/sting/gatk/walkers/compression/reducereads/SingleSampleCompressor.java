@@ -46,13 +46,10 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.objects.*;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-
-import java.util.Collections;
-import java.util.Set;
-import java.util.TreeSet;
 
 /**
  *
@@ -67,13 +64,12 @@ public class SingleSampleCompressor {
     final private double minIndelProportionToTriggerVariant;
     final private int minBaseQual;
     final private ReduceReads.DownsampleStrategy downsampleStrategy;
-    final private int nContigs;
     final private boolean allowPolyploidReduction;
 
     private SlidingWindow slidingWindow;
     private int slidingWindowCounter;
 
-    public static Pair<Set<GATKSAMRecord>, CompressionStash> emptyPair = new Pair<Set<GATKSAMRecord>,CompressionStash>(new TreeSet<GATKSAMRecord>(), new CompressionStash());
+    public static Pair<ObjectSet<GATKSAMRecord>, CompressionStash> emptyPair = new Pair<ObjectSet<GATKSAMRecord>,CompressionStash>(new ObjectAVLTreeSet<GATKSAMRecord>(), new CompressionStash());
 
     public SingleSampleCompressor(final int contextSize,
                                   final int downsampleCoverage,
@@ -82,7 +78,6 @@ public class SingleSampleCompressor {
                                   final double minIndelProportionToTriggerVariant,
                                   final int minBaseQual,
                                   final ReduceReads.DownsampleStrategy downsampleStrategy,
-                                  final int nContigs,
                                   final boolean allowPolyploidReduction) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
@@ -92,12 +87,11 @@ public class SingleSampleCompressor {
         this.minIndelProportionToTriggerVariant = minIndelProportionToTriggerVariant;
         this.minBaseQual = minBaseQual;
         this.downsampleStrategy = downsampleStrategy;
-        this.nContigs = nContigs;
         this.allowPolyploidReduction = allowPolyploidReduction;
     }
 
-    public Pair<Set<GATKSAMRecord>, CompressionStash> addAlignment( GATKSAMRecord read ) {
-        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+    public Pair<ObjectSet<GATKSAMRecord>, CompressionStash> addAlignment( GATKSAMRecord read ) {
+        ObjectSet<GATKSAMRecord> reads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
         CompressionStash stash = new CompressionStash();
         int readOriginalStart = read.getUnclippedStart();
 
@@ -107,27 +101,27 @@ public class SingleSampleCompressor {
               (readOriginalStart - contextSize > slidingWindow.getStopLocation()))) {  // this read is too far away from the end of the current sliding window
 
             // close the current sliding window
-            Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = slidingWindow.close();
+            Pair<ObjectSet<GATKSAMRecord>, CompressionStash> readsAndStash = slidingWindow.close();
             reads = readsAndStash.getFirst();
             stash = readsAndStash.getSecond();
             slidingWindow = null;                                                      // so we create a new one on the next if
         }
 
         if ( slidingWindow == null) {                                                  // this is the first read
-            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), nContigs, allowPolyploidReduction);
+            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), allowPolyploidReduction);
             slidingWindowCounter++;
         }
 
         stash.addAll(slidingWindow.addRead(read));
-        return new Pair<Set<GATKSAMRecord>, CompressionStash>(reads, stash);
+        return new Pair<ObjectSet<GATKSAMRecord>, CompressionStash>(reads, stash);
     }
 
-    public Pair<Set<GATKSAMRecord>, CompressionStash> close() {
+    public Pair<ObjectSet<GATKSAMRecord>, CompressionStash> close() {
         return (slidingWindow != null) ? slidingWindow.close() : emptyPair;
     }
 
-    public Set<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
-        return slidingWindow == null ? Collections.<GATKSAMRecord>emptySet() : slidingWindow.closeVariantRegions(regions);
+    public ObjectSet<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
+        return slidingWindow == null ? ObjectSets.EMPTY_SET : slidingWindow.closeVariantRegions(regions);
     }
 
 }

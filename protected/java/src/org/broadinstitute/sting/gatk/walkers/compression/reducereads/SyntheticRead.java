@@ -47,6 +47,8 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 import com.google.java.contract.Requires;
+import it.unimi.dsi.fastutil.bytes.ByteArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
@@ -57,10 +59,8 @@ import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+
 
 /**
  * Running Consensus is a read that is compressed as a sliding window travels over the reads
@@ -76,11 +76,54 @@ import java.util.List;
  * @since 8/26/11
  */
 public class SyntheticRead {
-    private List<BaseIndex> bases;
-    private List<Byte> counts;
-    private List<Byte> quals;
-    private List<Byte> insertionQuals;
-    private List<Byte> deletionQuals;
+    // Rather than storing a separate list for each attribute in SingleBaseInfo, store one list to reduce
+    // memory footprint.
+    // TODO: better name
+    private static class SingleBaseInfo {
+        byte baseIndexOrdinal; // enum BaseIndex.ordinal
+        byte count;
+        byte qual;
+        byte insertionQual;
+        byte deletionQual;
+
+        SingleBaseInfo(byte baseIndexOrdinal, byte count, byte qual, byte insertionQual, byte deletionQual) {
+            this.baseIndexOrdinal = baseIndexOrdinal;
+            this.count = count;
+            this.qual = qual;
+            this.insertionQual = insertionQual;
+            this.deletionQual = deletionQual;
+        }
+    }
+
+    // This class is merely sharing of code for convertVariableGivenBases().
+    private abstract class SingleBaseInfoIterator implements Iterator<Byte> {
+        final Iterator<SingleBaseInfo> it;
+
+        SingleBaseInfoIterator() {
+            this.it = basesCountsQuals.iterator();
+        }
+
+        public boolean hasNext() {
+            return it.hasNext();
+        }
+
+        public void remove() {
+            throw new UnsupportedOperationException();
+        }
+    }
+    
+        
+    // Map from ordinal to enum value.
+    private static final BaseIndex[] BaseIndexByOrdinal = new BaseIndex[BaseIndex.values().length];
+    static 
+    {
+        for (final BaseIndex baseIndex : BaseIndex.values()) {
+            BaseIndexByOrdinal[baseIndex.ordinal()] = baseIndex;
+        }
+    }
+    
+    
+    private final ObjectArrayList<SingleBaseInfo> basesCountsQuals;
     private double mappingQuality;                                                                                      // the average of the rms of the mapping qualities of all the reads that contributed to this consensus
     private String readTag;
 
@@ -108,11 +151,7 @@ public class SyntheticRead {
      */
     public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, String readTag, boolean hasIndelQualities, boolean isNegativeRead) {
         final int initialCapacity = 10000;
-        bases = new ArrayList<BaseIndex>(initialCapacity);
-        counts = new ArrayList<Byte>(initialCapacity);
-        quals = new ArrayList<Byte>(initialCapacity);
-        insertionQuals = new ArrayList<Byte>(initialCapacity);
-        deletionQuals = new ArrayList<Byte>(initialCapacity);
+        basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(initialCapacity);
         mappingQuality = 0.0;
 
         this.readTag = readTag;
@@ -126,12 +165,11 @@ public class SyntheticRead {
         this.isNegativeStrand = isNegativeRead;
     }
 
-    public SyntheticRead(List<BaseIndex> bases, List<Byte> counts, List<Byte> quals, List<Byte> insertionQuals, List<Byte> deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
-        this.bases = bases;
-        this.counts = counts;
-        this.quals = quals;
-        this.insertionQuals = insertionQuals;
-        this.deletionQuals = deletionQuals;
+    public SyntheticRead(ObjectArrayList<BaseIndex> bases, ByteArrayList counts, ByteArrayList quals, ByteArrayList insertionQuals, ByteArrayList deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
+        basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(bases.size());
+        for (int i = 0; i < bases.size(); ++i) {
+            basesCountsQuals.add(new SingleBaseInfo(bases.get(i).getOrdinalByte(), counts.get(i), quals.get(i), insertionQuals.get(i), deletionQuals.get(i)));
+        }
         this.mappingQuality = mappingQuality;
         this.readTag = readTag;
         this.header = header;
@@ -153,16 +191,12 @@ public class SyntheticRead {
      */
     @Requires("count <= Byte.MAX_VALUE")
     public void add(BaseIndex base, byte count, byte qual, byte insQual, byte delQual, double mappingQuality) {
-        counts.add(count);
-        bases.add(base);
-        quals.add(qual);
-        insertionQuals.add(insQual);
-        deletionQuals.add(delQual);
+        basesCountsQuals.add(new SingleBaseInfo(base.getOrdinalByte(), count, qual, insQual, delQual));
         this.mappingQuality += mappingQuality;
     }
 
     public BaseIndex getBase(final int readCoordinate) {
-        return bases.get(readCoordinate);
+        return BaseIndexByOrdinal[basesCountsQuals.get(readCoordinate).baseIndexOrdinal];
     }
 
     public int getRefStart() {
@@ -192,7 +226,7 @@ public class SyntheticRead {
         read.setReadName(readName);
         read.setBaseQualities(convertBaseQualities(), EventType.BASE_SUBSTITUTION);
         read.setReadBases(convertReadBases());
-        read.setMappingQuality((int) Math.ceil(mappingQuality / bases.size()));
+        read.setMappingQuality((int) Math.ceil(mappingQuality / basesCountsQuals.size()));
         read.setReadGroup(readGroupRecord);
         read.setAttribute(readTag, convertBaseCounts());
 
@@ -210,30 +244,46 @@ public class SyntheticRead {
      * @return true if it is, false if it isn't.
      */
     private boolean isAllDeletions() {
-        for (BaseIndex b : bases)
-            if (b != BaseIndex.D)
+        for (SingleBaseInfo b : basesCountsQuals)
+            if (b.baseIndexOrdinal != BaseIndex.D.getOrdinalByte())
                 return false;
         return true;
     }
 
     public int size () {
-        return bases.size();
+        return basesCountsQuals.size();
     }
 
     private byte [] convertBaseQualities() {
-        return convertVariableGivenBases(bases, quals);
+        return convertVariableGivenBases(new SingleBaseInfoIterator() {
+                public Byte next() {
+                    return it.next().qual;
+                }
+            });
     }
 
     private byte [] convertInsertionQualities() {
-        return convertVariableGivenBases(bases, insertionQuals);
+        return convertVariableGivenBases(new SingleBaseInfoIterator() {
+                public Byte next() {
+                    return it.next().insertionQual;
+                }
+            });
     }
 
     private byte [] convertDeletionQualities() {
-        return convertVariableGivenBases(bases, deletionQuals);
+        return convertVariableGivenBases(new SingleBaseInfoIterator() {
+                public Byte next() {
+                    return it.next().deletionQual;
+                }
+            });
     }
 
     protected byte [] convertBaseCounts() {
-        byte[] countsArray = convertVariableGivenBases(bases, counts);
+        byte[] countsArray = convertVariableGivenBases(new SingleBaseInfoIterator() {
+                public Byte next() {
+                    return it.next().count;
+                }
+            });
 
         if (countsArray.length == 0)
             throw new ReviewedStingException("Reduced read has counts array of length 0");
@@ -247,12 +297,14 @@ public class SyntheticRead {
     }
 
     private byte [] convertReadBases() {
-        byte [] readArray = new byte[getReadLengthWithNoDeletions(bases)];
+        byte [] readArray = new byte[getReadLengthWithNoDeletions()];
         int i = 0;
-        for (BaseIndex baseIndex : bases)
+        for (final SingleBaseInfo singleBaseInfo : basesCountsQuals) {
+            final BaseIndex baseIndex = BaseIndexByOrdinal[singleBaseInfo.baseIndexOrdinal];
             if (baseIndex != BaseIndex.D)
                 readArray[i++] = baseIndex.getByte();
-
+        }
+        
         return readArray;
     }
 
@@ -264,10 +316,11 @@ public class SyntheticRead {
      * @return the cigar string for the synthetic read
      */
     private Cigar buildCigar() {
-        LinkedList<CigarElement> cigarElements = new LinkedList<CigarElement>();
+        ObjectArrayList<CigarElement> cigarElements = new ObjectArrayList<CigarElement>();
         CigarOperator cigarOperator = null;
         int length = 0;
-        for (BaseIndex b : bases) {
+        for (final SingleBaseInfo singleBaseInfo : basesCountsQuals) {
+            final BaseIndex b = BaseIndexByOrdinal[singleBaseInfo.baseIndexOrdinal];
             CigarOperator op;
             switch (b) {
                 case D:
@@ -303,18 +356,16 @@ public class SyntheticRead {
     /**
      * Shared functionality for all conversion utilities
      *
-     * @param bases    the read bases
-     * @param variable the list to convert
+     * @param variableIterator the list to convert
      * @return a converted variable given the bases and skipping deletions
      */
 
-    private static byte [] convertVariableGivenBases (List<BaseIndex> bases, List<Byte> variable) {
-        byte [] variableArray = new byte[getReadLengthWithNoDeletions(bases)];
+    private byte [] convertVariableGivenBases (Iterator<Byte> variableIterator) {
+        byte [] variableArray = new byte[getReadLengthWithNoDeletions()];
         int i = 0;
-        Iterator<Byte> variableIterator = variable.iterator();
-        for (BaseIndex baseIndex : bases) {
+        for (final SingleBaseInfo singleBaseInfo : basesCountsQuals) {
             byte count = variableIterator.next();
-            if (baseIndex != BaseIndex.D)
+            if (singleBaseInfo.baseIndexOrdinal != BaseIndex.D.getOrdinalByte())
                 variableArray[i++] = count;
         }
         return variableArray;
@@ -324,13 +375,12 @@ public class SyntheticRead {
     /**
      * Shared functionality for all conversion utilities
      *
-     * @param bases  the read bases
      * @return the length of the read with no deletions
      */
-    private static int getReadLengthWithNoDeletions(List<BaseIndex> bases) {
-        int readLength = bases.size();
-        for (BaseIndex baseIndex : bases)
-            if (baseIndex == BaseIndex.D)
+    private int getReadLengthWithNoDeletions() {
+        int readLength = basesCountsQuals.size();
+        for (final SingleBaseInfo singleBaseInfo : basesCountsQuals)
+            if (singleBaseInfo.baseIndexOrdinal == BaseIndex.D.getOrdinalByte())
                 readLength--;
         return readLength;
     }

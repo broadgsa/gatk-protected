@@ -57,6 +57,7 @@ import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.filters.MappingQualityZeroFilter;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.sting.utils.BaseUtils;
@@ -118,7 +119,7 @@ import static org.broadinstitute.sting.utils.variant.GATKVCFUtils.getVCFHeadersF
 // Filter out all reads with zero mapping quality
 @ReadFilters({MappingQualityZeroFilter.class})
 
-@DocumentedGATKFeature( groupName = "Variant Discovery Tools", extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingStats> {
     @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information (if -l DEBUG is also specified)", required = false)
     protected boolean DEBUG = false;
@@ -1063,7 +1064,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             // Determine the phase at this position:
             this.maxEntry = hapTable.maxEntry();
 
-            // convert posteriorProb to PHRED scale, but do NOT cap the quality as in QualityUtils.probToQual(posteriorProb):
+            // convert posteriorProb to PHRED scale, but do NOT cap the quality as in QualityUtils.trueProbToQual(posteriorProb):
             PreciseNonNegativeDouble sumErrorProbs = new PreciseNonNegativeDouble(ZERO);
             for (PhasingTable.PhasingTableEntry pte : hapTable) {
                 if (pte != maxEntry)

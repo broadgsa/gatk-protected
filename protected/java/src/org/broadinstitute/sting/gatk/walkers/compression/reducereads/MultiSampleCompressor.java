@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.objects.*;
 import net.sf.samtools.SAMFileHeader;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.SampleUtils;
@@ -54,10 +55,6 @@ import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 
 /*
  * Copyright (c) 2009 The Broad Institute
@@ -91,7 +88,7 @@ import java.util.TreeSet;
 public class MultiSampleCompressor {
     protected static final Logger logger = Logger.getLogger(MultiSampleCompressor.class);
 
-    protected Map<String, SingleSampleCompressor> compressorsPerSample = new HashMap<String, SingleSampleCompressor>();
+    protected Object2ObjectMap<String, SingleSampleCompressor> compressorsPerSample = new Object2ObjectOpenHashMap<String, SingleSampleCompressor>();
 
     public MultiSampleCompressor(SAMFileHeader header,
                                  final int contextSize,
@@ -101,22 +98,21 @@ public class MultiSampleCompressor {
                                  final double minIndelProportionToTriggerVariant,
                                  final int minBaseQual,
                                  final ReduceReads.DownsampleStrategy downsampleStrategy,
-                                 final int nContigs,
                                  final boolean allowPolyploidReduction) {
         for ( String name : SampleUtils.getSAMFileSamples(header) ) {
             compressorsPerSample.put(name,
                     new SingleSampleCompressor(contextSize, downsampleCoverage,
-                                    minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, nContigs, allowPolyploidReduction));
+                                    minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, allowPolyploidReduction));
         }
     }
 
-    public Set<GATKSAMRecord> addAlignment(GATKSAMRecord read) {
+    public ObjectSet<GATKSAMRecord> addAlignment(GATKSAMRecord read) {
         String sampleName = read.getReadGroup().getSample();
         SingleSampleCompressor compressor = compressorsPerSample.get(sampleName);
         if ( compressor == null )
             throw new ReviewedStingException("No compressor for sample " + sampleName);
-        Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = compressor.addAlignment(read);
-        Set<GATKSAMRecord> reads = readsAndStash.getFirst();
+        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> readsAndStash = compressor.addAlignment(read);
+        ObjectSet<GATKSAMRecord> reads = readsAndStash.getFirst();
         CompressionStash regions = readsAndStash.getSecond();
 
         reads.addAll(closeVariantRegionsInAllSamples(regions));
@@ -124,17 +120,17 @@ public class MultiSampleCompressor {
         return reads;
     }
 
-    public Set<GATKSAMRecord> close() {
-        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+    public ObjectSet<GATKSAMRecord> close() {
+        ObjectSet<GATKSAMRecord> reads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
         for ( SingleSampleCompressor sample : compressorsPerSample.values() ) {
-            Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = sample.close();
+            Pair<ObjectSet<GATKSAMRecord>, CompressionStash> readsAndStash = sample.close();
             reads = readsAndStash.getFirst();
         }
         return reads;
     }
 
-    private Set<GATKSAMRecord> closeVariantRegionsInAllSamples(CompressionStash regions) {
-        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+    private ObjectSet<GATKSAMRecord> closeVariantRegionsInAllSamples(CompressionStash regions) {
+        ObjectSet<GATKSAMRecord> reads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
         if (!regions.isEmpty()) {
             for (SingleSampleCompressor sample : compressorsPerSample.values()) {
                 reads.addAll(sample.closeVariantRegions(regions));

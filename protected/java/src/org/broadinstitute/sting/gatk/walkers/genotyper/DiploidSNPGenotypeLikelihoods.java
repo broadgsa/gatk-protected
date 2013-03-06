@@ -267,7 +267,7 @@ public class DiploidSNPGenotypeLikelihoods implements Cloneable {
     //
     // -------------------------------------------------------------------------------------
 
-    static DiploidSNPGenotypeLikelihoods[][][][][] CACHE = new DiploidSNPGenotypeLikelihoods[BaseUtils.BASES.length][QualityUtils.MAX_QUAL_SCORE+1][BaseUtils.BASES.length+1][QualityUtils.MAX_QUAL_SCORE+1][MAX_PLOIDY];
+    static DiploidSNPGenotypeLikelihoods[][][][][] CACHE = new DiploidSNPGenotypeLikelihoods[BaseUtils.BASES.length][QualityUtils.MAX_SAM_QUAL_SCORE +1][BaseUtils.BASES.length+1][QualityUtils.MAX_SAM_QUAL_SCORE +1][MAX_PLOIDY];
 
     protected boolean inCache(byte observedBase1, byte qualityScore1, byte observedBase2, byte qualityScore2, int ploidy) {
         return getCache(CACHE, observedBase1, qualityScore1, observedBase2, qualityScore2, ploidy) != null;
@@ -427,7 +427,7 @@ public class DiploidSNPGenotypeLikelihoods implements Cloneable {
         if ( qual > SAMUtils.MAX_PHRED_SCORE )
             throw new UserException.MisencodedBAM(p.getRead(), "we encountered an extremely high quality score (" + (int)qual + ")");
         if ( capBaseQualsAtMappingQual )
-            qual = (byte)Math.min((int)qual, p.getMappingQual());
+            qual = (byte) Math.min( 0xff & qual, p.getMappingQual());
         if ( (int)qual < minBaseQual )
             qual = (byte)0;
 

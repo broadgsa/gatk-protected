@@ -72,13 +72,10 @@ public class LikelihoodCalculationEngine {
 
         switch (hmmType) {
             case EXACT:
-                pairHMM = new ExactPairHMM();
+                pairHMM = new Log10PairHMM(true);
                 break;
             case ORIGINAL:
-                pairHMM = new OriginalPairHMM();
-                break;
-            case CACHING:
-                pairHMM = new CachingPairHMM();
+                pairHMM = new Log10PairHMM(false);
                 break;
             case LOGLESS_CACHING:
                 pairHMM = new LoglessCachingPairHMM();
@@ -112,7 +109,7 @@ public class LikelihoodCalculationEngine {
         Y_METRIC_LENGTH += 2;
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+        pairHMM.initialize(Y_METRIC_LENGTH, X_METRIC_LENGTH);
 
         // for each sample's reads
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
@@ -128,7 +125,7 @@ public class LikelihoodCalculationEngine {
         final int numHaplotypes = haplotypes.size();
         final Map<Haplotype, Allele> alleleVersions = new HashMap<Haplotype, Allele>(numHaplotypes);
         for ( final Haplotype haplotype : haplotypes ) {
-            alleleVersions.put(haplotype, Allele.create(haplotype.getBases()));
+            alleleVersions.put(haplotype, Allele.create(haplotype, true));
         }
 
         final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
@@ -136,11 +133,12 @@ public class LikelihoodCalculationEngine {
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
             Haplotype previousHaplotypeSeen = null;
-            final byte[] readQuals = read.getBaseQualities();
+            // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
+            final byte[] readQuals = read.getBaseQualities().clone();
             final byte[] readInsQuals = read.getBaseInsertionQualities();
             final byte[] readDelQuals = read.getBaseDeletionQualities();
             for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
-                readQuals[kkk] = ( readQuals[kkk] > (byte) read.getMappingQuality() ? (byte) read.getMappingQuality() : readQuals[kkk] ); // cap base quality by mapping quality
+                readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
                 //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
                 //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
                 // TODO -- why is Q18 hard-coded here???
@@ -150,7 +148,7 @@ public class LikelihoodCalculationEngine {
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
                 final Haplotype haplotype = haplotypes.get(jjj);
 
-                final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : computeFirstDifferingPosition(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
+                final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : PairHMM.findFirstPositionWhereHaplotypesDiffer(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
                 previousHaplotypeSeen = haplotype;
 
                 perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype),
@@ -159,15 +157,6 @@ public class LikelihoodCalculationEngine {
             }
         }
         return perReadAlleleLikelihoodMap;
-    }
-
-    private static int computeFirstDifferingPosition( final byte[] b1, final byte[] b2 ) {
-        for( int iii = 0; iii < b1.length && iii < b2.length; iii++ ) {
-            if( b1[iii] != b2[iii] ) {
-                return iii;
-            }
-        }
-        return Math.min(b1.length, b2.length);
     }
 
     @Requires({"alleleOrdering.size() > 0"})
@@ -244,7 +233,7 @@ public class LikelihoodCalculationEngine {
         final List<Integer> bestHaplotypesIndexList = new ArrayList<Integer>();
         bestHaplotypesIndexList.add( findReferenceIndex(haplotypes) ); // always start with the reference haplotype
         final List<Allele> haplotypesAsAlleles = new ArrayList<Allele>();
-        for( final Haplotype h : haplotypes ) { haplotypesAsAlleles.add(Allele.create(h.getBases())); }
+        for( final Haplotype h : haplotypes ) { haplotypesAsAlleles.add(Allele.create(h, true)); }
 
         final double[][] haplotypeLikelihoodMatrix = computeDiploidHaplotypeLikelihoods( sampleKeySet, stratifiedReadMap, haplotypesAsAlleles ); // all samples pooled together
 

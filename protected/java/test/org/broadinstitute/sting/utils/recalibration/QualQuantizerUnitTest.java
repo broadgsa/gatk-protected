@@ -90,7 +90,7 @@ public class QualQuantizerUnitTest extends BaseTest {
             this.exError = exError;
             this.exTotal = exTotal;
             this.exErrorRate = (leftE + rightE + 1) / (1.0 * (leftN + rightN + 1));
-            this.exQual = QualityUtils.probToQual(1-this.exErrorRate, 0);
+            this.exQual = QualityUtils.errorProbToQual(this.exErrorRate);
         }
     }
 

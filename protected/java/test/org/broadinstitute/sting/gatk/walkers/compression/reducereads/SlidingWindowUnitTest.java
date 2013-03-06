@@ -46,9 +46,14 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
@@ -225,7 +230,7 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     private static final int readLength = 100;
     private static final int testRegionSize = 1000;
-    private final List<GATKSAMRecord> basicReads = new ArrayList<GATKSAMRecord>(20);
+    private final ObjectList<GATKSAMRecord> basicReads = new ObjectArrayList<GATKSAMRecord>(20);
     private IndexedFastaSequenceFile seq;
     private SAMFileHeader header;
 
@@ -242,40 +247,67 @@ public class SlidingWindowUnitTest extends BaseTest {
             read.setReadBases(Utils.dupBytes((byte) 'A', readLength));
             read.setBaseQualities(Utils.dupBytes((byte)30, readLength));
             read.setMappingQuality(30);
+            read.setReadNegativeStrandFlag(i % 40 == 20);
             basicReads.add(read);
         }
     }
 
     private class ConsensusCreationTest {
-        public final int expectedNumberOfReads;
+        public final int expectedNumberOfReads, expectedNumberOfReadsWithHetCompression;
         public final List<GATKSAMRecord> myReads = new ArrayList<GATKSAMRecord>(20);
 
-        private ConsensusCreationTest(final List<GenomeLoc> locs, final boolean readsShouldBeLowQuality, final boolean variantBaseShouldBeLowQuality, final int expectedNumberOfReads) {
+        private ConsensusCreationTest(final List<GenomeLoc> locs, final boolean readsShouldBeLowQuality, final boolean variantBaseShouldBeLowQuality, final int expectedNumberOfReads, final int expectedNumberOfReadsWithHetCompression) {
             this.expectedNumberOfReads = expectedNumberOfReads;
+            this.expectedNumberOfReadsWithHetCompression = expectedNumberOfReadsWithHetCompression;
 
             // first, add the basic reads to the collection
             myReads.addAll(basicReads);
 
             // then add the permuted reads
             for ( final GenomeLoc loc : locs )
-                myReads.add(createVariantRead(loc, readsShouldBeLowQuality, variantBaseShouldBeLowQuality));
+                myReads.add(createVariantRead(loc, readsShouldBeLowQuality, variantBaseShouldBeLowQuality, CigarOperator.M));
         }
 
-        private GATKSAMRecord createVariantRead(final GenomeLoc loc, final boolean readShouldBeLowQuality, final boolean variantBaseShouldBeLowQuality) {
+        private ConsensusCreationTest(final List<GenomeLoc> locs, final CigarOperator operator, final int expectedNumberOfReads, final int expectedNumberOfReadsWithHetCompression) {
+            this.expectedNumberOfReads = expectedNumberOfReads;
+            this.expectedNumberOfReadsWithHetCompression = expectedNumberOfReadsWithHetCompression;
+
+            // first, add the basic reads to the collection
+            myReads.addAll(basicReads);
+
+            // then add the permuted reads
+            for ( final GenomeLoc loc : locs )
+                myReads.add(createVariantRead(loc, false, false, operator));
+        }
+
+        private GATKSAMRecord createVariantRead(final GenomeLoc loc, final boolean readShouldBeLowQuality,
+                                                final boolean variantBaseShouldBeLowQuality, final CigarOperator operator) {
 
             final int startPos = loc.getStart() - 50;
 
             final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "myRead" + startPos, 0, startPos, readLength);
+
             final byte[] bases = Utils.dupBytes((byte) 'A', readLength);
-            // create a mismatch
-            bases[50] = 'C';
+            // create a mismatch if requested
+            if ( operator == CigarOperator.M )
+                bases[50] = 'C';
             read.setReadBases(bases);
+
             final byte[] baseQuals = Utils.dupBytes((byte) 30, readLength);
             if ( variantBaseShouldBeLowQuality )
                 baseQuals[50] = (byte)10;
             read.setBaseQualities(baseQuals);
             final byte mappingQual = readShouldBeLowQuality ? (byte)10 : (byte)30;
             read.setMappingQuality(mappingQual);
+
+            if ( operator != CigarOperator.M ) {
+                final List<CigarElement> elements = new ArrayList<CigarElement>(3);
+                elements.add(new CigarElement(operator == CigarOperator.D ? 50 : 51, CigarOperator.M));
+                elements.add(new CigarElement(1, operator));
+                elements.add(new CigarElement(operator == CigarOperator.D ? 50 : 48, CigarOperator.M));
+                read.setCigar(new Cigar(elements));
+            }
+
             return read;
         }
     }
@@ -291,41 +323,61 @@ public class SlidingWindowUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         // test high quality reads and bases
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, false, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, false, 9)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, false, 10)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, false, 10)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, false, 11)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, false, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, false, 9, 5)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, false, 10, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, false, 10, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, false, 11, 11)});
 
         // test low quality reads
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), true, false, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), true, false, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), true, false, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), true, false, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), true, false, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), true, false, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), true, false, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), true, false, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), true, false, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), true, false, 1, 1)});
 
         // test low quality bases
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, true, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, true, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, true, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, true, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, true, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, true, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, true, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, true, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, true, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, true, 1, 1)});
 
         // test mixture
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), true, false, 2)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), false, true, 3)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), true, false, 2, 2)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), false, true, 3, 3)});
+
+        // test I/D operators
+        // TODO -- uncomment this test when the deletion bug is fixed!
+        // tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.D, 9, 5)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.D, 10, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.D, 10, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.D, 11, 11)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.I, 9, 9)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.I, 10, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.I, 10, 10)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.I, 11, 11)});
 
         return tests.toArray(new Object[][]{});
     }
 
     @Test(dataProvider = "ConsensusCreation", enabled = true)
     public void testConsensusCreationTest(ConsensusCreationTest test) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, 1, false);
+        // test WITHOUT het compression allowed
+        SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
-        final Pair<Set<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
+        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
 
         Assert.assertEquals(result.getFirst().size(), test.expectedNumberOfReads);
+
+        // test WITH het compression allowed
+        slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, true);
+        for ( final GATKSAMRecord read : test.myReads )
+            slidingWindow.addRead(read);
+        result = slidingWindow.close();
+
+        Assert.assertEquals(result.getFirst().size(), test.expectedNumberOfReadsWithHetCompression);
     }
 
 
@@ -353,8 +405,8 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     @Test(dataProvider = "Downsampling", enabled = true)
     public void testDownsamplingTest(DSTest test) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, test.dcov, ReduceReads.DownsampleStrategy.Normal, false, 1, false);
-        final List<GATKSAMRecord> result = slidingWindow.downsampleVariantRegion(basicReads);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, test.dcov, ReduceReads.DownsampleStrategy.Normal, false, false);
+        final ObjectList<GATKSAMRecord> result = slidingWindow.downsampleVariantRegion(basicReads);
 
         Assert.assertEquals(result.size(), Math.min(test.dcov, basicReads.size()));
     }
@@ -401,10 +453,10 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     @Test(dataProvider = "ConsensusQuals", enabled = true)
     public void testConsensusQualsTest(QualsTest test) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, minUsableConsensusQual, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, 1, false);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, minUsableConsensusQual, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
-        final Pair<Set<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
+        final Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
 
         Assert.assertEquals(result.getFirst().size(), 1);
         final GATKSAMRecord read = result.getFirst().iterator().next();

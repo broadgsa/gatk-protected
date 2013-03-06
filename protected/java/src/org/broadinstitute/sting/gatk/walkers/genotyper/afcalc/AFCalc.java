@@ -113,12 +113,14 @@ public abstract class AFCalc implements Cloneable {
     /**
      * Compute the probability of the alleles segregating given the genotype likelihoods of the samples in vc
      *
-     * @param vc the VariantContext holding the alleles and sample information
+     * @param vc the VariantContext holding the alleles and sample information.  The VariantContext
+     *           must have at least 1 alternative allele
      * @param log10AlleleFrequencyPriors a prior vector nSamples x 2 in length indicating the Pr(AF = i)
      * @return result (for programming convenience)
      */
     public AFCalcResult getLog10PNonRef(final VariantContext vc, final double[] log10AlleleFrequencyPriors) {
         if ( vc == null ) throw new IllegalArgumentException("VariantContext cannot be null");
+        if ( vc.getNAlleles() == 1 ) throw new IllegalArgumentException("VariantContext has only a single reference allele, but getLog10PNonRef requires at least one at all " + vc);
         if ( log10AlleleFrequencyPriors == null ) throw new IllegalArgumentException("priors vector cannot be null");
         if ( stateTracker == null ) throw new IllegalArgumentException("Results object cannot be null");
 
@@ -170,18 +172,19 @@ public abstract class AFCalc implements Cloneable {
      * @param vc the initial VC provided by the caller to this AFcalculation
      * @return a potentially simpler VC that's more tractable to genotype
      */
-    @Requires("vc != null")
+    @Requires({"vc != null", "vc.getNAlleles() > 1"})
     @Ensures("result != null")
     protected abstract VariantContext reduceScope(final VariantContext vc);
 
     /**
      * Actually carry out the log10PNonRef calculation on vc, storing results in results
      *
-     * @param vc                                variant context with alleles and genotype likelihoods
+     * @param vc                                variant context with alleles and genotype likelihoods,
+     *                                          must have at least one alt allele
      * @param log10AlleleFrequencyPriors        priors
      * @return a AFCalcResult object describing the results of this calculation
      */
-    @Requires({"vc != null", "log10AlleleFrequencyPriors != null"})
+    @Requires({"vc != null", "log10AlleleFrequencyPriors != null", "vc.getNAlleles() > 1"})
     protected abstract AFCalcResult computeLog10PNonRef(final VariantContext vc,
                                                         final double[] log10AlleleFrequencyPriors);
 

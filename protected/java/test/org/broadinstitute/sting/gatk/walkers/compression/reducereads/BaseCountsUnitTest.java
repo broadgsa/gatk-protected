@@ -47,60 +47,56 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 
-// the imports for unit testing.
-
-
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * Basic unit test for BaseCounts in reduced reads
  */
 public class BaseCountsUnitTest extends BaseTest {
-    private class SingleTest {
+
+    private class BaseCountsTest {
         public String bases;
         public byte mostCountBase;
         public int mostCommonCount;
 
-        private SingleTest(String bases, char mostCountBase, int mostCommonCount) {
+        private BaseCountsTest(String bases, char mostCountBase, int mostCommonCount) {
             this.mostCommonCount = mostCommonCount;
             this.mostCountBase = (byte)mostCountBase;
             this.bases = bases;
         }
     }
 
+    @DataProvider(name = "counting")
+    public Object[][] createCountingData() {
+        List<BaseCountsTest> params = new ArrayList<BaseCountsTest>();
 
-    @DataProvider(name = "data")
-    public Object[][] createData1() {
-        List<SingleTest> params = new ArrayList<SingleTest>();
-
-        params.add(new SingleTest("A", 'A', 1 ));
-        params.add(new SingleTest("AA", 'A', 2 ));
-        params.add(new SingleTest("AC", 'A', 1 ));
-        params.add(new SingleTest("AAC", 'A', 2 ));
-        params.add(new SingleTest("AAA", 'A', 3 ));
-        params.add(new SingleTest("AAAN", 'A', 3 ));
-        params.add(new SingleTest("AAANNNN", 'N', 4 ));
-        params.add(new SingleTest("AACTG", 'A', 2 ));
-        params.add(new SingleTest("D", 'D', 1 ));
-        params.add(new SingleTest("DDAAD", 'D', 3));
-        params.add(new SingleTest("", (char)BaseCounts.MAX_BASE_WITH_NO_COUNTS, 0 ));
-        params.add(new SingleTest("AAIIIAI", 'I', 4 ));
+        params.add(new BaseCountsTest("A", 'A', 1 ));
+        params.add(new BaseCountsTest("AA", 'A', 2 ));
+        params.add(new BaseCountsTest("AC", 'A', 1 ));
+        params.add(new BaseCountsTest("AAC", 'A', 2 ));
+        params.add(new BaseCountsTest("AAA", 'A', 3 ));
+        params.add(new BaseCountsTest("AAAN", 'A', 3 ));
+        params.add(new BaseCountsTest("AAANNNN", 'N', 4 ));
+        params.add(new BaseCountsTest("AACTG", 'A', 2 ));
+        params.add(new BaseCountsTest("D", 'D', 1 ));
+        params.add(new BaseCountsTest("DDAAD", 'D', 3));
+        params.add(new BaseCountsTest("", (char)BaseCounts.MAX_BASE_WITH_NO_COUNTS, 0 ));
+        params.add(new BaseCountsTest("AAIIIAI", 'I', 4 ));
 
         List<Object[]> params2 = new ArrayList<Object[]>();
-        for ( SingleTest x : params ) params2.add(new Object[]{x});
+        for ( BaseCountsTest x : params ) params2.add(new Object[]{x});
         return params2.toArray(new Object[][]{});
     }
 
-
-
-    @Test(dataProvider = "data", enabled = true)
-    public void testCounting(SingleTest params) {
+    @Test(dataProvider = "counting", enabled = true)
+    public void testCounting(BaseCountsTest params) {
         BaseCounts counts = new BaseCounts();
 
         for ( byte base : params.bases.getBytes() )
@@ -110,5 +106,96 @@ public class BaseCountsUnitTest extends BaseTest {
         Assert.assertEquals(counts.totalCount(), params.bases.length(), name);
         Assert.assertEquals(counts.countOfBase(counts.baseIndexWithMostCounts()), params.mostCommonCount, name);
         Assert.assertEquals((char)counts.baseWithMostCounts(), (char)params.mostCountBase, name);
+
+        // test the static creation
+        final int[] countsArray = new int[] { counts.countOfBase(BaseIndex.A), counts.countOfBase(BaseIndex.C),
+                counts.countOfBase(BaseIndex.G), counts.countOfBase(BaseIndex.T)};
+        final BaseCounts countsFromArray = BaseCounts.createWithCounts(countsArray);
+        Assert.assertEquals(counts.countOfBase(BaseIndex.A), countsFromArray.countOfBase(BaseIndex.A));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.C), countsFromArray.countOfBase(BaseIndex.C));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.G), countsFromArray.countOfBase(BaseIndex.G));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.T), countsFromArray.countOfBase(BaseIndex.T));
+        Assert.assertEquals(ACGTcounts(counts), countsFromArray.totalCount());
+
+        // test addition
+        counts.add(countsFromArray);
+        Assert.assertEquals(counts.countOfBase(BaseIndex.A), 2 * countsFromArray.countOfBase(BaseIndex.A));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.C), 2 * countsFromArray.countOfBase(BaseIndex.C));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.G), 2 * countsFromArray.countOfBase(BaseIndex.G));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.T), 2 * countsFromArray.countOfBase(BaseIndex.T));
+        Assert.assertEquals(ACGTcounts(counts), 2 * countsFromArray.totalCount());
+
+        // test subtraction
+        counts.sub(countsFromArray);
+        Assert.assertEquals(counts.countOfBase(BaseIndex.A), countsFromArray.countOfBase(BaseIndex.A));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.C), countsFromArray.countOfBase(BaseIndex.C));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.G), countsFromArray.countOfBase(BaseIndex.G));
+        Assert.assertEquals(counts.countOfBase(BaseIndex.T), countsFromArray.countOfBase(BaseIndex.T));
+        Assert.assertEquals(ACGTcounts(counts), countsFromArray.totalCount());
+
+        // test decrementing
+        if ( counts.countOfBase(BaseIndex.A) > 0 ) {
+            counts.decr((byte)'A');
+            Assert.assertEquals(counts.countOfBase(BaseIndex.A), countsFromArray.countOfBase(BaseIndex.A) - 1);
+        }
+    }
+
+    private static int ACGTcounts(final BaseCounts baseCounts) {
+        return baseCounts.totalCountWithoutIndels() - baseCounts.countOfBase(BaseIndex.N);
+    }
+
+
+    //////////////////////////////////
+    // TEST FOR QUALS IN BASECOUNTS //
+    //////////////////////////////////
+
+    private class BaseCountsQualsTest {
+        public final List<Integer> quals;
+
+        private BaseCountsQualsTest(final List<Integer> quals) {
+            this.quals = quals;
+        }
+    }
+
+    @DataProvider(name = "quals")
+    public Object[][] createQualsData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final int[] quals = new int[]{ 0, 5, 10, 15, 20, 30, 40, 50 };
+
+        for ( final int qual1 : quals ) {
+            for ( final int qual2 : quals ) {
+                for ( final int qual3 : quals ) {
+                    tests.add(new Object[]{new BaseCountsQualsTest(Arrays.asList(qual1, qual2, qual3))});
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "quals", enabled = true)
+    public void testQuals(BaseCountsQualsTest test) {
+        BaseCounts counts = new BaseCounts();
+
+        for ( int qual : test.quals )
+            counts.incr(BaseIndex.A, (byte)qual);
+
+        final int actualSum = (int)counts.getSumQuals((byte)'A');
+        final int expectedSum = qualSum(test.quals);
+        Assert.assertEquals(actualSum, expectedSum);
+
+        final int actualAverage = (int)counts.averageQuals((byte)'A');
+        Assert.assertEquals(actualAverage, expectedSum / test.quals.size());
+
+        // test both proportion methods
+        Assert.assertEquals(counts.baseCountProportion(BaseIndex.A), counts.baseCountProportion((byte)'A'));
+    }
+
+    private static int qualSum(final List<Integer> quals) {
+        int sum = 0;
+        for ( final int qual : quals )
+            sum += qual;
+        return sum;
     }
 }

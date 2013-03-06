@@ -48,14 +48,12 @@ package org.broadinstitute.sting.gatk.walkers.indels;
 
 import com.google.java.contract.Ensures;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.pairhmm.ExactPairHMM;
-//import org.broadinstitute.sting.utils.pairhmm.LoglessCachingPairHMM;
-import org.broadinstitute.sting.utils.pairhmm.OriginalPairHMM;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -67,6 +65,8 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+//import org.broadinstitute.sting.utils.pairhmm.LoglessCachingPairHMM;
 
 
 public class PairHMMIndelErrorModel {
@@ -116,12 +116,11 @@ public class PairHMMIndelErrorModel {
 
         switch (hmmType) {
             case EXACT:
-                pairHMM = new ExactPairHMM();
+                pairHMM = new Log10PairHMM(true);
                 break;
             case ORIGINAL:
-                pairHMM = new OriginalPairHMM();
+                pairHMM = new Log10PairHMM(false);
                 break;
-            case CACHING:
             case LOGLESS_CACHING:                //TODO: still not tested so please do not use yet
                 //pairHMM = new LoglessCachingPairHMM(); //TODO - add it back when the figure out how to use the protected LoglessCachingPairHMM class
                 throw new UserException.BadArgumentValue("pairHMM"," this option (LOGLESS_CACHING in UG) is still under development");
@@ -344,8 +343,10 @@ public class PairHMMIndelErrorModel {
                     }
                 }
                 else {
-                    final byte[] readBases = Arrays.copyOfRange(unclippedReadBases,numStartSoftClippedBases, unclippedReadBases.length-numEndSoftClippedBases);
-                    final byte[] readQuals = Arrays.copyOfRange(unclippedReadQuals,numStartSoftClippedBases, unclippedReadBases.length-numEndSoftClippedBases);
+                    final int endOfCopy = unclippedReadBases.length - numEndSoftClippedBases;
+                    final byte[] readBases = Arrays.copyOfRange(unclippedReadBases, numStartSoftClippedBases, endOfCopy);
+                    final byte[] readQuals = Arrays.copyOfRange(unclippedReadQuals, numStartSoftClippedBases, endOfCopy);
+
                     int j=0;
 
                     byte[] previousHaplotypeSeen = null;
@@ -356,6 +357,16 @@ public class PairHMMIndelErrorModel {
                     final int[] hrunProfile = new int[readBases.length];
                     getContextHomopolymerLength(readBases,hrunProfile);
                     fillGapProbabilities(hrunProfile, contextLogGapOpenProbabilities, contextLogGapContinuationProbabilities);
+
+                    // get the base insertion and deletion qualities to use
+                    final byte[] baseInsertionQualities, baseDeletionQualities;
+                    if ( read.hasBaseIndelQualities() ) {
+                        baseInsertionQualities = Arrays.copyOfRange(read.getBaseInsertionQualities(), numStartSoftClippedBases, endOfCopy);
+                        baseDeletionQualities = Arrays.copyOfRange(read.getBaseDeletionQualities(), numStartSoftClippedBases, endOfCopy);
+                    } else {
+                        baseInsertionQualities = contextLogGapOpenProbabilities;
+                        baseDeletionQualities = contextLogGapOpenProbabilities;
+                    }
 
                     boolean firstHap = true;
                     for (Allele a: haplotypeMap.keySet()) {
@@ -386,7 +397,7 @@ public class PairHMMIndelErrorModel {
 
                         if (previousHaplotypeSeen == null) {
                             //no need to reallocate arrays for each new haplotype, as length won't change
-                            pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+                            pairHMM.initialize(Y_METRIC_LENGTH, X_METRIC_LENGTH);
                         }
 
                         int startIndexInHaplotype = 0;
@@ -395,8 +406,7 @@ public class PairHMMIndelErrorModel {
                         previousHaplotypeSeen = haplotypeBases.clone();
 
                         readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotypeBases, readBases, readQuals,
-                                (read.hasBaseIndelQualities() ? read.getBaseInsertionQualities() : contextLogGapOpenProbabilities),
-                                (read.hasBaseIndelQualities() ? read.getBaseDeletionQualities() : contextLogGapOpenProbabilities),
+                                baseInsertionQualities, baseDeletionQualities,
                                 contextLogGapContinuationProbabilities, startIndexInHaplotype, firstHap);
 
 

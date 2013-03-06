@@ -263,11 +263,11 @@ public class RecalibrationReport {
      * Parses the quantization table from the GATK Report and turns it into a map of original => quantized quality scores
      *
      * @param table the GATKReportTable containing the quantization mappings
-     * @return an ArrayList with the quantization mappings from 0 to MAX_QUAL_SCORE
+     * @return an ArrayList with the quantization mappings from 0 to MAX_SAM_QUAL_SCORE
      */
     private QuantizationInfo initializeQuantizationTable(GATKReportTable table) {
-        final Byte[] quals  = new Byte[QualityUtils.MAX_QUAL_SCORE + 1];
-        final Long[] counts = new Long[QualityUtils.MAX_QUAL_SCORE + 1];
+        final Byte[] quals  = new Byte[QualityUtils.MAX_SAM_QUAL_SCORE + 1];
+        final Long[] counts = new Long[QualityUtils.MAX_SAM_QUAL_SCORE + 1];
         for ( int i = 0; i < table.getNumRows(); i++ ) {
             final byte originalQual = (byte)i;
             final Object quantizedObject = table.get(i, RecalUtils.QUANTIZED_VALUE_COLUMN_NAME);
@@ -321,6 +321,9 @@ public class RecalibrationReport {
 
             else if (argument.equals("deletions_default_quality"))
                 RAC.DELETIONS_DEFAULT_QUALITY = Byte.parseByte((String) value);
+
+            else if (argument.equals("maximum_cycle_value"))
+                RAC.MAXIMUM_CYCLE_VALUE = Integer.parseInt((String) value);
 
             else if (argument.equals("low_quality_tail"))
                 RAC.LOW_QUAL_TAIL = Byte.parseByte((String) value);

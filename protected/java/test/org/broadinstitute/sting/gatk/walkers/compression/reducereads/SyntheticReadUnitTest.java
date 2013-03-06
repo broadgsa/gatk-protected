@@ -46,6 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.bytes.ByteArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
@@ -53,9 +55,6 @@ import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.Arrays;
-import java.util.Random;
 
 public class SyntheticReadUnitTest extends BaseTest {
     final SAMFileHeader artificialSAMHeader = ArtificialSAMUtils.createArtificialSamHeader(1, 1, 1);
@@ -66,35 +65,32 @@ public class SyntheticReadUnitTest extends BaseTest {
     final int artificialRefStart = 1;
     final double artificialMappingQuality = 60;
 
-    final Random random = new Random(8854875);
-
-
 @Test
 public void testBaseCounts() {
         BaseIndex [] bases = new BaseIndex[] {BaseIndex.A,BaseIndex.A,BaseIndex.A,BaseIndex.A};
-        Byte[] quals = new Byte[] {20, 20, 20, 20 };
+        byte[] quals = new byte[] {20, 20, 20, 20 };
 
         TestRead [] testReads = new TestRead [] {
-                new TestRead(bases, quals, new Byte[] {100, 100, 100, 101}, new byte [] {100, 0, 0, 1}),
-                new TestRead(bases, quals, new Byte[] {1, 100, 100, 0},     new byte [] {1, 99, 99, -1}),
-                new TestRead(bases, quals, new Byte[] {127, 100, 0, 1},     new byte [] {127, -27, -127, -126}),
-                new TestRead(bases, quals, new Byte[] {1, 127, 51, 126},    new byte [] {1, 126, 50, 125})};
+                new TestRead(bases, quals, new byte[] {100, 100, 100, 101}, new byte [] {100, 0, 0, 1}),
+                new TestRead(bases, quals, new byte[] {1, 100, 100, 0},     new byte [] {1, 99, 99, -1}),
+                new TestRead(bases, quals, new byte[] {127, 100, 0, 1},     new byte [] {127, -27, -127, -126}),
+                new TestRead(bases, quals, new byte[] {1, 127, 51, 126},    new byte [] {1, 126, 50, 125})};
 
         for (TestRead testRead : testReads) {
-            SyntheticRead syntheticRead = new SyntheticRead(Arrays.asList(testRead.getBases()), Arrays.asList(testRead.getCounts()), Arrays.asList(testRead.getQuals()), Arrays.asList(testRead.getInsQuals()), Arrays.asList(testRead.getDelQuals()), artificialMappingQuality, GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, artificialSAMHeader, artificialGATKRG, artificialContig, artificialContigIndex, artificialReadName, artificialRefStart, false, false);
+            SyntheticRead syntheticRead = new SyntheticRead(new ObjectArrayList<BaseIndex>(testRead.getBases()), new ByteArrayList(testRead.getCounts()), new ByteArrayList(testRead.getQuals()), new ByteArrayList(testRead.getInsQuals()), new ByteArrayList(testRead.getDelQuals()), artificialMappingQuality, GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, artificialSAMHeader, artificialGATKRG, artificialContig, artificialContigIndex, artificialReadName, artificialRefStart, false, false);
             Assert.assertEquals(syntheticRead.convertBaseCounts(), testRead.getExpectedCounts());
         }
 }
 
 private class TestRead {
     BaseIndex[] bases;
-    Byte[] quals;
-    Byte[] insQuals;
-    Byte[] delQuals;
-    Byte[] counts;
-    byte [] expectedCounts;
+    byte[] quals;
+    byte[] insQuals;
+    byte[] delQuals;
+    byte[] counts;
+    byte[] expectedCounts;
 
-    private TestRead(BaseIndex[] bases, Byte[] quals, Byte[] counts, byte[] expectedCounts) {
+    private TestRead(BaseIndex[] bases, byte[] quals, byte[] counts, byte[] expectedCounts) {
         this.bases = bases;
         this.quals = quals;
         this.insQuals = quals;
@@ -107,19 +103,19 @@ private class TestRead {
         return bases;
     }
 
-    public Byte[] getQuals() {
+    public byte[] getQuals() {
         return quals;
     }
 
-    public Byte[] getInsQuals() {
+    public byte[] getInsQuals() {
         return insQuals;
     }
 
-    public Byte[] getDelQuals() {
+    public byte[] getDelQuals() {
         return delQuals;
     }
 
-    public Byte[] getCounts() {
+    public byte[] getCounts() {
         return counts;
     }
 

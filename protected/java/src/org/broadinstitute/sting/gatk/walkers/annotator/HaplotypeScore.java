@@ -91,8 +91,6 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
         if (vc.isSNP() && stratifiedContexts != null)
             return annotatePileup(ref, stratifiedContexts, vc);
-        else if (stratifiedPerReadAlleleLikelihoodMap != null && vc.isVariant())
-            return annotateWithLikelihoods(stratifiedPerReadAlleleLikelihoodMap, vc);
         else
             return null;
     }
@@ -133,31 +131,6 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         return map;
     }
 
-    private Map<String, Object> annotateWithLikelihoods(final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
-                                                        final VariantContext vc) {
-
-        final MathUtils.RunningAverage scoreRA = new MathUtils.RunningAverage();
-        for (final Genotype genotype : vc.getGenotypes()) {
-            final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = stratifiedPerReadAlleleLikelihoodMap.get(genotype.getSampleName());
-            if (perReadAlleleLikelihoodMap == null)
-                continue;
-
-            Double d = scoreIndelsAgainstHaplotypes(perReadAlleleLikelihoodMap);
-            if (d == null)
-                continue;
-           scoreRA.add(d); // Taking the simple average of all sample's score since the score can be negative and the RMS doesn't make sense
-        }
-
- //       if (scoreRA.observationCount() == 0)
- //           return null;
-
-        // annotate the score in the info field
-        final Map<String, Object> map = new HashMap<String, Object>();
-        map.put(getKeyNames().get(0), String.format("%.4f", scoreRA.mean()));
-        return map;
-
-    }
-
     private static class HaplotypeComparator implements Comparator<Haplotype>, Serializable {
 
         public int compare(Haplotype a, Haplotype b) {
@@ -180,7 +153,8 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
         for (final PileupElement p : pileup) {
             final Haplotype haplotypeFromRead = getHaplotypeFromRead(p, contextSize, locus);
-            candidateHaplotypeQueue.add(haplotypeFromRead);
+            if ( haplotypeFromRead != null )
+                candidateHaplotypeQueue.add(haplotypeFromRead);
         }
 
         // Now that priority queue has been built with all reads at context, we need to merge and find possible segregating haplotypes
@@ -230,8 +204,18 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
             return null;
     }
 
+    /**
+     * Return a haplotype object constructed from the read or null if read's cigar is null
+     *
+     * @param p                pileup element representing the read
+     * @param contextSize      the context size to use
+     * @param locus            the position
+     * @return possibly null Haplotype object constructed from the read
+     */
     private Haplotype getHaplotypeFromRead(final PileupElement p, final int contextSize, final int locus) {
         final GATKSAMRecord read = p.getRead();
+        if ( read.getCigar() == null )
+            return null;
 
         final byte[] haplotypeBases = new byte[contextSize];
         Arrays.fill(haplotypeBases, (byte) REGEXP_WILDCARD);
@@ -347,6 +331,10 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         double expected = 0.0;
         double mismatches = 0.0;
 
+        final GATKSAMRecord read = p.getRead();
+        if ( read.getCigar() == null )
+            return 0.0;
+
         // What's the expected mismatch rate under the model that this read is actually sampled from
         // this haplotype?  Let's assume the consensus base c is a random choice one of A, C, G, or T, and that
         // the observed base is actually from a c with an error rate e.  Since e is the rate at which we'd
@@ -358,14 +346,12 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         // the chance that it is actually a mismatch is 1 - e, since any of the other 3 options would be a mismatch.
         // so the probability-weighted mismatch rate is sum_i ( matched ? e_i / 3 : 1 - e_i ) for i = 1 ... n
         final byte[] haplotypeBases = haplotype.getBases();
-        final GATKSAMRecord read = p.getRead();
         byte[] readBases = read.getReadBases();
 
         readBases = AlignmentUtils.readToAlignmentByteArray(p.getRead().getCigar(), readBases); // Adjust the read bases based on the Cigar string
         byte[] readQuals = read.getBaseQualities();
         readQuals = AlignmentUtils.readToAlignmentByteArray(p.getRead().getCigar(), readQuals); // Shift the location of the qual scores based on the Cigar string
-        int readOffsetFromPileup = p.getOffset();
-        readOffsetFromPileup = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, read.getAlignmentStart(), locus);
+        int readOffsetFromPileup = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, read.getAlignmentStart(), locus);
         final int baseOffsetStart = readOffsetFromPileup - (contextSize - 1) / 2;
 
         for (int i = 0; i < contextSize; i++) {
@@ -397,39 +383,6 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         }
 
         return mismatches - expected;
-    }
-
-
-    private Double scoreIndelsAgainstHaplotypes(final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
-        final ArrayList<double[]> haplotypeScores = new ArrayList<double[]>();
-
-        if (perReadAlleleLikelihoodMap.isEmpty())
-            return null;
-
-        for (Map<Allele,Double> el : perReadAlleleLikelihoodMap.getLikelihoodMapValues()) {
-
-            // retrieve likelihood information corresponding to this read
-            // Score all the reads in the pileup, even the filtered ones
-            final double[] scores = new double[el.size()];
-            int i = 0;
-            for (Map.Entry<Allele, Double> a : el.entrySet()) {
-                scores[i++] = -a.getValue();
-                if (DEBUG) {
-                    System.out.printf("  vs. haplotype %d = %f%n", i - 1, scores[i - 1]);
-                }
-            }
-
-            haplotypeScores.add(scores);
-        }
-
-        // indel likelihoods are strict log-probs, not phred scored
-        double overallScore = 0.0;
-        for (final double[] readHaplotypeScores : haplotypeScores) {
-            overallScore += MathUtils.arrayMin(readHaplotypeScores);
-        }
-
-        return overallScore;
-
     }
 
     public List<String> getKeyNames() {

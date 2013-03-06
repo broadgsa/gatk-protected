@@ -82,7 +82,7 @@ public class KBestPathsUnitTest {
     @Test(dataProvider = "BasicBubbleDataProvider")
     public void testBasicBubbleData(final int refBubbleLength, final int altBubbleLength) {
         // Construct the assembly graph
-        DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
+        DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
         final int KMER_LENGTH = 3;
         final String preRef = "ATGG";
         final String postRef = new String(Utils.dupBytes((byte) 'A', KMER_LENGTH-1)) + "GGGGC";
@@ -142,7 +142,7 @@ public class KBestPathsUnitTest {
     @Test(dataProvider = "TripleBubbleDataProvider")
     public void testTripleBubbleData(final int refBubbleLength, final int altBubbleLength, final boolean offRefBeginning, final boolean offRefEnding) {
         // Construct the assembly graph
-        DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> graph = new DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge>(DeBruijnEdge.class);
+        DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
         final int KMER_LENGTH = 3;
         final String preAltOption = "ATCGATCGATCGATCGATCG";
         final String postAltOption = "CCCC";
@@ -211,7 +211,7 @@ public class KBestPathsUnitTest {
         if( offRefBeginning ) {
             expectedCigar.add(new CigarElement(preAltOption.length(), CigarOperator.I));
         }
-        expectedCigar.add(new CigarElement(preRef.length() - ( offRefBeginning ? KMER_LENGTH - 1 : 0 ), CigarOperator.M));
+        expectedCigar.add(new CigarElement(preRef.length() - (KMER_LENGTH - 1), CigarOperator.M));
         // first bubble
         if( refBubbleLength > altBubbleLength ) {
             expectedCigar.add(new CigarElement(refBubbleLength - altBubbleLength, CigarOperator.D));

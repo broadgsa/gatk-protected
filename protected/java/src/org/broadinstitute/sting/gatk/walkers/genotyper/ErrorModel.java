@@ -51,6 +51,7 @@ import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -123,7 +124,7 @@ public class ErrorModel  {
             }
         }
 
-        double p = MathUtils.phredScaleToLog10Probability((byte)(maxQualityScore-minQualityScore));
+        double p = QualityUtils.qualToErrorProbLog10((byte)(maxQualityScore-minQualityScore));
         if (refSamplePileup == null || refSampleVC == null  || !hasCalledAlleles) {
             for (byte q=minQualityScore; q<=maxQualityScore; q++) {
                 // maximum uncertainty if there's no ref data at site
@@ -270,7 +271,7 @@ public class ErrorModel  {
     })
     private double log10PoissonProbabilitySiteGivenQual(byte q, int coverage, int mismatches) {
         // same as   log10ProbabilitySiteGivenQual but with Poisson approximation to avoid numerical underflows
-        double lambda = MathUtils.phredScaleToProbability(q) * (double )coverage;
+        double lambda = QualityUtils.qualToErrorProb(q) * (double )coverage;
         // log10(e^-lambda*lambda^k/k!) = -lambda + k*log10(lambda) - log10factorial(k)
         return Math.log10(lambda)*mismatches - lambda*log10MinusE- MathUtils.log10Factorial(mismatches);
     }

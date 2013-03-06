@@ -83,7 +83,7 @@ public class DeBruijnVertex {
     }   
     
     public String getSuffixString() {
-        return new String( getSuffix() );
+        return new String(getSuffix());
     }
 
     @Ensures("result != null")

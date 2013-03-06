@@ -156,16 +156,25 @@ import java.util.*;
     public AFCalcResult computeLog10PNonRef(final VariantContext vc,
                                             final double[] log10AlleleFrequencyPriors) {
         final List<AFCalcResult> independentResultTrackers = computeAlleleIndependentExact(vc, log10AlleleFrequencyPriors);
-        final List<AFCalcResult> withMultiAllelicPriors = applyMultiAllelicPriors(independentResultTrackers);
-        return combineIndependentPNonRefs(vc, withMultiAllelicPriors);
-    }
 
+        if ( independentResultTrackers.size() == 0 )
+            throw new IllegalStateException("Independent alleles model returned an empty list of results at VC " + vc);
+
+        if ( independentResultTrackers.size() == 1 ) {
+            // fast path for the very common bi-allelic use case
+            return independentResultTrackers.get(0);
+        } else {
+            // we are a multi-allelic, so we need to actually combine the results
+            final List<AFCalcResult> withMultiAllelicPriors = applyMultiAllelicPriors(independentResultTrackers);
+            return combineIndependentPNonRefs(vc, withMultiAllelicPriors);
+        }
+    }
 
     /**
      * Compute the conditional exact AFCalcResult for each allele in vc independently, returning
      * the result of each, in order of the alt alleles in VC
      *
-     * @param vc the VariantContext we want to analyze
+     * @param vc the VariantContext we want to analyze, with at least 1 alt allele
      * @param log10AlleleFrequencyPriors the priors
      * @return a list of the AFCalcResults for each bi-allelic sub context of vc
      */
@@ -208,13 +217,20 @@ import java.util.*;
     @Ensures("result.size() == vc.getNAlleles() - 1")
     protected final List<VariantContext> makeAlleleConditionalContexts(final VariantContext vc) {
         final int nAltAlleles = vc.getNAlleles() - 1;
-        final List<VariantContext> vcs = new LinkedList<VariantContext>();
 
-        for ( int altI = 0; altI < nAltAlleles; altI++ ) {
-            vcs.add(biallelicCombinedGLs(vc, altI + 1));
+        if ( nAltAlleles == 1 ) {
+            // fast path for bi-allelic case.
+            return Collections.singletonList(vc);
+        } else {
+            // go through the work of ripping up the VC into its biallelic components
+            final List<VariantContext> vcs = new LinkedList<VariantContext>();
+
+            for ( int altI = 0; altI < nAltAlleles; altI++ ) {
+                vcs.add(biallelicCombinedGLs(vc, altI + 1));
+            }
+
+            return vcs;
         }
-
-        return vcs;
     }
 
     /**

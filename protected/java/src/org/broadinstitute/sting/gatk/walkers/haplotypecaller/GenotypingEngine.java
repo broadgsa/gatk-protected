@@ -79,17 +79,87 @@ public class GenotypingEngine {
         noCall.add(Allele.NO_CALL);
     }
 
+    /**
+     * Carries the result of a call to #assignGenotypeLikelihoods
+     */
+    public static class CalledHaplotypes {
+        private final List<VariantContext> calls;
+        private final Set<Haplotype> calledHaplotypes;
+
+        protected CalledHaplotypes(final List<VariantContext> calls, final Set<Haplotype> calledHaplotypes) {
+            if ( calls == null ) throw new IllegalArgumentException("calls cannot be null");
+            if ( calledHaplotypes == null ) throw new IllegalArgumentException("calledHaplotypes cannot be null");
+            if ( Utils.xor(calls.isEmpty(), calledHaplotypes.isEmpty()) )
+                throw new IllegalArgumentException("Calls and calledHaplotypes should both be empty or both not but got calls=" + calls + " calledHaplotypes=" + calledHaplotypes);
+            this.calls = calls;
+            this.calledHaplotypes = calledHaplotypes;
+        }
+
+        /**
+         * Get the list of calls made at this location
+         * @return a non-null (but potentially empty) list of calls
+         */
+        public List<VariantContext> getCalls() {
+            return calls;
+        }
+
+        /**
+         * Get the set of haplotypes that we actually called (i.e., underlying one of the VCs in getCalls().
+         * @return a non-null set of haplotypes
+         */
+        public Set<Haplotype> getCalledHaplotypes() {
+            return calledHaplotypes;
+        }
+    }
+
+    /**
+     * Main entry point of class - given a particular set of haplotypes, samples and reference context, compute
+     * genotype likelihoods and assemble into a list of variant contexts and genomic events ready for calling
+     *
+     * @param UG_engine                              UG Engine with basic input parameters
+     * @param haplotypes                             Haplotypes to assign likelihoods to
+     * @param samples                                Samples to genotype
+     * @param haplotypeReadMap                       Map from reads->(haplotypes,likelihoods)
+     * @param perSampleFilteredReadList
+     * @param ref                                    Reference bytes at active region
+     * @param refLoc                                 Corresponding active region genome location
+     * @param activeRegionWindow                     Active window
+     * @param genomeLocParser                        GenomeLocParser
+     * @param activeAllelesToGenotype                Alleles to genotype
+     * @return                                       A CalledHaplotypes object containing a list of VC's with genotyped events and called haplotypes
+     */
     @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
-    public List<VariantContext> assignGenotypeLikelihoods( final UnifiedGenotyperEngine UG_engine,
-                                                           final List<Haplotype> haplotypes,
-                                                           final List<String> samples,
-                                                           final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
-                                                           final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
-                                                           final byte[] ref,
-                                                           final GenomeLoc refLoc,
-                                                           final GenomeLoc activeRegionWindow,
-                                                           final GenomeLocParser genomeLocParser,
-                                                           final List<VariantContext> activeAllelesToGenotype ) {
+    @Ensures("result != null")
+    // TODO - can this be refactored? this is hard to follow!
+    public CalledHaplotypes assignGenotypeLikelihoods( final UnifiedGenotyperEngine UG_engine,
+                                                       final List<Haplotype> haplotypes,
+                                                       final List<String> samples,
+                                                       final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                       final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
+                                                       final byte[] ref,
+                                                       final GenomeLoc refLoc,
+                                                       final GenomeLoc activeRegionWindow,
+                                                       final GenomeLocParser genomeLocParser,
+                                                       final List<VariantContext> activeAllelesToGenotype ) {
+        // sanity check input arguments
+        if (UG_engine == null)
+            throw new IllegalArgumentException("UG_Engine input can't be null, got "+UG_engine);
+        if (haplotypes == null || haplotypes.isEmpty())
+            throw new IllegalArgumentException("haplotypes input should be non-empty and non-null, got "+haplotypes);
+        if (samples == null || samples.isEmpty())
+            throw new IllegalArgumentException("samples input must be non-empty and non-null, got "+samples);
+        if (haplotypeReadMap == null || haplotypeReadMap.isEmpty())
+            throw new IllegalArgumentException("haplotypeReadMap input should be non-empty and non-null, got "+haplotypeReadMap);
+        if (ref == null || ref.length == 0 )
+            throw new IllegalArgumentException("ref bytes input should be non-empty and non-null, got "+ref);
+        if (refLoc == null || refLoc.getStop()-refLoc.getStart()+1 != ref.length)
+            throw new IllegalArgumentException(" refLoc must be non-null and length must match ref bytes, got "+refLoc);
+        if (activeRegionWindow == null )
+            throw new IllegalArgumentException("activeRegionWindow must be non-null, got "+activeRegionWindow);
+        if (activeAllelesToGenotype == null )
+            throw new IllegalArgumentException("activeAllelesToGenotype must be non-null, got "+activeAllelesToGenotype);
+        if (genomeLocParser == null )
+            throw new IllegalArgumentException("genomeLocParser must be non-null, got "+genomeLocParser);
 
         final List<VariantContext> returnCalls = new ArrayList<VariantContext>();
         final boolean in_GGA_mode = !activeAllelesToGenotype.isEmpty();
@@ -105,7 +175,6 @@ public class GenotypingEngine {
             if( DEBUG ) {
                 System.out.println( h.toString() );
                 System.out.println( "> Cigar = " + h.getCigar() );
-                System.out.println( "> Left and right breaks = (" + h.leftBreakPoint + " , " + h.rightBreakPoint + ")");
                 System.out.println( ">> Events = " + h.getEventMap());
             }
         }
@@ -120,6 +189,8 @@ public class GenotypingEngine {
                 startPosKeySet.add( compVC.getStart() );
             }
         }
+
+        final Set<Haplotype> calledHaplotypes = new HashSet<Haplotype>();
 
         // Walk along each position in the key set and create each event to be outputted
         for( final int loc : startPosKeySet ) {
@@ -180,7 +251,7 @@ public class GenotypingEngine {
                 if( eventsAtThisLoc.size() != mergedVC.getAlternateAlleles().size() ) {
                     throw new ReviewedStingException("Record size mismatch! Something went wrong in the merging of alleles.");
                 }
-                final Map<VariantContext, Allele> mergeMap = new HashMap<VariantContext, Allele>();
+                final Map<VariantContext, Allele> mergeMap = new LinkedHashMap<VariantContext, Allele>();
                 mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
                 for(int iii = 0; iii < mergedVC.getAlternateAlleles().size(); iii++) {
                     mergeMap.put(eventsAtThisLoc.get(iii), mergedVC.getAlternateAllele(iii)); // BUGBUG: This is assuming that the order of alleles is the same as the priority list given to simpleMerge function
@@ -203,6 +274,10 @@ public class GenotypingEngine {
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
                     VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
 
+                    // maintain the set of all called haplotypes
+                    for ( final Allele calledAllele : call.getAlleles() )
+                        calledHaplotypes.addAll(alleleMapper.get(calledAllele));
+
                     if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
                         annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
@@ -211,9 +286,18 @@ public class GenotypingEngine {
                 }
             }
         }
-        return returnCalls;
+        return new CalledHaplotypes(returnCalls, calledHaplotypes);
     }
 
+    /**
+     * For a particular event described in inputVC, form PL vector for each sample by looking into allele read map and filling likelihood matrix for each allele
+     * @param samples                List of samples to genotype
+     * @param alleleReadMap          Allele map describing mapping from reads to alleles and corresponding likelihoods
+     * @param mergedVC               Input VC with event to genotype
+     * @return                       GenotypesContext object wrapping genotype objects with PLs
+     */
+    @Requires({"samples != null","alleleReadMap!= null", "mergedVC != null"})
+    @Ensures("result != null")
     private GenotypesContext calculateGLsForThisEvent( final List<String> samples, final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap, final VariantContext mergedVC ) {
         final GenotypesContext genotypes = GenotypesContext.create(samples.size());
         // Grab the genotype likelihoods from the appropriate places in the haplotype likelihood matrix -- calculation performed independently per sample
@@ -254,7 +338,7 @@ public class GenotypingEngine {
                                                                                          final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
                                                                                          final VariantContext call ) {
 
-        final Map<String, PerReadAlleleLikelihoodMap> returnMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
+        final Map<String, PerReadAlleleLikelihoodMap> returnMap = new LinkedHashMap<String, PerReadAlleleLikelihoodMap>();
         final GenomeLoc callLoc = parser.createGenomeLoc(call);
         for( final Map.Entry<String, PerReadAlleleLikelihoodMap> sample : perSampleReadMap.entrySet() ) {
             final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
@@ -283,6 +367,12 @@ public class GenotypingEngine {
         return returnMap;
     }
 
+    /**
+     * Removes symbolic events from list of haplotypes
+     * @param haplotypes       Input/output list of haplotypes, before/after removal
+     */
+    // TODO - split into input haplotypes and output haplotypes as not to share I/O arguments
+    @Requires("haplotypes != null")
     protected static void cleanUpSymbolicUnassembledEvents( final List<Haplotype> haplotypes ) {
         final List<Haplotype> haplotypesToRemove = new ArrayList<Haplotype>();
         for( final Haplotype h : haplotypes ) {
@@ -308,7 +398,7 @@ public class GenotypingEngine {
                                                                                               final double downsamplingFraction,
                                                                                               final PrintStream downsamplingLog ) {
 
-        final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
+        final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = new LinkedHashMap<String, PerReadAlleleLikelihoodMap>();
         for( final Map.Entry<String, PerReadAlleleLikelihoodMap> haplotypeReadMapEntry : haplotypeReadMap.entrySet() ) { // for each sample
             final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
             for( final Map.Entry<Allele, List<Haplotype>> alleleMapperEntry : alleleMapper.entrySet() ) { // for each output allele
@@ -316,7 +406,7 @@ public class GenotypingEngine {
                 for( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> readEntry : haplotypeReadMapEntry.getValue().getLikelihoodReadMap().entrySet() ) { // for each read
                     double maxLikelihood = Double.NEGATIVE_INFINITY;
                     for( final Map.Entry<Allele,Double> alleleDoubleEntry : readEntry.getValue().entrySet() ) { // for each input allele
-                        if( mappedHaplotypes.contains( new Haplotype(alleleDoubleEntry.getKey().getBases())) ) { // exact match of haplotype base string
+                        if( mappedHaplotypes.contains( new Haplotype(alleleDoubleEntry.getKey())) ) { // exact match of haplotype base string
                             maxLikelihood = Math.max( maxLikelihood, alleleDoubleEntry.getValue() );
                         }
                     }
@@ -330,6 +420,15 @@ public class GenotypingEngine {
         return alleleReadMap;
     }
 
+    /**
+     * TODO - comment me, clean me, refactor me!
+     * @param haplotypes
+     * @param samples
+     * @param haplotypeReadMap
+     * @param startPosKeySet
+     * @param ref
+     * @param refLoc
+     */
     protected void mergeConsecutiveEventsBasedOnLD( final List<Haplotype> haplotypes,
                                                     final List<String> samples,
                                                     final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
@@ -381,7 +480,7 @@ public class GenotypingEngine {
                         }
                         // count up the co-occurrences of the events for the R^2 calculation
                         for( final String sample : samples ) {
-                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( Collections.singleton(sample), haplotypeReadMap, Collections.singletonList(Allele.create(h.getBases())) )[0][0];
+                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( Collections.singleton(sample), haplotypeReadMap, Collections.singletonList(Allele.create(h, true)) )[0][0];
                             if( thisHapVC == null ) {
                                 if( nextHapVC == null ) { x11 = MathUtils.approximateLog10SumLog10(x11, haplotypeLikelihood); }
                                 else { x12 = MathUtils.approximateLog10SumLog10(x12, haplotypeLikelihood); }
@@ -474,7 +573,7 @@ public class GenotypingEngine {
     }
 
     protected static Map<Allele, List<Haplotype>> createAlleleMapper( final Map<VariantContext, Allele> mergeMap, final Map<Event, List<Haplotype>> eventMap ) {
-        final Map<Allele, List<Haplotype>> alleleMapper = new HashMap<Allele, List<Haplotype>>();
+        final Map<Allele, List<Haplotype>> alleleMapper = new LinkedHashMap<Allele, List<Haplotype>>();
         for( final Map.Entry<VariantContext, Allele> entry : mergeMap.entrySet() ) {
             alleleMapper.put(entry.getValue(), eventMap.get(new Event(entry.getKey())));
         }
@@ -485,7 +584,7 @@ public class GenotypingEngine {
     @Ensures({"result.size() == eventsAtThisLoc.size() + 1"})
     protected static Map<Event, List<Haplotype>> createEventMapper( final int loc, final List<VariantContext> eventsAtThisLoc, final List<Haplotype> haplotypes ) {
 
-        final Map<Event, List<Haplotype>> eventMapper = new HashMap<Event, List<Haplotype>>(eventsAtThisLoc.size()+1);
+        final Map<Event, List<Haplotype>> eventMapper = new LinkedHashMap<Event, List<Haplotype>>(eventsAtThisLoc.size()+1);
         VariantContext refVC = eventsAtThisLoc.get(0); // the genome loc is the only safe thing to pull out of this VC because ref/alt pairs might change reference basis
         eventMapper.put(new Event(null), new ArrayList<Haplotype>());
         for( final VariantContext vc : eventsAtThisLoc ) {
@@ -598,13 +697,14 @@ public class GenotypingEngine {
     }
 
     protected static Map<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final int alignmentStartHapwrtRef, final Cigar cigar, final byte[] ref, final byte[] alignment, final GenomeLoc refLoc, final String sourceNameToAdd ) {
-        final Map<Integer,VariantContext> vcs = new HashMap<Integer,VariantContext>();
+        final Map<Integer,VariantContext> vcs = new LinkedHashMap<Integer,VariantContext>();
 
         int refPos = alignmentStartHapwrtRef;
         if( refPos < 0 ) { return null; } // Protection against SW failures
         int alignmentPos = 0;
 
-        for( final CigarElement ce : cigar.getCigarElements() ) {
+        for( int cigarIndex = 0; cigarIndex < cigar.numCigarElements(); cigarIndex++ ) {
+            final CigarElement ce = cigar.getCigarElement(cigarIndex);
             final int elementLength = ce.getLength();
             switch( ce.getOperator() ) {
                 case I:
@@ -615,7 +715,7 @@ public class GenotypingEngine {
                     if( BaseUtils.isRegularBase(refByte) ) {
                         insertionAlleles.add( Allele.create(refByte, true) );
                     }
-                    if( (haplotype.leftBreakPoint != 0 || haplotype.rightBreakPoint != 0) && (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1 || haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() - 1 == insertionStart + elementLength + 1) ) {
+                    if( cigarIndex == 0 || cigarIndex == cigar.getCigarElements().size() - 1 ) { // if the insertion isn't completely resolved in the haplotype then make it a symbolic allele
                         insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
                     } else {
                         byte[] insertionBases = new byte[]{};
@@ -641,20 +741,12 @@ public class GenotypingEngine {
                     final byte[] deletionBases = Arrays.copyOfRange( ref, refPos - 1, refPos + elementLength );  // add padding base
                     final List<Allele> deletionAlleles = new ArrayList<Allele>();
                     final int deletionStart = refLoc.getStart() + refPos - 1;
-                    // BUGBUG: how often does this symbolic deletion allele case happen?
-                    //if( haplotype != null && ( (haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 >= deletionStart && haplotype.leftBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 < deletionStart + elementLength)
-                    //        || (haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 >= deletionStart && haplotype.rightBreakPoint + alignmentStartHapwrtRef + refLoc.getStart() + elementLength - 1 < deletionStart + elementLength) ) ) {
-                    //    deletionAlleles.add( Allele.create(ref[refPos-1], true) );
-                    //    deletionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
-                    //    vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart, deletionAlleles).make());
-                    //} else {
                     final byte refByte = ref[refPos-1];
                     if( BaseUtils.isRegularBase(refByte) && BaseUtils.isAllRegularBases(deletionBases) ) {
                         deletionAlleles.add( Allele.create(deletionBases, true) );
                         deletionAlleles.add( Allele.create(refByte, false) );
                         vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart + elementLength, deletionAlleles).make());
                     }
-                    //}
                     refPos += elementLength;
                     break;
                 }
