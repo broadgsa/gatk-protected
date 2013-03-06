@@ -73,7 +73,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "588892934f2e81247bf32e457db88449");
+        HCTest(NA12878_BAM, "", "b3bffabb7aafd43e0339958395e6aa10");
     }
 
     @Test(enabled = false)
@@ -95,7 +95,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "5af4782a0e1bc9b966b9e3ae76245919");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "852623c93feef5e62fcb555beedc8c53");
     }
 
     // This problem bam came from a user on the forum and it spotted a problem where the ReadClipper
@@ -134,7 +134,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("cf0a1bfded656153578df6cf68aa68a2"));
+                Arrays.asList("fd1b51b17f8f9c88abdf66a9372bce5a"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
 

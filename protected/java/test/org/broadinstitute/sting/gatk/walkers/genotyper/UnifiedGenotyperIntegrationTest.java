@@ -232,7 +232,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,100,000",
                 1,
-                Arrays.asList("68961b19a29ae224059c33ef41cdcb58"));
+                Arrays.asList("3a805f5b823ccac19aaec01a3016100e"));
 
         executeTest(String.format("test multiple technologies"), spec);
     }
@@ -251,7 +251,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                         " -L 1:10,000,000-10,100,000" +
                         " -baq CALCULATE_AS_NECESSARY",
                 1,
-                Arrays.asList("9fcb234f7573209dec4dae86db091efd"));
+                Arrays.asList("25aa0259876692dc3c848a37369bac6a"));
 
         executeTest(String.format("test calling with BAQ"), spec);
     }
