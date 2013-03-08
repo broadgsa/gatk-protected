@@ -608,8 +608,20 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
                 GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
+
+                // revert soft clips so that we see the alignment start and end assuming the soft clips are all matches
+                // TODO -- WARNING -- still possibility that unclipping the soft clips will introduce bases that aren't
+                // TODO -- truly in the extended region, as the unclipped bases might actually include a deletion
+                // TODO -- w.r.t. the reference.  What really needs to happen is that kmers that occur before the
+                // TODO -- reference haplotype start must be removed
+                clippedRead = ReadClipper.revertSoftClippedBases(clippedRead);
+
+                // uncomment to remove hard clips from consideration at all
+                //clippedRead = ReadClipper.hardClipSoftClippedBases(clippedRead);
+
                 clippedRead = ReadClipper.hardClipToRegion( clippedRead, activeRegion.getExtendedLoc().getStart(), activeRegion.getExtendedLoc().getStop() );
                 if( activeRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 ) {
+                    //logger.info("Keeping read " + clippedRead + " start " + clippedRead.getAlignmentStart() + " end " + clippedRead.getAlignmentEnd());
                     readsToUse.add(clippedRead);
                 }
             }

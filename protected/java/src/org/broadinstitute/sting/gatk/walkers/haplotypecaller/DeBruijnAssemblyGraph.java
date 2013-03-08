@@ -47,9 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
 import org.apache.commons.lang.ArrayUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
 import java.io.PrintStream;
@@ -62,9 +60,32 @@ import java.util.Arrays;
  */
 
 public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> {
+    private final int kmerSize;
 
-    public DeBruijnAssemblyGraph() {
+    /**
+     * Construct a DeBruijnAssemblyGraph with kmerSize
+     * @param kmerSize
+     */
+    public DeBruijnAssemblyGraph(final int kmerSize) {
         super(DeBruijnEdge.class);
+
+        if ( kmerSize < 1 ) throw new IllegalArgumentException("kmerSize must be >= 1 but got " + kmerSize);
+        this.kmerSize = kmerSize;
+    }
+
+    /**
+     * Test construct that makes DeBruijnAssemblyGraph assuming a kmerSize of 11
+     */
+    protected DeBruijnAssemblyGraph() {
+        this(11);
+    }
+
+    /**
+     * How big of a kmer did we use to create this graph?
+     * @return
+     */
+    public int getKmerSize() {
+        return kmerSize;
     }
 
     /**

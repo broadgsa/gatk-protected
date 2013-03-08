@@ -271,9 +271,10 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     @Requires({"reads != null", "KMER_LENGTH > 0", "refHaplotype != null"})
     protected static DeBruijnAssemblyGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
 
-        final DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
+        final DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph(KMER_LENGTH);
 
         // First pull kmers from the reference haplotype and add them to the graph
+        //logger.info("Adding reference sequence to graph " + refHaplotype.getBaseString());
         final byte[] refSequence = refHaplotype.getBases();
         if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
             final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
@@ -289,6 +290,8 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         // Next pull kmers out of every read and throw them on the graph
         for( final GATKSAMRecord read : reads ) {
+            //if ( ! read.getReadName().equals("H06JUADXX130110:1:1213:15422:11590")) continue;
+            //logger.info("Adding read " + read + " with sequence " + read.getReadString());
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
             final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
@@ -325,8 +328,16 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     protected void printGraphs() {
+        final boolean onlyWriteOneGraph = false;  // debugging flag -- if true we'll only write a graph for a single kmer size
+        final int writeFirstGraphWithSizeSmallerThan = 50;
+
         graphWriter.println("digraph assemblyGraphs {");
         for( final DeBruijnAssemblyGraph graph : graphs ) {
+            if ( onlyWriteOneGraph && graph.getKmerSize() >= writeFirstGraphWithSizeSmallerThan ) {
+                logger.info("Skipping writing of graph with kmersize " + graph.getKmerSize());
+                continue;
+            }
+
             for( final DeBruijnEdge edge : graph.edgeSet() ) {
                 if( edge.getMultiplicity() > PRUNE_FACTOR ) {
                     graphWriter.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= PRUNE_FACTOR ? "style=dotted,color=grey" : "label=\"" + edge.getMultiplicity() + "\"") + "];");
@@ -337,8 +348,11 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
             }
             for( final DeBruijnVertex v : graph.vertexSet() ) {
-                graphWriter.println("\t" + v.toString() + " [label=\"" + new String(graph.getAdditionalSequence(v)) + "\"]");
+                graphWriter.println("\t" + v.toString() + " [label=\"" + new String(graph.getAdditionalSequence(v)) + "\",shape=box]");
             }
+
+            if ( onlyWriteOneGraph )
+                break;
         }
         graphWriter.println("}");
     }
