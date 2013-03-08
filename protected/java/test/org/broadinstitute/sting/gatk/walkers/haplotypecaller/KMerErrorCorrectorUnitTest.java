@@ -46,65 +46,33 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Invariant;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-import java.util.Arrays;
+public class KMerErrorCorrectorUnitTest extends BaseTest {
+    @Test
+    public void testMyData() {
+        final KMerErrorCorrector corrector = new KMerErrorCorrector(3, 1, 2, 2);
 
-/**
- * Created by IntelliJ IDEA.
- * User: ebanks
- * Date: Mar 23, 2011
- */
-// simple node class for storing kmer sequences
-@Invariant("kmer > 0")
-public class DeBruijnVertex {
+        corrector.addKmers(
+                "ATG", "ATG", "ATG", "ATG",
+                "ACC", "ACC", "ACC",
+                "AAA", "AAA",
+                "CTG", // -> ATG
+                "NNA", // -> AAA
+                "CCC", // => ACC
+                "NNN", // => null
+                "NNC"  // => ACC [because of min count won't go to NNA]
+        );
 
-    protected final byte[] sequence;
-    public final int kmer;
-
-    public DeBruijnVertex( final byte[] sequence, final int kmer ) {
-        this.sequence = sequence.clone();
-        this.kmer = kmer;
-    }
-
-    protected DeBruijnVertex( final String sequence, final int kmer ) {
-        this(sequence.getBytes(), kmer);
-    }
-
-    protected DeBruijnVertex( final String sequence ) {
-        this(sequence.getBytes(), sequence.length());
-    }
-
-    public int getKmer() {
-        return kmer;
-    }
-
-    @Override
-    public boolean equals( Object v ) {
-        return v instanceof DeBruijnVertex && Arrays.equals(sequence, ((DeBruijnVertex) v).sequence);
-    }
-
-    @Override
-    public int hashCode() { // necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
-        return Arrays.hashCode(sequence);
-    }
-
-    public String toString() {
-        return new String(sequence);
-    }   
-    
-    public String getSuffixString() {
-        return new String(getSuffix());
-    }
-
-    @Ensures("result != null")
-    public byte[] getSequence() {
-        return sequence.clone();
-    }
-
-    @Ensures("result != null")
-    public byte[] getSuffix() {
-        return Arrays.copyOfRange( sequence, kmer - 1, sequence.length );
+        Assert.assertEquals(corrector.getErrorCorrectedKmer("ATG"), "ATG");
+        Assert.assertEquals(corrector.getErrorCorrectedKmer("ACC"), "ACC");
+        Assert.assertEquals(corrector.getErrorCorrectedKmer("AAA"), "AAA");
+        Assert.assertEquals(corrector.getErrorCorrectedKmer("CTG"), "ATG");
+        Assert.assertEquals(corrector.getErrorCorrectedKmer("NNA"), "AAA");
+        Assert.assertEquals(corrector.getErrorCorrectedKmer("CCC"), "ACC");
+        Assert.assertEquals(corrector.getErrorCorrectedKmer("NNN"), null);
+        Assert.assertEquals(corrector.getErrorCorrectedKmer("NNC"), "ACC");
     }
 }

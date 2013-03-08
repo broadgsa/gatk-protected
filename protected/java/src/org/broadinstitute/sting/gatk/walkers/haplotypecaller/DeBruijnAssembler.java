@@ -64,6 +64,9 @@ import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.*;
 
@@ -88,16 +91,19 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private static final double SW_GAP_EXTEND = -1.2; //-1.0/.0;
 
     private final boolean debug;
+    private final int onlyBuildKmerGraphOfThisSite = -1; // 35;
+    private final boolean debugGraphTransformations;
     private final PrintStream graphWriter;
     private final List<DeBruijnAssemblyGraph> graphs = new ArrayList<DeBruijnAssemblyGraph>();
     private final int minKmer;
     private final int maxHaplotypesToConsider;
 
     private int PRUNE_FACTOR = 2;
-    
-    public DeBruijnAssembler(final boolean debug, final PrintStream graphWriter, final int minKmer, final int maxHaplotypesToConsider) {
+
+    public DeBruijnAssembler(final boolean debug, final boolean debugGraphTransformations, final PrintStream graphWriter, final int minKmer, final int maxHaplotypesToConsider) {
         super();
         this.debug = debug;
+        this.debugGraphTransformations = debugGraphTransformations;
         this.graphWriter = graphWriter;
         this.minKmer = minKmer;
         this.maxHaplotypesToConsider = maxHaplotypesToConsider;
@@ -144,13 +150,23 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         // create the graph for each possible kmer
         for( int kmer = maxKmer; kmer >= minKmer; kmer -= GRAPH_KMER_STEP ) {
-            //if ( debug ) logger.info("Creating de Bruijn graph for " + kmer + " kmer using " + reads.size() + " reads");
-            final DeBruijnAssemblyGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, debug);
+            if ( onlyBuildKmerGraphOfThisSite != -1 && kmer != onlyBuildKmerGraphOfThisSite )
+                continue;
+
+            if ( debug ) logger.info("Creating de Bruijn graph for " + kmer + " kmer using " + reads.size() + " reads");
+            DeBruijnAssemblyGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, debug);
             if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
                 // do a series of steps to clean up the raw assembly graph to make it analysis-ready
-                pruneGraph(graph, PRUNE_FACTOR);
+                if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), PRUNE_FACTOR);
+                graph = graph.errorCorrect();
+                if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), PRUNE_FACTOR);
                 cleanNonRefPaths(graph);
                 mergeNodes(graph);
+                if ( debugGraphTransformations ) graph.printGraph(new File("merged.dot"), PRUNE_FACTOR);
+                pruneGraph(graph, PRUNE_FACTOR);
+                if ( debugGraphTransformations ) graph.printGraph(new File("pruned.dot"), PRUNE_FACTOR);
+                mergeNodes(graph);
+                if ( debugGraphTransformations ) graph.printGraph(new File("merged2.dot"), PRUNE_FACTOR);
                 if( graph.getReferenceSourceVertex() != null ) { // if the graph contains interesting variation from the reference
                     sanityCheckReferenceGraph(graph, refHaplotype);
                     graphs.add(graph);
@@ -169,7 +185,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 final DeBruijnVertex outgoingVertex = graph.getEdgeTarget(e);
                 final DeBruijnVertex incomingVertex = graph.getEdgeSource(e);
                 if( !outgoingVertex.equals(incomingVertex) && graph.outDegreeOf(incomingVertex) == 1 && graph.inDegreeOf(outgoingVertex) == 1 &&
-                    graph.inDegreeOf(incomingVertex) <= 1 && graph.outDegreeOf(outgoingVertex) <= 1 && graph.isReferenceNode(incomingVertex) == graph.isReferenceNode(outgoingVertex) ) {
+                        graph.inDegreeOf(incomingVertex) <= 1 && graph.outDegreeOf(outgoingVertex) <= 1 && graph.isReferenceNode(incomingVertex) == graph.isReferenceNode(outgoingVertex) ) {
                     final Set<DeBruijnEdge> outEdges = graph.outgoingEdgesOf(outgoingVertex);
                     final Set<DeBruijnEdge> inEdges = graph.incomingEdgesOf(incomingVertex);
                     if( inEdges.size() == 1 && outEdges.size() == 1 ) {
@@ -198,6 +214,59 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             }
         }
     }
+
+    //
+    // X -> ABC -> Y
+    //   -> aBC -> Y
+    //
+    // becomes
+    //
+    // X -> A -> BCY
+    //   -> a -> BCY
+    //
+//    @Requires({"graph != null"})
+//    protected static void simplifyMergedGraph(final DeBruijnAssemblyGraph graph) {
+//        boolean foundNodesToMerge = true;
+//        while( foundNodesToMerge ) {
+//            foundNodesToMerge = false;
+//
+//            for( final DeBruijnVertex v : graph.vertexSet() ) {
+//                if ( isRootOfComplexDiamond(v) ) {
+//                    foundNodesToMerge = simplifyComplexDiamond(graph, v);
+//                    if ( foundNodesToMerge )
+//                        break;
+//                }
+//            }
+//        }
+//    }
+//
+//    private static boolean simplifyComplexDiamond(final DeBruijnAssemblyGraph graph, final DeBruijnVertex root) {
+//        final Set<DeBruijnEdge> outEdges = graph.outgoingEdgesOf(root);
+//        final DeBruijnVertex diamondBottom = graph.getEdge(graph.getEdgeTarget(outEdges.iterator().next());
+//        // all of the edges point to the same sink, so it's time to merge
+//        final byte[] commonSuffix = commonSuffixOfEdgeTargets(outEdges, targetSink);
+//        if ( commonSuffix != null ) {
+//            final DeBruijnVertex suffixVertex = new DeBruijnVertex(commonSuffix, graph.getKmerSize());
+//            graph.addVertex(suffixVertex);
+//            graph.addEdge(suffixVertex, targetSink);
+//
+//            for( final DeBruijnEdge edge : outEdges ) {
+//                final DeBruijnVertex target = graph.getEdgeTarget(edge);
+//                final DeBruijnVertex prefix = target.withoutSuffix(commonSuffix);
+//                graph.addEdge(prefix, suffixVertex, new DeBruijnEdge(edge.isRef(), edge.getMultiplicity()));
+//                graph.removeVertex(graph.getEdgeTarget(edge));
+//                graph.removeAllEdges(root, target);
+//                graph.removeAllEdges(target, targetSink);
+//            }
+//
+//            graph.removeAllEdges(outEdges);
+//            graph.removeVertex(targetSink);
+//
+//            return true;
+//        } else {
+//            return false;
+//        }
+//    }
 
     protected static void cleanNonRefPaths( final DeBruijnAssemblyGraph graph ) {
         if( graph.getReferenceSourceVertex() == null || graph.getReferenceSinkVertex() == null ) {
@@ -279,7 +348,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
             final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
             for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-                if( !graph.addKmersToGraph(Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true) ) {
+                if( !graph.addKmersToGraph(Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true, 1) ) {
                     if( DEBUG ) {
                         System.out.println("Cycle detected in reference graph for kmer = " + KMER_LENGTH + " ...skipping");
                     }
@@ -297,7 +366,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
             if( sequence.length > KMER_LENGTH + KMER_OVERLAP ) {
                 final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-                for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {                    
+                for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
                     // if the qualities of all the bases in the kmers are high enough
                     boolean badKmer = false;
                     for( int jjj = iii; jjj < iii + KMER_LENGTH + 1; jjj++) {
@@ -318,42 +387,32 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                         final byte[] kmer2 = Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH);
 
                         for( int kkk=0; kkk < countNumber; kkk++ ) {
-                            graph.addKmersToGraph(kmer1, kmer2, false);
+                            graph.addKmersToGraph(kmer1, kmer2, false, 1);
                         }
                     }
                 }
             }
         }
+
         return graph;
     }
 
     protected void printGraphs() {
-        final boolean onlyWriteOneGraph = false;  // debugging flag -- if true we'll only write a graph for a single kmer size
         final int writeFirstGraphWithSizeSmallerThan = 50;
 
         graphWriter.println("digraph assemblyGraphs {");
         for( final DeBruijnAssemblyGraph graph : graphs ) {
-            if ( onlyWriteOneGraph && graph.getKmerSize() >= writeFirstGraphWithSizeSmallerThan ) {
+            if ( debugGraphTransformations && graph.getKmerSize() >= writeFirstGraphWithSizeSmallerThan ) {
                 logger.info("Skipping writing of graph with kmersize " + graph.getKmerSize());
                 continue;
             }
 
-            for( final DeBruijnEdge edge : graph.edgeSet() ) {
-                if( edge.getMultiplicity() > PRUNE_FACTOR ) {
-                    graphWriter.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= PRUNE_FACTOR ? "style=dotted,color=grey" : "label=\"" + edge.getMultiplicity() + "\"") + "];");
-                }
-                if( edge.isRef() ) {
-                    graphWriter.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [color=red];");
-                }
-                if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
-            }
-            for( final DeBruijnVertex v : graph.vertexSet() ) {
-                graphWriter.println("\t" + v.toString() + " [label=\"" + new String(graph.getAdditionalSequence(v)) + "\",shape=box]");
-            }
+            graph.printGraph(graphWriter, false, PRUNE_FACTOR);
 
-            if ( onlyWriteOneGraph )
+            if ( debugGraphTransformations )
                 break;
         }
+
         graphWriter.println("}");
     }
 

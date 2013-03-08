@@ -192,7 +192,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected String keepRG = null;
 
     @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = false)
-    protected int MIN_PRUNE_FACTOR = 2;
+    protected int MIN_PRUNE_FACTOR = 1;
 
     @Advanced
     @Argument(fullName="gcpHMM", shortName="gcpHMM", doc="Flat gap continuation penalty for use in the Pair HMM", required = false)
@@ -283,6 +283,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information about each triggering active region", required = false)
     protected boolean DEBUG;
+
+    @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler", required = false)
+    protected boolean debugGraphTransformations = false;
 
     // the UG engines
     private UnifiedGenotyperEngine UG_engine = null;
@@ -386,7 +389,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile, e);
         }
 
-        assemblyEngine = new DeBruijnAssembler( DEBUG, graphWriter, minKmer, maxHaplotypesToConsider );
+        assemblyEngine = new DeBruijnAssembler( DEBUG, debugGraphTransformations, graphWriter, minKmer, maxHaplotypesToConsider );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
 

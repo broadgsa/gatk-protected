@@ -48,8 +48,12 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.log4j.Logger;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
 
@@ -60,6 +64,7 @@ import java.util.Arrays;
  */
 
 public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> {
+    private final static Logger logger = Logger.getLogger(DeBruijnAssemblyGraph.class);
     private final int kmerSize;
 
     /**
@@ -71,6 +76,24 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
 
         if ( kmerSize < 1 ) throw new IllegalArgumentException("kmerSize must be >= 1 but got " + kmerSize);
         this.kmerSize = kmerSize;
+    }
+
+    public static DeBruijnAssemblyGraph parse(final int kmerSize, final int multiplicity, final String ... reads) {
+        final DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph(kmerSize);
+
+        for ( final String read : reads ) {
+            final int kmersInSequence = read.length() - kmerSize + 1;
+            for (int i = 0; i < kmersInSequence - 1; i++) {
+                // get the kmers
+                final byte[] kmer1 = new byte[kmerSize];
+                System.arraycopy(read.getBytes(), i, kmer1, 0, kmerSize);
+                final byte[] kmer2 = new byte[kmerSize];
+                System.arraycopy(read.getBytes(), i+1, kmer2, 0, kmerSize);
+                graph.addKmersToGraph(kmer1, kmer2, false, multiplicity);
+            }
+        }
+
+        return graph;
     }
 
     /**
@@ -102,11 +125,20 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
 
     /**
      * @param v the vertex to test
-     * @return  true if this vertex is a source node
+     * @return  true if this vertex is a source node (in degree == 0)
      */
     public boolean isSource( final DeBruijnVertex v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
         return inDegreeOf(v) == 0;
+    }
+
+    /**
+     * @param v the vertex to test
+     * @return  true if this vertex is a sink node (out degree == 0)
+     */
+    public boolean isSink( final DeBruijnVertex v ) {
+        if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
+        return outDegreeOf(v) == 0;
     }
 
     /**
@@ -284,8 +316,34 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
         if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
         final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
         for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef);
+            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
         }
+    }
+
+    protected DeBruijnAssemblyGraph errorCorrect() {
+        final KMerErrorCorrector corrector = new KMerErrorCorrector(getKmerSize(), 1, 1, 5); // TODO -- should be static variables
+
+        for( final DeBruijnEdge e : edgeSet() ) {
+            for ( final byte[] kmer : Arrays.asList(getEdgeSource(e).getSequence(), getEdgeTarget(e).getSequence())) {
+                // TODO -- need a cleaner way to deal with the ref weight
+                corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
+            }
+        }
+
+        corrector.computeErrorCorrectionMap();
+        //logger.info(corrector);
+
+        final DeBruijnAssemblyGraph correctedGraph = new DeBruijnAssemblyGraph(getKmerSize());
+
+        for( final DeBruijnEdge e : edgeSet() ) {
+                final byte[] source = corrector.getErrorCorrectedKmer(getEdgeSource(e).getSequence());
+                final byte[] target = corrector.getErrorCorrectedKmer(getEdgeTarget(e).getSequence());
+                if ( source != null && target != null ) {
+                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
+            }
+        }
+
+        return correctedGraph;
     }
 
     /**
@@ -295,7 +353,7 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @param isRef true if the added edge is a reference edge
      * @return      will return false if trying to add a reference edge which creates a cycle in the assembly graph
      */
-    public boolean addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef ) {
+    public boolean addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
         if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
         if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
         if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
@@ -309,34 +367,61 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
 
         final DeBruijnEdge targetEdge = getEdge(v1, v2);
         if ( targetEdge == null ) {
-            addEdge(v1, v2, new DeBruijnEdge( isRef ));
+            addEdge(v1, v2, new DeBruijnEdge( isRef, multiplicity ));
         } else {
             if( isRef ) {
                 targetEdge.setIsRef( true );
             }
-            targetEdge.setMultiplicity(targetEdge.getMultiplicity() + 1);
+            targetEdge.setMultiplicity(targetEdge.getMultiplicity() + multiplicity);
         }
         return true;
     }
 
     /**
-     * Print out the graph in the dot language for visualization
-     * @param GRAPH_WRITER  PrintStream to write to
+     * Convenience function to add multiple vertices to the graph at once
+     * @param vertices one or more vertices to add
      */
-    public void printGraph( final PrintStream GRAPH_WRITER ) {
-        if( GRAPH_WRITER == null ) { throw new IllegalArgumentException("PrintStream cannot be null."); }
+    public void addVertices(final DeBruijnVertex ... vertices) {
+        for ( final DeBruijnVertex v : vertices )
+            addVertex(v);
+    }
 
-        GRAPH_WRITER.println("digraph assembly {");
+    /**
+     * Print out the graph in the dot language for visualization
+     * @param destination File to write to
+     */
+    public void printGraph(final File destination, final int pruneFactor) {
+        PrintStream stream = null;
+
+        try {
+            stream = new PrintStream(new FileOutputStream(destination));
+            printGraph(stream, true, pruneFactor);
+        } catch ( FileNotFoundException e ) {
+            throw new RuntimeException(e);
+        } finally {
+            if ( stream != null ) stream.close();
+        }
+    }
+
+    public void printGraph(final PrintStream graphWriter, final boolean writeHeader, final int pruneFactor) {
+        if ( writeHeader )
+            graphWriter.println("digraph assemblyGraphs {");
+
         for( final DeBruijnEdge edge : edgeSet() ) {
-            GRAPH_WRITER.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + "label=\""+ edge.getMultiplicity() +"\"" + "];");
+//            if( edge.getMultiplicity() > PRUNE_FACTOR ) {
+            graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getMultiplicity() + "\"];");
+//            }
             if( edge.isRef() ) {
-                GRAPH_WRITER.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [color=red];");
+                graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [color=red];");
             }
+            //if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
         }
+
         for( final DeBruijnVertex v : vertexSet() ) {
-            final String label = ( inDegreeOf(v) == 0 ? v.toString() : v.getSuffixString() );
-            GRAPH_WRITER.println("\t" + v.toString() + " [label=\"" + label + "\"]");
+            graphWriter.println("\t" + v.toString() + " [label=\"" + new String(getAdditionalSequence(v)) + "\",shape=box]");
         }
-        GRAPH_WRITER.println("}");
+
+        if ( writeHeader )
+            graphWriter.println("}");
     }
 }
