@@ -50,13 +50,12 @@ import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import it.unimi.dsi.fastutil.bytes.Byte2IntArrayMap;
 import it.unimi.dsi.fastutil.bytes.Byte2IntMap;
-import it.unimi.dsi.fastutil.bytes.Byte2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.*;
-import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -127,8 +126,8 @@ public class SlidingWindow {
         return getStopLocation(windowHeader);
     }
 
-    private int getStopLocation(LinkedList<HeaderElement> header) {
-        return getStartLocation(header) + header.size() - 1;
+    private int getStopLocation(final LinkedList<HeaderElement> header) {
+        return header.isEmpty() ? -1 : header.peekLast().getLocation();
     }
 
     public String getContig() {
@@ -139,7 +138,7 @@ public class SlidingWindow {
         return contigIndex;
     }
 
-    public int getStartLocation(LinkedList<HeaderElement> header) {
+    public int getStartLocation(final LinkedList<HeaderElement> header) {
         return header.isEmpty() ? -1 : header.peek().getLocation();
     }
 
@@ -652,51 +651,27 @@ public class SlidingWindow {
         ObjectList<GATKSAMRecord> allReads = new ObjectArrayList<GATKSAMRecord>();
 
         // Try to compress into a polyploid consensus
-        int nVariantPositions = 0;
         int hetRefPosition = -1;
-        boolean canCompress = true;
-        Object[] header = windowHeader.toArray();
+        final Object[] header = windowHeader.toArray();
 
-        // foundEvent will remain false if we don't allow polyploid reduction
-        if ( allowPolyploidReductionInGeneral && !disallowPolyploidReductionAtThisPosition ) {
-            for (int i = start; i<=stop; i++) {
-
-                int nAlleles = ((HeaderElement) header[i]).getNumberOfAlleles(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
-
-                // we will only work on diploid cases because we just don't want to handle/test other scenarios
-                if ( nAlleles > 2 ) {
-                    canCompress = false;
-                    break;
-                } else if ( nAlleles == 2 ) {
-                    nVariantPositions++;
-
-                    // make sure that there is only 1 site in the variant region that contains more than one allele
-                    if ( nVariantPositions == 1 ) {
-                        hetRefPosition = i;
-                    } else if ( nVariantPositions > 1 ) {
-                        canCompress = false;
-                        break;
-                    }
-                }
-            }
-        }
+        if ( allowPolyploidReductionInGeneral && !disallowPolyploidReductionAtThisPosition )
+            hetRefPosition = findSinglePolyploidCompressiblePosition(header, start, stop);
 
         // Try to compress the variant region; note that using the hetRefPosition protects us from trying to compress
         // variant regions that are created by insertions (since we can't confirm here that they represent the same allele)
-        if ( canCompress && hetRefPosition != -1 ) {
+        if ( hetRefPosition != -1 ) {
             allReads = createPolyploidConsensus(start, stop, ((HeaderElement) header[hetRefPosition]).getLocation());
         }
-
         // Return all reads that overlap the variant region and remove them from the window header entirely
         // also remove all reads preceding the variant region (since they will be output as consensus right after compression
         else {
             final int refStart = windowHeader.get(start).getLocation();
             final int refStop = windowHeader.get(stop).getLocation();
 
-            ObjectList<GATKSAMRecord> toRemove = new ObjectArrayList<GATKSAMRecord>();
-            for (GATKSAMRecord read : readsInWindow) {
-                if (read.getSoftStart() <= refStop) {
-                    if (read.getAlignmentEnd() >= refStart) {
+            final ObjectList<GATKSAMRecord> toRemove = new ObjectArrayList<GATKSAMRecord>();
+            for ( final GATKSAMRecord read : readsInWindow ) {
+                if ( read.getSoftStart() <= refStop ) {
+                    if ( read.getAlignmentEnd() >= refStart ) {
                         allReads.add(read);
                         removeFromHeader(windowHeader, read);
                     }
@@ -706,6 +681,39 @@ public class SlidingWindow {
             removeReadsFromWindow(toRemove);
         }
         return allReads;
+    }
+
+    /*
+     * Finds the het variant position located within start and stop (inclusive) if one exists.
+     *
+     * @param header  the header element array
+     * @param start   the first header index in the region to check (inclusive)
+     * @param stop    the last header index of the region to check (inclusive)
+     * @return the window header index of the single het position or -1 if either none or more than one exists
+     */
+    @Requires("header != null && start >= 0 && (stop >= start || stop == 0)")
+    protected int findSinglePolyploidCompressiblePosition(final Object[] header, final int start, final int stop) {
+        int hetRefPosition = -1;
+
+        for ( int i = start; i <= stop; i++ ) {
+
+            final int nAlleles = ((HeaderElement) header[i]).getNumberOfAlleles(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
+
+            // we will only work on diploid cases because we just don't want to handle/test other scenarios
+            if ( nAlleles > 2 )
+                return -1;
+
+            if ( nAlleles == 2 ) {
+
+                // make sure that there is only 1 site in the region that contains more than one allele
+                if ( hetRefPosition >= 0 )
+                    return -1;
+
+                hetRefPosition = i;
+            }
+        }
+
+        return hetRefPosition;
     }
 
     /**
@@ -728,31 +736,41 @@ public class SlidingWindow {
         return result; // finalized reads will be downsampled if necessary
     }
 
-    public ObjectSet<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
-        ObjectAVLTreeSet<GATKSAMRecord> allReads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
-        if (!regions.isEmpty()) {
-            int lastStop = -1;
-            int windowHeaderStart = getStartLocation(windowHeader);
+    /*
+     * Finalizes the list of regions requested (and any regions preceding them)
+     *
+     * @param regions   the list of regions to finalize
+     * @return a non-null set of reduced reads representing the finalized regions
+     */
+    public ObjectSet<GATKSAMRecord> closeVariantRegions(final CompressionStash regions) {
+        final ObjectAVLTreeSet<GATKSAMRecord> allReads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+        if ( !regions.isEmpty() ) {
 
-            for (GenomeLoc region : regions) {
+            int windowHeaderStart = getStartLocation(windowHeader);
+            HeaderElement lastCleanedElement = null;
+
+            for ( final GenomeLoc region : regions ) {
                 if (((FinishedGenomeLoc)region).isFinished() && region.getContig().equals(contig) && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
-                    int start = region.getStart() - windowHeaderStart;
-                    int stop = region.getStop() - windowHeaderStart;
+                    final int start = region.getStart() - windowHeaderStart;
+                    final int stop = region.getStop() - windowHeaderStart;
 
                     allReads.addAll(closeVariantRegion(start, stop, regions.size() > 1)); // todo -- add condition here dependent on dbSNP track
-                    lastStop = stop;
+
+                    // We need to clean up the window header elements up until the end of the requested region so that they don't get used for future regions.
+                    // Note that this cleanup used to happen outside the above for-loop, but that was causing an occasional doubling of the reduced reads
+                    //  (in the case where there are multiple regions to close we'd reuse the reads for each region).
+                    if ( stop >= 0 ) {
+                        for ( int i = 0; i < stop; i++ )
+                            windowHeader.remove();
+                        lastCleanedElement = windowHeader.remove();
+                        windowHeaderStart = getStartLocation(windowHeader);
+                    }
                 }
             }
 
-            // clean up the window header elements up until the end of the variant region.
-            // note that we keep the last element of the region in the event that the following element has a read that starts with insertion.
-            if ( lastStop >= 0 ) {
-                for (int i = 0; i < lastStop; i++)
-                    windowHeader.remove();
-                final HeaderElement lastOfRegion = windowHeader.remove();
-                if ( lastOfRegion.hasInsertionToTheRight() )
-                    windowHeader.addFirst(new HeaderElement(lastOfRegion.getLocation(), lastOfRegion.numInsertionsToTheRight()));
-            }
+            // we need to keep the last element of the last cleaned region in the event that the following element has a read that starts with an insertion.
+            if ( lastCleanedElement != null && lastCleanedElement.hasInsertionToTheRight() )
+                windowHeader.addFirst(new HeaderElement(lastCleanedElement.getLocation(), lastCleanedElement.numInsertionsToTheRight()));
         }
         return allReads;
     }
@@ -925,7 +943,6 @@ public class SlidingWindow {
         return hetReads;
     }
 
-
     private void addToHeader(LinkedList<HeaderElement> header, GATKSAMRecord read) {
         updateHeaderCounts(header, read, false);
     }
@@ -934,84 +951,123 @@ public class SlidingWindow {
         updateHeaderCounts(header, read, true);
     }
 
-
     /**
      * Updates the sliding window's header counts with the incoming read bases, insertions
      * and deletions.
      *
-     * @param header the sliding window header to use
-     * @param read the incoming read to be added to the sliding window
-     * @param removeRead if we are removing the read from the header or adding
+     * @param header      the sliding window header to use
+     * @param read        the incoming read to be added to the sliding window
+     * @param removeRead  if we are removing the read from the header or adding
      */
-    private void updateHeaderCounts(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final boolean removeRead) {
-        byte[] bases = read.getReadBases();
-        byte[] quals = read.getBaseQualities();
-        byte[] insQuals = read.getExistingBaseInsertionQualities();
-        byte[] delQuals = read.getExistingBaseDeletionQualities();
-        int readStart = read.getSoftStart();
-        int readEnd = read.getSoftEnd();
-        Cigar cigar = read.getCigar();
+    protected void updateHeaderCounts(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final boolean removeRead) {
+        final int readStart = read.getSoftStart();
+        final int headerStart = getStartLocation(header);
+        int locationIndex = headerStart < 0 ? 0 : readStart - headerStart;
 
-        int readBaseIndex = 0;
-        int startLocation = getStartLocation(header);
-        int locationIndex = startLocation < 0 ? 0 : readStart - startLocation;
-        int stopLocation = getStopLocation(header);
+        if ( removeRead && locationIndex < 0 )
+            throw new ReviewedStingException("Provided read is behind the Sliding Window! Read = " + read + ", readStart = " + readStart + ", cigar = " + read.getCigarString() + ", window = " + headerStart + "-" + getStopLocation(header));
 
-        if (removeRead && locationIndex < 0)
-            throw new ReviewedStingException("read is behind the Sliding Window. read: " + read + " start " + read.getUnclippedStart() + "," + read.getUnclippedEnd() + " cigar: " + read.getCigarString() + " window: " + startLocation + "," + stopLocation);
+        // we only need to create new header elements if we are adding the read, not when we're removing it
+        if ( !removeRead )
+            locationIndex = createNewHeaderElements(header, read, locationIndex);
 
-        if (!removeRead) {                                                                                              // we only need to create new header elements if we are adding the read, not when we're removing it
-            if (locationIndex < 0) {                                                                                    // Do we need to add extra elements before the start of the header? -- this may happen if the previous read was clipped and this alignment starts before the beginning of the window
-                for (int i = 1; i <= -locationIndex; i++)
-                    header.addFirst(new HeaderElement(startLocation - i));
+        actuallyUpdateHeaderForRead(header, read, removeRead, locationIndex);
+    }
 
-                startLocation = readStart;                                                               // update start location accordingly
-                locationIndex = 0;
-            }
+    /*
+     * Creates new header elements if needed for the given read.
+     *
+     * @param header        the sliding window header to use
+     * @param read          the incoming read to be added to the sliding window
+     * @param startIndex    the start location index into the header for this read
+     *
+     * @return an updated index into the modified header
+     */
+    @Requires("header != null && read != null")
+    protected int createNewHeaderElements(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final int startIndex) {
 
-            if (stopLocation < readEnd) {                                                                // Do we need to add extra elements to the header?
-                int elementsToAdd = (stopLocation < 0) ? readEnd - readStart + 1 : readEnd - stopLocation;
-                while (elementsToAdd-- > 0)
-                    header.addLast(new HeaderElement(readEnd - elementsToAdd));
-            }
+        int headerStart = getStartLocation(header);
+        int locationIndex = startIndex;
 
-            // Special case for leading insertions before the beginning of the sliding read
-            if (ReadUtils.readStartsWithInsertion(read).getFirst() && (readStart == startLocation || startLocation < 0)) {
-                header.addFirst(new HeaderElement(readStart - 1));                                 // create a new first element to the window header with no bases added
-                locationIndex = 1;                                                                                      // This allows the first element (I) to look at locationIndex - 1 in the subsequent switch and do the right thing.
-            }
+        // Do we need to add extra elements before the start of the header?  This could happen if the previous read was
+        // clipped and this alignment starts before the beginning of the window
+        final int readStart = read.getSoftStart();
+        if ( startIndex < 0 ) {
+            for ( int i = 1; i <= -startIndex; i++ )
+                header.addFirst(new HeaderElement(headerStart - i));
+
+            // update the start location accordingly
+            headerStart = readStart;
+            locationIndex = 0;
         }
 
-        Iterator<HeaderElement> headerElementIterator = header.listIterator(locationIndex);
+        // Do we need to add extra elements to the end of the header?
+        final int headerStop = getStopLocation(header);
+        final int readEnd = read.getSoftEnd();
+        if ( headerStop < readEnd ) {
+            final int elementsToAdd = (headerStop < 0) ? readEnd - readStart + 1 : readEnd - headerStop;
+            for ( int i = elementsToAdd - 1; i >= 0; i-- )
+                header.addLast(new HeaderElement(readEnd - i));
+        }
+
+        // Special case for leading insertions before the beginning of the sliding read
+        if ( ReadUtils.readStartsWithInsertion(read).getFirst() && (readStart == headerStart || headerStart < 0) ) {
+            // create a new first element to the window header with no bases added
+            header.addFirst(new HeaderElement(readStart - 1));
+            // this allows the first element (I) to look at locationIndex - 1 when we update the header and do the right thing
+            locationIndex = 1;
+        }
+
+        return locationIndex;
+    }
+
+    /*
+     * Actually updates the sliding window's header counts with the incoming read bases and quals (including insertion and deletion quals).
+     *
+     * @param header        the sliding window header to use
+     * @param read          the incoming read to be added to the sliding window
+     * @param removeRead    if we are removing the read from the header or adding
+     * @param startIndex    the start location index into the header for this read
+     */
+    @Requires("header != null && read != null && startIndex >= 0")
+    protected void actuallyUpdateHeaderForRead(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final boolean removeRead, final int startIndex) {
+
+        final Iterator<HeaderElement> headerElementIterator = header.listIterator(startIndex);
+        final byte mappingQuality = (byte) read.getMappingQuality();
+
+        // iterator variables
+        int locationIndex = startIndex;
+        int readBaseIndex = 0;
         HeaderElement headerElement;
-        for (CigarElement cigarElement : cigar.getCigarElements()) {
-            switch (cigarElement.getOperator()) {
+
+        for ( CigarElement cigarElement : read.getCigar().getCigarElements() ) {
+            switch ( cigarElement.getOperator() ) {
                 case H:
                     break;
                 case I:
-                    if (removeRead && locationIndex == 0) {                                                             // special case, if we are removing a read that starts in insertion and we don't have the previous header element anymore, don't worry about it.
+                    // special case, if we are removing a read that starts in insertion and we don't have the previous header element anymore, don't worry about it.
+                    if ( removeRead && locationIndex == 0 )
                         break;
-                    }
 
-                    headerElement = header.get(locationIndex - 1);                                                // insertions are added to the base to the left (previous element)
+                    // insertions are added to the base to the left (previous element)
+                    headerElement = header.get(locationIndex - 1);
 
-                    if (removeRead) {
+                    if ( removeRead )
                         headerElement.removeInsertionToTheRight();
-                    }
-                    else {
+                    else
                         headerElement.addInsertionToTheRight();
-                    }
+
                     readBaseIndex += cigarElement.getLength();
-                    break;                                                                                              // just ignore the insertions at the beginning of the read
+                    break;
                 case D:
-                    int nDeletions = cigarElement.getLength();
-                    while (nDeletions-- > 0) {                                                                          // deletions are added to the baseCounts with the read mapping quality as it's quality score
+                    // deletions are added to the baseCounts with the read mapping quality as it's quality score
+                    final int nDeletionBases = cigarElement.getLength();
+                    for ( int i = 0; i < nDeletionBases; i++ ) {
                         headerElement = headerElementIterator.next();
-                        byte mq = (byte) read.getMappingQuality();
                         if (removeRead)
-                            headerElement.removeBase((byte) 'D', mq, mq, mq, mq, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false);
+                            headerElement.removeBase(BaseUtils.Base.D.base, mappingQuality, mappingQuality, mappingQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false);
                         else
-                            headerElement.addBase((byte) 'D', mq, mq, mq, mq, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false);
+                            headerElement.addBase(BaseUtils.Base.D.base, mappingQuality, mappingQuality, mappingQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false);
 
                         locationIndex++;
                     }
@@ -1021,26 +1077,33 @@ public class SlidingWindow {
                 case P:
                 case EQ:
                 case X:
-                    int nBasesToAdd = cigarElement.getLength();
-                    while (nBasesToAdd-- > 0) {
+                    final int nBasesToAdd = cigarElement.getLength();
+                    final boolean isSoftClip = cigarElement.getOperator() == CigarOperator.S;
+                    final boolean readHasIndelQuals = read.hasBaseIndelQualities();
+                    final byte[] insertionQuals = readHasIndelQuals ? read.getBaseInsertionQualities() : null;
+                    final byte[] deletionQuals = readHasIndelQuals ? read.getBaseDeletionQualities() : null;
+
+                    for ( int i = 0; i < nBasesToAdd; i++ ) {
                         headerElement = headerElementIterator.next();
-                        byte insertionQuality = insQuals == null ? -1 : insQuals[readBaseIndex];                        // if the read doesn't have indel qualities, use -1 (doesn't matter the value because it won't be used for anything)
-                        byte deletionQuality = delQuals == null ? -1 : delQuals[readBaseIndex];
-                        if (removeRead)
-                            headerElement.removeBase(bases[readBaseIndex], quals[readBaseIndex], insertionQuality, deletionQuality, read.getMappingQuality(), MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, cigarElement.getOperator() == CigarOperator.S);
+                        final byte insertionQuality = readHasIndelQuals ? insertionQuals[readBaseIndex] : -1;
+                        final byte deletionQuality = readHasIndelQuals ? deletionQuals[readBaseIndex] : -1;
+                        if ( removeRead )
+                            headerElement.removeBase(read.getReadBases()[readBaseIndex], read.getBaseQualities()[readBaseIndex], insertionQuality, deletionQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, isSoftClip);
                         else
-                            headerElement.addBase(bases[readBaseIndex], quals[readBaseIndex], insertionQuality, deletionQuality, read.getMappingQuality(), MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, cigarElement.getOperator() == CigarOperator.S);
+                            headerElement.addBase(read.getReadBases()[readBaseIndex], read.getBaseQualities()[readBaseIndex], insertionQuality, deletionQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, isSoftClip);
 
                         readBaseIndex++;
                         locationIndex++;
                     }
                     break;
+                default:
+                    break;
             }
         }
     }
 
-    private void removeReadsFromWindow (ObjectList<GATKSAMRecord> readsToRemove) {
-        for (GATKSAMRecord read : readsToRemove) {
+    private void removeReadsFromWindow (final ObjectList<GATKSAMRecord> readsToRemove) {
+        for (final GATKSAMRecord read : readsToRemove) {
             readsInWindow.remove(read);
         }
     }

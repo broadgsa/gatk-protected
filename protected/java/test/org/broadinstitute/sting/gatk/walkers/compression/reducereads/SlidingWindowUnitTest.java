@@ -55,6 +55,7 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
 import org.broadinstitute.sting.utils.Utils;
@@ -72,8 +73,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
 public class SlidingWindowUnitTest extends BaseTest {
 
@@ -385,30 +386,22 @@ public class SlidingWindowUnitTest extends BaseTest {
     //// This section tests the downsampling functionality ////
     ///////////////////////////////////////////////////////////
 
-    private class DSTest {
-        public final int dcov;
-
-        private DSTest(final int dcov) {
-            this.dcov = dcov;
-        }
-    }
-
     @DataProvider(name = "Downsampling")
     public Object[][] createDownsamplingTestData() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         for ( int i = 1; i < basicReads.size() + 10; i++ )
-            tests.add(new Object[]{new DSTest(i)});
+            tests.add(new Object[]{i});
 
         return tests.toArray(new Object[][]{});
     }
 
     @Test(dataProvider = "Downsampling", enabled = true)
-    public void testDownsamplingTest(DSTest test) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, test.dcov, ReduceReads.DownsampleStrategy.Normal, false, false);
+    public void testDownsamplingTest(final int dcov) {
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, dcov, ReduceReads.DownsampleStrategy.Normal, false, false);
         final ObjectList<GATKSAMRecord> result = slidingWindow.downsampleVariantRegion(basicReads);
 
-        Assert.assertEquals(result.size(), Math.min(test.dcov, basicReads.size()));
+        Assert.assertEquals(result.size(), Math.min(dcov, basicReads.size()));
     }
 
 
@@ -487,5 +480,97 @@ public class SlidingWindowUnitTest extends BaseTest {
     }
 
 
+    ////////////////////////////////////////////////////
+    //// This section tests the new header creation ////
+    ////////////////////////////////////////////////////
 
+    @DataProvider(name = "CreateNewHeader")
+    public Object[][] CreateNewHeaderTestData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final int start : Arrays.asList(-10, -1, 0, 1, 10) ) {
+            for ( final int stop : Arrays.asList(-10, -1, 0, 1, 10) ) {
+                tests.add(new Object[]{start, stop});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "CreateNewHeader", enabled = true)
+    public void createNewHeaderTest(final int start, final int stop) {
+
+        // set up the window header
+        final int currentHeaderStart = 100;
+        final int currentHeaderLength = 50;
+        final LinkedList<HeaderElement> windowHeader = new LinkedList<HeaderElement>();
+        for ( int i = 0; i < currentHeaderLength; i++ )
+            windowHeader.add(new HeaderElement(currentHeaderStart + i));
+
+        // set up the read
+        final int readStart = currentHeaderStart + start;
+        final int readLength = currentHeaderLength + stop - start;
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead", 0, readStart, readLength);
+        read.setReadBases(Utils.dupBytes((byte) 'A', readLength));
+        read.setBaseQualities(Utils.dupBytes((byte) 30, readLength));
+        read.setMappingQuality(30);
+
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false, false);
+        int newIndex = slidingWindow.createNewHeaderElements(windowHeader, read, start);
+
+        Assert.assertEquals(newIndex, start > 0 ? start : 0);
+
+        final int expectedNewLength = currentHeaderLength + (start < 0 ? -start : 0) + (stop > 0 ? stop : 0);
+        Assert.assertEquals(windowHeader.size(), expectedNewLength);
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    //// This section tests updating the header from a read ////
+    ////////////////////////////////////////////////////////////
+
+    @DataProvider(name = "UpdateHeaderForRead")
+    public Object[][] UpdateHeaderForReadTestData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final int start : Arrays.asList(0, 1, 10) ) {
+            for ( final int readLength : Arrays.asList(1, 5, 10) ) {
+                tests.add(new Object[]{start, readLength});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "UpdateHeaderForRead", enabled = true)
+    public void updateHeaderForReadTest(final int start, final int readLength) {
+
+        // set up the window header
+        final int currentHeaderStart = 100;
+        final int currentHeaderLength = 50;
+        final LinkedList<HeaderElement> windowHeader = new LinkedList<HeaderElement>();
+        for ( int i = 0; i < currentHeaderLength; i++ )
+            windowHeader.add(new HeaderElement(currentHeaderStart + i));
+
+        // set up the read
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead", 0, currentHeaderStart + start, readLength);
+        read.setReadBases(Utils.dupBytes((byte) 'A', readLength));
+        read.setBaseQualities(Utils.dupBytes((byte)30, readLength));
+        read.setMappingQuality(30);
+
+        // add the read
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false, false);
+        slidingWindow.actuallyUpdateHeaderForRead(windowHeader, read, false, start);
+        for ( int i = 0; i < start; i++ )
+            Assert.assertEquals(windowHeader.get(i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 0);
+        for ( int i = 0; i < readLength; i++ )
+            Assert.assertEquals(windowHeader.get(start + i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 1);
+        for ( int i = start + readLength; i < currentHeaderLength; i++ )
+            Assert.assertEquals(windowHeader.get(i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 0);
+
+        // now remove the read
+        slidingWindow.actuallyUpdateHeaderForRead(windowHeader, read, true, start);
+        for ( int i = 0; i < currentHeaderLength; i++ )
+            Assert.assertEquals(windowHeader.get(i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 0);
+    }
 }
