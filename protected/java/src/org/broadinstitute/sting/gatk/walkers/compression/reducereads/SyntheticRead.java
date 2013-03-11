@@ -124,8 +124,7 @@ public class SyntheticRead {
     
     
     private final ObjectArrayList<SingleBaseInfo> basesCountsQuals;
-    private double mappingQuality;                                                                                      // the average of the rms of the mapping qualities of all the reads that contributed to this consensus
-    private String readTag;
+    private double mappingQuality;
 
     // Information to produce a GATKSAMRecord
     private SAMFileHeader header;
@@ -147,14 +146,12 @@ public class SyntheticRead {
      * @param contigIndex     the read's contig index
      * @param readName        the read's name
      * @param refStart        the alignment start (reference based)
-     * @param readTag         the reduce reads tag for the synthetic read
      */
-    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, String readTag, boolean hasIndelQualities, boolean isNegativeRead) {
+    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
         final int initialCapacity = 10000;
         basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(initialCapacity);
         mappingQuality = 0.0;
 
-        this.readTag = readTag;
         this.header = header;
         this.readGroupRecord = readGroupRecord;
         this.contig = contig;
@@ -165,13 +162,12 @@ public class SyntheticRead {
         this.isNegativeStrand = isNegativeRead;
     }
 
-    public SyntheticRead(ObjectArrayList<BaseIndex> bases, ByteArrayList counts, ByteArrayList quals, ByteArrayList insertionQuals, ByteArrayList deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
+    public SyntheticRead(ObjectArrayList<BaseIndex> bases, ByteArrayList counts, ByteArrayList quals, ByteArrayList insertionQuals, ByteArrayList deletionQuals, double mappingQuality, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
         basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(bases.size());
         for (int i = 0; i < bases.size(); ++i) {
             basesCountsQuals.add(new SingleBaseInfo(bases.get(i).getOrdinalByte(), counts.get(i), quals.get(i), insertionQuals.get(i), deletionQuals.get(i)));
         }
         this.mappingQuality = mappingQuality;
-        this.readTag = readTag;
         this.header = header;
         this.readGroupRecord = readGroupRecord;
         this.contig = contig;
@@ -228,7 +224,7 @@ public class SyntheticRead {
         read.setReadBases(convertReadBases());
         read.setMappingQuality((int) Math.ceil(mappingQuality / basesCountsQuals.size()));
         read.setReadGroup(readGroupRecord);
-        read.setAttribute(readTag, convertBaseCounts());
+        read.setReducedReadCounts(convertBaseCounts());
 
         if (hasIndelQualities) {
             read.setBaseQualities(convertInsertionQualities(), EventType.BASE_INSERTION);

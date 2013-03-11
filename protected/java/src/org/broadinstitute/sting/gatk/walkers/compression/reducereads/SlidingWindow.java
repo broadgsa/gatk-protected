@@ -567,7 +567,7 @@ public class SlidingWindow {
         ObjectArrayList<GATKSAMRecord> result = new ObjectArrayList<GATKSAMRecord>();
 
         if (filteredDataConsensus == null)
-            filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, header.get(start).getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
+            filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, header.get(start).getLocation(), hasIndelQualities, isNegativeStrand);
 
         ListIterator<HeaderElement> headerElementIterator = header.listIterator(start);
         for (int index = start; index < end; index++) {
@@ -583,7 +583,7 @@ public class SlidingWindow {
 
             if ( filteredDataConsensus.getRefStart() + filteredDataConsensus.size() != headerElement.getLocation() ) {
                 result.add(finalizeFilteredDataConsensus());
-                filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, headerElement.getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
+                filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, headerElement.getLocation(), hasIndelQualities, isNegativeStrand);
             }
 
             genericAddBaseToConsensus(filteredDataConsensus, headerElement.getFilteredBaseCounts(), headerElement.getRMS());
@@ -606,7 +606,7 @@ public class SlidingWindow {
     @Requires({"start >= 0 && (end >= start || end == 0)"})
     private void addToRunningConsensus(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
         if (runningConsensus == null)
-            runningConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, consensusReadName + consensusCounter++, header.get(start).getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
+            runningConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, consensusReadName + consensusCounter++, header.get(start).getLocation(), hasIndelQualities, isNegativeStrand);
 
         Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
         for (int index = start; index < end; index++) {
