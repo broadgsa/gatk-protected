@@ -139,6 +139,15 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
         executeTest("test confidence 1", spec1);
     }
 
+    @Test
+    public void testNoPrior() {
+        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
+                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -stand_call_conf 10 -noPrior", 1,
+                Arrays.asList("422656266117f8d01e17e5c491c49a24"));
+        executeTest("test no prior 1", spec1);
+
+    }
+
     // --------------------------------------------------------------------------------------------------------------
     //
     // testing heterozygosity

@@ -111,7 +111,7 @@ public class AFCalcTestBuilder {
                 return MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
             case human:
                 final double[] humanPriors = new double[nPriorValues];
-                UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001);
+                UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, false);
                 return humanPriors;
             default:
                 throw new RuntimeException("Unexpected type " + priorType);

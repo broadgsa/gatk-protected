@@ -159,8 +159,8 @@ public class UnifiedGenotyperEngine {
         this.N = samples.size() * ploidy;
         log10AlleleFrequencyPriorsSNPs = new double[N+1];
         log10AlleleFrequencyPriorsIndels = new double[N+1];
-        computeAlleleFrequencyPriors(N, log10AlleleFrequencyPriorsSNPs, UAC.heterozygosity);
-        computeAlleleFrequencyPriors(N, log10AlleleFrequencyPriorsIndels, UAC.INDEL_HETEROZYGOSITY);
+        computeAlleleFrequencyPriors(N, log10AlleleFrequencyPriorsSNPs, UAC.heterozygosity, UAC.ignoreHeterozygosityPrior);
+        computeAlleleFrequencyPriors(N, log10AlleleFrequencyPriorsIndels, UAC.INDEL_HETEROZYGOSITY, UAC.ignoreHeterozygosityPrior);
 
         filter.add(LOW_QUAL_FILTER_NAME);
 
@@ -722,8 +722,20 @@ public class UnifiedGenotyperEngine {
         return GGAmodel;
     }
 
-    public static void computeAlleleFrequencyPriors(final int N, final double[] priors, final double theta) {
+    /**
+     * Function that fills vector with allele frequency priors. By default, infinite-sites, neutral variation prior is used,
+     * where Pr(AC=i) = theta/i where theta is heterozygosity
+     * @param N                                Number of chromosomes
+     * @param priors                           (output) array to be filled with priors
+     * @param theta                            Heterozygosity
+     * @param ignorePriors                     If true, priors are ignored and zeros returned
+     */
+    public static void computeAlleleFrequencyPriors(final int N, final double[] priors, final double theta, final boolean ignorePriors) {
 
+        if (ignorePriors) {
+            Arrays.fill(priors, 0,N,0.0);
+            return;
+        }
         double sum = 0.0;
 
         // for each i
@@ -733,6 +745,10 @@ public class UnifiedGenotyperEngine {
             sum += value;
         }
 
+        // protection against the case of heterozygosity too high or an excessive number of samples (which break population genetics assumptions)
+        if (sum > 1.0) {
+            throw new UserException.BadArgumentValue("heterozygosity","The heterozygosity value is set too high relative to the number of samples to be processed - try reducing heterozygosity value or using the -noPrior argument");
+        }
         // null frequency for AF=0 is (1 - sum(all other frequencies))
         priors[0] = Math.log10(1.0 - sum);
     }
