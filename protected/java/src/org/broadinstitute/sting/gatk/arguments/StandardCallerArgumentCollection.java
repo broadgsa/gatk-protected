@@ -74,6 +74,12 @@ public class StandardCallerArgumentCollection {
     @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus", required = false)
     public Double heterozygosity = UnifiedGenotyperEngine.HUMAN_SNP_HETEROZYGOSITY;
 
+    /**
+     * This argument informs the prior probability of having an indel at a site.
+     */
+    @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling", required = false)
+    public double INDEL_HETEROZYGOSITY = 1.0/8000;
+
     @Argument(fullName = "genotyping_mode", shortName = "gt_mode", doc = "Specifies how to determine the alternate alleles to use for genotyping", required = false)
     public GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY;
 
@@ -179,6 +185,7 @@ public class StandardCallerArgumentCollection {
         this.alleles = SCAC.alleles;
         this.GenotypingMode = SCAC.GenotypingMode;
         this.heterozygosity = SCAC.heterozygosity;
+        this.INDEL_HETEROZYGOSITY = SCAC.INDEL_HETEROZYGOSITY;
         this.MAX_ALTERNATE_ALLELES = SCAC.MAX_ALTERNATE_ALLELES;
         this.OutputMode = SCAC.OutputMode;
         this.STANDARD_CONFIDENCE_FOR_CALLING = SCAC.STANDARD_CONFIDENCE_FOR_CALLING;
