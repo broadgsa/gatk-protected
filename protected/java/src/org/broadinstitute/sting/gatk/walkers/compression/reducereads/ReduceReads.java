@@ -112,7 +112,7 @@ import org.broadinstitute.sting.utils.sam.ReadUtils;
 @Downsample(by=DownsampleType.BY_SAMPLE, toCoverage=40)
 public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, ReduceReadsStash> {
 
-    @Output
+    @Output(required=true)
     private StingSAMFileWriter out = null;
     private SAMFileWriter writerToUse = null;
 

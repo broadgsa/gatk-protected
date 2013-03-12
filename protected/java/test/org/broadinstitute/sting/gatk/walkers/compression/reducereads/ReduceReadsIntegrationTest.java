@@ -147,7 +147,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testReadOffContig() {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, OFFCONTIG_BAM) + " -o %s ";
-        executeTest("testReadOffContig", new WalkerTestSpec(base, Arrays.asList("922be8b1151dd0d92602af93b77f7a51")));
+        executeTest("testReadOffContig", new WalkerTestSpec(base, Arrays.asList("c57cd191dc391983131be43f6cc2e381")));
     }
 
 }
