@@ -68,9 +68,16 @@ import java.util.Map;
 
 
 /**
- * The GC content (# GC bases / # all bases) of the reference within 50 bp +/- this site
+ * GC content of the reference around this site
+ *
+ * <p>The GC content is the number of GC bases relative to the total number of bases (# GC bases / # all bases) around this site on the reference.</p>
+ *
+ * <h3>Caveat</h3>
+ * <p>The window size used to calculate the GC content around the site is set by the tool used for annotation
+ * (currently UnifiedGenotyper, HaplotypeCaller or VariantAnnotator). See the Technical Document for each tool
+ * to find out what window size they use.</p>
  */
-public class GCContent extends InfoFieldAnnotation implements ExperimentalAnnotation {
+public class GCContent extends InfoFieldAnnotation {
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -86,7 +93,7 @@ public class GCContent extends InfoFieldAnnotation implements ExperimentalAnnota
 
     public List<String> getKeyNames() { return Arrays.asList("GC"); }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("GC", 1, VCFHeaderLineType.Integer, "GC content within 20 bp +/- the variant")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("GC", 1, VCFHeaderLineType.Integer, "GC content around the variant (see docs for window size details)")); }
 
     public boolean useZeroQualityReads() { return false; }
 

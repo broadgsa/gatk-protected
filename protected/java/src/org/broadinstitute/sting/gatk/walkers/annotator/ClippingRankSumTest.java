@@ -57,14 +57,15 @@ import org.broadinstitute.variant.variantcontext.Allele;
 import java.util.*;
 
 /**
- * Created with IntelliJ IDEA.
- * User: rpoplin
- * Date: 6/28/12
- */
-
-/**
- * The u-based z-approximation from the Mann-Whitney Rank Sum Test for reads with clipped bases (reads with ref bases vs. those with the alternate allele)
- * Note that the clipping rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.
+ * U-based z-approximation from the Mann-Whitney Rank Sum Test for reads with clipped bases
+ *
+ * <p>This tool calculates the u-based z-approximation from the Mann-Whitney Rank Sum Test for reads with clipped bases (reads with ref bases vs. those with the alternate allele).</p>
+ *
+ * <h3>Caveat</h3>
+ * <p>The clipping rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
+ *
+ * @author rpoplin
+ * @since 6/28/12
  */
 public class ClippingRankSumTest extends RankSumTest {
 
