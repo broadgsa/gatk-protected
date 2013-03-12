@@ -84,17 +84,17 @@ import java.util.*;
  * From that, it can resolve potential differences in variant calls that are inherently the same (or similar) variants.
  * Records are annotated with the set and status attributes.
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * 2 variant files to resolve.
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A single consensus VCF.
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx1g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \

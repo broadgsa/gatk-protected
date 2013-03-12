@@ -87,7 +87,7 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Performs local realignment of reads based on misalignments due to the presence of indels.
+ * Performs local realignment of reads to correct misalignments due to the presence of indels.
  *
  * <p>
  * The local realignment tool is designed to consume one or more BAM files and to locally realign reads such that the number of mismatching bases
@@ -100,38 +100,45 @@ import java.util.*;
  * indel suitable for standard variant discovery approaches.  Unlike most mappers, this walker uses the full alignment context to determine whether an
  * appropriate alternate reference (i.e. indel) exists.  Following local realignment, the GATK tool Unified Genotyper can be used to sensitively and
  * specifically identify indels.
- * <p>
+ * </p>
  *     <ol>There are 2 steps to the realignment process:
  *     <li>Determining (small) suspicious intervals which are likely in need of realignment (see the RealignerTargetCreator tool)</li>
  *     <li>Running the realigner over those intervals (IndelRealigner)</li>
  *     </ol>
- *     <p>
- * An important note: the input bam(s), reference, and known indel file(s) should be the same ones used for the RealignerTargetCreator step.
  * <p>
- * Another important note: because reads produced from the 454 technology inherently contain false indels, the realigner will not currently work with them
- * (or with reads from similar technologies).
+ * For more details, see http://www.broadinstitute.org/gatk/guide/article?id=38
+ * </p>
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * One or more aligned BAM files and optionally one or more lists of known indels.
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A realigned version of your input BAM file(s).
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Example</h3>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
- *   -I input.bam \
- *   -R ref.fasta \
  *   -T IndelRealigner \
+ *   -R ref.fasta \
+ *   -I input.bam \
  *   -targetIntervals intervalListFromRTC.intervals \
  *   -o realignedBam.bam \
  *   [-known /path/to/indels.vcf] \
  *   [-compress 0]    (this argument recommended to speed up the process *if* this is only a temporary file; otherwise, use the default value)
  * </pre>
+ *
+ * <h3>Caveats</h3>
+ *
+ * <ul><li>
+ * An important note: the input bam(s), reference, and known indel file(s) should be the same ones used for the RealignerTargetCreator step.
+ * </li><li>
+ * Another important note: because reads produced from the 454 technology inherently contain false indels, the realigner will not currently work with them
+ * (or with reads from similar technologies).
+ * </li></ul>
  *
  * @author ebanks
  */
@@ -168,7 +175,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     /**
      * The interval list output from the RealignerTargetCreator tool using the same bam(s), reference, and known indel file(s).
      */
-    @Input(fullName="targetIntervals", shortName="targetIntervals", doc="intervals file output from RealignerTargetCreator", required=true)
+    @Input(fullName="targetIntervals", shortName="targetIntervals", doc="Intervals file output from RealignerTargetCreator", required=true)
     protected IntervalBinding<Feature> intervalsFile = null;
 
     /**
@@ -203,7 +210,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
      * push the mismatch column to another position). This parameter is just a heuristic and should be adjusted based on your particular data set.
      */
     @Advanced
-    @Argument(fullName="entropyThreshold", shortName="entropy", doc="percentage of mismatches at a locus to be considered having high entropy", required=false)
+    @Argument(fullName="entropyThreshold", shortName="entropy", doc="Percentage of mismatches at a locus to be considered having high entropy (0.0 < entropy <= 1.0)", required=false)
     protected double MISMATCH_THRESHOLD = 0.15;
 
     /**
@@ -225,21 +232,21 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
      * For expert users only!
      */
     @Advanced
-    @Argument(fullName="maxPositionalMoveAllowed", shortName="maxPosMove", doc="maximum positional move in basepairs that a read can be adjusted during realignment", required=false)
+    @Argument(fullName="maxPositionalMoveAllowed", shortName="maxPosMove", doc="Maximum positional move in basepairs that a read can be adjusted during realignment", required=false)
     protected int MAX_POS_MOVE_ALLOWED = 200;
 
     /**
      * For expert users only!  If you need to find the optimal solution regardless of running time, use a higher number.
      */
     @Advanced
-    @Argument(fullName="maxConsensuses", shortName="maxConsensuses", doc="max alternate consensuses to try (necessary to improve performance in deep coverage)", required=false)
+    @Argument(fullName="maxConsensuses", shortName="maxConsensuses", doc="Max alternate consensuses to try (necessary to improve performance in deep coverage)", required=false)
     protected int MAX_CONSENSUSES = 30;
 
     /**
      * For expert users only!  If you need to find the optimal solution regardless of running time, use a higher number.
      */
     @Advanced
-    @Argument(fullName="maxReadsForConsensuses", shortName="greedy", doc="max reads used for finding the alternate consensuses (necessary to improve performance in deep coverage)", required=false)
+    @Argument(fullName="maxReadsForConsensuses", shortName="greedy", doc="Max reads used for finding the alternate consensuses (necessary to improve performance in deep coverage)", required=false)
     protected int MAX_READS_FOR_CONSENSUSES = 120;
 
     /**
@@ -247,7 +254,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
      * If you need to allow more reads (e.g. with very deep coverage) regardless of memory, use a higher number.
      */
     @Advanced
-    @Argument(fullName="maxReadsForRealignment", shortName="maxReads", doc="max reads allowed at an interval for realignment", required=false)
+    @Argument(fullName="maxReadsForRealignment", shortName="maxReads", doc="Max reads allowed at an interval for realignment", required=false)
     protected int MAX_READS = 20000;
 
     @Advanced
@@ -263,7 +270,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
      *
      * Note that some GATK arguments do NOT work in conjunction with nWayOut (e.g. --disable_bam_indexing).
      */
-    @Argument(fullName="nWayOut", shortName="nWayOut", required=false, doc="Generate one output file for each input (-I) bam file")
+    @Argument(fullName="nWayOut", shortName="nWayOut", required=false, doc="Generate one output file for each input (-I) bam file (not compatible with -output)")
     protected String N_WAY_OUT = null;
 
     @Hidden

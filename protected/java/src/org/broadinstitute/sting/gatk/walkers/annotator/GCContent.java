@@ -70,7 +70,6 @@ import java.util.Map;
 /**
  * The GC content (# GC bases / # all bases) of the reference within 50 bp +/- this site
  */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 public class GCContent extends InfoFieldAnnotation implements ExperimentalAnnotation {
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,

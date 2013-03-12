@@ -86,17 +86,17 @@ import static org.broadinstitute.sting.utils.variant.GATKVCFUtils.getVCFHeadersF
  * Performs physical phasing of SNP calls, based on sequencing reads.
  * </p>
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * VCF file of SNP calls, BAM file of sequence reads.
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * Phased VCF file.
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  *    java
  *      -jar GenomeAnalysisTK.jar

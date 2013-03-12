@@ -65,7 +65,9 @@ import java.util.Map;
 
 
 /**
- * Fraction of reads containing spanning deletions at this site.
+ * Fraction of reads containing spanning deletions at this site
+ *
+ * <p>Note that this annotation is currently not compatible with HaplotypeCaller.</p>
  */
 public class SpanningDeletions extends InfoFieldAnnotation implements StandardAnnotation {
 

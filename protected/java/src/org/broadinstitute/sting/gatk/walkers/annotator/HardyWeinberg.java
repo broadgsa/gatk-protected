@@ -69,6 +69,8 @@ import java.util.Map;
 
 /**
  * Phred-scaled P value of genotype-based (using GT field) test for Hardy-Weinberg test for disequilibrium
+ *
+ * <p>Requires at least 10 samples in order to run. Only genotypes with sufficient quality (>10) will be taken into account.</p>
  */
 public class HardyWeinberg extends InfoFieldAnnotation implements WorkInProgressAnnotation {
 

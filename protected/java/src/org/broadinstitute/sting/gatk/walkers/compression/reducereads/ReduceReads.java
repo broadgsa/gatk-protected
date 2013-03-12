@@ -86,17 +86,17 @@ import org.broadinstitute.sting.utils.sam.ReadUtils;
  * shown to reduce a typical whole exome BAM file 100x. The higher the coverage, the bigger the
  * savings in file size and performance of the downstream tools.
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * The BAM file to be compressed
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * The compressed (reduced) BAM file.
  *
  * <p/>
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \

@@ -96,17 +96,17 @@ import java.util.*;
 /**
  * Call SNPs and indels simultaneously via local de-novo assembly of haplotypes in an active region. Haplotypes are evaluated using an affine gap penalty Pair HMM.
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * Input bam file(s) from which to make calls
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * VCF file with raw, unrecalibrated SNP and indel calls.
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  *   java
  *     -jar GenomeAnalysisTK.jar
@@ -120,7 +120,7 @@ import java.util.*;
  *     -o output.raw.snps.indels.vcf
  * </pre>
  *
- * <h2>Caveats</h2>
+ * <h3>Caveats</h3>
  * <ul>
  * <li>The system is under active and continuous development. All outputs, the underlying likelihood model, and command line arguments are likely to change often.</li>
  * </ul>

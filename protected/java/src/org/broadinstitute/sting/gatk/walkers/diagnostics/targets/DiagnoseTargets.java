@@ -75,7 +75,7 @@ import java.util.*;
  * </p>
  * <p/>
  * <p/>
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * <ul>
  * <li>A reference file</li>
@@ -84,12 +84,12 @@ import java.util.*;
  * </ul>
  * </p>
  * <p/>
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A modified VCF detailing each interval by sample
  * </p>
  * <p/>
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  *    java
  *      -jar GenomeAnalysisTK.jar

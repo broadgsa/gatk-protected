@@ -65,9 +65,9 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 import java.util.*;
 
 /**
- * Created by IntelliJ IDEA.
- * User: rpoplin, lfran, ebanks
- * Date: 11/14/11
+ * Wittkowski transmission disequilibrium test
+ *
+ * <p>Note that this annotation can only be used with VariantAnnotator (not with UnifiedGenotyper or HaplotypeCaller).</p>
  */
 
 public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implements ExperimentalAnnotation, RodRequiringAnnotation {

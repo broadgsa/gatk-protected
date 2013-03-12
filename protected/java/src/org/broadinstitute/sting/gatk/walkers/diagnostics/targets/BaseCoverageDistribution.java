@@ -71,17 +71,17 @@ import java.util.Map;
  *  <li>includes reads with deletions in the loci (optionally can be turned off)</li>
  * </p>
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * The BAM file and an optional interval list (works for WGS as well)
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A GATK Report with the coverage distribution per base
  *
  * <p/>
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \

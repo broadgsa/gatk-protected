@@ -86,17 +86,17 @@ import java.util.*;
  * both single sample data and multi-sample data.
  * </p>
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * The read data from which to make variant calls.
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A raw, unfiltered, highly sensitive callset in VCF format.
  * </p>
  *
- * <h2>Example generic command for multi-sample SNP calling</h2>
+ * <h3>Example generic command for multi-sample SNP calling</h3>
  * <pre>
  * java -jar GenomeAnalysisTK.jar \
  *   -R resources/Homo_sapiens_assembly18.fasta \
@@ -117,7 +117,7 @@ import java.util.*;
  * argument descriptions below.
  * </p>
  *
- * <h2>Example command for generating calls at all sites</h2>
+ * <h3>Example command for generating calls at all sites</h3>
  * <pre>
  * java -jar /path/to/GenomeAnalysisTK.jar \
  *   -l INFO \
@@ -128,7 +128,7 @@ import java.util.*;
  *   --output_mode EMIT_ALL_SITES
  * </pre>
  *
- * <h2>Caveats</h2>
+ * <h3>Caveats</h3>
  * <ul>
  * <li>The system is under active and continuous development. All outputs, the underlying likelihood model, arguments, and
  * file formats are likely to change.</li>
@@ -167,7 +167,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
      * Records that are filtered in the comp track will be ignored.
      * Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
      */
-    @Input(fullName="comp", shortName = "comp", doc="comparison VCF file", required=false)
+    @Input(fullName="comp", shortName = "comp", doc="Comparison VCF file", required=false)
     public List<RodBinding<VariantContext>> comps = Collections.emptyList();
     public List<RodBinding<VariantContext>> getCompRodBindings() { return comps; }
 
@@ -205,7 +205,8 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
     protected List<String> annotationsToExclude = new ArrayList<String>();
 
     /**
-     * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
+     * If specified, all available annotations in the group will be applied. See the VariantAnnotator -list argument to view available groups.
+     * Keep in mind that RODRequiringAnnotations are not intended to be used as a group, because they require specific ROD inputs.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
     protected String[] annotationClassesToUse = { "Standard" };
