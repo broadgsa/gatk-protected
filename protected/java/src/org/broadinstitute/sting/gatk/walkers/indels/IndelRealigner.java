@@ -189,7 +189,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     /**
      * The realigned bam file.
      */
-    @Output(required=false, doc="Output bam")
+    @Output(required=false, doc="Output bam", defaultToStdout=false)
     protected StingSAMFileWriter writer = null;
     protected ConstrainedMateFixingManager manager = null;
     protected SAMFileWriter writerToUse = null;
@@ -295,15 +295,15 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     protected boolean KEEP_ALL_PG_RECORDS = false;
 
     @Hidden
-    @Output(fullName="indelsFileForDebugging", shortName="indels", required=false, doc="Output file (text) for the indels found; FOR DEBUGGING PURPOSES ONLY")
+    @Output(fullName="indelsFileForDebugging", shortName="indels", required=false, defaultToStdout=false, doc="Output file (text) for the indels found; FOR DEBUGGING PURPOSES ONLY")
     protected String OUT_INDELS = null;
 
     @Hidden
-    @Output(fullName="statisticsFileForDebugging", shortName="stats", doc="print out statistics (what does or doesn't get cleaned); FOR DEBUGGING PURPOSES ONLY", required=false)
+    @Output(fullName="statisticsFileForDebugging", shortName="stats", doc="print out statistics (what does or doesn't get cleaned); FOR DEBUGGING PURPOSES ONLY", required=false, defaultToStdout=false)
     protected String OUT_STATS = null;
 
     @Hidden
-    @Output(fullName="SNPsFileForDebugging", shortName="snps", doc="print out whether mismatching columns do or don't get cleaned out; FOR DEBUGGING PURPOSES ONLY", required=false)
+    @Output(fullName="SNPsFileForDebugging", shortName="snps", doc="print out whether mismatching columns do or don't get cleaned out; FOR DEBUGGING PURPOSES ONLY", required=false, defaultToStdout=false)
     protected String OUT_SNPS = null;
 
     // fasta reference reader to supplement the edges of the reference sequence

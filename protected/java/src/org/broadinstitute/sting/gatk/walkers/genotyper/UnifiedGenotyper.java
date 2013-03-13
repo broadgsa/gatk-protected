@@ -180,7 +180,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
      * A raw, unfiltered, highly sensitive callset in VCF format.
      */
     //@Gather(className = "org.broadinstitute.sting.queue.extensions.gatk.CatVariantsGatherer")
-    @Output(doc="File to which variants should be written",required=true)
+    @Output(doc="File to which variants should be written")
     protected VariantContextWriter writer = null;
 
     @Hidden

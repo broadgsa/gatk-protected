@@ -145,7 +145,7 @@ public class ValidationSiteSelector extends RodWalker<Integer, Integer> {
     /**
      * The output VCF file
      */
-    @Output(doc="File to which variants should be written",required=true)
+    @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
 
     /**

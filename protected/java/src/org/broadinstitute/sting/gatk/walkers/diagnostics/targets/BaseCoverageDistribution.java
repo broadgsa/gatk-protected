@@ -99,7 +99,7 @@ public class BaseCoverageDistribution extends LocusWalker<ArrayList<Integer>, Ma
     /**
      * The output GATK Report table
      */
-    @Output(required = true, doc = "The output GATK Report table")
+    @Output(doc = "The output GATK Report table")
     private PrintStream out;
 
     /**

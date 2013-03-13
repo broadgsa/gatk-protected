@@ -128,7 +128,7 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
     /////////////////////////////
     // Outputs
     /////////////////////////////
-    @Output( doc="The output filtered and recalibrated VCF file in which each variant is annotated with its VQSLOD value", required=true)
+    @Output( doc="The output filtered and recalibrated VCF file in which each variant is annotated with its VQSLOD value")
     private VariantContextWriter vcfWriter = null;
 
     /////////////////////////////

@@ -110,7 +110,7 @@ import java.util.*;
 @PartitionBy(PartitionType.INTERVAL)
 public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
-    @Output(doc = "File to which variants should be written", required = true)
+    @Output(doc = "File to which variants should be written")
     private VariantContextWriter vcfWriter = null;
 
     @Argument(fullName = "minimum_base_quality", shortName = "BQ", doc = "The minimum Base Quality that is considered for calls", required = false)

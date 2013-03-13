@@ -125,7 +125,7 @@ public class HaplotypeResolver extends RodWalker<Integer, Integer> {
     @Input(fullName="variant", shortName = "V", doc="Input VCF file", required=true)
     public List<RodBinding<VariantContext>> variants;
 
-    @Output(doc="File to which variants should be written", required=true)
+    @Output(doc="File to which variants should be written")
     protected VariantContextWriter baseWriter = null;
     private VariantContextWriter writer;
 
