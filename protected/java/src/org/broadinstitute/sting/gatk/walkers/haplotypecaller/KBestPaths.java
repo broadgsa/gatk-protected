@@ -310,31 +310,13 @@ public class KBestPaths {
             if( swCigar.numCigarElements() > 6 ) { // this bubble is too divergent from the reference
                 returnCigar.add(new CigarElement(1, CigarOperator.N));
             } else {
-                int skipElement = -1;
-                if( fromVertex == null ) {
-                    for( int iii = 0; iii < swCigar.numCigarElements(); iii++ ) {
-                        final CigarElement ce = swCigar.getCigarElement(iii);
-                        if( ce.getOperator().equals(CigarOperator.D) ) {
-                            skipElement = iii;
-                            break;
-                        }
-                    }
-                } else if (toVertex == null ) {
-                    for( int iii = swCigar.numCigarElements() - 1; iii >= 0; iii-- ) {
-                        final CigarElement ce = swCigar.getCigarElement(iii);
-                        if( ce.getOperator().equals(CigarOperator.D) ) {
-                            skipElement = iii;
-                            break;
-                        }
-                    }
-                }
                 for( int iii = 0; iii < swCigar.numCigarElements(); iii++ ) {
                     // now we need to remove the padding from the cigar string
                     int length = swCigar.getCigarElement(iii).getLength();
                     if( iii == 0 ) { length -= padding.length; }
                     if( iii == swCigar.numCigarElements() - 1 ) { length -= padding.length; }
                     if( length > 0 ) {
-                        returnCigar.add(new CigarElement(length, (skipElement == iii ? CigarOperator.X : swCigar.getCigarElement(iii).getOperator())));
+                        returnCigar.add(new CigarElement(length, swCigar.getCigarElement(iii).getOperator()));
                     }
                 }
                 if( (refBytes == null && returnCigar.getReferenceLength() != 0) || ( refBytes != null && returnCigar.getReferenceLength() != refBytes.length ) ) {

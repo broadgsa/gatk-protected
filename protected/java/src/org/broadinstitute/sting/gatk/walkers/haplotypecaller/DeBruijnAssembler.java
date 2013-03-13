@@ -438,7 +438,8 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         byte[] newHaplotypeBases = haplotype.getBases();
         int refPos = activeRegionStart;
         int hapPos = 0;
-        for( CigarElement ce : cigar.getCigarElements() ) {
+        for( int iii = 0; iii < cigar.getCigarElements().size(); iii++ ) {
+            final CigarElement ce = cigar.getCigarElement(iii);
             switch (ce.getOperator()) {
                 case M:
                     refPos += ce.getLength();
@@ -450,16 +451,17 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                     newCigar.add(ce);
                     break;
                 case D:
-                    refPos += ce.getLength();
-                    newCigar.add(ce);
-                    break;
-                case X:
-                    newHaplotypeBases = ArrayUtils.addAll( Arrays.copyOfRange(newHaplotypeBases, 0, hapPos),
-                            ArrayUtils.addAll(Arrays.copyOfRange(refWithPadding, refPos, refPos + ce.getLength()),
-                                    Arrays.copyOfRange(newHaplotypeBases, hapPos, newHaplotypeBases.length)));
-                    refPos += ce.getLength();
-                    hapPos += ce.getLength();
-                    newCigar.add(new CigarElement(ce.getLength(), CigarOperator.M));
+                    if( iii == 0 || iii == cigar.getCigarElements().size() - 1 ) {
+                        newHaplotypeBases = ArrayUtils.addAll( Arrays.copyOfRange(newHaplotypeBases, 0, hapPos),
+                                ArrayUtils.addAll(Arrays.copyOfRange(refWithPadding, refPos, refPos + ce.getLength()),
+                                Arrays.copyOfRange(newHaplotypeBases, hapPos, newHaplotypeBases.length)));
+                        hapPos += ce.getLength();
+                        refPos += ce.getLength();
+                        newCigar.add(new CigarElement(ce.getLength(), CigarOperator.M));
+                    } else {
+                        refPos += ce.getLength();
+                        newCigar.add(ce);
+                    }
                     break;
                 default:
                     throw new IllegalStateException("Unsupported cigar operator detected: " + ce.getOperator());
