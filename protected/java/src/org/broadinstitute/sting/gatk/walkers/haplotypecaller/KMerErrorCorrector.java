@@ -226,28 +226,16 @@ public class KMerErrorCorrector {
     @Override
     public String toString() {
         final StringBuilder b = new StringBuilder("KMerErrorCorrector{");
-        for ( Map.Entry<String, String> toCorrect : rawToErrorCorrectedMap.entrySet() ) {
-            final boolean correcting = ! toCorrect.getKey().equals(toCorrect.getValue());
-            if ( correcting )
-                b.append(String.format("%n\t%s / %d -> %s / %d [correcting? %b]",
-                        toCorrect.getKey(), getCounts(toCorrect.getKey()),
-                        toCorrect.getValue(), getCounts(toCorrect.getValue()),
-                        correcting));
+        if ( rawToErrorCorrectedMap == null ) {
+            b.append("counting ").append(countsByKMer.size()).append(" distinct kmers");
+        } else {
+            for ( Map.Entry<String, String> toCorrect : rawToErrorCorrectedMap.entrySet() ) {
+                final boolean correcting = ! toCorrect.getKey().equals(toCorrect.getValue());
+                if ( correcting )
+                    b.append(String.format("%n\tCorrecting %s -> %s", toCorrect.getKey(), toCorrect.getValue()));
+            }
         }
         b.append("\n}");
         return b.toString();
-    }
-
-    /**
-     * Get a simple count estimate for printing for kmer
-     * @param kmer the kmer
-     * @return an integer count for kmer
-     */
-    private int getCounts(final String kmer) {
-        if ( kmer == null ) return 0;
-        final Integer count = countsByKMer == null ? -1 : countsByKMer.get(kmer);
-        if ( count == null )
-            throw new IllegalArgumentException("kmer not found in counts -- bug " + kmer);
-        return count;
     }
 }

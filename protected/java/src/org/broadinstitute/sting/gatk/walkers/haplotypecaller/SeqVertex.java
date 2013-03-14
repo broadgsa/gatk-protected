@@ -46,78 +46,108 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.BaseTest;
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import com.google.java.contract.Requires;
+import org.broadinstitute.sting.utils.Utils;
+
+import java.util.Arrays;
 
 /**
- * Created with IntelliJ IDEA.
- * User: rpoplin
- * Date: 2/8/13
+ * A graph vertex containing a sequence of bases and a unique ID that
+ * allows multiple distinct nodes in the graph to have the same sequence.
+ *
+ * This is essential when thinking about representing the actual sequence of a haplotype
+ * in a graph.  There can be many parts of the sequence that have the same sequence, but
+ * are distinct elements in the graph because they have a different position in the graph.  For example:
+ *
+ * A -> C -> G -> A -> T
+ *
+ * The two As are not the same, because they occur with different connections.  In a kmer graph equals()
+ * is based on the sequence itself, as each distinct kmer can only be represented once.  But the transformation
+ * of the kmer graph into a graph of base sequences, without their kmer prefixes, means that nodes that
+ * where once unique including their prefix can become equal after shedding the prefix.  So we need to
+ * use some mechanism -- here a unique ID per node -- to separate nodes that have the same sequence
+ * but are distinct elements of the graph.
+ *
+ * @author: depristo
+ * @since 03/2013
  */
+public class SeqVertex extends BaseVertex {
+    private static int idCounter = 0;
+    public final int id;
 
-public class DeBruijnAssemblyGraphUnitTest {
-    private class GetReferenceBytesTestProvider extends BaseTest.TestDataProvider {
-        public byte[] refSequence;
-        public byte[] altSequence;
-        public int KMER_LENGTH;
-
-        public GetReferenceBytesTestProvider(String ref, String alt, int kmer) {
-            super(GetReferenceBytesTestProvider.class, String.format("Testing reference bytes. kmer = %d, ref = %s, alt = %s", kmer, ref, alt));
-            refSequence = ref.getBytes();
-            altSequence = alt.getBytes();
-            KMER_LENGTH = kmer;
-        }
-
-        public byte[] expectedReferenceBytes() {
-            return refSequence;
-        }
-
-        public byte[] calculatedReferenceBytes() {
-            DeBruijnGraph graph = new DeBruijnGraph();
-            graph.addSequenceToGraph(refSequence, KMER_LENGTH, true);
-            if( altSequence.length > 0 ) {
-                graph.addSequenceToGraph(altSequence, KMER_LENGTH, false);
-            }
-            return graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true);
-        }
+    /**
+     * Create a new SeqVertex with sequence and the next available id
+     * @param sequence our base sequence
+     */
+    public SeqVertex(final byte[] sequence) {
+        super(sequence);
+        this.id = idCounter++;
     }
 
-    @DataProvider(name = "GetReferenceBytesTestProvider")
-    public Object[][] GetReferenceBytesTests() {
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 76);
-
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 76);
-
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 76);
-
-        return GetReferenceBytesTestProvider.getTests(GetReferenceBytesTestProvider.class);
+    /**
+     * Create a new SeqVertex having bases of sequence.getBytes()
+     * @param sequence the string representation of our bases
+     */
+    public SeqVertex(final String sequence) {
+        super(sequence);
+        this.id = idCounter++;
     }
 
-    @Test(dataProvider = "GetReferenceBytesTestProvider", enabled = true)
-    public void testGetReferenceBytes(GetReferenceBytesTestProvider cfg) {
-        Assert.assertEquals(cfg.calculatedReferenceBytes(), cfg.expectedReferenceBytes(), "Reference sequences do not match");
+    /**
+     * Create a copy of toCopy
+     * @param toCopy a SeqVertex to copy into this newly allocated one
+     */
+    public SeqVertex(final SeqVertex toCopy) {
+        super(toCopy.sequence);
+        this.id = toCopy.id;
+    }
+
+    /**
+     * Get the unique ID for this SeqVertex
+     * @return a positive integer >= 0
+     */
+    public int getId() {
+        return id;
+    }
+
+    @Override
+    public String toString() {
+        return "SeqVertex_id_" + id + "_seq_" + getSequenceString();
+    }
+
+    /**
+     * Two SeqVertex are equal only if their ids are equal
+     * @param o
+     * @return
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SeqVertex seqVertex = (SeqVertex) o;
+        if (id != seqVertex.id) return false;
+
+        // note that we don't test for super equality here because the ids are unique
+        //if (!super.equals(o)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
+
+    /**
+     * Return a new SeqVertex derived from this one but not including the suffix bases
+     *
+     * @param suffix the suffix bases to remove from this vertex
+     * @return a newly allocated SeqVertex with appropriate prefix, or null if suffix removes all bases from this node
+     */
+    @Requires("Utils.endsWith(sequence, suffix)")
+    public SeqVertex withoutSuffix(final byte[] suffix) {
+        final int prefixSize = sequence.length - suffix.length;
+        return prefixSize > 0 ? new SeqVertex(Arrays.copyOf(sequence, prefixSize)) : null;
     }
 }

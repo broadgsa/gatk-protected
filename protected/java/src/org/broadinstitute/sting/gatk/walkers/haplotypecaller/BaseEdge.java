@@ -46,68 +46,94 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.jgrapht.graph.DefaultDirectedGraph;
-
 import java.io.Serializable;
 import java.util.Comparator;
 
 /**
- * Created by IntelliJ IDEA.
+ * simple edge class for connecting nodes in the graph
+ *
+ * Works equally well for all graph types (kmer or sequence)
+ *
  * User: ebanks
  * Date: Mar 23, 2011
  */
-
-// simple edge class for connecting nodes in the graph
-public class DeBruijnEdge {
-
+public class BaseEdge {
     private int multiplicity;
     private boolean isRef;
 
-    public DeBruijnEdge() {
-        multiplicity = 1;
-        isRef = false;
-    }
+    /**
+     * Create a new BaseEdge with weight multiplicity and, if isRef == true, indicates a path through the reference
+     *
+     * @param isRef indicates whether this edge is a path through the reference
+     * @param multiplicity the number of observations of this edge
+     */
+    public BaseEdge(final boolean isRef, final int multiplicity) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
 
-    public DeBruijnEdge( final boolean isRef ) {
-        multiplicity = 1;
-        this.isRef = isRef;
-    }
-
-    public DeBruijnEdge( final boolean isRef, final int multiplicity ) {
         this.multiplicity = multiplicity;
         this.isRef = isRef;
     }
 
+    /**
+     * Copy constructor
+     *
+     * @param toCopy
+     */
+    public BaseEdge(final BaseEdge toCopy) {
+        this(toCopy.isRef(), toCopy.getMultiplicity());
+    }
+
+    /**
+     * Get the number of observations of paths connecting two vertices
+     * @return a positive integer >= 0
+     */
     public int getMultiplicity() {
         return multiplicity;
     }
 
+    /**
+     * Set the multiplicity of this edge to value
+     * @param value an integer >= 0
+     */
     public void setMultiplicity( final int value ) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
         multiplicity = value;
     }
 
+    /**
+     * Does this edge indicate a path through the reference graph?
+     * @return true if so
+     */
     public boolean isRef() {
         return isRef;
     }
 
+    /**
+     * Indicate that this edge follows the reference sequence, or not
+     * @param isRef true if this is a reference edge
+     */
     public void setIsRef( final boolean isRef ) {
         this.isRef = isRef;
     }
 
     // For use when comparing edges pulled from the same graph
-    public boolean equals( final DeBruijnAssemblyGraph graph, final DeBruijnEdge edge ) {
+    public <T extends BaseVertex> boolean equals( final BaseGraph<T> graph, final BaseEdge edge ) {
         return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
     }
 
     // For use when comparing edges across graphs!
-    public boolean equals( final DeBruijnAssemblyGraph graph, final DeBruijnEdge edge, final DeBruijnAssemblyGraph graph2 ) {
+    public <T extends BaseVertex> boolean equals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
         return (graph.getEdgeSource(this).equals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph2.getEdgeTarget(edge)));
     }
 
-    public static class EdgeWeightComparator implements Comparator<DeBruijnEdge>, Serializable {
+    /**
+     * Sorts a collection of BaseEdges in decreasing order of weight, so that the most
+     * heavily weighted is at the start of the list
+     */
+    public static class EdgeWeightComparator implements Comparator<BaseEdge>, Serializable {
         @Override
-        public int compare(final DeBruijnEdge edge1, final DeBruijnEdge edge2) {
-            return edge1.multiplicity - edge2.multiplicity;
+        public int compare(final BaseEdge edge1, final BaseEdge edge2) {
+            return edge2.multiplicity - edge1.multiplicity;
         }
     }
 }

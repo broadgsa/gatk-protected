@@ -55,6 +55,8 @@ public class KMerErrorCorrectorUnitTest extends BaseTest {
     public void testMyData() {
         final KMerErrorCorrector corrector = new KMerErrorCorrector(3, 1, 2, 2);
 
+        Assert.assertNotNull(corrector.toString());
+
         corrector.addKmers(
                 "ATG", "ATG", "ATG", "ATG",
                 "ACC", "ACC", "ACC",
@@ -66,13 +68,20 @@ public class KMerErrorCorrectorUnitTest extends BaseTest {
                 "NNC"  // => ACC [because of min count won't go to NNA]
         );
 
-        Assert.assertEquals(corrector.getErrorCorrectedKmer("ATG"), "ATG");
-        Assert.assertEquals(corrector.getErrorCorrectedKmer("ACC"), "ACC");
-        Assert.assertEquals(corrector.getErrorCorrectedKmer("AAA"), "AAA");
-        Assert.assertEquals(corrector.getErrorCorrectedKmer("CTG"), "ATG");
-        Assert.assertEquals(corrector.getErrorCorrectedKmer("NNA"), "AAA");
-        Assert.assertEquals(corrector.getErrorCorrectedKmer("CCC"), "ACC");
-        Assert.assertEquals(corrector.getErrorCorrectedKmer("NNN"), null);
-        Assert.assertEquals(corrector.getErrorCorrectedKmer("NNC"), "ACC");
+        testCorrection(corrector, "ATG", "ATG");
+        testCorrection(corrector, "ACC", "ACC");
+        testCorrection(corrector, "AAA", "AAA");
+        testCorrection(corrector, "CTG", "ATG");
+        testCorrection(corrector, "NNA", "AAA");
+        testCorrection(corrector, "CCC", "ACC");
+        testCorrection(corrector, "NNN", null);
+        testCorrection(corrector, "NNC", "ACC");
+
+        Assert.assertNotNull(corrector.toString());
+    }
+
+    private void testCorrection(final KMerErrorCorrector corrector, final String in, final String out) {
+        Assert.assertEquals(corrector.getErrorCorrectedKmer(in), out);
+        Assert.assertEquals(corrector.getErrorCorrectedKmer(in.getBytes()), out == null ? null : out.getBytes());
     }
 }

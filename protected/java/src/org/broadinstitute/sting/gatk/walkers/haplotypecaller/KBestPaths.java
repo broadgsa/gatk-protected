@@ -52,13 +52,8 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.SWPairwiseAlignment;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.Serializable;
 import java.util.*;
@@ -70,28 +65,27 @@ import java.util.*;
  */
 // Class for finding the K best paths (as determined by the sum of multiplicities of the edges) in a graph.
 // This is different from most graph traversals because we want to test paths from any source node to any sink node.
-public class KBestPaths {
-
+public class KBestPaths<T extends BaseVertex> {
     // static access only
-    protected KBestPaths() { }
+    public KBestPaths() { }
+
     private static int MAX_PATHS_TO_HOLD = 100;
 
     protected static class MyInt { public int val = 0; }
 
     // class to keep track of paths
-    protected static class Path {
-
+    protected static class Path<T extends BaseVertex> {
         // the last vertex seen in the path
-        private final DeBruijnVertex lastVertex;
+        private final T lastVertex;
 
         // the list of edges comprising the path
-        private final List<DeBruijnEdge> edges;
+        private final List<BaseEdge> edges;
 
         // the scores for the path
         private final int totalScore;
 
         // the graph from which this path originated
-        private final DeBruijnAssemblyGraph graph;
+        private final BaseGraph<T> graph;
 
         // used in the bubble state machine to apply Smith-Waterman to the bubble sequence
         // these values were chosen via optimization against the NA12878 knowledge base
@@ -101,19 +95,19 @@ public class KBestPaths {
         private static final double SW_GAP_EXTEND = -1.1;
         private static final byte[] STARTING_SW_ANCHOR_BYTES = "XXXXXXXXX".getBytes();
 
-        public Path( final DeBruijnVertex initialVertex, final DeBruijnAssemblyGraph graph ) {
+        public Path( final T initialVertex, final BaseGraph<T> graph ) {
             lastVertex = initialVertex;
-            edges = new ArrayList<DeBruijnEdge>(0);
+            edges = new ArrayList<BaseEdge>(0);
             totalScore = 0;
             this.graph = graph;
         }
 
-        public Path( final Path p, final DeBruijnEdge edge ) {
+        public Path( final Path<T> p, final BaseEdge edge ) {
             if( !p.graph.getEdgeSource(edge).equals(p.lastVertex) ) { throw new IllegalStateException("Edges added to path must be contiguous."); }
 
             graph = p.graph;
             lastVertex = p.graph.getEdgeTarget(edge);
-            edges = new ArrayList<DeBruijnEdge>(p.edges);
+            edges = new ArrayList<BaseEdge>(p.edges);
             edges.add(edge);
             totalScore = p.totalScore + edge.getMultiplicity();
         }
@@ -123,10 +117,10 @@ public class KBestPaths {
          * @param edge  the given edge to test
          * @return      true if the edge is found in this path
          */
-        public boolean containsEdge( final DeBruijnEdge edge ) {
+        public boolean containsEdge( final BaseEdge edge ) {
             if( edge == null ) { throw new IllegalArgumentException("Attempting to test null edge."); }
 
-            for( final DeBruijnEdge e : edges ) {
+            for( final BaseEdge e : edges ) {
                 if( e.equals(graph, edge) ) {
                     return true;
                 }
@@ -140,11 +134,11 @@ public class KBestPaths {
          * @param edge  the given edge to test
          * @return      number of times this edge appears in the path
          */
-        public int numInPath( final DeBruijnEdge edge ) {
+        public int numInPath( final BaseEdge edge ) {
             if( edge == null ) { throw new IllegalArgumentException("Attempting to test null edge."); }
 
             int numInPath = 0;
-            for( final DeBruijnEdge e : edges ) {
+            for( final BaseEdge e : edges ) {
                 if( e.equals(graph, edge) ) {
                     numInPath++;
                 }
@@ -153,22 +147,11 @@ public class KBestPaths {
             return numInPath;
         }
 
-        /**
-         * Does this path contain a reference edge?
-         * @return  true if the path contains a reference edge
-         */
-        public boolean containsRefEdge() {
-            for( final DeBruijnEdge e : edges ) {
-                if( e.isRef() ) { return true; }
-            }
-            return false;
-        }
-
-        public List<DeBruijnEdge> getEdges() { return edges; }
+        public List<BaseEdge> getEdges() { return edges; }
 
         public int getScore() { return totalScore; }
 
-        public DeBruijnVertex getLastVertexInPath() { return lastVertex; }
+        public T getLastVertexInPath() { return lastVertex; }
 
         /**
          * The base sequence for this path. Pull the full sequence for source nodes and then the suffix for all subsequent nodes
@@ -179,7 +162,7 @@ public class KBestPaths {
             if( edges.size() == 0 ) { return graph.getAdditionalSequence(lastVertex); }
             
             byte[] bases = graph.getAdditionalSequence(graph.getEdgeSource(edges.get(0)));
-            for( final DeBruijnEdge e : edges ) {
+            for( final BaseEdge e : edges ) {
                 bases = ArrayUtils.addAll(bases, graph.getAdditionalSequence(graph.getEdgeTarget(e)));
             }
             return bases;
@@ -201,9 +184,9 @@ public class KBestPaths {
             }
 
             // reset the bubble state machine
-            final BubbleStateMachine bsm = new BubbleStateMachine(cigar);
+            final BubbleStateMachine<T> bsm = new BubbleStateMachine<T>(cigar);
 
-            for( final DeBruijnEdge e : edges ) {
+            for( final BaseEdge e : edges ) {
                 if( e.equals(graph, edges.get(0)) ) {
                     advanceBubbleStateMachine( bsm, graph.getEdgeSource(e), null );
                 }
@@ -231,7 +214,7 @@ public class KBestPaths {
          * @param e     the edge which generated this node in the path
          */
         @Requires({"bsm != null", "graph != null", "node != null"})
-        private void advanceBubbleStateMachine( final BubbleStateMachine bsm, final DeBruijnVertex node, final DeBruijnEdge e ) {
+        private void advanceBubbleStateMachine( final BubbleStateMachine<T> bsm, final T node, final BaseEdge e ) {
             if( graph.isReferenceNode( node ) ) {
                 if( !bsm.inBubble ) { // just add the ref bases as M's in the Cigar string, and don't do anything else
                     if( e !=null && !e.isRef() ) {
@@ -283,7 +266,7 @@ public class KBestPaths {
          */
         @Requires({"graph != null"})
         @Ensures({"result != null"})
-        private Cigar calculateCigarForCompleteBubble( final byte[] bubbleBytes, final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex ) {
+        private Cigar calculateCigarForCompleteBubble( final byte[] bubbleBytes, final T fromVertex, final T toVertex ) {
             final byte[] refBytes = graph.getReferenceBytes(fromVertex == null ? graph.getReferenceSourceVertex() : fromVertex, toVertex == null ? graph.getReferenceSinkVertex() : toVertex, fromVertex == null, toVertex == null);
 
             final Cigar returnCigar = new Cigar();
@@ -328,10 +311,10 @@ public class KBestPaths {
         }
 
         // class to keep track of the bubble state machine
-        protected static class BubbleStateMachine {
+        protected static class BubbleStateMachine<T extends BaseVertex> {
             public boolean inBubble = false;
             public byte[] bubbleBytes = null;
-            public DeBruijnVertex lastSeenReferenceNode = null;
+            public T lastSeenReferenceNode = null;
             public Cigar cigar = null;
 
             public BubbleStateMachine( final Cigar initialCigar ) {
@@ -358,14 +341,14 @@ public class KBestPaths {
      * @return      a list with at most k top-scoring paths from the graph
      */
     @Ensures({"result != null", "result.size() <= k"})
-    public static List<Path> getKBestPaths( final DeBruijnAssemblyGraph graph, final int k ) {
+    public List<Path> getKBestPaths( final BaseGraph<T> graph, final int k ) {
         if( graph == null ) { throw  new IllegalArgumentException("Attempting to traverse a null graph."); }
         if( k > MAX_PATHS_TO_HOLD/2 ) { throw new IllegalArgumentException("Asked for more paths than internal parameters allow for."); }
 
         final ArrayList<Path> bestPaths = new ArrayList<Path>();
         
         // run a DFS for best paths
-        for( final DeBruijnVertex v : graph.vertexSet() ) {
+        for( final T v : graph.vertexSet() ) {
             if( graph.inDegreeOf(v) == 0 ) {
                 findBestPaths(new Path(v, graph), bestPaths);
             }
@@ -376,31 +359,28 @@ public class KBestPaths {
         return bestPaths.subList(0, Math.min(k, bestPaths.size()));
     }
 
-    private static void findBestPaths( final Path path, final List<Path> bestPaths ) {
+    private void findBestPaths( final Path path, final List<Path> bestPaths ) {
         findBestPaths(path, bestPaths, new MyInt());
     }
 
-    private static void findBestPaths( final Path path, final List<Path> bestPaths, final MyInt n ) {
+    private void findBestPaths( final Path path, final List<Path> bestPaths, final MyInt n ) {
 
         // did we hit the end of a path?
         if ( allOutgoingEdgesHaveBeenVisited(path) ) {
-            if( path.containsRefEdge() ) {
-                if ( bestPaths.size() >= MAX_PATHS_TO_HOLD ) {
-                    // clean out some low scoring paths
-                    Collections.sort(bestPaths, new PathComparatorTotalScore() );
-                    for(int iii = 0; iii < 20; iii++) { bestPaths.remove(0); } // BUGBUG: assumes MAX_PATHS_TO_HOLD >> 20
-                }
-                bestPaths.add(path);
+            if ( bestPaths.size() >= MAX_PATHS_TO_HOLD ) {
+                // clean out some low scoring paths
+                Collections.sort(bestPaths, new PathComparatorTotalScore() );
+                for(int iii = 0; iii < 20; iii++) { bestPaths.remove(0); } // BUGBUG: assumes MAX_PATHS_TO_HOLD >> 20
             }
+            bestPaths.add(path);
         } else if( n.val > 10000) {
             // do nothing, just return
         } else {
             // recursively run DFS
-            final ArrayList<DeBruijnEdge> edgeArrayList = new ArrayList<DeBruijnEdge>();
+            final ArrayList<BaseEdge> edgeArrayList = new ArrayList<BaseEdge>();
             edgeArrayList.addAll(path.graph.outgoingEdgesOf(path.lastVertex));
-            Collections.sort(edgeArrayList, new DeBruijnEdge.EdgeWeightComparator());
-            Collections.reverse(edgeArrayList);
-            for ( final DeBruijnEdge edge : edgeArrayList ) {
+            Collections.sort(edgeArrayList, new BaseEdge.EdgeWeightComparator());
+            for ( final BaseEdge edge : edgeArrayList ) {
                 // make sure the edge is not already in the path
                 if ( path.containsEdge(edge) )
                     continue;
@@ -416,8 +396,8 @@ public class KBestPaths {
      * @param path  the path to test
      * @return      true if all the outgoing edges at the end of this path have already been visited
      */
-    private static boolean allOutgoingEdgesHaveBeenVisited( final Path path ) {
-        for( final DeBruijnEdge edge : path.graph.outgoingEdgesOf(path.lastVertex) ) {
+    private boolean allOutgoingEdgesHaveBeenVisited( final Path<T> path ) {
+        for( final BaseEdge edge : path.graph.outgoingEdgesOf(path.lastVertex) ) {
             if( !path.containsEdge(edge) ) { // TODO -- investigate allowing numInPath < 2 to allow cycles
                 return false;
             }

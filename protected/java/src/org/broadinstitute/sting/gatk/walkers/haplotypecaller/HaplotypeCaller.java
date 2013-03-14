@@ -284,8 +284,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information about each triggering active region", required = false)
     protected boolean DEBUG;
 
-    @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler", required = false)
-    protected boolean debugGraphTransformations = false;
+    @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler for only this graph size", required = false)
+    protected int debugGraphTransformations = -1;
+
+    @Argument(fullName="useLowQualityBasesForAssembly", shortName="useLowQualityBasesForAssembly", doc="If specified, we will include low quality bases when doing the assembly", required = false)
+    protected boolean useLowQualityBasesForAssembly = false;
 
     // the UG engines
     private UnifiedGenotyperEngine UG_engine = null;
@@ -389,7 +392,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile, e);
         }
 
-        assemblyEngine = new DeBruijnAssembler( DEBUG, debugGraphTransformations, graphWriter, minKmer, maxHaplotypesToConsider );
+        final byte minBaseQualityToUseInAssembly = useLowQualityBasesForAssembly ? (byte)1 : DeBruijnAssembler.DEFAULT_MIN_BASE_QUALITY_TO_USE;
+        assemblyEngine = new DeBruijnAssembler( DEBUG, debugGraphTransformations, graphWriter, minKmer, maxHaplotypesToConsider, minBaseQualityToUseInAssembly );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
 
@@ -610,7 +614,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         for( final GATKSAMRecord myRead : finalizedReadList ) {
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
-                GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
+                GATKSAMRecord clippedRead = useLowQualityBasesForAssembly ? postAdapterRead : ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
 
                 // revert soft clips so that we see the alignment start and end assuming the soft clips are all matches
                 // TODO -- WARNING -- still possibility that unclipping the soft clips will introduce bases that aren't

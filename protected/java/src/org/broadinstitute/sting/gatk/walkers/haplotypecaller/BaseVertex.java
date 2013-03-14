@@ -46,78 +46,103 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.BaseTest;
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import com.google.java.contract.Ensures;
+
+import java.util.Arrays;
 
 /**
- * Created with IntelliJ IDEA.
- * User: rpoplin
- * Date: 2/8/13
+ * A graph vertex that holds some sequence information
+ *
+ * @author: depristo
+ * @since 03/2013
  */
+public class BaseVertex {
+    final byte[] sequence;
 
-public class DeBruijnAssemblyGraphUnitTest {
-    private class GetReferenceBytesTestProvider extends BaseTest.TestDataProvider {
-        public byte[] refSequence;
-        public byte[] altSequence;
-        public int KMER_LENGTH;
+    /**
+     * Create a new sequence vertex with sequence
+     * @param sequence a non-null, non-empty sequence of bases contained in this vertex
+     */
+    public BaseVertex(final byte[] sequence) {
+        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
+        if ( sequence.length == 0 ) throw new IllegalArgumentException("Sequence cannot be empty");
 
-        public GetReferenceBytesTestProvider(String ref, String alt, int kmer) {
-            super(GetReferenceBytesTestProvider.class, String.format("Testing reference bytes. kmer = %d, ref = %s, alt = %s", kmer, ref, alt));
-            refSequence = ref.getBytes();
-            altSequence = alt.getBytes();
-            KMER_LENGTH = kmer;
-        }
-
-        public byte[] expectedReferenceBytes() {
-            return refSequence;
-        }
-
-        public byte[] calculatedReferenceBytes() {
-            DeBruijnGraph graph = new DeBruijnGraph();
-            graph.addSequenceToGraph(refSequence, KMER_LENGTH, true);
-            if( altSequence.length > 0 ) {
-                graph.addSequenceToGraph(altSequence, KMER_LENGTH, false);
-            }
-            return graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true);
-        }
+        // TODO -- should we really be cloning here?
+        this.sequence = sequence.clone();
     }
 
-    @DataProvider(name = "GetReferenceBytesTestProvider")
-    public Object[][] GetReferenceBytesTests() {
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 76);
-
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 76);
-
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 76);
-
-        return GetReferenceBytesTestProvider.getTests(GetReferenceBytesTestProvider.class);
+    /**
+     * Get the length of this sequence
+     * @return a positive integer >= 1
+     */
+    public int length() {
+        return sequence.length;
     }
 
-    @Test(dataProvider = "GetReferenceBytesTestProvider", enabled = true)
-    public void testGetReferenceBytes(GetReferenceBytesTestProvider cfg) {
-        Assert.assertEquals(cfg.calculatedReferenceBytes(), cfg.expectedReferenceBytes(), "Reference sequences do not match");
+    /**
+     * For testing purposes only -- low performance
+     * @param sequence
+     */
+    protected BaseVertex(final String sequence) {
+        this(sequence.getBytes());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        BaseVertex that = (BaseVertex) o;
+
+        if (!Arrays.equals(sequence, that.sequence)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() { // necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
+        return Arrays.hashCode(sequence);
+    }
+
+    @Override
+    public String toString() {
+        return getSequenceString();
+    }
+
+    /**
+     * Get the sequence of bases contained in this vertex
+     *
+     * Do not modify these bytes in any way!
+     *
+     * @return a non-null pointer to the bases contained in this vertex
+     */
+    @Ensures("result != null")
+    public byte[] getSequence() {
+        // TODO -- why is this cloning?  It's likely extremely expensive
+        return sequence.clone();
+    }
+
+    /**
+     * Get a string representation of the bases in this vertex
+     * @return a non-null String
+     */
+    @Ensures("result != null")
+    public String getSequenceString() {
+        return new String(sequence);
+    }
+
+    /**
+     * Get the sequence unique to this vertex
+     *
+     * This function may not return the entire sequence stored in the vertex, as kmer graphs
+     * really only provide 1 base of additional sequence (the last base of the kmer).
+     *
+     * The base implementation simply returns the sequence.
+     *
+     * @param source is this vertex a source vertex (i.e., no in nodes) in the graph
+     * @return a byte[] of the sequence added by this vertex to the overall sequence
+     */
+    public byte[] getAdditionalSequence(final boolean source) {
+        return getSequence();
     }
 }

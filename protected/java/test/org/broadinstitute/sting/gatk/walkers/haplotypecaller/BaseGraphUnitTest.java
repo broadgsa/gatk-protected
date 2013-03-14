@@ -48,76 +48,145 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
+import scala.actors.threadpool.Arrays;
+
+import java.io.File;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Created with IntelliJ IDEA.
- * User: rpoplin
- * Date: 2/8/13
+ * User: depristo
+ * Date: 3/15/13
+ * Time: 3:36 PM
+ * To change this template use File | Settings | File Templates.
  */
+public class BaseGraphUnitTest extends BaseTest {
+    SeqGraph graph;
+    SeqVertex v1, v2, v3, v4, v5;
 
-public class DeBruijnAssemblyGraphUnitTest {
-    private class GetReferenceBytesTestProvider extends BaseTest.TestDataProvider {
-        public byte[] refSequence;
-        public byte[] altSequence;
-        public int KMER_LENGTH;
+    @BeforeMethod
+    public void setUp() throws Exception {
+        graph = new SeqGraph();
 
-        public GetReferenceBytesTestProvider(String ref, String alt, int kmer) {
-            super(GetReferenceBytesTestProvider.class, String.format("Testing reference bytes. kmer = %d, ref = %s, alt = %s", kmer, ref, alt));
-            refSequence = ref.getBytes();
-            altSequence = alt.getBytes();
-            KMER_LENGTH = kmer;
-        }
+        v1 = new SeqVertex("A");
+        v2 = new SeqVertex("C");
+        v3 = new SeqVertex("C");
+        v4 = new SeqVertex("C");
+        v5 = new SeqVertex("C");
 
-        public byte[] expectedReferenceBytes() {
-            return refSequence;
-        }
-
-        public byte[] calculatedReferenceBytes() {
-            DeBruijnGraph graph = new DeBruijnGraph();
-            graph.addSequenceToGraph(refSequence, KMER_LENGTH, true);
-            if( altSequence.length > 0 ) {
-                graph.addSequenceToGraph(altSequence, KMER_LENGTH, false);
-            }
-            return graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true);
-        }
+        graph.addVertices(v1, v2, v3, v4, v5);
+        graph.addEdge(v1, v2);
+        graph.addEdge(v2, v4);
+        graph.addEdge(v3, v2);
+        graph.addEdge(v2, v3);
+        graph.addEdge(v4, v5);
     }
 
-    @DataProvider(name = "GetReferenceBytesTestProvider")
-    public Object[][] GetReferenceBytesTests() {
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 76);
+    @Test
+    public void testIncomingAndOutgoingVertices() throws Exception {
+        assertVertexSetEquals(graph.outgoingVerticesOf(v1), v2);
+        assertVertexSetEquals(graph.incomingVerticesOf(v1));
 
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 76);
+        assertVertexSetEquals(graph.outgoingVerticesOf(v2), v3, v4);
+        assertVertexSetEquals(graph.incomingVerticesOf(v2), v1, v3);
 
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 76);
+        assertVertexSetEquals(graph.outgoingVerticesOf(v3), v2);
+        assertVertexSetEquals(graph.incomingVerticesOf(v3), v2);
 
-        return GetReferenceBytesTestProvider.getTests(GetReferenceBytesTestProvider.class);
+        assertVertexSetEquals(graph.outgoingVerticesOf(v4), v5);
+        assertVertexSetEquals(graph.incomingVerticesOf(v4), v2);
+
+        assertVertexSetEquals(graph.outgoingVerticesOf(v5));
+        assertVertexSetEquals(graph.incomingVerticesOf(v5), v4);
     }
 
-    @Test(dataProvider = "GetReferenceBytesTestProvider", enabled = true)
-    public void testGetReferenceBytes(GetReferenceBytesTestProvider cfg) {
-        Assert.assertEquals(cfg.calculatedReferenceBytes(), cfg.expectedReferenceBytes(), "Reference sequences do not match");
+    @Test
+    public void testPrintEmptyGraph() throws Exception {
+        final File tmp = File.createTempFile("tmp", "dot");
+        tmp.deleteOnExit();
+        new SeqGraph().printGraph(tmp, 10);
+        new DeBruijnGraph().printGraph(tmp, 10);
+    }
+
+    @Test
+    public void testComplexGraph() throws Exception {
+        final File tmp = File.createTempFile("tmp", "dot");
+        tmp.deleteOnExit();
+        graph.printGraph(tmp, 10);
+    }
+
+    private void assertVertexSetEquals(final Set<SeqVertex> actual, final SeqVertex ... expected) {
+        final Set<SeqVertex> expectedSet = expected == null ? Collections.<SeqVertex>emptySet() : new HashSet<SeqVertex>(Arrays.asList(expected));
+        Assert.assertEquals(actual, expectedSet);
+    }
+
+    @Test(enabled = true)
+    public void testPruneGraph() {
+        DeBruijnGraph graph = new DeBruijnGraph();
+        DeBruijnGraph expectedGraph = new DeBruijnGraph();
+
+        DeBruijnVertex v = new DeBruijnVertex("ATGG");
+        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA");
+        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT");
+        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG");
+        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC");
+        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC");
+
+        graph.addVertex(v);
+        graph.addVertex(v2);
+        graph.addVertex(v3);
+        graph.addVertex(v4);
+        graph.addVertex(v5);
+        graph.addVertex(v6);
+        graph.addEdge(v, v2, new BaseEdge(false, 1));
+        graph.addEdge(v2, v3, new BaseEdge(false, 3));
+        graph.addEdge(v3, v4, new BaseEdge(false, 5));
+        graph.addEdge(v4, v5, new BaseEdge(false, 3));
+        graph.addEdge(v5, v6, new BaseEdge(false, 2));
+
+        expectedGraph.addVertex(v2);
+        expectedGraph.addVertex(v3);
+        expectedGraph.addVertex(v4);
+        expectedGraph.addVertex(v5);
+        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
+        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
+        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
+
+        graph.pruneGraph(2);
+
+        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
+
+        graph = new DeBruijnGraph();
+        expectedGraph = new DeBruijnGraph();
+
+        graph.addVertex(v);
+        graph.addVertex(v2);
+        graph.addVertex(v3);
+        graph.addVertex(v4);
+        graph.addVertex(v5);
+        graph.addVertex(v6);
+        graph.addEdge(v, v2, new BaseEdge(true, 1));
+        graph.addEdge(v2, v3, new BaseEdge(false, 3));
+        graph.addEdge(v3, v4, new BaseEdge(false, 5));
+        graph.addEdge(v4, v5, new BaseEdge(false, 3));
+
+        expectedGraph.addVertex(v);
+        expectedGraph.addVertex(v2);
+        expectedGraph.addVertex(v3);
+        expectedGraph.addVertex(v4);
+        expectedGraph.addVertex(v5);
+        expectedGraph.addEdge(v, v2, new BaseEdge(true, 1));
+        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
+        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
+        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
+
+        graph.pruneGraph(2);
+
+        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
     }
 }
