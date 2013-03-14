@@ -149,7 +149,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
      * The assembled haplotypes will be written as BAM to this file if requested.  Really for debugging purposes only.
      * Note that the output here does not include uninformative reads so that not every input read is emitted to the bam.
      *
-     * Turning on this mode may result in serious performance cost for the HC.  It's really only approprate to
+     * Turning on this mode may result in serious performance cost for the HC.  It's really only appropriate to
      * use in specific areas where you want to better understand why the HC is making specific calls.
      *
      * The reads are written out containing a HC tag (integer) that encodes which haplotype each read best matches
