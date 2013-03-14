@@ -104,7 +104,7 @@ public class RegenotypeVariants extends RodWalker<Integer, Integer> implements T
 
     @ArgumentCollection protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
 
-    @Output(doc="File to which variants should be written",required=true)
+    @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
 
     private UnifiedGenotyperEngine UG_engine = null;

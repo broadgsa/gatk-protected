@@ -131,7 +131,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
     @ArgumentCollection
     protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
 
-    @Output(doc = "File to which variants should be written", required = true)
+    @Output(doc = "File to which variants should be written")
     protected VariantContextWriter writer = null;
 
     @Argument(fullName = "cacheWindowSize", shortName = "cacheWindow", doc = "The window size (in bases) to cache variant sites and their reads for the phasing procedure", required = false)

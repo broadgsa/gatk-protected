@@ -139,10 +139,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     /**
      * A raw, unfiltered, highly sensitive callset in VCF format.
      */
-    @Output(doc="File to which variants should be written", required = true)
+    @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
 
-    @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false)
+    @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false, defaultToStdout = false)
     protected PrintStream graphWriter = null;
 
     /**
@@ -170,14 +170,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
      * in the following screenshot: https://www.dropbox.com/s/xvy7sbxpf13x5bp/haplotypecaller%20bamout%20for%20docs.png
      *
      */
-    @Output(fullName="bamOutput", shortName="bamout", doc="File to which assembled haplotypes should be written", required = false)
+    @Output(fullName="bamOutput", shortName="bamout", doc="File to which assembled haplotypes should be written", required = false, defaultToStdout = false)
     protected StingSAMFileWriter bamWriter = null;
     private HaplotypeBAMWriter haplotypeBAMWriter;
 
     /**
      * The type of BAM output we want to see.
      */
-    @Output(fullName="bamWriterType", shortName="bamWriterType", doc="How should haplotypes be written to the BAM?", required = false)
+    @Argument(fullName="bamWriterType", shortName="bamWriterType", doc="How should haplotypes be written to the BAM?", required = false)
     public HaplotypeBAMWriter.Type bamWriterType = HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES;
 
     /**

@@ -66,7 +66,7 @@ import java.io.*;
 @PartitionBy(PartitionType.READ)
 public class RecalibrationPerformance extends RodWalker<Integer, Integer> implements NanoSchedulable {
 
-    @Output(doc="Write output to this file", required = true)
+    @Output(doc="Write output to this file")
     public PrintStream out;
 
     @Input(fullName="recal", shortName="recal", required=false, doc="The input covariates table file")

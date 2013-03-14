@@ -91,7 +91,7 @@ public class RecalibrationArgumentCollection {
      * If not provided, then no plots will be generated (useful for queue scatter/gathering).
      * However, we *highly* recommend that users generate these plots whenever possible for QC checking.
      */
-    @Output(fullName = "plot_pdf_file", shortName = "plots", doc = "The output recalibration pdf file to create", required = false)
+    @Output(fullName = "plot_pdf_file", shortName = "plots", doc = "The output recalibration pdf file to create", required = false, defaultToStdout = false)
     public File RECAL_PDF_FILE = null;
 
     /**
@@ -220,7 +220,7 @@ public class RecalibrationArgumentCollection {
     public String FORCE_PLATFORM = null;
 
     @Hidden
-    @Output(fullName = "recal_table_update_log", shortName = "recal_table_update_log", required = false, doc = "If provided, log all updates to the recalibration tables to the given file. For debugging/testing purposes only")
+    @Output(fullName = "recal_table_update_log", shortName = "recal_table_update_log", required = false, doc = "If provided, log all updates to the recalibration tables to the given file. For debugging/testing purposes only", defaultToStdout = false)
     public PrintStream RECAL_TABLE_UPDATE_LOG = null;
 
     /**

@@ -69,6 +69,7 @@ import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.sam.BySampleSAMFileWriter;
@@ -112,7 +113,7 @@ import org.broadinstitute.sting.utils.sam.ReadUtils;
 @Downsample(by=DownsampleType.BY_SAMPLE, toCoverage=40)
 public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, ReduceReadsStash> {
 
-    @Output(required=true)
+    @Output(required = false, defaultToStdout = false)
     private StingSAMFileWriter out = null;
     private SAMFileWriter writerToUse = null;
 
@@ -259,13 +260,19 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     @Override
     public void initialize() {
         super.initialize();
+
+        if ( !nwayout && out == null )
+            throw new UserException.MissingArgument("out", "the output must be provided and is optional only for certain debugging modes");
+
+        if ( nwayout && out != null )
+            throw new UserException.CommandLineException("--out and --nwayout can not be used simultaneously; please use one or the other");
+
         GenomeAnalysisEngine toolkit = getToolkit();
         readNameHash = new Object2LongOpenHashMap<String>(100000);     // prepare the read name hash to keep track of what reads have had their read names compressed
         intervalList = new ObjectAVLTreeSet<GenomeLoc>();                          // get the interval list from the engine. If no interval list was provided, the walker will work in WGS mode
 
         if (toolkit.getIntervals() != null)
             intervalList.addAll(toolkit.getIntervals());
-
 
         final boolean preSorted = true;
         final boolean indexOnTheFly = true;

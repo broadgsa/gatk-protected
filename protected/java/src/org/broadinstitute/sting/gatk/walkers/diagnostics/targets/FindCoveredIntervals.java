@@ -92,7 +92,7 @@ import java.io.PrintStream;
 @PartitionBy(PartitionType.CONTIG)
 @ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)
 public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
-    @Output(required = true)
+    @Output
     private PrintStream out;
 
     @Argument(fullName = "uncovered", shortName = "u", required = false, doc = "output intervals that fail the coverage threshold instead")
