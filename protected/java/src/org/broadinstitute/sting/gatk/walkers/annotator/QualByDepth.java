@@ -54,6 +54,7 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.variant.variantcontext.Genotype;
@@ -113,7 +114,7 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         if ( depth == 0 )
             return null;
 
-        double altAlleleLength = AverageAltAlleleLength.getMeanAltAlleleLength(vc);
+        double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
         double QD = -10.0 * vc.getLog10PError() / ((double)depth * altAlleleLength);
         Map<String, Object> map = new HashMap<String, Object>();
         map.put(getKeyNames().get(0), String.format("%.2f", QD));

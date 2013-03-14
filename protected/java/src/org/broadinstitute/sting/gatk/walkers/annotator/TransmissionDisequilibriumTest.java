@@ -67,10 +67,19 @@ import java.util.*;
 /**
  * Wittkowski transmission disequilibrium test
  *
- * <p>Note that this annotation can only be used with VariantAnnotator (not with UnifiedGenotyper or HaplotypeCaller).</p>
+ * <p>Test statistic from Wittkowski transmission disequilibrium test.
+ * The calculation is based on the following derivation in http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT</p>
+ *
+ * <p>Note that this annotation requires a valid ped file.</p>
+ *
+ * <h3>Caveat</h3>
+ * <p>This annotation can only be used with VariantAnnotator (not with UnifiedGenotyper or HaplotypeCaller).</p>
+ *
+ * @author rpoplin, lfran, ebanks
+ * @since 11/14/11
  */
 
-public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implements ExperimentalAnnotation, RodRequiringAnnotation {
+public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implements RodRequiringAnnotation {
 
     private Set<Sample> trios = null;
     private final static int MIN_NUM_VALID_TRIOS = 5; // don't calculate this population-level statistic if there are less than X trios with full genotype likelihood information

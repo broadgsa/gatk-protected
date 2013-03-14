@@ -212,6 +212,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
      * the mates contig and alignment start.  If this flag is provided the haplotype caller will see such reads,
      * and may make use of them in assembly and calling, where possible.
      */
+    @Hidden
     @Argument(fullName="includeUmappedReads", shortName="unmapped", doc="If provided, unmapped reads with chromosomal coordinates (i.e., those placed to their maps) will be included in the assembly and calling", required = false)
     protected boolean includeUnmappedReads = false;
 

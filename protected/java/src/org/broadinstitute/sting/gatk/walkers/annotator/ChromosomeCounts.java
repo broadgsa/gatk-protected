@@ -65,9 +65,15 @@ import java.util.*;
 
 
 /**
- * Allele count in genotypes, for each ALT allele, in the same order as listed;
- * allele Frequency, for each ALT allele, in the same order as listed; total number
- * of alleles in called genotypes.
+ * Allele counts and frequency for each ALT allele and total number of alleles in called genotypes
+ *
+ * <p>This annotation tool outputs the following:
+ *
+ *     <ul>
+ *     <li>Allele count in genotypes, for each ALT allele, in the same order as listed</li>
+ *     <li>Allele Frequency, for each ALT allele, in the same order as listed</li>
+ *     <li>Total number of alleles in called genotypes</li>
+ * </ul></p>
  */
 public class ChromosomeCounts extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 

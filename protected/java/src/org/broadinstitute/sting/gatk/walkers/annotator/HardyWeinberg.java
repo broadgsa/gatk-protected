@@ -51,6 +51,7 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.WorkInProgressAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
@@ -68,11 +69,16 @@ import java.util.Map;
 
 
 /**
- * Phred-scaled P value of genotype-based (using GT field) test for Hardy-Weinberg test for disequilibrium
+ * Hardy-Weinberg test for disequilibrium
  *
- * <p>Requires at least 10 samples in order to run. Only genotypes with sufficient quality (>10) will be taken into account.</p>
+ * <p>This annotation calculates the Phred-scaled P value of genotype-based (using GT field) test for Hardy-Weinberg test for disequilibrium.</p>
+ *
+ * <h3>Caveats</h3>
+ * <h4>This is an experimental annotation. As such, it is unsupported; we do not make any guarantees that it will work properly, and you use it at your own risk.</h4>
+ * <p>Right now we just ignore genotypes that are not confident, but this throws off our HW ratios.
+ * More analysis is needed to determine the right thing to do when the genotyper cannot decide whether a given sample is het or hom var.</p>
  */
-public class HardyWeinberg extends InfoFieldAnnotation implements WorkInProgressAnnotation {
+public class HardyWeinberg extends InfoFieldAnnotation implements ExperimentalAnnotation {
 
     private static final int MIN_SAMPLES = 10;
     private static final int MIN_GENOTYPE_QUALITY = 10;
