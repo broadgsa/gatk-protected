@@ -61,7 +61,7 @@ import java.util.List;
  * User: rpoplin
  * Date: Nov 27, 2009
  *
- * A collection of the arguments that are common to both CovariateCounterWalker and TableRecalibrationWalker.
+ * A collection of the arguments that are used for BQSR. Used to be common to both CovariateCounterWalker and TableRecalibrationWalker.
  * This set of arguments will also be passed to the constructor of every Covariate when it is instantiated.
  */
 
@@ -131,14 +131,14 @@ public class RecalibrationArgumentCollection {
     public boolean RUN_WITHOUT_DBSNP = false;
 
     /**
-     * CountCovariates and TableRecalibration accept a --solid_recal_mode <MODE> flag which governs how the recalibrator handles the
+     * BaseRecalibrator accepts a --solid_recal_mode <MODE> flag which governs how the recalibrator handles the
      * reads which have had the reference inserted because of color space inconsistencies.
      */
     @Argument(fullName = "solid_recal_mode", shortName = "sMode", required = false, doc = "How should we recalibrate solid bases in which the reference was inserted? Options = DO_NOTHING, SET_Q_ZERO, SET_Q_ZERO_BASE_N, or REMOVE_REF_BIAS")
     public RecalUtils.SOLID_RECAL_MODE SOLID_RECAL_MODE = RecalUtils.SOLID_RECAL_MODE.SET_Q_ZERO;
 
     /**
-     * CountCovariates and TableRecalibration accept a --solid_nocall_strategy <MODE> flag which governs how the recalibrator handles
+     * BaseRecalibrator accepts a --solid_nocall_strategy <MODE> flag which governs how the recalibrator handles
      * no calls in the color space tag. Unfortunately because of the reference inserted bases mentioned above, reads with no calls in
      * their color space tag can not be recalibrated.
      */

@@ -82,7 +82,7 @@ import java.util.*;
  *
  * This helper class holds the data HashMap as well as submaps that represent the marginal distributions collapsed over all needed dimensions.
  * It also has static methods that are used to perform the various solid recalibration modes that attempt to correct the reference bias.
- * This class holds the parsing methods that are shared between CountCovariates and TableRecalibration.
+ * This class holds the parsing methods that are shared between BaseRecalibrator and PrintReads.
  */
 
 public class RecalUtils {

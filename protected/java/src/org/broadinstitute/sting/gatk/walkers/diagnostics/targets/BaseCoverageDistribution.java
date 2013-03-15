@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
 import org.broadinstitute.sting.commandline.Argument;
 import org.broadinstitute.sting.commandline.Output;
+import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
@@ -55,6 +56,8 @@ import org.broadinstitute.sting.gatk.report.GATKReport;
 import org.broadinstitute.sting.gatk.walkers.LocusWalker;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -63,11 +66,11 @@ import java.util.LinkedList;
 import java.util.Map;
 
 /**
- * Simple walker to plot the coverage distribution per base.
+ * Simple walker to plot the coverage distribution per base
  *
  * <p>
  *  Features of this walker:
- *  <li>includes a smart counting of uncovered bases without visiting the uncovered loci.</li>
+ *  <li>includes a smart counting of uncovered bases without visiting the uncovered loci</li>
  *  <li>includes reads with deletions in the loci (optionally can be turned off)</li>
  * </p>
  *
@@ -91,10 +94,11 @@ import java.util.Map;
  *   -fd \
  *   -o report.grp
  * </pre>
- * User: carneiro
- * Date: 1/27/13
- * Time: 11:16 AM
+ *
+ * @author carneiro
+ * @since 1/27/13
  */
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 public class BaseCoverageDistribution extends LocusWalker<ArrayList<Integer>, Map<Integer, ArrayList<Long>>> {
     /**
      * The output GATK Report table

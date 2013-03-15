@@ -68,7 +68,7 @@ import java.util.Map;
 
 
 /**
- * GC content of the reference around this site
+ * GC content of the reference around the given site
  *
  * <p>The GC content is the number of GC bases relative to the total number of bases (# GC bases / # all bases) around this site on the reference.</p>
  *
