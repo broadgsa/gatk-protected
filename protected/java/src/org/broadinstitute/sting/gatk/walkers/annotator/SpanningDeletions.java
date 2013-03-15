@@ -53,6 +53,7 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -88,10 +89,12 @@ public class SpanningDeletions extends InfoFieldAnnotation implements StandardAn
         int deletions = 0;
         int depth = 0;
         for ( Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
-            AlignmentContext context = sample.getValue();
-            final ReadBackedPileup pileup = context.getBasePileup();
-            deletions += pileup.getNumberOfDeletions();
-            depth += pileup.getNumberOfElements();
+            for ( final PileupElement p : sample.getValue().getBasePileup() ) {
+                final int actualSampleDepth = p.getRepresentativeCount();
+                depth += actualSampleDepth;
+                if ( p.isDeletion() )
+                    deletions += actualSampleDepth;
+            }
         }
         Map<String, Object> map = new HashMap<String, Object>();
         map.put(getKeyNames().get(0), String.format("%.2f", depth == 0 ? 0.0 : (double)deletions/(double)depth));

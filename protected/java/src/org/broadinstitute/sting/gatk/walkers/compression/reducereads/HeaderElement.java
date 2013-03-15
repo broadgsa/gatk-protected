@@ -50,6 +50,10 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 
 /**
  * The element that describes the header of the sliding window.
@@ -264,29 +268,56 @@ public class HeaderElement {
     }
 
     /**
-     * Calculates the number of haplotypes necessary to represent this site.
+     * Calculates the number of alleles necessary to represent this site.
      *
      * @param minVariantProportion the minimum proportion to call a site variant.
-     * @return the number of alleles necessary to represent this site.
+     * @param allowDeletions       should we allow deletions?
+     * @return the number of alleles necessary to represent this site or -1 if allowDeletions is false and there are a sufficient number of them
      */
-    public int getNumberOfAlleles(final double minVariantProportion) {
+    public int getNumberOfAlleles(final double minVariantProportion, final boolean allowDeletions) {
+        final List<BaseIndex> alleles = getAlleles(minVariantProportion, allowDeletions);
+        return alleles == null ? -1 : alleles.size();
+    }
+
+    /**
+     * Calculates the alleles necessary to represent this site.
+     *
+     * @param minVariantProportion the minimum proportion to call a site variant.
+     * @param allowDeletions       should we allow deletions?
+     * @return the list of alleles necessary to represent this site or null if allowDeletions is false and there are a sufficient number of them
+     */
+    public List<BaseIndex> getAlleles(final double minVariantProportion, final boolean allowDeletions) {
         final int totalBaseCount = consensusBaseCounts.totalCount();
-        if (totalBaseCount == 0)
-            return 0;
+        if ( totalBaseCount == 0 )
+            return Collections.emptyList();
 
-        final int minBaseCountForRelevantAlleles = (int)(minVariantProportion * totalBaseCount);
+        final int minBaseCountForRelevantAlleles = Math.max(1, (int)(minVariantProportion * totalBaseCount));
 
-        int nAlleles = 0;
-        for ( BaseIndex base : BaseIndex.values() ) {
+        final List<BaseIndex> alleles = new ArrayList<BaseIndex>(4);
+        for ( final BaseIndex base : BaseIndex.values() ) {
             final int baseCount = consensusBaseCounts.countOfBase(base);
 
-            // don't consider this allele if the count is 0
-            if ( baseCount == 0 )
-                continue;
-
-            if ( baseCount >= minBaseCountForRelevantAlleles )
-                nAlleles++;
+            if ( baseCount >= minBaseCountForRelevantAlleles ) {
+                if ( !allowDeletions && base == BaseIndex.D )
+                    return null;
+                alleles.add(base);
+            }
         }
-        return nAlleles;
+        return alleles;
+    }
+
+    /*
+     * Checks whether there are a significant number of softclips.
+     *
+     * @param minVariantProportion the minimum proportion to consider something significant.
+     * @return true if there are significant softclips, false otherwise
+     */
+    public boolean hasSignificantSoftclips(final double minVariantProportion) {
+        final int totalBaseCount = consensusBaseCounts.totalCount();
+        if ( totalBaseCount == 0 )
+            return false;
+
+        final int minBaseCountForSignificance = Math.max(1, (int)(minVariantProportion * totalBaseCount));
+        return nSoftClippedBases >= minBaseCountForSignificance;
     }
 }

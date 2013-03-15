@@ -54,9 +54,7 @@ import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.util.SequenceUtil;
-import org.broadinstitute.sting.commandline.Argument;
-import org.broadinstitute.sting.commandline.Hidden;
-import org.broadinstitute.sting.commandline.Output;
+import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
@@ -75,6 +73,10 @@ import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.sam.BySampleSAMFileWriter;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+
+import java.util.Collections;
+import java.util.List;
 
 
 /**
@@ -147,10 +149,12 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     private byte minTailQuality = 2;
 
     /**
-     * Allow the experimental polyploid-based reduction capabilities of this tool
+     * Any number of VCF files representing known SNPs to be used for the experimental polyploid-based reduction.
+     * Could be e.g. dbSNP and/or official 1000 Genomes SNP calls.  Non-SNP variants in these files will be ignored.
+     * Note that polyploid ("het") compression will work only when a single SNP is present in a consensus window.
      */
-    @Argument(fullName = "allow_polyploid_reduction", shortName = "polyploid", doc = "", required = false)
-    private boolean USE_POLYPLOID_REDUCTION = false;
+    @Input(fullName="known_sites_for_polyploid_reduction", shortName = "known", doc="Input VCF file(s) with known SNPs", required=false)
+    public List<RodBinding<VariantContext>> known = Collections.emptyList();
 
     /**
      * Do not simplify read (strip away all extra information of the read -- anything other than bases, quals
@@ -248,6 +252,8 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     Long nextReadNumber = 1L;                                               // The next number to use for the compressed read name.
 
     ObjectSortedSet<GenomeLoc> intervalList;
+
+    final ObjectSortedSet<GenomeLoc> knownSnpPositions = new ObjectAVLTreeSet<GenomeLoc>();
 
     // IMPORTANT: DO NOT CHANGE THE VALUE OF THIS CONSTANT VARIABLE; IT IS NOW PERMANENTLY THE @PG NAME THAT EXTERNAL TOOLS LOOK FOR IN THE BAM HEADER
     public static final String PROGRAM_RECORD_NAME = "GATK ReduceReads";   // The name that will go in the @PG tag
@@ -359,8 +365,22 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
             for (GATKSAMRecord mappedRead : mappedReads)
                 System.out.printf("MAPPED: %s %d %d\n", mappedRead.getCigar(), mappedRead.getAlignmentStart(), mappedRead.getAlignmentEnd());
 
-        return mappedReads;
+        // add the SNPs to the list of known positions
+        populateKnownSNPs(metaDataTracker);
 
+        return mappedReads;
+    }
+
+    /*
+     * Add the positions of known SNPs to the set so that we can keep track of it
+     *
+     * @param metaDataTracker   the ref meta data tracker
+     */
+    protected void populateKnownSNPs(final RefMetaDataTracker metaDataTracker) {
+        for ( final VariantContext vc : metaDataTracker.getValues(known) ) {
+            if ( vc.isSNP() )
+                knownSnpPositions.add(getToolkit().getGenomeLocParser().createGenomeLoc(vc));
+        }
     }
 
     /**
@@ -373,7 +393,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      */
     @Override
     public ReduceReadsStash reduceInit() {
-        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, USE_POLYPLOID_REDUCTION));
+        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
     }
 
     /**
@@ -405,7 +425,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
                     if (debugLevel == 1)
                         System.out.println("REDUCE: " + readReady.getCigar() + " " + readReady.getAlignmentStart() + " " + readReady.getAlignmentEnd());
 
-                    for (GATKSAMRecord compressedRead : stash.compress(readReady))
+                    for (GATKSAMRecord compressedRead : stash.compress(readReady, knownSnpPositions))
                         outputRead(compressedRead);
 
                     // We only care about maintaining the link between read pairs if they are in the same variant
@@ -422,6 +442,10 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
             firstRead = false;
         }
 
+        // reduce memory requirements by removing old positions
+        if ( !mappedReads.isEmpty() )
+            clearStaleKnownPositions(mappedReads.get(0));
+
         return stash;
     }
 
@@ -434,11 +458,36 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     public void onTraversalDone(ReduceReadsStash stash) {
 
         // output any remaining reads in the compressor
-        for (GATKSAMRecord read : stash.close())
+        for (GATKSAMRecord read : stash.close(knownSnpPositions))
             outputRead(read);
 
         if (nwayout)
             writerToUse.close();
+    }
+
+    /**
+     * Removes known positions that are no longer relevant for use with het compression.
+     *
+     * @param read    the current read, used for checking whether there are stale positions we can remove
+     */
+    protected void clearStaleKnownPositions(final GATKSAMRecord read) {
+        // nothing to clear if empty
+        if ( knownSnpPositions.isEmpty() )
+            return;
+
+        // not ready to be cleared until we encounter a read from a different contig
+        final int contigIndexOfRead = read.getReferenceIndex();
+        if ( knownSnpPositions.first().getContigIndex() == contigIndexOfRead )
+            return;
+
+        // because we expect most elements to be stale, it's not going to be efficient to remove them one at a time
+        final ObjectAVLTreeSet<GenomeLoc> goodLocs = new ObjectAVLTreeSet<GenomeLoc>();
+        for ( final GenomeLoc loc : knownSnpPositions ) {
+            if ( loc.getContigIndex() == contigIndexOfRead )
+                goodLocs.add(loc);
+        }
+        knownSnpPositions.clear();
+        knownSnpPositions.addAll(goodLocs);
     }
 
     /**
