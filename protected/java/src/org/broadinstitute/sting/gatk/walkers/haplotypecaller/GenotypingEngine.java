@@ -710,24 +710,26 @@ public class GenotypingEngine {
             switch( ce.getOperator() ) {
                 case I:
                 {
-                    final List<Allele> insertionAlleles = new ArrayList<Allele>();
-                    final int insertionStart = refLoc.getStart() + refPos - 1;
-                    final byte refByte = ref[refPos-1];
-                    if( BaseUtils.isRegularBase(refByte) ) {
-                        insertionAlleles.add( Allele.create(refByte, true) );
-                    }
-                    if( cigarIndex == 0 || cigarIndex == cigar.getCigarElements().size() - 1 ) { // if the insertion isn't completely resolved in the haplotype then make it a symbolic allele
-                        insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
-                    } else {
-                        byte[] insertionBases = new byte[]{};
-                        insertionBases = ArrayUtils.add(insertionBases, ref[refPos-1]); // add the padding base
-                        insertionBases = ArrayUtils.addAll(insertionBases, Arrays.copyOfRange( alignment, alignmentPos, alignmentPos + elementLength ));
-                        if( BaseUtils.isAllRegularBases(insertionBases) ) {
-                            insertionAlleles.add( Allele.create(insertionBases, false) );
+                    if( refPos > 0 ) { // protect against trying to create insertions/deletions at the beginning of a contig
+                        final List<Allele> insertionAlleles = new ArrayList<Allele>();
+                        final int insertionStart = refLoc.getStart() + refPos - 1;
+                        final byte refByte = ref[refPos-1];
+                        if( BaseUtils.isRegularBase(refByte) ) {
+                            insertionAlleles.add( Allele.create(refByte, true) );
                         }
-                    }
-                    if( insertionAlleles.size() == 2 ) { // found a proper ref and alt allele
-                        vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).make());
+                        if( cigarIndex == 0 || cigarIndex == cigar.getCigarElements().size() - 1 ) { // if the insertion isn't completely resolved in the haplotype then make it a symbolic allele
+                            insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
+                        } else {
+                            byte[] insertionBases = new byte[]{};
+                            insertionBases = ArrayUtils.add(insertionBases, ref[refPos-1]); // add the padding base
+                            insertionBases = ArrayUtils.addAll(insertionBases, Arrays.copyOfRange( alignment, alignmentPos, alignmentPos + elementLength ));
+                            if( BaseUtils.isAllRegularBases(insertionBases) ) {
+                                insertionAlleles.add( Allele.create(insertionBases, false) );
+                            }
+                        }
+                        if( insertionAlleles.size() == 2 ) { // found a proper ref and alt allele
+                            vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).make());
+                        }
                     }
                     alignmentPos += elementLength;
                     break;
@@ -739,14 +741,16 @@ public class GenotypingEngine {
                 }
                 case D:
                 {
-                    final byte[] deletionBases = Arrays.copyOfRange( ref, refPos - 1, refPos + elementLength );  // add padding base
-                    final List<Allele> deletionAlleles = new ArrayList<Allele>();
-                    final int deletionStart = refLoc.getStart() + refPos - 1;
-                    final byte refByte = ref[refPos-1];
-                    if( BaseUtils.isRegularBase(refByte) && BaseUtils.isAllRegularBases(deletionBases) ) {
-                        deletionAlleles.add( Allele.create(deletionBases, true) );
-                        deletionAlleles.add( Allele.create(refByte, false) );
-                        vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart + elementLength, deletionAlleles).make());
+                    if( refPos > 0 ) { // protect against trying to create insertions/deletions at the beginning of a contig
+                        final byte[] deletionBases = Arrays.copyOfRange( ref, refPos - 1, refPos + elementLength );  // add padding base
+                        final List<Allele> deletionAlleles = new ArrayList<Allele>();
+                        final int deletionStart = refLoc.getStart() + refPos - 1;
+                        final byte refByte = ref[refPos-1];
+                        if( BaseUtils.isRegularBase(refByte) && BaseUtils.isAllRegularBases(deletionBases) ) {
+                            deletionAlleles.add( Allele.create(deletionBases, true) );
+                            deletionAlleles.add( Allele.create(refByte, false) );
+                            vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart + elementLength, deletionAlleles).make());
+                        }
                     }
                     refPos += elementLength;
                     break;

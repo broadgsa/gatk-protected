@@ -58,6 +58,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     final static String NA12878_CHR20_BAM = validationDataLocation + "NA12878.HiSeq.WGS.bwa.cleaned.recal.hg19.20.bam";
     final static String CEUTRIO_BAM = validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam";
     final static String NA12878_RECALIBRATED_BAM = privateTestDir + "NA12878.100kb.BQSRv2.example.bam";
+    final static String CEUTRIO_MT_TEST_BAM = privateTestDir + "CEUTrio.HiSeq.b37.MT.1_50.bam";
     final static String INTERVALS_FILE = validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals";
 
     private void HCTest(String bam, String args, String md5) {
@@ -76,7 +77,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTest(NA12878_BAM, "", "b3bffabb7aafd43e0339958395e6aa10");
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false) // can't annotate the rsID's yet
     public void testHaplotypeCallerSingleSampleWithDbsnp() {
         HCTest(NA12878_BAM, "-D " + b37dbSNP132, "");
     }
@@ -96,6 +97,11 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
         HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "852623c93feef5e62fcb555beedc8c53");
+    }
+
+    @Test
+    public void testHaplotypeCallerInsertionOnEdgeOfContig() {
+        HCTest(CEUTRIO_MT_TEST_BAM, "-dcov 90 -L MT:1-10", "e6f7bbab7cf96cbb25837b7a94bf0f82");
     }
 
     // This problem bam came from a user on the forum and it spotted a problem where the ReadClipper

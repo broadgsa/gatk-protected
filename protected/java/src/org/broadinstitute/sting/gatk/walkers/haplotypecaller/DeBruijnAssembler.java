@@ -430,7 +430,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
      * @param refWithPadding        the full reference byte array with padding which encompasses the active region
      * @return                      a haplotype fully extended to encompass the active region
      */
-    @Requires({"haplotype != null", "activeRegionStart > 0", "refWithPadding != null", "refWithPadding.length > 0"})
+    @Requires({"haplotype != null", "activeRegionStart >= 0", "refWithPadding != null", "refWithPadding.length > 0"})
     @Ensures({"result != null", "result.getCigar() != null"})
     private Haplotype extendPartialHaplotype( final Haplotype haplotype, final int activeRegionStart, final byte[] refWithPadding ) {
         final Cigar cigar = haplotype.getCigar();
