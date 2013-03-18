@@ -55,6 +55,7 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
+import org.broadinstitute.sting.gatk.downsampling.DownsamplingUtils;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
@@ -205,6 +206,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="minKmer", shortName="minKmer", doc="Minimum kmer length to use in the assembly graph", required = false)
     protected int minKmer = 11;
 
+    @Advanced
+    @Argument(fullName="maxHaplotypesToConsider", shortName="maxHaplotypesToConsider", doc="Maximum number of haplotypes to consider in the likelihood calculation.  Setting this number too high can have dramatic performance implications", required = false)
+    protected int maxHaplotypesToConsider = 100000;
+
     /**
      * If this flag is provided, the haplotype caller will include unmapped reads in the assembly and calling
      * when these reads occur in the region being analyzed.  Typically, for paired end analyses, one pair of the
@@ -226,6 +231,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Hidden
     @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "If specified, the HC won't actually do any assembly or calling, it'll just run the upfront active region determination code.  Useful for benchmarking and scalability testing", required=false)
     protected boolean justDetermineActiveRegions = false;
+
+    @Hidden
+    @Argument(fullName="dontGenotype", shortName="dontGenotype", doc = "If specified, the HC will do any assembly but won't do calling.  Useful for benchmarking and scalability testing", required=false)
+    protected boolean dontGenotype = false;
 
     /**
      * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
@@ -295,6 +304,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     // reference base padding size
     private static final int REFERENCE_PADDING = 500;
+
+    private final static int maxReadsInRegionPerSample = 1000; // TODO -- should be an argument
+    private final static int minReadsPerAlignmentStart = 5; // TODO -- should be an argument
 
     // bases with quality less than or equal to this value are trimmed off the tails of the reads
     private static final byte MIN_TAIL_QUALITY = 20;
@@ -374,7 +386,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile, e);
         }
 
-        assemblyEngine = new DeBruijnAssembler( DEBUG, graphWriter, minKmer );
+        assemblyEngine = new DeBruijnAssembler( DEBUG, graphWriter, minKmer, maxHaplotypesToConsider );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
 
@@ -514,6 +526,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         // sort haplotypes to take full advantage of haplotype start offset optimizations in PairHMM
         Collections.sort( haplotypes, new Haplotype.HaplotypeBaseComparator() );
 
+        if (dontGenotype)
+            return 1;
+
         // evaluate each sample's reads against all haplotypes
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods( haplotypes, splitReadsBySample( activeRegion.getReads() ) );
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
@@ -575,7 +590,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //
     //---------------------------------------------------------------------------------------------------------------
 
-    private void finalizeActiveRegion( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
+    private void finalizeActiveRegion( final ActiveRegion activeRegion ) {
         if( DEBUG ) { System.out.println("\nAssembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
         final List<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>();
         final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( activeRegion.getReads() );
@@ -599,7 +614,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                 }
             }
         }
-        activeRegion.addAll(ReadUtils.sortReadsByCoordinate(readsToUse));
+
+        activeRegion.addAll(DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart));
     }
 
     private List<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {

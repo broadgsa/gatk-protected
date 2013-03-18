@@ -52,6 +52,7 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -73,6 +74,7 @@ import java.util.*;
  */
 
 public class DeBruijnAssembler extends LocalAssemblyEngine {
+    private final static Logger logger = Logger.getLogger(DeBruijnAssembler.class);
 
     private static final int KMER_OVERLAP = 5; // the additional size of a valid chunk of sequence, used to string together k-mers
     private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 11;
@@ -85,18 +87,20 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private static final double SW_GAP = -22.0;       //-1.0-1.0/3.0;
     private static final double SW_GAP_EXTEND = -1.2; //-1.0/.0;
 
-    private final boolean DEBUG;
-    private final PrintStream GRAPH_WRITER;
+    private final boolean debug;
+    private final PrintStream graphWriter;
     private final List<DeBruijnAssemblyGraph> graphs = new ArrayList<DeBruijnAssemblyGraph>();
-    private final int MIN_KMER;
+    private final int minKmer;
+    private final int maxHaplotypesToConsider;
 
     private int PRUNE_FACTOR = 2;
     
-    public DeBruijnAssembler(final boolean debug, final PrintStream graphWriter, final int minKmer) {
+    public DeBruijnAssembler(final boolean debug, final PrintStream graphWriter, final int minKmer, final int maxHaplotypesToConsider) {
         super();
-        DEBUG = debug;
-        GRAPH_WRITER = graphWriter;
-        MIN_KMER = minKmer;
+        this.debug = debug;
+        this.graphWriter = graphWriter;
+        this.minKmer = minKmer;
+        this.maxHaplotypesToConsider = maxHaplotypesToConsider;
     }
 
     /**
@@ -123,7 +127,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         createDeBruijnGraphs( activeRegion.getReads(), refHaplotype );
 
         // print the graphs if the appropriate debug option has been turned on
-        if( GRAPH_WRITER != null ) {
+        if( graphWriter != null ) {
             printGraphs();
         }
 
@@ -136,11 +140,12 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         graphs.clear();
 
         final int maxKmer = ReadUtils.getMaxReadLength(reads) - KMER_OVERLAP - 1;
-        if( maxKmer < MIN_KMER ) { return; } // Reads are too small for assembly so don't try to create any assembly graphs
+        if( maxKmer < minKmer) { return; } // Reads are too small for assembly so don't try to create any assembly graphs
 
         // create the graph for each possible kmer
-        for( int kmer = maxKmer; kmer >= MIN_KMER; kmer -= GRAPH_KMER_STEP ) {
-            final DeBruijnAssemblyGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, DEBUG );
+        for( int kmer = maxKmer; kmer >= minKmer; kmer -= GRAPH_KMER_STEP ) {
+            //if ( debug ) logger.info("Creating de Bruijn graph for " + kmer + " kmer using " + reads.size() + " reads");
+            final DeBruijnAssemblyGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, debug);
             if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
                 // do a series of steps to clean up the raw assembly graph to make it analysis-ready
                 pruneGraph(graph, PRUNE_FACTOR);
@@ -320,22 +325,22 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     protected void printGraphs() {
-        GRAPH_WRITER.println("digraph assemblyGraphs {");
+        graphWriter.println("digraph assemblyGraphs {");
         for( final DeBruijnAssemblyGraph graph : graphs ) {
             for( final DeBruijnEdge edge : graph.edgeSet() ) {
                 if( edge.getMultiplicity() > PRUNE_FACTOR ) {
-                    GRAPH_WRITER.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= PRUNE_FACTOR ? "style=dotted,color=grey" : "label=\""+ edge.getMultiplicity() +"\"") + "];");
+                    graphWriter.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= PRUNE_FACTOR ? "style=dotted,color=grey" : "label=\"" + edge.getMultiplicity() + "\"") + "];");
                 }
                 if( edge.isRef() ) {
-                    GRAPH_WRITER.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [color=red];");
+                    graphWriter.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [color=red];");
                 }
                 if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
             }
             for( final DeBruijnVertex v : graph.vertexSet() ) {
-                GRAPH_WRITER.println("\t" + v.toString() + " [label=\"" + new String(graph.getAdditionalSequence(v)) + "\"]");
+                graphWriter.println("\t" + v.toString() + " [label=\"" + new String(graph.getAdditionalSequence(v)) + "\"]");
             }
         }
-        GRAPH_WRITER.println("}");
+        graphWriter.println("}");
     }
 
     @Requires({"refWithPadding.length > refHaplotype.getBases().length", "refLoc.containsP(activeRegionWindow)"})
@@ -343,6 +348,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private List<Haplotype> findBestPaths( final Haplotype refHaplotype, final byte[] refWithPadding, final GenomeLoc refLoc, final List<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow ) {
 
         // add the reference haplotype separately from all the others to ensure that it is present in the list of haplotypes
+        // TODO -- this use of an array with contains lower may be a performance problem returning in an O(N^2) algorithm
         final List<Haplotype> returnHaplotypes = new ArrayList<Haplotype>();
         refHaplotype.setAlignmentStartHapwrtRef(activeRegionWindow.getStart() - refLoc.getStart());
         final Cigar c = new Cigar();
@@ -383,7 +389,8 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                     }
                     if( !returnHaplotypes.contains(h) ) {
                         h.setAlignmentStartHapwrtRef(activeRegionStart);
-                        h.setCigar( leftAlignedCigar );
+                        h.setCigar(leftAlignedCigar);
+                        h.setScore(path.getScore());
                         returnHaplotypes.add(h);
 
                         // for GGA mode, add the desired allele into the haplotype if it isn't already present
@@ -409,18 +416,39 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             }
         }
 
-        if( DEBUG ) {
-            if( returnHaplotypes.size() > 1 ) {
-                System.out.println("Found " + returnHaplotypes.size() + " candidate haplotypes to evaluate every read against.");
+        final List<Haplotype> finalHaplotypes = selectHighestScoringHaplotypes(returnHaplotypes);
+        if ( finalHaplotypes.size() < returnHaplotypes.size() )
+            logger.info("Found " + finalHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);
+
+        if( debug ) {
+            if( finalHaplotypes.size() > 1 ) {
+                System.out.println("Found " + finalHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
             } else {
                 System.out.println("Found only the reference haplotype in the assembly graph.");
             }
-            for( final Haplotype h : returnHaplotypes ) {
+            for( final Haplotype h : finalHaplotypes ) {
                 System.out.println( h.toString() );
-                System.out.println( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() );
+                System.out.println( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() + " score " + h.getScore() );
             }
         }
-        return returnHaplotypes;
+
+        return finalHaplotypes;
+    }
+
+    /**
+     * Select the best scoring haplotypes among all present, returning no more than maxHaplotypesToConsider
+     *
+     * @param haplotypes a list of haplotypes to consider
+     * @return a sublist of the best haplotypes, with size() <= maxHaplotypesToConsider
+     */
+    private List<Haplotype> selectHighestScoringHaplotypes(final List<Haplotype> haplotypes) {
+        if ( haplotypes.size() <= maxHaplotypesToConsider )
+            return haplotypes;
+        else {
+            final List<Haplotype> sorted = new ArrayList<Haplotype>(haplotypes);
+            Collections.sort(sorted, new Haplotype.ScoreComparator());
+            return sorted.subList(0, maxHaplotypesToConsider);
+        }
     }
 
     /**
