@@ -64,6 +64,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     final String COREDUCTION_BAM_B = validationDataLocation + "coreduction.test.B.bam";
     final String COREDUCTION_L = " -L 1:1,853,860-1,854,354 -L 1:1,884,131-1,892,057";
     final String OFFCONTIG_BAM = privateTestDir + "readOffb37contigMT.bam";
+    final String BOTH_ENDS_OF_PAIR_IN_VARIANT_REGION_BAM = privateTestDir + "bothEndsOfPairInVariantRegion.bam";
     final String INSERTIONS_AT_EDGE_OF_CONSENSUS_BAM = privateTestDir + "rr-too-many-insertions.bam";
 
     private void RRTest(String testName, String args, String md5) {
@@ -74,29 +75,29 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testDefaultCompression() {
-        RRTest("testDefaultCompression ", L, "17908e8515217c4693d303ed68108ccc");
+        RRTest("testDefaultCompression ", L, "16d97a47b8dbfae4ea64fbdf522b693c");
     }
 
     @Test(enabled = true)
     public void testInsertionsAtEdgeOfConsensus() {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, INSERTIONS_AT_EDGE_OF_CONSENSUS_BAM) + " -o %s ";
-        executeTest("testInsertionsAtEdgeOfConsensus", new WalkerTestSpec(base, Arrays.asList("3103667fc68c3136a8cfa8e22429f94e")));
+        executeTest("testInsertionsAtEdgeOfConsensus", new WalkerTestSpec(base, Arrays.asList("f7a9a27c5eaf791b67a768fff960a9e1")));
     }
 
     @Test(enabled = true)
     public void testMultipleIntervals() {
         String intervals = "-L 20:10,100,000-10,100,500 -L 20:10,200,000-10,200,500 -L 20:10,300,000-10,300,500 -L 20:10,400,000-10,500,000 -L 20:10,500,050-10,500,060 -L 20:10,600,000-10,600,015 -L 20:10,700,000-10,700,110";
-        RRTest("testMultipleIntervals ", intervals, "497c5e36c2beaad2fcdbd02a0b9c121b");
+        RRTest("testMultipleIntervals ", intervals, "8886ba383e21883241b386882e8e5063");
     }
 
     @Test(enabled = true)
     public void testHighCompression() {
-        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "0ff4142e4d7b6a9a9c76012246ad9e2d");
+        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "54253f25d363852a1182aff33e500b92");
     }
 
     @Test(enabled = true)
     public void testLowCompression() {
-        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "7890a37444a0e05b902f63a83238ce37");
+        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "1d7d2d28900db57dad65a8beef64b8cb");
     }
 
     @Test(enabled = true)
@@ -137,7 +138,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testCoReduction() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
-        executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("13c44a9afa92ae728bf55b7075cc5de3")));
+        executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("81312c31b9910a42bff6acb5167592ab")));
     }
 
     /**
@@ -147,8 +148,18 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testReadOffContig() {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, OFFCONTIG_BAM) + " -o %s ";
-        executeTest("testReadOffContig", new WalkerTestSpec(base, Arrays.asList("c57cd191dc391983131be43f6cc2e381")));
+        executeTest("testReadOffContig", new WalkerTestSpec(base, Arrays.asList("b4dc66445ddf5f467f67860bed023ef8")));
     }
 
+
+    /**
+     * Confirm that if both ends of pair are in same variant region, compressed names of both ends of pair are the same.
+     */
+    @Test(enabled = true)
+    public void testPairedReadsInVariantRegion() {
+        String base = String.format("-T ReduceReads -npt -R %s -I %s ", hg19Reference, BOTH_ENDS_OF_PAIR_IN_VARIANT_REGION_BAM) +
+                " -o %s  --downsample_coverage 250 -dcov 50  ";
+        executeTest("testPairedReadsInVariantRegion", new WalkerTestSpec(base, Arrays.asList("9bed260b6245f5ff47db8541405504aa")));
+    }
 }
 
