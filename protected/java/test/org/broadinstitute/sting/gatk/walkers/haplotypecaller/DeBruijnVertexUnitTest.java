@@ -58,8 +58,7 @@ public class DeBruijnVertexUnitTest extends BaseTest {
         Assert.assertEquals(v.getSequence(), bases);
         Assert.assertEquals(v.getSequenceString(), new String(bases));
         Assert.assertEquals(v.length(), bases.length);
-        Assert.assertEquals(v.getSuffix().length, 1);
-        Assert.assertEquals(v.getSuffix()[0], (byte)'T');
+        Assert.assertEquals(v.getSuffix(), (byte)'T');
         Assert.assertEquals(v.getSuffixString(), "T");
 
         Assert.assertEquals(v.getAdditionalSequence(true), bases);

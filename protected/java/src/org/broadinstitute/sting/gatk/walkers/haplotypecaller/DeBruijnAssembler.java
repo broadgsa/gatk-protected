@@ -194,15 +194,10 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         final SeqGraph seqGraph = deBruijnGraph.convertToSequenceGraph();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), PRUNE_FACTOR);
         seqGraph.pruneGraph(PRUNE_FACTOR);
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.pruned.dot"), PRUNE_FACTOR);
-        seqGraph.mergeNodes();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.preclean.dot"), PRUNE_FACTOR);
         seqGraph.removeVerticesNotConnectedToRef();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.merged.dot"), PRUNE_FACTOR);
-        seqGraph.mergeBranchingNodes();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.5.simplified.dot"), PRUNE_FACTOR);
-        seqGraph.mergeNodes();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.6.simplified.merged.dot"), PRUNE_FACTOR);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.pruned.dot"), PRUNE_FACTOR);
+        seqGraph.simplifyGraph();
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.dot"), PRUNE_FACTOR);
         return seqGraph;
     }
 

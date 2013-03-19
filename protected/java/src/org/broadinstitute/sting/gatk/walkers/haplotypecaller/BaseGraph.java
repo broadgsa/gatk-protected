@@ -311,6 +311,19 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
     }
 
     /**
+     * Convenience function to add multiple edges to the graph
+     * @param start the first vertex to connect
+     * @param remaining all additional vertices to connect
+     */
+    public void addEdges(final T start, final T ... remaining) {
+        T prev = start;
+        for ( final T next : remaining ) {
+            addEdge(prev, next);
+            prev = next;
+        }
+    }
+
+    /**
      * Get the set of vertices connected by outgoing edges of V
      * @param v a non-null vertex
      * @return a set of vertices connected by outgoing edges from v
@@ -451,28 +464,50 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
                 }
             }
 
-//            for ( final T remove : toRemove )
-//                logger.info("Cleaning up nodes not attached to any reference node: " + remove.toString());
-
             removeAllVertices(toRemove);
         }
     }
 
+    /**
+     * Semi-lenient comparison of two graphs, truing true if g1 and g2 have similar structure
+     *
+     * By similar this means that both graphs have the same number of vertices, where each vertex can find
+     * a vertex in the other graph that's seqEqual to it.  A similar constraint applies to the edges,
+     * where all edges in g1 must have a corresponding edge in g2 where both source and target vertices are
+     * seqEqual
+     *
+     * @param g1 the first graph to compare
+     * @param g2 the second graph to compare
+     * @param <T> the type of the nodes in those graphs
+     * @return true if g1 and g2 are equals
+     */
     public static <T extends BaseVertex> boolean graphEquals(final BaseGraph<T> g1, BaseGraph<T> g2) {
-        if( !(g1.vertexSet().containsAll(g2.vertexSet()) && g2.vertexSet().containsAll(g1.vertexSet())) ) {
+        final Set<T> vertices1 = g1.vertexSet();
+        final Set<T> vertices2 = g2.vertexSet();
+        final Set<BaseEdge> edges1 = g1.edgeSet();
+        final Set<BaseEdge> edges2 = g2.edgeSet();
+
+        if ( vertices1.size() != vertices2.size() || edges1.size() != edges2.size() )
             return false;
+
+        for ( final T v1 : vertices1 ) {
+            boolean found = false;
+            for ( final T v2 : vertices2 )
+                found = found || v1.getSequenceString().equals(v2.getSequenceString());
+            if ( ! found ) return false;
         }
-        for( BaseEdge e1 : g1.edgeSet() ) {
+
+        for( final BaseEdge e1 : g1.edgeSet() ) {
             boolean found = false;
             for( BaseEdge e2 : g2.edgeSet() ) {
-                if( e1.equals(g1, e2, g2) ) { found = true; break; }
+                if( e1.seqEquals(g1, e2, g2) ) { found = true; break; }
             }
             if( !found ) { return false; }
         }
-        for( BaseEdge e2 : g2.edgeSet() ) {
+        for( final BaseEdge e2 : g2.edgeSet() ) {
             boolean found = false;
             for( BaseEdge e1 : g1.edgeSet() ) {
-                if( e2.equals(g2, e1, g1) ) { found = true; break; }
+                if( e2.seqEquals(g2, e1, g1) ) { found = true; break; }
             }
             if( !found ) { return false; }
         }

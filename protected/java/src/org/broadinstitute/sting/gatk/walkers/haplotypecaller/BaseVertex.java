@@ -99,6 +99,16 @@ public class BaseVertex {
         return true;
     }
 
+    /**
+     * Are b and this equal according to their base sequences?
+     *
+     * @param b the vertex to compare ourselves to
+     * @return true if b and this have the same sequence, regardless of other attributes that might differentiate them
+     */
+    public boolean seqEquals(final BaseVertex b) {
+        return Arrays.equals(this.getSequence(), b.getSequence());
+    }
+
     @Override
     public int hashCode() { // necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
         return Arrays.hashCode(sequence);

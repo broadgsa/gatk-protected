@@ -51,6 +51,10 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 public class SeqGraphUnitTest extends BaseTest {
     private class MergeNodesWithNoVariationTestProvider extends TestDataProvider {
         public byte[] sequence;
@@ -75,7 +79,7 @@ public class SeqGraphUnitTest extends BaseTest {
                 deBruijnGraph.addKmersToGraph(kmer1, kmer2, false, 1);
             }
             final SeqGraph seqGraph = deBruijnGraph.convertToSequenceGraph();
-            seqGraph.mergeNodes();
+            seqGraph.simplifyGraph();
             return seqGraph;
         }
     }
@@ -102,5 +106,209 @@ public class SeqGraphUnitTest extends BaseTest {
         Assert.assertEquals(actual.vertexSet().size(), 1);
         final SeqVertex actualV = actual.vertexSet().iterator().next();
         Assert.assertEquals(actualV.getSequence(), cfg.sequence);
+    }
+
+    @DataProvider(name = "IsDiamondData")
+    public Object[][] makeIsDiamondData() throws Exception {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        SeqGraph graph;
+        SeqVertex pre1, pre2, top, middle1, middle2, middle3, bottom, tail1, tail2;
+
+        graph = new SeqGraph();
+
+        pre1 = new SeqVertex("ACT");
+        pre2 = new SeqVertex("AGT");
+        top = new SeqVertex("A");
+        middle1 = new SeqVertex("CT");
+        middle2 = new SeqVertex("CG");
+        middle3 = new SeqVertex("CA");
+        bottom = new SeqVertex("AA");
+        tail1 = new SeqVertex("GC");
+        tail2 = new SeqVertex("GC");
+
+        graph.addVertices(pre1, pre2, top, middle1, middle2, middle3, bottom, tail1, tail2);
+        graph.addEdges(pre1, top, middle1, bottom, tail1);
+        graph.addEdges(pre2, top, middle2, bottom, tail1);
+        graph.addEdges(top, middle3, bottom);
+        graph.addEdges(bottom, tail2);
+
+        for ( final SeqVertex no : Arrays.asList(pre1, pre2, middle1, middle2, middle3, bottom, tail1, tail2)) {
+            tests.add(new Object[]{graph, no, false});
+        }
+        tests.add(new Object[]{graph, top, true});
+
+        final SeqGraph danglingMiddleGraph = (SeqGraph)graph.clone();
+        final SeqVertex danglingMiddle = new SeqVertex("A");
+        danglingMiddleGraph.addVertex(danglingMiddle);
+        danglingMiddleGraph.addEdge(top, danglingMiddle);
+        tests.add(new Object[]{danglingMiddleGraph, top, false});
+
+        final SeqGraph strangerToBottom = (SeqGraph)graph.clone();
+        final SeqVertex notAttachedToTop = new SeqVertex("A");
+        strangerToBottom.addVertex(notAttachedToTop);
+        strangerToBottom.addEdge(notAttachedToTop, bottom);
+        tests.add(new Object[]{strangerToBottom, top, false});
+
+        final SeqGraph strangerToMiddle = (SeqGraph)graph.clone();
+        final SeqVertex attachedToMiddle = new SeqVertex("A");
+        strangerToMiddle.addVertex(attachedToMiddle);
+        strangerToMiddle.addEdge(attachedToMiddle, middle1);
+        tests.add(new Object[]{strangerToMiddle, top, false});
+
+        // middle1 has outgoing edge to non-bottom
+        final SeqGraph middleExtraOut = (SeqGraph)graph.clone();
+        final SeqVertex fromMiddle = new SeqVertex("A");
+        middleExtraOut.addVertex(fromMiddle);
+        middleExtraOut.addEdge(middle1, fromMiddle);
+        tests.add(new Object[]{middleExtraOut, top, false});
+
+        // top connects to bottom directly as well
+        {
+            final SeqGraph topConnectsToBottomToo = new SeqGraph();
+            final SeqVertex top2 = new SeqVertex("A");
+            final SeqVertex middle4 = new SeqVertex("C");
+            final SeqVertex bottom2 = new SeqVertex("G");
+            topConnectsToBottomToo.addVertices(top2, middle4, bottom2);
+            topConnectsToBottomToo.addEdges(top2, middle4, bottom2);
+            topConnectsToBottomToo.addEdges(top2, bottom2);
+            tests.add(new Object[]{topConnectsToBottomToo, top2, false});
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "IsDiamondData", enabled = true)
+    public void testIsDiamond(final SeqGraph graph, final SeqVertex v, final boolean isRootOfDiamond) {
+        Assert.assertEquals(graph.isRootOfDiamond(v), isRootOfDiamond);
+    }
+
+    @DataProvider(name = "MergingData")
+    public Object[][] makeMergingData() throws Exception {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final SeqGraph graph = new SeqGraph();
+
+        SeqVertex pre1 = new SeqVertex("ACT");
+        SeqVertex pre2 = new SeqVertex("AGT");
+        SeqVertex top = new SeqVertex("A");
+        SeqVertex middle1 = new SeqVertex("GC");
+        SeqVertex middle2 = new SeqVertex("TC");
+        SeqVertex middle3 = new SeqVertex("AC");
+        SeqVertex middle4 = new SeqVertex("GCAC");
+        SeqVertex bottom = new SeqVertex("AA");
+        SeqVertex tail1 = new SeqVertex("GC");
+        SeqVertex tail2 = new SeqVertex("GC");
+
+        // just a single vertex
+        graph.addVertices(pre1);
+        tests.add(new Object[]{graph.clone(), graph.clone()});
+
+        // pre1 -> top = pre1 + top
+        {
+            graph.addVertices(top);
+            graph.addEdges(pre1, top);
+            final SeqVertex pre1_top = new SeqVertex(pre1.getSequenceString() + top.getSequenceString());
+            final SeqGraph expected = new SeqGraph();
+            expected.addVertex(pre1_top);
+            tests.add(new Object[]{graph.clone(), expected.clone()});
+        }
+
+        // pre1 -> top -> middle1 = pre1 + top + middle1
+        {
+            graph.addVertices(middle1);
+            graph.addEdges(top, middle1);
+            final SeqGraph expected = new SeqGraph();
+            final SeqVertex pre1_top_middle1 = new SeqVertex(pre1.getSequenceString() + top.getSequenceString() + middle1.getSequenceString());
+            expected.addVertex(pre1_top_middle1);
+            tests.add(new Object[]{graph.clone(), expected});
+        }
+
+        // pre1 -> top -> middle1 & top -> middle2 = pre1 + top -> middle1 & -> middle2
+        {
+            graph.addVertices(middle2);
+            graph.addEdges(top, middle2);
+            final SeqGraph expected = new SeqGraph();
+            final SeqVertex pre1_top = new SeqVertex(pre1.getSequenceString() + top.getSequenceString());
+            expected.addVertices(pre1_top, middle1, middle2);
+            expected.addEdges(pre1_top, middle1);
+            expected.addEdges(pre1_top, middle2);
+            tests.add(new Object[]{graph.clone(), expected});
+        }
+
+        // An actual diamond event to merge!
+        {
+            graph.addVertices(bottom);
+            graph.addEdges(middle1, bottom);
+            graph.addEdges(middle2, bottom);
+            final SeqGraph expected = new SeqGraph();
+            final SeqVertex pre1_top = new SeqVertex(pre1.getSequenceString() + top.getSequenceString());
+            final SeqVertex newMiddle1 = new SeqVertex("G");
+            final SeqVertex newMiddle2 = new SeqVertex("T");
+            final SeqVertex newBottom = new SeqVertex("C" + bottom.getSequenceString());
+            expected.addVertices(pre1_top, newMiddle1, newMiddle2, newBottom);
+            expected.addEdges(pre1_top, newMiddle1, newBottom);
+            expected.addEdges(pre1_top, newMiddle2, newBottom);
+            tests.add(new Object[]{graph.clone(), expected.clone()});
+
+            graph.addVertices(middle3);
+            graph.addEdges(top, middle3, bottom);
+            final SeqVertex newMiddle3 = new SeqVertex("A");
+            expected.addVertices(newMiddle3);
+            expected.addEdges(pre1_top, newMiddle3, newBottom);
+            tests.add(new Object[]{graph.clone(), expected.clone()});
+
+            graph.addVertices(middle4);
+            graph.addEdges(top, middle4, bottom);
+            final SeqVertex newMiddle4 = new SeqVertex("GCA");
+            expected.addVertices(newMiddle4);
+            expected.addEdges(pre1_top, newMiddle4, newBottom);
+            tests.add(new Object[]{graph.clone(), expected.clone()});
+        }
+
+        {
+            final SeqGraph all = new SeqGraph();
+            all.addVertices(pre1, pre2, top, middle1, middle2, bottom, tail1, tail2);
+            all.addEdges(pre1, top, middle1, bottom, tail1);
+            all.addEdges(pre2, top, middle2, bottom, tail2);
+
+            final SeqGraph expected = new SeqGraph();
+            final SeqVertex newMiddle1 = new SeqVertex("G");
+            final SeqVertex newMiddle2 = new SeqVertex("T");
+            final SeqVertex newBottom = new SeqVertex("C" + bottom.getSequenceString());
+            expected.addVertices(pre1, pre2, top, newMiddle1, newMiddle2, newBottom, tail1, tail2);
+            expected.addEdges(pre1, top, newMiddle1, newBottom, tail1);
+            expected.addEdges(pre2, top, newMiddle2, newBottom, tail2);
+            tests.add(new Object[]{all.clone(), expected.clone()});
+        }
+
+        // test the case where we delete a middle node away because the common sequence is all of its sequence
+        {
+            final SeqGraph graph2 = new SeqGraph();
+            final SeqVertex mytop = new SeqVertex("A");
+            final SeqVertex mid1 = new SeqVertex("AC");
+            final SeqVertex mid2 = new SeqVertex("C");
+            final SeqVertex bot = new SeqVertex("G");
+            graph2.addVertices(mytop, mid1, mid2, bot);
+            graph2.addEdges(mytop, mid1, bot);
+            graph2.addEdges(mytop, mid2, bot);
+
+            final SeqGraph expected = new SeqGraph();
+            final SeqVertex newMid1 = new SeqVertex("A");
+            final SeqVertex newBottom = new SeqVertex("CG");
+            expected.addVertices(mytop, newMid1, newBottom);
+            expected.addEdges(mytop, newMid1, newBottom);
+            expected.addEdges(mytop, newBottom);
+            tests.add(new Object[]{graph2, expected});
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MergingData", enabled = true)
+    public void testMerging(final SeqGraph graph, final SeqGraph expected) {
+        final SeqGraph merged = (SeqGraph)graph.clone();
+        merged.simplifyGraph();
+        Assert.assertTrue(SeqGraph.graphEquals(merged, expected));
     }
 }

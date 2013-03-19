@@ -254,7 +254,7 @@ class Path<T extends BaseVertex> {
         final BubbleStateMachine<T> bsm = new BubbleStateMachine<T>(cigar);
 
         for( final BaseEdge e : getEdges() ) {
-            if( e.equals(graph, edgesInOrder.getFirst()) ) {
+            if ( e.hasSameSourceAndTarget(graph, edgesInOrder.getFirst()) ) {
                 advanceBubbleStateMachine( bsm, graph.getEdgeSource(e), null );
             }
             advanceBubbleStateMachine( bsm, graph.getEdgeTarget(e), e );

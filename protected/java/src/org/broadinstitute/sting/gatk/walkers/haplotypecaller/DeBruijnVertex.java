@@ -47,17 +47,20 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
-import com.google.java.contract.Invariant;
-
-import java.util.Arrays;
 
 /**
  * simple node class for storing kmer sequences
  *
- * User: ebanks
+ * User: ebanks, mdepristo
  * Date: Mar 23, 2011
  */
 public class DeBruijnVertex extends BaseVertex {
+    private final static byte[][] sufficesAsByteArray = new byte[256][];
+    static {
+        for ( int i = 0; i < sufficesAsByteArray.length; i++ )
+            sufficesAsByteArray[i] = new byte[]{(byte)(i & 0xFF)};
+    }
+
     public DeBruijnVertex( final byte[] sequence ) {
         super(sequence);
     }
@@ -85,17 +88,38 @@ public class DeBruijnVertex extends BaseVertex {
      */
     @Ensures({"result != null", "result.length() >= 1"})
     public String getSuffixString() {
-        return new String(getSuffix());
+        return new String(getSuffixAsArray());
     }
 
-    @Ensures("result != null")
-    // TODO this could be replaced with byte as the suffix is guarenteed to be exactly 1 base
-    public byte[] getSuffix() {
-        return Arrays.copyOfRange( sequence, getKmer() - 1, sequence.length );
+    /**
+     * Get the suffix byte of this DeBruijnVertex
+     *
+     * The suffix byte is simply the last byte of the kmer sequence, so if this is holding sequence ACT
+     * getSuffix would return T
+     *
+     * @return a byte
+     */
+    public byte getSuffix() {
+        return sequence[getKmer() - 1];
     }
 
+    /**
+     * Optimized version that returns a byte[] for the single byte suffix of this graph without allocating memory.
+     *
+     * Should not be modified
+     *
+     * @return a byte[] that contains 1 byte == getSuffix()
+     */
+    @Ensures({"result != null", "result.length == 1", "result[0] == getSuffix()"})
+    private byte[] getSuffixAsArray() {
+        return sufficesAsByteArray[getSuffix()];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public byte[] getAdditionalSequence(boolean source) {
-        return source ? super.getAdditionalSequence(source) : getSuffix();
+        return source ? super.getAdditionalSequence(source) : getSuffixAsArray();
     }
 }

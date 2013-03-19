@@ -46,6 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
@@ -77,67 +79,83 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
         super(kmer);
     }
 
-    protected void mergeNodes() {
+    /**
+     * Simplify this graph, merging vertices together and restructuring the graph in an
+     * effort to minimize the number of overall vertices in the graph without changing
+     * in any way the sequences implied by a complex enumeration of all paths through the graph.
+     */
+    public void simplifyGraph() {
+        zipLinearChains();
+        mergeBranchingNodes();
         zipLinearChains();
     }
 
+    /**
+     * Zip up all of the simple linear chains present in this graph.
+     */
     protected void zipLinearChains() {
-        boolean foundNodesToMerge = true;
-        while( foundNodesToMerge ) {
-            foundNodesToMerge = false;
-
-            for( final BaseEdge e : edgeSet() ) {
-                final SeqVertex outgoingVertex = getEdgeTarget(e);
-                final SeqVertex incomingVertex = getEdgeSource(e);
-                if( !outgoingVertex.equals(incomingVertex)
-                        && outDegreeOf(incomingVertex) == 1 && inDegreeOf(outgoingVertex) == 1
-                        && isReferenceNode(incomingVertex) == isReferenceNode(outgoingVertex) ) {
-
-                    final Set<BaseEdge> outEdges = outgoingEdgesOf(outgoingVertex);
-                    final Set<BaseEdge> inEdges = incomingEdgesOf(incomingVertex);
-                    if( inEdges.size() == 1 && outEdges.size() == 1 ) {
-                        inEdges.iterator().next().setMultiplicity( inEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() / 2 ) );
-                        outEdges.iterator().next().setMultiplicity( outEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() / 2 ) );
-                    } else if( inEdges.size() == 1 ) {
-                        inEdges.iterator().next().setMultiplicity( inEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() - 1 ) );
-                    } else if( outEdges.size() == 1 ) {
-                        outEdges.iterator().next().setMultiplicity( outEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() - 1 ) );
-                    }
-
-                    final SeqVertex addedVertex = new SeqVertex( ArrayUtils.addAll(incomingVertex.getSequence(), outgoingVertex.getSequence()) );
-                    addVertex(addedVertex);
-                    for( final BaseEdge edge : outEdges ) {
-                        addEdge(addedVertex, getEdgeTarget(edge), new BaseEdge(edge.isRef(), edge.getMultiplicity()));
-                    }
-                    for( final BaseEdge edge : inEdges ) {
-                        addEdge(getEdgeSource(edge), addedVertex, new BaseEdge(edge.isRef(), edge.getMultiplicity()));
-                    }
-
-                    removeVertex(incomingVertex);
-                    removeVertex(outgoingVertex);
-                    foundNodesToMerge = true;
-                    break;
-                }
-            }
+        while( zipOneLinearChain() ) {
+            // just keep going until zipOneLinearChain says its done
         }
     }
 
-    //
-    // X -> ABC -> Y
-    //   -> aBC -> Y
-    //
-    // becomes
-    //
-    // X -> A -> BCY
-    //   -> a -> BCY
-    //
-    public void mergeBranchingNodes() {
+    /**
+     * Merge together two vertices in the graph v1 -> v2 into a single vertex v' containing v1 + v2 sequence
+     *
+     * Only works on vertices where v1's only outgoing edge is to v2 and v2's only incoming edge is from v1.
+     *
+     * If such a pair of vertices is found, they are merged and the graph is update.  Otherwise nothing is changed.
+     *
+     * @return true if any such pair of vertices could be found, false otherwise
+     */
+    protected boolean zipOneLinearChain() {
+        for( final BaseEdge e : edgeSet() ) {
+            final SeqVertex outgoingVertex = getEdgeTarget(e);
+            final SeqVertex incomingVertex = getEdgeSource(e);
+            if( !outgoingVertex.equals(incomingVertex)
+                    && outDegreeOf(incomingVertex) == 1 && inDegreeOf(outgoingVertex) == 1
+                    && isReferenceNode(incomingVertex) == isReferenceNode(outgoingVertex) ) {
+
+                final Set<BaseEdge> outEdges = outgoingEdgesOf(outgoingVertex);
+                final Set<BaseEdge> inEdges = incomingEdgesOf(incomingVertex);
+                if( inEdges.size() == 1 && outEdges.size() == 1 ) {
+                    inEdges.iterator().next().setMultiplicity( inEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() / 2 ) );
+                    outEdges.iterator().next().setMultiplicity( outEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() / 2 ) );
+                } else if( inEdges.size() == 1 ) {
+                    inEdges.iterator().next().setMultiplicity( inEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() - 1 ) );
+                } else if( outEdges.size() == 1 ) {
+                    outEdges.iterator().next().setMultiplicity( outEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() - 1 ) );
+                }
+
+                final SeqVertex addedVertex = new SeqVertex( ArrayUtils.addAll(incomingVertex.getSequence(), outgoingVertex.getSequence()) );
+                addVertex(addedVertex);
+                for( final BaseEdge edge : outEdges ) {
+                    addEdge(addedVertex, getEdgeTarget(edge), new BaseEdge(edge.isRef(), edge.getMultiplicity()));
+                }
+                for( final BaseEdge edge : inEdges ) {
+                    addEdge(getEdgeSource(edge), addedVertex, new BaseEdge(edge.isRef(), edge.getMultiplicity()));
+                }
+
+                removeVertex(incomingVertex);
+                removeVertex(outgoingVertex);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Perform as many branch simplifications and merging operations as possible on this graph,
+     * modifying it in place.
+     */
+    private void mergeBranchingNodes() {
         boolean foundNodesToMerge = true;
         while( foundNodesToMerge ) {
             foundNodesToMerge = false;
 
             for( final SeqVertex v : vertexSet() ) {
-                foundNodesToMerge = simplifyDiamond(v);
+                foundNodesToMerge = simplifyDiamondIfPossible(v);
                 if ( foundNodesToMerge )
                     break;
             }
@@ -153,8 +171,11 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
      *    \ |  /      /
      *      b
      *
-     * @param v
-     * @return
+     * Only returns true if all outgoing edges of v go to vertices that all only connect to
+     * a single bottom node, and that all middle nodes have only the single edge
+     *
+     * @param v the vertex to test if its the top of a diamond pattern
+     * @return true if v is the root of a diamond
      */
     protected boolean isRootOfDiamond(final SeqVertex v) {
         final Set<BaseEdge> ve = outgoingEdgesOf(v);
@@ -173,6 +194,7 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
             if ( inDegreeOf(mi) != 1 )
                 return false;
 
+            // make sure that all outgoing vertices of mi go only to the bottom node
             for ( final SeqVertex mt : outgoingVerticesOf(mi) ) {
                 if ( bottom == null )
                     bottom = mt;
@@ -181,9 +203,24 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
             }
         }
 
+        // bottom has some connections coming in from other nodes, don't allow
+        if ( inDegreeOf(bottom) != ve.size() )
+            return false;
+
         return true;
     }
 
+    /**
+     * Return the longest suffix of bases shared among all provided vertices
+     *
+     * For example, if the vertices have sequences AC, CC, and ATC, this would return
+     * a single C.  However, for ACC and TCC this would return CC.  And for AC and TG this
+     * would return null;
+     *
+     * @param middleVertices a non-empty set of vertices
+     * @return
+     */
+    @Requires("!middleVertices.isEmpty()")
     private byte[] commonSuffixOfEdgeTargets(final Set<SeqVertex> middleVertices) {
         final String[] kmers = new String[middleVertices.size()];
 
@@ -196,6 +233,14 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
         return commonPrefix.equals("") ? null : StringUtils.reverse(commonPrefix).getBytes();
     }
 
+    /**
+     * Get the node that is the bottom of a diamond configuration in the graph starting at top
+     *
+     * @param top
+     * @return
+     */
+    @Requires("top != null")
+    @Ensures({"result != null"})
     private SeqVertex getDiamondBottom(final SeqVertex top) {
         final BaseEdge topEdge = outgoingEdgesOf(top).iterator().next();
         final SeqVertex middle = getEdgeTarget(topEdge);
@@ -203,6 +248,13 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
         return getEdgeTarget(middleEdge);
     }
 
+    /**
+     * Get the set of vertices that are in the middle of a diamond starting at top
+     * @param top
+     * @return
+     */
+    @Requires("top != null")
+    @Ensures({"result != null", "!result.isEmpty()"})
     final Set<SeqVertex> getMiddleVertices(final SeqVertex top) {
         final Set<SeqVertex> middles = new HashSet<SeqVertex>();
         for ( final BaseEdge topToMiddle : outgoingEdgesOf(top) ) {
@@ -211,7 +263,26 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
         return middles;
     }
 
-    private boolean simplifyDiamond(final SeqVertex top) {
+    /**
+     * Simply a diamond configuration in the current graph starting at top, if possible
+     *
+     * If top is actually the top of a diamond that can be simplified (i.e., doesn't have any
+     * random edges or other structure that would cause problems with the transformation), then this code
+     * performs the following transformation on this graph (modifying it):
+     *
+     * A -> M1 -> B, A -> M2 -> B, A -> Mn -> B
+     *
+     * becomes
+     *
+     * A -> M1' -> B', A -> M2' -> B', A -> Mn' -> B'
+     *
+     * where B' is composed of the longest common suffix of all Mi nodes + B, and Mi' are each
+     * middle vertex without their shared suffix.
+     *
+     * @param top a proposed vertex in this graph that might start a diamond (but doesn't have to)
+     * @return true top actually starts a diamond and it could be simplified
+     */
+    private boolean simplifyDiamondIfPossible(final SeqVertex top) {
         if ( ! isRootOfDiamond(top) )
             return false;
 

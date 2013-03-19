@@ -116,14 +116,21 @@ public class BaseEdge {
         this.isRef = isRef;
     }
 
-    // For use when comparing edges pulled from the same graph
-    public <T extends BaseVertex> boolean equals( final BaseGraph<T> graph, final BaseEdge edge ) {
+    /**
+     * Does this and edge have the same source and target vertices in graph?
+     *
+     * @param graph the graph containing both this and edge
+     * @param edge our comparator edge
+     * @param <T>
+     * @return true if we have the same source and target vertices
+     */
+    public <T extends BaseVertex> boolean hasSameSourceAndTarget(final BaseGraph<T> graph, final BaseEdge edge) {
         return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
     }
 
     // For use when comparing edges across graphs!
-    public <T extends BaseVertex> boolean equals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
-        return (graph.getEdgeSource(this).equals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph2.getEdgeTarget(edge)));
+    public <T extends BaseVertex> boolean seqEquals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
+        return (graph.getEdgeSource(this).seqEquals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).seqEquals(graph2.getEdgeTarget(edge)));
     }
 
     /**
