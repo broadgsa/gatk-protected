@@ -325,7 +325,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         }
 
         for( final SeqGraph graph : graphs ) {
-            for ( final KBestPaths.Path path : new KBestPaths<SeqVertex>().getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
+            for ( final Path<SeqVertex> path : new KBestPaths<SeqVertex>().getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
                 Haplotype h = new Haplotype( path.getBases() );
                 if( !returnHaplotypes.contains(h) ) {
                     final Cigar cigar = path.calculateCigar();

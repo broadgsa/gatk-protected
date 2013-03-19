@@ -55,9 +55,9 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -67,6 +67,72 @@ import java.util.List;
  */
 
 public class KBestPathsUnitTest {
+    @DataProvider(name = "BasicPathFindingData")
+    public Object[][] makeBasicPathFindingData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+//        for ( final int nStartNodes : Arrays.asList(1) ) {
+//            for ( final int nBranchesPerBubble : Arrays.asList(2) ) {
+//                for ( final int nEndNodes : Arrays.asList(1) ) {
+//                    for ( final boolean addCycle : Arrays.asList(true) ) {
+                        for ( final int nStartNodes : Arrays.asList(1, 2, 3) ) {
+                            for ( final int nBranchesPerBubble : Arrays.asList(2, 3) ) {
+                                for ( final int nEndNodes : Arrays.asList(1, 2, 3) ) {
+                                    for ( final boolean addCycle : Arrays.asList(true, false) ) {
+                        tests.add(new Object[]{nStartNodes, nBranchesPerBubble, nEndNodes, addCycle});
+                    }
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    private static int weight = 1;
+    final List<SeqVertex> createVertices(final SeqGraph graph, final int n, final SeqVertex source, final SeqVertex target) {
+        final List<String> seqs = Arrays.asList("A", "C", "G", "T");
+        final List<SeqVertex> vertices = new LinkedList<SeqVertex>();
+        for ( int i = 0; i < n; i++ ) {
+            final SeqVertex v = new SeqVertex(seqs.get(i));
+            graph.addVertex(v);
+            vertices.add(v);
+            if ( source != null ) graph.addEdge(source, v, new BaseEdge(false, weight++));
+            if ( target != null ) graph.addEdge(v, target, new BaseEdge(false, weight++));
+        }
+        return vertices;
+    }
+
+    @Test(dataProvider = "BasicPathFindingData", enabled = true)
+    public void testBasicPathFinding(final int nStartNodes, final int nBranchesPerBubble, final int nEndNodes, final boolean addCycle) {
+        SeqGraph graph = new SeqGraph();
+
+        final SeqVertex middleTop = new SeqVertex("GTAC");
+        final SeqVertex middleBottom = new SeqVertex("ACTG");
+        graph.addVertices(middleTop, middleBottom);
+        final List<SeqVertex> starts = createVertices(graph, nStartNodes, null, middleTop);
+        final List<SeqVertex> bubbles = createVertices(graph, nBranchesPerBubble, middleTop, middleBottom);
+        final List<SeqVertex> ends = createVertices(graph, nEndNodes, middleBottom, null);
+
+        if ( addCycle ) graph.addEdge(middleBottom, middleBottom);
+
+        // enumerate all possible paths
+        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>().getKBestPaths(graph);
+
+        final int expectedNumOfPaths = nStartNodes * nBranchesPerBubble * (addCycle ? 2 : 1) * nEndNodes;
+        Assert.assertEquals(paths.size(), expectedNumOfPaths, "Didn't find the expected number of paths");
+
+        int lastScore = Integer.MAX_VALUE;
+        for ( final Path path : paths ) {
+            Assert.assertTrue(path.getScore() <= lastScore, "Paths out of order.   Path " + path + " has score above previous " + lastScore);
+            lastScore = path.getScore();
+        }
+
+        // get the best path, and make sure it's the same as our optimal path overall
+        final Path best = paths.get(0);
+        final List<Path<SeqVertex>> justOne = new KBestPaths<SeqVertex>().getKBestPaths(graph, 1);
+        Assert.assertEquals(justOne.size(), 1);
+        Assert.assertTrue(justOne.get(0).pathsAreTheSame(best), "Best path from complete enumerate " + best + " not the same as from k = 1 search " + justOne.get(0));
+    }
+
     @DataProvider(name = "BasicBubbleDataProvider")
     public Object[][] makeBasicBubbleDataProvider() {
         List<Object[]> tests = new ArrayList<Object[]>();
@@ -99,12 +165,10 @@ public class KBestPathsUnitTest {
         graph.addEdge(v, v2Alt, new BaseEdge(false, 5));
         graph.addEdge(v2Alt, v3, new BaseEdge(false, 5));
 
-        graph.printGraph(new File("test.dot"), 10);
-
         // Construct the test path
-        KBestPaths.Path<SeqVertex> path = new KBestPaths.Path<SeqVertex>(v, graph);
-        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v, v2Alt));
-        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v2Alt, v3));
+        Path<SeqVertex> path = new Path<SeqVertex>(v, graph);
+        path = new Path<SeqVertex>(path, graph.getEdge(v, v2Alt));
+        path = new Path<SeqVertex>(path, graph.getEdge(v2Alt, v3));
 
         // Construct the actual cigar string implied by the test path
         Cigar expectedCigar = new Cigar();
@@ -123,52 +187,40 @@ public class KBestPathsUnitTest {
         Assert.assertEquals(path.calculateCigar().toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar string mismatch");
     }
 
-    // TODO -- test block substitution because it doesn't look like it's correct now
-//    @Test(dataProvider = "BasicBubbleDataProvider")
-//    public void testBasicBubbleData(final int refBubbleLength, final int altBubbleLength) {
-//        // Construct the assembly graph
-//        final int KMER_LENGTH = 3;
-//        SeqGraph graph = new SeqGraph(KMER_LENGTH);
-//        final String preRef = "ATGG";
-//        final String postRef = "GGGGC";
-//
-//        SeqVertex v = new SeqVertex(preRef);
-//        SeqVertex v2Ref = new SeqVertex(Utils.dupString('A', refBubbleLength));
-//        SeqVertex v2Alt = new SeqVertex(Utils.dupString('T', altBubbleLength));
-//        SeqVertex v3 = new SeqVertex(postRef);
-//
-//        graph.addVertex(v);
-//        graph.addVertex(v2Ref);
-//        graph.addVertex(v2Alt);
-//        graph.addVertex(v3);
-//        graph.addEdge(v, v2Ref, new BaseEdge(true, 10));
-//        graph.addEdge(v2Ref, v3, new BaseEdge(true, 10));
-//        graph.addEdge(v, v2Alt, new BaseEdge(false, 5));
-//        graph.addEdge(v2Alt, v3, new BaseEdge(false, 5));
-//
-//        graph.printGraph(new File("test.dot"), 10);
-//
-//        // Construct the test path
-//        KBestPaths.Path<SeqVertex> path = new KBestPaths.Path<SeqVertex>(v, graph);
-//        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v, v2Alt));
-//        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v2Alt, v3));
-//
-//        // Construct the actual cigar string implied by the test path
-//        Cigar expectedCigar = new Cigar();
-//        expectedCigar.add(new CigarElement(preRef.length(), CigarOperator.M));
-//        if( refBubbleLength > altBubbleLength ) {
-//            expectedCigar.add(new CigarElement(altBubbleLength, CigarOperator.M));
-//            expectedCigar.add(new CigarElement(refBubbleLength - altBubbleLength, CigarOperator.D));
-//        } else if ( refBubbleLength < altBubbleLength ) {
-//            expectedCigar.add(new CigarElement(altBubbleLength - refBubbleLength,CigarOperator.I));
-//            expectedCigar.add(new CigarElement(refBubbleLength, CigarOperator.M));
-//        } else {
-//            expectedCigar.add(new CigarElement(refBubbleLength, CigarOperator.M));
-//        }
-//        expectedCigar.add(new CigarElement(postRef.length() - (KMER_LENGTH - 1), CigarOperator.M));
-//
-//        Assert.assertEquals(path.calculateCigar().toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar string mismatch");
-//    }
+    @DataProvider(name = "GetBasesData")
+    public Object[][] makeGetBasesData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final List<String> frags = Arrays.asList("ACT", "GAC", "CAT");
+
+        for ( int n = 1; n <= frags.size(); n++ ) {
+            for ( final List<String> comb : Utils.makePermutations(frags, n, false) ) {
+                tests.add(new Object[]{comb});
+            }
+        }
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "GetBasesData", enabled = true)
+    public void testGetBases(final List<String> frags) {
+        // Construct the assembly graph
+        SeqGraph graph = new SeqGraph(3);
+
+        SeqVertex prev = null;
+        for ( int i = 0; i < frags.size(); i++ ) {
+            SeqVertex v = new SeqVertex(frags.get(i));
+            graph.addVertex(v);
+            if ( prev != null )
+                graph.addEdge(prev, v);
+            prev = v;
+        }
+
+        // enumerate all possible paths
+        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>().getKBestPaths(graph);
+        Assert.assertEquals(paths.size(), 1);
+        final Path<SeqVertex> path = paths.get(0);
+        Assert.assertEquals(new String(path.getBases()), Utils.join("", frags), "Path doesn't have the expected sequence");
+    }
 
     @DataProvider(name = "TripleBubbleDataProvider")
     public Object[][] makeTripleBubbleDataProvider() {
@@ -236,21 +288,19 @@ public class KBestPathsUnitTest {
         graph.addEdge(v6Alt, v7, new BaseEdge(false, 55));
         graph.addEdge(v7, postV, new BaseEdge(false, 1));
 
-        graph.printGraph(new File("test.debruijn.dot"), 10);
-
         // Construct the test path
-        KBestPaths.Path<SeqVertex> path = new KBestPaths.Path<SeqVertex>( (offRefBeginning ? preV : v), graph);
+        Path<SeqVertex> path = new Path<SeqVertex>( (offRefBeginning ? preV : v), graph);
         if( offRefBeginning ) {
-            path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(preV, v));
+            path = new Path<SeqVertex>(path, graph.getEdge(preV, v));
         }
-        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v, v2Alt));
-        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v2Alt, v3));
-        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v3, v4Ref));
-        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v4Ref, v5));
-        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v5, v6Alt));
-        path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v6Alt, v7));
+        path = new Path<SeqVertex>(path, graph.getEdge(v, v2Alt));
+        path = new Path<SeqVertex>(path, graph.getEdge(v2Alt, v3));
+        path = new Path<SeqVertex>(path, graph.getEdge(v3, v4Ref));
+        path = new Path<SeqVertex>(path, graph.getEdge(v4Ref, v5));
+        path = new Path<SeqVertex>(path, graph.getEdge(v5, v6Alt));
+        path = new Path<SeqVertex>(path, graph.getEdge(v6Alt, v7));
         if( offRefEnding ) {
-            path = new KBestPaths.Path<SeqVertex>(path, graph.getEdge(v7,postV));
+            path = new Path<SeqVertex>(path, graph.getEdge(v7,postV));
         }
 
         // Construct the actual cigar string implied by the test path
