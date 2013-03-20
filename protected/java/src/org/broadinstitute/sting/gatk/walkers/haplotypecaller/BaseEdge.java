@@ -143,4 +143,18 @@ public class BaseEdge {
             return edge2.multiplicity - edge1.multiplicity;
         }
     }
+
+    /**
+     * Add edge to this edge, updating isRef and multiplicity as appropriate
+     *
+     * isRef is simply the or of this and edge
+     * multiplicity is the sum
+     *
+     * @param edge the edge to add
+     */
+    public void add(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        this.multiplicity += edge.getMultiplicity();
+        this.isRef = this.isRef || edge.isRef();
+    }
 }

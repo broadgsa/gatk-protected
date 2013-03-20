@@ -51,6 +51,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -310,5 +311,34 @@ public class SeqGraphUnitTest extends BaseTest {
         final SeqGraph merged = (SeqGraph)graph.clone();
         merged.simplifyGraph();
         Assert.assertTrue(SeqGraph.graphEquals(merged, expected));
+    }
+
+    // A -> ACT -> C [non-ref]
+    // A -> ACT -> C [non-ref]
+    // A -> ACT -> C [ref]
+    //
+    // Should become A -> ACT -> C [ref and non-ref edges]
+    //
+    @Test
+    public void testBubbleSameBasesWithRef() {
+        final SeqGraph graph = new SeqGraph();
+        final SeqVertex top = new SeqVertex("A");
+        final SeqVertex mid1 = new SeqVertex("ACT");
+        final SeqVertex mid2 = new SeqVertex("ACT");
+        final SeqVertex bot = new SeqVertex("C");
+        graph.addVertices(top, mid1, mid2, bot);
+        graph.addEdges(top, mid2, bot);
+        graph.addEdge(top, mid1, new BaseEdge(true, 1));
+        graph.addEdge(mid1, bot, new BaseEdge(true, 1));
+
+        final SeqGraph expected = new SeqGraph();
+        expected.addVertices(top, mid1, bot);
+        expected.addEdge(top, mid1, new BaseEdge(true, 2));
+        expected.addEdge(mid1, bot, new BaseEdge(true, 2));
+
+        final SeqGraph actual = ((SeqGraph)graph.clone());
+        actual.mergeBranchingNodes();
+
+        Assert.assertTrue(BaseGraph.graphEquals(actual, expected));
     }
 }

@@ -51,6 +51,7 @@ import com.google.java.contract.Requires;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
+import java.io.File;
 import java.util.*;
 
 /**
@@ -149,7 +150,7 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
      * Perform as many branch simplifications and merging operations as possible on this graph,
      * modifying it in place.
      */
-    private void mergeBranchingNodes() {
+    protected void mergeBranchingNodes() {
         boolean foundNodesToMerge = true;
         while( foundNodesToMerge ) {
             foundNodesToMerge = false;
@@ -288,61 +289,48 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
 
         final SeqVertex diamondBottom = getDiamondBottom(top);
         final Set<SeqVertex> middleVertices = getMiddleVertices(top);
-
         final List<SeqVertex> verticesToRemove = new LinkedList<SeqVertex>();
         final List<BaseEdge> edgesToRemove = new LinkedList<BaseEdge>();
 
         // all of the edges point to the same sink, so it's time to merge
         final byte[] commonSuffix = commonSuffixOfEdgeTargets(middleVertices);
         if ( commonSuffix != null ) {
-            boolean newBottomEdgeIsRef = false;
-            int newBottomEdgeMultiplicity = 0;
-
+            final BaseEdge botToNewBottom = new BaseEdge(false, 0);
+            final BaseEdge elimMiddleNodeEdge = new BaseEdge(false, 0);
             final SeqVertex newBottomV = new SeqVertex(commonSuffix);
             addVertex(newBottomV);
 
             for ( final SeqVertex middle : middleVertices ) {
-                boolean missingNodeEdgeIsRef = false;
-                int missingNodeMultiplicity = 0;
                 final SeqVertex withoutSuffix = middle.withoutSuffix(commonSuffix);
+                final BaseEdge topToMiddleEdge = getEdge(top, middle);
+                final BaseEdge middleToBottomE = getEdge(middle, diamondBottom);
 
-                if ( withoutSuffix != null ) // this node is a deletion
+                // clip out the two edges, since we'll be replacing them later
+                edgesToRemove.add(topToMiddleEdge);
+                edgesToRemove.add(middleToBottomE);
+
+                if ( withoutSuffix != null ) { // this node is a deletion
                     addVertex(withoutSuffix);
-
-                // update all edges from top -> middle to be top -> without suffix
-                for( final BaseEdge topToMiddleEdge : getAllEdges(top, middle) ) {
-                    edgesToRemove.add(topToMiddleEdge);
-                    missingNodeMultiplicity += topToMiddleEdge.getMultiplicity();
-                    missingNodeEdgeIsRef = missingNodeEdgeIsRef || topToMiddleEdge.isRef();
-                    if ( withoutSuffix != null ) // this node is a deletion
-                        addEdge(top, withoutSuffix, new BaseEdge(topToMiddleEdge.isRef(), topToMiddleEdge.getMultiplicity()));
+                    // update edge from top -> middle to be top -> without suffix
+                    addEdge(top, withoutSuffix, new BaseEdge(topToMiddleEdge));
+                    addEdge(withoutSuffix, newBottomV, new BaseEdge(middleToBottomE));
+                } else {
+                    // this middle node is == the common suffix, wo we're removing the edge
+                    elimMiddleNodeEdge.add(topToMiddleEdge);
                 }
-
-                // reattached prefix to the new bottom V by updating all edges from middleV -> bottom
-                for ( final BaseEdge middleToBottomE : getAllEdges(middle, diamondBottom) ) {
-                    missingNodeMultiplicity += middleToBottomE.getMultiplicity();
-                    missingNodeEdgeIsRef = missingNodeEdgeIsRef || middleToBottomE.isRef();
-
-                    if ( withoutSuffix != null ) // this node is a deletion
-                        addEdge(withoutSuffix, newBottomV, new BaseEdge(middleToBottomE.isRef(), middleToBottomE.getMultiplicity()));
-                    edgesToRemove.add(middleToBottomE);
-
-                    // update the info for the new bottom edge
-                    newBottomEdgeIsRef = newBottomEdgeIsRef || middleToBottomE.isRef();
-                    newBottomEdgeMultiplicity += middleToBottomE.getMultiplicity();
-                }
-
-                if ( withoutSuffix == null ) // add an edge from top to new bottom
-                    addEdge(top, newBottomV, new BaseEdge(missingNodeEdgeIsRef, missingNodeMultiplicity));
-
+                // include the ref and multi of mid -> bot in our edge from new bot -> bot
+                botToNewBottom.add(middleToBottomE);
                 verticesToRemove.add(middle);
             }
 
-            addEdge(newBottomV, diamondBottom, new BaseEdge(newBottomEdgeIsRef, newBottomEdgeMultiplicity));
+            // add an edge from top to new bottom, because some middle nodes were removed
+            if ( elimMiddleNodeEdge.getMultiplicity() > 0 )
+                addEdge(top, newBottomV, elimMiddleNodeEdge);
+
+            addEdge(newBottomV, diamondBottom, botToNewBottom);
 
             removeAllEdges(edgesToRemove);
             removeAllVertices(verticesToRemove);
-
             return true;
         } else {
             return false;

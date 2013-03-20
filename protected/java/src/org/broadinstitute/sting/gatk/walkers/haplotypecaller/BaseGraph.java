@@ -47,11 +47,11 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
+import com.google.java.contract.Invariant;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.jgrapht.EdgeFactory;
 import org.jgrapht.graph.DefaultDirectedGraph;
-import org.jgrapht.traverse.DepthFirstIterator;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -64,7 +64,7 @@ import java.util.*;
  * User: rpoplin
  * Date: 2/6/13
  */
-
+@Invariant("!this.isAllowingMultipleEdges()")
 public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, BaseEdge> {
     protected final static Logger logger = Logger.getLogger(BaseGraph.class);
     private final int kmerSize;
@@ -512,5 +512,20 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
             if( !found ) { return false; }
         }
         return true;
+    }
+
+    /**
+     * Get the edge between source and target, or null if none is present
+     *
+     * Note that since we don't allow multiple edges between vertices there can be at most
+     * one edge between any two edges
+     *
+     * @param source the source vertex for our edge
+     * @param target the target vertex for our edge
+     * @return the edge joining source to target, or null if none is present
+     */
+    public BaseEdge getEdge(final T source, final T target) {
+        final Set<BaseEdge> edges = getAllEdges(source, target);
+        return edges.isEmpty() ? null : edges.iterator().next();
     }
 }
