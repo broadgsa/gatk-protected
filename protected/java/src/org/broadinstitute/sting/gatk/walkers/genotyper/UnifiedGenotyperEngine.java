@@ -385,9 +385,21 @@ public class UnifiedGenotyperEngine {
 
         boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
 
+        // TODO TODO TODO TODO
+        // REFACTOR THIS FUNCTION, TOO UNWIELDY!!
+
         // initialize the data for this thread if that hasn't been done yet
         if ( afcm.get() == null ) {
             afcm.set(AFCalcFactory.createAFCalc(UAC, N, logger));
+        }
+
+        // if input VC can't be genotyped, exit with either null VCC or, in case where we need to emit all sites, an empty call
+        if (!canVCbeGenotyped(vc))   {
+            if (UAC.OutputMode == OUTPUT_MODE.EMIT_ALL_SITES && !limitedContext)
+                return generateEmptyContext(tracker, refContext, stratifiedContexts, rawContext);
+            else
+                return null;
+
         }
 
         // estimate our confidence in a reference call and return
@@ -542,6 +554,23 @@ public class UnifiedGenotyperEngine {
         }
 
         return new VariantCallContext(vcCall, confidentlyCalled(phredScaledConfidence, PoFGT0));
+    }
+
+    /**
+     * Determine whether input VC to calculateGenotypes() can be genotyped and AF can be computed.
+     * @param vc                                    Input VC
+     * @return                                      Status check
+     */
+    @Requires("vc != null")
+    protected boolean canVCbeGenotyped(final VariantContext vc) {
+        // protect against too many alternate alleles that we can't even run AF on:
+        if (vc.getNAlleles()> GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED) {
+            logger.warn("Attempting to genotype more than "+GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED +
+                    " alleles. Site will be skipped at location "+vc.getChr()+":"+vc.getStart());
+            return false;
+        }
+        else return true;
+
     }
 
     private Map<String, AlignmentContext> getFilteredAndStratifiedContexts(UnifiedArgumentCollection UAC, ReferenceContext refContext, AlignmentContext rawContext, final GenotypeLikelihoodsCalculationModel.Model model) {
