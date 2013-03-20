@@ -61,14 +61,16 @@ public class BaseVertex {
 
     /**
      * Create a new sequence vertex with sequence
+     *
+     * This code doesn't copy sequence for efficiency reasons, so sequence should absolutely not be modified
+     * in any way after passing this sequence to the BaseVertex
+     *
      * @param sequence a non-null, non-empty sequence of bases contained in this vertex
      */
     public BaseVertex(final byte[] sequence) {
         if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
         if ( sequence.length == 0 ) throw new IllegalArgumentException("Sequence cannot be empty");
-
-        // TODO -- should we really be cloning here?
-        this.sequence = sequence.clone();
+        this.sequence = sequence;
     }
 
     /**
@@ -81,7 +83,7 @@ public class BaseVertex {
 
     /**
      * For testing purposes only -- low performance
-     * @param sequence
+     * @param sequence the sequence as a string
      */
     protected BaseVertex(final String sequence) {
         this(sequence.getBytes());
@@ -109,8 +111,13 @@ public class BaseVertex {
         return Arrays.equals(this.getSequence(), b.getSequence());
     }
 
+    /**
+     * necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
+     * @return
+     */
     @Override
-    public int hashCode() { // necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
+    public int hashCode() {
+        // TODO -- optimization, could compute upfront once and cached in debruijn graph
         return Arrays.hashCode(sequence);
     }
 
@@ -128,8 +135,7 @@ public class BaseVertex {
      */
     @Ensures("result != null")
     public byte[] getSequence() {
-        // TODO -- why is this cloning?  It's likely extremely expensive
-        return sequence.clone();
+        return sequence;
     }
 
     /**
