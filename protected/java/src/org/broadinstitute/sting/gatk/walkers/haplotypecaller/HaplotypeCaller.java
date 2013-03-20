@@ -206,10 +206,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="minKmer", shortName="minKmer", doc="Minimum kmer length to use in the assembly graph", required = false)
     protected int minKmer = 11;
 
-    @Advanced
-    @Argument(fullName="maxHaplotypesToConsider", shortName="maxHaplotypesToConsider", doc="Maximum number of haplotypes to consider in the likelihood calculation.  Setting this number too high can have dramatic performance implications", required = false)
-    protected int maxHaplotypesToConsider = 100000;
-
     /**
      * If this flag is provided, the haplotype caller will include unmapped reads in the assembly and calling
      * when these reads occur in the region being analyzed.  Typically, for paired end analyses, one pair of the
@@ -393,7 +389,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         final byte minBaseQualityToUseInAssembly = useLowQualityBasesForAssembly ? (byte)1 : DeBruijnAssembler.DEFAULT_MIN_BASE_QUALITY_TO_USE;
-        assemblyEngine = new DeBruijnAssembler( DEBUG, debugGraphTransformations, graphWriter, minKmer, maxHaplotypesToConsider, minBaseQualityToUseInAssembly );
+        assemblyEngine = new DeBruijnAssembler( DEBUG, debugGraphTransformations, graphWriter, minKmer, minBaseQualityToUseInAssembly );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
 

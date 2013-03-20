@@ -92,7 +92,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private final boolean debugGraphTransformations;
     private final PrintStream graphWriter;
     private final int minKmer;
-    private final int maxHaplotypesToConsider;
     private final byte minBaseQualityToUseInAssembly;
 
     private final int onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms;
@@ -100,14 +99,13 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private int PRUNE_FACTOR = 2;
 
     protected DeBruijnAssembler() {
-        this(false, -1, null, 11, 1000, DEFAULT_MIN_BASE_QUALITY_TO_USE);
+        this(false, -1, null, 11, DEFAULT_MIN_BASE_QUALITY_TO_USE);
     }
 
     public DeBruijnAssembler(final boolean debug,
                              final int debugGraphTransformations,
                              final PrintStream graphWriter,
                              final int minKmer,
-                             final int maxHaplotypesToConsider,
                              final byte minBaseQualityToUseInAssembly) {
         super();
         this.debug = debug;
@@ -115,7 +113,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         this.onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms = debugGraphTransformations;
         this.graphWriter = graphWriter;
         this.minKmer = minKmer;
-        this.maxHaplotypesToConsider = maxHaplotypesToConsider;
         this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
     }
 
@@ -371,39 +368,22 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             }
         }
 
-        final List<Haplotype> finalHaplotypes = selectHighestScoringHaplotypes(returnHaplotypes);
-        if ( finalHaplotypes.size() < returnHaplotypes.size() )
-            logger.info("Found " + finalHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);
+        if ( returnHaplotypes.size() < returnHaplotypes.size() )
+            logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);
 
         if( debug ) {
-            if( finalHaplotypes.size() > 1 ) {
-                System.out.println("Found " + finalHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
+            if( returnHaplotypes.size() > 1 ) {
+                System.out.println("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
             } else {
                 System.out.println("Found only the reference haplotype in the assembly graph.");
             }
-            for( final Haplotype h : finalHaplotypes ) {
+            for( final Haplotype h : returnHaplotypes ) {
                 System.out.println( h.toString() );
                 System.out.println( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() + " score " + h.getScore() );
             }
         }
 
-        return finalHaplotypes;
-    }
-
-    /**
-     * Select the best scoring haplotypes among all present, returning no more than maxHaplotypesToConsider
-     *
-     * @param haplotypes a list of haplotypes to consider
-     * @return a sublist of the best haplotypes, with size() <= maxHaplotypesToConsider
-     */
-    private List<Haplotype> selectHighestScoringHaplotypes(final List<Haplotype> haplotypes) {
-        if ( haplotypes.size() <= maxHaplotypesToConsider )
-            return haplotypes;
-        else {
-            final List<Haplotype> sorted = new ArrayList<Haplotype>(haplotypes);
-            Collections.sort(sorted, new Haplotype.ScoreComparator());
-            return sorted.subList(0, maxHaplotypesToConsider);
-        }
+        return returnHaplotypes;
     }
 
     /**

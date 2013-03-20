@@ -61,13 +61,12 @@ import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.*;
 
 public class DeBruijnAssemblerUnitTest extends BaseTest {
-    private final static boolean DEBUG = true;
+    private final static boolean DEBUG = false;
 
     @Test(enabled = !DEBUG)
     public void testReferenceCycleGraph() {
