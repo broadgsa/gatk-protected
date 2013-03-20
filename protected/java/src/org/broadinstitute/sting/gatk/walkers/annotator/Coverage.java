@@ -70,10 +70,11 @@ import java.util.Map;
 /**
  * Total (unfiltered) depth over all samples.
  *
- * While the sample-level (FORMAT) DP field describes the total depth of reads that passed the Unified Genotyper's
+ * <p>While the sample-level (FORMAT) DP field describes the total depth of reads that passed the caller's
  * internal quality control metrics (like MAPQ > 17, for example), the INFO field DP represents the unfiltered depth
  * over all samples.  Note though that the DP is affected by downsampling (-dcov), so the max value one can obtain for
  * N samples with -dcov D is N * D
+ * </p>
  */
 public class Coverage extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 
