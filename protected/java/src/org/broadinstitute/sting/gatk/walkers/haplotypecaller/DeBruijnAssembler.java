@@ -78,7 +78,11 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private final static Logger logger = Logger.getLogger(DeBruijnAssembler.class);
 
     private static final int KMER_OVERLAP = 5; // the additional size of a valid chunk of sequence, used to string together k-mers
-    private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 11;
+
+    // TODO -- this number is very low, and limits our ability to explore low-frequnecy variants.  It should
+    // TODO -- be increased to a large number of eliminated altogether when moving to the bubble caller where
+    // TODO -- we are no longer considering a combinatorial number of haplotypes as the number of bubbles increases
+    private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 25;
     public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
     private static final int GRAPH_KMER_STEP = 6;
 
