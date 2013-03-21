@@ -408,6 +408,13 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
                     for (GATKSAMRecord compressedRead : stash.compress(readReady))
                         outputRead(compressedRead);
 
+                    // We only care about maintaining the link between read pairs if they are in the same variant
+                    // region.  Since an entire variant region's worth of reads is returned in a single call to
+                    // stash.compress(), the readNameHash can be cleared after the for() loop above.
+                    // The advantage of clearing the hash is that otherwise it holds all reads that have been encountered,
+                    // which can use a lot of memory and cause RR to slow to a crawl and/or run out of memory.
+                    readNameHash.clear();
+
                 }
             } else
                 stash.add(read);
