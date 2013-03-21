@@ -631,6 +631,10 @@ public class GenotypingEngine {
                 if( eventToTest.getKey().equals(new Event(null)) )
                     continue;
 
+                // only try to disambiguate for alleles that have had haplotypes previously assigned above
+                if( eventToTest.getValue().isEmpty() )
+                    continue;
+
                 final Haplotype artificialHaplotype = eventToTest.getValue().get(0);
                 if( isSubSetOf(artificialHaplotype.getEventMap(), h.getEventMap(), true) ) {
                     matchingEvent = eventToTest.getKey();
