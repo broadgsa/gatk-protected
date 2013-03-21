@@ -90,7 +90,8 @@ public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
 
     /**
      * Error correct the kmers in this graph, returning a new graph built from those error corrected kmers
-     * @return a freshly allocated graph
+     * @return an error corrected version of this (freshly allocated graph) or simply this graph if for some reason
+     *         we cannot actually do the error correction
      */
     protected DeBruijnGraph errorCorrect() {
         final KMerErrorCorrector corrector = new KMerErrorCorrector(getKmerSize(), 1, 1, 5); // TODO -- should be static variables
@@ -101,19 +102,23 @@ public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
                 corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
             }
         }
-        corrector.computeErrorCorrectionMap();
 
-        final DeBruijnGraph correctedGraph = new DeBruijnGraph(getKmerSize());
+        if ( corrector.computeErrorCorrectionMap() ) {
+            final DeBruijnGraph correctedGraph = new DeBruijnGraph(getKmerSize());
 
-        for( final BaseEdge e : edgeSet() ) {
-            final byte[] source = corrector.getErrorCorrectedKmer(getEdgeSource(e).getSequence());
-            final byte[] target = corrector.getErrorCorrectedKmer(getEdgeTarget(e).getSequence());
-            if ( source != null && target != null ) {
-                correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
+            for( final BaseEdge e : edgeSet() ) {
+                final byte[] source = corrector.getErrorCorrectedKmer(getEdgeSource(e).getSequence());
+                final byte[] target = corrector.getErrorCorrectedKmer(getEdgeTarget(e).getSequence());
+                if ( source != null && target != null ) {
+                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
+                }
             }
-        }
 
-        return correctedGraph;
+            return correctedGraph;
+        } else {
+            // the error correction wasn't possible, simply return this graph
+            return this;
+        }
     }
 
     /**
