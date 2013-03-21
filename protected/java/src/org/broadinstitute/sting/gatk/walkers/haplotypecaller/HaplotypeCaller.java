@@ -55,6 +55,7 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
+import org.broadinstitute.sting.gatk.downsampling.DownsamplingUtils;
 import org.broadinstitute.sting.gatk.filters.BadMateFilter;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
@@ -191,7 +192,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected String keepRG = null;
 
     @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = false)
-    protected int MIN_PRUNE_FACTOR = 2;
+    protected int MIN_PRUNE_FACTOR = 1;
 
     @Advanced
     @Argument(fullName="gcpHMM", shortName="gcpHMM", doc="Flat gap continuation penalty for use in the Pair HMM", required = false)
@@ -226,6 +227,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Hidden
     @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "If specified, the HC won't actually do any assembly or calling, it'll just run the upfront active region determination code.  Useful for benchmarking and scalability testing", required=false)
     protected boolean justDetermineActiveRegions = false;
+
+    @Hidden
+    @Argument(fullName="dontGenotype", shortName="dontGenotype", doc = "If specified, the HC will do any assembly but won't do calling.  Useful for benchmarking and scalability testing", required=false)
+    protected boolean dontGenotype = false;
 
     /**
      * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
@@ -275,6 +280,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information about each triggering active region", required = false)
     protected boolean DEBUG;
 
+    @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler for only this graph size", required = false)
+    protected int debugGraphTransformations = -1;
+
+    @Argument(fullName="useLowQualityBasesForAssembly", shortName="useLowQualityBasesForAssembly", doc="If specified, we will include low quality bases when doing the assembly", required = false)
+    protected boolean useLowQualityBasesForAssembly = false;
+
     // the UG engines
     private UnifiedGenotyperEngine UG_engine = null;
     private UnifiedGenotyperEngine UG_engine_simple_genotyper = null;
@@ -295,6 +306,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     // reference base padding size
     private static final int REFERENCE_PADDING = 500;
+
+    private final static int maxReadsInRegionPerSample = 1000; // TODO -- should be an argument
+    private final static int minReadsPerAlignmentStart = 5; // TODO -- should be an argument
 
     // bases with quality less than or equal to this value are trimmed off the tails of the reads
     private static final byte MIN_TAIL_QUALITY = 20;
@@ -374,7 +388,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile, e);
         }
 
-        assemblyEngine = new DeBruijnAssembler( DEBUG, graphWriter, minKmer );
+        final byte minBaseQualityToUseInAssembly = useLowQualityBasesForAssembly ? (byte)1 : DeBruijnAssembler.DEFAULT_MIN_BASE_QUALITY_TO_USE;
+        assemblyEngine = new DeBruijnAssembler( DEBUG, debugGraphTransformations, graphWriter, minKmer, minBaseQualityToUseInAssembly );
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
 
@@ -514,6 +529,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         // sort haplotypes to take full advantage of haplotype start offset optimizations in PairHMM
         Collections.sort( haplotypes, new Haplotype.HaplotypeBaseComparator() );
 
+        if (dontGenotype)
+            return 1;
+
         // evaluate each sample's reads against all haplotypes
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods( haplotypes, splitReadsBySample( activeRegion.getReads() ) );
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
@@ -575,7 +593,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //
     //---------------------------------------------------------------------------------------------------------------
 
-    private void finalizeActiveRegion( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
+    private void finalizeActiveRegion( final ActiveRegion activeRegion ) {
         if( DEBUG ) { System.out.println("\nAssembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
         final List<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>();
         final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( activeRegion.getReads() );
@@ -592,14 +610,27 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         for( final GATKSAMRecord myRead : finalizedReadList ) {
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
-                GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
+                GATKSAMRecord clippedRead = useLowQualityBasesForAssembly ? postAdapterRead : ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
+
+                // revert soft clips so that we see the alignment start and end assuming the soft clips are all matches
+                // TODO -- WARNING -- still possibility that unclipping the soft clips will introduce bases that aren't
+                // TODO -- truly in the extended region, as the unclipped bases might actually include a deletion
+                // TODO -- w.r.t. the reference.  What really needs to happen is that kmers that occur before the
+                // TODO -- reference haplotype start must be removed
+                clippedRead = ReadClipper.revertSoftClippedBases(clippedRead);
+
+                // uncomment to remove hard clips from consideration at all
+                //clippedRead = ReadClipper.hardClipSoftClippedBases(clippedRead);
+
                 clippedRead = ReadClipper.hardClipToRegion( clippedRead, activeRegion.getExtendedLoc().getStart(), activeRegion.getExtendedLoc().getStop() );
                 if( activeRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 ) {
+                    //logger.info("Keeping read " + clippedRead + " start " + clippedRead.getAlignmentStart() + " end " + clippedRead.getAlignmentEnd());
                     readsToUse.add(clippedRead);
                 }
             }
         }
-        activeRegion.addAll(ReadUtils.sortReadsByCoordinate(readsToUse));
+
+        activeRegion.addAll(DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart));
     }
 
     private List<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {

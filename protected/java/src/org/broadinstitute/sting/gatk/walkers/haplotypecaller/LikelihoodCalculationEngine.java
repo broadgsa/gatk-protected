@@ -151,9 +151,12 @@ public class LikelihoodCalculationEngine {
                 final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : PairHMM.findFirstPositionWhereHaplotypesDiffer(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
                 previousHaplotypeSeen = haplotype;
 
-                perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype),
-                        pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(), read.getReadBases(),
-                                readQuals, readInsQuals, readDelQuals, overallGCP, haplotypeStart, jjj == 0));
+                final boolean isFirstHaplotype = jjj == 0;
+                final double log10l = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
+                        read.getReadBases(), readQuals, readInsQuals, readDelQuals,
+                        overallGCP, haplotypeStart, isFirstHaplotype);
+
+                perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
             }
         }
         return perReadAlleleLikelihoodMap;

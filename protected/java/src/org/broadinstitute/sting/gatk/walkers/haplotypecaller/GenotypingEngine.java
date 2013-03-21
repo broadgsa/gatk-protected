@@ -273,15 +273,18 @@ public class GenotypingEngine {
                     final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
                             convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, 0.0, UG_engine.getUAC().contaminationLog ) );
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
-                    VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
+
+                    VariantContext annotatedCall = call;
+                    // TODO -- should be before annotated call, so that QDL works correctly
+                    if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
+                        annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
+                    }
+
+                    annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, annotatedCall);
 
                     // maintain the set of all called haplotypes
                     for ( final Allele calledAllele : call.getAlleles() )
                         calledHaplotypes.addAll(alleleMapper.get(calledAllele));
-
-                    if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
-                        annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
-                    }
 
                     returnCalls.add( annotatedCall );
                 }

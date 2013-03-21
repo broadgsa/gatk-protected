@@ -46,107 +46,108 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
+import org.broadinstitute.sting.utils.Utils;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.Arrays;
 
 /**
- * Class for finding the K best paths (as determined by the sum of multiplicities of the edges) in a graph.
- * This is different from most graph traversals because we want to test paths from any source node to any sink node.
+ * A graph vertex containing a sequence of bases and a unique ID that
+ * allows multiple distinct nodes in the graph to have the same sequence.
  *
- * User: ebanks, rpoplin, mdepristo
- * Date: Mar 23, 2011
+ * This is essential when thinking about representing the actual sequence of a haplotype
+ * in a graph.  There can be many parts of the sequence that have the same sequence, but
+ * are distinct elements in the graph because they have a different position in the graph.  For example:
+ *
+ * A -> C -> G -> A -> T
+ *
+ * The two As are not the same, because they occur with different connections.  In a kmer graph equals()
+ * is based on the sequence itself, as each distinct kmer can only be represented once.  But the transformation
+ * of the kmer graph into a graph of base sequences, without their kmer prefixes, means that nodes that
+ * where once unique including their prefix can become equal after shedding the prefix.  So we need to
+ * use some mechanism -- here a unique ID per node -- to separate nodes that have the same sequence
+ * but are distinct elements of the graph.
+ *
+ * @author: depristo
+ * @since 03/2013
  */
-public class KBestPaths<T extends BaseVertex> {
-    public KBestPaths() { }
-
-    protected static class MyInt { public int val = 0; }
+public class SeqVertex extends BaseVertex {
+    private static int idCounter = 0;
+    public final int id;
 
     /**
-     * Compare paths such that paths with greater weight are earlier in a list
+     * Create a new SeqVertex with sequence and the next available id
+     * @param sequence our base sequence
      */
-    protected static class PathComparatorTotalScore implements Comparator<Path>, Serializable {
-        @Override
-        public int compare(final Path path1, final Path path2) {
-            return path2.getScore() - path1.getScore();
-        }
+    public SeqVertex(final byte[] sequence) {
+        super(sequence);
+        this.id = idCounter++;
     }
 
     /**
-     * @see #getKBestPaths(BaseGraph, int) retriving the first 1000 paths
+     * Create a new SeqVertex having bases of sequence.getBytes()
+     * @param sequence the string representation of our bases
      */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph ) {
-        return getKBestPaths(graph, 1000);
+    public SeqVertex(final String sequence) {
+        super(sequence);
+        this.id = idCounter++;
     }
 
     /**
-     * Traverse the graph and pull out the best k paths.
-     * Paths are scored via their comparator function. The default being PathComparatorTotalScore()
-     * @param graph the graph from which to pull paths
-     * @param k     the number of paths to find
-     * @return      a list with at most k top-scoring paths from the graph
+     * Create a copy of toCopy
+     * @param toCopy a SeqVertex to copy into this newly allocated one
      */
-    @Ensures({"result != null", "result.size() <= k"})
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k ) {
-        if( graph == null ) { throw  new IllegalArgumentException("Attempting to traverse a null graph."); }
-
-        // a min max queue that will collect the best k paths
-        final MinMaxPriorityQueue<Path<T>> bestPaths = MinMaxPriorityQueue.orderedBy(new PathComparatorTotalScore()).maximumSize(k).create();
-
-        // run a DFS for best paths
-        for ( final T v : graph.vertexSet() ) {
-            if ( graph.inDegreeOf(v) == 0 ) {
-                findBestPaths(new Path<T>(v, graph), bestPaths, new MyInt());
-            }
-        }
-
-        // the MinMaxPriorityQueue iterator returns items in an arbitrary order, so we need to sort the final result
-        final List<Path<T>> toReturn = new ArrayList<Path<T>>(bestPaths);
-        Collections.sort(toReturn, new PathComparatorTotalScore());
-        return toReturn;
-    }
-
-    private void findBestPaths( final Path<T> path, final MinMaxPriorityQueue<Path<T>> bestPaths, final MyInt n ) {
-        // did we hit the end of a path?
-        if ( allOutgoingEdgesHaveBeenVisited(path) ) {
-            bestPaths.add(path);
-        } else if( n.val > 10000 ) {
-            // do nothing, just return, as we've done too much work already
-        } else {
-            // recursively run DFS
-            final ArrayList<BaseEdge> edgeArrayList = new ArrayList<BaseEdge>(path.getOutgoingEdgesOfLastVertex());
-            Collections.sort(edgeArrayList, new BaseEdge.EdgeWeightComparator());
-            for ( final BaseEdge edge : edgeArrayList ) {
-                // make sure the edge is not already in the path
-                if ( path.containsEdge(edge) )
-                    continue;
-
-                final Path<T> newPath = new Path<T>(path, edge);
-                n.val++;
-                findBestPaths(newPath, bestPaths, n);
-            }
-        }
+    public SeqVertex(final SeqVertex toCopy) {
+        super(toCopy.sequence);
+        this.id = toCopy.id;
     }
 
     /**
-     * Have all of the outgoing edges of the final vertex been visited?
-     *
-     * I.e., are all outgoing vertices of the current path in the list of edges of the graph?
-     *
-     * @param path  the path to test
-     * @return      true if all the outgoing edges at the end of this path have already been visited
+     * Get the unique ID for this SeqVertex
+     * @return a positive integer >= 0
      */
-    private boolean allOutgoingEdgesHaveBeenVisited( final Path<T> path ) {
-        for( final BaseEdge edge : path.getOutgoingEdgesOfLastVertex() ) {
-            if( !path.containsEdge(edge) ) { // TODO -- investigate allowing numInPath < 2 to allow cycles
-                return false;
-            }
-        }
+    public int getId() {
+        return id;
+    }
+
+    @Override
+    public String toString() {
+        return "SeqVertex_id_" + id + "_seq_" + getSequenceString();
+    }
+
+    /**
+     * Two SeqVertex are equal only if their ids are equal
+     * @param o
+     * @return
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SeqVertex seqVertex = (SeqVertex) o;
+        if (id != seqVertex.id) return false;
+
+        // note that we don't test for super equality here because the ids are unique
+        //if (!super.equals(o)) return false;
+
         return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
+
+    /**
+     * Return a new SeqVertex derived from this one but not including the suffix bases
+     *
+     * @param suffix the suffix bases to remove from this vertex
+     * @return a newly allocated SeqVertex with appropriate prefix, or null if suffix removes all bases from this node
+     */
+    @Requires("Utils.endsWith(sequence, suffix)")
+    public SeqVertex withoutSuffix(final byte[] suffix) {
+        final int prefixSize = sequence.length - suffix.length;
+        return prefixSize > 0 ? new SeqVertex(Arrays.copyOf(sequence, prefixSize)) : null;
     }
 }

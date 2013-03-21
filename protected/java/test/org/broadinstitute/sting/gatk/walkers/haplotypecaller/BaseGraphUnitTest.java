@@ -46,107 +46,147 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.java.contract.Ensures;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
+import scala.actors.threadpool.Arrays;
 
-import java.io.Serializable;
-import java.util.ArrayList;
+import java.io.File;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * Class for finding the K best paths (as determined by the sum of multiplicities of the edges) in a graph.
- * This is different from most graph traversals because we want to test paths from any source node to any sink node.
- *
- * User: ebanks, rpoplin, mdepristo
- * Date: Mar 23, 2011
+ * Created with IntelliJ IDEA.
+ * User: depristo
+ * Date: 3/15/13
+ * Time: 3:36 PM
+ * To change this template use File | Settings | File Templates.
  */
-public class KBestPaths<T extends BaseVertex> {
-    public KBestPaths() { }
+public class BaseGraphUnitTest extends BaseTest {
+    SeqGraph graph;
+    SeqVertex v1, v2, v3, v4, v5;
 
-    protected static class MyInt { public int val = 0; }
+    @BeforeMethod
+    public void setUp() throws Exception {
+        graph = new SeqGraph();
 
-    /**
-     * Compare paths such that paths with greater weight are earlier in a list
-     */
-    protected static class PathComparatorTotalScore implements Comparator<Path>, Serializable {
-        @Override
-        public int compare(final Path path1, final Path path2) {
-            return path2.getScore() - path1.getScore();
-        }
+        v1 = new SeqVertex("A");
+        v2 = new SeqVertex("C");
+        v3 = new SeqVertex("C");
+        v4 = new SeqVertex("C");
+        v5 = new SeqVertex("C");
+
+        graph.addVertices(v1, v2, v3, v4, v5);
+        graph.addEdge(v1, v2);
+        graph.addEdge(v2, v4);
+        graph.addEdge(v3, v2);
+        graph.addEdge(v2, v3);
+        graph.addEdge(v4, v5);
     }
 
-    /**
-     * @see #getKBestPaths(BaseGraph, int) retriving the first 1000 paths
-     */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph ) {
-        return getKBestPaths(graph, 1000);
+    @Test
+    public void testIncomingAndOutgoingVertices() throws Exception {
+        assertVertexSetEquals(graph.outgoingVerticesOf(v1), v2);
+        assertVertexSetEquals(graph.incomingVerticesOf(v1));
+
+        assertVertexSetEquals(graph.outgoingVerticesOf(v2), v3, v4);
+        assertVertexSetEquals(graph.incomingVerticesOf(v2), v1, v3);
+
+        assertVertexSetEquals(graph.outgoingVerticesOf(v3), v2);
+        assertVertexSetEquals(graph.incomingVerticesOf(v3), v2);
+
+        assertVertexSetEquals(graph.outgoingVerticesOf(v4), v5);
+        assertVertexSetEquals(graph.incomingVerticesOf(v4), v2);
+
+        assertVertexSetEquals(graph.outgoingVerticesOf(v5));
+        assertVertexSetEquals(graph.incomingVerticesOf(v5), v4);
     }
 
-    /**
-     * Traverse the graph and pull out the best k paths.
-     * Paths are scored via their comparator function. The default being PathComparatorTotalScore()
-     * @param graph the graph from which to pull paths
-     * @param k     the number of paths to find
-     * @return      a list with at most k top-scoring paths from the graph
-     */
-    @Ensures({"result != null", "result.size() <= k"})
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k ) {
-        if( graph == null ) { throw  new IllegalArgumentException("Attempting to traverse a null graph."); }
-
-        // a min max queue that will collect the best k paths
-        final MinMaxPriorityQueue<Path<T>> bestPaths = MinMaxPriorityQueue.orderedBy(new PathComparatorTotalScore()).maximumSize(k).create();
-
-        // run a DFS for best paths
-        for ( final T v : graph.vertexSet() ) {
-            if ( graph.inDegreeOf(v) == 0 ) {
-                findBestPaths(new Path<T>(v, graph), bestPaths, new MyInt());
-            }
-        }
-
-        // the MinMaxPriorityQueue iterator returns items in an arbitrary order, so we need to sort the final result
-        final List<Path<T>> toReturn = new ArrayList<Path<T>>(bestPaths);
-        Collections.sort(toReturn, new PathComparatorTotalScore());
-        return toReturn;
+    @Test
+    public void testPrintEmptyGraph() throws Exception {
+        final File tmp = File.createTempFile("tmp", "dot");
+        tmp.deleteOnExit();
+        new SeqGraph().printGraph(tmp, 10);
+        new DeBruijnGraph().printGraph(tmp, 10);
     }
 
-    private void findBestPaths( final Path<T> path, final MinMaxPriorityQueue<Path<T>> bestPaths, final MyInt n ) {
-        // did we hit the end of a path?
-        if ( allOutgoingEdgesHaveBeenVisited(path) ) {
-            bestPaths.add(path);
-        } else if( n.val > 10000 ) {
-            // do nothing, just return, as we've done too much work already
-        } else {
-            // recursively run DFS
-            final ArrayList<BaseEdge> edgeArrayList = new ArrayList<BaseEdge>(path.getOutgoingEdgesOfLastVertex());
-            Collections.sort(edgeArrayList, new BaseEdge.EdgeWeightComparator());
-            for ( final BaseEdge edge : edgeArrayList ) {
-                // make sure the edge is not already in the path
-                if ( path.containsEdge(edge) )
-                    continue;
-
-                final Path<T> newPath = new Path<T>(path, edge);
-                n.val++;
-                findBestPaths(newPath, bestPaths, n);
-            }
-        }
+    @Test
+    public void testComplexGraph() throws Exception {
+        final File tmp = File.createTempFile("tmp", "dot");
+        tmp.deleteOnExit();
+        graph.printGraph(tmp, 10);
     }
 
-    /**
-     * Have all of the outgoing edges of the final vertex been visited?
-     *
-     * I.e., are all outgoing vertices of the current path in the list of edges of the graph?
-     *
-     * @param path  the path to test
-     * @return      true if all the outgoing edges at the end of this path have already been visited
-     */
-    private boolean allOutgoingEdgesHaveBeenVisited( final Path<T> path ) {
-        for( final BaseEdge edge : path.getOutgoingEdgesOfLastVertex() ) {
-            if( !path.containsEdge(edge) ) { // TODO -- investigate allowing numInPath < 2 to allow cycles
-                return false;
-            }
-        }
-        return true;
+    private void assertVertexSetEquals(final Set<SeqVertex> actual, final SeqVertex ... expected) {
+        final Set<SeqVertex> expectedSet = expected == null ? Collections.<SeqVertex>emptySet() : new HashSet<SeqVertex>(Arrays.asList(expected));
+        Assert.assertEquals(actual, expectedSet);
+    }
+
+    @Test(enabled = true)
+    public void testPruneGraph() {
+        DeBruijnGraph graph = new DeBruijnGraph();
+        DeBruijnGraph expectedGraph = new DeBruijnGraph();
+
+        DeBruijnVertex v = new DeBruijnVertex("ATGG");
+        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA");
+        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT");
+        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG");
+        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC");
+        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC");
+
+        graph.addVertex(v);
+        graph.addVertex(v2);
+        graph.addVertex(v3);
+        graph.addVertex(v4);
+        graph.addVertex(v5);
+        graph.addVertex(v6);
+        graph.addEdge(v, v2, new BaseEdge(false, 1));
+        graph.addEdge(v2, v3, new BaseEdge(false, 3));
+        graph.addEdge(v3, v4, new BaseEdge(false, 5));
+        graph.addEdge(v4, v5, new BaseEdge(false, 3));
+        graph.addEdge(v5, v6, new BaseEdge(false, 2));
+
+        expectedGraph.addVertex(v2);
+        expectedGraph.addVertex(v3);
+        expectedGraph.addVertex(v4);
+        expectedGraph.addVertex(v5);
+        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
+        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
+        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
+
+        graph.pruneGraph(2);
+
+        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
+
+        graph = new DeBruijnGraph();
+        expectedGraph = new DeBruijnGraph();
+
+        graph.addVertex(v);
+        graph.addVertex(v2);
+        graph.addVertex(v3);
+        graph.addVertex(v4);
+        graph.addVertex(v5);
+        graph.addVertex(v6);
+        graph.addEdge(v, v2, new BaseEdge(true, 1));
+        graph.addEdge(v2, v3, new BaseEdge(false, 3));
+        graph.addEdge(v3, v4, new BaseEdge(false, 5));
+        graph.addEdge(v4, v5, new BaseEdge(false, 3));
+
+        expectedGraph.addVertex(v);
+        expectedGraph.addVertex(v2);
+        expectedGraph.addVertex(v3);
+        expectedGraph.addVertex(v4);
+        expectedGraph.addVertex(v5);
+        expectedGraph.addEdge(v, v2, new BaseEdge(true, 1));
+        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
+        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
+        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
+
+        graph.pruneGraph(2);
+
+        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
     }
 }

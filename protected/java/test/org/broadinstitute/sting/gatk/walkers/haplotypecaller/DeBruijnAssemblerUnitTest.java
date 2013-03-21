@@ -61,167 +61,25 @@ import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.*;
 
 public class DeBruijnAssemblerUnitTest extends BaseTest {
+    private final static boolean DEBUG = false;
 
-
-    private class MergeNodesWithNoVariationTestProvider extends TestDataProvider {
-        public byte[] sequence;
-        public int KMER_LENGTH;
-
-        public MergeNodesWithNoVariationTestProvider(String seq, int kmer) {
-            super(MergeNodesWithNoVariationTestProvider.class, String.format("Merge nodes with no variation test. kmer = %d, seq = %s", kmer, seq));
-            sequence = seq.getBytes();
-            KMER_LENGTH = kmer;
-        }
-
-        public DeBruijnAssemblyGraph expectedGraph() {
-            DeBruijnVertex v = new DeBruijnVertex(sequence, KMER_LENGTH);
-            DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
-            graph.addVertex(v);
-            return graph;
-        }
-
-        public DeBruijnAssemblyGraph calcGraph() {
-
-            DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
-            final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-            for (int i = 0; i < kmersInSequence - 1; i++) {
-                // get the kmers
-                final byte[] kmer1 = new byte[KMER_LENGTH];
-                System.arraycopy(sequence, i, kmer1, 0, KMER_LENGTH);
-                final byte[] kmer2 = new byte[KMER_LENGTH];
-                System.arraycopy(sequence, i+1, kmer2, 0, KMER_LENGTH);
-
-                graph.addKmersToGraph(kmer1, kmer2, false);
-            }
-            DeBruijnAssembler.mergeNodes(graph);
-            return graph;
-        }
-    }
-
-    @DataProvider(name = "MergeNodesWithNoVariationTestProvider")
-    public Object[][] makeMergeNodesWithNoVariationTests() {
-        new MergeNodesWithNoVariationTestProvider("GGTTAACC", 3);
-        new MergeNodesWithNoVariationTestProvider("GGTTAACC", 4);
-        new MergeNodesWithNoVariationTestProvider("GGTTAACC", 5);
-        new MergeNodesWithNoVariationTestProvider("GGTTAACC", 6);
-        new MergeNodesWithNoVariationTestProvider("GGTTAACC", 7);
-        new MergeNodesWithNoVariationTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", 6);
-        new MergeNodesWithNoVariationTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 66);
-        new MergeNodesWithNoVariationTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 76);
-
-        return MergeNodesWithNoVariationTestProvider.getTests(MergeNodesWithNoVariationTestProvider.class);
-    }
-
-    @Test(dataProvider = "MergeNodesWithNoVariationTestProvider", enabled = true)
-    public void testMergeNodesWithNoVariation(MergeNodesWithNoVariationTestProvider cfg) {
-        logger.warn(String.format("Test: %s", cfg.toString()));
-        Assert.assertTrue(graphEquals(cfg.calcGraph(), cfg.expectedGraph()));
-    }
-
-    @Test(enabled = true)
-    public void testPruneGraph() {
-        DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
-        DeBruijnAssemblyGraph expectedGraph = new DeBruijnAssemblyGraph();
-
-        DeBruijnVertex v = new DeBruijnVertex("ATGG".getBytes(), 1);
-        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA".getBytes(), 1);
-        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT".getBytes(), 1);
-        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG".getBytes(), 1);
-        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC".getBytes(), 1);
-        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC".getBytes(), 1);
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new DeBruijnEdge(false, 1));
-        graph.addEdge(v2, v3, new DeBruijnEdge(false, 3));
-        graph.addEdge(v3, v4, new DeBruijnEdge(false, 5));
-        graph.addEdge(v4, v5, new DeBruijnEdge(false, 3));
-        graph.addEdge(v5, v6, new DeBruijnEdge(false, 2));
-
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v2, v3, new DeBruijnEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new DeBruijnEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new DeBruijnEdge(false, 3));
-
-        DeBruijnAssembler.pruneGraph(graph, 2);
-
-        Assert.assertTrue(graphEquals(graph, expectedGraph));
-
-        graph = new DeBruijnAssemblyGraph();
-        expectedGraph = new DeBruijnAssemblyGraph();
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new DeBruijnEdge(true, 1));
-        graph.addEdge(v2, v3, new DeBruijnEdge(false, 3));
-        graph.addEdge(v3, v4, new DeBruijnEdge(false, 5));
-        graph.addEdge(v4, v5, new DeBruijnEdge(false, 3));
-
-        expectedGraph.addVertex(v);
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v, v2, new DeBruijnEdge(true, 1));
-        expectedGraph.addEdge(v2, v3, new DeBruijnEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new DeBruijnEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new DeBruijnEdge(false, 3));
-
-        DeBruijnAssembler.pruneGraph(graph, 2);
-
-        Assert.assertTrue(graphEquals(graph, expectedGraph));
-    }
-
-    private boolean graphEquals(DeBruijnAssemblyGraph g1, DeBruijnAssemblyGraph g2) {
-        if( !(g1.vertexSet().containsAll(g2.vertexSet()) && g2.vertexSet().containsAll(g1.vertexSet())) ) {
-            return false;
-        }
-        for( DeBruijnEdge e1 : g1.edgeSet() ) {
-            boolean found = false;
-            for( DeBruijnEdge e2 : g2.edgeSet() ) {
-                if( e1.equals(g1, e2, g2) ) { found = true; break; }
-            }
-            if( !found ) { return false; }
-        }
-        for( DeBruijnEdge e2 : g2.edgeSet() ) {
-            boolean found = false;
-            for( DeBruijnEdge e1 : g1.edgeSet() ) {
-                if( e2.equals(g2, e1, g1) ) { found = true; break; }
-            }
-            if( !found ) { return false; }
-        }
-        return true;
-    }
-
-    @Test(enabled = true)
+    @Test(enabled = !DEBUG)
     public void testReferenceCycleGraph() {
         String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
         String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnAssemblyGraph g1 = DeBruijnAssembler.createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), false);
-        final DeBruijnAssemblyGraph g2 = DeBruijnAssembler.createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), false);
+        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), false);
+        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), false);
 
         Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
         Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
     }
 
-    @Test(enabled = true)
+    @Test(enabled = !DEBUG)
     public void testLeftAlignCigarSequentially() {
         String preRefString = "GATCGATCGATC";
         String postRefString = "TTT";
@@ -255,7 +113,7 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
                         String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
                         String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
 
-                        Cigar calculatedCigar = DeBruijnAssembler.leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
+                        Cigar calculatedCigar = new DeBruijnAssembler().leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
                         Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
                     }
                 }

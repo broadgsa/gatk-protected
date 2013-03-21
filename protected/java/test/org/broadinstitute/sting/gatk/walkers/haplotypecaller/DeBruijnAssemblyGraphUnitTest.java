@@ -75,7 +75,7 @@ public class DeBruijnAssemblyGraphUnitTest {
         }
 
         public byte[] calculatedReferenceBytes() {
-            DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
+            DeBruijnGraph graph = new DeBruijnGraph();
             graph.addSequenceToGraph(refSequence, KMER_LENGTH, true);
             if( altSequence.length > 0 ) {
                 graph.addSequenceToGraph(altSequence, KMER_LENGTH, false);

@@ -69,12 +69,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "694d6ea7f0f305854d4108379d68de75");
+        HCTest(CEUTRIO_BAM, "", "75dbef605b28f02616b13bb5d8bf2fbd");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "995501d8af646af3b6eaa4109e2fb4a0");
+        HCTest(NA12878_BAM, "", "fa8705a5d3ada66470019fa7ddcb9b2c");
     }
 
     @Test(enabled = false) // can't annotate the rsID's yet
@@ -85,7 +85,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "627124af27dc4556d83df1a04e4b9f97");
+                "d41a886f69a67e01af2ba1a6b4a681d9");
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
@@ -96,12 +96,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "205fc8647b908c0dab7b5c6d6b78c0c2");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "3a38f6fade253577d205a00db3e67828");
     }
 
     @Test
     public void testHaplotypeCallerInsertionOnEdgeOfContig() {
-        HCTest(CEUTRIO_MT_TEST_BAM, "-dcov 90 -L MT:1-10", "e6f7bbab7cf96cbb25837b7a94bf0f82");
+        HCTest(CEUTRIO_MT_TEST_BAM, "-dcov 90 -L MT:1-10", "7f1fb8f9587f64643f6612ef1dd6d4ae");
     }
 
     // This problem bam came from a user on the forum and it spotted a problem where the ReadClipper
@@ -111,14 +111,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("ccd30e226f097a40cdeebaa035a290a7"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("1e7b1bda6be5d3835ae318f2977cfbdd"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
     @Test
     public void HCTestStructuralIndels() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("f1250a8ecd404443dcca20741a74ec4f"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("b6d63f558259883262ea84f339acb767"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
 
@@ -140,7 +140,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("fd1b51b17f8f9c88abdf66a9372bce5a"));
+                Arrays.asList("5280f1a50ca27d8e435da0bd5b26ae93"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
 
@@ -148,7 +148,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testReducedBamWithReadsNotFullySpanningDeletion() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
-                Arrays.asList("d3eb900eecdafafda3170f67adff42ae"));
+                Arrays.asList("addceb63f5bfa9f11e15335d5bf641e9"));
         executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
     }
 }

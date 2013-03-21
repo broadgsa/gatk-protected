@@ -46,68 +46,139 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.jgrapht.graph.DefaultDirectedGraph;
+import com.google.java.contract.Ensures;
 
-import java.io.Serializable;
-import java.util.Comparator;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Created by IntelliJ IDEA.
- * User: ebanks
- * Date: Mar 23, 2011
+ * A DeBruijn kmer graph
+ *
+ * User: rpoplin
+ * Date: 2/6/13
  */
-
-// simple edge class for connecting nodes in the graph
-public class DeBruijnEdge {
-
-    private int multiplicity;
-    private boolean isRef;
-
-    public DeBruijnEdge() {
-        multiplicity = 1;
-        isRef = false;
+public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
+    /**
+     * Create an empty DeBruijnGraph with default kmer size
+     */
+    public DeBruijnGraph() {
+        super();
     }
 
-    public DeBruijnEdge( final boolean isRef ) {
-        multiplicity = 1;
-        this.isRef = isRef;
+    /**
+     * Create an empty DeBruijnGraph with kmer size
+     * @param kmerSize kmer size, must be >= 1
+     */
+    public DeBruijnGraph(int kmerSize) {
+        super(kmerSize);
     }
 
-    public DeBruijnEdge( final boolean isRef, final int multiplicity ) {
-        this.multiplicity = multiplicity;
-        this.isRef = isRef;
-    }
-
-    public int getMultiplicity() {
-        return multiplicity;
-    }
-
-    public void setMultiplicity( final int value ) {
-        multiplicity = value;
-    }
-
-    public boolean isRef() {
-        return isRef;
-    }
-
-    public void setIsRef( final boolean isRef ) {
-        this.isRef = isRef;
-    }
-
-    // For use when comparing edges pulled from the same graph
-    public boolean equals( final DeBruijnAssemblyGraph graph, final DeBruijnEdge edge ) {
-        return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
-    }
-
-    // For use when comparing edges across graphs!
-    public boolean equals( final DeBruijnAssemblyGraph graph, final DeBruijnEdge edge, final DeBruijnAssemblyGraph graph2 ) {
-        return (graph.getEdgeSource(this).equals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph2.getEdgeTarget(edge)));
-    }
-
-    public static class EdgeWeightComparator implements Comparator<DeBruijnEdge>, Serializable {
-        @Override
-        public int compare(final DeBruijnEdge edge1, final DeBruijnEdge edge2) {
-            return edge1.multiplicity - edge2.multiplicity;
+    /**
+     * Pull kmers out of the given long sequence and throw them on in the graph
+     * @param sequence      byte array holding the sequence with which to build the assembly graph
+     * @param KMER_LENGTH   the desired kmer length to use
+     * @param isRef         if true the kmers added to the graph will have reference edges linking them
+     */
+    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
+        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
+        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
+        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
+            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
         }
+    }
+
+    /**
+     * Error correct the kmers in this graph, returning a new graph built from those error corrected kmers
+     * @return an error corrected version of this (freshly allocated graph) or simply this graph if for some reason
+     *         we cannot actually do the error correction
+     */
+    protected DeBruijnGraph errorCorrect() {
+        final KMerErrorCorrector corrector = new KMerErrorCorrector(getKmerSize(), 1, 1, 5); // TODO -- should be static variables
+
+        for( final BaseEdge e : edgeSet() ) {
+            for ( final byte[] kmer : Arrays.asList(getEdgeSource(e).getSequence(), getEdgeTarget(e).getSequence())) {
+                // TODO -- need a cleaner way to deal with the ref weight
+                corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
+            }
+        }
+
+        if ( corrector.computeErrorCorrectionMap() ) {
+            final DeBruijnGraph correctedGraph = new DeBruijnGraph(getKmerSize());
+
+            for( final BaseEdge e : edgeSet() ) {
+                final byte[] source = corrector.getErrorCorrectedKmer(getEdgeSource(e).getSequence());
+                final byte[] target = corrector.getErrorCorrectedKmer(getEdgeTarget(e).getSequence());
+                if ( source != null && target != null ) {
+                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
+                }
+            }
+
+            return correctedGraph;
+        } else {
+            // the error correction wasn't possible, simply return this graph
+            return this;
+        }
+    }
+
+    /**
+     * Add edge to assembly graph connecting the two kmers
+     * @param kmer1 the source kmer for the edge
+     * @param kmer2 the target kmer for the edge
+     * @param isRef true if the added edge is a reference edge
+     * @return      will return false if trying to add a reference edge which creates a cycle in the assembly graph
+     */
+    public boolean addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
+        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
+        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
+        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+
+        final int numVertexBefore = vertexSet().size();
+        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
+        addVertex(v1);
+        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
+        addVertex(v2);
+        if( isRef && vertexSet().size() == numVertexBefore ) { return false; }
+
+        final BaseEdge targetEdge = getEdge(v1, v2);
+        if ( targetEdge == null ) {
+            addEdge(v1, v2, new BaseEdge( isRef, multiplicity ));
+        } else {
+            if( isRef ) {
+                targetEdge.setIsRef( true );
+            }
+            targetEdge.setMultiplicity(targetEdge.getMultiplicity() + multiplicity);
+        }
+        return true;
+    }
+
+    /**
+     * Convert this kmer graph to a simple sequence graph.
+     *
+     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
+     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
+     *
+     * @return a newly allocated SequenceGraph
+     */
+    @Ensures({"result != null"})
+    protected SeqGraph convertToSequenceGraph() {
+        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
+        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+
+        // create all of the equivalent seq graph vertices
+        for ( final DeBruijnVertex dv : vertexSet() ) {
+            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
+            vertexMap.put(dv, sv);
+            seqGraph.addVertex(sv);
+        }
+
+        // walk through the nodes and connect them to their equivalent seq vertices
+        for( final BaseEdge e : edgeSet() ) {
+            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
+            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
+            seqGraph.addEdge(seqInV, seqOutV, e);
+        }
+
+        return seqGraph;
     }
 }

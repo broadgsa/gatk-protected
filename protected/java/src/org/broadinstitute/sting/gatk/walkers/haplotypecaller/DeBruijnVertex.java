@@ -47,52 +47,79 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
-import com.google.java.contract.Invariant;
-
-import java.util.Arrays;
 
 /**
- * Created by IntelliJ IDEA.
- * User: ebanks
+ * simple node class for storing kmer sequences
+ *
+ * User: ebanks, mdepristo
  * Date: Mar 23, 2011
  */
-// simple node class for storing kmer sequences
-@Invariant("kmer > 0")
-public class DeBruijnVertex {
-
-    protected final byte[] sequence;
-    public final int kmer;
-
-    public DeBruijnVertex( final byte[] sequence, final int kmer ) {
-        this.sequence = sequence.clone();
-        this.kmer = kmer;
+public class DeBruijnVertex extends BaseVertex {
+    private final static byte[][] sufficesAsByteArray = new byte[256][];
+    static {
+        for ( int i = 0; i < sufficesAsByteArray.length; i++ )
+            sufficesAsByteArray[i] = new byte[]{(byte)(i & 0xFF)};
     }
 
-    @Override
-    public boolean equals( Object v ) {
-        return v instanceof DeBruijnVertex && Arrays.equals(sequence, ((DeBruijnVertex) v).sequence);
+    public DeBruijnVertex( final byte[] sequence ) {
+        super(sequence);
     }
 
-    @Override
-    public int hashCode() { // necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
-        return Arrays.hashCode(sequence);
+    /**
+     * For testing purposes only
+     * @param sequence
+     */
+    protected DeBruijnVertex( final String sequence ) {
+        this(sequence.getBytes());
     }
 
-    public String toString() {
-        return new String(sequence);
-    }   
-    
+    /**
+     * Get the kmer size for this DeBruijnVertex
+     * @return integer >= 1
+     */
+    @Ensures("result >= 1")
+    public int getKmer() {
+        return sequence.length;
+    }
+
+    /**
+     * Get the string representation of the suffix of this DeBruijnVertex
+     * @return a non-null non-empty string
+     */
+    @Ensures({"result != null", "result.length() >= 1"})
     public String getSuffixString() {
-        return new String(getSuffix());
+        return new String(getSuffixAsArray());
     }
 
-    @Ensures("result != null")
-    public byte[] getSequence() {
-        return sequence.clone();
+    /**
+     * Get the suffix byte of this DeBruijnVertex
+     *
+     * The suffix byte is simply the last byte of the kmer sequence, so if this is holding sequence ACT
+     * getSuffix would return T
+     *
+     * @return a byte
+     */
+    public byte getSuffix() {
+        return sequence[getKmer() - 1];
     }
 
-    @Ensures("result != null")
-    public byte[] getSuffix() {
-        return Arrays.copyOfRange( sequence, kmer - 1, sequence.length );
+    /**
+     * Optimized version that returns a byte[] for the single byte suffix of this graph without allocating memory.
+     *
+     * Should not be modified
+     *
+     * @return a byte[] that contains 1 byte == getSuffix()
+     */
+    @Ensures({"result != null", "result.length == 1", "result[0] == getSuffix()"})
+    private byte[] getSuffixAsArray() {
+        return sufficesAsByteArray[getSuffix()];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public byte[] getAdditionalSequence(boolean source) {
+        return source ? super.getAdditionalSequence(source) : getSuffixAsArray();
     }
 }

@@ -52,6 +52,7 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -63,6 +64,7 @@ import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
+import java.io.File;
 import java.io.PrintStream;
 import java.util.*;
 
@@ -73,10 +75,15 @@ import java.util.*;
  */
 
 public class DeBruijnAssembler extends LocalAssemblyEngine {
+    private final static Logger logger = Logger.getLogger(DeBruijnAssembler.class);
 
     private static final int KMER_OVERLAP = 5; // the additional size of a valid chunk of sequence, used to string together k-mers
-    private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 11;
-    private static final byte MIN_QUALITY = (byte) 16;
+
+    // TODO -- this number is very low, and limits our ability to explore low-frequnecy variants.  It should
+    // TODO -- be increased to a large number of eliminated altogether when moving to the bubble caller where
+    // TODO -- we are no longer considering a combinatorial number of haplotypes as the number of bubbles increases
+    private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 25;
+    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
     private static final int GRAPH_KMER_STEP = 6;
 
     // Smith-Waterman parameters originally copied from IndelRealigner, only used during GGA mode
@@ -85,18 +92,32 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private static final double SW_GAP = -22.0;       //-1.0-1.0/3.0;
     private static final double SW_GAP_EXTEND = -1.2; //-1.0/.0;
 
-    private final boolean DEBUG;
-    private final PrintStream GRAPH_WRITER;
-    private final List<DeBruijnAssemblyGraph> graphs = new ArrayList<DeBruijnAssemblyGraph>();
-    private final int MIN_KMER;
+    private final boolean debug;
+    private final boolean debugGraphTransformations;
+    private final PrintStream graphWriter;
+    private final int minKmer;
+    private final byte minBaseQualityToUseInAssembly;
+
+    private final int onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms;
 
     private int PRUNE_FACTOR = 2;
-    
-    public DeBruijnAssembler(final boolean debug, final PrintStream graphWriter, final int minKmer) {
+
+    protected DeBruijnAssembler() {
+        this(false, -1, null, 11, DEFAULT_MIN_BASE_QUALITY_TO_USE);
+    }
+
+    public DeBruijnAssembler(final boolean debug,
+                             final int debugGraphTransformations,
+                             final PrintStream graphWriter,
+                             final int minKmer,
+                             final byte minBaseQualityToUseInAssembly) {
         super();
-        DEBUG = debug;
-        GRAPH_WRITER = graphWriter;
-        MIN_KMER = minKmer;
+        this.debug = debug;
+        this.debugGraphTransformations = debugGraphTransformations > 0;
+        this.onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms = debugGraphTransformations;
+        this.graphWriter = graphWriter;
+        this.minKmer = minKmer;
+        this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
     }
 
     /**
@@ -120,135 +141,68 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         this.PRUNE_FACTOR = PRUNE_FACTOR;
 
         // create the graphs
-        createDeBruijnGraphs( activeRegion.getReads(), refHaplotype );
+        final List<SeqGraph> graphs = createDeBruijnGraphs( activeRegion.getReads(), refHaplotype );
 
         // print the graphs if the appropriate debug option has been turned on
-        if( GRAPH_WRITER != null ) {
-            printGraphs();
+        if( graphWriter != null ) {
+            printGraphs(graphs);
         }
 
         // find the best paths in the graphs and return them as haplotypes
-        return findBestPaths( refHaplotype, fullReferenceWithPadding, refLoc, activeAllelesToGenotype, activeRegion.getExtendedLoc() );
+        return findBestPaths( graphs, refHaplotype, fullReferenceWithPadding, refLoc, activeAllelesToGenotype, activeRegion.getExtendedLoc() );
     }
 
     @Requires({"reads != null", "refHaplotype != null"})
-    protected void createDeBruijnGraphs( final List<GATKSAMRecord> reads, final Haplotype refHaplotype ) {
-        graphs.clear();
+    protected List<SeqGraph> createDeBruijnGraphs( final List<GATKSAMRecord> reads, final Haplotype refHaplotype ) {
+        final List<SeqGraph> graphs = new LinkedList<SeqGraph>();
 
         final int maxKmer = ReadUtils.getMaxReadLength(reads) - KMER_OVERLAP - 1;
-        if( maxKmer < MIN_KMER ) { return; } // Reads are too small for assembly so don't try to create any assembly graphs
-
+        if( maxKmer < minKmer) {
+            // Reads are too small for assembly so don't try to create any assembly graphs
+            return Collections.emptyList();
+        }
         // create the graph for each possible kmer
-        for( int kmer = maxKmer; kmer >= MIN_KMER; kmer -= GRAPH_KMER_STEP ) {
-            final DeBruijnAssemblyGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, DEBUG );
+        for( int kmer = maxKmer; kmer >= minKmer; kmer -= GRAPH_KMER_STEP ) {
+            if ( debugGraphTransformations && kmer > onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms)
+                continue;
+
+            if ( debug ) logger.info("Creating de Bruijn graph for " + kmer + " kmer using " + reads.size() + " reads");
+            DeBruijnGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, debug);
             if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
                 // do a series of steps to clean up the raw assembly graph to make it analysis-ready
-                pruneGraph(graph, PRUNE_FACTOR);
-                cleanNonRefPaths(graph);
-                mergeNodes(graph);
-                if( graph.getReferenceSourceVertex() != null ) { // if the graph contains interesting variation from the reference
-                    sanityCheckReferenceGraph(graph, refHaplotype);
-                    graphs.add(graph);
+                if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), PRUNE_FACTOR);
+                graph = graph.errorCorrect();
+                if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), PRUNE_FACTOR);
+                graph.cleanNonRefPaths();
+
+                final SeqGraph seqGraph = toSeqGraph(graph);
+
+                if( seqGraph.getReferenceSourceVertex() != null ) { // if the graph contains interesting variation from the reference
+                    sanityCheckReferenceGraph(seqGraph, refHaplotype);
+                    graphs.add(seqGraph);
+
+                    if ( debugGraphTransformations ) // we only want to use one graph size
+                        break;
                 }
             }
+
         }
+
+        return graphs;
     }
 
-    @Requires({"graph != null"})
-    protected static void mergeNodes( final DeBruijnAssemblyGraph graph ) {
-        boolean foundNodesToMerge = true;
-        while( foundNodesToMerge ) {
-            foundNodesToMerge = false;
-
-            for( final DeBruijnEdge e : graph.edgeSet() ) {
-                final DeBruijnVertex outgoingVertex = graph.getEdgeTarget(e);
-                final DeBruijnVertex incomingVertex = graph.getEdgeSource(e);
-                if( !outgoingVertex.equals(incomingVertex) && graph.outDegreeOf(incomingVertex) == 1 && graph.inDegreeOf(outgoingVertex) == 1 &&
-                    graph.inDegreeOf(incomingVertex) <= 1 && graph.outDegreeOf(outgoingVertex) <= 1 && graph.isReferenceNode(incomingVertex) == graph.isReferenceNode(outgoingVertex) ) {
-                    final Set<DeBruijnEdge> outEdges = graph.outgoingEdgesOf(outgoingVertex);
-                    final Set<DeBruijnEdge> inEdges = graph.incomingEdgesOf(incomingVertex);
-                    if( inEdges.size() == 1 && outEdges.size() == 1 ) {
-                        inEdges.iterator().next().setMultiplicity( inEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() / 2 ) );
-                        outEdges.iterator().next().setMultiplicity( outEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() / 2 ) );
-                    } else if( inEdges.size() == 1 ) {
-                        inEdges.iterator().next().setMultiplicity( inEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() - 1 ) );
-                    } else if( outEdges.size() == 1 ) {
-                        outEdges.iterator().next().setMultiplicity( outEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() - 1 ) );
-                    }
-
-                    final DeBruijnVertex addedVertex = new DeBruijnVertex( ArrayUtils.addAll(incomingVertex.getSequence(), outgoingVertex.getSuffix()), outgoingVertex.kmer );
-                    graph.addVertex(addedVertex);
-                    for( final DeBruijnEdge edge : outEdges ) {
-                        graph.addEdge(addedVertex, graph.getEdgeTarget(edge), new DeBruijnEdge(edge.isRef(), edge.getMultiplicity()));
-                    }
-                    for( final DeBruijnEdge edge : inEdges ) {
-                        graph.addEdge(graph.getEdgeSource(edge), addedVertex, new DeBruijnEdge(edge.isRef(), edge.getMultiplicity()));
-                    }
-
-                    graph.removeVertex( incomingVertex );
-                    graph.removeVertex( outgoingVertex );
-                    foundNodesToMerge = true;
-                    break;
-                }
-            }
-        }
+    private SeqGraph toSeqGraph(final DeBruijnGraph deBruijnGraph) {
+        final SeqGraph seqGraph = deBruijnGraph.convertToSequenceGraph();
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), PRUNE_FACTOR);
+        seqGraph.pruneGraph(PRUNE_FACTOR);
+        seqGraph.removeVerticesNotConnectedToRef();
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.pruned.dot"), PRUNE_FACTOR);
+        seqGraph.simplifyGraph();
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.dot"), PRUNE_FACTOR);
+        return seqGraph;
     }
 
-    protected static void cleanNonRefPaths( final DeBruijnAssemblyGraph graph ) {
-        if( graph.getReferenceSourceVertex() == null || graph.getReferenceSinkVertex() == null ) {
-            return;
-        }
-        // Remove non-ref edges connected before and after the reference path
-        final Set<DeBruijnEdge> edgesToCheck = new HashSet<DeBruijnEdge>();
-        edgesToCheck.addAll(graph.incomingEdgesOf(graph.getReferenceSourceVertex()));
-        while( !edgesToCheck.isEmpty() ) {
-            final DeBruijnEdge e = edgesToCheck.iterator().next();
-            if( !e.isRef() ) {
-                edgesToCheck.addAll( graph.incomingEdgesOf(graph.getEdgeSource(e)) );
-                graph.removeEdge(e);
-            }
-            edgesToCheck.remove(e);
-        }
-        edgesToCheck.addAll(graph.outgoingEdgesOf(graph.getReferenceSinkVertex()));
-        while( !edgesToCheck.isEmpty() ) {
-            final DeBruijnEdge e = edgesToCheck.iterator().next();
-            if( !e.isRef() ) {
-                edgesToCheck.addAll( graph.outgoingEdgesOf(graph.getEdgeTarget(e)) );
-                graph.removeEdge(e);
-            }
-            edgesToCheck.remove(e);
-        }
-
-        // Run through the graph and clean up singular orphaned nodes
-        final List<DeBruijnVertex> verticesToRemove = new ArrayList<DeBruijnVertex>();
-        for( final DeBruijnVertex v : graph.vertexSet() ) {
-            if( graph.inDegreeOf(v) == 0 && graph.outDegreeOf(v) == 0 ) {
-                verticesToRemove.add(v);
-            }
-        }
-        graph.removeAllVertices(verticesToRemove);
-    }
-
-    protected static void pruneGraph( final DeBruijnAssemblyGraph graph, final int pruneFactor ) {
-        final List<DeBruijnEdge> edgesToRemove = new ArrayList<DeBruijnEdge>();
-        for( final DeBruijnEdge e : graph.edgeSet() ) {
-            if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
-                edgesToRemove.add(e);
-            }
-        }
-        graph.removeAllEdges(edgesToRemove);
-
-        // Run through the graph and clean up singular orphaned nodes
-        final List<DeBruijnVertex> verticesToRemove = new ArrayList<DeBruijnVertex>();
-        for( final DeBruijnVertex v : graph.vertexSet() ) {
-            if( graph.inDegreeOf(v) == 0 && graph.outDegreeOf(v) == 0 ) {
-                verticesToRemove.add(v);
-            }
-        }
-        graph.removeAllVertices(verticesToRemove);
-    }
-
-    protected static void sanityCheckReferenceGraph(final DeBruijnAssemblyGraph graph, final Haplotype refHaplotype) {
+    protected <T extends BaseVertex> void sanityCheckReferenceGraph(final BaseGraph<T> graph, final Haplotype refHaplotype) {
         if( graph.getReferenceSourceVertex() == null ) {
             throw new IllegalStateException("All reference graphs must have a reference source vertex.");
         }
@@ -264,16 +218,17 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     @Requires({"reads != null", "KMER_LENGTH > 0", "refHaplotype != null"})
-    protected static DeBruijnAssemblyGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
+    protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
 
-        final DeBruijnAssemblyGraph graph = new DeBruijnAssemblyGraph();
+        final DeBruijnGraph graph = new DeBruijnGraph(KMER_LENGTH);
 
         // First pull kmers from the reference haplotype and add them to the graph
+        //logger.info("Adding reference sequence to graph " + refHaplotype.getBaseString());
         final byte[] refSequence = refHaplotype.getBases();
         if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
             final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
             for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-                if( !graph.addKmersToGraph(Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true) ) {
+                if( !graph.addKmersToGraph(Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true, 1) ) {
                     if( DEBUG ) {
                         System.out.println("Cycle detected in reference graph for kmer = " + KMER_LENGTH + " ...skipping");
                     }
@@ -284,16 +239,18 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         // Next pull kmers out of every read and throw them on the graph
         for( final GATKSAMRecord read : reads ) {
+            //if ( ! read.getReadName().equals("H06JUADXX130110:1:1213:15422:11590")) continue;
+            //logger.info("Adding read " + read + " with sequence " + read.getReadString());
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
             final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
             if( sequence.length > KMER_LENGTH + KMER_OVERLAP ) {
                 final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-                for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {                    
+                for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
                     // if the qualities of all the bases in the kmers are high enough
                     boolean badKmer = false;
                     for( int jjj = iii; jjj < iii + KMER_LENGTH + 1; jjj++) {
-                        if( qualities[jjj] < MIN_QUALITY ) {
+                        if( qualities[jjj] < minBaseQualityToUseInAssembly ) {
                             badKmer = true;
                             break;
                         }
@@ -310,39 +267,41 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                         final byte[] kmer2 = Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH);
 
                         for( int kkk=0; kkk < countNumber; kkk++ ) {
-                            graph.addKmersToGraph(kmer1, kmer2, false);
+                            graph.addKmersToGraph(kmer1, kmer2, false, 1);
                         }
                     }
                 }
             }
         }
+
         return graph;
     }
 
-    protected void printGraphs() {
-        GRAPH_WRITER.println("digraph assemblyGraphs {");
-        for( final DeBruijnAssemblyGraph graph : graphs ) {
-            for( final DeBruijnEdge edge : graph.edgeSet() ) {
-                if( edge.getMultiplicity() > PRUNE_FACTOR ) {
-                    GRAPH_WRITER.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= PRUNE_FACTOR ? "style=dotted,color=grey" : "label=\""+ edge.getMultiplicity() +"\"") + "];");
-                }
-                if( edge.isRef() ) {
-                    GRAPH_WRITER.println("\t" + graph.getEdgeSource(edge).toString() + " -> " + graph.getEdgeTarget(edge).toString() + " [color=red];");
-                }
-                if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
+    protected void printGraphs(final List<SeqGraph> graphs) {
+        final int writeFirstGraphWithSizeSmallerThan = 50;
+
+        graphWriter.println("digraph assemblyGraphs {");
+        for( final SeqGraph graph : graphs ) {
+            if ( debugGraphTransformations && graph.getKmerSize() >= writeFirstGraphWithSizeSmallerThan ) {
+                logger.info("Skipping writing of graph with kmersize " + graph.getKmerSize());
+                continue;
             }
-            for( final DeBruijnVertex v : graph.vertexSet() ) {
-                GRAPH_WRITER.println("\t" + v.toString() + " [label=\"" + new String(graph.getAdditionalSequence(v)) + "\"]");
-            }
+
+            graph.printGraph(graphWriter, false, PRUNE_FACTOR);
+
+            if ( debugGraphTransformations )
+                break;
         }
-        GRAPH_WRITER.println("}");
+
+        graphWriter.println("}");
     }
 
     @Requires({"refWithPadding.length > refHaplotype.getBases().length", "refLoc.containsP(activeRegionWindow)"})
     @Ensures({"result.contains(refHaplotype)"})
-    private List<Haplotype> findBestPaths( final Haplotype refHaplotype, final byte[] refWithPadding, final GenomeLoc refLoc, final List<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow ) {
+    private List<Haplotype> findBestPaths( final List<SeqGraph> graphs, final Haplotype refHaplotype, final byte[] refWithPadding, final GenomeLoc refLoc, final List<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow ) {
 
         // add the reference haplotype separately from all the others to ensure that it is present in the list of haplotypes
+        // TODO -- this use of an array with contains lower may be a performance problem returning in an O(N^2) algorithm
         final List<Haplotype> returnHaplotypes = new ArrayList<Haplotype>();
         refHaplotype.setAlignmentStartHapwrtRef(activeRegionWindow.getStart() - refLoc.getStart());
         final Cigar c = new Cigar();
@@ -361,8 +320,8 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             }
         }
 
-        for( final DeBruijnAssemblyGraph graph : graphs ) {
-            for ( final KBestPaths.Path path : KBestPaths.getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
+        for( final SeqGraph graph : graphs ) {
+            for ( final Path<SeqVertex> path : new KBestPaths<SeqVertex>().getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
                 Haplotype h = new Haplotype( path.getBases() );
                 if( !returnHaplotypes.contains(h) ) {
                     final Cigar cigar = path.calculateCigar();
@@ -383,8 +342,12 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                     }
                     if( !returnHaplotypes.contains(h) ) {
                         h.setAlignmentStartHapwrtRef(activeRegionStart);
-                        h.setCigar( leftAlignedCigar );
+                        h.setCigar(leftAlignedCigar);
+                        h.setScore(path.getScore());
                         returnHaplotypes.add(h);
+
+                        if ( debug )
+                            logger.info("Adding haplotype " + h.getCigar() + " from debruijn graph with kmer " + graph.getKmerSize());
 
                         // for GGA mode, add the desired allele into the haplotype if it isn't already present
                         if( !activeAllelesToGenotype.isEmpty() ) {
@@ -409,17 +372,21 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             }
         }
 
-        if( DEBUG ) {
+        if ( returnHaplotypes.size() < returnHaplotypes.size() )
+            logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);
+
+        if( debug ) {
             if( returnHaplotypes.size() > 1 ) {
-                System.out.println("Found " + returnHaplotypes.size() + " candidate haplotypes to evaluate every read against.");
+                System.out.println("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
             } else {
                 System.out.println("Found only the reference haplotype in the assembly graph.");
             }
             for( final Haplotype h : returnHaplotypes ) {
                 System.out.println( h.toString() );
-                System.out.println( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() );
+                System.out.println( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() + " score " + h.getScore() );
             }
         }
+
         return returnHaplotypes;
     }
 
@@ -498,7 +465,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
      * @return          the left-aligned cigar
      */
     @Ensures({"cigar != null", "refSeq != null", "readSeq != null", "refIndex >= 0", "readIndex >= 0"})
-    protected static Cigar leftAlignCigarSequentially(final Cigar cigar, final byte[] refSeq, final byte[] readSeq, int refIndex, int readIndex) {
+    protected Cigar leftAlignCigarSequentially(final Cigar cigar, final byte[] refSeq, final byte[] readSeq, int refIndex, int readIndex) {
         final Cigar cigarToReturn = new Cigar();
         Cigar cigarToAlign = new Cigar();
         for (int i = 0; i < cigar.numCigarElements(); i++) {

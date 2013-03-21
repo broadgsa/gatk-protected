@@ -47,33 +47,72 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
+import com.google.java.contract.Invariant;
 import org.apache.commons.lang.ArrayUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.apache.log4j.Logger;
+import org.jgrapht.EdgeFactory;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.util.Arrays;
+import java.util.*;
 
 /**
  * Created with IntelliJ IDEA.
  * User: rpoplin
  * Date: 2/6/13
  */
+@Invariant("!this.isAllowingMultipleEdges()")
+public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, BaseEdge> {
+    protected final static Logger logger = Logger.getLogger(BaseGraph.class);
+    private final int kmerSize;
 
-public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, DeBruijnEdge> {
+    /**
+     * Construct an empty BaseGraph
+     */
+    public BaseGraph() {
+        this(11);
+    }
 
-    public DeBruijnAssemblyGraph() {
-        super(DeBruijnEdge.class);
+    /**
+     * Edge factory that creates non-reference multiplicity 1 edges
+     * @param <T> the new of our vertices
+     */
+    private static class MyEdgeFactory<T extends BaseVertex> implements EdgeFactory<T, BaseEdge> {
+        @Override
+        public BaseEdge createEdge(T sourceVertex, T targetVertex) {
+            return new BaseEdge(false, 1);
+        }
+    }
+
+    /**
+     * Construct a DeBruijnGraph with kmerSize
+     * @param kmerSize
+     */
+    public BaseGraph(final int kmerSize) {
+        super(new MyEdgeFactory<T>());
+
+        if ( kmerSize < 1 ) throw new IllegalArgumentException("kmerSize must be >= 1 but got " + kmerSize);
+        this.kmerSize = kmerSize;
+    }
+
+    /**
+     * How big of a kmer did we use to create this graph?
+     * @return
+     */
+    public int getKmerSize() {
+        return kmerSize;
     }
 
     /**
      * @param v the vertex to test
      * @return  true if this vertex is a reference node (meaning that it appears on the reference path in the graph)
      */
-    public boolean isReferenceNode( final DeBruijnVertex v ) {
+    public boolean isReferenceNode( final T v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
-        for( final DeBruijnEdge e : edgesOf(v) ) {
+        for( final BaseEdge e : edgesOf(v) ) {
             if( e.isRef() ) { return true; }
         }
         return false;
@@ -81,11 +120,20 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
 
     /**
      * @param v the vertex to test
-     * @return  true if this vertex is a source node
+     * @return  true if this vertex is a source node (in degree == 0)
      */
-    public boolean isSource( final DeBruijnVertex v ) {
+    public boolean isSource( final T v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
         return inDegreeOf(v) == 0;
+    }
+
+    /**
+     * @param v the vertex to test
+     * @return  true if this vertex is a sink node (out degree == 0)
+     */
+    public boolean isSink( final T v ) {
+        if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
+        return outDegreeOf(v) == 0;
     }
 
     /**
@@ -94,18 +142,18 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @return  non-null byte array
      */
     @Ensures({"result != null"})
-    public byte[] getAdditionalSequence( final DeBruijnVertex v ) {
+    public byte[] getAdditionalSequence( final T v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to pull sequence from a null vertex."); }
-        return ( isSource(v) ? v.getSequence() : v.getSuffix() );
+        return v.getAdditionalSequence(isSource(v));
     }
 
     /**
      * @param e the edge to test
      * @return  true if this edge is a reference source edge
      */
-    public boolean isRefSource( final DeBruijnEdge e ) {
+    public boolean isRefSource( final BaseEdge e ) {
         if( e == null ) { throw new IllegalArgumentException("Attempting to test a null edge."); }
-        for( final DeBruijnEdge edgeToTest : incomingEdgesOf(getEdgeSource(e)) ) {
+        for( final BaseEdge edgeToTest : incomingEdgesOf(getEdgeSource(e)) ) {
             if( edgeToTest.isRef() ) { return false; }
         }
         return true;
@@ -115,9 +163,9 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @param v the vertex to test
      * @return  true if this vertex is a reference source
      */
-    public boolean isRefSource( final DeBruijnVertex v ) {
+    public boolean isRefSource( final T v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
-        for( final DeBruijnEdge edgeToTest : incomingEdgesOf(v) ) {
+        for( final BaseEdge edgeToTest : incomingEdgesOf(v) ) {
             if( edgeToTest.isRef() ) { return false; }
         }
         return true;
@@ -127,9 +175,9 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @param e the edge to test
      * @return  true if this edge is a reference sink edge
      */
-    public boolean isRefSink( final DeBruijnEdge e ) {
+    public boolean isRefSink( final BaseEdge e ) {
         if( e == null ) { throw new IllegalArgumentException("Attempting to test a null edge."); }
-        for( final DeBruijnEdge edgeToTest : outgoingEdgesOf(getEdgeTarget(e)) ) {
+        for( final BaseEdge edgeToTest : outgoingEdgesOf(getEdgeTarget(e)) ) {
             if( edgeToTest.isRef() ) { return false; }
         }
         return true;
@@ -139,9 +187,9 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @param v the vertex to test
      * @return  true if this vertex is a reference sink
      */
-    public boolean isRefSink( final DeBruijnVertex v ) {
+    public boolean isRefSink( final T v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
-        for( final DeBruijnEdge edgeToTest : outgoingEdgesOf(v) ) {
+        for( final BaseEdge edgeToTest : outgoingEdgesOf(v) ) {
             if( edgeToTest.isRef() ) { return false; }
         }
         return true;
@@ -150,8 +198,8 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
     /**
      * @return the reference source vertex pulled from the graph, can be null if it doesn't exist in the graph
      */
-    public DeBruijnVertex getReferenceSourceVertex( ) {
-        for( final DeBruijnVertex v : vertexSet() ) {
+    public T getReferenceSourceVertex( ) {
+        for( final T v : vertexSet() ) {
             if( isReferenceNode(v) && isRefSource(v) ) {
                 return v;
             }
@@ -162,8 +210,8 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
     /**
      * @return the reference sink vertex pulled from the graph, can be null if it doesn't exist in the graph
      */
-    public DeBruijnVertex getReferenceSinkVertex( ) {
-        for( final DeBruijnVertex v : vertexSet() ) {
+    public T getReferenceSinkVertex( ) {
+        for( final T v : vertexSet() ) {
             if( isReferenceNode(v) && isRefSink(v) ) {
                 return v;
             }
@@ -176,9 +224,9 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @param v the current vertex, can be null
      * @return  the next reference vertex if it exists
      */
-    public DeBruijnVertex getNextReferenceVertex( final DeBruijnVertex v ) {
+    public T getNextReferenceVertex( final T v ) {
         if( v == null ) { return null; }
-        for( final DeBruijnEdge edgeToTest : outgoingEdgesOf(v) ) {
+        for( final BaseEdge edgeToTest : outgoingEdgesOf(v) ) {
             if( edgeToTest.isRef() ) {
                 return getEdgeTarget(edgeToTest);
             }
@@ -191,9 +239,9 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @param v the current vertex, can be null
      * @return  the previous reference vertex if it exists
      */
-    public DeBruijnVertex getPrevReferenceVertex( final DeBruijnVertex v ) {
+    public T getPrevReferenceVertex( final T v ) {
         if( v == null ) { return null; }
-        for( final DeBruijnEdge edgeToTest : incomingEdgesOf(v) ) {
+        for( final BaseEdge edgeToTest : incomingEdgesOf(v) ) {
             if( isReferenceNode(getEdgeSource(edgeToTest)) ) {
                 return getEdgeSource(edgeToTest);
             }
@@ -207,8 +255,8 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @param toVertex      to this vertex, can be null
      * @return              true if a reference path exists in the graph between the two vertices
      */
-    public boolean referencePathExists(final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex) {
-        DeBruijnVertex v = fromVertex;
+    public boolean referencePathExists(final T fromVertex, final T toVertex) {
+        T v = fromVertex;
         if( v == null ) {
             return false;
         }
@@ -233,12 +281,12 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
      * @param includeStop   should the ending vertex be included in the path
      * @return              byte[] array holding the reference bases, this can be null if there are no nodes between the starting and ending vertex (insertions for example)
      */
-    public byte[] getReferenceBytes( final DeBruijnVertex fromVertex, final DeBruijnVertex toVertex, final boolean includeStart, final boolean includeStop ) {
+    public byte[] getReferenceBytes( final T fromVertex, final T toVertex, final boolean includeStart, final boolean includeStop ) {
         if( fromVertex == null ) { throw new IllegalArgumentException("Starting vertex in requested path cannot be null."); }
         if( toVertex == null ) { throw  new IllegalArgumentException("From vertex in requested path cannot be null."); }
 
         byte[] bytes = null;
-        DeBruijnVertex v = fromVertex;
+        T v = fromVertex;
         if( includeStart ) {
             bytes = ArrayUtils.addAll(bytes, getAdditionalSequence(v));
         }
@@ -254,68 +302,230 @@ public class DeBruijnAssemblyGraph extends DefaultDirectedGraph<DeBruijnVertex, 
     }
 
     /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
+     * Convenience function to add multiple vertices to the graph at once
+     * @param vertices one or more vertices to add
      */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef);
+    public void addVertices(final T ... vertices) {
+        for ( final T v : vertices )
+            addVertex(v);
+    }
+
+    /**
+     * Convenience function to add multiple edges to the graph
+     * @param start the first vertex to connect
+     * @param remaining all additional vertices to connect
+     */
+    public void addEdges(final T start, final T ... remaining) {
+        T prev = start;
+        for ( final T next : remaining ) {
+            addEdge(prev, next);
+            prev = next;
         }
     }
 
     /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     * @return      will return false if trying to add a reference edge which creates a cycle in the assembly graph
+     * Get the set of vertices connected by outgoing edges of V
+     * @param v a non-null vertex
+     * @return a set of vertices connected by outgoing edges from v
      */
-    public boolean addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+    public Set<T> outgoingVerticesOf(final T v) {
+        final Set<T> s = new HashSet<T>();
+        for ( final BaseEdge e : outgoingEdgesOf(v) ) {
+            s.add(getEdgeTarget(e));
+        }
+        return s;
+    }
 
-        final int numVertexBefore = vertexSet().size();
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1, kmer1.length );
-        addVertex(v1);
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2, kmer2.length );
-        addVertex(v2);
-        if( isRef && vertexSet().size() == numVertexBefore ) { return false; }
+    /**
+     * Get the set of vertices connected to v by incoming edges
+     * @param v a non-null vertex
+     * @return a set of vertices {X} connected X -> v
+     */
+    public Set<T> incomingVerticesOf(final T v) {
+        final Set<T> s = new HashSet<T>();
+        for ( final BaseEdge e : incomingEdgesOf(v) ) {
+            s.add(getEdgeSource(e));
+        }
+        return s;
+    }
 
-        final DeBruijnEdge targetEdge = getEdge(v1, v2);
-        if ( targetEdge == null ) {
-            addEdge(v1, v2, new DeBruijnEdge( isRef ));
-        } else {
-            if( isRef ) {
-                targetEdge.setIsRef( true );
+    /**
+     * Print out the graph in the dot language for visualization
+     * @param destination File to write to
+     */
+    public void printGraph(final File destination, final int pruneFactor) {
+        PrintStream stream = null;
+
+        try {
+            stream = new PrintStream(new FileOutputStream(destination));
+            printGraph(stream, true, pruneFactor);
+        } catch ( FileNotFoundException e ) {
+            throw new RuntimeException(e);
+        } finally {
+            if ( stream != null ) stream.close();
+        }
+    }
+
+    // TODO -- generalize to support both types of graphs.  Need some kind of display string function
+    public void printGraph(final PrintStream graphWriter, final boolean writeHeader, final int pruneFactor) {
+        if ( writeHeader )
+            graphWriter.println("digraph assemblyGraphs {");
+
+        for( final BaseEdge edge : edgeSet() ) {
+//            if( edge.getMultiplicity() > PRUNE_FACTOR ) {
+            graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getMultiplicity() + "\"];");
+//            }
+            if( edge.isRef() ) {
+                graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [color=red];");
             }
-            targetEdge.setMultiplicity(targetEdge.getMultiplicity() + 1);
+            //if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
+        }
+
+        for( final T v : vertexSet() ) {
+            graphWriter.println("\t" + v.toString() + " [label=\"" + new String(getAdditionalSequence(v)) + "\",shape=box]");
+        }
+
+        if ( writeHeader )
+            graphWriter.println("}");
+    }
+
+    protected void cleanNonRefPaths() {
+        if( getReferenceSourceVertex() == null || getReferenceSinkVertex() == null ) {
+            return;
+        }
+
+        // Remove non-ref edges connected before and after the reference path
+        final Set<BaseEdge> edgesToCheck = new HashSet<BaseEdge>();
+        edgesToCheck.addAll(incomingEdgesOf(getReferenceSourceVertex()));
+        while( !edgesToCheck.isEmpty() ) {
+            final BaseEdge e = edgesToCheck.iterator().next();
+            if( !e.isRef() ) {
+                edgesToCheck.addAll( incomingEdgesOf(getEdgeSource(e)) );
+                removeEdge(e);
+            }
+            edgesToCheck.remove(e);
+        }
+
+        edgesToCheck.addAll(outgoingEdgesOf(getReferenceSinkVertex()));
+        while( !edgesToCheck.isEmpty() ) {
+            final BaseEdge e = edgesToCheck.iterator().next();
+            if( !e.isRef() ) {
+                edgesToCheck.addAll( outgoingEdgesOf(getEdgeTarget(e)) );
+                removeEdge(e);
+            }
+            edgesToCheck.remove(e);
+        }
+
+        // Run through the graph and clean up singular orphaned nodes
+        final List<T> verticesToRemove = new LinkedList<T>();
+        for( final T v : vertexSet() ) {
+            if( inDegreeOf(v) == 0 && outDegreeOf(v) == 0 ) {
+                verticesToRemove.add(v);
+            }
+        }
+        removeAllVertices(verticesToRemove);
+    }
+
+    protected void pruneGraph( final int pruneFactor ) {
+        final List<BaseEdge> edgesToRemove = new ArrayList<BaseEdge>();
+        for( final BaseEdge e : edgeSet() ) {
+            if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
+                edgesToRemove.add(e);
+            }
+        }
+        removeAllEdges(edgesToRemove);
+
+        // Run through the graph and clean up singular orphaned nodes
+        final List<T> verticesToRemove = new ArrayList<T>();
+        for( final T v : vertexSet() ) {
+            if( inDegreeOf(v) == 0 && outDegreeOf(v) == 0 ) {
+                verticesToRemove.add(v);
+            }
+        }
+
+        removeAllVertices(verticesToRemove);
+    }
+
+    public void removeVerticesNotConnectedToRef() {
+        final HashSet<T> toRemove = new HashSet<T>(vertexSet());
+        final HashSet<T> visited = new HashSet<T>();
+
+        final LinkedList<T> toVisit = new LinkedList<T>();
+        final T refV = getReferenceSourceVertex();
+        if ( refV != null ) {
+            toVisit.add(refV);
+            while ( ! toVisit.isEmpty() ) {
+                final T v = toVisit.pop();
+                if ( ! visited.contains(v) ) {
+                    toRemove.remove(v);
+                    visited.add(v);
+                    for ( final T prev : incomingVerticesOf(v) ) toVisit.add(prev);
+                    for ( final T next : outgoingVerticesOf(v) ) toVisit.add(next);
+                }
+            }
+
+            removeAllVertices(toRemove);
+        }
+    }
+
+    /**
+     * Semi-lenient comparison of two graphs, truing true if g1 and g2 have similar structure
+     *
+     * By similar this means that both graphs have the same number of vertices, where each vertex can find
+     * a vertex in the other graph that's seqEqual to it.  A similar constraint applies to the edges,
+     * where all edges in g1 must have a corresponding edge in g2 where both source and target vertices are
+     * seqEqual
+     *
+     * @param g1 the first graph to compare
+     * @param g2 the second graph to compare
+     * @param <T> the type of the nodes in those graphs
+     * @return true if g1 and g2 are equals
+     */
+    public static <T extends BaseVertex> boolean graphEquals(final BaseGraph<T> g1, BaseGraph<T> g2) {
+        final Set<T> vertices1 = g1.vertexSet();
+        final Set<T> vertices2 = g2.vertexSet();
+        final Set<BaseEdge> edges1 = g1.edgeSet();
+        final Set<BaseEdge> edges2 = g2.edgeSet();
+
+        if ( vertices1.size() != vertices2.size() || edges1.size() != edges2.size() )
+            return false;
+
+        for ( final T v1 : vertices1 ) {
+            boolean found = false;
+            for ( final T v2 : vertices2 )
+                found = found || v1.getSequenceString().equals(v2.getSequenceString());
+            if ( ! found ) return false;
+        }
+
+        for( final BaseEdge e1 : g1.edgeSet() ) {
+            boolean found = false;
+            for( BaseEdge e2 : g2.edgeSet() ) {
+                if( e1.seqEquals(g1, e2, g2) ) { found = true; break; }
+            }
+            if( !found ) { return false; }
+        }
+        for( final BaseEdge e2 : g2.edgeSet() ) {
+            boolean found = false;
+            for( BaseEdge e1 : g1.edgeSet() ) {
+                if( e2.seqEquals(g2, e1, g1) ) { found = true; break; }
+            }
+            if( !found ) { return false; }
         }
         return true;
     }
 
     /**
-     * Print out the graph in the dot language for visualization
-     * @param GRAPH_WRITER  PrintStream to write to
+     * Get the edge between source and target, or null if none is present
+     *
+     * Note that since we don't allow multiple edges between vertices there can be at most
+     * one edge between any two edges
+     *
+     * @param source the source vertex for our edge
+     * @param target the target vertex for our edge
+     * @return the edge joining source to target, or null if none is present
      */
-    public void printGraph( final PrintStream GRAPH_WRITER ) {
-        if( GRAPH_WRITER == null ) { throw new IllegalArgumentException("PrintStream cannot be null."); }
-
-        GRAPH_WRITER.println("digraph assembly {");
-        for( final DeBruijnEdge edge : edgeSet() ) {
-            GRAPH_WRITER.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + "label=\""+ edge.getMultiplicity() +"\"" + "];");
-            if( edge.isRef() ) {
-                GRAPH_WRITER.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [color=red];");
-            }
-        }
-        for( final DeBruijnVertex v : vertexSet() ) {
-            final String label = ( inDegreeOf(v) == 0 ? v.toString() : v.getSuffixString() );
-            GRAPH_WRITER.println("\t" + v.toString() + " [label=\"" + label + "\"]");
-        }
-        GRAPH_WRITER.println("}");
+    public BaseEdge getEdge(final T source, final T target) {
+        final Set<BaseEdge> edges = getAllEdges(source, target);
+        return edges.isEmpty() ? null : edges.iterator().next();
     }
 }

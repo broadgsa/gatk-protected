@@ -46,107 +46,115 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.java.contract.Ensures;
-
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 
 /**
- * Class for finding the K best paths (as determined by the sum of multiplicities of the edges) in a graph.
- * This is different from most graph traversals because we want to test paths from any source node to any sink node.
+ * simple edge class for connecting nodes in the graph
  *
- * User: ebanks, rpoplin, mdepristo
+ * Works equally well for all graph types (kmer or sequence)
+ *
+ * User: ebanks
  * Date: Mar 23, 2011
  */
-public class KBestPaths<T extends BaseVertex> {
-    public KBestPaths() { }
-
-    protected static class MyInt { public int val = 0; }
+public class BaseEdge {
+    private int multiplicity;
+    private boolean isRef;
 
     /**
-     * Compare paths such that paths with greater weight are earlier in a list
+     * Create a new BaseEdge with weight multiplicity and, if isRef == true, indicates a path through the reference
+     *
+     * @param isRef indicates whether this edge is a path through the reference
+     * @param multiplicity the number of observations of this edge
      */
-    protected static class PathComparatorTotalScore implements Comparator<Path>, Serializable {
+    public BaseEdge(final boolean isRef, final int multiplicity) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
+
+        this.multiplicity = multiplicity;
+        this.isRef = isRef;
+    }
+
+    /**
+     * Copy constructor
+     *
+     * @param toCopy
+     */
+    public BaseEdge(final BaseEdge toCopy) {
+        this(toCopy.isRef(), toCopy.getMultiplicity());
+    }
+
+    /**
+     * Get the number of observations of paths connecting two vertices
+     * @return a positive integer >= 0
+     */
+    public int getMultiplicity() {
+        return multiplicity;
+    }
+
+    /**
+     * Set the multiplicity of this edge to value
+     * @param value an integer >= 0
+     */
+    public void setMultiplicity( final int value ) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
+        multiplicity = value;
+    }
+
+    /**
+     * Does this edge indicate a path through the reference graph?
+     * @return true if so
+     */
+    public boolean isRef() {
+        return isRef;
+    }
+
+    /**
+     * Indicate that this edge follows the reference sequence, or not
+     * @param isRef true if this is a reference edge
+     */
+    public void setIsRef( final boolean isRef ) {
+        this.isRef = isRef;
+    }
+
+    /**
+     * Does this and edge have the same source and target vertices in graph?
+     *
+     * @param graph the graph containing both this and edge
+     * @param edge our comparator edge
+     * @param <T>
+     * @return true if we have the same source and target vertices
+     */
+    public <T extends BaseVertex> boolean hasSameSourceAndTarget(final BaseGraph<T> graph, final BaseEdge edge) {
+        return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
+    }
+
+    // For use when comparing edges across graphs!
+    public <T extends BaseVertex> boolean seqEquals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
+        return (graph.getEdgeSource(this).seqEquals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).seqEquals(graph2.getEdgeTarget(edge)));
+    }
+
+    /**
+     * Sorts a collection of BaseEdges in decreasing order of weight, so that the most
+     * heavily weighted is at the start of the list
+     */
+    public static class EdgeWeightComparator implements Comparator<BaseEdge>, Serializable {
         @Override
-        public int compare(final Path path1, final Path path2) {
-            return path2.getScore() - path1.getScore();
+        public int compare(final BaseEdge edge1, final BaseEdge edge2) {
+            return edge2.multiplicity - edge1.multiplicity;
         }
     }
 
     /**
-     * @see #getKBestPaths(BaseGraph, int) retriving the first 1000 paths
-     */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph ) {
-        return getKBestPaths(graph, 1000);
-    }
-
-    /**
-     * Traverse the graph and pull out the best k paths.
-     * Paths are scored via their comparator function. The default being PathComparatorTotalScore()
-     * @param graph the graph from which to pull paths
-     * @param k     the number of paths to find
-     * @return      a list with at most k top-scoring paths from the graph
-     */
-    @Ensures({"result != null", "result.size() <= k"})
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k ) {
-        if( graph == null ) { throw  new IllegalArgumentException("Attempting to traverse a null graph."); }
-
-        // a min max queue that will collect the best k paths
-        final MinMaxPriorityQueue<Path<T>> bestPaths = MinMaxPriorityQueue.orderedBy(new PathComparatorTotalScore()).maximumSize(k).create();
-
-        // run a DFS for best paths
-        for ( final T v : graph.vertexSet() ) {
-            if ( graph.inDegreeOf(v) == 0 ) {
-                findBestPaths(new Path<T>(v, graph), bestPaths, new MyInt());
-            }
-        }
-
-        // the MinMaxPriorityQueue iterator returns items in an arbitrary order, so we need to sort the final result
-        final List<Path<T>> toReturn = new ArrayList<Path<T>>(bestPaths);
-        Collections.sort(toReturn, new PathComparatorTotalScore());
-        return toReturn;
-    }
-
-    private void findBestPaths( final Path<T> path, final MinMaxPriorityQueue<Path<T>> bestPaths, final MyInt n ) {
-        // did we hit the end of a path?
-        if ( allOutgoingEdgesHaveBeenVisited(path) ) {
-            bestPaths.add(path);
-        } else if( n.val > 10000 ) {
-            // do nothing, just return, as we've done too much work already
-        } else {
-            // recursively run DFS
-            final ArrayList<BaseEdge> edgeArrayList = new ArrayList<BaseEdge>(path.getOutgoingEdgesOfLastVertex());
-            Collections.sort(edgeArrayList, new BaseEdge.EdgeWeightComparator());
-            for ( final BaseEdge edge : edgeArrayList ) {
-                // make sure the edge is not already in the path
-                if ( path.containsEdge(edge) )
-                    continue;
-
-                final Path<T> newPath = new Path<T>(path, edge);
-                n.val++;
-                findBestPaths(newPath, bestPaths, n);
-            }
-        }
-    }
-
-    /**
-     * Have all of the outgoing edges of the final vertex been visited?
+     * Add edge to this edge, updating isRef and multiplicity as appropriate
      *
-     * I.e., are all outgoing vertices of the current path in the list of edges of the graph?
+     * isRef is simply the or of this and edge
+     * multiplicity is the sum
      *
-     * @param path  the path to test
-     * @return      true if all the outgoing edges at the end of this path have already been visited
+     * @param edge the edge to add
      */
-    private boolean allOutgoingEdgesHaveBeenVisited( final Path<T> path ) {
-        for( final BaseEdge edge : path.getOutgoingEdgesOfLastVertex() ) {
-            if( !path.containsEdge(edge) ) { // TODO -- investigate allowing numInPath < 2 to allow cycles
-                return false;
-            }
-        }
-        return true;
+    public void add(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        this.multiplicity += edge.getMultiplicity();
+        this.isRef = this.isRef || edge.isRef();
     }
 }
