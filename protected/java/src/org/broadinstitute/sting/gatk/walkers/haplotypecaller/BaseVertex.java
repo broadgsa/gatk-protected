@@ -69,8 +69,19 @@ public class BaseVertex {
      */
     public BaseVertex(final byte[] sequence) {
         if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
-        if ( sequence.length == 0 ) throw new IllegalArgumentException("Sequence cannot be empty");
         this.sequence = sequence;
+    }
+
+    /**
+     * Does this vertex have an empty sequence?
+     *
+     * That is, is it a dummy node that's only present for structural reasons but doesn't actually
+     * contribute to the sequence of the graph?
+     *
+     * @return true if sequence is empty, false otherwise
+     */
+    public boolean isEmpty() {
+        return length() == 0;
     }
 
     /**

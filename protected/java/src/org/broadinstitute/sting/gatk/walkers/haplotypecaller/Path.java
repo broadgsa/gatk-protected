@@ -391,4 +391,24 @@ class Path<T extends BaseVertex> {
             cigar = initialCigar;
         }
     }
+
+    /**
+     * Tests that this and other have the same score and vertices in the same order with the same seq
+     * @param other the other path to consider.  Cannot be null
+     * @return true if this and path are equal, false otherwise
+     */
+    public boolean equalScoreAndSequence(final Path<T> other) {
+        if ( other == null ) throw new IllegalArgumentException("other cannot be null");
+
+        if ( getScore() != other.getScore() )
+            return false;
+        final List<T> mine = getVertices();
+        final List<T> yours = other.getVertices();
+        if ( mine.size() == yours.size() ) { // hehehe
+            for ( int i = 0; i < mine.size(); i++ )
+                if ( ! mine.get(i).seqEquals(yours.get(i)) )
+                    return false;
+        }
+        return true;
+    }
 }

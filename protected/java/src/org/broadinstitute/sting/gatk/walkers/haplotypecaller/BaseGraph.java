@@ -48,10 +48,12 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Invariant;
+import com.google.java.contract.Requires;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.jgrapht.EdgeFactory;
 import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.traverse.DepthFirstIterator;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -219,6 +221,15 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         return null;
     }
 
+    public boolean isNonRefSink(final T v) {
+        // TODO -- cleanup logic statements
+        if ( ! isSink(v) ) return false;
+        for ( final BaseEdge in : incomingEdgesOf(v) )
+            if ( in.isRef() )
+                return false;
+        return true;
+    }
+
     /**
      * Traverse the graph and get the next reference vertex if it exists
      * @param v the current vertex, can be null
@@ -306,6 +317,15 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param vertices one or more vertices to add
      */
     public void addVertices(final T ... vertices) {
+        for ( final T v : vertices )
+            addVertex(v);
+    }
+
+    /**
+     * Convenience function to add multiple vertices to the graph at once
+     * @param vertices one or more vertices to add
+     */
+    public void addVertices(final Collection<T> vertices) {
         for ( final T v : vertices )
             addVertex(v);
     }
@@ -426,6 +446,23 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         removeAllVertices(verticesToRemove);
     }
 
+    protected void removePathsNotConnectedToRef() {
+        if ( getReferenceSourceVertex() == null || getReferenceSinkVertex() == null ) {
+            throw new IllegalStateException("Graph must have ref source and sink vertices");
+        }
+
+        final Set<T> verticesToRemove = new HashSet<T>(vertexSet());
+        final DepthFirstIterator<T, BaseEdge> dfi = new DepthFirstIterator<T, BaseEdge>(this, getReferenceSourceVertex());
+        while ( dfi.hasNext() ) {
+            final T accessibleFromRefSource = dfi.next();
+            // we also want to prune all sinks that aren't the reference sink
+            if ( ! isNonRefSink(accessibleFromRefSource) )
+                verticesToRemove.remove(accessibleFromRefSource);
+        }
+
+        removeAllVertices(verticesToRemove);
+    }
+
     protected void pruneGraph( final int pruneFactor ) {
         final List<BaseEdge> edgesToRemove = new ArrayList<BaseEdge>();
         for( final BaseEdge e : edgeSet() ) {
@@ -525,7 +562,52 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @return the edge joining source to target, or null if none is present
      */
     public BaseEdge getEdge(final T source, final T target) {
-        final Set<BaseEdge> edges = getAllEdges(source, target);
+        return getSingletonEdge(getAllEdges(source, target));
+    }
+
+    /**
+     * Get the incoming edge of v.  Requires that there be only one such edge or throws an error
+     * @param v our vertex
+     * @return the single incoming edge to v, or null if none exists
+     */
+    public BaseEdge incomingEdgeOf(final T v) {
+        return getSingletonEdge(incomingEdgesOf(v));
+    }
+
+    /**
+     * Get the outgoing edge of v.  Requires that there be only one such edge or throws an error
+     * @param v our vertex
+     * @return the single outgoing edge from v, or null if none exists
+     */
+    public BaseEdge outgoingEdgeOf(final T v) {
+        return getSingletonEdge(outgoingEdgesOf(v));
+    }
+
+    /**
+     * Helper function that gets the a single edge from edges, null if edges is empty, or
+     * throws an error is edges has more than 1 element
+     * @param edges a set of edges
+     * @return a edge
+     */
+    @Requires("edges != null")
+    private BaseEdge getSingletonEdge(final Collection<BaseEdge> edges) {
+        if ( edges.size() > 1 ) throw new IllegalArgumentException("Cannot get a single incoming edge for a vertex with multiple incoming edges " + edges);
         return edges.isEmpty() ? null : edges.iterator().next();
+    }
+
+    /**
+     * Add edge between source -> target if none exists, or add e to an already existing one if present
+     *
+     * @param source source vertex
+     * @param target vertex
+     * @param e edge to add
+     */
+    public void addOrUpdateEdge(final T source, final T target, final BaseEdge e) {
+        final BaseEdge prev = getEdge(source, target);
+        if ( prev != null ) {
+            prev.add(e);
+        } else {
+            addEdge(source, target, e);
+        }
     }
 }

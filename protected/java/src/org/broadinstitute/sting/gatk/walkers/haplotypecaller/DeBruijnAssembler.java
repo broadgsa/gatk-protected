@@ -173,7 +173,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), PRUNE_FACTOR);
                 graph = graph.errorCorrect();
                 if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), PRUNE_FACTOR);
-                graph.cleanNonRefPaths();
 
                 final SeqGraph seqGraph = toSeqGraph(graph);
 
@@ -199,6 +198,14 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.pruned.dot"), PRUNE_FACTOR);
         seqGraph.simplifyGraph();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.dot"), PRUNE_FACTOR);
+
+        // if we've assembled just to the reference, just leave now otherwise removePathsNotConnectedToRef
+        // might blow up because there's no reference source node
+        if ( seqGraph.vertexSet().size() == 1 )
+            return seqGraph;
+        seqGraph.removePathsNotConnectedToRef();
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.refcleaned.dot"), PRUNE_FACTOR);
+
         return seqGraph;
     }
 
@@ -274,6 +281,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             }
         }
 
+        graph.cleanNonRefPaths();
         return graph;
     }
 

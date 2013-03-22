@@ -150,4 +150,19 @@ public class SeqVertex extends BaseVertex {
         final int prefixSize = sequence.length - suffix.length;
         return prefixSize > 0 ? new SeqVertex(Arrays.copyOf(sequence, prefixSize)) : null;
     }
+
+    /**
+     * Return a new SeqVertex derived from this one but not including prefix or suffix bases
+     *
+     * @param prefix the previx bases to remove
+     * @param suffix the suffix bases to remove from this vertex
+     * @return a newly allocated SeqVertex
+     */
+    @Requires("Utils.endsWith(sequence, suffix)")
+    public SeqVertex withoutPrefixAndSuffix(final byte[] prefix, final byte[] suffix) {
+        final int start = prefix.length;
+        final int length = sequence.length - suffix.length - prefix.length;
+        final int stop = start + length;
+        return length > 0 ? new SeqVertex(Arrays.copyOfRange(sequence, start, stop)) : null;
+    }
 }

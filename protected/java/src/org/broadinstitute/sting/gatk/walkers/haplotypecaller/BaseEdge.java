@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Comparator;
 
 /**
@@ -151,10 +152,39 @@ public class BaseEdge {
      * multiplicity is the sum
      *
      * @param edge the edge to add
+     * @return this
      */
-    public void add(final BaseEdge edge) {
+    public BaseEdge add(final BaseEdge edge) {
         if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
         this.multiplicity += edge.getMultiplicity();
         this.isRef = this.isRef || edge.isRef();
+        return this;
+    }
+
+    /**
+     * Create a new BaseEdge with multiplicity and isRef that's an or of all edges
+     *
+     * @param edges a collection of edges to or their isRef values
+     * @param multiplicity our desired multiplicity
+     * @return a newly allocated BaseEdge
+     */
+    public static BaseEdge orRef(final Collection<BaseEdge> edges, final int multiplicity) {
+        for ( final BaseEdge e : edges )
+            if ( e.isRef() )
+                return new BaseEdge(true, multiplicity);
+        return new BaseEdge(false, multiplicity);
+    }
+
+    /**
+     * Return a new edge that the max of this and edge
+     *
+     * isRef is simply the or of this and edge
+     * multiplicity is the max
+     *
+     * @param edge the edge to max
+     */
+    public BaseEdge max(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        return new BaseEdge(isRef() || edge.isRef(), Math.max(getMultiplicity(), edge.getMultiplicity()));
     }
 }

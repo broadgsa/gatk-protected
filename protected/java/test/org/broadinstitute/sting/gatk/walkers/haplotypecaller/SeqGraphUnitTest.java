@@ -51,7 +51,6 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -181,7 +180,9 @@ public class SeqGraphUnitTest extends BaseTest {
 
     @Test(dataProvider = "IsDiamondData", enabled = true)
     public void testIsDiamond(final SeqGraph graph, final SeqVertex v, final boolean isRootOfDiamond) {
-        Assert.assertEquals(graph.isRootOfDiamond(v), isRootOfDiamond);
+        final SeqGraph.MergeDiamonds merger = graph.new MergeDiamonds();
+        merger.setDontModifyGraphEvenIfPossible();
+        Assert.assertEquals(merger.tryToTransform(v), isRootOfDiamond);
     }
 
     @DataProvider(name = "MergingData")
@@ -267,7 +268,7 @@ public class SeqGraphUnitTest extends BaseTest {
             tests.add(new Object[]{graph.clone(), expected.clone()});
         }
 
-        {
+        { // all the nodes -> lots of merging and motion of nodes
             final SeqGraph all = new SeqGraph();
             all.addVertices(pre1, pre2, top, middle1, middle2, bottom, tail1, tail2);
             all.addEdges(pre1, top, middle1, bottom, tail1);
@@ -277,9 +278,13 @@ public class SeqGraphUnitTest extends BaseTest {
             final SeqVertex newMiddle1 = new SeqVertex("G");
             final SeqVertex newMiddle2 = new SeqVertex("T");
             final SeqVertex newBottom = new SeqVertex("C" + bottom.getSequenceString());
-            expected.addVertices(pre1, pre2, top, newMiddle1, newMiddle2, newBottom, tail1, tail2);
-            expected.addEdges(pre1, top, newMiddle1, newBottom, tail1);
-            expected.addEdges(pre2, top, newMiddle2, newBottom, tail2);
+            final SeqVertex newTop = new SeqVertex("A");
+            final SeqVertex newTopDown1 = new SeqVertex("G");
+            final SeqVertex newTopDown2 = new SeqVertex("C");
+            final SeqVertex newTopBottomMerged = new SeqVertex("TA");
+            expected.addVertices(newTop, newTopDown1, newTopDown2, newTopBottomMerged, newMiddle1, newMiddle2, newBottom, tail1, tail2);
+            expected.addEdges(newTop, newTopDown1, newTopBottomMerged, newMiddle1, newBottom, tail1);
+            expected.addEdges(newTop, newTopDown2, newTopBottomMerged, newMiddle2, newBottom, tail2);
             tests.add(new Object[]{all.clone(), expected.clone()});
         }
 
@@ -309,7 +314,12 @@ public class SeqGraphUnitTest extends BaseTest {
     @Test(dataProvider = "MergingData", enabled = true)
     public void testMerging(final SeqGraph graph, final SeqGraph expected) {
         final SeqGraph merged = (SeqGraph)graph.clone();
-        merged.simplifyGraph();
+        merged.simplifyGraph(1);
+//        if ( ! SeqGraph.graphEquals(merged, expected) ) {
+//            graph.printGraph(new File("graph.dot"), 0);
+//            merged.printGraph(new File("merged.dot"), 0);
+//            expected.printGraph(new File("expected.dot"), 0);
+//        }
         Assert.assertTrue(SeqGraph.graphEquals(merged, expected));
     }
 
@@ -332,13 +342,9 @@ public class SeqGraphUnitTest extends BaseTest {
         graph.addEdge(mid1, bot, new BaseEdge(true, 1));
 
         final SeqGraph expected = new SeqGraph();
-        expected.addVertices(top, mid1, bot);
-        expected.addEdge(top, mid1, new BaseEdge(true, 2));
-        expected.addEdge(mid1, bot, new BaseEdge(true, 2));
-
+        expected.addVertex(new SeqVertex("AACTC"));
         final SeqGraph actual = ((SeqGraph)graph.clone());
-        actual.mergeBranchingNodes();
-
-        Assert.assertTrue(BaseGraph.graphEquals(actual, expected));
+        actual.simplifyGraph();
+        Assert.assertTrue(BaseGraph.graphEquals(actual, expected), "Wrong merging result after complete merging");
     }
 }

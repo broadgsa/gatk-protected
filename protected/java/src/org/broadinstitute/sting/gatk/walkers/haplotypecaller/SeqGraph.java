@@ -46,13 +46,9 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
 import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
 
-import java.io.File;
-import java.util.*;
+import java.util.Set;
 
 /**
  * A graph that contains base sequence at each node
@@ -61,6 +57,8 @@ import java.util.*;
  * @since 03/2013
  */
 public class SeqGraph extends BaseGraph<SeqVertex> {
+    private final static int MIN_SUFFIX_TO_MERGE_TAILS = 5;
+
     /**
      * Construct an empty SeqGraph
      */
@@ -86,18 +84,38 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
      * in any way the sequences implied by a complex enumeration of all paths through the graph.
      */
     public void simplifyGraph() {
+        simplifyGraph(Integer.MAX_VALUE);
+    }
+
+    protected void simplifyGraph(final int maxCycles) {
+        boolean didSomeWork;
+        int i = 0;
+
+        // start off with one round of zipping of chains for performance reasons
         zipLinearChains();
-        mergeBranchingNodes();
-        zipLinearChains();
+        do {
+            //logger.info("simplifyGraph iteration " + i);
+            // iterate until we haven't don't anything useful
+            didSomeWork = false;
+            //printGraph(new File("simplifyGraph." + i + ".dot"), 0);
+            didSomeWork |= new MergeDiamonds().transformUntilComplete();
+            didSomeWork |= new MergeTails().transformUntilComplete();
+            didSomeWork |= new MergeHeadlessIncomingSources().transformUntilComplete();
+            didSomeWork |= zipLinearChains();
+            i++;
+        } while (didSomeWork && i < maxCycles);
     }
 
     /**
      * Zip up all of the simple linear chains present in this graph.
      */
-    protected void zipLinearChains() {
+    protected boolean zipLinearChains() {
+        boolean foundOne = false;
         while( zipOneLinearChain() ) {
             // just keep going until zipOneLinearChain says its done
+            foundOne = true;
         }
+        return foundOne;
     }
 
     /**
@@ -147,193 +165,168 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
     }
 
     /**
-     * Perform as many branch simplifications and merging operations as possible on this graph,
-     * modifying it in place.
+     * Base class for transformation operations that need to iterate over proposed vertices, where
+     * each proposed vertex is a seed vertex for a potential transformation.
+     *
+     * transformUntilComplete will iteratively apply the tryToTransform function on each vertex in the graph
+     * until no vertex can be found that can be transformed.
+     *
+     * Note that in order to eventually terminate tryToTransform must transform the graph such that eventually
+     * no vertices are candidates for further transformations.
      */
-    protected void mergeBranchingNodes() {
-        boolean foundNodesToMerge = true;
-        while( foundNodesToMerge ) {
-            foundNodesToMerge = false;
+    private abstract class VertexBasedTransformer {
+        /**
+         * For testing purposes we sometimes want to test that can be transformed capabilities are working
+         * without actually modifying the graph */
+        private boolean dontModifyGraphEvenIfPossible = false;
 
-            for( final SeqVertex v : vertexSet() ) {
-                foundNodesToMerge = simplifyDiamondIfPossible(v);
-                if ( foundNodesToMerge )
-                    break;
-            }
-        }
-    }
+        public boolean dontModifyGraphEvenIfPossible() { return dontModifyGraphEvenIfPossible; }
+        public void setDontModifyGraphEvenIfPossible() { this.dontModifyGraphEvenIfPossible = true; }
 
-    /**
-     * A simple structure that looks like:
-     *
-     *      v
-     *    / |  \      \
-     *   m1 m2 m3 ... mn
-     *    \ |  /      /
-     *      b
-     *
-     * Only returns true if all outgoing edges of v go to vertices that all only connect to
-     * a single bottom node, and that all middle nodes have only the single edge
-     *
-     * @param v the vertex to test if its the top of a diamond pattern
-     * @return true if v is the root of a diamond
-     */
-    protected boolean isRootOfDiamond(final SeqVertex v) {
-        final Set<BaseEdge> ve = outgoingEdgesOf(v);
-        if ( ve.size() <= 1 )
-            return false;
+        /**
+         * Merge until the graph has no vertices that are candidates for merging
+         */
+        public boolean transformUntilComplete() {
+            boolean didAtLeastOneTranform = false;
+            boolean foundNodesToMerge = true;
+            while( foundNodesToMerge ) {
+                foundNodesToMerge = false;
 
-        SeqVertex bottom = null;
-        for ( final BaseEdge e : ve ) {
-            final SeqVertex mi = getEdgeTarget(e);
-
-            // all nodes must have at least 1 connection
-            if ( outDegreeOf(mi) < 1 )
-                return false;
-
-            // can only have 1 incoming node, the root vertex
-            if ( inDegreeOf(mi) != 1 )
-                return false;
-
-            // make sure that all outgoing vertices of mi go only to the bottom node
-            for ( final SeqVertex mt : outgoingVerticesOf(mi) ) {
-                if ( bottom == null )
-                    bottom = mt;
-                else if ( ! bottom.equals(mt) )
-                    return false;
-            }
-        }
-
-        // bottom has some connections coming in from other nodes, don't allow
-        if ( inDegreeOf(bottom) != ve.size() )
-            return false;
-
-        return true;
-    }
-
-    /**
-     * Return the longest suffix of bases shared among all provided vertices
-     *
-     * For example, if the vertices have sequences AC, CC, and ATC, this would return
-     * a single C.  However, for ACC and TCC this would return CC.  And for AC and TG this
-     * would return null;
-     *
-     * @param middleVertices a non-empty set of vertices
-     * @return
-     */
-    @Requires("!middleVertices.isEmpty()")
-    private byte[] commonSuffixOfEdgeTargets(final Set<SeqVertex> middleVertices) {
-        final String[] kmers = new String[middleVertices.size()];
-
-        int i = 0;
-        for ( final SeqVertex v : middleVertices ) {
-            kmers[i++] = (StringUtils.reverse(v.getSequenceString()));
-        }
-
-        final String commonPrefix = StringUtils.getCommonPrefix(kmers);
-        return commonPrefix.equals("") ? null : StringUtils.reverse(commonPrefix).getBytes();
-    }
-
-    /**
-     * Get the node that is the bottom of a diamond configuration in the graph starting at top
-     *
-     * @param top
-     * @return
-     */
-    @Requires("top != null")
-    @Ensures({"result != null"})
-    private SeqVertex getDiamondBottom(final SeqVertex top) {
-        final BaseEdge topEdge = outgoingEdgesOf(top).iterator().next();
-        final SeqVertex middle = getEdgeTarget(topEdge);
-        final BaseEdge middleEdge = outgoingEdgesOf(middle).iterator().next();
-        return getEdgeTarget(middleEdge);
-    }
-
-    /**
-     * Get the set of vertices that are in the middle of a diamond starting at top
-     * @param top
-     * @return
-     */
-    @Requires("top != null")
-    @Ensures({"result != null", "!result.isEmpty()"})
-    final Set<SeqVertex> getMiddleVertices(final SeqVertex top) {
-        final Set<SeqVertex> middles = new HashSet<SeqVertex>();
-        for ( final BaseEdge topToMiddle : outgoingEdgesOf(top) ) {
-            middles.add(getEdgeTarget(topToMiddle));
-        }
-        return middles;
-    }
-
-    /**
-     * Simply a diamond configuration in the current graph starting at top, if possible
-     *
-     * If top is actually the top of a diamond that can be simplified (i.e., doesn't have any
-     * random edges or other structure that would cause problems with the transformation), then this code
-     * performs the following transformation on this graph (modifying it):
-     *
-     * A -> M1 -> B, A -> M2 -> B, A -> Mn -> B
-     *
-     * becomes
-     *
-     * A -> M1' -> B', A -> M2' -> B', A -> Mn' -> B'
-     *
-     * where B' is composed of the longest common suffix of all Mi nodes + B, and Mi' are each
-     * middle vertex without their shared suffix.
-     *
-     * @param top a proposed vertex in this graph that might start a diamond (but doesn't have to)
-     * @return true top actually starts a diamond and it could be simplified
-     */
-    private boolean simplifyDiamondIfPossible(final SeqVertex top) {
-        if ( ! isRootOfDiamond(top) )
-            return false;
-
-        final SeqVertex diamondBottom = getDiamondBottom(top);
-        final Set<SeqVertex> middleVertices = getMiddleVertices(top);
-        final List<SeqVertex> verticesToRemove = new LinkedList<SeqVertex>();
-        final List<BaseEdge> edgesToRemove = new LinkedList<BaseEdge>();
-
-        // all of the edges point to the same sink, so it's time to merge
-        final byte[] commonSuffix = commonSuffixOfEdgeTargets(middleVertices);
-        if ( commonSuffix != null ) {
-            final BaseEdge botToNewBottom = new BaseEdge(false, 0);
-            final BaseEdge elimMiddleNodeEdge = new BaseEdge(false, 0);
-            final SeqVertex newBottomV = new SeqVertex(commonSuffix);
-            addVertex(newBottomV);
-
-            for ( final SeqVertex middle : middleVertices ) {
-                final SeqVertex withoutSuffix = middle.withoutSuffix(commonSuffix);
-                final BaseEdge topToMiddleEdge = getEdge(top, middle);
-                final BaseEdge middleToBottomE = getEdge(middle, diamondBottom);
-
-                // clip out the two edges, since we'll be replacing them later
-                edgesToRemove.add(topToMiddleEdge);
-                edgesToRemove.add(middleToBottomE);
-
-                if ( withoutSuffix != null ) { // this node is a deletion
-                    addVertex(withoutSuffix);
-                    // update edge from top -> middle to be top -> without suffix
-                    addEdge(top, withoutSuffix, new BaseEdge(topToMiddleEdge));
-                    addEdge(withoutSuffix, newBottomV, new BaseEdge(middleToBottomE));
-                } else {
-                    // this middle node is == the common suffix, wo we're removing the edge
-                    elimMiddleNodeEdge.add(topToMiddleEdge);
+                for( final SeqVertex v : vertexSet() ) {
+                    foundNodesToMerge = tryToTransform(v);
+                    if ( foundNodesToMerge ) {
+                        didAtLeastOneTranform = true;
+                        break;
+                    }
                 }
-                // include the ref and multi of mid -> bot in our edge from new bot -> bot
-                botToNewBottom.add(middleToBottomE);
-                verticesToRemove.add(middle);
             }
 
-            // add an edge from top to new bottom, because some middle nodes were removed
-            if ( elimMiddleNodeEdge.getMultiplicity() > 0 )
-                addEdge(top, newBottomV, elimMiddleNodeEdge);
+            return didAtLeastOneTranform;
+        }
 
-            addEdge(newBottomV, diamondBottom, botToNewBottom);
+        /**
+         * Merge, if possible, seeded on the vertex v
+         * @param v the proposed seed vertex to merge
+         * @return true if some useful merging happened, false otherwise
+         */
+        abstract boolean tryToTransform(final SeqVertex v);
+    }
 
-            removeAllEdges(edgesToRemove);
-            removeAllVertices(verticesToRemove);
-            return true;
-        } else {
-            return false;
+    /**
+     * Merge diamond configurations:
+     *
+     * Performance the transformation:
+     *
+     * { A -> x + S_i + y -> Z }
+     *
+     * goes to:
+     *
+     * { A -> x -> S_i -> y -> Z }
+     *
+     * for all nodes that match this configuration.
+     */
+    protected class MergeDiamonds extends VertexBasedTransformer {
+        @Override
+        protected boolean tryToTransform(final SeqVertex top) {
+            final Set<SeqVertex> middles = outgoingVerticesOf(top);
+            if ( middles.size() <= 1 )
+                // we can only merge if there's at least two middle nodes
+                return false;
+
+            SeqVertex bottom = null;
+            for ( final SeqVertex mi : middles ) {
+                // all nodes must have at least 1 connection
+                if ( outDegreeOf(mi) < 1 )
+                    return false;
+
+                // can only have 1 incoming node, the root vertex
+                if ( inDegreeOf(mi) != 1 )
+                    return false;
+
+                // make sure that all outgoing vertices of mi go only to the bottom node
+                for ( final SeqVertex mt : outgoingVerticesOf(mi) ) {
+                    if ( bottom == null )
+                        bottom = mt;
+                    else if ( ! bottom.equals(mt) )
+                        return false;
+                }
+            }
+
+            // bottom has some connections coming in from other nodes, don't allow
+            if ( inDegreeOf(bottom) != middles.size() )
+                return false;
+
+            if ( dontModifyGraphEvenIfPossible() ) return true;
+
+            // actually do the merging, returning true if at least 1 base was successfully split
+            final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, middles);
+            return splitter.splitAndUpdate(top, bottom, 1);
+        }
+    }
+
+    /**
+     * Merge tail configurations:
+     *
+     * Performs the transformation:
+     *
+     * { A -> x + S_i + y }
+     *
+     * goes to:
+     *
+     * { A -> x -> S_i -> y }
+     *
+     * for all nodes that match this configuration.
+     *
+     * Differs from the diamond transform in that no bottom node is required
+     */
+    protected class MergeTails extends VertexBasedTransformer {
+        @Override
+        protected boolean tryToTransform(final SeqVertex top) {
+            final Set<SeqVertex> tails = outgoingVerticesOf(top);
+            if ( tails.size() <= 1 )
+                return false;
+
+            for ( final SeqVertex t : tails )
+                if ( ! isSink(t) || inDegreeOf(t) > 1 )
+                    return false;
+
+            if ( dontModifyGraphEvenIfPossible() ) return true;
+
+            final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, tails);
+            return splitter.splitAndUpdate(top, null, MIN_SUFFIX_TO_MERGE_TAILS);
+        }
+    }
+
+    /**
+     * Merge headless configurations:
+     *
+     * Performs the transformation:
+     *
+     * { x + S_i + y -> Z }
+     *
+     * goes to:
+     *
+     * { x -> S_i -> y -> Z }
+     *
+     * for all nodes that match this configuration.
+     *
+     * Differs from the diamond transform in that no top node is required
+     */
+    protected class MergeHeadlessIncomingSources extends VertexBasedTransformer {
+        @Override
+        boolean tryToTransform(final SeqVertex bottom) {
+            final Set<SeqVertex> incoming = incomingVerticesOf(bottom);
+            if ( incoming.size() <= 1 )
+                return false;
+
+            for ( final SeqVertex inc : incoming )
+                if ( ! isSource(inc) || outDegreeOf(inc) > 1 )
+                    return false;
+
+            if ( dontModifyGraphEvenIfPossible() ) return true;
+
+            final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, incoming);
+            return splitter.splitAndUpdate(null, bottom, 1);
         }
     }
 }

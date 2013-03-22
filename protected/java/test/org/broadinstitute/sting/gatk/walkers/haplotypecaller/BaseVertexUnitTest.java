@@ -68,9 +68,10 @@ public class BaseVertexUnitTest extends BaseTest {
         new BaseVertex((byte[])null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test()
     public void testCreationEmptySeq() {
-        new BaseVertex(new byte[0]);
+        final BaseVertex v = new BaseVertex(new byte[0]);
+        Assert.assertTrue(v.isEmpty(), "Version with length == 0 should be empty");
     }
 
     @Test
