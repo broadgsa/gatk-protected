@@ -216,11 +216,9 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
     @Requires({"reads != null", "KMER_LENGTH > 0", "refHaplotype != null"})
     protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
-
         final DeBruijnGraph graph = new DeBruijnGraph(KMER_LENGTH);
 
         // First pull kmers from the reference haplotype and add them to the graph
-        //logger.info("Adding reference sequence to graph " + refHaplotype.getBaseString());
         final byte[] refSequence = refHaplotype.getBases();
         if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
             final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
@@ -232,12 +230,13 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                     return null;
                 }
             }
+        } else {
+            // not enough reference sequence to build a kmer graph of this length, return null
+            return null;
         }
 
         // Next pull kmers out of every read and throw them on the graph
         for( final GATKSAMRecord read : reads ) {
-            //if ( ! read.getReadName().equals("H06JUADXX130110:1:1213:15422:11590")) continue;
-            //logger.info("Adding read " + read + " with sequence " + read.getReadString());
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
             final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
