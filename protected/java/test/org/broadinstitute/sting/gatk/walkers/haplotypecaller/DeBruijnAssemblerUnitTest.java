@@ -72,8 +72,8 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
     public void testReferenceCycleGraph() {
         String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
         String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), false);
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), false);
+        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true));
+        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true));
 
         Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
         Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");

@@ -154,7 +154,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 continue;
 
             if ( debug ) logger.info("Creating de Bruijn graph for " + kmer + " kmer using " + reads.size() + " reads");
-            DeBruijnGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, debug);
+            DeBruijnGraph graph = createGraphFromSequences( reads, kmer, refHaplotype);
             if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
                 // do a series of steps to clean up the raw assembly graph to make it analysis-ready
                 if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), pruneFactor);
@@ -189,10 +189,12 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         seqGraph.simplifyGraph();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.dot"), pruneFactor);
 
-        // if we've assembled just to the reference, just leave now otherwise removePathsNotConnectedToRef
-        // might blow up because there's no reference source node
-        if ( seqGraph.vertexSet().size() == 1 )
-            return seqGraph;
+        // The graph has degenerated in some way, so the reference source and/or sink cannot be id'd.  Can
+        // happen in cases where for example the reference somehow manages to acquire a cycle, or
+        // where the entire assembly collapses back into the reference sequence.
+        if ( seqGraph.getReferenceSourceVertex() == null || seqGraph.getReferenceSinkVertex() == null )
+            return null;
+
         seqGraph.removePathsNotConnectedToRef();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.refcleaned.dot"), pruneFactor);
 
@@ -214,64 +216,102 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         }
     }
 
-    @Requires({"reads != null", "KMER_LENGTH > 0", "refHaplotype != null"})
-    protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
-        final DeBruijnGraph graph = new DeBruijnGraph(KMER_LENGTH);
+    @Requires({"reads != null", "kmerLength > 0", "refHaplotype != null"})
+    protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int kmerLength, final Haplotype refHaplotype ) {
+        final DeBruijnGraph graph = new DeBruijnGraph(kmerLength);
 
         // First pull kmers from the reference haplotype and add them to the graph
-        final byte[] refSequence = refHaplotype.getBases();
-        if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
-            final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
-            for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-                if( !graph.addKmersToGraph(Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true, 1) ) {
-                    if( DEBUG ) {
-                        System.out.println("Cycle detected in reference graph for kmer = " + KMER_LENGTH + " ...skipping");
-                    }
-                    return null;
-                }
-            }
-        } else {
-            // not enough reference sequence to build a kmer graph of this length, return null
+        if ( ! addReferenceKmersToGraph(graph, refHaplotype.getBases()) )
+            // something went wrong, so abort right now with a null graph
             return null;
-        }
+
+        // now go through the graph already seeded with the reference sequence and add the read kmers to it
+        if ( ! addReadKmersToGraph(graph, reads) )
+            // some problem was detected adding the reads to the graph, return null to indicate we failed
+            return null;
+
+        graph.cleanNonRefPaths();
+        return graph;
+    }
+
+    /**
+     * Add the high-quality kmers from the reads to the graph
+     *
+     * @param graph a graph to add the read kmers to
+     * @param reads a non-null list of reads whose kmers we want to add to the graph
+     * @return true if we successfully added the read kmers to the graph without corrupting it in some way
+     */
+    protected boolean addReadKmersToGraph(final DeBruijnGraph graph, final List<GATKSAMRecord> reads) {
+        final int kmerLength = graph.getKmerSize();
 
         // Next pull kmers out of every read and throw them on the graph
         for( final GATKSAMRecord read : reads ) {
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
             final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
-            if( sequence.length > KMER_LENGTH + KMER_OVERLAP ) {
-                final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
+            if( sequence.length > kmerLength + KMER_OVERLAP ) {
+                final int kmersInSequence = sequence.length - kmerLength + 1;
                 for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
                     // if the qualities of all the bases in the kmers are high enough
                     boolean badKmer = false;
-                    for( int jjj = iii; jjj < iii + KMER_LENGTH + 1; jjj++) {
+                    for( int jjj = iii; jjj < iii + kmerLength + 1; jjj++) {
                         if( qualities[jjj] < minBaseQualityToUseInAssembly ) {
                             badKmer = true;
                             break;
                         }
                     }
                     if( !badKmer ) {
+                        // how many observations of this kmer have we seen?  A normal read counts for 1, but
+                        // a reduced read might imply a higher multiplicity for our the edge
                         int countNumber = 1;
                         if( read.isReducedRead() ) {
                             // compute mean number of reduced read counts in current kmer span
                             // precise rounding can make a difference with low consensus counts
-                            countNumber = MathUtils.arrayMax(Arrays.copyOfRange(reducedReadCounts, iii, iii + KMER_LENGTH));
+                            // TODO -- optimization: should extend arrayMax function to take start stop values
+                            countNumber = MathUtils.arrayMax(Arrays.copyOfRange(reducedReadCounts, iii, iii + kmerLength));
                         }
 
-                        final byte[] kmer1 = Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH);
-                        final byte[] kmer2 = Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH);
-
-                        for( int kkk=0; kkk < countNumber; kkk++ ) {
-                            graph.addKmersToGraph(kmer1, kmer2, false, 1);
-                        }
+                        graph.addKmerPairFromSeqToGraph(sequence, iii, false, countNumber);
                     }
                 }
             }
         }
 
-        graph.cleanNonRefPaths();
-        return graph;
+        // always returns true now, but it's possible that we'd add reads and decide we don't like the graph in some way
+        return true;
+    }
+
+    /**
+     * Add the kmers from the reference sequence to the DeBruijnGraph
+     *
+     * @param graph the graph to add the reference kmers to. Must be empty
+     * @param refSequence the reference sequence from which we'll get our kmers
+     * @return true if we succeeded in creating a good graph from the reference sequence, false otherwise
+     */
+    protected boolean addReferenceKmersToGraph(final DeBruijnGraph graph, final byte[] refSequence) {
+        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
+        if ( graph.vertexSet().size() != 0 ) throw new IllegalArgumentException("Reference sequences must be added before any other vertices, but got a graph with " + graph.vertexSet().size() + " vertices in it already: " + graph);
+        if ( refSequence == null ) throw new IllegalArgumentException("refSequence cannot be null");
+
+
+        final int kmerLength = graph.getKmerSize();
+        if( refSequence.length < kmerLength + KMER_OVERLAP ) {
+            // not enough reference sequence to build a kmer graph of this length, return null
+            return false;
+        }
+
+        final int kmersInSequence = refSequence.length - kmerLength + 1;
+        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
+            graph.addKmerPairFromSeqToGraph(refSequence, iii, true, 1);
+        }
+
+        // we expect that every kmer in the sequence is unique, so that the graph has exactly kmersInSequence vertices
+        if ( graph.vertexSet().size() != kmersInSequence ) {
+            if( debug ) logger.info("Cycle detected in reference graph for kmer = " + kmerLength + " ...skipping");
+            return false;
+        }
+
+        return true;
     }
 
     protected void printGraphs(final List<SeqGraph> graphs) {

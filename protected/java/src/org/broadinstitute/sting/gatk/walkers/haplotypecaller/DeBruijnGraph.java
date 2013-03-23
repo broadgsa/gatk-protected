@@ -126,30 +126,37 @@ public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
      * @param kmer1 the source kmer for the edge
      * @param kmer2 the target kmer for the edge
      * @param isRef true if the added edge is a reference edge
-     * @return      will return false if trying to add a reference edge which creates a cycle in the assembly graph
      */
-    public boolean addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
+    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
         if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
         if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
         if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
 
-        final int numVertexBefore = vertexSet().size();
         final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        addVertex(v1);
         final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        addVertex(v2);
-        if( isRef && vertexSet().size() == numVertexBefore ) { return false; }
+        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
 
-        final BaseEdge targetEdge = getEdge(v1, v2);
-        if ( targetEdge == null ) {
-            addEdge(v1, v2, new BaseEdge( isRef, multiplicity ));
-        } else {
-            if( isRef ) {
-                targetEdge.setIsRef( true );
-            }
-            targetEdge.setMultiplicity(targetEdge.getMultiplicity() + multiplicity);
-        }
-        return true;
+        addVertices(v1, v2);
+        addOrUpdateEdge(v1, v2, toAdd);
+    }
+
+    /**
+     * Higher-level interface to #addKmersToGraph that adds a pair of kmers from a larger sequence of bytes to this
+     * graph.  The kmers start at start (first) and start + 1 (second) have have length getKmerSize().  The
+     * edge between them is added with isRef and multiplicity
+     *
+     * @param sequence a sequence of bases from which we want to extract a pair of kmers
+     * @param start the start of the first kmer in sequence, must be between 0 and sequence.length - 2 - getKmerSize()
+     * @param isRef should the edge between the two kmers be a reference edge?
+     * @param multiplicity what's the multiplicity of the edge between these two kmers
+     */
+    public void addKmerPairFromSeqToGraph( final byte[] sequence, final int start, final boolean isRef, final int multiplicity ) {
+        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
+        if ( start < 0 ) throw new IllegalArgumentException("start must be >= 0 but got " + start);
+        if ( start + 1 + getKmerSize() > sequence.length ) throw new IllegalArgumentException("start " + start + " is too big given kmerSize " + getKmerSize() + " and sequence length " + sequence.length);
+        final byte[] kmer1 = Arrays.copyOfRange(sequence, start, start + getKmerSize());
+        final byte[] kmer2 = Arrays.copyOfRange(sequence, start + 1, start + 1 + getKmerSize());
+        addKmersToGraph(kmer1, kmer2, isRef, multiplicity);
     }
 
     /**
