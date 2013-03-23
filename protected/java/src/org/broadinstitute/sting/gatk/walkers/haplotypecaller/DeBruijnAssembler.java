@@ -65,7 +65,6 @@ import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
-import java.io.PrintStream;
 import java.util.*;
 
 /**
@@ -83,7 +82,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     // TODO -- be increased to a large number of eliminated altogether when moving to the bubble caller where
     // TODO -- we are no longer considering a combinatorial number of haplotypes as the number of bubbles increases
     private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 25;
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
     private static final int GRAPH_KMER_STEP = 6;
 
     // Smith-Waterman parameters originally copied from IndelRealigner, only used during GGA mode
@@ -94,30 +92,23 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
     private final boolean debug;
     private final boolean debugGraphTransformations;
-    private final PrintStream graphWriter;
     private final int minKmer;
-    private final byte minBaseQualityToUseInAssembly;
 
     private final int onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms;
 
-    private int PRUNE_FACTOR = 2;
 
     protected DeBruijnAssembler() {
-        this(false, -1, null, 11, DEFAULT_MIN_BASE_QUALITY_TO_USE);
+        this(false, -1, 11);
     }
 
     public DeBruijnAssembler(final boolean debug,
                              final int debugGraphTransformations,
-                             final PrintStream graphWriter,
-                             final int minKmer,
-                             final byte minBaseQualityToUseInAssembly) {
+                             final int minKmer) {
         super();
         this.debug = debug;
         this.debugGraphTransformations = debugGraphTransformations > 0;
         this.onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms = debugGraphTransformations;
-        this.graphWriter = graphWriter;
         this.minKmer = minKmer;
-        this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
     }
 
     /**
@@ -126,19 +117,15 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
      * @param refHaplotype              reference haplotype object
      * @param fullReferenceWithPadding  byte array holding the reference sequence with padding
      * @param refLoc                    GenomeLoc object corresponding to the reference sequence with padding
-     * @param PRUNE_FACTOR              prune kmers from the graph if their weight is <= this value
      * @param activeAllelesToGenotype   the alleles to inject into the haplotypes during GGA mode
      * @return                          a non-empty list of all the haplotypes that are produced during assembly
      */
     @Ensures({"result.contains(refHaplotype)"})
-    public List<Haplotype> runLocalAssembly( final ActiveRegion activeRegion, final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final int PRUNE_FACTOR, final List<VariantContext> activeAllelesToGenotype ) {
+    public List<Haplotype> runLocalAssembly( final ActiveRegion activeRegion, final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final List<VariantContext> activeAllelesToGenotype ) {
         if( activeRegion == null ) { throw new IllegalArgumentException("Assembly engine cannot be used with a null ActiveRegion."); }
         if( refHaplotype == null ) { throw new IllegalArgumentException("Reference haplotype cannot be null."); }
         if( fullReferenceWithPadding.length != refLoc.size() ) { throw new IllegalArgumentException("Reference bases and reference loc must be the same size."); }
-        if( PRUNE_FACTOR < 0 ) { throw new IllegalArgumentException("Pruning factor cannot be negative"); }
-
-        // set the pruning factor for this run of the assembly engine
-        this.PRUNE_FACTOR = PRUNE_FACTOR;
+        if( pruneFactor < 0 ) { throw new IllegalArgumentException("Pruning factor cannot be negative"); }
 
         // create the graphs
         final List<SeqGraph> graphs = createDeBruijnGraphs( activeRegion.getReads(), refHaplotype );
@@ -170,13 +157,16 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             DeBruijnGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, debug);
             if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
                 // do a series of steps to clean up the raw assembly graph to make it analysis-ready
-                if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), PRUNE_FACTOR);
-                graph = graph.errorCorrect();
-                if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), PRUNE_FACTOR);
+                if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), pruneFactor);
+
+                if ( shouldErrorCorrectKmers() ) {
+                    graph = graph.errorCorrect();
+                    if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), pruneFactor);
+                }
 
                 final SeqGraph seqGraph = toSeqGraph(graph);
 
-                if( seqGraph.getReferenceSourceVertex() != null ) { // if the graph contains interesting variation from the reference
+                if ( seqGraph != null ) { // if the graph contains interesting variation from the reference
                     sanityCheckReferenceGraph(seqGraph, refHaplotype);
                     graphs.add(seqGraph);
 
@@ -192,19 +182,19 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
     private SeqGraph toSeqGraph(final DeBruijnGraph deBruijnGraph) {
         final SeqGraph seqGraph = deBruijnGraph.convertToSequenceGraph();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), PRUNE_FACTOR);
-        seqGraph.pruneGraph(PRUNE_FACTOR);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), pruneFactor);
+        seqGraph.pruneGraph(pruneFactor);
         seqGraph.removeVerticesNotConnectedToRef();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.pruned.dot"), PRUNE_FACTOR);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.pruned.dot"), pruneFactor);
         seqGraph.simplifyGraph();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.dot"), PRUNE_FACTOR);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.dot"), pruneFactor);
 
         // if we've assembled just to the reference, just leave now otherwise removePathsNotConnectedToRef
         // might blow up because there's no reference source node
         if ( seqGraph.vertexSet().size() == 1 )
             return seqGraph;
         seqGraph.removePathsNotConnectedToRef();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.refcleaned.dot"), PRUNE_FACTOR);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.refcleaned.dot"), pruneFactor);
 
         return seqGraph;
     }
@@ -295,7 +285,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 continue;
             }
 
-            graph.printGraph(graphWriter, false, PRUNE_FACTOR);
+            graph.printGraph(graphWriter, false, pruneFactor);
 
             if ( debugGraphTransformations )
                 break;
