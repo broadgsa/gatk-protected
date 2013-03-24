@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
@@ -90,13 +91,13 @@ public class BaseQualityRankSumTest extends RankSumTest implements StandardAnnot
         }
 
         for (Map<Allele,Double> el : alleleLikelihoodMap.getLikelihoodMapValues()) {
-            final Allele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el);
-            if (a.isNoCall())
+            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el);
+            if (! a.isInformative())
                 continue; // read is non-informative
-            if (a.isReference())
-                refQuals.add(-10.0*(double)el.get(a));
-            else if (allAlleles.contains(a))
-                altQuals.add(-10.0*(double)el.get(a));
+            if (a.getMostLikelyAllele().isReference())
+                refQuals.add(-10.0*(double)el.get(a.getMostLikelyAllele()));
+            else if (allAlleles.contains(a.getMostLikelyAllele()))
+                altQuals.add(-10.0*(double)el.get(a.getMostLikelyAllele()));
 
 
         }

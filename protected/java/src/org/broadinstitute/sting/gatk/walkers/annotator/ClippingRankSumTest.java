@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
@@ -84,12 +85,12 @@ public class ClippingRankSumTest extends RankSumTest {
 
         for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : likelihoodMap.getLikelihoodReadMap().entrySet()) {
 
-            final Allele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (a.isNoCall())
+            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+            if (! a.isInformative())
                 continue; // read is non-informative
-            if (a.isReference())
+            if (a.getMostLikelyAllele().isReference())
                 refQuals.add((double)AlignmentUtils.getNumHardClippedBases(el.getKey()));
-            else if (allAlleles.contains(a))
+            else if (allAlleles.contains(a.getMostLikelyAllele()))
                 altQuals.add((double)AlignmentUtils.getNumHardClippedBases(el.getKey()));
 
         }

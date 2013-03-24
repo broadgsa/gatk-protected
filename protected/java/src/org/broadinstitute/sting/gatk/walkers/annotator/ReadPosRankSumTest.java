@@ -51,6 +51,7 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMRecord;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -107,8 +108,8 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         }
 
         for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : alleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final Allele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (a.isNoCall())
+            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+            if (! a.isInformative() )
                 continue; // read is non-informative
 
             final GATKSAMRecord read = el.getKey();
@@ -123,9 +124,9 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
             if (readPos > numAlignedBases / 2)
                 readPos = numAlignedBases - (readPos + 1);
 
-            if (a.isReference())
+            if (a.getMostLikelyAllele().isReference())
                 refQuals.add((double)readPos);
-            else if (allAlleles.contains(a))
+            else if (allAlleles.contains(a.getMostLikelyAllele()))
                 altQuals.add((double)readPos);
         }
     }

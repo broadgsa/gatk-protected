@@ -55,6 +55,7 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ActiveRegionBa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -273,10 +274,10 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
         for (PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
             for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
-                final Allele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+                final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
                 final GATKSAMRecord read = el.getKey();
                 final int representativeCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
-                updateTable(table, mostLikelyAllele, read, ref, alt, representativeCount);
+                updateTable(table, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt, representativeCount);
             }
         }
 
