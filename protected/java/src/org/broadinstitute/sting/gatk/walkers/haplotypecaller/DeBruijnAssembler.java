@@ -183,11 +183,18 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private SeqGraph toSeqGraph(final DeBruijnGraph deBruijnGraph) {
         final SeqGraph seqGraph = deBruijnGraph.convertToSequenceGraph();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), pruneFactor);
+
+        // the very first thing we need to do is zip up the graph, or pruneGraph will be too aggressive
+        seqGraph.zipLinearChains();
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.zipped.dot"), pruneFactor);
+
+        // now go through and prune the graph, removing vertices no longer connected to the reference chain
         seqGraph.pruneGraph(pruneFactor);
-        seqGraph.removeVerticesNotConnectedToRef();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.pruned.dot"), pruneFactor);
+        seqGraph.removeVerticesNotConnectedToRefRegardlessOfEdgeDirection();
+
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.pruned.dot"), pruneFactor);
         seqGraph.simplifyGraph();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.dot"), pruneFactor);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.merged.dot"), pruneFactor);
 
         // The graph has degenerated in some way, so the reference source and/or sink cannot be id'd.  Can
         // happen in cases where for example the reference somehow manages to acquire a cycle, or
@@ -196,7 +203,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             return null;
 
         seqGraph.removePathsNotConnectedToRef();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.refcleaned.dot"), pruneFactor);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.5.refcleaned.dot"), pruneFactor);
 
         return seqGraph;
     }

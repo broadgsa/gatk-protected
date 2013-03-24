@@ -336,9 +336,18 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param remaining all additional vertices to connect
      */
     public void addEdges(final T start, final T ... remaining) {
+        addEdges(new BaseEdge(false, 1), start, remaining);
+    }
+
+    /**
+     * Convenience function to add multiple edges to the graph
+     * @param start the first vertex to connect
+     * @param remaining all additional vertices to connect
+     */
+    public void addEdges(final BaseEdge template, final T start, final T ... remaining) {
         T prev = start;
         for ( final T next : remaining ) {
-            addEdge(prev, next);
+            addEdge(prev, next, new BaseEdge(template));
             prev = next;
         }
     }
@@ -386,19 +395,15 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         }
     }
 
-    // TODO -- generalize to support both types of graphs.  Need some kind of display string function
     public void printGraph(final PrintStream graphWriter, final boolean writeHeader, final int pruneFactor) {
         if ( writeHeader )
             graphWriter.println("digraph assemblyGraphs {");
 
         for( final BaseEdge edge : edgeSet() ) {
-//            if( edge.getMultiplicity() > PRUNE_FACTOR ) {
             graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getMultiplicity() + "\"];");
-//            }
             if( edge.isRef() ) {
                 graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [color=red];");
             }
-            //if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
         }
 
         for( final T v : vertexSet() ) {
@@ -436,6 +441,30 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
             edgesToCheck.remove(e);
         }
 
+        removeSingletonOrphanVertices();
+    }
+
+    /**
+     * Prune all edges from this graph that have multiplicity <= pruneFactor and remove all orphaned singleton vertices as well
+     *
+     * @param pruneFactor all edges with multiplicity <= this factor that aren't ref edges will be removed
+     */
+    protected void pruneGraph( final int pruneFactor ) {
+        final List<BaseEdge> edgesToRemove = new ArrayList<BaseEdge>();
+        for( final BaseEdge e : edgeSet() ) {
+            if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
+                edgesToRemove.add(e);
+            }
+        }
+        removeAllEdges(edgesToRemove);
+
+        removeSingletonOrphanVertices();
+    }
+
+    /**
+     * Remove all vertices in the graph that have in and out degree of 0
+     */
+    protected void removeSingletonOrphanVertices() {
         // Run through the graph and clean up singular orphaned nodes
         final List<T> verticesToRemove = new LinkedList<T>();
         for( final T v : vertexSet() ) {
@@ -446,63 +475,52 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         removeAllVertices(verticesToRemove);
     }
 
+    /**
+     * Remove all vertices on the graph that cannot be accessed by following any edge,
+     * regardless of its direction, from the reference source vertex
+     */
+    public void removeVerticesNotConnectedToRefRegardlessOfEdgeDirection() {
+        final HashSet<T> toRemove = new HashSet<T>(vertexSet());
+
+        final T refV = getReferenceSourceVertex();
+        if ( refV != null ) {
+            for ( final T v : new BaseGraphIterator<T>(this, refV, true, true) ) {
+                toRemove.remove(v);
+            }
+        }
+
+        removeAllVertices(toRemove);
+    }
+
+    /**
+     * Remove all vertices in the graph that aren't on a path from the reference source vertex to the reference sink vertex
+     *
+     * More aggressive reference pruning algorithm than removeVerticesNotConnectedToRefRegardlessOfEdgeDirection,
+     * as it requires vertices to not only be connected by a series of directed edges but also prunes away
+     * paths that do not also meet eventually with the reference sink vertex
+     */
     protected void removePathsNotConnectedToRef() {
         if ( getReferenceSourceVertex() == null || getReferenceSinkVertex() == null ) {
             throw new IllegalStateException("Graph must have ref source and sink vertices");
         }
 
+        // get the set of vertices we can reach by going forward from the ref source
+        final Set<T> onPathFromRefSource = new HashSet<T>(vertexSet().size());
+        for ( final T v : new BaseGraphIterator<T>(this, getReferenceSourceVertex(), false, true) ) {
+            onPathFromRefSource.add(v);
+        }
+
+        // get the set of vertices we can reach by going backward from the ref sink
+        final Set<T> onPathFromRefSink = new HashSet<T>(vertexSet().size());
+        for ( final T v : new BaseGraphIterator<T>(this, getReferenceSinkVertex(), true, false) ) {
+            onPathFromRefSink.add(v);
+        }
+
+        // we want to remove anything that's not in both the sink and source sets
         final Set<T> verticesToRemove = new HashSet<T>(vertexSet());
-        final DepthFirstIterator<T, BaseEdge> dfi = new DepthFirstIterator<T, BaseEdge>(this, getReferenceSourceVertex());
-        while ( dfi.hasNext() ) {
-            final T accessibleFromRefSource = dfi.next();
-            // we also want to prune all sinks that aren't the reference sink
-            if ( ! isNonRefSink(accessibleFromRefSource) )
-                verticesToRemove.remove(accessibleFromRefSource);
-        }
-
+        onPathFromRefSource.retainAll(onPathFromRefSink);
+        verticesToRemove.removeAll(onPathFromRefSource);
         removeAllVertices(verticesToRemove);
-    }
-
-    protected void pruneGraph( final int pruneFactor ) {
-        final List<BaseEdge> edgesToRemove = new ArrayList<BaseEdge>();
-        for( final BaseEdge e : edgeSet() ) {
-            if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
-                edgesToRemove.add(e);
-            }
-        }
-        removeAllEdges(edgesToRemove);
-
-        // Run through the graph and clean up singular orphaned nodes
-        final List<T> verticesToRemove = new ArrayList<T>();
-        for( final T v : vertexSet() ) {
-            if( inDegreeOf(v) == 0 && outDegreeOf(v) == 0 ) {
-                verticesToRemove.add(v);
-            }
-        }
-
-        removeAllVertices(verticesToRemove);
-    }
-
-    public void removeVerticesNotConnectedToRef() {
-        final HashSet<T> toRemove = new HashSet<T>(vertexSet());
-        final HashSet<T> visited = new HashSet<T>();
-
-        final LinkedList<T> toVisit = new LinkedList<T>();
-        final T refV = getReferenceSourceVertex();
-        if ( refV != null ) {
-            toVisit.add(refV);
-            while ( ! toVisit.isEmpty() ) {
-                final T v = toVisit.pop();
-                if ( ! visited.contains(v) ) {
-                    toRemove.remove(v);
-                    visited.add(v);
-                    for ( final T prev : incomingVerticesOf(v) ) toVisit.add(prev);
-                    for ( final T next : outgoingVerticesOf(v) ) toVisit.add(next);
-                }
-            }
-
-            removeAllVertices(toRemove);
-        }
     }
 
     /**
