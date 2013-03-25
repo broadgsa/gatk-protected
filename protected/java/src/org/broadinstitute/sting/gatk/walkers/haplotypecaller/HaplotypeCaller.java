@@ -406,6 +406,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         // setup the assembler
         assemblyEngine = new DeBruijnAssembler( DEBUG, debugGraphTransformations, minKmer);
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
+        assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);
         if ( graphWriter != null ) assemblyEngine.setGraphWriter(graphWriter);
         if ( useLowQualityBasesForAssembly ) assemblyEngine.setMinBaseQualityToUseInAssembly((byte)1);
 
