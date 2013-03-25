@@ -570,20 +570,6 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
     }
 
     /**
-     * Get the edge between source and target, or null if none is present
-     *
-     * Note that since we don't allow multiple edges between vertices there can be at most
-     * one edge between any two edges
-     *
-     * @param source the source vertex for our edge
-     * @param target the target vertex for our edge
-     * @return the edge joining source to target, or null if none is present
-     */
-    public BaseEdge getEdge(final T source, final T target) {
-        return getSingletonEdge(getAllEdges(source, target));
-    }
-
-    /**
      * Get the incoming edge of v.  Requires that there be only one such edge or throws an error
      * @param v our vertex
      * @return the single incoming edge to v, or null if none exists
