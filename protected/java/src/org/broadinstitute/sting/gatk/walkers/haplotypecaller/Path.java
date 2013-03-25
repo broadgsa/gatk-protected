@@ -68,6 +68,8 @@ import java.util.*;
  *
  */
 class Path<T extends BaseVertex> {
+    private final static int MAX_CIGAR_ELEMENTS_BEFORE_FAILING_SW = 20;
+
     // the last vertex seen in the path
     private final T lastVertex;
 
@@ -357,7 +359,7 @@ class Path<T extends BaseVertex> {
         }
 
         final Cigar swCigar = swConsensus.getCigar();
-        if( swCigar.numCigarElements() > 6 ) { // this bubble is too divergent from the reference
+        if( swCigar.numCigarElements() > MAX_CIGAR_ELEMENTS_BEFORE_FAILING_SW ) { // this bubble is too divergent from the reference
             returnCigar.add(new CigarElement(1, CigarOperator.N));
         } else {
             for( int iii = 0; iii < swCigar.numCigarElements(); iii++ ) {
@@ -399,9 +401,15 @@ class Path<T extends BaseVertex> {
      */
     public boolean equalScoreAndSequence(final Path<T> other) {
         if ( other == null ) throw new IllegalArgumentException("other cannot be null");
+        return getScore() == other.getScore() && equalSequence(other);
+    }
 
-        if ( getScore() != other.getScore() )
-            return false;
+    /**
+     * Tests that this and other have the same vertices in the same order with the same seq
+     * @param other the other path to consider.  Cannot be null
+     * @return true if this and path are equal, false otherwise
+     */
+    public boolean equalSequence(final Path<T> other) {
         final List<T> mine = getVertices();
         final List<T> yours = other.getVertices();
         if ( mine.size() == yours.size() ) { // hehehe
