@@ -44,82 +44,139 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-/**
- * Created by IntelliJ IDEA.
- * User: rpoplin
- * Date: 3/27/12
- */
-
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
-import org.broadinstitute.sting.utils.Haplotype;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import com.google.java.contract.Requires;
 
 import java.util.*;
 
-public class DeBruijnAssemblerUnitTest extends BaseTest {
-    private final static boolean DEBUG = false;
+/**
+ * Split a collection of middle nodes in a graph into their shared prefix and suffix values
+ *
+ * This code performs the following transformation.  Suppose I have a set of vertices V, such
+ * that each vertex is composed of sequence such that
+ *
+ * Vi = prefix + seq_i + suffix
+ *
+ * where prefix and suffix are shared sequences across all vertices V.  This replaces each
+ * Vi with three nodes prefix, seq_i, and suffix connected in a simple chain.
+ *
+ * This operation can be performed in a very general case, without too much worry about the incoming
+ * and outgoing edge structure of each Vi.  The partner algorithm SharedSequenceMerger can
+ * put these pieces back together in a smart way that maximizes the sharing of nodes
+ * while respecting complex connectivity.
+ *
+ * User: depristo
+ * Date: 3/22/13
+ * Time: 8:31 AM
+ */
+public class CommonSuffixSplitter {
+    /**
+     * Create a new graph that contains the vertices in toMerge with their shared suffix and prefix
+     * sequences extracted out.
+     *
+     */
+    public CommonSuffixSplitter() {}
 
-    @Test(enabled = !DEBUG)
-    public void testReferenceCycleGraph() {
-        String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
-        String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true));
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true));
+    /**
+     * Simple single-function interface to split and then update a graph
+     *
+     * @param graph the graph containing the vertices in toMerge
+     * @param v The bottom node whose incoming vertices we'd like to split
+     * @return true if some useful splitting was done, false otherwise
+     */
+    public boolean split(final SeqGraph graph, final SeqVertex v) {
+        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
+        if ( v == null ) throw new IllegalArgumentException("v cannot be null");
+        if ( ! graph.vertexSet().contains(v) ) throw new IllegalArgumentException("graph doesn't contain vertex v " + v);
 
-        Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
-        Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
-    }
+        final Collection<SeqVertex> toMerge = graph.incomingVerticesOf(v);
+        if ( toMerge.size() < 2 )
+            // Can only split at least 2 vertices
+            return false;
+        else if ( ! safeToSplit(graph, v, toMerge) ) {
+            return false;
+        } else {
+            final SeqVertex suffixVTemplate = commonSuffix(toMerge);
+            if ( suffixVTemplate.isEmpty() ) {
+                return false;
+            } else {
+                final List<BaseEdge> edgesToRemove = new LinkedList<BaseEdge>();
 
-    @Test(enabled = !DEBUG)
-    public void testLeftAlignCigarSequentially() {
-        String preRefString = "GATCGATCGATC";
-        String postRefString = "TTT";
-        String refString = "ATCGAGGAGAGCGCCCCG";
-        String indelString1 = "X";
-        String indelString2 = "YZ";
-        int refIndel1 = 10;
-        int refIndel2 = 12;
+//                graph.printGraph(new File("split.pre_" + v.getSequenceString() + "." + counter + ".dot"), 0);
+                for ( final SeqVertex mid : toMerge ) {
+                    // create my own copy of the suffix
+                    final SeqVertex suffixV = new SeqVertex(suffixVTemplate.getSequence());
+                    graph.addVertex(suffixV);
+                    final SeqVertex prefixV = mid.withoutSuffix(suffixV.getSequence());
+                    final BaseEdge out = graph.outgoingEdgeOf(mid);
 
-        for ( final int indelSize1 : Arrays.asList(1, 2, 3, 4) ) {
-            for ( final int indelOp1 : Arrays.asList(1, -1) ) {
-                for ( final int indelSize2 : Arrays.asList(1, 2, 3, 4) ) {
-                    for ( final int indelOp2 : Arrays.asList(1, -1) ) {
+                    final SeqVertex incomingTarget;
+                    if ( prefixV == null ) {
+                        // this node is entirely explained by suffix
+                        incomingTarget = suffixV;
+                    } else {
+                        incomingTarget = prefixV;
+                        graph.addVertex(prefixV);
+                        graph.addEdge(prefixV, suffixV, new BaseEdge(out.isRef(), 0));
+                        edgesToRemove.add(out);
+                    }
 
-                        Cigar expectedCigar = new Cigar();
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp1 < 0 ? refIndel1 - indelSize1 : refIndel1), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2 - indelSize2) * 2 : refIndel2 * 2), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
+                    graph.addEdge(suffixV, graph.getEdgeTarget(out), new BaseEdge(out));
 
-                        Cigar givenCigar = new Cigar();
-                        givenCigar.add(new CigarElement(refString.length() + refIndel1/2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp1 < 0 ? (refIndel1/2 - indelSize1) : refIndel1/2) + refString.length() + refIndel2/2 * 2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2/2 - indelSize2) * 2 : refIndel2/2 * 2) + refString.length(), CigarOperator.M));
-
-                        String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
-                        String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
-
-                        Cigar calculatedCigar = new DeBruijnAssembler().leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
-                        Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
+                    for ( final BaseEdge in : graph.incomingEdgesOf(mid) ) {
+                        graph.addEdge(graph.getEdgeSource(in), incomingTarget, new BaseEdge(in));
+                        edgesToRemove.add(in);
                     }
                 }
+
+                graph.removeAllVertices(toMerge);
+                graph.removeAllEdges(edgesToRemove);
+//                graph.printGraph(new File("split.post_" + v.getSequenceString() + "." + counter++ + ".dot"), 0);
+
+                return true;
             }
         }
     }
 
+//    private static int counter = 0;
+
+    /**
+     * Can we safely split up the vertices in toMerge?
+     *
+     * @param graph a graph
+     * @param bot a vertex whose incoming vertices we want to split
+     * @param toMerge the set of vertices we'd be splitting up
+     * @return true if we can safely split up toMerge
+     */
+    private boolean safeToSplit(final SeqGraph graph, final SeqVertex bot, final Collection<SeqVertex> toMerge) {
+        for ( final SeqVertex m : toMerge ) {
+            final Set<BaseEdge> outs = graph.outgoingEdgesOf(m);
+            if ( m == bot || outs.size() != 1 || ! graph.outgoingVerticesOf(m).contains(bot) )
+                // m == bot => don't allow cycles in the graph
+                return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Return the longest suffix of bases shared among all provided vertices
+     *
+     * For example, if the vertices have sequences AC, CC, and ATC, this would return
+     * a single C.  However, for ACC and TCC this would return CC.  And for AC and TG this
+     * would return null;
+     *
+     * @param middleVertices a non-empty set of vertices
+     * @return a single vertex that contains the common suffix of all middle vertices
+     */
+    @Requires("!middleVertices.isEmpty()")
+    protected static SeqVertex commonSuffix(final Collection<SeqVertex> middleVertices) {
+        final List<byte[]> kmers = Utils.getKmers(middleVertices);
+        final int min = Utils.minKmerLength(kmers);
+        final int suffixLen = Utils.compSuffixLen(kmers, min);
+        final byte[] kmer = kmers.get(0);
+        final byte[] suffix = Arrays.copyOfRange(kmer, kmer.length - suffixLen, kmer.length);
+        return new SeqVertex(suffix);
+    }
 }

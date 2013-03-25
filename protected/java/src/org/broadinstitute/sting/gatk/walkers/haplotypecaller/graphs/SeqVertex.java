@@ -44,148 +44,124 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
-
+import com.google.java.contract.Requires;
+import org.broadinstitute.sting.utils.Utils;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * A DeBruijn kmer graph
+ * A graph vertex containing a sequence of bases and a unique ID that
+ * allows multiple distinct nodes in the graph to have the same sequence.
  *
- * User: rpoplin
- * Date: 2/6/13
+ * This is essential when thinking about representing the actual sequence of a haplotype
+ * in a graph.  There can be many parts of the sequence that have the same sequence, but
+ * are distinct elements in the graph because they have a different position in the graph.  For example:
+ *
+ * A -> C -> G -> A -> T
+ *
+ * The two As are not the same, because they occur with different connections.  In a kmer graph equals()
+ * is based on the sequence itself, as each distinct kmer can only be represented once.  But the transformation
+ * of the kmer graph into a graph of base sequences, without their kmer prefixes, means that nodes that
+ * where once unique including their prefix can become equal after shedding the prefix.  So we need to
+ * use some mechanism -- here a unique ID per node -- to separate nodes that have the same sequence
+ * but are distinct elements of the graph.
+ *
+ * @author: depristo
+ * @since 03/2013
  */
-public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
+public class SeqVertex extends BaseVertex {
+    private static int idCounter = 0;
+    public final int id;
+
     /**
-     * Create an empty DeBruijnGraph with default kmer size
+     * Create a new SeqVertex with sequence and the next available id
+     * @param sequence our base sequence
      */
-    public DeBruijnGraph() {
-        super();
+    public SeqVertex(final byte[] sequence) {
+        super(sequence);
+        this.id = idCounter++;
     }
 
     /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
+     * Create a new SeqVertex having bases of sequence.getBytes()
+     * @param sequence the string representation of our bases
      */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize);
+    public SeqVertex(final String sequence) {
+        super(sequence);
+        this.id = idCounter++;
     }
 
     /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
+     * Create a copy of toCopy
+     * @param toCopy a SeqVertex to copy into this newly allocated one
      */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
+    public SeqVertex(final SeqVertex toCopy) {
+        super(toCopy.sequence);
+        this.id = toCopy.id;
     }
 
     /**
-     * Error correct the kmers in this graph, returning a new graph built from those error corrected kmers
-     * @return an error corrected version of this (freshly allocated graph) or simply this graph if for some reason
-     *         we cannot actually do the error correction
+     * Get the unique ID for this SeqVertex
+     * @return a positive integer >= 0
      */
-    protected DeBruijnGraph errorCorrect() {
-        final KMerErrorCorrector corrector = new KMerErrorCorrector(getKmerSize(), 1, 1, 5); // TODO -- should be static variables
+    public int getId() {
+        return id;
+    }
 
-        for( final BaseEdge e : edgeSet() ) {
-            for ( final byte[] kmer : Arrays.asList(getEdgeSource(e).getSequence(), getEdgeTarget(e).getSequence())) {
-                // TODO -- need a cleaner way to deal with the ref weight
-                corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
-            }
-        }
-
-        if ( corrector.computeErrorCorrectionMap() ) {
-            final DeBruijnGraph correctedGraph = new DeBruijnGraph(getKmerSize());
-
-            for( final BaseEdge e : edgeSet() ) {
-                final byte[] source = corrector.getErrorCorrectedKmer(getEdgeSource(e).getSequence());
-                final byte[] target = corrector.getErrorCorrectedKmer(getEdgeTarget(e).getSequence());
-                if ( source != null && target != null ) {
-                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
-                }
-            }
-
-            return correctedGraph;
-        } else {
-            // the error correction wasn't possible, simply return this graph
-            return this;
-        }
+    @Override
+    public String toString() {
+        return "SeqVertex_id_" + id + "_seq_" + getSequenceString();
     }
 
     /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
+     * Two SeqVertex are equal only if their ids are equal
+     * @param o
+     * @return
      */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
 
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
+        SeqVertex seqVertex = (SeqVertex) o;
+        if (id != seqVertex.id) return false;
 
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
+        // note that we don't test for super equality here because the ids are unique
+        //if (!super.equals(o)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
     }
 
     /**
-     * Higher-level interface to #addKmersToGraph that adds a pair of kmers from a larger sequence of bytes to this
-     * graph.  The kmers start at start (first) and start + 1 (second) have have length getKmerSize().  The
-     * edge between them is added with isRef and multiplicity
+     * Return a new SeqVertex derived from this one but not including the suffix bases
      *
-     * @param sequence a sequence of bases from which we want to extract a pair of kmers
-     * @param start the start of the first kmer in sequence, must be between 0 and sequence.length - 2 - getKmerSize()
-     * @param isRef should the edge between the two kmers be a reference edge?
-     * @param multiplicity what's the multiplicity of the edge between these two kmers
+     * @param suffix the suffix bases to remove from this vertex
+     * @return a newly allocated SeqVertex with appropriate prefix, or null if suffix removes all bases from this node
      */
-    public void addKmerPairFromSeqToGraph( final byte[] sequence, final int start, final boolean isRef, final int multiplicity ) {
-        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
-        if ( start < 0 ) throw new IllegalArgumentException("start must be >= 0 but got " + start);
-        if ( start + 1 + getKmerSize() > sequence.length ) throw new IllegalArgumentException("start " + start + " is too big given kmerSize " + getKmerSize() + " and sequence length " + sequence.length);
-        final byte[] kmer1 = Arrays.copyOfRange(sequence, start, start + getKmerSize());
-        final byte[] kmer2 = Arrays.copyOfRange(sequence, start + 1, start + 1 + getKmerSize());
-        addKmersToGraph(kmer1, kmer2, isRef, multiplicity);
+    @Requires("Utils.endsWith(sequence, suffix)")
+    public SeqVertex withoutSuffix(final byte[] suffix) {
+        final int prefixSize = sequence.length - suffix.length;
+        return prefixSize > 0 ? new SeqVertex(Arrays.copyOf(sequence, prefixSize)) : null;
     }
 
     /**
-     * Convert this kmer graph to a simple sequence graph.
+     * Return a new SeqVertex derived from this one but not including prefix or suffix bases
      *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
+     * @param prefix the previx bases to remove
+     * @param suffix the suffix bases to remove from this vertex
+     * @return a newly allocated SeqVertex
      */
-    @Ensures({"result != null"})
-    protected SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
-        }
-
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
-
-        return seqGraph;
+    @Requires("Utils.endsWith(sequence, suffix)")
+    public SeqVertex withoutPrefixAndSuffix(final byte[] prefix, final byte[] suffix) {
+        final int start = prefix.length;
+        final int length = sequence.length - suffix.length - prefix.length;
+        final int stop = start + length;
+        return length > 0 ? new SeqVertex(Arrays.copyOfRange(sequence, start, stop)) : null;
     }
 }

@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.Utils;
@@ -98,10 +98,10 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
             min = Math.min(min, s.length());
         }
 
-        final int actualPrefixLen = SharedVertexSequenceSplitter.compPrefixLen(bytes, min);
+        final int actualPrefixLen = org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Utils.compPrefixLen(bytes, min);
         Assert.assertEquals(actualPrefixLen, expectedPrefixLen, "Failed prefix test");
 
-        final int actualSuffixLen = SharedVertexSequenceSplitter.compSuffixLen(bytes, min - actualPrefixLen);
+        final int actualSuffixLen = org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Utils.compSuffixLen(bytes, min - actualPrefixLen);
         Assert.assertEquals(actualSuffixLen, expectedSuffixLen, "Failed suffix test");
     }
 

@@ -44,82 +44,65 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-/**
- * Created by IntelliJ IDEA.
- * User: rpoplin
- * Date: 3/27/12
- */
-
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
-import org.broadinstitute.sting.utils.Haplotype;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public class DeBruijnAssemblerUnitTest extends BaseTest {
-    private final static boolean DEBUG = false;
-
-    @Test(enabled = !DEBUG)
-    public void testReferenceCycleGraph() {
-        String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
-        String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true));
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true));
-
-        Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
-        Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
+public class SeqVertexUnitTest extends BaseTest {
+    @Test
+    public void testBasic() {
+        final byte[] bases = "ACT".getBytes();
+        final SeqVertex v1 = new SeqVertex(bases);
+        final SeqVertex v2 = new SeqVertex(bases);
+        Assert.assertTrue(v1.getId() >= 0);
+        Assert.assertTrue(v2.getId() >= 0);
+        Assert.assertTrue(v2.getId() > v1.getId());
     }
 
-    @Test(enabled = !DEBUG)
-    public void testLeftAlignCigarSequentially() {
-        String preRefString = "GATCGATCGATC";
-        String postRefString = "TTT";
-        String refString = "ATCGAGGAGAGCGCCCCG";
-        String indelString1 = "X";
-        String indelString2 = "YZ";
-        int refIndel1 = 10;
-        int refIndel2 = 12;
+    @Test
+    public void testEqualsAndHashCode() {
+        final byte[] bases = "ACT".getBytes();
+        final SeqVertex v1 = new SeqVertex(bases);
+        final SeqVertex v1_neq = new SeqVertex(bases);
+        final SeqVertex v1_eq = new SeqVertex(v1);
 
-        for ( final int indelSize1 : Arrays.asList(1, 2, 3, 4) ) {
-            for ( final int indelOp1 : Arrays.asList(1, -1) ) {
-                for ( final int indelSize2 : Arrays.asList(1, 2, 3, 4) ) {
-                    for ( final int indelOp2 : Arrays.asList(1, -1) ) {
+        Assert.assertEquals(v1, v1);
+        Assert.assertEquals(v1.hashCode(), v1.hashCode());
+        Assert.assertEquals(v1, v1_eq);
+        Assert.assertEquals(v1.hashCode(), v1_eq.hashCode());
+        Assert.assertFalse(v1.equals(v1_neq));
+        Assert.assertFalse(v1_neq.equals(v1));
+        Assert.assertFalse(v1_neq.hashCode() == v1.hashCode());
+    }
 
-                        Cigar expectedCigar = new Cigar();
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp1 < 0 ? refIndel1 - indelSize1 : refIndel1), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2 - indelSize2) * 2 : refIndel2 * 2), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
+    @DataProvider(name = "WithoutSuffixData")
+    public Object[][] makeWithoutSuffixData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
 
-                        Cigar givenCigar = new Cigar();
-                        givenCigar.add(new CigarElement(refString.length() + refIndel1/2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp1 < 0 ? (refIndel1/2 - indelSize1) : refIndel1/2) + refString.length() + refIndel2/2 * 2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2/2 - indelSize2) * 2 : refIndel2/2 * 2) + refString.length(), CigarOperator.M));
-
-                        String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
-                        String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
-
-                        Cigar calculatedCigar = new DeBruijnAssembler().leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
-                        Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
-                    }
-                }
-            }
+        final String bases = "ACGTACGTACGT";
+        final int l = bases.length();
+        for ( int suffixLength = 0; suffixLength <= l; suffixLength++ ) {
+            final int suffixStart = l - suffixLength;
+            final String prefix = suffixLength == l ? null : bases.substring(0, suffixStart);
+            final String suffix = suffixStart == l ? "" : bases.substring(suffixStart, l);
+            tests.add(new Object[]{bases, suffix, prefix});
         }
+
+        return tests.toArray(new Object[][]{});
     }
 
+    @Test(dataProvider = "WithoutSuffixData")
+    public void testWithoutSuffix(final String bases, final String suffix, final String expected) {
+        final SeqVertex basesSV = new SeqVertex(bases);
+        if ( expected == null )
+            Assert.assertNull(basesSV.withoutSuffix(suffix.getBytes()), "Failed for bases " + bases + " with suffix " + suffix + " != " + expected);
+        else
+            Assert.assertEquals(basesSV.withoutSuffix(suffix.getBytes()).getSequenceString(), expected, "Failed for bases " + bases + " with suffix " + suffix + " != " + expected);
+    }
 }

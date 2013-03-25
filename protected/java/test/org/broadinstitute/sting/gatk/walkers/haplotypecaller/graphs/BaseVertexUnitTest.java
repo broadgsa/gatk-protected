@@ -44,66 +44,49 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-public class SeqVertexUnitTest extends BaseTest {
+public class BaseVertexUnitTest extends BaseTest {
     @Test
     public void testBasic() {
         final byte[] bases = "ACT".getBytes();
-        final SeqVertex v1 = new SeqVertex(bases);
-        final SeqVertex v2 = new SeqVertex(bases);
-        Assert.assertTrue(v1.getId() >= 0);
-        Assert.assertTrue(v2.getId() >= 0);
-        Assert.assertTrue(v2.getId() > v1.getId());
+        final BaseVertex v = new BaseVertex(bases);
+        Assert.assertEquals(v.getSequence(), bases);
+        Assert.assertEquals(v.getAdditionalSequence(false), bases);
+        Assert.assertEquals(v.getAdditionalSequence(true), bases);
+        Assert.assertEquals(v.getSequenceString(), new String(bases));
+        Assert.assertEquals(v.toString(), v.getSequenceString());
+        Assert.assertEquals(v.length(), bases.length);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testCreationNull() {
+        new BaseVertex((byte[])null);
+    }
+
+    @Test()
+    public void testCreationEmptySeq() {
+        final BaseVertex v = new BaseVertex(new byte[0]);
+        Assert.assertTrue(v.isEmpty(), "Version with length == 0 should be empty");
     }
 
     @Test
     public void testEqualsAndHashCode() {
-        final byte[] bases = "ACT".getBytes();
-        final SeqVertex v1 = new SeqVertex(bases);
-        final SeqVertex v1_neq = new SeqVertex(bases);
-        final SeqVertex v1_eq = new SeqVertex(v1);
+        final BaseVertex v1 = new BaseVertex("ACT".getBytes());
+        final BaseVertex v1_eq = new BaseVertex("ACT".getBytes());
+        final BaseVertex v2 = new BaseVertex("ACG".getBytes());
 
         Assert.assertEquals(v1, v1);
         Assert.assertEquals(v1.hashCode(), v1.hashCode());
         Assert.assertEquals(v1, v1_eq);
         Assert.assertEquals(v1.hashCode(), v1_eq.hashCode());
-        Assert.assertFalse(v1.equals(v1_neq));
-        Assert.assertFalse(v1_neq.equals(v1));
-        Assert.assertFalse(v1_neq.hashCode() == v1.hashCode());
-    }
-
-    @DataProvider(name = "WithoutSuffixData")
-    public Object[][] makeWithoutSuffixData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
-
-        final String bases = "ACGTACGTACGT";
-        final int l = bases.length();
-        for ( int suffixLength = 0; suffixLength <= l; suffixLength++ ) {
-            final int suffixStart = l - suffixLength;
-            final String prefix = suffixLength == l ? null : bases.substring(0, suffixStart);
-            final String suffix = suffixStart == l ? "" : bases.substring(suffixStart, l);
-            tests.add(new Object[]{bases, suffix, prefix});
-        }
-
-        return tests.toArray(new Object[][]{});
-    }
-
-    @Test(dataProvider = "WithoutSuffixData")
-    public void testWithoutSuffix(final String bases, final String suffix, final String expected) {
-        final SeqVertex basesSV = new SeqVertex(bases);
-        if ( expected == null )
-            Assert.assertNull(basesSV.withoutSuffix(suffix.getBytes()), "Failed for bases " + bases + " with suffix " + suffix + " != " + expected);
-        else
-            Assert.assertEquals(basesSV.withoutSuffix(suffix.getBytes()).getSequenceString(), expected, "Failed for bases " + bases + " with suffix " + suffix + " != " + expected);
+        Assert.assertFalse(v1.equals(v2));
+        Assert.assertFalse(v2.equals(v1));
+        Assert.assertFalse(v2.hashCode() == v1.hashCode());
+        Assert.assertFalse(v2.equals(v1));
     }
 }

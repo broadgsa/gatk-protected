@@ -581,7 +581,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             haplotypeBAMWriter.writeReadsAlignedToHaplotypes(haplotypes, paddedReferenceLoc, bestHaplotypes, calledHaplotypes.getCalledHaplotypes(), stratifiedReadMap);
         }
 
-        if( DEBUG ) { System.out.println("----------------------------------------------------------------------------------"); }
+        if( DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
 
         return 1; // One active region was processed during this map call
     }
@@ -614,7 +614,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //---------------------------------------------------------------------------------------------------------------
 
     private void finalizeActiveRegion( final ActiveRegion activeRegion ) {
-        if( DEBUG ) { System.out.println("\nAssembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
+        if( DEBUG ) { logger.info("Assembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
         final List<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>();
         final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( activeRegion.getReads() );
         activeRegion.clearReads();

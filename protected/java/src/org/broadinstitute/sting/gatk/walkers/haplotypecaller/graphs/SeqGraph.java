@@ -44,10 +44,12 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import org.apache.commons.lang.ArrayUtils;
 
+import java.io.File;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -57,6 +59,7 @@ import java.util.Set;
  * @since 03/2013
  */
 public class SeqGraph extends BaseGraph<SeqVertex> {
+    private final static boolean PRINT_SIMPLIFY_GRAPHS = false;
     private final static int MIN_SUFFIX_TO_MERGE_TAILS = 5;
 
     /**
@@ -97,9 +100,16 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
             //logger.info("simplifyGraph iteration " + i);
             // iterate until we haven't don't anything useful
             didSomeWork = false;
-            //printGraph(new File("simplifyGraph." + i + ".dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".dot"), 0);
             didSomeWork |= new MergeDiamonds().transformUntilComplete();
             didSomeWork |= new MergeTails().transformUntilComplete();
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".diamonds_and_tails.dot"), 0);
+
+            didSomeWork |= new SplitCommonSuffices().transformUntilComplete();
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".split_suffix.dot"), 0);
+            didSomeWork |= new MergeCommonSuffices().transformUntilComplete();
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".merge_suffix.dot"), 0);
+
             didSomeWork |= new MergeHeadlessIncomingSources().transformUntilComplete();
             didSomeWork |= zipLinearChains();
             i++;
@@ -109,7 +119,7 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
     /**
      * Zip up all of the simple linear chains present in this graph.
      */
-    protected boolean zipLinearChains() {
+    public boolean zipLinearChains() {
         boolean foundOne = false;
         while( zipOneLinearChain() ) {
             // just keep going until zipOneLinearChain says its done
@@ -137,13 +147,16 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
 
                 final Set<BaseEdge> outEdges = outgoingEdgesOf(outgoingVertex);
                 final Set<BaseEdge> inEdges = incomingEdgesOf(incomingVertex);
+                final BaseEdge singleOutEdge = outEdges.isEmpty() ? null : outEdges.iterator().next();
+                final BaseEdge singleInEdge = inEdges.isEmpty() ? null : inEdges.iterator().next();
+
                 if( inEdges.size() == 1 && outEdges.size() == 1 ) {
-                    inEdges.iterator().next().setMultiplicity( inEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() / 2 ) );
-                    outEdges.iterator().next().setMultiplicity( outEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() / 2 ) );
+                    singleInEdge.setMultiplicity( singleInEdge.getMultiplicity() + ( e.getMultiplicity() / 2 ) );
+                    singleOutEdge.setMultiplicity( singleOutEdge.getMultiplicity() + ( e.getMultiplicity() / 2 ) );
                 } else if( inEdges.size() == 1 ) {
-                    inEdges.iterator().next().setMultiplicity( inEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() - 1 ) );
+                    singleInEdge.setMultiplicity( Math.max(singleInEdge.getMultiplicity() + ( e.getMultiplicity() - 1 ), 0) );
                 } else if( outEdges.size() == 1 ) {
-                    outEdges.iterator().next().setMultiplicity( outEdges.iterator().next().getMultiplicity() + ( e.getMultiplicity() - 1 ) );
+                    singleOutEdge.setMultiplicity( Math.max( singleOutEdge.getMultiplicity() + ( e.getMultiplicity() - 1 ), 0) );
                 }
 
                 final SeqVertex addedVertex = new SeqVertex( ArrayUtils.addAll(incomingVertex.getSequence(), outgoingVertex.getSequence()) );
@@ -294,6 +307,57 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
 
             final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, tails);
             return splitter.splitAndUpdate(top, null, MIN_SUFFIX_TO_MERGE_TAILS);
+        }
+    }
+
+    /**
+     * Merge headless configurations:
+     *
+     * Performs the transformation:
+     *
+     * { x + S_i + y -> Z }
+     *
+     * goes to:
+     *
+     * { x -> S_i -> y -> Z }
+     *
+     * for all nodes that match this configuration.
+     *
+     * Differs from the diamond transform in that no top node is required
+     */
+    protected class MergeCommonSuffices extends VertexBasedTransformer {
+        @Override
+        boolean tryToTransform(final SeqVertex bottom) {
+            return new SharedSequenceMerger().merge(SeqGraph.this, bottom);
+        }
+    }
+
+    /**
+     * Merge headless configurations:
+     *
+     * Performs the transformation:
+     *
+     * { x + S_i + y -> Z }
+     *
+     * goes to:
+     *
+     * { x -> S_i -> y -> Z }
+     *
+     * for all nodes that match this configuration.
+     *
+     * Differs from the diamond transform in that no top node is required
+     */
+    protected class SplitCommonSuffices extends VertexBasedTransformer {
+        final Set<SeqVertex> alreadySplit = new HashSet<SeqVertex>();
+
+        @Override
+        boolean tryToTransform(final SeqVertex bottom) {
+            if ( alreadySplit.contains(bottom) )
+                return false;
+            else {
+                alreadySplit.add(bottom);
+                return new CommonSuffixSplitter().split(SeqGraph.this, bottom);
+            }
         }
     }
 

@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -62,6 +63,7 @@ import org.broadinstitute.variant.variantcontext.Allele;
 import java.util.*;
 
 public class LikelihoodCalculationEngine {
+    private final static Logger logger = Logger.getLogger(LikelihoodCalculationEngine.class);
 
     private static final double LOG_ONE_HALF = -Math.log10(2.0);
     private final byte constantGCP;
@@ -256,14 +258,14 @@ public class LikelihoodCalculationEngine {
                 }
             }
             if( maxElement == Double.NEGATIVE_INFINITY ) { break; }
-            if( DEBUG ) { System.out.println("Chose haplotypes " + hap1 + " and " + hap2 + " with diploid likelihood = " + haplotypeLikelihoodMatrix[hap1][hap2]); }
+            if( DEBUG ) { logger.info("Chose haplotypes " + hap1 + " and " + hap2 + " with diploid likelihood = " + haplotypeLikelihoodMatrix[hap1][hap2]); }
             haplotypeLikelihoodMatrix[hap1][hap2] = Double.NEGATIVE_INFINITY;
 
             if( !bestHaplotypesIndexList.contains(hap1) ) { bestHaplotypesIndexList.add(hap1); }
             if( !bestHaplotypesIndexList.contains(hap2) ) { bestHaplotypesIndexList.add(hap2); }
         }
 
-        if( DEBUG ) { System.out.println("Chose " + (bestHaplotypesIndexList.size() - 1) + " alternate haplotypes to genotype in all samples."); }
+        if( DEBUG ) { logger.info("Chose " + (bestHaplotypesIndexList.size() - 1) + " alternate haplotypes to genotype in all samples."); }
 
         final List<Haplotype> bestHaplotypes = new ArrayList<Haplotype>();
         for( final int hIndex : bestHaplotypesIndexList ) {

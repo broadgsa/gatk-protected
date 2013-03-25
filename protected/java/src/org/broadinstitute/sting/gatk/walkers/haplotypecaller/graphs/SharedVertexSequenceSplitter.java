@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
@@ -266,54 +266,13 @@ public class SharedVertexSequenceSplitter {
             min = Math.min(min, v.getSequence().length);
         }
 
-        final int prefixLen = compPrefixLen(kmers, min);
-        final int suffixLen = compSuffixLen(kmers, min - prefixLen);
+        final int prefixLen = Utils.compPrefixLen(kmers, min);
+        final int suffixLen = Utils.compSuffixLen(kmers, min - prefixLen);
 
         final byte[] kmer = kmers.get(0);
         final byte[] prefix = Arrays.copyOfRange(kmer, 0, prefixLen);
         final byte[] suffix = Arrays.copyOfRange(kmer, kmer.length - suffixLen, kmer.length);
         return new Pair<SeqVertex, SeqVertex>(new SeqVertex(prefix), new SeqVertex(suffix));
-    }
-
-    /**
-     * Compute the maximum shared prefix length of list of bytes.
-     *
-     * @param listOfBytes a list of bytes with at least one element
-     * @param minLength the min. length among all byte[] in listOfBytes
-     * @return the number of shared bytes common at the start of all bytes
-     */
-    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
-    @Ensures("result >= 0")
-    protected static int compPrefixLen(final List<byte[]> listOfBytes, final int minLength) {
-        for ( int i = 0; i < minLength; i++ ) {
-            final byte b = listOfBytes.get(0)[i];
-            for ( int j = 1; j < listOfBytes.size(); j++ ) {
-                if ( b != listOfBytes.get(j)[i] )
-                    return i;
-            }
-        }
-
-        return minLength;
-    }
-
-    /**
-     * Compute the maximum shared suffix length of list of bytes.
-     *
-     * @param listOfBytes a list of bytes with at least one element
-     * @param minLength the min. length among all byte[] in listOfBytes
-     * @return the number of shared bytes common at the end of all bytes
-     */
-    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
-    @Ensures("result >= 0")
-    protected static int compSuffixLen(final List<byte[]> listOfBytes, final int minLength) {
-        for ( int suffixLen = 0; suffixLen < minLength; suffixLen++ ) {
-            final byte b = listOfBytes.get(0)[listOfBytes.get(0).length - suffixLen - 1];
-            for ( int j = 1; j < listOfBytes.size(); j++ ) {
-                if ( b != listOfBytes.get(j)[listOfBytes.get(j).length - suffixLen - 1] )
-                    return suffixLen;
-            }
-        }
-        return minLength;
     }
 
     /**

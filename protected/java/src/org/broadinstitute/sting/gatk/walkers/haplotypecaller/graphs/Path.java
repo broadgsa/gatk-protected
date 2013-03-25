@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
@@ -67,7 +67,7 @@ import java.util.*;
  * Time: 2:34 PM
  *
  */
-class Path<T extends BaseVertex> {
+public class Path<T extends BaseVertex> {
     private final static int MAX_CIGAR_ELEMENTS_BEFORE_FAILING_SW = 20;
 
     // the last vertex seen in the path
@@ -163,8 +163,9 @@ class Path<T extends BaseVertex> {
         boolean first = true;
         for ( final T v : getVertices() ) {
             if ( first ) {
-                b.append(" -> ");
                 first = false;
+            } else {
+                b.append(" -> ");
             }
             b.append(v.getSequenceString());
         }

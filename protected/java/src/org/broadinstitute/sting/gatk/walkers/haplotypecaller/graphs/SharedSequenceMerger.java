@@ -44,82 +44,95 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
+import org.apache.commons.lang.ArrayUtils;
+
+import java.util.*;
 
 /**
- * simple node class for storing kmer sequences
+ * Merges the incoming vertices of a vertex V of a graph
  *
- * User: ebanks, mdepristo
- * Date: Mar 23, 2011
+ * Looks at the vertices that are incoming to V (i.e., have an outgoing edge connecting to V).  If
+ * they all have the same sequence, merges them into the sequence of V, and updates the graph
+ * as appropriate
+ *
+ * User: depristo
+ * Date: 3/22/13
+ * Time: 8:31 AM
  */
-public class DeBruijnVertex extends BaseVertex {
-    private final static byte[][] sufficesAsByteArray = new byte[256][];
-    static {
-        for ( int i = 0; i < sufficesAsByteArray.length; i++ )
-            sufficesAsByteArray[i] = new byte[]{(byte)(i & 0xFF)};
-    }
-
-    public DeBruijnVertex( final byte[] sequence ) {
-        super(sequence);
-    }
+public class SharedSequenceMerger {
+    public SharedSequenceMerger() { }
 
     /**
-     * For testing purposes only
-     * @param sequence
-     */
-    protected DeBruijnVertex( final String sequence ) {
-        this(sequence.getBytes());
-    }
-
-    /**
-     * Get the kmer size for this DeBruijnVertex
-     * @return integer >= 1
-     */
-    @Ensures("result >= 1")
-    public int getKmer() {
-        return sequence.length;
-    }
-
-    /**
-     * Get the string representation of the suffix of this DeBruijnVertex
-     * @return a non-null non-empty string
-     */
-    @Ensures({"result != null", "result.length() >= 1"})
-    public String getSuffixString() {
-        return new String(getSuffixAsArray());
-    }
-
-    /**
-     * Get the suffix byte of this DeBruijnVertex
+     * Attempt to merge the incoming vertices of v
      *
-     * The suffix byte is simply the last byte of the kmer sequence, so if this is holding sequence ACT
-     * getSuffix would return T
-     *
-     * @return a byte
+     * @param graph the graph containing the vertex v
+     * @param v the vertex whose incoming vertices we want to merge
+     * @return true if some useful merging was done, false otherwise
      */
-    public byte getSuffix() {
-        return sequence[getKmer() - 1];
+    public boolean merge(final SeqGraph graph, final SeqVertex v) {
+        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
+        if ( ! graph.vertexSet().contains(v) ) throw new IllegalArgumentException("graph doesn't contain vertex " + v);
+
+        final Set<SeqVertex> prevs = graph.incomingVerticesOf(v);
+        if ( ! canMerge(graph, v, prevs) )
+            return false;
+        else {
+//            graph.printGraph(new File("csm." + counter + "." + v.getSequenceString() + "_pre.dot"), 0);
+
+            final List<BaseEdge> edgesToRemove = new LinkedList<BaseEdge>();
+            final byte[] prevSeq = prevs.iterator().next().getSequence();
+            final SeqVertex newV = new SeqVertex(ArrayUtils.addAll(prevSeq, v.getSequence()));
+            graph.addVertex(newV);
+
+            for ( final SeqVertex prev : prevs ) {
+                for ( final BaseEdge prevIn : graph.incomingEdgesOf(prev) ) {
+                    graph.addEdge(graph.getEdgeSource(prevIn), newV, new BaseEdge(prevIn));
+                    edgesToRemove.add(prevIn);
+                }
+            }
+
+            for ( final BaseEdge e : graph.outgoingEdgesOf(v) ) {
+                graph.addEdge(newV, graph.getEdgeTarget(e), new BaseEdge(e));
+            }
+
+            graph.removeAllVertices(prevs);
+            graph.removeVertex(v);
+            graph.removeAllEdges(edgesToRemove);
+
+//            graph.printGraph(new File("csm." + counter++ + "." + v.getSequenceString() + "_post.dot"), 0);
+
+            return true;
+        }
     }
 
-    /**
-     * Optimized version that returns a byte[] for the single byte suffix of this graph without allocating memory.
-     *
-     * Should not be modified
-     *
-     * @return a byte[] that contains 1 byte == getSuffix()
-     */
-    @Ensures({"result != null", "result.length == 1", "result[0] == getSuffix()"})
-    private byte[] getSuffixAsArray() {
-        return sufficesAsByteArray[getSuffix()];
-    }
+    //private static int counter = 0;
 
     /**
-     * {@inheritDoc}
+     * Can we safely merge the incoming vertices of v
+     *
+     * @param graph the graph containing v and incomingVertices
+     * @param v the vertex we want to merge into
+     * @param incomingVertices the incoming vertices of v
+     * @return true if we can safely merge incomingVertices
      */
-    @Override
-    public byte[] getAdditionalSequence(boolean source) {
-        return source ? super.getAdditionalSequence(source) : getSuffixAsArray();
+    private boolean canMerge(final SeqGraph graph, final SeqVertex v, final Collection<SeqVertex> incomingVertices) {
+        if ( incomingVertices.isEmpty() )
+            return false;
+
+        final SeqVertex first = incomingVertices.iterator().next();
+        for ( final SeqVertex prev : incomingVertices) {
+            if ( ! prev.seqEquals(first) )
+                return false;
+            final Collection<SeqVertex> prevOuts = graph.outgoingVerticesOf(prev);
+            if ( prevOuts.size() != 1 )
+                return false;
+            if ( prevOuts.iterator().next() != v )
+                return false;
+        }
+
+        return true;
     }
+
 }

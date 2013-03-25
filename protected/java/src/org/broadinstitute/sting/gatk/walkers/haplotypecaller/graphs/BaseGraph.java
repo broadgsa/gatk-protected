@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Invariant;
@@ -53,7 +53,6 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.jgrapht.EdgeFactory;
 import org.jgrapht.graph.DefaultDirectedGraph;
-import org.jgrapht.traverse.DepthFirstIterator;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -219,15 +218,6 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
             }
         }
         return null;
-    }
-
-    public boolean isNonRefSink(final T v) {
-        // TODO -- cleanup logic statements
-        if ( ! isSink(v) ) return false;
-        for ( final BaseEdge in : incomingEdgesOf(v) )
-            if ( in.isRef() )
-                return false;
-        return true;
     }
 
     /**
@@ -400,7 +390,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
             graphWriter.println("digraph assemblyGraphs {");
 
         for( final BaseEdge edge : edgeSet() ) {
-            graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getMultiplicity() + "\"];");
+            graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() > 0 && edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getMultiplicity() + "\"];");
             if( edge.isRef() ) {
                 graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [color=red];");
             }
@@ -414,7 +404,12 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
             graphWriter.println("}");
     }
 
-    protected void cleanNonRefPaths() {
+    /**
+     * Remove edges that are connected before the reference source and after the reference sink
+     *
+     * Also removes all vertices that are orphaned by this process
+     */
+    public void cleanNonRefPaths() {
         if( getReferenceSourceVertex() == null || getReferenceSinkVertex() == null ) {
             return;
         }
@@ -449,7 +444,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      *
      * @param pruneFactor all edges with multiplicity <= this factor that aren't ref edges will be removed
      */
-    protected void pruneGraph( final int pruneFactor ) {
+    public void pruneGraph( final int pruneFactor ) {
         final List<BaseEdge> edgesToRemove = new ArrayList<BaseEdge>();
         for( final BaseEdge e : edgeSet() ) {
             if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
@@ -499,7 +494,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * as it requires vertices to not only be connected by a series of directed edges but also prunes away
      * paths that do not also meet eventually with the reference sink vertex
      */
-    protected void removePathsNotConnectedToRef() {
+    public void removePathsNotConnectedToRef() {
         if ( getReferenceSourceVertex() == null || getReferenceSinkVertex() == null ) {
             throw new IllegalStateException("Graph must have ref source and sink vertices");
         }

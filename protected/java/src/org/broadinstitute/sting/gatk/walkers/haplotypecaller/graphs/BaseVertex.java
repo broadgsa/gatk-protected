@@ -44,82 +44,132 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+
+import com.google.java.contract.Ensures;
+
+import java.util.Arrays;
 
 /**
- * Created by IntelliJ IDEA.
- * User: rpoplin
- * Date: 3/27/12
+ * A graph vertex that holds some sequence information
+ *
+ * @author: depristo
+ * @since 03/2013
  */
+public class BaseVertex {
+    final byte[] sequence;
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
-import org.broadinstitute.sting.utils.Haplotype;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import java.util.*;
-
-public class DeBruijnAssemblerUnitTest extends BaseTest {
-    private final static boolean DEBUG = false;
-
-    @Test(enabled = !DEBUG)
-    public void testReferenceCycleGraph() {
-        String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
-        String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true));
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true));
-
-        Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
-        Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
+    /**
+     * Create a new sequence vertex with sequence
+     *
+     * This code doesn't copy sequence for efficiency reasons, so sequence should absolutely not be modified
+     * in any way after passing this sequence to the BaseVertex
+     *
+     * @param sequence a non-null, non-empty sequence of bases contained in this vertex
+     */
+    public BaseVertex(final byte[] sequence) {
+        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
+        this.sequence = sequence;
     }
 
-    @Test(enabled = !DEBUG)
-    public void testLeftAlignCigarSequentially() {
-        String preRefString = "GATCGATCGATC";
-        String postRefString = "TTT";
-        String refString = "ATCGAGGAGAGCGCCCCG";
-        String indelString1 = "X";
-        String indelString2 = "YZ";
-        int refIndel1 = 10;
-        int refIndel2 = 12;
-
-        for ( final int indelSize1 : Arrays.asList(1, 2, 3, 4) ) {
-            for ( final int indelOp1 : Arrays.asList(1, -1) ) {
-                for ( final int indelSize2 : Arrays.asList(1, 2, 3, 4) ) {
-                    for ( final int indelOp2 : Arrays.asList(1, -1) ) {
-
-                        Cigar expectedCigar = new Cigar();
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp1 < 0 ? refIndel1 - indelSize1 : refIndel1), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2 - indelSize2) * 2 : refIndel2 * 2), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-
-                        Cigar givenCigar = new Cigar();
-                        givenCigar.add(new CigarElement(refString.length() + refIndel1/2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp1 < 0 ? (refIndel1/2 - indelSize1) : refIndel1/2) + refString.length() + refIndel2/2 * 2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2/2 - indelSize2) * 2 : refIndel2/2 * 2) + refString.length(), CigarOperator.M));
-
-                        String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
-                        String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
-
-                        Cigar calculatedCigar = new DeBruijnAssembler().leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
-                        Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
-                    }
-                }
-            }
-        }
+    /**
+     * Does this vertex have an empty sequence?
+     *
+     * That is, is it a dummy node that's only present for structural reasons but doesn't actually
+     * contribute to the sequence of the graph?
+     *
+     * @return true if sequence is empty, false otherwise
+     */
+    public boolean isEmpty() {
+        return length() == 0;
     }
 
+    /**
+     * Get the length of this sequence
+     * @return a positive integer >= 1
+     */
+    public int length() {
+        return sequence.length;
+    }
+
+    /**
+     * For testing purposes only -- low performance
+     * @param sequence the sequence as a string
+     */
+    protected BaseVertex(final String sequence) {
+        this(sequence.getBytes());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        BaseVertex that = (BaseVertex) o;
+
+        if (!Arrays.equals(sequence, that.sequence)) return false;
+
+        return true;
+    }
+
+    /**
+     * Are b and this equal according to their base sequences?
+     *
+     * @param b the vertex to compare ourselves to
+     * @return true if b and this have the same sequence, regardless of other attributes that might differentiate them
+     */
+    public boolean seqEquals(final BaseVertex b) {
+        return Arrays.equals(this.getSequence(), b.getSequence());
+    }
+
+    /**
+     * necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
+     * @return
+     */
+    @Override
+    public int hashCode() {
+        // TODO -- optimization, could compute upfront once and cached in debruijn graph
+        return Arrays.hashCode(sequence);
+    }
+
+    @Override
+    public String toString() {
+        return getSequenceString();
+    }
+
+    /**
+     * Get the sequence of bases contained in this vertex
+     *
+     * Do not modify these bytes in any way!
+     *
+     * @return a non-null pointer to the bases contained in this vertex
+     */
+    @Ensures("result != null")
+    public byte[] getSequence() {
+        return sequence;
+    }
+
+    /**
+     * Get a string representation of the bases in this vertex
+     * @return a non-null String
+     */
+    @Ensures("result != null")
+    public String getSequenceString() {
+        return new String(sequence);
+    }
+
+    /**
+     * Get the sequence unique to this vertex
+     *
+     * This function may not return the entire sequence stored in the vertex, as kmer graphs
+     * really only provide 1 base of additional sequence (the last base of the kmer).
+     *
+     * The base implementation simply returns the sequence.
+     *
+     * @param source is this vertex a source vertex (i.e., no in nodes) in the graph
+     * @return a byte[] of the sequence added by this vertex to the overall sequence
+     */
+    public byte[] getAdditionalSequence(final boolean source) {
+        return getSequence();
+    }
 }

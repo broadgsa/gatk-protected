@@ -44,147 +44,116 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Comparator;
+import com.google.java.contract.Ensures;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.KMerErrorCorrector;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * simple edge class for connecting nodes in the graph
+ * A DeBruijn kmer graph
  *
- * Works equally well for all graph types (kmer or sequence)
- *
- * User: ebanks
- * Date: Mar 23, 2011
+ * User: rpoplin
+ * Date: 2/6/13
  */
-public class BaseEdge {
-    private int multiplicity;
-    private boolean isRef;
-
+public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
     /**
-     * Create a new BaseEdge with weight multiplicity and, if isRef == true, indicates a path through the reference
-     *
-     * @param isRef indicates whether this edge is a path through the reference
-     * @param multiplicity the number of observations of this edge
+     * Create an empty DeBruijnGraph with default kmer size
      */
-    public BaseEdge(final boolean isRef, final int multiplicity) {
-        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
-
-        this.multiplicity = multiplicity;
-        this.isRef = isRef;
+    public DeBruijnGraph() {
+        super();
     }
 
     /**
-     * Copy constructor
-     *
-     * @param toCopy
+     * Create an empty DeBruijnGraph with kmer size
+     * @param kmerSize kmer size, must be >= 1
      */
-    public BaseEdge(final BaseEdge toCopy) {
-        this(toCopy.isRef(), toCopy.getMultiplicity());
+    public DeBruijnGraph(int kmerSize) {
+        super(kmerSize);
     }
 
     /**
-     * Get the number of observations of paths connecting two vertices
-     * @return a positive integer >= 0
+     * Pull kmers out of the given long sequence and throw them on in the graph
+     * @param sequence      byte array holding the sequence with which to build the assembly graph
+     * @param KMER_LENGTH   the desired kmer length to use
+     * @param isRef         if true the kmers added to the graph will have reference edges linking them
      */
-    public int getMultiplicity() {
-        return multiplicity;
-    }
-
-    /**
-     * Set the multiplicity of this edge to value
-     * @param value an integer >= 0
-     */
-    public void setMultiplicity( final int value ) {
-        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
-        multiplicity = value;
-    }
-
-    /**
-     * Does this edge indicate a path through the reference graph?
-     * @return true if so
-     */
-    public boolean isRef() {
-        return isRef;
-    }
-
-    /**
-     * Indicate that this edge follows the reference sequence, or not
-     * @param isRef true if this is a reference edge
-     */
-    public void setIsRef( final boolean isRef ) {
-        this.isRef = isRef;
-    }
-
-    /**
-     * Does this and edge have the same source and target vertices in graph?
-     *
-     * @param graph the graph containing both this and edge
-     * @param edge our comparator edge
-     * @param <T>
-     * @return true if we have the same source and target vertices
-     */
-    public <T extends BaseVertex> boolean hasSameSourceAndTarget(final BaseGraph<T> graph, final BaseEdge edge) {
-        return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
-    }
-
-    // For use when comparing edges across graphs!
-    public <T extends BaseVertex> boolean seqEquals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
-        return (graph.getEdgeSource(this).seqEquals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).seqEquals(graph2.getEdgeTarget(edge)));
-    }
-
-    /**
-     * Sorts a collection of BaseEdges in decreasing order of weight, so that the most
-     * heavily weighted is at the start of the list
-     */
-    public static class EdgeWeightComparator implements Comparator<BaseEdge>, Serializable {
-        @Override
-        public int compare(final BaseEdge edge1, final BaseEdge edge2) {
-            return edge2.multiplicity - edge1.multiplicity;
+    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
+        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
+        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
+        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
+            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
         }
     }
 
     /**
-     * Add edge to this edge, updating isRef and multiplicity as appropriate
-     *
-     * isRef is simply the or of this and edge
-     * multiplicity is the sum
-     *
-     * @param edge the edge to add
-     * @return this
+     * Add edge to assembly graph connecting the two kmers
+     * @param kmer1 the source kmer for the edge
+     * @param kmer2 the target kmer for the edge
+     * @param isRef true if the added edge is a reference edge
      */
-    public BaseEdge add(final BaseEdge edge) {
-        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
-        this.multiplicity += edge.getMultiplicity();
-        this.isRef = this.isRef || edge.isRef();
-        return this;
+    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
+        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
+        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
+        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+
+        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
+        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
+        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
+
+        addVertices(v1, v2);
+        addOrUpdateEdge(v1, v2, toAdd);
     }
 
     /**
-     * Create a new BaseEdge with multiplicity and isRef that's an or of all edges
+     * Higher-level interface to #addKmersToGraph that adds a pair of kmers from a larger sequence of bytes to this
+     * graph.  The kmers start at start (first) and start + 1 (second) have have length getKmerSize().  The
+     * edge between them is added with isRef and multiplicity
      *
-     * @param edges a collection of edges to or their isRef values
-     * @param multiplicity our desired multiplicity
-     * @return a newly allocated BaseEdge
+     * @param sequence a sequence of bases from which we want to extract a pair of kmers
+     * @param start the start of the first kmer in sequence, must be between 0 and sequence.length - 2 - getKmerSize()
+     * @param isRef should the edge between the two kmers be a reference edge?
+     * @param multiplicity what's the multiplicity of the edge between these two kmers
      */
-    public static BaseEdge orRef(final Collection<BaseEdge> edges, final int multiplicity) {
-        for ( final BaseEdge e : edges )
-            if ( e.isRef() )
-                return new BaseEdge(true, multiplicity);
-        return new BaseEdge(false, multiplicity);
+    public void addKmerPairFromSeqToGraph( final byte[] sequence, final int start, final boolean isRef, final int multiplicity ) {
+        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
+        if ( start < 0 ) throw new IllegalArgumentException("start must be >= 0 but got " + start);
+        if ( start + 1 + getKmerSize() > sequence.length ) throw new IllegalArgumentException("start " + start + " is too big given kmerSize " + getKmerSize() + " and sequence length " + sequence.length);
+        final byte[] kmer1 = Arrays.copyOfRange(sequence, start, start + getKmerSize());
+        final byte[] kmer2 = Arrays.copyOfRange(sequence, start + 1, start + 1 + getKmerSize());
+        addKmersToGraph(kmer1, kmer2, isRef, multiplicity);
     }
 
     /**
-     * Return a new edge that the max of this and edge
+     * Convert this kmer graph to a simple sequence graph.
      *
-     * isRef is simply the or of this and edge
-     * multiplicity is the max
+     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
+     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
      *
-     * @param edge the edge to max
+     * @return a newly allocated SequenceGraph
      */
-    public BaseEdge max(final BaseEdge edge) {
-        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
-        return new BaseEdge(isRef() || edge.isRef(), Math.max(getMultiplicity(), edge.getMultiplicity()));
+    @Ensures({"result != null"})
+    public SeqGraph convertToSequenceGraph() {
+        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
+        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+
+        // create all of the equivalent seq graph vertices
+        for ( final DeBruijnVertex dv : vertexSet() ) {
+            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
+            vertexMap.put(dv, sv);
+            seqGraph.addVertex(sv);
+        }
+
+        // walk through the nodes and connect them to their equivalent seq vertices
+        for( final BaseEdge e : edgeSet() ) {
+            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
+            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
+            seqGraph.addEdge(seqInV, seqOutV, e);
+        }
+
+        return seqGraph;
     }
 }

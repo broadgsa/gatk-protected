@@ -53,6 +53,7 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -160,7 +161,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), pruneFactor);
 
                 if ( shouldErrorCorrectKmers() ) {
-                    graph = graph.errorCorrect();
+                    graph = errorCorrect(graph);
                     if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), pruneFactor);
                 }
 
@@ -189,6 +190,8 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.zipped.dot"), pruneFactor);
 
         // now go through and prune the graph, removing vertices no longer connected to the reference chain
+        // IMPORTANT: pruning must occur before we call simplifyGraph, as simplifyGraph adds 0 weight
+        // edges to maintain graph connectivity.
         seqGraph.pruneGraph(pruneFactor);
         seqGraph.removeVerticesNotConnectedToRefRegardlessOfEdgeDirection();
 
@@ -203,7 +206,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             return null;
 
         seqGraph.removePathsNotConnectedToRef();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.5.refcleaned.dot"), pruneFactor);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.5.final.dot"), pruneFactor);
 
         return seqGraph;
     }
@@ -321,6 +324,39 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         return true;
     }
 
+    /**
+     * Error correct the kmers in this graph, returning a new graph built from those error corrected kmers
+     * @return an error corrected version of this (freshly allocated graph) or simply this graph if for some reason
+     *         we cannot actually do the error correction
+     */
+    public DeBruijnGraph errorCorrect(final DeBruijnGraph graph) {
+        final KMerErrorCorrector corrector = new KMerErrorCorrector(graph.getKmerSize(), 1, 1, 5); // TODO -- should be static variables
+
+        for( final BaseEdge e : graph.edgeSet() ) {
+            for ( final byte[] kmer : Arrays.asList(graph.getEdgeSource(e).getSequence(), graph.getEdgeTarget(e).getSequence())) {
+                // TODO -- need a cleaner way to deal with the ref weight
+                corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
+            }
+        }
+
+        if ( corrector.computeErrorCorrectionMap() ) {
+            final DeBruijnGraph correctedGraph = new DeBruijnGraph(graph.getKmerSize());
+
+            for( final BaseEdge e : graph.edgeSet() ) {
+                final byte[] source = corrector.getErrorCorrectedKmer(graph.getEdgeSource(e).getSequence());
+                final byte[] target = corrector.getErrorCorrectedKmer(graph.getEdgeTarget(e).getSequence());
+                if ( source != null && target != null ) {
+                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
+                }
+            }
+
+            return correctedGraph;
+        } else {
+            // the error correction wasn't possible, simply return this graph
+            return graph;
+        }
+    }
+
     protected void printGraphs(final List<SeqGraph> graphs) {
         final int writeFirstGraphWithSizeSmallerThan = 50;
 
@@ -366,6 +402,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         for( final SeqGraph graph : graphs ) {
             for ( final Path<SeqVertex> path : new KBestPaths<SeqVertex>().getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
+//                logger.info("Found path " + path);
                 Haplotype h = new Haplotype( path.getBases() );
                 if( !returnHaplotypes.contains(h) ) {
                     final Cigar cigar = path.calculateCigar();
@@ -421,13 +458,13 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         if( debug ) {
             if( returnHaplotypes.size() > 1 ) {
-                System.out.println("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
+                logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
             } else {
-                System.out.println("Found only the reference haplotype in the assembly graph.");
+                logger.info("Found only the reference haplotype in the assembly graph.");
             }
             for( final Haplotype h : returnHaplotypes ) {
-                System.out.println( h.toString() );
-                System.out.println( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() + " score " + h.getScore() );
+                logger.info( h.toString() );
+                logger.info( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() + " score " + h.getScore() );
             }
         }
 

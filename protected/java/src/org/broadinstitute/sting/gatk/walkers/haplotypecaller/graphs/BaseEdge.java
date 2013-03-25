@@ -44,77 +44,147 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Comparator;
 
 /**
- * General iterator that can iterate over all vertices in a BaseGraph, following either
- * incoming, outgoing edge (as well as both or none) edges.  Supports traversal of graphs
- * with cycles and other crazy structures.  Will only ever visit each vertex once.  The
- * order in which the vertices are visited is undefined.
+ * simple edge class for connecting nodes in the graph
  *
- * User: depristo
- * Date: 3/24/13
- * Time: 4:41 PM
+ * Works equally well for all graph types (kmer or sequence)
+ *
+ * User: ebanks
+ * Date: Mar 23, 2011
  */
-public class BaseGraphIterator<T extends BaseVertex> implements Iterator<T>, Iterable<T> {
-    final HashSet<T> visited = new HashSet<T>();
-    final LinkedList<T> toVisit = new LinkedList<T>();
-    final BaseGraph<T> graph;
-    final boolean followIncomingEdges, followOutgoingEdges;
+public class BaseEdge {
+    private int multiplicity;
+    private boolean isRef;
 
     /**
-     * Create a new BaseGraphIterator starting its traversal at start
+     * Create a new BaseEdge with weight multiplicity and, if isRef == true, indicates a path through the reference
      *
-     * Note that if both followIncomingEdges and followOutgoingEdges are false, we simply return the
-     * start vertex
-     *
-     * @param graph the graph to iterator over.  Cannot be null
-     * @param start the vertex to start at.  Cannot be null
-     * @param followIncomingEdges should we follow incoming edges during our
-     *                            traversal? (goes backward through the graph)
-     * @param followOutgoingEdges should we follow outgoing edges during out traversal?
+     * @param isRef indicates whether this edge is a path through the reference
+     * @param multiplicity the number of observations of this edge
      */
-    public BaseGraphIterator(final BaseGraph<T> graph, final T start,
-                             final boolean followIncomingEdges, final boolean followOutgoingEdges) {
-        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
-        if ( start == null ) throw new IllegalArgumentException("start cannot be null");
-        if ( ! graph.containsVertex(start) ) throw new IllegalArgumentException("start " + start + " must be in graph but it isn't");
-        this.graph = graph;
-        this.followIncomingEdges = followIncomingEdges;
-        this.followOutgoingEdges = followOutgoingEdges;
+    public BaseEdge(final boolean isRef, final int multiplicity) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0 but got " + multiplicity);
 
-        toVisit.add(start);
+        this.multiplicity = multiplicity;
+        this.isRef = isRef;
     }
 
-    @Override
-    public Iterator<T> iterator() {
+    /**
+     * Copy constructor
+     *
+     * @param toCopy
+     */
+    public BaseEdge(final BaseEdge toCopy) {
+        this(toCopy.isRef(), toCopy.getMultiplicity());
+    }
+
+    /**
+     * Get the number of observations of paths connecting two vertices
+     * @return a positive integer >= 0
+     */
+    public int getMultiplicity() {
+        return multiplicity;
+    }
+
+    /**
+     * Set the multiplicity of this edge to value
+     * @param value an integer >= 0
+     */
+    public void setMultiplicity( final int value ) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
+        multiplicity = value;
+    }
+
+    /**
+     * Does this edge indicate a path through the reference graph?
+     * @return true if so
+     */
+    public boolean isRef() {
+        return isRef;
+    }
+
+    /**
+     * Indicate that this edge follows the reference sequence, or not
+     * @param isRef true if this is a reference edge
+     */
+    public void setIsRef( final boolean isRef ) {
+        this.isRef = isRef;
+    }
+
+    /**
+     * Does this and edge have the same source and target vertices in graph?
+     *
+     * @param graph the graph containing both this and edge
+     * @param edge our comparator edge
+     * @param <T>
+     * @return true if we have the same source and target vertices
+     */
+    public <T extends BaseVertex> boolean hasSameSourceAndTarget(final BaseGraph<T> graph, final BaseEdge edge) {
+        return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
+    }
+
+    // For use when comparing edges across graphs!
+    public <T extends BaseVertex> boolean seqEquals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
+        return (graph.getEdgeSource(this).seqEquals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).seqEquals(graph2.getEdgeTarget(edge)));
+    }
+
+    /**
+     * Sorts a collection of BaseEdges in decreasing order of weight, so that the most
+     * heavily weighted is at the start of the list
+     */
+    public static class EdgeWeightComparator implements Comparator<BaseEdge>, Serializable {
+        @Override
+        public int compare(final BaseEdge edge1, final BaseEdge edge2) {
+            return edge2.multiplicity - edge1.multiplicity;
+        }
+    }
+
+    /**
+     * Add edge to this edge, updating isRef and multiplicity as appropriate
+     *
+     * isRef is simply the or of this and edge
+     * multiplicity is the sum
+     *
+     * @param edge the edge to add
+     * @return this
+     */
+    public BaseEdge add(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        this.multiplicity += edge.getMultiplicity();
+        this.isRef = this.isRef || edge.isRef();
         return this;
     }
 
-    @Override
-    public boolean hasNext() {
-        return ! toVisit.isEmpty();
+    /**
+     * Create a new BaseEdge with multiplicity and isRef that's an or of all edges
+     *
+     * @param edges a collection of edges to or their isRef values
+     * @param multiplicity our desired multiplicity
+     * @return a newly allocated BaseEdge
+     */
+    public static BaseEdge orRef(final Collection<BaseEdge> edges, final int multiplicity) {
+        for ( final BaseEdge e : edges )
+            if ( e.isRef() )
+                return new BaseEdge(true, multiplicity);
+        return new BaseEdge(false, multiplicity);
     }
 
-    @Override
-    public T next() {
-        final T v = toVisit.pop();
-
-        if ( ! visited.contains(v) ) {
-            visited.add(v);
-            if ( followIncomingEdges ) for ( final T prev : graph.incomingVerticesOf(v) ) toVisit.add(prev);
-            if ( followOutgoingEdges ) for ( final T next : graph.outgoingVerticesOf(v) ) toVisit.add(next);
-        }
-
-        return v;
-    }
-
-    @Override
-    public void remove() {
-        throw new UnsupportedOperationException("Doesn't implement remove");
+    /**
+     * Return a new edge whose multiplicity is the max of this and edge, and isRef is or of this and edge
+     *
+     * isRef is simply the or of this and edge
+     * multiplicity is the max
+     *
+     * @param edge the edge to max
+     */
+    public BaseEdge max(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        return new BaseEdge(isRef() || edge.isRef(), Math.max(getMultiplicity(), edge.getMultiplicity()));
     }
 }

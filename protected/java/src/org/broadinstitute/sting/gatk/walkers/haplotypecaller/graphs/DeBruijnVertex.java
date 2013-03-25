@@ -44,125 +44,82 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.Utils;
-
-import java.util.Arrays;
+import com.google.java.contract.Ensures;
 
 /**
- * A graph vertex containing a sequence of bases and a unique ID that
- * allows multiple distinct nodes in the graph to have the same sequence.
+ * simple node class for storing kmer sequences
  *
- * This is essential when thinking about representing the actual sequence of a haplotype
- * in a graph.  There can be many parts of the sequence that have the same sequence, but
- * are distinct elements in the graph because they have a different position in the graph.  For example:
- *
- * A -> C -> G -> A -> T
- *
- * The two As are not the same, because they occur with different connections.  In a kmer graph equals()
- * is based on the sequence itself, as each distinct kmer can only be represented once.  But the transformation
- * of the kmer graph into a graph of base sequences, without their kmer prefixes, means that nodes that
- * where once unique including their prefix can become equal after shedding the prefix.  So we need to
- * use some mechanism -- here a unique ID per node -- to separate nodes that have the same sequence
- * but are distinct elements of the graph.
- *
- * @author: depristo
- * @since 03/2013
+ * User: ebanks, mdepristo
+ * Date: Mar 23, 2011
  */
-public class SeqVertex extends BaseVertex {
-    private static int idCounter = 0;
-    public final int id;
+public class DeBruijnVertex extends BaseVertex {
+    private final static byte[][] sufficesAsByteArray = new byte[256][];
+    static {
+        for ( int i = 0; i < sufficesAsByteArray.length; i++ )
+            sufficesAsByteArray[i] = new byte[]{(byte)(i & 0xFF)};
+    }
 
-    /**
-     * Create a new SeqVertex with sequence and the next available id
-     * @param sequence our base sequence
-     */
-    public SeqVertex(final byte[] sequence) {
+    public DeBruijnVertex( final byte[] sequence ) {
         super(sequence);
-        this.id = idCounter++;
     }
 
     /**
-     * Create a new SeqVertex having bases of sequence.getBytes()
-     * @param sequence the string representation of our bases
+     * For testing purposes only
+     * @param sequence
      */
-    public SeqVertex(final String sequence) {
-        super(sequence);
-        this.id = idCounter++;
+    protected DeBruijnVertex( final String sequence ) {
+        this(sequence.getBytes());
     }
 
     /**
-     * Create a copy of toCopy
-     * @param toCopy a SeqVertex to copy into this newly allocated one
+     * Get the kmer size for this DeBruijnVertex
+     * @return integer >= 1
      */
-    public SeqVertex(final SeqVertex toCopy) {
-        super(toCopy.sequence);
-        this.id = toCopy.id;
+    @Ensures("result >= 1")
+    public int getKmer() {
+        return sequence.length;
     }
 
     /**
-     * Get the unique ID for this SeqVertex
-     * @return a positive integer >= 0
+     * Get the string representation of the suffix of this DeBruijnVertex
+     * @return a non-null non-empty string
      */
-    public int getId() {
-        return id;
-    }
-
-    @Override
-    public String toString() {
-        return "SeqVertex_id_" + id + "_seq_" + getSequenceString();
+    @Ensures({"result != null", "result.length() >= 1"})
+    public String getSuffixString() {
+        return new String(getSuffixAsArray());
     }
 
     /**
-     * Two SeqVertex are equal only if their ids are equal
-     * @param o
-     * @return
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        SeqVertex seqVertex = (SeqVertex) o;
-        if (id != seqVertex.id) return false;
-
-        // note that we don't test for super equality here because the ids are unique
-        //if (!super.equals(o)) return false;
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        return id;
-    }
-
-    /**
-     * Return a new SeqVertex derived from this one but not including the suffix bases
+     * Get the suffix byte of this DeBruijnVertex
      *
-     * @param suffix the suffix bases to remove from this vertex
-     * @return a newly allocated SeqVertex with appropriate prefix, or null if suffix removes all bases from this node
+     * The suffix byte is simply the last byte of the kmer sequence, so if this is holding sequence ACT
+     * getSuffix would return T
+     *
+     * @return a byte
      */
-    @Requires("Utils.endsWith(sequence, suffix)")
-    public SeqVertex withoutSuffix(final byte[] suffix) {
-        final int prefixSize = sequence.length - suffix.length;
-        return prefixSize > 0 ? new SeqVertex(Arrays.copyOf(sequence, prefixSize)) : null;
+    public byte getSuffix() {
+        return sequence[getKmer() - 1];
     }
 
     /**
-     * Return a new SeqVertex derived from this one but not including prefix or suffix bases
+     * Optimized version that returns a byte[] for the single byte suffix of this graph without allocating memory.
      *
-     * @param prefix the previx bases to remove
-     * @param suffix the suffix bases to remove from this vertex
-     * @return a newly allocated SeqVertex
+     * Should not be modified
+     *
+     * @return a byte[] that contains 1 byte == getSuffix()
      */
-    @Requires("Utils.endsWith(sequence, suffix)")
-    public SeqVertex withoutPrefixAndSuffix(final byte[] prefix, final byte[] suffix) {
-        final int start = prefix.length;
-        final int length = sequence.length - suffix.length - prefix.length;
-        final int stop = start + length;
-        return length > 0 ? new SeqVertex(Arrays.copyOfRange(sequence, start, stop)) : null;
+    @Ensures({"result != null", "result.length == 1", "result[0] == getSuffix()"})
+    private byte[] getSuffixAsArray() {
+        return sufficesAsByteArray[getSuffix()];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public byte[] getAdditionalSequence(boolean source) {
+        return source ? super.getAdditionalSequence(source) : getSuffixAsArray();
     }
 }

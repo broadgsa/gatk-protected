@@ -44,213 +44,95 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.broadinstitute.sting.BaseTest;
-import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-import scala.actors.threadpool.Arrays;
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
 
-import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
-public class BaseGraphUnitTest extends BaseTest {
-    SeqGraph graph;
-    SeqVertex v1, v2, v3, v4, v5;
+/**
+ * Utility functions used in the graphs package
+ *
+ * User: depristo
+ * Date: 3/25/13
+ * Time: 9:42 PM
+ */
+final class Utils {
+    private Utils() {}
 
-    @BeforeMethod
-    public void setUp() throws Exception {
-        graph = new SeqGraph();
+    /**
+     * Compute the maximum shared prefix length of list of bytes.
+     *
+     * @param listOfBytes a list of bytes with at least one element
+     * @param minLength the min. length among all byte[] in listOfBytes
+     * @return the number of shared bytes common at the start of all bytes
+     */
+    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
+    @Ensures("result >= 0")
+    protected static int compPrefixLen(final List<byte[]> listOfBytes, final int minLength) {
+        for ( int i = 0; i < minLength; i++ ) {
+            final byte b = listOfBytes.get(0)[i];
+            for ( int j = 1; j < listOfBytes.size(); j++ ) {
+                if ( b != listOfBytes.get(j)[i] )
+                    return i;
+            }
+        }
 
-        v1 = new SeqVertex("A");
-        v2 = new SeqVertex("C");
-        v3 = new SeqVertex("C");
-        v4 = new SeqVertex("C");
-        v5 = new SeqVertex("C");
-
-        graph.addVertices(v1, v2, v3, v4, v5);
-        graph.addEdge(v1, v2);
-        graph.addEdge(v2, v4);
-        graph.addEdge(v3, v2);
-        graph.addEdge(v2, v3);
-        graph.addEdge(v4, v5);
+        return minLength;
     }
 
-    @Test
-    public void testIncomingAndOutgoingVertices() throws Exception {
-        assertVertexSetEquals(graph.outgoingVerticesOf(v1), v2);
-        assertVertexSetEquals(graph.incomingVerticesOf(v1));
-
-        assertVertexSetEquals(graph.outgoingVerticesOf(v2), v3, v4);
-        assertVertexSetEquals(graph.incomingVerticesOf(v2), v1, v3);
-
-        assertVertexSetEquals(graph.outgoingVerticesOf(v3), v2);
-        assertVertexSetEquals(graph.incomingVerticesOf(v3), v2);
-
-        assertVertexSetEquals(graph.outgoingVerticesOf(v4), v5);
-        assertVertexSetEquals(graph.incomingVerticesOf(v4), v2);
-
-        assertVertexSetEquals(graph.outgoingVerticesOf(v5));
-        assertVertexSetEquals(graph.incomingVerticesOf(v5), v4);
+    /**
+     * Compute the maximum shared suffix length of list of bytes.
+     *
+     * @param listOfBytes a list of bytes with at least one element
+     * @param minLength the min. length among all byte[] in listOfBytes
+     * @return the number of shared bytes common at the end of all bytes
+     */
+    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
+    @Ensures("result >= 0")
+    protected static int compSuffixLen(final List<byte[]> listOfBytes, final int minLength) {
+        for ( int suffixLen = 0; suffixLen < minLength; suffixLen++ ) {
+            final byte b = listOfBytes.get(0)[listOfBytes.get(0).length - suffixLen - 1];
+            for ( int j = 1; j < listOfBytes.size(); j++ ) {
+                if ( b != listOfBytes.get(j)[listOfBytes.get(j).length - suffixLen - 1] )
+                    return suffixLen;
+            }
+        }
+        return minLength;
     }
 
-    @Test
-         public void testRemoveSingletonOrphanVertices() throws Exception {
-        // all vertices in graph are connected
-        final List<SeqVertex> kept = new LinkedList<SeqVertex>(graph.vertexSet());
-        final SeqVertex rm1 = new SeqVertex("CAGT");
-        final SeqVertex rm2 = new SeqVertex("AGTC");
-        graph.addVertices(rm1, rm2);
-        Assert.assertEquals(graph.vertexSet().size(), kept.size() + 2);
-        final BaseEdge rm12e = new BaseEdge(false, 1);
-        graph.addEdge(rm1, rm2, rm12e);
-
-        final SeqGraph original = (SeqGraph)graph.clone();
-        graph.removeSingletonOrphanVertices();
-        Assert.assertTrue(BaseGraph.graphEquals(original, graph), "Graph with disconnected component but edges between components shouldn't be modified");
-
-        graph.removeEdge(rm12e); // now we should be able to remove rm1 and rm2
-        graph.removeSingletonOrphanVertices();
-        Assert.assertTrue(graph.vertexSet().containsAll(kept));
-        Assert.assertFalse(graph.containsVertex(rm1));
-        Assert.assertFalse(graph.containsVertex(rm2));
+    /**
+     * Get the list of kmers as byte[] from the vertices in the graph
+     *
+     * @param vertices a collection of vertices
+     * @return a list of their kmers in order of the iterator on vertices
+     */
+    protected static List<byte[]> getKmers(final Collection<SeqVertex> vertices) {
+        final List<byte[]> kmers = new ArrayList<byte[]>(vertices.size());
+        for ( final SeqVertex v : vertices ) {
+            kmers.add(v.getSequence());
+        }
+        return kmers;
     }
 
-    @Test
-    public void testRemovePathsNotConnectedToRef() throws Exception {
-        final SeqGraph graph = new SeqGraph();
+    /**
+     * Get the minimum length of a collection of byte[]
+     *
+     * @param kmers a list of kmers whose .length min we want
+     * @return the min of the kmers, if kmers is empty the result is 0
+     */
+    protected static int minKmerLength(final Collection<byte[]> kmers) {
+        if ( kmers == null ) throw new IllegalArgumentException("kmers cannot be null");
 
-        SeqVertex src = new SeqVertex("A");
-        SeqVertex end = new SeqVertex("A");
-        SeqVertex g1 = new SeqVertex("C");
-        SeqVertex g2 = new SeqVertex("G");
-        SeqVertex g3 = new SeqVertex("T");
-        SeqVertex g4 = new SeqVertex("AA");
-        SeqVertex g5 = new SeqVertex("AA");
-        SeqVertex g6 = new SeqVertex("AA");
-        SeqVertex g8 = new SeqVertex("AA");
-        SeqVertex g7 = new SeqVertex("AA");
-        SeqVertex b1 = new SeqVertex("CC");
-        SeqVertex b2 = new SeqVertex("GG");
-        SeqVertex b3 = new SeqVertex("TT");
-        SeqVertex b4 = new SeqVertex("AAA");
-        SeqVertex b5 = new SeqVertex("CCC");
-        SeqVertex b6 = new SeqVertex("GGG");
-        SeqVertex b7 = new SeqVertex("AAAA");
-        SeqVertex b8 = new SeqVertex("GGGG");
-        SeqVertex b9 = new SeqVertex("CCCC");
-
-        graph.addVertices(src, end, g1, g2, g3, g4, g5, g6, g7, g8);
-        graph.addEdges(new BaseEdge(true, 1), src, g1, g2, g4, end);
-        graph.addEdges(src, g1, g5, g6, g7, end);
-        graph.addEdges(src, g1, g5, g8, g7, end);
-        graph.addEdges(src, g1, g3, end);
-
-        // the current state of the graph is the good one
-        final SeqGraph good = (SeqGraph)graph.clone();
-
-        // now add the bads to the graph
-        graph.addVertices(b1, b2, b3, b4, b5, b6, b7, b8, b9);
-        graph.addEdges(src, b1); // source -> b1 is dead
-        graph.addEdges(b6, src); // x -> source is bad
-        graph.addEdges(g4, b2); // off random vertex is bad
-        graph.addEdges(g3, b3, b4); // two vertices that don't connect to end are bad
-        graph.addEdges(end, b5); // vertex off end is bad
-        graph.addEdges(g3, b7, b8, b7); // cycle is bad
-        graph.addEdges(g3, b9, b9); // self-cycle is bad
-
-        final boolean debug = true;
-        if ( debug ) good.printGraph(new File("expected.dot"), 0);
-        if ( debug ) graph.printGraph(new File("bad.dot"), 0);
-        graph.removePathsNotConnectedToRef();
-        if ( debug ) graph.printGraph(new File("actual.dot"), 0);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, good), "Failed to remove exactly the bad nodes");
+        if ( kmers.isEmpty() ) return 0;
+        int min = Integer.MAX_VALUE;
+        for ( final byte[] kmer : kmers ) {
+            min = Math.min(min, kmer.length);
+        }
+        return min;
     }
 
-    @Test
-    public void testPrintEmptyGraph() throws Exception {
-        final File tmp = File.createTempFile("tmp", "dot");
-        tmp.deleteOnExit();
-        new SeqGraph().printGraph(tmp, 10);
-        new DeBruijnGraph().printGraph(tmp, 10);
-    }
-
-    @Test
-    public void testComplexGraph() throws Exception {
-        final File tmp = File.createTempFile("tmp", "dot");
-        tmp.deleteOnExit();
-        graph.printGraph(tmp, 10);
-    }
-
-    private void assertVertexSetEquals(final Set<SeqVertex> actual, final SeqVertex ... expected) {
-        final Set<SeqVertex> expectedSet = expected == null ? Collections.<SeqVertex>emptySet() : new HashSet<SeqVertex>(Arrays.asList(expected));
-        Assert.assertEquals(actual, expectedSet);
-    }
-
-    @Test(enabled = true)
-    public void testPruneGraph() {
-        DeBruijnGraph graph = new DeBruijnGraph();
-        DeBruijnGraph expectedGraph = new DeBruijnGraph();
-
-        DeBruijnVertex v = new DeBruijnVertex("ATGG");
-        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA");
-        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT");
-        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG");
-        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC");
-        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC");
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new BaseEdge(false, 1));
-        graph.addEdge(v2, v3, new BaseEdge(false, 3));
-        graph.addEdge(v3, v4, new BaseEdge(false, 5));
-        graph.addEdge(v4, v5, new BaseEdge(false, 3));
-        graph.addEdge(v5, v6, new BaseEdge(false, 2));
-
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        graph.pruneGraph(2);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
-
-        graph = new DeBruijnGraph();
-        expectedGraph = new DeBruijnGraph();
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new BaseEdge(true, 1));
-        graph.addEdge(v2, v3, new BaseEdge(false, 3));
-        graph.addEdge(v3, v4, new BaseEdge(false, 5));
-        graph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        expectedGraph.addVertex(v);
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v, v2, new BaseEdge(true, 1));
-        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        graph.pruneGraph(2);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
-    }
 }

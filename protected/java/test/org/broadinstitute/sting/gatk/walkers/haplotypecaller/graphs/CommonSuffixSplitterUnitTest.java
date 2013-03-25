@@ -44,82 +44,70 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-/**
- * Created by IntelliJ IDEA.
- * User: rpoplin
- * Date: 3/27/12
- */
-
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
-import org.broadinstitute.sting.utils.Haplotype;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.*;
-
-public class DeBruijnAssemblerUnitTest extends BaseTest {
-    private final static boolean DEBUG = false;
-
-    @Test(enabled = !DEBUG)
-    public void testReferenceCycleGraph() {
-        String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
-        String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true));
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true));
-
-        Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
-        Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
+public class CommonSuffixSplitterUnitTest extends BaseTest {
+    @DataProvider(name = "SplitData")
+    public Object[][] makeSplitData() {
+        return CommonSuffixMergerUnitTest.makeSplitMergeData(-1);
     }
 
-    @Test(enabled = !DEBUG)
-    public void testLeftAlignCigarSequentially() {
-        String preRefString = "GATCGATCGATC";
-        String postRefString = "TTT";
-        String refString = "ATCGAGGAGAGCGCCCCG";
-        String indelString1 = "X";
-        String indelString2 = "YZ";
-        int refIndel1 = 10;
-        int refIndel2 = 12;
+    @Test(dataProvider = "SplitData")
+    public void testSplit(final CommonSuffixMergerUnitTest.SplitMergeData data) {
+        final boolean expectedMerge = ! data.commonSuffix.isEmpty() && data.graph.inDegreeOf(data.v) > 1;
 
-        for ( final int indelSize1 : Arrays.asList(1, 2, 3, 4) ) {
-            for ( final int indelOp1 : Arrays.asList(1, -1) ) {
-                for ( final int indelSize2 : Arrays.asList(1, 2, 3, 4) ) {
-                    for ( final int indelOp2 : Arrays.asList(1, -1) ) {
-
-                        Cigar expectedCigar = new Cigar();
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp1 < 0 ? refIndel1 - indelSize1 : refIndel1), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2 - indelSize2) * 2 : refIndel2 * 2), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-
-                        Cigar givenCigar = new Cigar();
-                        givenCigar.add(new CigarElement(refString.length() + refIndel1/2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp1 < 0 ? (refIndel1/2 - indelSize1) : refIndel1/2) + refString.length() + refIndel2/2 * 2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2/2 - indelSize2) * 2 : refIndel2/2 * 2) + refString.length(), CigarOperator.M));
-
-                        String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
-                        String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
-
-                        Cigar calculatedCigar = new DeBruijnAssembler().leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
-                        Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
-                    }
-                }
-            }
+        final SeqGraph original = (SeqGraph)data.graph.clone();
+//        original.printGraph(new File("original.dot"), 0);
+        final CommonSuffixSplitter splitter = new CommonSuffixSplitter();
+        final boolean succeed = splitter.split(data.graph, data.v);
+//        data.graph.printGraph(new File("actual.dot"), 0);
+        Assert.assertEquals(succeed, expectedMerge, "Not excepted merge success/fail result");
+        if ( succeed ) {
+            Assert.assertEquals(data.graph.incomingVerticesOf(data.v).iterator().next().getSequenceString(), data.commonSuffix, "Common suffix not computed correctly");
         }
+
+        CommonSuffixMergerUnitTest.assertSameHaplotypes(String.format("suffixSplit.%s.%d", data.commonSuffix, data.graph.vertexSet().size()), data.graph, original);
     }
 
+    @Test
+    public void testSplitPrevHaveMultipleEdges() {
+        final SeqGraph original = new SeqGraph();
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("A");
+        final SeqVertex v3 = new SeqVertex("A");
+        final SeqVertex v4 = new SeqVertex("A");
+
+        original.addVertices(v1, v2, v3, v4);
+        original.addEdges(v1, v3);
+
+        Assert.assertFalse(new CommonSuffixSplitter().split(original, v3), "Cannot split graph with only one vertex");
+
+        original.addEdges(v2, v3);
+        original.addEdges(v2, v4);
+
+        Assert.assertFalse(new CommonSuffixSplitter().split(original, v3), "Cannot split graph with multiple outgoing edges from middle nodes");
+    }
+
+    @Test
+    public void testSplitNoCycles() {
+        final SeqGraph original = new SeqGraph();
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("C");
+        final SeqVertex v3 = new SeqVertex("C");
+        final SeqVertex v4 = new SeqVertex("G");
+
+        original.addVertices(v1, v2, v3, v4);
+        original.addEdges(v1, v3, v4);
+        original.addEdges(v1, v2, v4);
+
+        Assert.assertTrue(new CommonSuffixSplitter().split((SeqGraph)original.clone(), v4), "Should be able to split pre-cycle graph");
+
+        original.addEdges(v4, v4);
+        Assert.assertFalse(new CommonSuffixSplitter().split(original, v4), "Cannot split graph with a cycle of the bottom list");
+    }
 }
