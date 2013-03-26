@@ -70,7 +70,7 @@ public class PairHMMUnitTest extends BaseTest {
     final static boolean EXTENSIVE_TESTING = true;
     final PairHMM exactHMM = new Log10PairHMM(true); // the log truth implementation
     final PairHMM originalHMM = new Log10PairHMM(false); // the reference implementation
-    final PairHMM loglessHMM = new LoglessCachingPairHMM();
+    final PairHMM loglessHMM = new LoglessPairHMM();
 
     private List<PairHMM> getHMMs() {
         return Arrays.asList(exactHMM, originalHMM, loglessHMM);
@@ -116,13 +116,12 @@ public class PairHMMUnitTest extends BaseTest {
             return String.format("ref=%s read=%s b/i/d/c quals = %d/%d/%d/%d l/r flank = %b/%b e[qual]=%d", ref, read, baseQual, insQual, delQual, gcp, left, right, expectedQual);
         }
 
-        public double expectedLogL(final PairHMM hmm) {
-            return (expectedQual / -10.0) + 0.03 +
-                    hmm.getNPotentialXStartsLikelihoodPenaltyLog10(refBasesWithContext.length, readBasesWithContext.length);
+        public double expectedLogL() {
+            return (expectedQual / -10.0) + 0.03 + Math.log10(1.0/refBasesWithContext.length);
         }
 
         public double getTolerance(final PairHMM hmm) {
-            if ( hmm instanceof LoglessCachingPairHMM )
+            if ( hmm instanceof LoglessPairHMM)
                 return toleranceFromExact();
             if ( hmm instanceof Log10PairHMM ) {
                 return ((Log10PairHMM)hmm).isDoingExactLog10Calculations() ? toleranceFromExact() : toleranceFromReference();
@@ -150,7 +149,7 @@ public class PairHMMUnitTest extends BaseTest {
                     qualAsBytes(gcp, false, anchorIndel), 0, true);
         }
 
-        private final byte[] asBytes(final String bases, final boolean left, final boolean right) {
+        private byte[] asBytes(final String bases, final boolean left, final boolean right) {
             return ( (left ? LEFT_FLANK : "") + CONTEXT + bases + CONTEXT + (right ? RIGHT_FLANK : "")).getBytes();
         }
 
@@ -163,7 +162,7 @@ public class PairHMMUnitTest extends BaseTest {
 
                 // update just the bases corresponding to the provided micro read with the quality scores
                 if( doGOP ) {
-                    phredQuals[0 + CONTEXT.length()] = (byte)phredQual;
+                    phredQuals[CONTEXT.length()] = (byte)phredQual;
                 } else {
                     for ( int i = 0; i < read.length(); i++)
                         phredQuals[i + CONTEXT.length()] = (byte)phredQual;
@@ -270,7 +269,7 @@ public class PairHMMUnitTest extends BaseTest {
             final double exactLogL = cfg.calcLogL( exactHMM, true );
             for ( final PairHMM hmm : getHMMs() ) {
                 double actualLogL = cfg.calcLogL( hmm, true );
-                double expectedLogL = cfg.expectedLogL(hmm);
+                double expectedLogL = cfg.expectedLogL();
 
                 // compare to our theoretical expectation with appropriate tolerance
                 Assert.assertEquals(actualLogL, expectedLogL, cfg.toleranceFromTheoretical(), "Failed with hmm " + hmm);
@@ -322,8 +321,8 @@ public class PairHMMUnitTest extends BaseTest {
 
             System.out.format("H:%s\nR:  %s\n Pos:%d Result:%4.2f\n",new String(haplotype1), new String(mread), k,res1);
 
-            // - log10 is because of number of start positions
-            Assert.assertEquals(res1, -2.0 - Math.log10(originalHMM.getNPotentialXStarts(haplotype1.length, mread.length)), 1e-2);
+            final double expected = Math.log10(1.0/haplotype1.length * Math.pow(QualityUtils.qualToProb(90), mread.length-1) * QualityUtils.qualToErrorProb(20));
+            Assert.assertEquals(res1, expected, 1e-2);
         }
     }
 
@@ -354,8 +353,8 @@ public class PairHMMUnitTest extends BaseTest {
 
             System.out.format("H:%s\nR:  %s\n Pos:%d Result:%4.2f\n",new String(haplotype1), new String(mread), k,res1);
 
-            // - log10 is because of number of start positions
-            Assert.assertEquals(res1, -2.0 - Math.log10(originalHMM.getNPotentialXStarts(haplotype1.length, mread.length)), 1e-2);
+            final double expected = Math.log10(1.0/haplotype1.length * Math.pow(QualityUtils.qualToProb(90), mread.length-1) * QualityUtils.qualToErrorProb(20));
+            Assert.assertEquals(res1, expected, 1e-2);
         }
     }
 
@@ -406,8 +405,14 @@ public class PairHMMUnitTest extends BaseTest {
                 Utils.dupBytes(insQual, readBases.length),
                 Utils.dupBytes(delQual, readBases.length),
                 Utils.dupBytes(gcp, readBases.length), 0, true);
-        final double expected = Math.log10(Math.pow(1.0 - QualityUtils.qualToErrorProb(baseQual), readBases.length));
-        Assert.assertEquals(d, expected, 1e-3, "Likelihoods should sum to just the error prob of the read");
+        double expected =  0;
+        final double initialCondition = ((double) Math.abs(refBases.length-readBases.length+1))/refBases.length;
+        if (readBases.length < refBases.length) {
+            expected = Math.log10(initialCondition * Math.pow(QualityUtils.qualToProb(baseQual), readBases.length));
+        } else if (readBases.length > refBases.length) {
+            expected = Math.log10(initialCondition * Math.pow(QualityUtils.qualToProb(baseQual), refBases.length) * Math.pow(QualityUtils.qualToErrorProb(insQual), readBases.length - refBases.length));
+        }
+        Assert.assertEquals(d, expected, 1e-3, "Likelihoods should sum to just the error prob of the read " + String.format("readSize=%d refSize=%d", readSize, refSize));
     }
 
     @DataProvider(name = "HMMProviderWithBigReads")
@@ -472,7 +477,7 @@ public class PairHMMUnitTest extends BaseTest {
                 Utils.dupBytes(insQual, readBases.length),
                 Utils.dupBytes(delQual, readBases.length),
                 Utils.dupBytes(gcp, readBases.length), 0, true);
-        loglessHMM.dumpMatrices();
+//        loglessHMM.dumpMatrices();
     }
 
     @DataProvider(name = "JustHMMProvider")
@@ -610,7 +615,7 @@ public class PairHMMUnitTest extends BaseTest {
     public Object[][] makeUninitializedHMMs() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{new LoglessCachingPairHMM()});
+        tests.add(new Object[]{new LoglessPairHMM()});
         tests.add(new Object[]{new Log10PairHMM(true)});
 
         return tests.toArray(new Object[][]{});

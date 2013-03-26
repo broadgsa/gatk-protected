@@ -49,7 +49,8 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
-import static org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperGeneralPloidyTestExecutor.*;
+import static org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperGeneralPloidyTestExecutor.CEUTRIO_BAM;
+import static org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperGeneralPloidyTestExecutor.NA12891_CALLS;
 
 public class UnifiedGenotyperGeneralPloidySuite2IntegrationTest extends WalkerTest {
 
@@ -57,7 +58,7 @@ public class UnifiedGenotyperGeneralPloidySuite2IntegrationTest extends WalkerTe
 
     @Test(enabled = true)
     public void testINDEL_maxAltAlleles2_ploidy3_Pools_noRef() {
-        executor.PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","3a321896c4b8b6457973c76c486da4d4");
+        executor.PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","fe715b715526a7c1ebd575ff66bba716");
     }
 
     @Test(enabled = true)
