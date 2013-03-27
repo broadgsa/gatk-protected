@@ -360,8 +360,8 @@ public class HaplotypeResolver extends RodWalker<Integer, Integer> {
         }
 
         // order results by start position
-        final TreeMap<Integer, VariantContext> source1Map = new TreeMap<Integer, VariantContext>(GenotypingEngine.generateVCsFromAlignment(new Haplotype(source1Haplotype), 0, swConsensus1.getCigar(), refContext.getBases(), source1Haplotype, refContext.getWindow(), source1));
-        final TreeMap<Integer, VariantContext> source2Map = new TreeMap<Integer, VariantContext>(GenotypingEngine.generateVCsFromAlignment(new Haplotype(source2Haplotype), 0, swConsensus2.getCigar(), refContext.getBases(), source2Haplotype, refContext.getWindow(), source2));
+        final TreeMap<Integer, VariantContext> source1Map = new TreeMap<Integer, VariantContext>(GenotypingEngine.generateVCsFromAlignment(new Haplotype(source1Haplotype, false, 0, swConsensus1.getCigar()), refContext.getBases(), refContext.getWindow(), source1));
+        final TreeMap<Integer, VariantContext> source2Map = new TreeMap<Integer, VariantContext>(GenotypingEngine.generateVCsFromAlignment(new Haplotype(source2Haplotype, false, 0, swConsensus2.getCigar()), refContext.getBases(), refContext.getWindow(), source2));
         if ( source1Map.size() == 0 || source2Map.size() == 0 ) {
             // TODO -- handle errors appropriately
             logger.debug("No source alleles; aborting at " + refContext.getLocus());

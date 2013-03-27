@@ -58,6 +58,7 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.EventExtractor;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
@@ -72,7 +73,6 @@ public class GenotypingEngine {
     private final boolean DEBUG;
     private final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS;
     private final static List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
-    private final static Allele SYMBOLIC_UNASSEMBLED_EVENT_ALLELE = Allele.create("<UNASSEMBLED_EVENT>", false);
     private final VariantAnnotatorEngine annotationEngine;
 
     public GenotypingEngine( final boolean DEBUG, final VariantAnnotatorEngine annotationEngine, final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ) {
@@ -145,99 +145,26 @@ public class GenotypingEngine {
                                                        final GenomeLocParser genomeLocParser,
                                                        final List<VariantContext> activeAllelesToGenotype ) {
         // sanity check input arguments
-        if (UG_engine == null)
-            throw new IllegalArgumentException("UG_Engine input can't be null, got "+UG_engine);
-        if (haplotypes == null || haplotypes.isEmpty())
-            throw new IllegalArgumentException("haplotypes input should be non-empty and non-null, got "+haplotypes);
-        if (samples == null || samples.isEmpty())
-            throw new IllegalArgumentException("samples input must be non-empty and non-null, got "+samples);
-        if (haplotypeReadMap == null || haplotypeReadMap.isEmpty())
-            throw new IllegalArgumentException("haplotypeReadMap input should be non-empty and non-null, got "+haplotypeReadMap);
-        if (ref == null || ref.length == 0 )
-            throw new IllegalArgumentException("ref bytes input should be non-empty and non-null, got "+ref);
-        if (refLoc == null || refLoc.getStop()-refLoc.getStart()+1 != ref.length)
-            throw new IllegalArgumentException(" refLoc must be non-null and length must match ref bytes, got "+refLoc);
-        if (activeRegionWindow == null )
-            throw new IllegalArgumentException("activeRegionWindow must be non-null, got "+activeRegionWindow);
-        if (activeAllelesToGenotype == null )
-            throw new IllegalArgumentException("activeAllelesToGenotype must be non-null, got "+activeAllelesToGenotype);
-        if (genomeLocParser == null )
-            throw new IllegalArgumentException("genomeLocParser must be non-null, got "+genomeLocParser);
+        if (UG_engine == null) throw new IllegalArgumentException("UG_Engine input can't be null, got "+UG_engine);
+        if (haplotypes == null || haplotypes.isEmpty()) throw new IllegalArgumentException("haplotypes input should be non-empty and non-null, got "+haplotypes);
+        if (samples == null || samples.isEmpty()) throw new IllegalArgumentException("samples input must be non-empty and non-null, got "+samples);
+        if (haplotypeReadMap == null || haplotypeReadMap.isEmpty()) throw new IllegalArgumentException("haplotypeReadMap input should be non-empty and non-null, got "+haplotypeReadMap);
+        if (ref == null || ref.length == 0 ) throw new IllegalArgumentException("ref bytes input should be non-empty and non-null, got "+ref);
+        if (refLoc == null || refLoc.getStop()-refLoc.getStart()+1 != ref.length) throw new IllegalArgumentException(" refLoc must be non-null and length must match ref bytes, got "+refLoc);
+        if (activeRegionWindow == null ) throw new IllegalArgumentException("activeRegionWindow must be non-null, got "+activeRegionWindow);
+        if (activeAllelesToGenotype == null ) throw new IllegalArgumentException("activeAllelesToGenotype must be non-null, got "+activeAllelesToGenotype);
+        if (genomeLocParser == null ) throw new IllegalArgumentException("genomeLocParser must be non-null, got "+genomeLocParser);
 
-        final List<VariantContext> returnCalls = new ArrayList<VariantContext>();
-        final boolean in_GGA_mode = !activeAllelesToGenotype.isEmpty();
-
-        // Using the cigar from each called haplotype figure out what events need to be written out in a VCF file
-        final TreeSet<Integer> startPosKeySet = new TreeSet<Integer>();
-        int count = 0;
-        if( DEBUG ) { logger.info("=== Best Haplotypes ==="); }
-        for( final Haplotype h : haplotypes ) {
-            // Walk along the alignment and turn any difference from the reference into an event
-            h.setEventMap( generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), ref, h.getBases(), refLoc, "HC" + count++ ) );
-            if( !in_GGA_mode ) { startPosKeySet.addAll(h.getEventMap().keySet()); }
-            if( DEBUG ) {
-                logger.info(h.toString());
-                logger.info("> Cigar = " + h.getCigar());
-                logger.info(">> Events = " + h.getEventMap());
-            }
-        }
-
-        cleanUpSymbolicUnassembledEvents( haplotypes );
-        if( !in_GGA_mode && samples.size() >= 10 ) { // if not in GGA mode and have at least 10 samples try to create MNP and complex events by looking at LD structure
-            mergeConsecutiveEventsBasedOnLD( haplotypes, samples, haplotypeReadMap, startPosKeySet, ref, refLoc );
-            cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events
-        }
-        if( in_GGA_mode ) {
-            for( final VariantContext compVC : activeAllelesToGenotype ) {
-                startPosKeySet.add( compVC.getStart() );
-            }
-        }
-
-        final Set<Haplotype> calledHaplotypes = new HashSet<Haplotype>();
+        // update the haplotypes so we're ready to call, getting the ordered list of positions on the reference
+        // that carry events among the haplotypes
+        final TreeSet<Integer> startPosKeySet = decomposeHaplotypesIntoVariantContexts(haplotypes, samples, haplotypeReadMap, ref, refLoc, activeAllelesToGenotype);
 
         // Walk along each position in the key set and create each event to be outputted
+        final Set<Haplotype> calledHaplotypes = new HashSet<Haplotype>();
+        final List<VariantContext> returnCalls = new ArrayList<VariantContext>();
         for( final int loc : startPosKeySet ) {
             if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) { // genotyping an event inside this active region
-                final List<VariantContext> eventsAtThisLoc = new ArrayList<VariantContext>(); // the overlapping events to merge into a common reference view
-                final List<String> priorityList = new ArrayList<String>(); // used to merge overlapping events into common reference view
-
-                if( !in_GGA_mode ) {
-                    for( final Haplotype h : haplotypes ) {
-                        final Map<Integer,VariantContext> eventMap = h.getEventMap();
-                        final VariantContext vc = eventMap.get(loc);
-                        if( vc != null && !containsVCWithMatchingAlleles(eventsAtThisLoc, vc) ) {
-                            eventsAtThisLoc.add(vc);
-                            priorityList.add(vc.getSource());
-                        }
-                    }
-                } else { // we are in GGA mode!
-                    int compCount = 0;
-                    for( final VariantContext compVC : activeAllelesToGenotype ) {
-                        if( compVC.getStart() == loc ) {
-                            int alleleCount = 0;
-                            for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
-                                List<Allele> alleleSet = new ArrayList<Allele>(2);
-                                alleleSet.add(compVC.getReference());
-                                alleleSet.add(compAltAllele);
-                                final String vcSourceName = "Comp" + compCount + "Allele" + alleleCount;
-                                // check if this event is already in the list of events due to a repeat in the input alleles track
-                                final VariantContext candidateEventToAdd = new VariantContextBuilder(compVC).alleles(alleleSet).source(vcSourceName).make();
-                                boolean alreadyExists = false;
-                                for( final VariantContext eventToTest : eventsAtThisLoc ) {
-                                    if( eventToTest.hasSameAllelesAs(candidateEventToAdd) ) {
-                                        alreadyExists = true;
-                                    }
-                                }
-                                if( !alreadyExists ) {
-                                    priorityList.add(vcSourceName);
-                                    eventsAtThisLoc.add(candidateEventToAdd);
-                                }
-                                alleleCount++;
-                            }
-                        }
-                        compCount++;
-                    }
-                }
+                final List<VariantContext> eventsAtThisLoc = getVCsAtThisLocation(haplotypes, loc, activeAllelesToGenotype);
 
                 if( eventsAtThisLoc.isEmpty() ) { continue; }
 
@@ -245,7 +172,7 @@ public class GenotypingEngine {
                 final Map<Event, List<Haplotype>> eventMapper = createEventMapper(loc, eventsAtThisLoc, haplotypes);
 
                 // Sanity check the priority list for mistakes
-                validatePriorityList( priorityList, eventsAtThisLoc );
+                final List<String> priorityList = makePriorityList(eventsAtThisLoc);
 
                 // Merge the event to find a common reference representation
                 final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
@@ -264,7 +191,6 @@ public class GenotypingEngine {
 
                 if( DEBUG ) {
                     logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
-                    //System.out.println("Event/haplotype allele mapping = " + alleleMapper);
                 }
 
                 final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, UG_engine.getUAC().CONTAMINATION_FRACTION, UG_engine.getUAC().contaminationLog );
@@ -277,7 +203,6 @@ public class GenotypingEngine {
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
 
                     VariantContext annotatedCall = call;
-                    // TODO -- should be before annotated call, so that QDL works correctly
                     if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
                         annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
@@ -293,6 +218,117 @@ public class GenotypingEngine {
             }
         }
         return new CalledHaplotypes(returnCalls, calledHaplotypes);
+    }
+
+    /**
+     * Go through the haplotypes we assembled, and decompose them into their constituent variant contexts
+     *
+     * @param haplotypes the list of haplotypes we're working with
+     * @param samples the samples we're working with
+     * @param haplotypeReadMap map from samples -> the per read allele likelihoods
+     * @param ref the reference bases (over the same interval as the haplotypes)
+     * @param refLoc the span of the reference bases
+     * @param activeAllelesToGenotype alleles we want to ensure are scheduled for genotyping (GGA mode)
+     * @return
+     */
+    private TreeSet<Integer> decomposeHaplotypesIntoVariantContexts(final List<Haplotype> haplotypes,
+                                                                    final List<String> samples,
+                                                                    final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                                    final byte[] ref,
+                                                                    final GenomeLoc refLoc,
+                                                                    final List<VariantContext> activeAllelesToGenotype) {
+        final boolean in_GGA_mode = !activeAllelesToGenotype.isEmpty();
+        int hapNumber = 0;
+
+        // Using the cigar from each called haplotype figure out what events need to be written out in a VCF file
+        final TreeSet<Integer> startPosKeySet = new TreeSet<Integer>();
+
+        if( DEBUG ) logger.info("=== Best Haplotypes ===");
+        for( final Haplotype h : haplotypes ) {
+            // Walk along the alignment and turn any difference from the reference into an event
+            h.setEventMap( new EventExtractor( h, ref, refLoc, "HC" + hapNumber++ ) );
+            if( ! in_GGA_mode ) {
+                startPosKeySet.addAll(h.getEventMap().getStartPositions());
+            }
+
+            if( DEBUG ) {
+                logger.info(h.toString());
+                logger.info("> Cigar = " + h.getCigar());
+                logger.info(">> Events = " + h.getEventMap());
+            }
+        }
+
+        cleanUpSymbolicUnassembledEvents( haplotypes );
+        if ( !in_GGA_mode && samples.size() >= 10 ) {
+            // if not in GGA mode and have at least 10 samples try to create MNP and complex events by looking at LD structure
+            mergeConsecutiveEventsBasedOnLD( haplotypes, samples, haplotypeReadMap, startPosKeySet, ref, refLoc );
+            cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events
+        }
+
+        if ( in_GGA_mode ) {
+            for( final VariantContext compVC : activeAllelesToGenotype ) {
+                startPosKeySet.add( compVC.getStart() );
+            }
+        }
+
+        return startPosKeySet;
+    }
+
+    /**
+     * Get the priority list (just the list of sources for these variant context) used to merge overlapping events into common reference view
+     * @param vcs a list of variant contexts
+     * @return the list of the sources of vcs in the same order
+     */
+    private List<String> makePriorityList(final List<VariantContext> vcs) {
+        final List<String> priorityList = new LinkedList<String>();
+        for ( final VariantContext vc : vcs ) priorityList.add(vc.getSource());
+
+        return priorityList;
+    }
+
+    private List<VariantContext> getVCsAtThisLocation(final List<Haplotype> haplotypes,
+                                                      final int loc,
+                                                      final List<VariantContext> activeAllelesToGenotype) {
+        // the overlapping events to merge into a common reference view
+        final List<VariantContext> eventsAtThisLoc = new ArrayList<VariantContext>();
+
+        if( activeAllelesToGenotype.isEmpty() ) {
+            for( final Haplotype h : haplotypes ) {
+                final EventExtractor eventMap = h.getEventMap();
+                final VariantContext vc = eventMap.get(loc);
+                if( vc != null && !containsVCWithMatchingAlleles(eventsAtThisLoc, vc) ) {
+                    eventsAtThisLoc.add(vc);
+                }
+            }
+        } else { // we are in GGA mode!
+            int compCount = 0;
+            for( final VariantContext compVC : activeAllelesToGenotype ) {
+                if( compVC.getStart() == loc ) {
+                    int alleleCount = 0;
+                    for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
+                        List<Allele> alleleSet = new ArrayList<Allele>(2);
+                        alleleSet.add(compVC.getReference());
+                        alleleSet.add(compAltAllele);
+                        final String vcSourceName = "Comp" + compCount + "Allele" + alleleCount;
+                        // check if this event is already in the list of events due to a repeat in the input alleles track
+                        final VariantContext candidateEventToAdd = new VariantContextBuilder(compVC).alleles(alleleSet).source(vcSourceName).make();
+                        boolean alreadyExists = false;
+                        for( final VariantContext eventToTest : eventsAtThisLoc ) {
+                            if( eventToTest.hasSameAllelesAs(candidateEventToAdd) ) {
+                                alreadyExists = true;
+                            }
+                        }
+                        if( !alreadyExists ) {
+                            eventsAtThisLoc.add(candidateEventToAdd);
+                        }
+                        alleleCount++;
+                    }
+                }
+                compCount++;
+            }
+        }
+
+        return eventsAtThisLoc;
     }
 
     /**
@@ -320,23 +356,6 @@ public class GenotypingEngine {
             genotypes.add( new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make() );
         }
         return genotypes;
-    }
-
-    private void validatePriorityList( final List<String> priorityList, final List<VariantContext> eventsAtThisLoc ) {
-        for( final VariantContext vc : eventsAtThisLoc ) {
-            if( !priorityList.contains(vc.getSource()) ) {
-                throw new ReviewedStingException("Event found on haplotype that wasn't added to priority list. Something went wrong in the merging of alleles.");
-            }
-        }
-        for( final String name : priorityList ) {
-            boolean found = false;
-            for( final VariantContext vc : eventsAtThisLoc ) {
-                if(vc.getSource().equals(name)) { found = true; break; }
-            }
-            if( !found ) {
-                throw new ReviewedStingException("Event added to priority list but wasn't found on any haplotype. Something went wrong in the merging of alleles.");
-            }
-        }
     }
 
     private static Map<String, PerReadAlleleLikelihoodMap> filterToOnlyOverlappingReads( final GenomeLocParser parser,
@@ -382,10 +401,10 @@ public class GenotypingEngine {
     protected static void cleanUpSymbolicUnassembledEvents( final List<Haplotype> haplotypes ) {
         final List<Haplotype> haplotypesToRemove = new ArrayList<Haplotype>();
         for( final Haplotype h : haplotypes ) {
-            for( final VariantContext vc : h.getEventMap().values() ) {
+            for( final VariantContext vc : h.getEventMap().getVariantContexts() ) {
                 if( vc.isSymbolic() ) {
                     for( final Haplotype h2 : haplotypes ) {
-                        for( final VariantContext vc2 : h2.getEventMap().values() ) {
+                        for( final VariantContext vc2 : h2.getEventMap().getVariantContexts() ) {
                             if( vc.getStart() == vc2.getStart() && (vc2.isIndel() || vc2.isMNP()) ) { // unfortunately symbolic alleles can't currently be combined with non-point events
                                 haplotypesToRemove.add(h);
                                 break;
@@ -512,11 +531,10 @@ public class GenotypingEngine {
 
                             // remove the old event from the eventMap on every haplotype and the start pos key set, replace with merged event
                             for( final Haplotype h : haplotypes ) {
-                                final Map<Integer, VariantContext> eventMap = h.getEventMap();
-                                if( eventMap.containsKey(thisStart) && eventMap.containsKey(nextStart) ) {
-                                    eventMap.remove(thisStart);
-                                    eventMap.remove(nextStart);
-                                    eventMap.put(mergedVC.getStart(), mergedVC);
+                                if( h.getEventMap().containsKey(thisStart) && h.getEventMap().containsKey(nextStart) ) {
+                                    h.getEventMap().remove(thisStart);
+                                    h.getEventMap().remove(nextStart);
+                                    h.getEventMap().put(mergedVC.getStart(), mergedVC);
                                 }
                             }
                             startPosKeySet.add(mergedVC.getStart());
@@ -697,92 +715,9 @@ public class GenotypingEngine {
         return eventAllelesForSample;
     }
 
-    protected static Map<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final int alignmentStartHapwrtRef, final Cigar cigar, final byte[] ref, final byte[] alignment, final GenomeLoc refLoc, final String sourceNameToAdd ) {
-        final Map<Integer,VariantContext> vcs = new LinkedHashMap<Integer,VariantContext>();
-
-        int refPos = alignmentStartHapwrtRef;
-        if( refPos < 0 ) { return null; } // Protection against SW failures
-        int alignmentPos = 0;
-
-        for( int cigarIndex = 0; cigarIndex < cigar.numCigarElements(); cigarIndex++ ) {
-            final CigarElement ce = cigar.getCigarElement(cigarIndex);
-            final int elementLength = ce.getLength();
-            switch( ce.getOperator() ) {
-                case I:
-                {
-                    if( refPos > 0 ) { // protect against trying to create insertions/deletions at the beginning of a contig
-                        final List<Allele> insertionAlleles = new ArrayList<Allele>();
-                        final int insertionStart = refLoc.getStart() + refPos - 1;
-                        final byte refByte = ref[refPos-1];
-                        if( BaseUtils.isRegularBase(refByte) ) {
-                            insertionAlleles.add( Allele.create(refByte, true) );
-                        }
-                        if( cigarIndex == 0 || cigarIndex == cigar.getCigarElements().size() - 1 ) { // if the insertion isn't completely resolved in the haplotype then make it a symbolic allele
-                            insertionAlleles.add( SYMBOLIC_UNASSEMBLED_EVENT_ALLELE );
-                        } else {
-                            byte[] insertionBases = new byte[]{};
-                            insertionBases = ArrayUtils.add(insertionBases, ref[refPos-1]); // add the padding base
-                            insertionBases = ArrayUtils.addAll(insertionBases, Arrays.copyOfRange( alignment, alignmentPos, alignmentPos + elementLength ));
-                            if( BaseUtils.isAllRegularBases(insertionBases) ) {
-                                insertionAlleles.add( Allele.create(insertionBases, false) );
-                            }
-                        }
-                        if( insertionAlleles.size() == 2 ) { // found a proper ref and alt allele
-                            vcs.put(insertionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), insertionStart, insertionStart, insertionAlleles).make());
-                        }
-                    }
-                    alignmentPos += elementLength;
-                    break;
-                }
-                case S:
-                {
-                    alignmentPos += elementLength;
-                    break;
-                }
-                case D:
-                {
-                    if( refPos > 0 ) { // protect against trying to create insertions/deletions at the beginning of a contig
-                        final byte[] deletionBases = Arrays.copyOfRange( ref, refPos - 1, refPos + elementLength );  // add padding base
-                        final List<Allele> deletionAlleles = new ArrayList<Allele>();
-                        final int deletionStart = refLoc.getStart() + refPos - 1;
-                        final byte refByte = ref[refPos-1];
-                        if( BaseUtils.isRegularBase(refByte) && BaseUtils.isAllRegularBases(deletionBases) ) {
-                            deletionAlleles.add( Allele.create(deletionBases, true) );
-                            deletionAlleles.add( Allele.create(refByte, false) );
-                            vcs.put(deletionStart, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), deletionStart, deletionStart + elementLength, deletionAlleles).make());
-                        }
-                    }
-                    refPos += elementLength;
-                    break;
-                }
-                case M:
-                case EQ:
-                case X:
-                {
-                    for( int iii = 0; iii < elementLength; iii++ ) {
-                        final byte refByte = ref[refPos];
-                        final byte altByte = alignment[alignmentPos];
-                        if( refByte != altByte ) { // SNP!
-                            if( BaseUtils.isRegularBase(refByte) && BaseUtils.isRegularBase(altByte) ) {
-                                final List<Allele> snpAlleles = new ArrayList<Allele>();
-                                snpAlleles.add( Allele.create( refByte, true ) );
-                                snpAlleles.add( Allele.create( altByte, false ) );
-                                vcs.put(refLoc.getStart() + refPos, new VariantContextBuilder(sourceNameToAdd, refLoc.getContig(), refLoc.getStart() + refPos, refLoc.getStart() + refPos, snpAlleles).make());
-                            }
-                        }
-                        refPos++;
-                        alignmentPos++;
-                    }
-                    break;
-                }
-                case N:
-                case H:
-                case P:
-                default:
-                    throw new ReviewedStingException( "Unsupported cigar operator created during SW alignment: " + ce.getOperator() );
-            }
-        }
-        return vcs;
+    @Deprecated
+    protected static Map<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final byte[] ref, final GenomeLoc refLoc, final String sourceNameToAdd ) {
+        return new EventExtractor(haplotype, ref, refLoc, sourceNameToAdd);
     }
 
     protected static boolean containsVCWithMatchingAlleles( final List<VariantContext> list, final VariantContext vcToTest ) {

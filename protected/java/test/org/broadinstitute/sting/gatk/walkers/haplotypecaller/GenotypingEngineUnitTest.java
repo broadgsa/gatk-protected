@@ -199,7 +199,8 @@ public class GenotypingEngineUnitTest extends BaseTest {
         
         public Map<Integer,VariantContext> calcAlignment() {
             final SWPairwiseAlignment alignment = new SWPairwiseAlignment(ref, hap);
-            return GenotypingEngine.generateVCsFromAlignment( new Haplotype(hap), alignment.getAlignmentStart2wrt1(), alignment.getCigar(), ref, hap, genomeLocParser.createGenomeLoc("4",1,1+ref.length), "name");
+            final Haplotype h = new Haplotype(hap, false, alignment.getAlignmentStart2wrt1(), alignment.getCigar());
+            return GenotypingEngine.generateVCsFromAlignment( h, ref, genomeLocParser.createGenomeLoc("4",1,1+ref.length), "name");
         }
     }
 

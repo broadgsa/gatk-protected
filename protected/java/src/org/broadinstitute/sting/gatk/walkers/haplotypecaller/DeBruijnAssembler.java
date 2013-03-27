@@ -432,7 +432,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
                         // for GGA mode, add the desired allele into the haplotype if it isn't already present
                         if( !activeAllelesToGenotype.isEmpty() ) {
-                            final Map<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), refWithPadding, h.getBases(), refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
+                            final Map<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, refWithPadding, refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
                             for( final VariantContext compVC : activeAllelesToGenotype ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
                                 final VariantContext vcOnHaplotype = eventMap.get(compVC.getStart());
 
