@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
@@ -68,9 +68,10 @@ public class BaseVertexUnitTest extends BaseTest {
         new BaseVertex((byte[])null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test()
     public void testCreationEmptySeq() {
-        new BaseVertex(new byte[0]);
+        final BaseVertex v = new BaseVertex(new byte[0]);
+        Assert.assertTrue(v.isEmpty(), "Version with length == 0 should be empty");
     }
 
     @Test

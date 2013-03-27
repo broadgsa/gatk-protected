@@ -44,110 +44,77 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.Utils;
-
-import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 
 /**
- * A graph vertex containing a sequence of bases and a unique ID that
- * allows multiple distinct nodes in the graph to have the same sequence.
+ * General iterator that can iterate over all vertices in a BaseGraph, following either
+ * incoming, outgoing edge (as well as both or none) edges.  Supports traversal of graphs
+ * with cycles and other crazy structures.  Will only ever visit each vertex once.  The
+ * order in which the vertices are visited is undefined.
  *
- * This is essential when thinking about representing the actual sequence of a haplotype
- * in a graph.  There can be many parts of the sequence that have the same sequence, but
- * are distinct elements in the graph because they have a different position in the graph.  For example:
- *
- * A -> C -> G -> A -> T
- *
- * The two As are not the same, because they occur with different connections.  In a kmer graph equals()
- * is based on the sequence itself, as each distinct kmer can only be represented once.  But the transformation
- * of the kmer graph into a graph of base sequences, without their kmer prefixes, means that nodes that
- * where once unique including their prefix can become equal after shedding the prefix.  So we need to
- * use some mechanism -- here a unique ID per node -- to separate nodes that have the same sequence
- * but are distinct elements of the graph.
- *
- * @author: depristo
- * @since 03/2013
+ * User: depristo
+ * Date: 3/24/13
+ * Time: 4:41 PM
  */
-public class SeqVertex extends BaseVertex {
-    private static int idCounter = 0;
-    public final int id;
+public class BaseGraphIterator<T extends BaseVertex> implements Iterator<T>, Iterable<T> {
+    final HashSet<T> visited = new HashSet<T>();
+    final LinkedList<T> toVisit = new LinkedList<T>();
+    final BaseGraph<T> graph;
+    final boolean followIncomingEdges, followOutgoingEdges;
 
     /**
-     * Create a new SeqVertex with sequence and the next available id
-     * @param sequence our base sequence
-     */
-    public SeqVertex(final byte[] sequence) {
-        super(sequence);
-        this.id = idCounter++;
-    }
-
-    /**
-     * Create a new SeqVertex having bases of sequence.getBytes()
-     * @param sequence the string representation of our bases
-     */
-    public SeqVertex(final String sequence) {
-        super(sequence);
-        this.id = idCounter++;
-    }
-
-    /**
-     * Create a copy of toCopy
-     * @param toCopy a SeqVertex to copy into this newly allocated one
-     */
-    public SeqVertex(final SeqVertex toCopy) {
-        super(toCopy.sequence);
-        this.id = toCopy.id;
-    }
-
-    /**
-     * Get the unique ID for this SeqVertex
-     * @return a positive integer >= 0
-     */
-    public int getId() {
-        return id;
-    }
-
-    @Override
-    public String toString() {
-        return "SeqVertex_id_" + id + "_seq_" + getSequenceString();
-    }
-
-    /**
-     * Two SeqVertex are equal only if their ids are equal
-     * @param o
-     * @return
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        SeqVertex seqVertex = (SeqVertex) o;
-        if (id != seqVertex.id) return false;
-
-        // note that we don't test for super equality here because the ids are unique
-        //if (!super.equals(o)) return false;
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        return id;
-    }
-
-    /**
-     * Return a new SeqVertex derived from this one but not including the suffix bases
+     * Create a new BaseGraphIterator starting its traversal at start
      *
-     * @param suffix the suffix bases to remove from this vertex
-     * @return a newly allocated SeqVertex with appropriate prefix, or null if suffix removes all bases from this node
+     * Note that if both followIncomingEdges and followOutgoingEdges are false, we simply return the
+     * start vertex
+     *
+     * @param graph the graph to iterator over.  Cannot be null
+     * @param start the vertex to start at.  Cannot be null
+     * @param followIncomingEdges should we follow incoming edges during our
+     *                            traversal? (goes backward through the graph)
+     * @param followOutgoingEdges should we follow outgoing edges during out traversal?
      */
-    @Requires("Utils.endsWith(sequence, suffix)")
-    public SeqVertex withoutSuffix(final byte[] suffix) {
-        final int prefixSize = sequence.length - suffix.length;
-        return prefixSize > 0 ? new SeqVertex(Arrays.copyOf(sequence, prefixSize)) : null;
+    public BaseGraphIterator(final BaseGraph<T> graph, final T start,
+                             final boolean followIncomingEdges, final boolean followOutgoingEdges) {
+        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
+        if ( start == null ) throw new IllegalArgumentException("start cannot be null");
+        if ( ! graph.containsVertex(start) ) throw new IllegalArgumentException("start " + start + " must be in graph but it isn't");
+        this.graph = graph;
+        this.followIncomingEdges = followIncomingEdges;
+        this.followOutgoingEdges = followOutgoingEdges;
+
+        toVisit.add(start);
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+        return this;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return ! toVisit.isEmpty();
+    }
+
+    @Override
+    public T next() {
+        final T v = toVisit.pop();
+
+        if ( ! visited.contains(v) ) {
+            visited.add(v);
+            if ( followIncomingEdges ) for ( final T prev : graph.incomingVerticesOf(v) ) toVisit.add(prev);
+            if ( followOutgoingEdges ) for ( final T next : graph.outgoingVerticesOf(v) ) toVisit.add(next);
+        }
+
+        return v;
+    }
+
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException("Doesn't implement remove");
     }
 }

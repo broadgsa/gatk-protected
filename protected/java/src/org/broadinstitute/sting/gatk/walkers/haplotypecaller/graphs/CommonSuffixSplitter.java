@@ -44,122 +44,139 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.annotator;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
-import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import com.google.java.contract.Requires;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import java.util.*;
 
 /**
- * The depth of coverage of each allele per sample
+ * Split a collection of middle nodes in a graph into their shared prefix and suffix values
  *
- * <p>The AD and DP are complementary fields that are two important ways of thinking about the depth of the data for this
- * sample at this site.  While the sample-level (FORMAT) DP field describes the total depth of reads that passed the
- * caller's internal quality control metrics (like MAPQ > 17, for example), the AD values (one for each of
- * REF and ALT fields) is the unfiltered count of all reads that carried with them the
- * REF and ALT alleles. The reason for this distinction is that the DP is in some sense reflective of the
- * power I have to determine the genotype of the sample at this site, while the AD tells me how many times
- * I saw each of the REF and ALT alleles in the reads, free of any bias potentially introduced by filtering
- * the reads. If, for example, I believe there really is a an A/T polymorphism at a site, then I would like
- * to know the counts of A and T bases in this sample, even for reads with poor mapping quality that would
- * normally be excluded from the statistical calculations going into GQ and QUAL. Please note, however, that
- * the AD isn't necessarily calculated exactly for indels. Only reads which are statistically favoring one allele over the other are counted.
- * Because of this fact, the sum of AD may be different than the individual sample depth, especially when there are
- * many non-informative reads.</p>
+ * This code performs the following transformation.  Suppose I have a set of vertices V, such
+ * that each vertex is composed of sequence such that
  *
- * <p>Because the AD includes reads and bases that were filtered by the caller and in case of indels is based on a statistical computation,
- * <b>one should not base assumptions about the underlying genotype based on it</b>;
- * instead, the genotype likelihoods (PLs) are what determine the genotype calls.</p>
+ * Vi = prefix + seq_i + suffix
  *
+ * where prefix and suffix are shared sequences across all vertices V.  This replaces each
+ * Vi with three nodes prefix, seq_i, and suffix connected in a simple chain.
+ *
+ * This operation can be performed in a very general case, without too much worry about the incoming
+ * and outgoing edge structure of each Vi.  The partner algorithm SharedSequenceMerger can
+ * put these pieces back together in a smart way that maximizes the sharing of nodes
+ * while respecting complex connectivity.
+ *
+ * User: depristo
+ * Date: 3/22/13
+ * Time: 8:31 AM
  */
-public class DepthPerAlleleBySample extends GenotypeAnnotation implements StandardAnnotation {
+public class CommonSuffixSplitter {
+    /**
+     * Create a new graph that contains the vertices in toMerge with their shared suffix and prefix
+     * sequences extracted out.
+     *
+     */
+    public CommonSuffixSplitter() {}
 
-    public void annotate(final RefMetaDataTracker tracker,
-                         final AnnotatorCompatible walker,
-                         final ReferenceContext ref,
-                         final AlignmentContext stratifiedContext,
-                         final VariantContext vc,
-                         final Genotype g,
-                         final GenotypeBuilder gb,
-                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-        if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
-            return;
+    /**
+     * Simple single-function interface to split and then update a graph
+     *
+     * @param graph the graph containing the vertices in toMerge
+     * @param v The bottom node whose incoming vertices we'd like to split
+     * @return true if some useful splitting was done, false otherwise
+     */
+    public boolean split(final SeqGraph graph, final SeqVertex v) {
+        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
+        if ( v == null ) throw new IllegalArgumentException("v cannot be null");
+        if ( ! graph.vertexSet().contains(v) ) throw new IllegalArgumentException("graph doesn't contain vertex v " + v);
 
-        if (alleleLikelihoodMap != null && !alleleLikelihoodMap.isEmpty())
-            annotateWithLikelihoods(alleleLikelihoodMap, vc, gb);
-        else if ( stratifiedContext != null && (vc.isSNP()))
-            annotateWithPileup(stratifiedContext, vc, gb);
+        final Collection<SeqVertex> toMerge = graph.incomingVerticesOf(v);
+        if ( toMerge.size() < 2 )
+            // Can only split at least 2 vertices
+            return false;
+        else if ( ! safeToSplit(graph, v, toMerge) ) {
+            return false;
+        } else {
+            final SeqVertex suffixVTemplate = commonSuffix(toMerge);
+            if ( suffixVTemplate.isEmpty() ) {
+                return false;
+            } else {
+                final List<BaseEdge> edgesToRemove = new LinkedList<BaseEdge>();
+
+//                graph.printGraph(new File("split.pre_" + v.getSequenceString() + "." + counter + ".dot"), 0);
+                for ( final SeqVertex mid : toMerge ) {
+                    // create my own copy of the suffix
+                    final SeqVertex suffixV = new SeqVertex(suffixVTemplate.getSequence());
+                    graph.addVertex(suffixV);
+                    final SeqVertex prefixV = mid.withoutSuffix(suffixV.getSequence());
+                    final BaseEdge out = graph.outgoingEdgeOf(mid);
+
+                    final SeqVertex incomingTarget;
+                    if ( prefixV == null ) {
+                        // this node is entirely explained by suffix
+                        incomingTarget = suffixV;
+                    } else {
+                        incomingTarget = prefixV;
+                        graph.addVertex(prefixV);
+                        graph.addEdge(prefixV, suffixV, new BaseEdge(out.isRef(), 0));
+                        edgesToRemove.add(out);
+                    }
+
+                    graph.addEdge(suffixV, graph.getEdgeTarget(out), new BaseEdge(out));
+
+                    for ( final BaseEdge in : graph.incomingEdgesOf(mid) ) {
+                        graph.addEdge(graph.getEdgeSource(in), incomingTarget, new BaseEdge(in));
+                        edgesToRemove.add(in);
+                    }
+                }
+
+                graph.removeAllVertices(toMerge);
+                graph.removeAllEdges(edgesToRemove);
+//                graph.printGraph(new File("split.post_" + v.getSequenceString() + "." + counter++ + ".dot"), 0);
+
+                return true;
+            }
+        }
     }
 
-    private void annotateWithPileup(final AlignmentContext stratifiedContext, final VariantContext vc, final GenotypeBuilder gb) {
+//    private static int counter = 0;
 
-        HashMap<Byte, Integer> alleleCounts = new HashMap<Byte, Integer>();
-        for ( Allele allele : vc.getAlleles() )
-            alleleCounts.put(allele.getBases()[0], 0);
-
-        ReadBackedPileup pileup = stratifiedContext.getBasePileup();
-        for ( PileupElement p : pileup ) {
-            if ( alleleCounts.containsKey(p.getBase()) )
-                alleleCounts.put(p.getBase(), alleleCounts.get(p.getBase())+p.getRepresentativeCount());
+    /**
+     * Can we safely split up the vertices in toMerge?
+     *
+     * @param graph a graph
+     * @param bot a vertex whose incoming vertices we want to split
+     * @param toMerge the set of vertices we'd be splitting up
+     * @return true if we can safely split up toMerge
+     */
+    private boolean safeToSplit(final SeqGraph graph, final SeqVertex bot, final Collection<SeqVertex> toMerge) {
+        for ( final SeqVertex m : toMerge ) {
+            final Set<BaseEdge> outs = graph.outgoingEdgesOf(m);
+            if ( m == bot || outs.size() != 1 || ! graph.outgoingVerticesOf(m).contains(bot) )
+                // m == bot => don't allow cycles in the graph
+                return false;
         }
 
-        // we need to add counts in the correct order
-        int[] counts = new int[alleleCounts.size()];
-        counts[0] = alleleCounts.get(vc.getReference().getBases()[0]);
-        for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
-            counts[i+1] = alleleCounts.get(vc.getAlternateAllele(i).getBases()[0]);
-
-        gb.AD(counts);
+        return true;
     }
 
-    private void annotateWithLikelihoods(final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap, final VariantContext vc, final GenotypeBuilder gb) {
-        final HashMap<Allele, Integer> alleleCounts = new HashMap<Allele, Integer>();
-
-        for ( final Allele allele : vc.getAlleles() ) {
-            alleleCounts.put(allele, 0);
-        }
-        for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final GATKSAMRecord read = el.getKey();
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (! a.isInformative() )
-                continue; // read is non-informative
-            if (!vc.getAlleles().contains(a.getMostLikelyAllele()))
-                continue; // sanity check - shouldn't be needed
-            alleleCounts.put(a.getMostLikelyAllele(), alleleCounts.get(a.getMostLikelyAllele()) + (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1));
-        }
-        final int[] counts = new int[alleleCounts.size()];
-        counts[0] = alleleCounts.get(vc.getReference());
-        for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
-            counts[i+1] = alleleCounts.get( vc.getAlternateAllele(i) );
-
-        gb.AD(counts);
-    }
-
-    public List<String> getKeyNames() { return Arrays.asList(VCFConstants.GENOTYPE_ALLELE_DEPTHS); }
-
-    public List<VCFFormatHeaderLine> getDescriptions() {
-        return Arrays.asList(VCFStandardHeaderLines.getFormatLine(getKeyNames().get(0)));
+    /**
+     * Return the longest suffix of bases shared among all provided vertices
+     *
+     * For example, if the vertices have sequences AC, CC, and ATC, this would return
+     * a single C.  However, for ACC and TCC this would return CC.  And for AC and TG this
+     * would return null;
+     *
+     * @param middleVertices a non-empty set of vertices
+     * @return a single vertex that contains the common suffix of all middle vertices
+     */
+    @Requires("!middleVertices.isEmpty()")
+    protected static SeqVertex commonSuffix(final Collection<SeqVertex> middleVertices) {
+        final List<byte[]> kmers = Utils.getKmers(middleVertices);
+        final int min = Utils.minKmerLength(kmers);
+        final int suffixLen = Utils.compSuffixLen(kmers, min);
+        final byte[] kmer = kmers.get(0);
+        final byte[] suffix = Arrays.copyOfRange(kmer, kmer.length - suffixLen, kmer.length);
+        return new SeqVertex(suffix);
     }
 }

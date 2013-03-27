@@ -44,109 +44,117 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.java.contract.Ensures;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.io.File;
+import java.util.*;
 
-/**
- * Class for finding the K best paths (as determined by the sum of multiplicities of the edges) in a graph.
- * This is different from most graph traversals because we want to test paths from any source node to any sink node.
- *
- * User: ebanks, rpoplin, mdepristo
- * Date: Mar 23, 2011
- */
-public class KBestPaths<T extends BaseVertex> {
-    public KBestPaths() { }
+public class CommonSuffixMergerUnitTest extends BaseTest {
+    private final static boolean PRINT_GRAPHS = true;
 
-    protected static class MyInt { public int val = 0; }
+    @DataProvider(name = "CompleteCycleData")
+    public Object[][] makeCompleteCycleData() {
+        return makeSplitMergeData(-1);
+    }
 
-    /**
-     * Compare paths such that paths with greater weight are earlier in a list
-     */
-    protected static class PathComparatorTotalScore implements Comparator<Path>, Serializable {
-        @Override
-        public int compare(final Path path1, final Path path2) {
-            return path2.getScore() - path1.getScore();
+    public static class SplitMergeData {
+        final SeqGraph graph;
+        final SeqVertex v;
+        final String commonSuffix;
+
+        public SplitMergeData(SeqGraph graph, SeqVertex v, String commonSuffix) {
+            this.graph = graph;
+            this.v = v;
+            this.commonSuffix = commonSuffix;
         }
     }
 
-    /**
-     * @see #getKBestPaths(BaseGraph, int) retriving the first 1000 paths
-     */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph ) {
-        return getKBestPaths(graph, 1000);
-    }
+    public static Object[][] makeSplitMergeData(final int maxTests) {
+        List<Object[]> tests = new ArrayList<Object[]>();
 
-    /**
-     * Traverse the graph and pull out the best k paths.
-     * Paths are scored via their comparator function. The default being PathComparatorTotalScore()
-     * @param graph the graph from which to pull paths
-     * @param k     the number of paths to find
-     * @return      a list with at most k top-scoring paths from the graph
-     */
-    @Ensures({"result != null", "result.size() <= k"})
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k ) {
-        if( graph == null ) { throw  new IllegalArgumentException("Attempting to traverse a null graph."); }
+        final List<String> bases = Arrays.asList("A", "C", "G", "T");
+        for ( final String commonSuffix : Arrays.asList("", "A", "AT") ) {
+            for ( final int nBots : Arrays.asList(0, 1, 2) ) {
+                for ( final int nMids : Arrays.asList(1, 2, 3) ) {
+                    for ( int nTops = 0; nTops < nMids; nTops++ ) {
+                        for ( int nTopConnections = 1; nTopConnections <= nMids; nTopConnections++ ) {
+                            int multi = 1;
+                            final SeqGraph graph = new SeqGraph();
+                            final SeqVertex v = new SeqVertex("GGGG");
+                            graph.addVertex(v);
 
-        // a min max queue that will collect the best k paths
-        final MinMaxPriorityQueue<Path<T>> bestPaths = MinMaxPriorityQueue.orderedBy(new PathComparatorTotalScore()).maximumSize(k).create();
+                            final LinkedList<SeqVertex> tops = new LinkedList<SeqVertex>();
+                            final LinkedList<SeqVertex> mids = new LinkedList<SeqVertex>();
 
-        // run a DFS for best paths
-        for ( final T v : graph.vertexSet() ) {
-            if ( graph.inDegreeOf(v) == 0 ) {
-                findBestPaths(new Path<T>(v, graph), bestPaths, new MyInt());
+                            for ( int i = 0; i < nMids; i++) {
+                                final SeqVertex mid = new SeqVertex(bases.get(i) + commonSuffix);
+                                graph.addVertex(mid);
+                                graph.addEdge(mid, v, new BaseEdge(i == 0, multi++));
+                                mids.add(mid);
+
+                                tops.add(new SeqVertex(bases.get(i)));
+                            }
+
+                            graph.addVertices(tops);
+                            for ( final SeqVertex t : tops ) {
+                                for ( int i = 0; i < nTopConnections; i++ ) {
+                                    graph.addEdge(t, mids.get(i), new BaseEdge(i == 0, multi++));
+                                }
+                            }
+
+                            for ( int i = 0; i < nBots; i++ ) {
+                                final SeqVertex bot = new SeqVertex(bases.get(i));
+                                graph.addVertex(bot);
+                                graph.addEdge(v, bot, new BaseEdge(i == 0, multi++));
+
+                            }
+
+                            tests.add(new Object[]{new SplitMergeData(graph, v, commonSuffix)});
+                        }
+                    }
+                }
             }
         }
 
-        // the MinMaxPriorityQueue iterator returns items in an arbitrary order, so we need to sort the final result
-        final List<Path<T>> toReturn = new ArrayList<Path<T>>(bestPaths);
-        Collections.sort(toReturn, new PathComparatorTotalScore());
-        return toReturn;
+        final List<Object[]> toUse = maxTests == -1 ? tests : tests.subList(0, Math.min(tests.size(), maxTests));
+        return toUse.toArray(new Object[][]{});
     }
 
-    private void findBestPaths( final Path<T> path, final MinMaxPriorityQueue<Path<T>> bestPaths, final MyInt n ) {
-        // did we hit the end of a path?
-        if ( allOutgoingEdgesHaveBeenVisited(path) ) {
-            bestPaths.add(path);
-        } else if( n.val > 10000 ) {
-            // do nothing, just return, as we've done too much work already
-        } else {
-            // recursively run DFS
-            final ArrayList<BaseEdge> edgeArrayList = new ArrayList<BaseEdge>(path.getOutgoingEdgesOfLastVertex());
-            Collections.sort(edgeArrayList, new BaseEdge.EdgeWeightComparator());
-            for ( final BaseEdge edge : edgeArrayList ) {
-                // make sure the edge is not already in the path
-                if ( path.containsEdge(edge) )
-                    continue;
+    public static void assertSameHaplotypes(final String name, final SeqGraph actual, final SeqGraph original) {
+        try {
+            final Set<String> haplotypes = new HashSet<String>();
+            final List<Path<SeqVertex>> originalPaths = new KBestPaths<SeqVertex>().getKBestPaths(original);
+            for ( final Path<SeqVertex> path : originalPaths )
+                haplotypes.add(new String(path.getBases()));
 
-                final Path<T> newPath = new Path<T>(path, edge);
-                n.val++;
-                findBestPaths(newPath, bestPaths, n);
+            final List<Path<SeqVertex>> splitPaths = new KBestPaths<SeqVertex>().getKBestPaths(actual);
+            for ( final Path<SeqVertex> path : splitPaths ) {
+                final String h = new String(path.getBases());
+                Assert.assertTrue(haplotypes.contains(h), "Failed to find haplotype " + h);
             }
+
+            if ( splitPaths.size() == originalPaths.size() ) {
+                for ( int i = 0; i < originalPaths.size(); i++ ) {
+                    Assert.assertTrue(splitPaths.get(i).equalSequence(originalPaths.get(i)), "Paths not equal " + splitPaths.get(i) + " vs. original " + originalPaths.get(i));
+                }
+            }
+        } catch ( AssertionError e ) {
+            if ( PRINT_GRAPHS ) original.printGraph(new File(String.format("%s.original.dot", name, actual.vertexSet().size())), 0);
+            if ( PRINT_GRAPHS ) actual.printGraph(new File(String.format("%s.actual.dot", name, actual.vertexSet().size())), 0);
+            throw e;
         }
     }
 
-    /**
-     * Have all of the outgoing edges of the final vertex been visited?
-     *
-     * I.e., are all outgoing vertices of the current path in the list of edges of the graph?
-     *
-     * @param path  the path to test
-     * @return      true if all the outgoing edges at the end of this path have already been visited
-     */
-    private boolean allOutgoingEdgesHaveBeenVisited( final Path<T> path ) {
-        for( final BaseEdge edge : path.getOutgoingEdgesOfLastVertex() ) {
-            if( !path.containsEdge(edge) ) { // TODO -- investigate allowing numInPath < 2 to allow cycles
-                return false;
-            }
-        }
-        return true;
+    @Test(dataProvider = "CompleteCycleData")
+    public void testMerging(final SplitMergeData data) {
+        final SeqGraph original = (SeqGraph)data.graph.clone();
+        final SharedSequenceMerger splitter = new SharedSequenceMerger();
+        splitter.merge(data.graph, data.v);
+        assertSameHaplotypes(String.format("suffixMerge.%s.%d", data.commonSuffix, data.graph.vertexSet().size()), data.graph, original);
     }
 }

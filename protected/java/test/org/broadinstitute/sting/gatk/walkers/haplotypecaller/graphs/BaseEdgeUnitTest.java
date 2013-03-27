@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
@@ -53,57 +53,69 @@ import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-public class SeqVertexUnitTest extends BaseTest {
-    @Test
-    public void testBasic() {
-        final byte[] bases = "ACT".getBytes();
-        final SeqVertex v1 = new SeqVertex(bases);
-        final SeqVertex v2 = new SeqVertex(bases);
-        Assert.assertTrue(v1.getId() >= 0);
-        Assert.assertTrue(v2.getId() >= 0);
-        Assert.assertTrue(v2.getId() > v1.getId());
-    }
-
-    @Test
-    public void testEqualsAndHashCode() {
-        final byte[] bases = "ACT".getBytes();
-        final SeqVertex v1 = new SeqVertex(bases);
-        final SeqVertex v1_neq = new SeqVertex(bases);
-        final SeqVertex v1_eq = new SeqVertex(v1);
-
-        Assert.assertEquals(v1, v1);
-        Assert.assertEquals(v1.hashCode(), v1.hashCode());
-        Assert.assertEquals(v1, v1_eq);
-        Assert.assertEquals(v1.hashCode(), v1_eq.hashCode());
-        Assert.assertFalse(v1.equals(v1_neq));
-        Assert.assertFalse(v1_neq.equals(v1));
-        Assert.assertFalse(v1_neq.hashCode() == v1.hashCode());
-    }
-
-    @DataProvider(name = "WithoutSuffixData")
-    public Object[][] makeWithoutSuffixData() {
+public class BaseEdgeUnitTest extends BaseTest {
+    @DataProvider(name = "EdgeCreationData")
+    public Object[][] makeMyDataProvider() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        final String bases = "ACGTACGTACGT";
-        final int l = bases.length();
-        for ( int suffixLength = 0; suffixLength <= l; suffixLength++ ) {
-            final int suffixStart = l - suffixLength;
-            final String prefix = suffixLength == l ? null : bases.substring(0, suffixStart);
-            final String suffix = suffixStart == l ? "" : bases.substring(suffixStart, l);
-            tests.add(new Object[]{bases, suffix, prefix});
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        for ( final int multiplicity : Arrays.asList(1, 2, 3) ) {
+            for ( final boolean isRef : Arrays.asList(true, false) ) {
+                tests.add(new Object[]{isRef, multiplicity});
+            }
         }
 
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "WithoutSuffixData")
-    public void testWithoutSuffix(final String bases, final String suffix, final String expected) {
-        final SeqVertex basesSV = new SeqVertex(bases);
-        if ( expected == null )
-            Assert.assertNull(basesSV.withoutSuffix(suffix.getBytes()), "Failed for bases " + bases + " with suffix " + suffix + " != " + expected);
-        else
-            Assert.assertEquals(basesSV.withoutSuffix(suffix.getBytes()).getSequenceString(), expected, "Failed for bases " + bases + " with suffix " + suffix + " != " + expected);
+    @Test(dataProvider = "EdgeCreationData")
+    public void testBasic(final boolean isRef, final int mult) {
+        final BaseEdge e = new BaseEdge(isRef, mult);
+        Assert.assertEquals(e.isRef(), isRef);
+        Assert.assertEquals(e.getMultiplicity(), mult);
+
+        e.setIsRef(!isRef);
+        Assert.assertEquals(e.isRef(), !isRef);
+
+        e.setMultiplicity(mult + 1);
+        Assert.assertEquals(e.getMultiplicity(), mult + 1);
+
+        final BaseEdge copy = new BaseEdge(e);
+        Assert.assertEquals(copy.isRef(), e.isRef());
+        Assert.assertEquals(copy.getMultiplicity(), e.getMultiplicity());
+    }
+
+    @Test
+    public void testEdgeWeightComparator() {
+        final BaseEdge e10 = new BaseEdge(false, 10);
+        final BaseEdge e5 = new BaseEdge(true, 5);
+        final BaseEdge e2 = new BaseEdge(false, 2);
+        final BaseEdge e1 = new BaseEdge(false, 1);
+
+        final List<BaseEdge> edges = new ArrayList<BaseEdge>(Arrays.asList(e1, e2, e5, e10));
+        Collections.sort(edges, new BaseEdge.EdgeWeightComparator());
+        Assert.assertEquals(edges.get(0), e10);
+        Assert.assertEquals(edges.get(1), e5);
+        Assert.assertEquals(edges.get(2), e2);
+        Assert.assertEquals(edges.get(3), e1);
+    }
+
+    @Test
+    public void testMax() {
+        for ( final boolean firstIsRef : Arrays.asList(true, false) ) {
+            for ( final boolean secondIsRef : Arrays.asList(true, false) ) {
+                for ( final int firstMulti : Arrays.asList(1, 4) ) {
+                    for ( final int secondMulti : Arrays.asList(2, 3) ) {
+                        final BaseEdge expected = new BaseEdge(firstIsRef || secondIsRef, Math.max(firstMulti, secondMulti));
+                        final BaseEdge actual = new BaseEdge(firstIsRef, firstMulti).max(new BaseEdge(secondIsRef, secondMulti));
+                        Assert.assertEquals(actual.getMultiplicity(), expected.getMultiplicity());
+                        Assert.assertEquals(actual.isRef(), expected.isRef());
+                    }
+                }
+            }
+        }
     }
 }

@@ -44,117 +44,95 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import java.io.Serializable;
-import java.util.Comparator;
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
- * simple edge class for connecting nodes in the graph
+ * Utility functions used in the graphs package
  *
- * Works equally well for all graph types (kmer or sequence)
- *
- * User: ebanks
- * Date: Mar 23, 2011
+ * User: depristo
+ * Date: 3/25/13
+ * Time: 9:42 PM
  */
-public class BaseEdge {
-    private int multiplicity;
-    private boolean isRef;
+final class Utils {
+    private Utils() {}
 
     /**
-     * Create a new BaseEdge with weight multiplicity and, if isRef == true, indicates a path through the reference
+     * Compute the maximum shared prefix length of list of bytes.
      *
-     * @param isRef indicates whether this edge is a path through the reference
-     * @param multiplicity the number of observations of this edge
+     * @param listOfBytes a list of bytes with at least one element
+     * @param minLength the min. length among all byte[] in listOfBytes
+     * @return the number of shared bytes common at the start of all bytes
      */
-    public BaseEdge(final boolean isRef, final int multiplicity) {
-        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
-
-        this.multiplicity = multiplicity;
-        this.isRef = isRef;
-    }
-
-    /**
-     * Copy constructor
-     *
-     * @param toCopy
-     */
-    public BaseEdge(final BaseEdge toCopy) {
-        this(toCopy.isRef(), toCopy.getMultiplicity());
-    }
-
-    /**
-     * Get the number of observations of paths connecting two vertices
-     * @return a positive integer >= 0
-     */
-    public int getMultiplicity() {
-        return multiplicity;
-    }
-
-    /**
-     * Set the multiplicity of this edge to value
-     * @param value an integer >= 0
-     */
-    public void setMultiplicity( final int value ) {
-        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
-        multiplicity = value;
-    }
-
-    /**
-     * Does this edge indicate a path through the reference graph?
-     * @return true if so
-     */
-    public boolean isRef() {
-        return isRef;
-    }
-
-    /**
-     * Indicate that this edge follows the reference sequence, or not
-     * @param isRef true if this is a reference edge
-     */
-    public void setIsRef( final boolean isRef ) {
-        this.isRef = isRef;
-    }
-
-    /**
-     * Does this and edge have the same source and target vertices in graph?
-     *
-     * @param graph the graph containing both this and edge
-     * @param edge our comparator edge
-     * @param <T>
-     * @return true if we have the same source and target vertices
-     */
-    public <T extends BaseVertex> boolean hasSameSourceAndTarget(final BaseGraph<T> graph, final BaseEdge edge) {
-        return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
-    }
-
-    // For use when comparing edges across graphs!
-    public <T extends BaseVertex> boolean seqEquals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
-        return (graph.getEdgeSource(this).seqEquals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).seqEquals(graph2.getEdgeTarget(edge)));
-    }
-
-    /**
-     * Sorts a collection of BaseEdges in decreasing order of weight, so that the most
-     * heavily weighted is at the start of the list
-     */
-    public static class EdgeWeightComparator implements Comparator<BaseEdge>, Serializable {
-        @Override
-        public int compare(final BaseEdge edge1, final BaseEdge edge2) {
-            return edge2.multiplicity - edge1.multiplicity;
+    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
+    @Ensures("result >= 0")
+    protected static int compPrefixLen(final List<byte[]> listOfBytes, final int minLength) {
+        for ( int i = 0; i < minLength; i++ ) {
+            final byte b = listOfBytes.get(0)[i];
+            for ( int j = 1; j < listOfBytes.size(); j++ ) {
+                if ( b != listOfBytes.get(j)[i] )
+                    return i;
+            }
         }
+
+        return minLength;
     }
 
     /**
-     * Add edge to this edge, updating isRef and multiplicity as appropriate
+     * Compute the maximum shared suffix length of list of bytes.
      *
-     * isRef is simply the or of this and edge
-     * multiplicity is the sum
-     *
-     * @param edge the edge to add
+     * @param listOfBytes a list of bytes with at least one element
+     * @param minLength the min. length among all byte[] in listOfBytes
+     * @return the number of shared bytes common at the end of all bytes
      */
-    public void add(final BaseEdge edge) {
-        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
-        this.multiplicity += edge.getMultiplicity();
-        this.isRef = this.isRef || edge.isRef();
+    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
+    @Ensures("result >= 0")
+    protected static int compSuffixLen(final List<byte[]> listOfBytes, final int minLength) {
+        for ( int suffixLen = 0; suffixLen < minLength; suffixLen++ ) {
+            final byte b = listOfBytes.get(0)[listOfBytes.get(0).length - suffixLen - 1];
+            for ( int j = 1; j < listOfBytes.size(); j++ ) {
+                if ( b != listOfBytes.get(j)[listOfBytes.get(j).length - suffixLen - 1] )
+                    return suffixLen;
+            }
+        }
+        return minLength;
     }
+
+    /**
+     * Get the list of kmers as byte[] from the vertices in the graph
+     *
+     * @param vertices a collection of vertices
+     * @return a list of their kmers in order of the iterator on vertices
+     */
+    protected static List<byte[]> getKmers(final Collection<SeqVertex> vertices) {
+        final List<byte[]> kmers = new ArrayList<byte[]>(vertices.size());
+        for ( final SeqVertex v : vertices ) {
+            kmers.add(v.getSequence());
+        }
+        return kmers;
+    }
+
+    /**
+     * Get the minimum length of a collection of byte[]
+     *
+     * @param kmers a list of kmers whose .length min we want
+     * @return the min of the kmers, if kmers is empty the result is 0
+     */
+    protected static int minKmerLength(final Collection<byte[]> kmers) {
+        if ( kmers == null ) throw new IllegalArgumentException("kmers cannot be null");
+
+        if ( kmers.isEmpty() ) return 0;
+        int min = Integer.MAX_VALUE;
+        for ( final byte[] kmer : kmers ) {
+            min = Math.min(min, kmer.length);
+        }
+        return min;
+    }
+
 }

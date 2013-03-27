@@ -44,122 +44,132 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.annotator;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
-import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import com.google.java.contract.Ensures;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 
 /**
- * The depth of coverage of each allele per sample
+ * A graph vertex that holds some sequence information
  *
- * <p>The AD and DP are complementary fields that are two important ways of thinking about the depth of the data for this
- * sample at this site.  While the sample-level (FORMAT) DP field describes the total depth of reads that passed the
- * caller's internal quality control metrics (like MAPQ > 17, for example), the AD values (one for each of
- * REF and ALT fields) is the unfiltered count of all reads that carried with them the
- * REF and ALT alleles. The reason for this distinction is that the DP is in some sense reflective of the
- * power I have to determine the genotype of the sample at this site, while the AD tells me how many times
- * I saw each of the REF and ALT alleles in the reads, free of any bias potentially introduced by filtering
- * the reads. If, for example, I believe there really is a an A/T polymorphism at a site, then I would like
- * to know the counts of A and T bases in this sample, even for reads with poor mapping quality that would
- * normally be excluded from the statistical calculations going into GQ and QUAL. Please note, however, that
- * the AD isn't necessarily calculated exactly for indels. Only reads which are statistically favoring one allele over the other are counted.
- * Because of this fact, the sum of AD may be different than the individual sample depth, especially when there are
- * many non-informative reads.</p>
- *
- * <p>Because the AD includes reads and bases that were filtered by the caller and in case of indels is based on a statistical computation,
- * <b>one should not base assumptions about the underlying genotype based on it</b>;
- * instead, the genotype likelihoods (PLs) are what determine the genotype calls.</p>
- *
+ * @author: depristo
+ * @since 03/2013
  */
-public class DepthPerAlleleBySample extends GenotypeAnnotation implements StandardAnnotation {
+public class BaseVertex {
+    final byte[] sequence;
 
-    public void annotate(final RefMetaDataTracker tracker,
-                         final AnnotatorCompatible walker,
-                         final ReferenceContext ref,
-                         final AlignmentContext stratifiedContext,
-                         final VariantContext vc,
-                         final Genotype g,
-                         final GenotypeBuilder gb,
-                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-        if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
-            return;
-
-        if (alleleLikelihoodMap != null && !alleleLikelihoodMap.isEmpty())
-            annotateWithLikelihoods(alleleLikelihoodMap, vc, gb);
-        else if ( stratifiedContext != null && (vc.isSNP()))
-            annotateWithPileup(stratifiedContext, vc, gb);
+    /**
+     * Create a new sequence vertex with sequence
+     *
+     * This code doesn't copy sequence for efficiency reasons, so sequence should absolutely not be modified
+     * in any way after passing this sequence to the BaseVertex
+     *
+     * @param sequence a non-null, non-empty sequence of bases contained in this vertex
+     */
+    public BaseVertex(final byte[] sequence) {
+        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
+        this.sequence = sequence;
     }
 
-    private void annotateWithPileup(final AlignmentContext stratifiedContext, final VariantContext vc, final GenotypeBuilder gb) {
-
-        HashMap<Byte, Integer> alleleCounts = new HashMap<Byte, Integer>();
-        for ( Allele allele : vc.getAlleles() )
-            alleleCounts.put(allele.getBases()[0], 0);
-
-        ReadBackedPileup pileup = stratifiedContext.getBasePileup();
-        for ( PileupElement p : pileup ) {
-            if ( alleleCounts.containsKey(p.getBase()) )
-                alleleCounts.put(p.getBase(), alleleCounts.get(p.getBase())+p.getRepresentativeCount());
-        }
-
-        // we need to add counts in the correct order
-        int[] counts = new int[alleleCounts.size()];
-        counts[0] = alleleCounts.get(vc.getReference().getBases()[0]);
-        for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
-            counts[i+1] = alleleCounts.get(vc.getAlternateAllele(i).getBases()[0]);
-
-        gb.AD(counts);
+    /**
+     * Does this vertex have an empty sequence?
+     *
+     * That is, is it a dummy node that's only present for structural reasons but doesn't actually
+     * contribute to the sequence of the graph?
+     *
+     * @return true if sequence is empty, false otherwise
+     */
+    public boolean isEmpty() {
+        return length() == 0;
     }
 
-    private void annotateWithLikelihoods(final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap, final VariantContext vc, final GenotypeBuilder gb) {
-        final HashMap<Allele, Integer> alleleCounts = new HashMap<Allele, Integer>();
-
-        for ( final Allele allele : vc.getAlleles() ) {
-            alleleCounts.put(allele, 0);
-        }
-        for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final GATKSAMRecord read = el.getKey();
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (! a.isInformative() )
-                continue; // read is non-informative
-            if (!vc.getAlleles().contains(a.getMostLikelyAllele()))
-                continue; // sanity check - shouldn't be needed
-            alleleCounts.put(a.getMostLikelyAllele(), alleleCounts.get(a.getMostLikelyAllele()) + (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1));
-        }
-        final int[] counts = new int[alleleCounts.size()];
-        counts[0] = alleleCounts.get(vc.getReference());
-        for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
-            counts[i+1] = alleleCounts.get( vc.getAlternateAllele(i) );
-
-        gb.AD(counts);
+    /**
+     * Get the length of this sequence
+     * @return a positive integer >= 1
+     */
+    public int length() {
+        return sequence.length;
     }
 
-    public List<String> getKeyNames() { return Arrays.asList(VCFConstants.GENOTYPE_ALLELE_DEPTHS); }
+    /**
+     * For testing purposes only -- low performance
+     * @param sequence the sequence as a string
+     */
+    protected BaseVertex(final String sequence) {
+        this(sequence.getBytes());
+    }
 
-    public List<VCFFormatHeaderLine> getDescriptions() {
-        return Arrays.asList(VCFStandardHeaderLines.getFormatLine(getKeyNames().get(0)));
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        BaseVertex that = (BaseVertex) o;
+
+        if (!Arrays.equals(sequence, that.sequence)) return false;
+
+        return true;
+    }
+
+    /**
+     * Are b and this equal according to their base sequences?
+     *
+     * @param b the vertex to compare ourselves to
+     * @return true if b and this have the same sequence, regardless of other attributes that might differentiate them
+     */
+    public boolean seqEquals(final BaseVertex b) {
+        return Arrays.equals(this.getSequence(), b.getSequence());
+    }
+
+    /**
+     * necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
+     * @return
+     */
+    @Override
+    public int hashCode() {
+        // TODO -- optimization, could compute upfront once and cached in debruijn graph
+        return Arrays.hashCode(sequence);
+    }
+
+    @Override
+    public String toString() {
+        return getSequenceString();
+    }
+
+    /**
+     * Get the sequence of bases contained in this vertex
+     *
+     * Do not modify these bytes in any way!
+     *
+     * @return a non-null pointer to the bases contained in this vertex
+     */
+    @Ensures("result != null")
+    public byte[] getSequence() {
+        return sequence;
+    }
+
+    /**
+     * Get a string representation of the bases in this vertex
+     * @return a non-null String
+     */
+    @Ensures("result != null")
+    public String getSequenceString() {
+        return new String(sequence);
+    }
+
+    /**
+     * Get the sequence unique to this vertex
+     *
+     * This function may not return the entire sequence stored in the vertex, as kmer graphs
+     * really only provide 1 base of additional sequence (the last base of the kmer).
+     *
+     * The base implementation simply returns the sequence.
+     *
+     * @param source is this vertex a source vertex (i.e., no in nodes) in the graph
+     * @return a byte[] of the sequence added by this vertex to the overall sequence
+     */
+    public byte[] getAdditionalSequence(final boolean source) {
+        return getSequence();
     }
 }

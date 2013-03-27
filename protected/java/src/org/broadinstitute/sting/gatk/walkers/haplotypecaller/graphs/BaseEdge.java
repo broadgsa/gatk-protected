@@ -44,121 +44,147 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
-
-import java.util.Arrays;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Comparator;
 
 /**
- * A graph vertex that holds some sequence information
+ * simple edge class for connecting nodes in the graph
  *
- * @author: depristo
- * @since 03/2013
+ * Works equally well for all graph types (kmer or sequence)
+ *
+ * User: ebanks
+ * Date: Mar 23, 2011
  */
-public class BaseVertex {
-    final byte[] sequence;
+public class BaseEdge {
+    private int multiplicity;
+    private boolean isRef;
 
     /**
-     * Create a new sequence vertex with sequence
+     * Create a new BaseEdge with weight multiplicity and, if isRef == true, indicates a path through the reference
      *
-     * This code doesn't copy sequence for efficiency reasons, so sequence should absolutely not be modified
-     * in any way after passing this sequence to the BaseVertex
-     *
-     * @param sequence a non-null, non-empty sequence of bases contained in this vertex
+     * @param isRef indicates whether this edge is a path through the reference
+     * @param multiplicity the number of observations of this edge
      */
-    public BaseVertex(final byte[] sequence) {
-        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
-        if ( sequence.length == 0 ) throw new IllegalArgumentException("Sequence cannot be empty");
-        this.sequence = sequence;
-    }
+    public BaseEdge(final boolean isRef, final int multiplicity) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0 but got " + multiplicity);
 
-    /**
-     * Get the length of this sequence
-     * @return a positive integer >= 1
-     */
-    public int length() {
-        return sequence.length;
+        this.multiplicity = multiplicity;
+        this.isRef = isRef;
     }
 
     /**
-     * For testing purposes only -- low performance
-     * @param sequence the sequence as a string
+     * Copy constructor
+     *
+     * @param toCopy
      */
-    protected BaseVertex(final String sequence) {
-        this(sequence.getBytes());
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        BaseVertex that = (BaseVertex) o;
-
-        if (!Arrays.equals(sequence, that.sequence)) return false;
-
-        return true;
+    public BaseEdge(final BaseEdge toCopy) {
+        this(toCopy.isRef(), toCopy.getMultiplicity());
     }
 
     /**
-     * Are b and this equal according to their base sequences?
-     *
-     * @param b the vertex to compare ourselves to
-     * @return true if b and this have the same sequence, regardless of other attributes that might differentiate them
+     * Get the number of observations of paths connecting two vertices
+     * @return a positive integer >= 0
      */
-    public boolean seqEquals(final BaseVertex b) {
-        return Arrays.equals(this.getSequence(), b.getSequence());
+    public int getMultiplicity() {
+        return multiplicity;
     }
 
     /**
-     * necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
-     * @return
+     * Set the multiplicity of this edge to value
+     * @param value an integer >= 0
      */
-    @Override
-    public int hashCode() {
-        // TODO -- optimization, could compute upfront once and cached in debruijn graph
-        return Arrays.hashCode(sequence);
-    }
-
-    @Override
-    public String toString() {
-        return getSequenceString();
+    public void setMultiplicity( final int value ) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
+        multiplicity = value;
     }
 
     /**
-     * Get the sequence of bases contained in this vertex
-     *
-     * Do not modify these bytes in any way!
-     *
-     * @return a non-null pointer to the bases contained in this vertex
+     * Does this edge indicate a path through the reference graph?
+     * @return true if so
      */
-    @Ensures("result != null")
-    public byte[] getSequence() {
-        return sequence;
+    public boolean isRef() {
+        return isRef;
     }
 
     /**
-     * Get a string representation of the bases in this vertex
-     * @return a non-null String
+     * Indicate that this edge follows the reference sequence, or not
+     * @param isRef true if this is a reference edge
      */
-    @Ensures("result != null")
-    public String getSequenceString() {
-        return new String(sequence);
+    public void setIsRef( final boolean isRef ) {
+        this.isRef = isRef;
     }
 
     /**
-     * Get the sequence unique to this vertex
+     * Does this and edge have the same source and target vertices in graph?
      *
-     * This function may not return the entire sequence stored in the vertex, as kmer graphs
-     * really only provide 1 base of additional sequence (the last base of the kmer).
-     *
-     * The base implementation simply returns the sequence.
-     *
-     * @param source is this vertex a source vertex (i.e., no in nodes) in the graph
-     * @return a byte[] of the sequence added by this vertex to the overall sequence
+     * @param graph the graph containing both this and edge
+     * @param edge our comparator edge
+     * @param <T>
+     * @return true if we have the same source and target vertices
      */
-    public byte[] getAdditionalSequence(final boolean source) {
-        return getSequence();
+    public <T extends BaseVertex> boolean hasSameSourceAndTarget(final BaseGraph<T> graph, final BaseEdge edge) {
+        return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
+    }
+
+    // For use when comparing edges across graphs!
+    public <T extends BaseVertex> boolean seqEquals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
+        return (graph.getEdgeSource(this).seqEquals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).seqEquals(graph2.getEdgeTarget(edge)));
+    }
+
+    /**
+     * Sorts a collection of BaseEdges in decreasing order of weight, so that the most
+     * heavily weighted is at the start of the list
+     */
+    public static class EdgeWeightComparator implements Comparator<BaseEdge>, Serializable {
+        @Override
+        public int compare(final BaseEdge edge1, final BaseEdge edge2) {
+            return edge2.multiplicity - edge1.multiplicity;
+        }
+    }
+
+    /**
+     * Add edge to this edge, updating isRef and multiplicity as appropriate
+     *
+     * isRef is simply the or of this and edge
+     * multiplicity is the sum
+     *
+     * @param edge the edge to add
+     * @return this
+     */
+    public BaseEdge add(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        this.multiplicity += edge.getMultiplicity();
+        this.isRef = this.isRef || edge.isRef();
+        return this;
+    }
+
+    /**
+     * Create a new BaseEdge with multiplicity and isRef that's an or of all edges
+     *
+     * @param edges a collection of edges to or their isRef values
+     * @param multiplicity our desired multiplicity
+     * @return a newly allocated BaseEdge
+     */
+    public static BaseEdge orRef(final Collection<BaseEdge> edges, final int multiplicity) {
+        for ( final BaseEdge e : edges )
+            if ( e.isRef() )
+                return new BaseEdge(true, multiplicity);
+        return new BaseEdge(false, multiplicity);
+    }
+
+    /**
+     * Return a new edge whose multiplicity is the max of this and edge, and isRef is or of this and edge
+     *
+     * isRef is simply the or of this and edge
+     * multiplicity is the max
+     *
+     * @param edge the edge to max
+     */
+    public BaseEdge max(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        return new BaseEdge(isRef() || edge.isRef(), Math.max(getMultiplicity(), edge.getMultiplicity()));
     }
 }

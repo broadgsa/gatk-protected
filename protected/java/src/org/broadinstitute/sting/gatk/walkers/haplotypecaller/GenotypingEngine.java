@@ -51,6 +51,7 @@ import com.google.java.contract.Requires;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
@@ -66,6 +67,7 @@ import java.io.PrintStream;
 import java.util.*;
 
 public class GenotypingEngine {
+    private final static Logger logger = Logger.getLogger(GenotypingEngine.class);
 
     private final boolean DEBUG;
     private final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS;
@@ -168,15 +170,15 @@ public class GenotypingEngine {
         // Using the cigar from each called haplotype figure out what events need to be written out in a VCF file
         final TreeSet<Integer> startPosKeySet = new TreeSet<Integer>();
         int count = 0;
-        if( DEBUG ) { System.out.println("=== Best Haplotypes ==="); }
+        if( DEBUG ) { logger.info("=== Best Haplotypes ==="); }
         for( final Haplotype h : haplotypes ) {
             // Walk along the alignment and turn any difference from the reference into an event
             h.setEventMap( generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), ref, h.getBases(), refLoc, "HC" + count++ ) );
             if( !in_GGA_mode ) { startPosKeySet.addAll(h.getEventMap().keySet()); }
             if( DEBUG ) {
-                System.out.println( h.toString() );
-                System.out.println( "> Cigar = " + h.getCigar() );
-                System.out.println( ">> Events = " + h.getEventMap());
+                logger.info(h.toString());
+                logger.info("> Cigar = " + h.getCigar());
+                logger.info(">> Events = " + h.getEventMap());
             }
         }
 
@@ -261,7 +263,7 @@ public class GenotypingEngine {
                 final Map<Allele, List<Haplotype>> alleleMapper = createAlleleMapper(mergeMap, eventMapper);
 
                 if( DEBUG ) {
-                    System.out.println("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
+                    logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
                     //System.out.println("Event/haplotype allele mapping = " + alleleMapper);
                 }
 
@@ -500,9 +502,9 @@ public class GenotypingEngine {
                     if( isBiallelic ) {
                         final double R2 = calculateR2LD( Math.pow(10.0, x11), Math.pow(10.0, x12), Math.pow(10.0, x21), Math.pow(10.0, x22) );
                         if( DEBUG ) {
-                            System.out.println("Found consecutive biallelic events with R^2 = " + String.format("%.4f", R2));
-                            System.out.println("-- " + thisVC);
-                            System.out.println("-- " + nextVC);
+                            logger.info("Found consecutive biallelic events with R^2 = " + String.format("%.4f", R2));
+                            logger.info("-- " + thisVC);
+                            logger.info("-- " + nextVC);
                         }
                         if( R2 > MERGE_EVENTS_R2_THRESHOLD ) {
 
@@ -528,7 +530,7 @@ public class GenotypingEngine {
                             if(!containsStart) { startPosKeySet.remove(thisStart); }
                             if(!containsNext) { startPosKeySet.remove(nextStart); }
 
-                            if( DEBUG ) { System.out.println("====> " + mergedVC); }
+                            if( DEBUG ) { logger.info("====> " + mergedVC); }
                             mapWasUpdated = true;
                             break; // break out of tree set iteration since it was just updated, start over from the beginning and keep merging events
                         }

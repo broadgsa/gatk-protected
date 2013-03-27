@@ -44,10 +44,11 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Invariant;
+import com.google.java.contract.Requires;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.jgrapht.EdgeFactory;
@@ -311,14 +312,32 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
     }
 
     /**
+     * Convenience function to add multiple vertices to the graph at once
+     * @param vertices one or more vertices to add
+     */
+    public void addVertices(final Collection<T> vertices) {
+        for ( final T v : vertices )
+            addVertex(v);
+    }
+
+    /**
      * Convenience function to add multiple edges to the graph
      * @param start the first vertex to connect
      * @param remaining all additional vertices to connect
      */
     public void addEdges(final T start, final T ... remaining) {
+        addEdges(new BaseEdge(false, 1), start, remaining);
+    }
+
+    /**
+     * Convenience function to add multiple edges to the graph
+     * @param start the first vertex to connect
+     * @param remaining all additional vertices to connect
+     */
+    public void addEdges(final BaseEdge template, final T start, final T ... remaining) {
         T prev = start;
         for ( final T next : remaining ) {
-            addEdge(prev, next);
+            addEdge(prev, next, new BaseEdge(template));
             prev = next;
         }
     }
@@ -366,19 +385,15 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         }
     }
 
-    // TODO -- generalize to support both types of graphs.  Need some kind of display string function
     public void printGraph(final PrintStream graphWriter, final boolean writeHeader, final int pruneFactor) {
         if ( writeHeader )
             graphWriter.println("digraph assemblyGraphs {");
 
         for( final BaseEdge edge : edgeSet() ) {
-//            if( edge.getMultiplicity() > PRUNE_FACTOR ) {
-            graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getMultiplicity() + "\"];");
-//            }
+            graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() > 0 && edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getMultiplicity() + "\"];");
             if( edge.isRef() ) {
                 graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [color=red];");
             }
-            //if( !edge.isRef() && edge.getMultiplicity() <= PRUNE_FACTOR ) { System.out.println("Graph pruning warning!"); }
         }
 
         for( final T v : vertexSet() ) {
@@ -389,7 +404,12 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
             graphWriter.println("}");
     }
 
-    protected void cleanNonRefPaths() {
+    /**
+     * Remove edges that are connected before the reference source and after the reference sink
+     *
+     * Also removes all vertices that are orphaned by this process
+     */
+    public void cleanNonRefPaths() {
         if( getReferenceSourceVertex() == null || getReferenceSinkVertex() == null ) {
             return;
         }
@@ -416,6 +436,30 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
             edgesToCheck.remove(e);
         }
 
+        removeSingletonOrphanVertices();
+    }
+
+    /**
+     * Prune all edges from this graph that have multiplicity <= pruneFactor and remove all orphaned singleton vertices as well
+     *
+     * @param pruneFactor all edges with multiplicity <= this factor that aren't ref edges will be removed
+     */
+    public void pruneGraph( final int pruneFactor ) {
+        final List<BaseEdge> edgesToRemove = new ArrayList<BaseEdge>();
+        for( final BaseEdge e : edgeSet() ) {
+            if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
+                edgesToRemove.add(e);
+            }
+        }
+        removeAllEdges(edgesToRemove);
+
+        removeSingletonOrphanVertices();
+    }
+
+    /**
+     * Remove all vertices in the graph that have in and out degree of 0
+     */
+    protected void removeSingletonOrphanVertices() {
         // Run through the graph and clean up singular orphaned nodes
         final List<T> verticesToRemove = new LinkedList<T>();
         for( final T v : vertexSet() ) {
@@ -426,46 +470,52 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         removeAllVertices(verticesToRemove);
     }
 
-    protected void pruneGraph( final int pruneFactor ) {
-        final List<BaseEdge> edgesToRemove = new ArrayList<BaseEdge>();
-        for( final BaseEdge e : edgeSet() ) {
-            if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
-                edgesToRemove.add(e);
-            }
-        }
-        removeAllEdges(edgesToRemove);
-
-        // Run through the graph and clean up singular orphaned nodes
-        final List<T> verticesToRemove = new ArrayList<T>();
-        for( final T v : vertexSet() ) {
-            if( inDegreeOf(v) == 0 && outDegreeOf(v) == 0 ) {
-                verticesToRemove.add(v);
-            }
-        }
-
-        removeAllVertices(verticesToRemove);
-    }
-
-    public void removeVerticesNotConnectedToRef() {
+    /**
+     * Remove all vertices on the graph that cannot be accessed by following any edge,
+     * regardless of its direction, from the reference source vertex
+     */
+    public void removeVerticesNotConnectedToRefRegardlessOfEdgeDirection() {
         final HashSet<T> toRemove = new HashSet<T>(vertexSet());
-        final HashSet<T> visited = new HashSet<T>();
 
-        final LinkedList<T> toVisit = new LinkedList<T>();
         final T refV = getReferenceSourceVertex();
         if ( refV != null ) {
-            toVisit.add(refV);
-            while ( ! toVisit.isEmpty() ) {
-                final T v = toVisit.pop();
-                if ( ! visited.contains(v) ) {
-                    toRemove.remove(v);
-                    visited.add(v);
-                    for ( final T prev : incomingVerticesOf(v) ) toVisit.add(prev);
-                    for ( final T next : outgoingVerticesOf(v) ) toVisit.add(next);
-                }
+            for ( final T v : new BaseGraphIterator<T>(this, refV, true, true) ) {
+                toRemove.remove(v);
             }
-
-            removeAllVertices(toRemove);
         }
+
+        removeAllVertices(toRemove);
+    }
+
+    /**
+     * Remove all vertices in the graph that aren't on a path from the reference source vertex to the reference sink vertex
+     *
+     * More aggressive reference pruning algorithm than removeVerticesNotConnectedToRefRegardlessOfEdgeDirection,
+     * as it requires vertices to not only be connected by a series of directed edges but also prunes away
+     * paths that do not also meet eventually with the reference sink vertex
+     */
+    public void removePathsNotConnectedToRef() {
+        if ( getReferenceSourceVertex() == null || getReferenceSinkVertex() == null ) {
+            throw new IllegalStateException("Graph must have ref source and sink vertices");
+        }
+
+        // get the set of vertices we can reach by going forward from the ref source
+        final Set<T> onPathFromRefSource = new HashSet<T>(vertexSet().size());
+        for ( final T v : new BaseGraphIterator<T>(this, getReferenceSourceVertex(), false, true) ) {
+            onPathFromRefSource.add(v);
+        }
+
+        // get the set of vertices we can reach by going backward from the ref sink
+        final Set<T> onPathFromRefSink = new HashSet<T>(vertexSet().size());
+        for ( final T v : new BaseGraphIterator<T>(this, getReferenceSinkVertex(), true, false) ) {
+            onPathFromRefSink.add(v);
+        }
+
+        // we want to remove anything that's not in both the sink and source sets
+        final Set<T> verticesToRemove = new HashSet<T>(vertexSet());
+        onPathFromRefSource.retainAll(onPathFromRefSink);
+        verticesToRemove.removeAll(onPathFromRefSource);
+        removeAllVertices(verticesToRemove);
     }
 
     /**
@@ -515,17 +565,48 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
     }
 
     /**
-     * Get the edge between source and target, or null if none is present
-     *
-     * Note that since we don't allow multiple edges between vertices there can be at most
-     * one edge between any two edges
-     *
-     * @param source the source vertex for our edge
-     * @param target the target vertex for our edge
-     * @return the edge joining source to target, or null if none is present
+     * Get the incoming edge of v.  Requires that there be only one such edge or throws an error
+     * @param v our vertex
+     * @return the single incoming edge to v, or null if none exists
      */
-    public BaseEdge getEdge(final T source, final T target) {
-        final Set<BaseEdge> edges = getAllEdges(source, target);
+    public BaseEdge incomingEdgeOf(final T v) {
+        return getSingletonEdge(incomingEdgesOf(v));
+    }
+
+    /**
+     * Get the outgoing edge of v.  Requires that there be only one such edge or throws an error
+     * @param v our vertex
+     * @return the single outgoing edge from v, or null if none exists
+     */
+    public BaseEdge outgoingEdgeOf(final T v) {
+        return getSingletonEdge(outgoingEdgesOf(v));
+    }
+
+    /**
+     * Helper function that gets the a single edge from edges, null if edges is empty, or
+     * throws an error is edges has more than 1 element
+     * @param edges a set of edges
+     * @return a edge
+     */
+    @Requires("edges != null")
+    private BaseEdge getSingletonEdge(final Collection<BaseEdge> edges) {
+        if ( edges.size() > 1 ) throw new IllegalArgumentException("Cannot get a single incoming edge for a vertex with multiple incoming edges " + edges);
         return edges.isEmpty() ? null : edges.iterator().next();
+    }
+
+    /**
+     * Add edge between source -> target if none exists, or add e to an already existing one if present
+     *
+     * @param source source vertex
+     * @param target vertex
+     * @param e edge to add
+     */
+    public void addOrUpdateEdge(final T source, final T target, final BaseEdge e) {
+        final BaseEdge prev = getEdge(source, target);
+        if ( prev != null ) {
+            prev.add(e);
+        } else {
+            addEdge(source, target, e);
+        }
     }
 }

@@ -44,122 +44,124 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.annotator;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
-import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-
+import com.google.java.contract.Requires;
+import org.broadinstitute.sting.utils.Utils;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 
 /**
- * The depth of coverage of each allele per sample
+ * A graph vertex containing a sequence of bases and a unique ID that
+ * allows multiple distinct nodes in the graph to have the same sequence.
  *
- * <p>The AD and DP are complementary fields that are two important ways of thinking about the depth of the data for this
- * sample at this site.  While the sample-level (FORMAT) DP field describes the total depth of reads that passed the
- * caller's internal quality control metrics (like MAPQ > 17, for example), the AD values (one for each of
- * REF and ALT fields) is the unfiltered count of all reads that carried with them the
- * REF and ALT alleles. The reason for this distinction is that the DP is in some sense reflective of the
- * power I have to determine the genotype of the sample at this site, while the AD tells me how many times
- * I saw each of the REF and ALT alleles in the reads, free of any bias potentially introduced by filtering
- * the reads. If, for example, I believe there really is a an A/T polymorphism at a site, then I would like
- * to know the counts of A and T bases in this sample, even for reads with poor mapping quality that would
- * normally be excluded from the statistical calculations going into GQ and QUAL. Please note, however, that
- * the AD isn't necessarily calculated exactly for indels. Only reads which are statistically favoring one allele over the other are counted.
- * Because of this fact, the sum of AD may be different than the individual sample depth, especially when there are
- * many non-informative reads.</p>
+ * This is essential when thinking about representing the actual sequence of a haplotype
+ * in a graph.  There can be many parts of the sequence that have the same sequence, but
+ * are distinct elements in the graph because they have a different position in the graph.  For example:
  *
- * <p>Because the AD includes reads and bases that were filtered by the caller and in case of indels is based on a statistical computation,
- * <b>one should not base assumptions about the underlying genotype based on it</b>;
- * instead, the genotype likelihoods (PLs) are what determine the genotype calls.</p>
+ * A -> C -> G -> A -> T
  *
+ * The two As are not the same, because they occur with different connections.  In a kmer graph equals()
+ * is based on the sequence itself, as each distinct kmer can only be represented once.  But the transformation
+ * of the kmer graph into a graph of base sequences, without their kmer prefixes, means that nodes that
+ * where once unique including their prefix can become equal after shedding the prefix.  So we need to
+ * use some mechanism -- here a unique ID per node -- to separate nodes that have the same sequence
+ * but are distinct elements of the graph.
+ *
+ * @author: depristo
+ * @since 03/2013
  */
-public class DepthPerAlleleBySample extends GenotypeAnnotation implements StandardAnnotation {
+public class SeqVertex extends BaseVertex {
+    private static int idCounter = 0;
+    public final int id;
 
-    public void annotate(final RefMetaDataTracker tracker,
-                         final AnnotatorCompatible walker,
-                         final ReferenceContext ref,
-                         final AlignmentContext stratifiedContext,
-                         final VariantContext vc,
-                         final Genotype g,
-                         final GenotypeBuilder gb,
-                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-        if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
-            return;
-
-        if (alleleLikelihoodMap != null && !alleleLikelihoodMap.isEmpty())
-            annotateWithLikelihoods(alleleLikelihoodMap, vc, gb);
-        else if ( stratifiedContext != null && (vc.isSNP()))
-            annotateWithPileup(stratifiedContext, vc, gb);
+    /**
+     * Create a new SeqVertex with sequence and the next available id
+     * @param sequence our base sequence
+     */
+    public SeqVertex(final byte[] sequence) {
+        super(sequence);
+        this.id = idCounter++;
     }
 
-    private void annotateWithPileup(final AlignmentContext stratifiedContext, final VariantContext vc, final GenotypeBuilder gb) {
-
-        HashMap<Byte, Integer> alleleCounts = new HashMap<Byte, Integer>();
-        for ( Allele allele : vc.getAlleles() )
-            alleleCounts.put(allele.getBases()[0], 0);
-
-        ReadBackedPileup pileup = stratifiedContext.getBasePileup();
-        for ( PileupElement p : pileup ) {
-            if ( alleleCounts.containsKey(p.getBase()) )
-                alleleCounts.put(p.getBase(), alleleCounts.get(p.getBase())+p.getRepresentativeCount());
-        }
-
-        // we need to add counts in the correct order
-        int[] counts = new int[alleleCounts.size()];
-        counts[0] = alleleCounts.get(vc.getReference().getBases()[0]);
-        for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
-            counts[i+1] = alleleCounts.get(vc.getAlternateAllele(i).getBases()[0]);
-
-        gb.AD(counts);
+    /**
+     * Create a new SeqVertex having bases of sequence.getBytes()
+     * @param sequence the string representation of our bases
+     */
+    public SeqVertex(final String sequence) {
+        super(sequence);
+        this.id = idCounter++;
     }
 
-    private void annotateWithLikelihoods(final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap, final VariantContext vc, final GenotypeBuilder gb) {
-        final HashMap<Allele, Integer> alleleCounts = new HashMap<Allele, Integer>();
-
-        for ( final Allele allele : vc.getAlleles() ) {
-            alleleCounts.put(allele, 0);
-        }
-        for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final GATKSAMRecord read = el.getKey();
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (! a.isInformative() )
-                continue; // read is non-informative
-            if (!vc.getAlleles().contains(a.getMostLikelyAllele()))
-                continue; // sanity check - shouldn't be needed
-            alleleCounts.put(a.getMostLikelyAllele(), alleleCounts.get(a.getMostLikelyAllele()) + (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1));
-        }
-        final int[] counts = new int[alleleCounts.size()];
-        counts[0] = alleleCounts.get(vc.getReference());
-        for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
-            counts[i+1] = alleleCounts.get( vc.getAlternateAllele(i) );
-
-        gb.AD(counts);
+    /**
+     * Create a copy of toCopy
+     * @param toCopy a SeqVertex to copy into this newly allocated one
+     */
+    public SeqVertex(final SeqVertex toCopy) {
+        super(toCopy.sequence);
+        this.id = toCopy.id;
     }
 
-    public List<String> getKeyNames() { return Arrays.asList(VCFConstants.GENOTYPE_ALLELE_DEPTHS); }
+    /**
+     * Get the unique ID for this SeqVertex
+     * @return a positive integer >= 0
+     */
+    public int getId() {
+        return id;
+    }
 
-    public List<VCFFormatHeaderLine> getDescriptions() {
-        return Arrays.asList(VCFStandardHeaderLines.getFormatLine(getKeyNames().get(0)));
+    @Override
+    public String toString() {
+        return "SeqVertex_id_" + id + "_seq_" + getSequenceString();
+    }
+
+    /**
+     * Two SeqVertex are equal only if their ids are equal
+     * @param o
+     * @return
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SeqVertex seqVertex = (SeqVertex) o;
+        if (id != seqVertex.id) return false;
+
+        // note that we don't test for super equality here because the ids are unique
+        //if (!super.equals(o)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
+    }
+
+    /**
+     * Return a new SeqVertex derived from this one but not including the suffix bases
+     *
+     * @param suffix the suffix bases to remove from this vertex
+     * @return a newly allocated SeqVertex with appropriate prefix, or null if suffix removes all bases from this node
+     */
+    @Requires("Utils.endsWith(sequence, suffix)")
+    public SeqVertex withoutSuffix(final byte[] suffix) {
+        final int prefixSize = sequence.length - suffix.length;
+        return prefixSize > 0 ? new SeqVertex(Arrays.copyOf(sequence, prefixSize)) : null;
+    }
+
+    /**
+     * Return a new SeqVertex derived from this one but not including prefix or suffix bases
+     *
+     * @param prefix the previx bases to remove
+     * @param suffix the suffix bases to remove from this vertex
+     * @return a newly allocated SeqVertex
+     */
+    @Requires("Utils.endsWith(sequence, suffix)")
+    public SeqVertex withoutPrefixAndSuffix(final byte[] prefix, final byte[] suffix) {
+        final int start = prefix.length;
+        final int length = sequence.length - suffix.length - prefix.length;
+        final int stop = start + length;
+        return length > 0 ? new SeqVertex(Arrays.copyOfRange(sequence, start, stop)) : null;
     }
 }

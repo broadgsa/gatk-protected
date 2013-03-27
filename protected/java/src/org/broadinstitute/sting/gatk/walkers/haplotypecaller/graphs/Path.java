@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
@@ -67,7 +67,9 @@ import java.util.*;
  * Time: 2:34 PM
  *
  */
-class Path<T extends BaseVertex> {
+public class Path<T extends BaseVertex> {
+    private final static int MAX_CIGAR_ELEMENTS_BEFORE_FAILING_SW = 20;
+
     // the last vertex seen in the path
     private final T lastVertex;
 
@@ -161,8 +163,9 @@ class Path<T extends BaseVertex> {
         boolean first = true;
         for ( final T v : getVertices() ) {
             if ( first ) {
-                b.append(" -> ");
                 first = false;
+            } else {
+                b.append(" -> ");
             }
             b.append(v.getSequenceString());
         }
@@ -357,7 +360,7 @@ class Path<T extends BaseVertex> {
         }
 
         final Cigar swCigar = swConsensus.getCigar();
-        if( swCigar.numCigarElements() > 6 ) { // this bubble is too divergent from the reference
+        if( swCigar.numCigarElements() > MAX_CIGAR_ELEMENTS_BEFORE_FAILING_SW ) { // this bubble is too divergent from the reference
             returnCigar.add(new CigarElement(1, CigarOperator.N));
         } else {
             for( int iii = 0; iii < swCigar.numCigarElements(); iii++ ) {
@@ -390,5 +393,31 @@ class Path<T extends BaseVertex> {
             lastSeenReferenceNode = null;
             cigar = initialCigar;
         }
+    }
+
+    /**
+     * Tests that this and other have the same score and vertices in the same order with the same seq
+     * @param other the other path to consider.  Cannot be null
+     * @return true if this and path are equal, false otherwise
+     */
+    public boolean equalScoreAndSequence(final Path<T> other) {
+        if ( other == null ) throw new IllegalArgumentException("other cannot be null");
+        return getScore() == other.getScore() && equalSequence(other);
+    }
+
+    /**
+     * Tests that this and other have the same vertices in the same order with the same seq
+     * @param other the other path to consider.  Cannot be null
+     * @return true if this and path are equal, false otherwise
+     */
+    public boolean equalSequence(final Path<T> other) {
+        final List<T> mine = getVertices();
+        final List<T> yours = other.getVertices();
+        if ( mine.size() == yours.size() ) { // hehehe
+            for ( int i = 0; i < mine.size(); i++ )
+                if ( ! mine.get(i).seqEquals(yours.get(i)) )
+                    return false;
+        }
+        return true;
     }
 }

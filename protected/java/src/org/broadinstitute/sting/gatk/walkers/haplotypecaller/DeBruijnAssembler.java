@@ -53,6 +53,7 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -65,7 +66,6 @@ import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
-import java.io.PrintStream;
 import java.util.*;
 
 /**
@@ -83,7 +83,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     // TODO -- be increased to a large number of eliminated altogether when moving to the bubble caller where
     // TODO -- we are no longer considering a combinatorial number of haplotypes as the number of bubbles increases
     private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 25;
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
     private static final int GRAPH_KMER_STEP = 6;
 
     // Smith-Waterman parameters originally copied from IndelRealigner, only used during GGA mode
@@ -94,30 +93,23 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
     private final boolean debug;
     private final boolean debugGraphTransformations;
-    private final PrintStream graphWriter;
     private final int minKmer;
-    private final byte minBaseQualityToUseInAssembly;
 
     private final int onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms;
 
-    private int PRUNE_FACTOR = 2;
 
     protected DeBruijnAssembler() {
-        this(false, -1, null, 11, DEFAULT_MIN_BASE_QUALITY_TO_USE);
+        this(false, -1, 11);
     }
 
     public DeBruijnAssembler(final boolean debug,
                              final int debugGraphTransformations,
-                             final PrintStream graphWriter,
-                             final int minKmer,
-                             final byte minBaseQualityToUseInAssembly) {
+                             final int minKmer) {
         super();
         this.debug = debug;
         this.debugGraphTransformations = debugGraphTransformations > 0;
         this.onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms = debugGraphTransformations;
-        this.graphWriter = graphWriter;
         this.minKmer = minKmer;
-        this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
     }
 
     /**
@@ -126,19 +118,15 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
      * @param refHaplotype              reference haplotype object
      * @param fullReferenceWithPadding  byte array holding the reference sequence with padding
      * @param refLoc                    GenomeLoc object corresponding to the reference sequence with padding
-     * @param PRUNE_FACTOR              prune kmers from the graph if their weight is <= this value
      * @param activeAllelesToGenotype   the alleles to inject into the haplotypes during GGA mode
      * @return                          a non-empty list of all the haplotypes that are produced during assembly
      */
     @Ensures({"result.contains(refHaplotype)"})
-    public List<Haplotype> runLocalAssembly( final ActiveRegion activeRegion, final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final int PRUNE_FACTOR, final List<VariantContext> activeAllelesToGenotype ) {
+    public List<Haplotype> runLocalAssembly( final ActiveRegion activeRegion, final Haplotype refHaplotype, final byte[] fullReferenceWithPadding, final GenomeLoc refLoc, final List<VariantContext> activeAllelesToGenotype ) {
         if( activeRegion == null ) { throw new IllegalArgumentException("Assembly engine cannot be used with a null ActiveRegion."); }
         if( refHaplotype == null ) { throw new IllegalArgumentException("Reference haplotype cannot be null."); }
         if( fullReferenceWithPadding.length != refLoc.size() ) { throw new IllegalArgumentException("Reference bases and reference loc must be the same size."); }
-        if( PRUNE_FACTOR < 0 ) { throw new IllegalArgumentException("Pruning factor cannot be negative"); }
-
-        // set the pruning factor for this run of the assembly engine
-        this.PRUNE_FACTOR = PRUNE_FACTOR;
+        if( pruneFactor < 0 ) { throw new IllegalArgumentException("Pruning factor cannot be negative"); }
 
         // create the graphs
         final List<SeqGraph> graphs = createDeBruijnGraphs( activeRegion.getReads(), refHaplotype );
@@ -167,17 +155,19 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 continue;
 
             if ( debug ) logger.info("Creating de Bruijn graph for " + kmer + " kmer using " + reads.size() + " reads");
-            DeBruijnGraph graph = createGraphFromSequences( reads, kmer, refHaplotype, debug);
+            DeBruijnGraph graph = createGraphFromSequences( reads, kmer, refHaplotype);
             if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
                 // do a series of steps to clean up the raw assembly graph to make it analysis-ready
-                if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), PRUNE_FACTOR);
-                graph = graph.errorCorrect();
-                if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), PRUNE_FACTOR);
-                graph.cleanNonRefPaths();
+                if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), pruneFactor);
+
+                if ( shouldErrorCorrectKmers() ) {
+                    graph = errorCorrect(graph);
+                    if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), pruneFactor);
+                }
 
                 final SeqGraph seqGraph = toSeqGraph(graph);
 
-                if( seqGraph.getReferenceSourceVertex() != null ) { // if the graph contains interesting variation from the reference
+                if ( seqGraph != null ) { // if the graph contains interesting variation from the reference
                     sanityCheckReferenceGraph(seqGraph, refHaplotype);
                     graphs.add(seqGraph);
 
@@ -193,12 +183,31 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
     private SeqGraph toSeqGraph(final DeBruijnGraph deBruijnGraph) {
         final SeqGraph seqGraph = deBruijnGraph.convertToSequenceGraph();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), PRUNE_FACTOR);
-        seqGraph.pruneGraph(PRUNE_FACTOR);
-        seqGraph.removeVerticesNotConnectedToRef();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.pruned.dot"), PRUNE_FACTOR);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), pruneFactor);
+
+        // the very first thing we need to do is zip up the graph, or pruneGraph will be too aggressive
+        seqGraph.zipLinearChains();
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.zipped.dot"), pruneFactor);
+
+        // now go through and prune the graph, removing vertices no longer connected to the reference chain
+        // IMPORTANT: pruning must occur before we call simplifyGraph, as simplifyGraph adds 0 weight
+        // edges to maintain graph connectivity.
+        seqGraph.pruneGraph(pruneFactor);
+        seqGraph.removeVerticesNotConnectedToRefRegardlessOfEdgeDirection();
+
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.pruned.dot"), pruneFactor);
         seqGraph.simplifyGraph();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.merged.dot"), PRUNE_FACTOR);
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.merged.dot"), pruneFactor);
+
+        // The graph has degenerated in some way, so the reference source and/or sink cannot be id'd.  Can
+        // happen in cases where for example the reference somehow manages to acquire a cycle, or
+        // where the entire assembly collapses back into the reference sequence.
+        if ( seqGraph.getReferenceSourceVertex() == null || seqGraph.getReferenceSinkVertex() == null )
+            return null;
+
+        seqGraph.removePathsNotConnectedToRef();
+        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.5.final.dot"), pruneFactor);
+
         return seqGraph;
     }
 
@@ -217,64 +226,135 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         }
     }
 
-    @Requires({"reads != null", "KMER_LENGTH > 0", "refHaplotype != null"})
-    protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int KMER_LENGTH, final Haplotype refHaplotype, final boolean DEBUG ) {
-
-        final DeBruijnGraph graph = new DeBruijnGraph(KMER_LENGTH);
+    @Requires({"reads != null", "kmerLength > 0", "refHaplotype != null"})
+    protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int kmerLength, final Haplotype refHaplotype ) {
+        final DeBruijnGraph graph = new DeBruijnGraph(kmerLength);
 
         // First pull kmers from the reference haplotype and add them to the graph
-        //logger.info("Adding reference sequence to graph " + refHaplotype.getBaseString());
-        final byte[] refSequence = refHaplotype.getBases();
-        if( refSequence.length >= KMER_LENGTH + KMER_OVERLAP ) {
-            final int kmersInSequence = refSequence.length - KMER_LENGTH + 1;
-            for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-                if( !graph.addKmersToGraph(Arrays.copyOfRange(refSequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(refSequence, iii + 1, iii + 1 + KMER_LENGTH), true, 1) ) {
-                    if( DEBUG ) {
-                        System.out.println("Cycle detected in reference graph for kmer = " + KMER_LENGTH + " ...skipping");
-                    }
-                    return null;
-                }
-            }
-        }
+        if ( ! addReferenceKmersToGraph(graph, refHaplotype.getBases()) )
+            // something went wrong, so abort right now with a null graph
+            return null;
+
+        // now go through the graph already seeded with the reference sequence and add the read kmers to it
+        if ( ! addReadKmersToGraph(graph, reads) )
+            // some problem was detected adding the reads to the graph, return null to indicate we failed
+            return null;
+
+        graph.cleanNonRefPaths();
+        return graph;
+    }
+
+    /**
+     * Add the high-quality kmers from the reads to the graph
+     *
+     * @param graph a graph to add the read kmers to
+     * @param reads a non-null list of reads whose kmers we want to add to the graph
+     * @return true if we successfully added the read kmers to the graph without corrupting it in some way
+     */
+    protected boolean addReadKmersToGraph(final DeBruijnGraph graph, final List<GATKSAMRecord> reads) {
+        final int kmerLength = graph.getKmerSize();
 
         // Next pull kmers out of every read and throw them on the graph
         for( final GATKSAMRecord read : reads ) {
-            //if ( ! read.getReadName().equals("H06JUADXX130110:1:1213:15422:11590")) continue;
-            //logger.info("Adding read " + read + " with sequence " + read.getReadString());
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
             final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
-            if( sequence.length > KMER_LENGTH + KMER_OVERLAP ) {
-                final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
+            if( sequence.length > kmerLength + KMER_OVERLAP ) {
+                final int kmersInSequence = sequence.length - kmerLength + 1;
                 for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
                     // if the qualities of all the bases in the kmers are high enough
                     boolean badKmer = false;
-                    for( int jjj = iii; jjj < iii + KMER_LENGTH + 1; jjj++) {
+                    for( int jjj = iii; jjj < iii + kmerLength + 1; jjj++) {
                         if( qualities[jjj] < minBaseQualityToUseInAssembly ) {
                             badKmer = true;
                             break;
                         }
                     }
                     if( !badKmer ) {
+                        // how many observations of this kmer have we seen?  A normal read counts for 1, but
+                        // a reduced read might imply a higher multiplicity for our the edge
                         int countNumber = 1;
                         if( read.isReducedRead() ) {
                             // compute mean number of reduced read counts in current kmer span
                             // precise rounding can make a difference with low consensus counts
-                            countNumber = MathUtils.arrayMax(Arrays.copyOfRange(reducedReadCounts, iii, iii + KMER_LENGTH));
+                            // TODO -- optimization: should extend arrayMax function to take start stop values
+                            countNumber = MathUtils.arrayMax(Arrays.copyOfRange(reducedReadCounts, iii, iii + kmerLength));
                         }
 
-                        final byte[] kmer1 = Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH);
-                        final byte[] kmer2 = Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH);
-
-                        for( int kkk=0; kkk < countNumber; kkk++ ) {
-                            graph.addKmersToGraph(kmer1, kmer2, false, 1);
-                        }
+                        graph.addKmerPairFromSeqToGraph(sequence, iii, false, countNumber);
                     }
                 }
             }
         }
 
-        return graph;
+        // always returns true now, but it's possible that we'd add reads and decide we don't like the graph in some way
+        return true;
+    }
+
+    /**
+     * Add the kmers from the reference sequence to the DeBruijnGraph
+     *
+     * @param graph the graph to add the reference kmers to. Must be empty
+     * @param refSequence the reference sequence from which we'll get our kmers
+     * @return true if we succeeded in creating a good graph from the reference sequence, false otherwise
+     */
+    protected boolean addReferenceKmersToGraph(final DeBruijnGraph graph, final byte[] refSequence) {
+        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
+        if ( graph.vertexSet().size() != 0 ) throw new IllegalArgumentException("Reference sequences must be added before any other vertices, but got a graph with " + graph.vertexSet().size() + " vertices in it already: " + graph);
+        if ( refSequence == null ) throw new IllegalArgumentException("refSequence cannot be null");
+
+
+        final int kmerLength = graph.getKmerSize();
+        if( refSequence.length < kmerLength + KMER_OVERLAP ) {
+            // not enough reference sequence to build a kmer graph of this length, return null
+            return false;
+        }
+
+        final int kmersInSequence = refSequence.length - kmerLength + 1;
+        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
+            graph.addKmerPairFromSeqToGraph(refSequence, iii, true, 1);
+        }
+
+        // we expect that every kmer in the sequence is unique, so that the graph has exactly kmersInSequence vertices
+        if ( graph.vertexSet().size() != kmersInSequence ) {
+            if( debug ) logger.info("Cycle detected in reference graph for kmer = " + kmerLength + " ...skipping");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Error correct the kmers in this graph, returning a new graph built from those error corrected kmers
+     * @return an error corrected version of this (freshly allocated graph) or simply this graph if for some reason
+     *         we cannot actually do the error correction
+     */
+    public DeBruijnGraph errorCorrect(final DeBruijnGraph graph) {
+        final KMerErrorCorrector corrector = new KMerErrorCorrector(graph.getKmerSize(), 1, 1, 5); // TODO -- should be static variables
+
+        for( final BaseEdge e : graph.edgeSet() ) {
+            for ( final byte[] kmer : Arrays.asList(graph.getEdgeSource(e).getSequence(), graph.getEdgeTarget(e).getSequence())) {
+                // TODO -- need a cleaner way to deal with the ref weight
+                corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
+            }
+        }
+
+        if ( corrector.computeErrorCorrectionMap() ) {
+            final DeBruijnGraph correctedGraph = new DeBruijnGraph(graph.getKmerSize());
+
+            for( final BaseEdge e : graph.edgeSet() ) {
+                final byte[] source = corrector.getErrorCorrectedKmer(graph.getEdgeSource(e).getSequence());
+                final byte[] target = corrector.getErrorCorrectedKmer(graph.getEdgeTarget(e).getSequence());
+                if ( source != null && target != null ) {
+                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
+                }
+            }
+
+            return correctedGraph;
+        } else {
+            // the error correction wasn't possible, simply return this graph
+            return graph;
+        }
     }
 
     protected void printGraphs(final List<SeqGraph> graphs) {
@@ -287,7 +367,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 continue;
             }
 
-            graph.printGraph(graphWriter, false, PRUNE_FACTOR);
+            graph.printGraph(graphWriter, false, pruneFactor);
 
             if ( debugGraphTransformations )
                 break;
@@ -322,6 +402,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         for( final SeqGraph graph : graphs ) {
             for ( final Path<SeqVertex> path : new KBestPaths<SeqVertex>().getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
+//                logger.info("Found path " + path);
                 Haplotype h = new Haplotype( path.getBases() );
                 if( !returnHaplotypes.contains(h) ) {
                     final Cigar cigar = path.calculateCigar();
@@ -377,13 +458,13 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         if( debug ) {
             if( returnHaplotypes.size() > 1 ) {
-                System.out.println("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
+                logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
             } else {
-                System.out.println("Found only the reference haplotype in the assembly graph.");
+                logger.info("Found only the reference haplotype in the assembly graph.");
             }
             for( final Haplotype h : returnHaplotypes ) {
-                System.out.println( h.toString() );
-                System.out.println( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() + " score " + h.getScore() );
+                logger.info( h.toString() );
+                logger.info( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() + " score " + h.getScore() );
             }
         }
 

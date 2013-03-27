@@ -44,149 +44,82 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.broadinstitute.sting.BaseTest;
-import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.Test;
-import scala.actors.threadpool.Arrays;
-
-import java.io.File;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import com.google.java.contract.Ensures;
 
 /**
- * Created with IntelliJ IDEA.
- * User: depristo
- * Date: 3/15/13
- * Time: 3:36 PM
- * To change this template use File | Settings | File Templates.
+ * simple node class for storing kmer sequences
+ *
+ * User: ebanks, mdepristo
+ * Date: Mar 23, 2011
  */
-public class BaseGraphUnitTest extends BaseTest {
-    SeqGraph graph;
-    SeqVertex v1, v2, v3, v4, v5;
-
-    @BeforeMethod
-    public void setUp() throws Exception {
-        graph = new SeqGraph();
-
-        v1 = new SeqVertex("A");
-        v2 = new SeqVertex("C");
-        v3 = new SeqVertex("C");
-        v4 = new SeqVertex("C");
-        v5 = new SeqVertex("C");
-
-        graph.addVertices(v1, v2, v3, v4, v5);
-        graph.addEdge(v1, v2);
-        graph.addEdge(v2, v4);
-        graph.addEdge(v3, v2);
-        graph.addEdge(v2, v3);
-        graph.addEdge(v4, v5);
+public class DeBruijnVertex extends BaseVertex {
+    private final static byte[][] sufficesAsByteArray = new byte[256][];
+    static {
+        for ( int i = 0; i < sufficesAsByteArray.length; i++ )
+            sufficesAsByteArray[i] = new byte[]{(byte)(i & 0xFF)};
     }
 
-    @Test
-    public void testIncomingAndOutgoingVertices() throws Exception {
-        assertVertexSetEquals(graph.outgoingVerticesOf(v1), v2);
-        assertVertexSetEquals(graph.incomingVerticesOf(v1));
-
-        assertVertexSetEquals(graph.outgoingVerticesOf(v2), v3, v4);
-        assertVertexSetEquals(graph.incomingVerticesOf(v2), v1, v3);
-
-        assertVertexSetEquals(graph.outgoingVerticesOf(v3), v2);
-        assertVertexSetEquals(graph.incomingVerticesOf(v3), v2);
-
-        assertVertexSetEquals(graph.outgoingVerticesOf(v4), v5);
-        assertVertexSetEquals(graph.incomingVerticesOf(v4), v2);
-
-        assertVertexSetEquals(graph.outgoingVerticesOf(v5));
-        assertVertexSetEquals(graph.incomingVerticesOf(v5), v4);
+    public DeBruijnVertex( final byte[] sequence ) {
+        super(sequence);
     }
 
-    @Test
-    public void testPrintEmptyGraph() throws Exception {
-        final File tmp = File.createTempFile("tmp", "dot");
-        tmp.deleteOnExit();
-        new SeqGraph().printGraph(tmp, 10);
-        new DeBruijnGraph().printGraph(tmp, 10);
+    /**
+     * For testing purposes only
+     * @param sequence
+     */
+    protected DeBruijnVertex( final String sequence ) {
+        this(sequence.getBytes());
     }
 
-    @Test
-    public void testComplexGraph() throws Exception {
-        final File tmp = File.createTempFile("tmp", "dot");
-        tmp.deleteOnExit();
-        graph.printGraph(tmp, 10);
+    /**
+     * Get the kmer size for this DeBruijnVertex
+     * @return integer >= 1
+     */
+    @Ensures("result >= 1")
+    public int getKmer() {
+        return sequence.length;
     }
 
-    private void assertVertexSetEquals(final Set<SeqVertex> actual, final SeqVertex ... expected) {
-        final Set<SeqVertex> expectedSet = expected == null ? Collections.<SeqVertex>emptySet() : new HashSet<SeqVertex>(Arrays.asList(expected));
-        Assert.assertEquals(actual, expectedSet);
+    /**
+     * Get the string representation of the suffix of this DeBruijnVertex
+     * @return a non-null non-empty string
+     */
+    @Ensures({"result != null", "result.length() >= 1"})
+    public String getSuffixString() {
+        return new String(getSuffixAsArray());
     }
 
-    @Test(enabled = true)
-    public void testPruneGraph() {
-        DeBruijnGraph graph = new DeBruijnGraph();
-        DeBruijnGraph expectedGraph = new DeBruijnGraph();
+    /**
+     * Get the suffix byte of this DeBruijnVertex
+     *
+     * The suffix byte is simply the last byte of the kmer sequence, so if this is holding sequence ACT
+     * getSuffix would return T
+     *
+     * @return a byte
+     */
+    public byte getSuffix() {
+        return sequence[getKmer() - 1];
+    }
 
-        DeBruijnVertex v = new DeBruijnVertex("ATGG");
-        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA");
-        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT");
-        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG");
-        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC");
-        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC");
+    /**
+     * Optimized version that returns a byte[] for the single byte suffix of this graph without allocating memory.
+     *
+     * Should not be modified
+     *
+     * @return a byte[] that contains 1 byte == getSuffix()
+     */
+    @Ensures({"result != null", "result.length == 1", "result[0] == getSuffix()"})
+    private byte[] getSuffixAsArray() {
+        return sufficesAsByteArray[getSuffix()];
+    }
 
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new BaseEdge(false, 1));
-        graph.addEdge(v2, v3, new BaseEdge(false, 3));
-        graph.addEdge(v3, v4, new BaseEdge(false, 5));
-        graph.addEdge(v4, v5, new BaseEdge(false, 3));
-        graph.addEdge(v5, v6, new BaseEdge(false, 2));
-
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        graph.pruneGraph(2);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
-
-        graph = new DeBruijnGraph();
-        expectedGraph = new DeBruijnGraph();
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new BaseEdge(true, 1));
-        graph.addEdge(v2, v3, new BaseEdge(false, 3));
-        graph.addEdge(v3, v4, new BaseEdge(false, 5));
-        graph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        expectedGraph.addVertex(v);
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v, v2, new BaseEdge(true, 1));
-        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        graph.pruneGraph(2);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public byte[] getAdditionalSequence(boolean source) {
+        return source ? super.getAdditionalSequence(source) : getSuffixAsArray();
     }
 }

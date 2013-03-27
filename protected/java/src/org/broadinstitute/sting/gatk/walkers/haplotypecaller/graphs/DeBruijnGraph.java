@@ -44,82 +44,116 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.KMerErrorCorrector;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * simple node class for storing kmer sequences
+ * A DeBruijn kmer graph
  *
- * User: ebanks, mdepristo
- * Date: Mar 23, 2011
+ * User: rpoplin
+ * Date: 2/6/13
  */
-public class DeBruijnVertex extends BaseVertex {
-    private final static byte[][] sufficesAsByteArray = new byte[256][];
-    static {
-        for ( int i = 0; i < sufficesAsByteArray.length; i++ )
-            sufficesAsByteArray[i] = new byte[]{(byte)(i & 0xFF)};
-    }
-
-    public DeBruijnVertex( final byte[] sequence ) {
-        super(sequence);
-    }
-
+public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
     /**
-     * For testing purposes only
-     * @param sequence
+     * Create an empty DeBruijnGraph with default kmer size
      */
-    protected DeBruijnVertex( final String sequence ) {
-        this(sequence.getBytes());
+    public DeBruijnGraph() {
+        super();
     }
 
     /**
-     * Get the kmer size for this DeBruijnVertex
-     * @return integer >= 1
+     * Create an empty DeBruijnGraph with kmer size
+     * @param kmerSize kmer size, must be >= 1
      */
-    @Ensures("result >= 1")
-    public int getKmer() {
-        return sequence.length;
+    public DeBruijnGraph(int kmerSize) {
+        super(kmerSize);
     }
 
     /**
-     * Get the string representation of the suffix of this DeBruijnVertex
-     * @return a non-null non-empty string
+     * Pull kmers out of the given long sequence and throw them on in the graph
+     * @param sequence      byte array holding the sequence with which to build the assembly graph
+     * @param KMER_LENGTH   the desired kmer length to use
+     * @param isRef         if true the kmers added to the graph will have reference edges linking them
      */
-    @Ensures({"result != null", "result.length() >= 1"})
-    public String getSuffixString() {
-        return new String(getSuffixAsArray());
+    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
+        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
+        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
+        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
+            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
+        }
     }
 
     /**
-     * Get the suffix byte of this DeBruijnVertex
+     * Add edge to assembly graph connecting the two kmers
+     * @param kmer1 the source kmer for the edge
+     * @param kmer2 the target kmer for the edge
+     * @param isRef true if the added edge is a reference edge
+     */
+    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
+        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
+        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
+        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+
+        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
+        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
+        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
+
+        addVertices(v1, v2);
+        addOrUpdateEdge(v1, v2, toAdd);
+    }
+
+    /**
+     * Higher-level interface to #addKmersToGraph that adds a pair of kmers from a larger sequence of bytes to this
+     * graph.  The kmers start at start (first) and start + 1 (second) have have length getKmerSize().  The
+     * edge between them is added with isRef and multiplicity
      *
-     * The suffix byte is simply the last byte of the kmer sequence, so if this is holding sequence ACT
-     * getSuffix would return T
-     *
-     * @return a byte
+     * @param sequence a sequence of bases from which we want to extract a pair of kmers
+     * @param start the start of the first kmer in sequence, must be between 0 and sequence.length - 2 - getKmerSize()
+     * @param isRef should the edge between the two kmers be a reference edge?
+     * @param multiplicity what's the multiplicity of the edge between these two kmers
      */
-    public byte getSuffix() {
-        return sequence[getKmer() - 1];
+    public void addKmerPairFromSeqToGraph( final byte[] sequence, final int start, final boolean isRef, final int multiplicity ) {
+        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
+        if ( start < 0 ) throw new IllegalArgumentException("start must be >= 0 but got " + start);
+        if ( start + 1 + getKmerSize() > sequence.length ) throw new IllegalArgumentException("start " + start + " is too big given kmerSize " + getKmerSize() + " and sequence length " + sequence.length);
+        final byte[] kmer1 = Arrays.copyOfRange(sequence, start, start + getKmerSize());
+        final byte[] kmer2 = Arrays.copyOfRange(sequence, start + 1, start + 1 + getKmerSize());
+        addKmersToGraph(kmer1, kmer2, isRef, multiplicity);
     }
 
     /**
-     * Optimized version that returns a byte[] for the single byte suffix of this graph without allocating memory.
+     * Convert this kmer graph to a simple sequence graph.
      *
-     * Should not be modified
+     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
+     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
      *
-     * @return a byte[] that contains 1 byte == getSuffix()
+     * @return a newly allocated SequenceGraph
      */
-    @Ensures({"result != null", "result.length == 1", "result[0] == getSuffix()"})
-    private byte[] getSuffixAsArray() {
-        return sufficesAsByteArray[getSuffix()];
-    }
+    @Ensures({"result != null"})
+    public SeqGraph convertToSequenceGraph() {
+        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
+        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public byte[] getAdditionalSequence(boolean source) {
-        return source ? super.getAdditionalSequence(source) : getSuffixAsArray();
+        // create all of the equivalent seq graph vertices
+        for ( final DeBruijnVertex dv : vertexSet() ) {
+            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
+            vertexMap.put(dv, sv);
+            seqGraph.addVertex(sv);
+        }
+
+        // walk through the nodes and connect them to their equivalent seq vertices
+        for( final BaseEdge e : edgeSet() ) {
+            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
+            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
+            seqGraph.addEdge(seqInV, seqOutV, e);
+        }
+
+        return seqGraph;
     }
 }

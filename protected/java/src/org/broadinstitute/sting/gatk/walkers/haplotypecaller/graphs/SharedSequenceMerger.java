@@ -44,141 +44,95 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
+import org.apache.commons.lang.ArrayUtils;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
- * A DeBruijn kmer graph
+ * Merges the incoming vertices of a vertex V of a graph
  *
- * User: rpoplin
- * Date: 2/6/13
+ * Looks at the vertices that are incoming to V (i.e., have an outgoing edge connecting to V).  If
+ * they all have the same sequence, merges them into the sequence of V, and updates the graph
+ * as appropriate
+ *
+ * User: depristo
+ * Date: 3/22/13
+ * Time: 8:31 AM
  */
-public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        super();
-    }
+public class SharedSequenceMerger {
+    public SharedSequenceMerger() { }
 
     /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
+     * Attempt to merge the incoming vertices of v
+     *
+     * @param graph the graph containing the vertex v
+     * @param v the vertex whose incoming vertices we want to merge
+     * @return true if some useful merging was done, false otherwise
      */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize);
-    }
+    public boolean merge(final SeqGraph graph, final SeqVertex v) {
+        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
+        if ( ! graph.vertexSet().contains(v) ) throw new IllegalArgumentException("graph doesn't contain vertex " + v);
 
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
+        final Set<SeqVertex> prevs = graph.incomingVerticesOf(v);
+        if ( ! canMerge(graph, v, prevs) )
+            return false;
+        else {
+//            graph.printGraph(new File("csm." + counter + "." + v.getSequenceString() + "_pre.dot"), 0);
 
-    /**
-     * Error correct the kmers in this graph, returning a new graph built from those error corrected kmers
-     * @return an error corrected version of this (freshly allocated graph) or simply this graph if for some reason
-     *         we cannot actually do the error correction
-     */
-    protected DeBruijnGraph errorCorrect() {
-        final KMerErrorCorrector corrector = new KMerErrorCorrector(getKmerSize(), 1, 1, 5); // TODO -- should be static variables
+            final List<BaseEdge> edgesToRemove = new LinkedList<BaseEdge>();
+            final byte[] prevSeq = prevs.iterator().next().getSequence();
+            final SeqVertex newV = new SeqVertex(ArrayUtils.addAll(prevSeq, v.getSequence()));
+            graph.addVertex(newV);
 
-        for( final BaseEdge e : edgeSet() ) {
-            for ( final byte[] kmer : Arrays.asList(getEdgeSource(e).getSequence(), getEdgeTarget(e).getSequence())) {
-                // TODO -- need a cleaner way to deal with the ref weight
-                corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
-            }
-        }
-
-        if ( corrector.computeErrorCorrectionMap() ) {
-            final DeBruijnGraph correctedGraph = new DeBruijnGraph(getKmerSize());
-
-            for( final BaseEdge e : edgeSet() ) {
-                final byte[] source = corrector.getErrorCorrectedKmer(getEdgeSource(e).getSequence());
-                final byte[] target = corrector.getErrorCorrectedKmer(getEdgeTarget(e).getSequence());
-                if ( source != null && target != null ) {
-                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
+            for ( final SeqVertex prev : prevs ) {
+                for ( final BaseEdge prevIn : graph.incomingEdgesOf(prev) ) {
+                    graph.addEdge(graph.getEdgeSource(prevIn), newV, new BaseEdge(prevIn));
+                    edgesToRemove.add(prevIn);
                 }
             }
 
-            return correctedGraph;
-        } else {
-            // the error correction wasn't possible, simply return this graph
-            return this;
+            for ( final BaseEdge e : graph.outgoingEdgesOf(v) ) {
+                graph.addEdge(newV, graph.getEdgeTarget(e), new BaseEdge(e));
+            }
+
+            graph.removeAllVertices(prevs);
+            graph.removeVertex(v);
+            graph.removeAllEdges(edgesToRemove);
+
+//            graph.printGraph(new File("csm." + counter++ + "." + v.getSequenceString() + "_post.dot"), 0);
+
+            return true;
         }
     }
 
+    //private static int counter = 0;
+
     /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     * @return      will return false if trying to add a reference edge which creates a cycle in the assembly graph
+     * Can we safely merge the incoming vertices of v
+     *
+     * @param graph the graph containing v and incomingVertices
+     * @param v the vertex we want to merge into
+     * @param incomingVertices the incoming vertices of v
+     * @return true if we can safely merge incomingVertices
      */
-    public boolean addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+    private boolean canMerge(final SeqGraph graph, final SeqVertex v, final Collection<SeqVertex> incomingVertices) {
+        if ( incomingVertices.isEmpty() )
+            return false;
 
-        final int numVertexBefore = vertexSet().size();
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        addVertex(v1);
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        addVertex(v2);
-        if( isRef && vertexSet().size() == numVertexBefore ) { return false; }
-
-        final BaseEdge targetEdge = getEdge(v1, v2);
-        if ( targetEdge == null ) {
-            addEdge(v1, v2, new BaseEdge( isRef, multiplicity ));
-        } else {
-            if( isRef ) {
-                targetEdge.setIsRef( true );
-            }
-            targetEdge.setMultiplicity(targetEdge.getMultiplicity() + multiplicity);
+        final SeqVertex first = incomingVertices.iterator().next();
+        for ( final SeqVertex prev : incomingVertices) {
+            if ( ! prev.seqEquals(first) )
+                return false;
+            final Collection<SeqVertex> prevOuts = graph.outgoingVerticesOf(prev);
+            if ( prevOuts.size() != 1 )
+                return false;
+            if ( prevOuts.iterator().next() != v )
+                return false;
         }
+
         return true;
     }
 
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    protected SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
-        }
-
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
-
-        return seqGraph;
-    }
 }

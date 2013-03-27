@@ -44,122 +44,65 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.annotator;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
-import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-
-/**
- * The depth of coverage of each allele per sample
- *
- * <p>The AD and DP are complementary fields that are two important ways of thinking about the depth of the data for this
- * sample at this site.  While the sample-level (FORMAT) DP field describes the total depth of reads that passed the
- * caller's internal quality control metrics (like MAPQ > 17, for example), the AD values (one for each of
- * REF and ALT fields) is the unfiltered count of all reads that carried with them the
- * REF and ALT alleles. The reason for this distinction is that the DP is in some sense reflective of the
- * power I have to determine the genotype of the sample at this site, while the AD tells me how many times
- * I saw each of the REF and ALT alleles in the reads, free of any bias potentially introduced by filtering
- * the reads. If, for example, I believe there really is a an A/T polymorphism at a site, then I would like
- * to know the counts of A and T bases in this sample, even for reads with poor mapping quality that would
- * normally be excluded from the statistical calculations going into GQ and QUAL. Please note, however, that
- * the AD isn't necessarily calculated exactly for indels. Only reads which are statistically favoring one allele over the other are counted.
- * Because of this fact, the sum of AD may be different than the individual sample depth, especially when there are
- * many non-informative reads.</p>
- *
- * <p>Because the AD includes reads and bases that were filtered by the caller and in case of indels is based on a statistical computation,
- * <b>one should not base assumptions about the underlying genotype based on it</b>;
- * instead, the genotype likelihoods (PLs) are what determine the genotype calls.</p>
- *
- */
-public class DepthPerAlleleBySample extends GenotypeAnnotation implements StandardAnnotation {
-
-    public void annotate(final RefMetaDataTracker tracker,
-                         final AnnotatorCompatible walker,
-                         final ReferenceContext ref,
-                         final AlignmentContext stratifiedContext,
-                         final VariantContext vc,
-                         final Genotype g,
-                         final GenotypeBuilder gb,
-                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-        if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
-            return;
-
-        if (alleleLikelihoodMap != null && !alleleLikelihoodMap.isEmpty())
-            annotateWithLikelihoods(alleleLikelihoodMap, vc, gb);
-        else if ( stratifiedContext != null && (vc.isSNP()))
-            annotateWithPileup(stratifiedContext, vc, gb);
+public class SeqVertexUnitTest extends BaseTest {
+    @Test
+    public void testBasic() {
+        final byte[] bases = "ACT".getBytes();
+        final SeqVertex v1 = new SeqVertex(bases);
+        final SeqVertex v2 = new SeqVertex(bases);
+        Assert.assertTrue(v1.getId() >= 0);
+        Assert.assertTrue(v2.getId() >= 0);
+        Assert.assertTrue(v2.getId() > v1.getId());
     }
 
-    private void annotateWithPileup(final AlignmentContext stratifiedContext, final VariantContext vc, final GenotypeBuilder gb) {
+    @Test
+    public void testEqualsAndHashCode() {
+        final byte[] bases = "ACT".getBytes();
+        final SeqVertex v1 = new SeqVertex(bases);
+        final SeqVertex v1_neq = new SeqVertex(bases);
+        final SeqVertex v1_eq = new SeqVertex(v1);
 
-        HashMap<Byte, Integer> alleleCounts = new HashMap<Byte, Integer>();
-        for ( Allele allele : vc.getAlleles() )
-            alleleCounts.put(allele.getBases()[0], 0);
-
-        ReadBackedPileup pileup = stratifiedContext.getBasePileup();
-        for ( PileupElement p : pileup ) {
-            if ( alleleCounts.containsKey(p.getBase()) )
-                alleleCounts.put(p.getBase(), alleleCounts.get(p.getBase())+p.getRepresentativeCount());
-        }
-
-        // we need to add counts in the correct order
-        int[] counts = new int[alleleCounts.size()];
-        counts[0] = alleleCounts.get(vc.getReference().getBases()[0]);
-        for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
-            counts[i+1] = alleleCounts.get(vc.getAlternateAllele(i).getBases()[0]);
-
-        gb.AD(counts);
+        Assert.assertEquals(v1, v1);
+        Assert.assertEquals(v1.hashCode(), v1.hashCode());
+        Assert.assertEquals(v1, v1_eq);
+        Assert.assertEquals(v1.hashCode(), v1_eq.hashCode());
+        Assert.assertFalse(v1.equals(v1_neq));
+        Assert.assertFalse(v1_neq.equals(v1));
+        Assert.assertFalse(v1_neq.hashCode() == v1.hashCode());
     }
 
-    private void annotateWithLikelihoods(final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap, final VariantContext vc, final GenotypeBuilder gb) {
-        final HashMap<Allele, Integer> alleleCounts = new HashMap<Allele, Integer>();
+    @DataProvider(name = "WithoutSuffixData")
+    public Object[][] makeWithoutSuffixData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
 
-        for ( final Allele allele : vc.getAlleles() ) {
-            alleleCounts.put(allele, 0);
+        final String bases = "ACGTACGTACGT";
+        final int l = bases.length();
+        for ( int suffixLength = 0; suffixLength <= l; suffixLength++ ) {
+            final int suffixStart = l - suffixLength;
+            final String prefix = suffixLength == l ? null : bases.substring(0, suffixStart);
+            final String suffix = suffixStart == l ? "" : bases.substring(suffixStart, l);
+            tests.add(new Object[]{bases, suffix, prefix});
         }
-        for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final GATKSAMRecord read = el.getKey();
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (! a.isInformative() )
-                continue; // read is non-informative
-            if (!vc.getAlleles().contains(a.getMostLikelyAllele()))
-                continue; // sanity check - shouldn't be needed
-            alleleCounts.put(a.getMostLikelyAllele(), alleleCounts.get(a.getMostLikelyAllele()) + (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1));
-        }
-        final int[] counts = new int[alleleCounts.size()];
-        counts[0] = alleleCounts.get(vc.getReference());
-        for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
-            counts[i+1] = alleleCounts.get( vc.getAlternateAllele(i) );
 
-        gb.AD(counts);
+        return tests.toArray(new Object[][]{});
     }
 
-    public List<String> getKeyNames() { return Arrays.asList(VCFConstants.GENOTYPE_ALLELE_DEPTHS); }
-
-    public List<VCFFormatHeaderLine> getDescriptions() {
-        return Arrays.asList(VCFStandardHeaderLines.getFormatLine(getKeyNames().get(0)));
+    @Test(dataProvider = "WithoutSuffixData")
+    public void testWithoutSuffix(final String bases, final String suffix, final String expected) {
+        final SeqVertex basesSV = new SeqVertex(bases);
+        if ( expected == null )
+            Assert.assertNull(basesSV.withoutSuffix(suffix.getBytes()), "Failed for bases " + bases + " with suffix " + suffix + " != " + expected);
+        else
+            Assert.assertEquals(basesSV.withoutSuffix(suffix.getBytes()).getSequenceString(), expected, "Failed for bases " + bases + " with suffix " + suffix + " != " + expected);
     }
 }
