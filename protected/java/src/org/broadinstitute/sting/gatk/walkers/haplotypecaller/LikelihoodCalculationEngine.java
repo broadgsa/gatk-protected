@@ -231,7 +231,7 @@ public class LikelihoodCalculationEngine {
 
     @Requires({"haplotypes.size() > 0"})
     @Ensures({"result.size() <= haplotypes.size()"})
-    public List<Haplotype> selectBestHaplotypes( final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation ) {
+    public List<Haplotype> selectBestHaplotypesFromPooledLikelihoods(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation) {
 
         final int numHaplotypes = haplotypes.size();
         final Set<String> sampleKeySet = stratifiedReadMap.keySet();

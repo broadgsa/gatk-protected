@@ -204,7 +204,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Advanced
     @Argument(fullName="maxNumHaplotypesInPopulation", shortName="maxNumHaplotypesInPopulation", doc="Maximum number of haplotypes to consider for your population. This number will probably need to be increased when calling organisms with high heterozygosity.", required = false)
-    protected int maxNumHaplotypesInPopulation = 13;
+    protected int maxNumHaplotypesInPopulation = 25;
 
     @Advanced
     @Argument(fullName="minKmer", shortName="minKmer", doc="Minimum kmer length to use in the assembly graph", required = false)
@@ -557,8 +557,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
-        final List<Haplotype> bestHaplotypes = ( UG_engine.getUAC().GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ?
-                                                      likelihoodCalculationEngine.selectBestHaplotypes( haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation ) : haplotypes );
+        final List<Haplotype> bestHaplotypes = selectBestHaplotypesForGenotyping(haplotypes, stratifiedReadMap);
 
         final GenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods( UG_engine,
                 bestHaplotypes,
@@ -584,6 +583,22 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         if( DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
 
         return 1; // One active region was processed during this map call
+    }
+
+    /**
+     * Select the best N haplotypes according to their likelihoods, if appropriate
+     *
+     * @param haplotypes a list of haplotypes to consider
+     * @param stratifiedReadMap a map from samples -> read likelihoods
+     * @return the list of haplotypes to genotype
+     */
+    protected List<Haplotype> selectBestHaplotypesForGenotyping(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+        // TODO -- skip this calculation if the list of haplotypes is of size 2 (as we'll always use 2 for genotyping)
+        if ( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
+            return haplotypes;
+        } else {
+            return likelihoodCalculationEngine.selectBestHaplotypesFromPooledLikelihoods(haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation);
+        }
     }
 
     //---------------------------------------------------------------------------------------------------------------
