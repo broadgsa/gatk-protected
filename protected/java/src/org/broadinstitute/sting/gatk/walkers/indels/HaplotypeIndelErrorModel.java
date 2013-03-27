@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.indels;
 
 import net.sf.samtools.SAMRecord;
-import org.broadinstitute.sting.utils.Haplotype;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;

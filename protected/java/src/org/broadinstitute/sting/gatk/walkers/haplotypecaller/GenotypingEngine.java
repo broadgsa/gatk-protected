@@ -58,9 +58,9 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.variant.variantcontext.*;
 
 import java.io.PrintStream;
@@ -697,15 +697,6 @@ public class GenotypingEngine {
         return eventAllelesForSample;
     }
 
-    protected static boolean containsVCWithMatchingAlleles( final List<VariantContext> list, final VariantContext vcToTest ) {
-        for( final VariantContext vc : list ) {
-            if( vc.hasSameAllelesAs(vcToTest) ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     protected static Map<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final int alignmentStartHapwrtRef, final Cigar cigar, final byte[] ref, final byte[] alignment, final GenomeLoc refLoc, final String sourceNameToAdd ) {
         final Map<Integer,VariantContext> vcs = new LinkedHashMap<Integer,VariantContext>();
 
@@ -792,6 +783,15 @@ public class GenotypingEngine {
             }
         }
         return vcs;
+    }
+
+    protected static boolean containsVCWithMatchingAlleles( final List<VariantContext> list, final VariantContext vcToTest ) {
+        for( final VariantContext vc : list ) {
+            if( vc.hasSameAllelesAs(vcToTest) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     protected static class Event {
