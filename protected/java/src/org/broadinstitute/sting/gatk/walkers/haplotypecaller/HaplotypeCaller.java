@@ -559,7 +559,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         final GenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods( UG_engine,
                 bestHaplotypes,
-                samplesList,
                 stratifiedReadMap,
                 perSampleFilteredReadList,
                 fullReferenceWithPadding,
