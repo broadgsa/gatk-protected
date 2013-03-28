@@ -158,17 +158,17 @@ public class LikelihoodCalculationEngine {
     @Ensures({"result.length == result[0].length", "result.length == alleleOrdering.size()"})
     public static double[][] computeDiploidHaplotypeLikelihoods( final String sample,
                                                                  final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap,
-                                                                 final List<Allele> alleleOrdering ) {
-        final TreeSet<String> sampleSet = new TreeSet<String>();
-        sampleSet.add(sample);
-        return computeDiploidHaplotypeLikelihoods(sampleSet, stratifiedReadMap, alleleOrdering);
+                                                                 final List<Allele> alleleOrdering,
+                                                                 final boolean normalize ) {
+        return computeDiploidHaplotypeLikelihoods(Collections.singleton(sample), stratifiedReadMap, alleleOrdering, normalize);
     }
 
     @Requires({"alleleOrdering.size() > 0"})
     @Ensures({"result.length == result[0].length", "result.length == alleleOrdering.size()"})
     public static double[][] computeDiploidHaplotypeLikelihoods( final Set<String> samples,
                                                                  final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap,
-                                                                 final List<Allele> alleleOrdering ) {
+                                                                 final List<Allele> alleleOrdering,
+                                                                 final boolean normalize) {
 
         final int numHaplotypes = alleleOrdering.size();
         final double[][] haplotypeLikelihoodMatrix = new double[numHaplotypes][numHaplotypes];
@@ -195,7 +195,7 @@ public class LikelihoodCalculationEngine {
         }
 
         // normalize the diploid likelihoods matrix
-        return normalizeDiploidLikelihoodMatrixFromLog10( haplotypeLikelihoodMatrix );
+        return normalize ? normalizeDiploidLikelihoodMatrixFromLog10( haplotypeLikelihoodMatrix ) : haplotypeLikelihoodMatrix;
     }
 
     @Requires({"likelihoodMatrix.length == likelihoodMatrix[0].length"})
@@ -230,7 +230,7 @@ public class LikelihoodCalculationEngine {
         final List<Allele> haplotypesAsAlleles = new ArrayList<Allele>();
         for( final Haplotype h : haplotypes ) { haplotypesAsAlleles.add(Allele.create(h, true)); }
 
-        final double[][] haplotypeLikelihoodMatrix = computeDiploidHaplotypeLikelihoods( sampleKeySet, stratifiedReadMap, haplotypesAsAlleles ); // all samples pooled together
+        final double[][] haplotypeLikelihoodMatrix = computeDiploidHaplotypeLikelihoods( sampleKeySet, stratifiedReadMap, haplotypesAsAlleles, true ); // all samples pooled together
 
         int hap1 = 0;
         int hap2 = 0;

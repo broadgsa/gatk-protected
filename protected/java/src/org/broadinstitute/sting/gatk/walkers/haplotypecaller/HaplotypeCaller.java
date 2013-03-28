@@ -78,6 +78,8 @@ import org.broadinstitute.sting.utils.fragments.FragmentCollection;
 import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.haplotype.HaplotypeBaseComparator;
+import org.broadinstitute.sting.utils.haplotype.LDMerger;
 import org.broadinstitute.sting.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
@@ -302,6 +304,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="useLowQualityBasesForAssembly", shortName="useLowQualityBasesForAssembly", doc="If specified, we will include low quality bases when doing the assembly", required = false)
     protected boolean useLowQualityBasesForAssembly = false;
 
+    @Hidden
+    @Argument(fullName="useNewLDMerger", shortName="useNewLDMerger", doc="If specified, we will include low quality bases when doing the assembly", required = false)
+    protected boolean useNewLDMerger = false;
+
     // the UG engines
     private UnifiedGenotyperEngine UG_engine = null;
     private UnifiedGenotyperEngine UG_engine_simple_genotyper = null;
@@ -412,7 +418,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         if ( useLowQualityBasesForAssembly ) assemblyEngine.setMinBaseQualityToUseInAssembly((byte)1);
 
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
-        genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS );
+
+        final LDMerger ldMerger = new LDMerger(DEBUG, useNewLDMerger ? 10 : 10, useNewLDMerger ? 1 : 10);
+
+        genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS, ldMerger );
 
         if ( bamWriter != null )
             haplotypeBAMWriter = HaplotypeBAMWriter.create(bamWriterType, bamWriter, getToolkit().getSAMFileHeader());
@@ -545,7 +554,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         if( activeRegion.size() == 0 ) { return 1; } // no reads remain after filtering so nothing else to do!
 
         // sort haplotypes to take full advantage of haplotype start offset optimizations in PairHMM
-        Collections.sort( haplotypes, new Haplotype.HaplotypeBaseComparator() );
+        Collections.sort( haplotypes, new HaplotypeBaseComparator() );
 
         if (dontGenotype)
             return 1;

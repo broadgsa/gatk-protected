@@ -48,18 +48,18 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
-import org.broadinstitute.sting.utils.*;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.EventExtractor;
+import org.broadinstitute.sting.utils.haplotype.EventMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.haplotype.LDMerger;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
@@ -74,12 +74,16 @@ public class GenotypingEngine {
     private final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS;
     private final static List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
     private final VariantAnnotatorEngine annotationEngine;
+    private final LDMerger ldMerger;
 
-    public GenotypingEngine( final boolean DEBUG, final VariantAnnotatorEngine annotationEngine, final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ) {
+    public GenotypingEngine( final boolean DEBUG, final VariantAnnotatorEngine annotationEngine,
+                             final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS,
+                             final LDMerger ldMerger) {
         this.DEBUG = DEBUG;
         this.annotationEngine = annotationEngine;
         this.USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = USE_FILTERED_READ_MAP_FOR_ANNOTATIONS;
         noCall.add(Allele.NO_CALL);
+        this.ldMerger = ldMerger;
     }
 
     /**
@@ -235,31 +239,18 @@ public class GenotypingEngine {
                                                                     final GenomeLoc refLoc,
                                                                     final List<VariantContext> activeAllelesToGenotype) {
         final boolean in_GGA_mode = !activeAllelesToGenotype.isEmpty();
-        int hapNumber = 0;
 
         // Using the cigar from each called haplotype figure out what events need to be written out in a VCF file
-        final TreeSet<Integer> startPosKeySet = new TreeSet<Integer>();
+        final TreeSet<Integer> startPosKeySet = EventMap.buildEventMapsForHaplotypes(haplotypes, ref, refLoc, DEBUG);
 
-        if( DEBUG ) logger.info("=== Best Haplotypes ===");
-        for( final Haplotype h : haplotypes ) {
-            // Walk along the alignment and turn any difference from the reference into an event
-            h.setEventMap( new EventExtractor( h, ref, refLoc, "HC" + hapNumber++ ) );
-            if( ! in_GGA_mode ) {
-                startPosKeySet.addAll(h.getEventMap().getStartPositions());
-            }
-
-            if( DEBUG ) {
-                logger.info(h.toString());
-                logger.info("> Cigar = " + h.getCigar());
-                logger.info(">> Events = " + h.getEventMap());
-            }
-        }
+        if ( in_GGA_mode ) startPosKeySet.clear();
 
         cleanUpSymbolicUnassembledEvents( haplotypes );
-        if ( !in_GGA_mode && haplotypeReadMap.size() >= 10 ) {
+        if ( !in_GGA_mode ) {
             // if not in GGA mode and have at least 10 samples try to create MNP and complex events by looking at LD structure
-            mergeConsecutiveEventsBasedOnLD( haplotypes, haplotypeReadMap, startPosKeySet, ref, refLoc );
-            cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events
+            final boolean mergedAnything = ldMerger.mergeConsecutiveEventsBasedOnLD( haplotypes, haplotypeReadMap, startPosKeySet, ref, refLoc );
+            if ( mergedAnything )
+                cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events
         }
 
         if ( in_GGA_mode ) {
@@ -290,7 +281,7 @@ public class GenotypingEngine {
 
         if( activeAllelesToGenotype.isEmpty() ) {
             for( final Haplotype h : haplotypes ) {
-                final EventExtractor eventMap = h.getEventMap();
+                final EventMap eventMap = h.getEventMap();
                 final VariantContext vc = eventMap.get(loc);
                 if( vc != null && !containsVCWithMatchingAlleles(eventsAtThisLoc, vc) ) {
                     eventsAtThisLoc.add(vc);
@@ -341,14 +332,14 @@ public class GenotypingEngine {
         for( final String sample : alleleReadMap.keySet() ) {
             final int numHaplotypes = mergedVC.getAlleles().size();
             final double[] genotypeLikelihoods = new double[numHaplotypes * (numHaplotypes+1) / 2];
-            final double[][] haplotypeLikelihoodMatrix = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleReadMap, mergedVC.getAlleles());
+            final double[][] haplotypeLikelihoodMatrix = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleReadMap, mergedVC.getAlleles(), true);
             int glIndex = 0;
             for( int iii = 0; iii < numHaplotypes; iii++ ) {
                 for( int jjj = 0; jjj <= iii; jjj++ ) {
                     genotypeLikelihoods[glIndex++] = haplotypeLikelihoodMatrix[iii][jjj]; // for example: AA,AB,BB,AC,BC,CC
                 }
             }
-            genotypes.add( new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make() );
+            genotypes.add(new GenotypeBuilder(sample).alleles(noCall).PL(genotypeLikelihoods).make());
         }
         return genotypes;
     }
@@ -440,156 +431,6 @@ public class GenotypingEngine {
         return alleleReadMap;
     }
 
-    /**
-     * TODO - comment me, clean me, refactor me!
-     * @param haplotypes
-     * @param haplotypeReadMap
-     * @param startPosKeySet
-     * @param ref
-     * @param refLoc
-     */
-    protected void mergeConsecutiveEventsBasedOnLD( final List<Haplotype> haplotypes,
-                                                    final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
-                                                    final TreeSet<Integer> startPosKeySet,
-                                                    final byte[] ref,
-                                                    final GenomeLoc refLoc ) {
-
-        final int MAX_SIZE_TO_COMBINE = 15;
-        final double MERGE_EVENTS_R2_THRESHOLD = 0.95;
-        if( startPosKeySet.size() <= 1 ) { return; }
-
-        final Set<String> samples = haplotypeReadMap.keySet();
-        boolean mapWasUpdated = true;
-        while( mapWasUpdated ) {
-            mapWasUpdated = false;
-
-            // loop over the set of start locations and consider pairs that start near each other
-            final Iterator<Integer> iter = startPosKeySet.iterator();
-            int thisStart = iter.next();
-            while( iter.hasNext() ) {
-                final int nextStart = iter.next();
-                if( nextStart - thisStart < MAX_SIZE_TO_COMBINE) {
-                    boolean isBiallelic = true;
-                    VariantContext thisVC = null;
-                    VariantContext nextVC = null;
-                    double x11 = Double.NEGATIVE_INFINITY;
-                    double x12 = Double.NEGATIVE_INFINITY;
-                    double x21 = Double.NEGATIVE_INFINITY;
-                    double x22 = Double.NEGATIVE_INFINITY;
-
-                    for( final Haplotype h : haplotypes ) {
-                        // only make complex substitutions out of consecutive biallelic sites
-                        final VariantContext thisHapVC = h.getEventMap().get(thisStart);
-                        if( thisHapVC != null && !thisHapVC.isSymbolic() ) { // something was found at this location on this haplotype
-                            if( thisVC == null ) {
-                                thisVC = thisHapVC;
-                            } else if( !thisHapVC.hasSameAllelesAs( thisVC ) ) {
-                                isBiallelic = false;
-                                break;
-                            }
-                        }
-                        final VariantContext nextHapVC = h.getEventMap().get(nextStart);
-                        if( nextHapVC != null && !nextHapVC.isSymbolic() ) { // something was found at the next location on this haplotype
-                            if( nextVC == null ) {
-                                nextVC = nextHapVC;
-                            } else if( !nextHapVC.hasSameAllelesAs( nextVC ) ) {
-                                isBiallelic = false;
-                                break;
-                            }
-                        }
-                        // count up the co-occurrences of the events for the R^2 calculation
-                        for( final String sample : samples ) {
-                            final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods( Collections.singleton(sample), haplotypeReadMap, Collections.singletonList(Allele.create(h, true)) )[0][0];
-                            if( thisHapVC == null ) {
-                                if( nextHapVC == null ) { x11 = MathUtils.approximateLog10SumLog10(x11, haplotypeLikelihood); }
-                                else { x12 = MathUtils.approximateLog10SumLog10(x12, haplotypeLikelihood); }
-                            } else {
-                                if( nextHapVC == null ) { x21 = MathUtils.approximateLog10SumLog10(x21, haplotypeLikelihood); }
-                                else { x22 = MathUtils.approximateLog10SumLog10(x22, haplotypeLikelihood); }
-                            }
-                        }
-                    }
-                    if( thisVC == null || nextVC == null ) {
-                        continue;
-                    }
-                    if( isBiallelic ) {
-                        final double R2 = calculateR2LD( Math.pow(10.0, x11), Math.pow(10.0, x12), Math.pow(10.0, x21), Math.pow(10.0, x22) );
-                        if( DEBUG ) {
-                            logger.info("Found consecutive biallelic events with R^2 = " + String.format("%.4f", R2));
-                            logger.info("-- " + thisVC);
-                            logger.info("-- " + nextVC);
-                        }
-                        if( R2 > MERGE_EVENTS_R2_THRESHOLD ) {
-
-                            final VariantContext mergedVC = createMergedVariantContext(thisVC, nextVC, ref, refLoc);
-
-                            // remove the old event from the eventMap on every haplotype and the start pos key set, replace with merged event
-                            for( final Haplotype h : haplotypes ) {
-                                if( h.getEventMap().containsKey(thisStart) && h.getEventMap().containsKey(nextStart) ) {
-                                    h.getEventMap().remove(thisStart);
-                                    h.getEventMap().remove(nextStart);
-                                    h.getEventMap().put(mergedVC.getStart(), mergedVC);
-                                }
-                            }
-                            startPosKeySet.add(mergedVC.getStart());
-                            boolean containsStart = false;
-                            boolean containsNext = false;
-                            for( final Haplotype h : haplotypes ) {
-                                final Map<Integer, VariantContext> eventMap = h.getEventMap();
-                                if( eventMap.containsKey(thisStart) ) { containsStart = true; }
-                                if( eventMap.containsKey(nextStart) ) { containsNext = true; }
-                            }
-                            if(!containsStart) { startPosKeySet.remove(thisStart); }
-                            if(!containsNext) { startPosKeySet.remove(nextStart); }
-
-                            if( DEBUG ) { logger.info("====> " + mergedVC); }
-                            mapWasUpdated = true;
-                            break; // break out of tree set iteration since it was just updated, start over from the beginning and keep merging events
-                        }
-                    }
-                }
-                thisStart = nextStart;
-            }
-        }
-    }
-
-    // BUGBUG: make this merge function more general
-    protected static VariantContext createMergedVariantContext( final VariantContext thisVC, final VariantContext nextVC, final byte[] ref, final GenomeLoc refLoc ) {
-        final int thisStart = thisVC.getStart();
-        final int nextStart = nextVC.getStart();
-        byte[] refBases = new byte[]{};
-        byte[] altBases = new byte[]{};
-        refBases = ArrayUtils.addAll(refBases, thisVC.getReference().getBases());
-        altBases = ArrayUtils.addAll(altBases, thisVC.getAlternateAllele(0).getBases());
-        int locus;
-        for( locus = thisStart + refBases.length; locus < nextStart; locus++ ) {
-            final byte refByte = ref[locus - refLoc.getStart()];
-            refBases = ArrayUtils.add(refBases, refByte);
-            altBases = ArrayUtils.add(altBases, refByte);
-        }
-        refBases = ArrayUtils.addAll(refBases, ArrayUtils.subarray(nextVC.getReference().getBases(), locus > nextStart ? 1 : 0, nextVC.getReference().getBases().length)); // special case of deletion including the padding base of consecutive indel
-        altBases = ArrayUtils.addAll(altBases, nextVC.getAlternateAllele(0).getBases());
-
-        int iii = 0;
-        if( refBases.length == altBases.length ) { // insertion + deletion of same length creates an MNP --> trim common prefix bases off the beginning of the allele
-            while( iii < refBases.length && refBases[iii] == altBases[iii] ) { iii++; }
-        }
-        final List<Allele> mergedAlleles = new ArrayList<Allele>();
-        mergedAlleles.add( Allele.create( ArrayUtils.subarray(refBases, iii, refBases.length), true ) );
-        mergedAlleles.add( Allele.create( ArrayUtils.subarray(altBases, iii, altBases.length), false ) );
-        return new VariantContextBuilder("merged", thisVC.getChr(), thisVC.getStart() + iii, nextVC.getEnd(), mergedAlleles).make();
-    }
-
-    protected static double calculateR2LD( final double x11, final double x12, final double x21, final double x22 ) {
-        final double total = x11 + x12 + x21 + x22;
-        final double pa1b1 = x11 / total;
-        final double pa1b2 = x12 / total;
-        final double pa2b1 = x21 / total;
-        final double pa1 = pa1b1 + pa1b2;
-        final double pb1 = pa1b1 + pa2b1;
-        return ((pa1b1 - pa1*pb1) * (pa1b1 - pa1*pb1)) / ( pa1 * (1.0 - pa1) * pb1 * (1.0 - pb1) );
-    }
-
     protected static Map<Allele, List<Haplotype>> createAlleleMapper( final Map<VariantContext, Allele> mergeMap, final Map<Event, List<Haplotype>> eventMap ) {
         final Map<Allele, List<Haplotype>> alleleMapper = new LinkedHashMap<Allele, List<Haplotype>>();
         for( final Map.Entry<VariantContext, Allele> entry : mergeMap.entrySet() ) {
@@ -616,8 +457,8 @@ public class GenotypingEngine {
                 alleles.add(h.getArtificialRefAllele());
                 alleles.add(h.getArtificialAltAllele());
                 final Event artificialVC = new Event( (new VariantContextBuilder()).source("artificialHaplotype")
-                                                                                            .alleles(alleles)
-                                                                                            .loc(refVC.getChr(), refVC.getStart(), refVC.getStart() + h.getArtificialRefAllele().length() - 1).make() );
+                        .alleles(alleles)
+                        .loc(refVC.getChr(), refVC.getStart(), refVC.getStart() + h.getArtificialRefAllele().length() - 1).make() );
                 if( eventMapper.containsKey(artificialVC) ) {
                     eventMapper.get(artificialVC).add(h);
                 }
@@ -711,7 +552,7 @@ public class GenotypingEngine {
 
     @Deprecated
     protected static Map<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final byte[] ref, final GenomeLoc refLoc, final String sourceNameToAdd ) {
-        return new EventExtractor(haplotype, ref, refLoc, sourceNameToAdd);
+        return new EventMap(haplotype, ref, refLoc, sourceNameToAdd);
     }
 
     protected static boolean containsVCWithMatchingAlleles( final List<VariantContext> list, final VariantContext vcToTest ) {
