@@ -44,44 +44,132 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.qc;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.testng.annotations.Test;
+import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.commandline.Hidden;
+import org.broadinstitute.sting.commandline.Output;
+import org.broadinstitute.sting.gatk.CommandLineGATK;
+import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.filters.*;
+import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
+import org.broadinstitute.sting.gatk.walkers.LocusWalker;
+import org.broadinstitute.sting.gatk.walkers.ReadFilters;
+import org.broadinstitute.sting.gatk.walkers.TreeReducible;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.pileup.PileupElement;
+import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 
-import java.util.Arrays;
+import java.io.PrintStream;
+import java.util.HashSet;
+import java.util.Set;
 
-public class UnifiedGenotyperReducedReadsIntegrationTest extends WalkerTest {
+/**
+ * Emits intervals present in either the original or reduced bam but not the other.
+ *
+ * <h3>Input</h3>
+ * <p>
+ * The original and reduced BAM files.
+ * </p>
+ *
+ * <h3>Output</h3>
+ * <p>
+ * A list of intervals present in one bam but not the other.
+ * </p>
+ *
+ * <h3>Examples</h3>
+ * <pre>
+ * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ *   -I:original original.bam \
+ *   -I:reduced reduced.bam \
+ *   -R ref.fasta \
+ *   -T AssessReducedCoverage \
+ *   -o output.intervals
+ * </pre>
+ *
+ * @author ebanks
+ */
+@DocumentedGATKFeature( groupName = "Quality Control and Simple Analysis Tools", extraDocs = {CommandLineGATK.class} )
+@ReadFilters({UnmappedReadFilter.class, NotPrimaryAlignmentFilter.class, DuplicateReadFilter.class, FailsVendorQualityCheckFilter.class, BadCigarFilter.class})
+@Hidden
+public class AssessReducedCoverage extends LocusWalker<GenomeLoc, GenomeLoc> implements TreeReducible<GenomeLoc> {
 
-    // --------------------------------------------------------------------------------------------------------------
-    //
-    // testing reduced reads
-    //
-    // --------------------------------------------------------------------------------------------------------------
+    private static final String original = "original";
+    private static final String reduced = "reduced";
 
-    @Test
-    public void testReducedBam() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("d55d37e2e86aefb91e47183d2c7dede8"));
-        executeTest("test calling on a ReducedRead BAM", spec);
+    @Output
+    protected PrintStream out;
+
+    @Override
+    public boolean includeReadsWithDeletionAtLoci() { return true; }
+
+    @Argument(fullName = "output_reduced_only_coverage", shortName = "output_reduced_only_coverage", doc = "Output an interval if the reduced bam has coverage where the original does not", required = false)
+    public boolean OUTPUT_REDUCED_ONLY_INTERVALS = false;
+
+    public void initialize() {}
+
+    public GenomeLoc map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
+
+        if ( tracker == null )
+            return null;
+
+        final Set<String> tags = getAllTags(context.getBasePileup());
+        return (tags.contains(original) && !tags.contains(reduced)) ||
+                (OUTPUT_REDUCED_ONLY_INTERVALS && tags.contains(reduced) && !tags.contains(original)) ? ref.getLocus() : null;
     }
 
-    @Test
-    public void testReducedBamSNPs() {
-        testReducedCalling("SNP", "b424779c6609cb727a675bdd301290e6");
+    private Set<String> getAllTags(final ReadBackedPileup pileup) {
+
+        final Set<String> tags = new HashSet<String>(10);
+
+        for ( final PileupElement p : pileup ) {
+            if ( (int)p.getQual() > 2 && p.getMappingQual() > 0 && !p.isDeletion() )
+                tags.addAll(getToolkit().getReaderIDForRead(p.getRead()).getTags().getPositionalTags());
+        }
+
+        return tags;
     }
 
-    @Test
-    public void testReducedBamINDELs() {
-        testReducedCalling("INDEL", "9a702e7a85465f6c42d6c1828aee6c38");
+    public void onTraversalDone(GenomeLoc sum) {
+        if ( sum != null )
+            out.println(sum);
     }
 
+    public GenomeLoc reduceInit() {
+        return null;
+    }
 
-    private void testReducedCalling(final String model, final String md5) {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.reduced.bam -o %s -L 20:10,000,000-10,500,000 -glm " + model, 1,
-                Arrays.asList(md5));
-        executeTest("test calling on a ReducedRead BAM with " + model, spec);
+    public GenomeLoc treeReduce(GenomeLoc lhs, GenomeLoc rhs) {
+        if ( lhs == null )
+            return rhs;
+
+        if ( rhs == null )
+            return lhs;
+
+        // if contiguous, just merge them
+        if ( lhs.contiguousP(rhs) )
+            return getToolkit().getGenomeLocParser().createGenomeLoc(lhs.getContig(), lhs.getStart(), rhs.getStop());
+
+        // otherwise, print the lhs and start over with the rhs
+        out.println(lhs);
+        return rhs;
+    }
+
+    public GenomeLoc reduce(GenomeLoc value, GenomeLoc sum) {
+        if ( value == null )
+            return sum;
+
+        if ( sum == null )
+            return value;
+
+        // if contiguous, just merge them
+        if ( sum.contiguousP(value) )
+            return getToolkit().getGenomeLocParser().createGenomeLoc(sum.getContig(), sum.getStart(), value.getStop());
+
+        // otherwise, print the sum and start over with the value
+        out.println(sum);
+        return value;
     }
 }

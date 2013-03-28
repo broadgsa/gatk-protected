@@ -49,12 +49,29 @@ package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import net.sf.samtools.SAMFileHeader;
+import org.broad.tribble.Feature;
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.commandline.RodBinding;
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
+import org.broadinstitute.sting.gatk.refdata.RODRecordListImpl;
+import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
+import org.broadinstitute.sting.gatk.refdata.utils.GATKFeature;
+import org.broadinstitute.sting.gatk.refdata.utils.RODRecordList;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 
@@ -96,7 +113,7 @@ public class ReduceReadsUnitTest extends BaseTest {
     /**
      * Test the read name compression functionality
      */
-    @Test(dataProvider = "ReadNameProvider")
+    @Test(dataProvider = "ReadNameProvider", enabled = false)
     public void testReadNameCompression(final String name, final boolean alreadySeen) {
         GATKSAMRecord read = GATKSAMRecord.createRandomRead(1);
         read.setReadName(name);
@@ -106,6 +123,92 @@ public class ReduceReadsUnitTest extends BaseTest {
         Assert.assertEquals(hash.keySet().size(), alreadySeen ? previousHashSize : previousHashSize + 1);
         Assert.assertEquals(nextNumber, alreadySeen ? previousNumber : previousNumber + 1);
         Assert.assertTrue(hash.containsKey(name));
+    }
+
+
+    /////////////////////////////////////////////////////////////////////////////
+    //// This section tests the functionality related to known SNP positions ////
+    /////////////////////////////////////////////////////////////////////////////
+
+    private static SAMFileHeader header;
+    private static GenomeLocParser genomeLocParser;
+
+    @BeforeClass
+    public void beforeClass() {
+        header = ArtificialSAMUtils.createArtificialSamHeader(3, 1, 100);
+        genomeLocParser = new GenomeLocParser(header.getSequenceDictionary());
+    }
+
+    @DataProvider(name = "PopulateKnownsProvider")
+    public Object[][] populateKnownsProvider() {
+
+        final Allele A = Allele.create("A", true);
+        final Allele C = Allele.create("C");
+        final Allele G = Allele.create("G");
+        final Allele AC = Allele.create("AC");
+
+        final VariantContext snp_1_10 = new VariantContextBuilder("known", "chr1", 10, 10, Arrays.asList(A, C)).make();
+        final VariantContext snp_1_10_2 = new VariantContextBuilder("known", "chr1", 10, 10, Arrays.asList(A, G)).make();
+        final VariantContext snp_1_20 = new VariantContextBuilder("known", "chr1", 20, 20, Arrays.asList(A, C)).make();
+        final VariantContext snp_1_30 = new VariantContextBuilder("known", "chr1", 30, 30, Arrays.asList(A, C)).make();
+        final VariantContext snp_2_10 = new VariantContextBuilder("known", "chr2", 10, 10, Arrays.asList(A, C)).make();
+        final VariantContext snp_3_10 = new VariantContextBuilder("known", "chr3", 10, 10, Arrays.asList(A, C)).make();
+        final VariantContext indel_1_40 = new VariantContextBuilder("known", "chr1", 40, 40, Arrays.asList(A, AC)).make();
+        final VariantContext indel_2_40 = new VariantContextBuilder("known", "chr2", 40, 40, Arrays.asList(A, AC)).make();
+
+        final GATKSAMRecord read1 = ArtificialSAMUtils.createArtificialRead(header, "foo1", 0, 1, 1);
+        final GATKSAMRecord read2 = ArtificialSAMUtils.createArtificialRead(header, "foo2", 1, 1, 1);
+        final GATKSAMRecord read3 = ArtificialSAMUtils.createArtificialRead(header, "foo3", 2, 1, 1);
+
+        final ObjectArrayList<Object[]> tests = new ObjectArrayList<Object[]>();
+
+        // test single
+        tests.add(new Object[]{1, 1, read1, Arrays.asList(makeRefMetaDataTracker(snp_1_10))});
+
+        // test multiple at one position
+        tests.add(new Object[]{1, 1, read1, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_10_2))});
+
+        // test multiple
+        tests.add(new Object[]{3, 3, read1, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30))});
+
+        // test indel not used
+        tests.add(new Object[]{3, 3, read1, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30), makeRefMetaDataTracker(indel_1_40))});
+        tests.add(new Object[]{3, 3, read1, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30), makeRefMetaDataTracker(indel_2_40))});
+
+        // test read clears
+        tests.add(new Object[]{3, 0, read2, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30))});
+        tests.add(new Object[]{4, 1, read2, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30), makeRefMetaDataTracker(snp_2_10))});
+        tests.add(new Object[]{3, 0, read3, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30))});
+        tests.add(new Object[]{4, 0, read3, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30), makeRefMetaDataTracker(snp_2_10))});
+        tests.add(new Object[]{4, 1, read3, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30), makeRefMetaDataTracker(snp_3_10))});
+        tests.add(new Object[]{5, 1, read3, Arrays.asList(makeRefMetaDataTracker(snp_1_10), makeRefMetaDataTracker(snp_1_20), makeRefMetaDataTracker(snp_1_30), makeRefMetaDataTracker(snp_2_10), makeRefMetaDataTracker(snp_3_10))});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    private final RefMetaDataTracker makeRefMetaDataTracker(final Feature feature) {
+        final List<GATKFeature> x = new ArrayList<GATKFeature>();
+        x.add(new GATKFeature.TribbleGATKFeature(genomeLocParser, feature, "known"));
+        final RODRecordList rods = new RODRecordListImpl("known", x, genomeLocParser.createGenomeLoc(feature.getChr(), feature.getStart(), feature.getEnd()));
+        return new RefMetaDataTracker(Arrays.asList(rods));
+    }
+
+    @Test(dataProvider = "PopulateKnownsProvider")
+    public void testPopulateKnowns(final int expectedSizeBeforeClear, final int expectedSizeAfterClear, final GATKSAMRecord read, final List<RefMetaDataTracker> trackers) {
+        final ReduceReads rr = new ReduceReads();
+        RodBinding.resetNameCounter();
+        rr.known = Arrays.<RodBinding<VariantContext>>asList(new RodBinding(VariantContext.class, "known"));
+
+        final GenomeAnalysisEngine engine = new GenomeAnalysisEngine();
+        engine.setGenomeLocParser(genomeLocParser);
+        rr.setToolkit(engine);
+
+        for ( final RefMetaDataTracker tracker : trackers )
+            rr.populateKnownSNPs(tracker);
+        Assert.assertEquals(rr.knownSnpPositions.size(), expectedSizeBeforeClear);
+
+        rr.clearStaleKnownPositions(read);
+        Assert.assertEquals(rr.knownSnpPositions.size(), expectedSizeAfterClear);
     }
 
 }

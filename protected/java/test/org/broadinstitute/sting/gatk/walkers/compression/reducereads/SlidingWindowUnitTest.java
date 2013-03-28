@@ -46,9 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectList;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
+import it.unimi.dsi.fastutil.objects.*;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
@@ -317,6 +315,7 @@ public class SlidingWindowUnitTest extends BaseTest {
     private static final GenomeLoc loc295 = new UnvalidatingGenomeLoc("1", 0, 1000295, 1000295);
     private static final GenomeLoc loc309 = new UnvalidatingGenomeLoc("1", 0, 1000309, 1000309);
     private static final GenomeLoc loc310 = new UnvalidatingGenomeLoc("1", 0, 1000310, 1000310);
+    private static final GenomeLoc loc312 = new UnvalidatingGenomeLoc("1", 0, 1000312, 1000312);
     private static final GenomeLoc loc1100 = new UnvalidatingGenomeLoc("1", 0, 1001100, 1001100);
 
     @DataProvider(name = "ConsensusCreation")
@@ -325,10 +324,11 @@ public class SlidingWindowUnitTest extends BaseTest {
 
         // test high quality reads and bases
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, false, 1, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, false, 9, 5)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, false, 9, 6)});
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, false, 10, 10)});
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, false, 10, 10)});
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, false, 11, 11)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc312), false, false, 11, 8)});
 
         // test low quality reads
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), true, false, 1, 1)});
@@ -349,8 +349,7 @@ public class SlidingWindowUnitTest extends BaseTest {
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), false, true, 3, 3)});
 
         // test I/D operators
-        // TODO -- uncomment this test when the deletion bug is fixed!
-        // tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.D, 9, 5)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.D, 9, 9)});
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.D, 10, 10)});
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.D, 10, 10)});
         tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.D, 11, 11)});
@@ -364,21 +363,64 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     @Test(dataProvider = "ConsensusCreation", enabled = true)
     public void testConsensusCreationTest(ConsensusCreationTest test) {
-        // test WITHOUT het compression allowed
-        SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, false);
+        final ObjectAVLTreeSet<GenomeLoc> knownSNPs = new ObjectAVLTreeSet<GenomeLoc>();
+
+        // test WITHOUT het compression
+        SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
-        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
+        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close(knownSNPs); // currently empty
 
         Assert.assertEquals(result.getFirst().size(), test.expectedNumberOfReads);
 
-        // test WITH het compression allowed
-        slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, true);
+        // test WITH het compression
+        slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
-        result = slidingWindow.close();
+        for ( int i = 0; i < 1200; i++ )
+            knownSNPs.add(new UnvalidatingGenomeLoc("1", 0, globalStartPosition + i, globalStartPosition + i));
+        result = slidingWindow.close(knownSNPs);
 
         Assert.assertEquals(result.getFirst().size(), test.expectedNumberOfReadsWithHetCompression);
+    }
+
+    @Test
+    public void testConsensusCreationForMultiallelic() {
+
+        final int totalNumReads = 7;
+        final ObjectList<GATKSAMRecord> myReads = new ObjectArrayList<GATKSAMRecord>(totalNumReads);
+
+        for ( int i = 0; i < totalNumReads; i++ ) {
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead" + i, 0, globalStartPosition, readLength);
+            read.setBaseQualities(Utils.dupBytes((byte)30, readLength));
+            read.setMappingQuality(30);
+            read.setReadNegativeStrandFlag(false);
+
+            final char base = i < totalNumReads - 2 ? 'A' : ( i == totalNumReads - 2 ? 'C' : 'G');
+            read.setReadBases(Utils.dupBytes((byte) base, readLength));
+
+            myReads.add(read);
+        }
+
+        final ObjectAVLTreeSet<GenomeLoc> knownSNPs = new ObjectAVLTreeSet<GenomeLoc>();
+
+        // test WITHOUT het compression
+        SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
+        for ( final GATKSAMRecord read : myReads )
+            slidingWindow.addRead(read);
+        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close(knownSNPs); // currently empty
+
+        Assert.assertEquals(result.getFirst().size(), totalNumReads); // no compression at all
+
+        // test WITH het compression
+        slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
+        for ( final GATKSAMRecord read : myReads )
+            slidingWindow.addRead(read);
+        for ( int i = 0; i < readLength; i++ )
+            knownSNPs.add(new UnvalidatingGenomeLoc("1", 0, globalStartPosition + i, globalStartPosition + i));
+        result = slidingWindow.close(knownSNPs);
+
+        Assert.assertEquals(result.getFirst().size(), totalNumReads); // no compression at all
     }
 
 
@@ -398,7 +440,7 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     @Test(dataProvider = "Downsampling", enabled = true)
     public void testDownsamplingTest(final int dcov) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, dcov, ReduceReads.DownsampleStrategy.Normal, false, false);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, dcov, ReduceReads.DownsampleStrategy.Normal, false);
         final ObjectList<GATKSAMRecord> result = slidingWindow.downsampleVariantRegion(basicReads);
 
         Assert.assertEquals(result.size(), Math.min(dcov, basicReads.size()));
@@ -446,10 +488,10 @@ public class SlidingWindowUnitTest extends BaseTest {
 
     @Test(dataProvider = "ConsensusQuals", enabled = true)
     public void testConsensusQualsTest(QualsTest test) {
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, minUsableConsensusQual, 20, 100, ReduceReads.DownsampleStrategy.Normal, false, false);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, minUsableConsensusQual, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
         for ( final GATKSAMRecord read : test.myReads )
             slidingWindow.addRead(read);
-        final Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close();
+        final Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close(new ObjectAVLTreeSet<GenomeLoc>());
 
         Assert.assertEquals(result.getFirst().size(), 1);
         final GATKSAMRecord read = result.getFirst().iterator().next();
@@ -515,7 +557,7 @@ public class SlidingWindowUnitTest extends BaseTest {
         read.setBaseQualities(Utils.dupBytes((byte) 30, readLength));
         read.setMappingQuality(30);
 
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false, false);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false);
         int newIndex = slidingWindow.createNewHeaderElements(windowHeader, read, start);
 
         Assert.assertEquals(newIndex, start > 0 ? start : 0);
@@ -559,7 +601,7 @@ public class SlidingWindowUnitTest extends BaseTest {
         read.setMappingQuality(30);
 
         // add the read
-        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false, false);
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false);
         slidingWindow.actuallyUpdateHeaderForRead(windowHeader, read, false, start);
         for ( int i = 0; i < start; i++ )
             Assert.assertEquals(windowHeader.get(i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 0);
@@ -572,5 +614,85 @@ public class SlidingWindowUnitTest extends BaseTest {
         slidingWindow.actuallyUpdateHeaderForRead(windowHeader, read, true, start);
         for ( int i = 0; i < currentHeaderLength; i++ )
             Assert.assertEquals(windowHeader.get(i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 0);
+    }
+
+
+    //////////////////////////////////////////////////////////////////////////////////
+    //// This section tests functionality related to polyploid consensus creation ////
+    //////////////////////////////////////////////////////////////////////////////////
+
+    @DataProvider(name = "MatchesKnownProvider")
+    public Object[][] matchesKnownProvider() {
+
+        final ObjectArrayList<Object[]> tests = new ObjectArrayList<Object[]>();
+
+        // test no knowns
+        tests.add(new Object[]{new ObjectAVLTreeSet<GenomeLoc>(), loc290.getStart(), false});
+
+        final ObjectSortedSet<GenomeLoc> knownSnpPositions = new ObjectAVLTreeSet<GenomeLoc>();
+        knownSnpPositions.add(loc290);
+        knownSnpPositions.add(loc295);
+        knownSnpPositions.add(loc310);
+
+        // test overlap
+        tests.add(new Object[]{knownSnpPositions, loc290.getStart(), true});
+        tests.add(new Object[]{knownSnpPositions, loc295.getStart(), true});
+        tests.add(new Object[]{knownSnpPositions, loc310.getStart(), true});
+        tests.add(new Object[]{knownSnpPositions, loc309.getStart(), false});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MatchesKnownProvider")
+    public void testMatchesKnown(final ObjectSortedSet<GenomeLoc> knownSnpPositions, final int targetLoc, final boolean expectedResult) {
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10);
+        Assert.assertEquals(slidingWindow.matchesKnownPosition(targetLoc, knownSnpPositions), expectedResult);
+    }
+
+    @DataProvider(name = "SignificantSoftclipsProvider")
+    public Object[][] SignificantSoftclipsTestData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final int indexWithSoftclips : Arrays.asList(-1, 0, 5, 9) ) {
+            for ( final int indexToSkip : Arrays.asList(-1, 0, 5, 9) ) {
+                tests.add(new Object[]{indexWithSoftclips, indexToSkip});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "SignificantSoftclipsProvider", enabled = true)
+    public void significantSoftclipsTest(final int indexWithSoftclips, final int indexToSkip) {
+
+        // set up the window header
+        final int currentHeaderStart = 100;
+        final int currentHeaderLength = 10;
+        final LinkedList<HeaderElement> windowHeader = new LinkedList<HeaderElement>();
+        for ( int i = 0; i < currentHeaderLength; i++ )
+            windowHeader.add(new HeaderElement(currentHeaderStart + i));
+
+        // set up the normal read
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead", 0, currentHeaderStart, currentHeaderLength);
+        read.setReadBases(Utils.dupBytes((byte) 'A', currentHeaderLength));
+        read.setBaseQualities(Utils.dupBytes((byte)30, currentHeaderLength));
+        read.setMappingQuality(30);
+
+        // add the read
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false);
+        slidingWindow.actuallyUpdateHeaderForRead(windowHeader, read, false, 0);
+
+        // set up and add a soft-clipped read if requested
+        if ( indexWithSoftclips != -1 ) {
+            final GATKSAMRecord softclippedRead = ArtificialSAMUtils.createArtificialRead(header, "basicRead", 0, currentHeaderStart + indexWithSoftclips, 1);
+            softclippedRead.setReadBases(new byte[]{(byte) 'A'});
+            softclippedRead.setBaseQualities(new byte[]{(byte) 30});
+            softclippedRead.setMappingQuality(30);
+            softclippedRead.setCigarString("1S");
+            slidingWindow.actuallyUpdateHeaderForRead(windowHeader, softclippedRead, false, indexWithSoftclips);
+        }
+
+        final boolean result = slidingWindow.hasSignificantSoftclipPosition(windowHeader, currentHeaderStart + indexToSkip);
+        Assert.assertEquals(result, indexWithSoftclips != -1 && indexWithSoftclips != indexToSkip);
     }
 }

@@ -314,10 +314,6 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
     }
 
     private static void updateTable(final int[][] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt, final int representativeCount) {
-        // ignore reduced reads because they are always on the forward strand!
-        // TODO -- when het compression is enabled in RR, we somehow need to allow those reads through into the Fisher test
-        if ( read.isReducedRead() )
-            return;
 
         final boolean matchesRef = allele.equals(ref, true);
         final boolean matchesAlt = allele.equals(alt, true);
@@ -326,12 +322,17 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
             final int row = matchesRef ? 0 : 1;
 
             if ( read.isStrandless() ) {
-                // a strandless read counts as observations on both strand, at 50% weight, with a minimum of 1
-                // (the 1 is to ensure that a strandless read always counts as an observation on both strands, even
-                // if the read is only seen once, because it's a merged read or other)
-                final int toAdd = Math.max(representativeCount / 2, 1);
-                table[row][0] += toAdd;
-                table[row][1] += toAdd;
+
+                // ignore strandless reduced reads because they are always on the forward strand!
+                if ( !read.isReducedRead() ) {
+
+                    // a strandless read counts as observations on both strand, at 50% weight, with a minimum of 1
+                    // (the 1 is to ensure that a strandless read always counts as an observation on both strands, even
+                    // if the read is only seen once, because it's a merged read or other)
+                    final int toAdd = Math.max(representativeCount / 2, 1);
+                    table[row][0] += toAdd;
+                    table[row][1] += toAdd;
+                }
             } else {
                 // a normal read with an actual strand
                 final boolean isFW = !read.getReadNegativeStrandFlag();

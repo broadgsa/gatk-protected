@@ -76,9 +76,17 @@ import java.util.Iterator;
  * @since 8/26/11
  */
 public class SyntheticRead {
-    // Rather than storing a separate list for each attribute in SingleBaseInfo, store one list to reduce
-    // memory footprint.
-    // TODO: better name
+
+    /**
+     * The types of strandedness for synthetic reads
+     */
+    public enum StrandType {
+        POSITIVE,
+        NEGATIVE,
+        STRANDLESS
+    }
+
+    // Rather than storing a separate list for each attribute in SingleBaseInfo, store one list to reduce memory footprint.
     private static class SingleBaseInfo {
         byte baseIndexOrdinal; // enum BaseIndex.ordinal
         byte count;
@@ -134,7 +142,7 @@ public class SyntheticRead {
     private String readName;
     private int refStart;
     private boolean hasIndelQualities = false;
-    private boolean isNegativeStrand = false;
+    private StrandType strandType = StrandType.STRANDLESS;
 
     /**
      * Full initialization of the running consensus if you have all the information and are ready to
@@ -147,7 +155,7 @@ public class SyntheticRead {
      * @param readName        the read's name
      * @param refStart        the alignment start (reference based)
      */
-    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
+    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, StrandType strandType) {
         final int initialCapacity = 10000;
         basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(initialCapacity);
         mappingQuality = 0.0;
@@ -159,10 +167,10 @@ public class SyntheticRead {
         this.readName = readName;
         this.refStart = refStart;
         this.hasIndelQualities = hasIndelQualities;
-        this.isNegativeStrand = isNegativeRead;
+        this.strandType = strandType;
     }
 
-    public SyntheticRead(ObjectArrayList<BaseIndex> bases, ByteArrayList counts, ByteArrayList quals, ByteArrayList insertionQuals, ByteArrayList deletionQuals, double mappingQuality, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
+    public SyntheticRead(ObjectArrayList<BaseIndex> bases, ByteArrayList counts, ByteArrayList quals, ByteArrayList insertionQuals, ByteArrayList deletionQuals, double mappingQuality, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, StrandType strandType) {
         basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(bases.size());
         for (int i = 0; i < bases.size(); ++i) {
             basesCountsQuals.add(new SingleBaseInfo(bases.get(i).getOrdinalByte(), counts.get(i), quals.get(i), insertionQuals.get(i), deletionQuals.get(i)));
@@ -175,7 +183,7 @@ public class SyntheticRead {
         this.readName = readName;
         this.refStart = refStart;
         this.hasIndelQualities = hasIndelQualities;
-        this.isNegativeStrand = isNegativeRead;
+        this.strandType = strandType;
     }
 
     /**
@@ -216,8 +224,11 @@ public class SyntheticRead {
         read.setReferenceIndex(contigIndex);
         read.setReadPairedFlag(false);
         read.setReadUnmappedFlag(false);
-        read.setReadNegativeStrandFlag(isNegativeStrand);
-        read.setCigar(buildCigar());                                        // the alignment start may change while building the cigar (leading deletions)
+        if ( strandType != StrandType.STRANDLESS ) {
+            read.setAttribute(GATKSAMRecord.REDUCED_READ_STRANDED_TAG, '1');  // must come before next line
+            read.setReadNegativeStrandFlag(strandType == StrandType.NEGATIVE);
+        }
+        read.setCigar(buildCigar());           // the alignment start may change while building the cigar (leading deletions)
         read.setAlignmentStart(refStart);
         read.setReadName(readName);
         read.setBaseQualities(convertBaseQualities(), EventType.BASE_SUBSTITUTION);

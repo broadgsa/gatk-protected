@@ -53,6 +53,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class HeaderElementUnitTest extends BaseTest {
@@ -136,10 +137,12 @@ public class HeaderElementUnitTest extends BaseTest {
     private class AllelesTest {
         public final int[] counts;
         public final double proportion;
+        public final boolean allowDeletions;
 
-        private AllelesTest(final int[] counts, final double proportion) {
+        private AllelesTest(final int[] counts, final double proportion, final boolean allowDeletions) {
             this.counts = counts;
             this.proportion = proportion;
+            this.allowDeletions = allowDeletions;
         }
     }
 
@@ -150,12 +153,16 @@ public class HeaderElementUnitTest extends BaseTest {
         final int[] counts = new int[]{ 0, 5, 10, 15, 20 };
         final double [] proportions = new double[]{ 0.0, 0.05, 0.10, 0.50, 1.0 };
 
-        for ( final int count1 : counts ) {
-            for ( final int count2 : counts ) {
-                for ( final int count3 : counts ) {
-                    for ( final int count4 : counts ) {
-                        for ( final double proportion : proportions ) {
-                            tests.add(new Object[]{new AllelesTest(new int[]{count1, count2, count3, count4}, proportion)});
+        for ( final int countA : counts ) {
+            for ( final int countC : counts ) {
+                for ( final int countG : counts ) {
+                    for ( final int countT : counts ) {
+                        for ( final int countD : counts ) {
+                            for ( final double proportion : proportions ) {
+                                for ( final boolean allowDeletions : Arrays.asList(true, false) ) {
+                                    tests.add(new Object[]{new AllelesTest(new int[]{countA, countC, countG, countT, countD}, proportion, allowDeletions)});
+                                }
+                            }
                         }
                     }
                 }
@@ -170,24 +177,27 @@ public class HeaderElementUnitTest extends BaseTest {
 
         HeaderElement headerElement = new HeaderElement(1000, 0);
         for ( int i = 0; i < test.counts.length; i++ ) {
-            BaseIndex base = BaseIndex.values()[i];
+            final BaseIndex base = BaseIndex.values()[i];
             for ( int j = 0; j < test.counts[i]; j++ )
                 headerElement.addBase(base.b, byte20, byte10, byte10, byte20, minBaseQual, minMappingQual, false);
         }
 
-        final int nAllelesSeen = headerElement.getNumberOfAlleles(test.proportion);
-        final int nAllelesExpected = calculateExpectedAlleles(test.counts, test.proportion);
+        final int nAllelesSeen = headerElement.getNumberOfAlleles(test.proportion, test.allowDeletions);
+        final int nAllelesExpected = calculateExpectedAlleles(test.counts, test.proportion, test.allowDeletions);
 
         Assert.assertEquals(nAllelesSeen, nAllelesExpected);
     }
 
-    private static int calculateExpectedAlleles(final int[] counts, final double proportion) {
+    private static int calculateExpectedAlleles(final int[] counts, final double proportion, final boolean allowDeletions) {
         double total = 0.0;
         for ( final int count : counts ) {
             total += count;
         }
 
-        final int minCount = (int)(proportion * total);
+        final int minCount = Math.max(1, (int)(proportion * total));
+
+        if ( !allowDeletions && counts[BaseIndex.D.index] >= minCount )
+            return -1;
 
         int result = 0;
         for ( final int count : counts ) {

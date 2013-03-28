@@ -599,9 +599,9 @@ public class UnifiedGenotyperEngine {
                 int numDeletions = 0;
                 for ( final PileupElement p : rawContext.getBasePileup() ) {
                     if ( p.isDeletion() )
-                        numDeletions++;
+                        numDeletions += p.getRepresentativeCount();
                 }
-                if ( ((double) numDeletions) / ((double) rawContext.getBasePileup().getNumberOfElements()) > UAC.MAX_DELETION_FRACTION ) {
+                if ( ((double) numDeletions) / ((double) rawContext.getBasePileup().depthOfCoverage()) > UAC.MAX_DELETION_FRACTION ) {
                     return null;
                 }
             }
