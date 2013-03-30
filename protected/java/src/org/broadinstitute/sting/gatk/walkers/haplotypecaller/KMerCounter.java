@@ -51,110 +51,31 @@ import org.apache.log4j.Logger;
 import java.util.*;
 
 /**
- * generic utility function that error corrects kmers based on counts
+ * generic utility class that counts kmers
  *
- * This class provides a generic facility for remapping kmers (byte[] of constant size)
- * that occur infrequently to those that occur frequently, based on their simple edit distance
- * as measured by mismatches.
- *
- * The overall workflow of using this class is simple.  First, you create the class with
- * parameters determining how the error correction should proceed.  Next, you provide all
- * of the kmers you see in your data.  Once all kmers have been added, you call computeErrorCorrectionMap
- * to tell this class that all kmers have been added and its time to determine error correcting
- * mapping from observed kmers to corrected kmers.  This correction looks for low-count (as determined
- * by maxCountToCorrect) kmers and chooses the best kmer (minimizing mismatches) among those
- * with at least minCountOfKmerToBeCorrection occurrences to error correct the kmer to.  If
- * there is no kmer with less than maxMismatchesToCorrect then the kmer will be mapped to
- * null, indicating the kmer should not be used.
- *
- * TODO -- for ease of implementation this class uses strings instead of byte[] as those cannot
- * TODO -- be added to hashmaps (more specifically, those don't implement .equals).  A more efficient
- * TODO -- version would use the byte[] directly
- *
- * TODO -- this is just not the right way to implement error correction in the graph.  Basically, the
- * right way to think about this is error correcting reads:
- *
- *    *
- * ACTGAT
- * ACT
- *  CTG
- *   TGA
- *    GAT
- *
- * Now suppose the G is an error.  What you are doing is asking for each 3mer in the read whether it's high quality
- * or not.  Suppose the answer is
- *
- *    *
- * ACTGAT
- * ACT     -- yes
- *  CTG    -- no [CTG is unusual]
- *   TGA   -- no [TGA is unusual]
- *    GAT  -- yes [maybe GAT is just common, even through its an error]
- *
- * As we do this process it's clear how we can figure out which positions in the read likely harbor errors, and
- * then go search around those bases in the read in an attempt to fix the read.  We don't have to compute for
- * every bad kmer it's best match, as that's just not the problem we are thinking looking to solve.  We are actually
- * looking for a change to a read such that all spanning kmers are well-supported.  This class is being disabled
- * until we figure implement this change.
- *
+ * Basically you add kmers to the counter, and it tells you how many occurrences of each kmer it's seen.
  *
  * User: depristo
  * Date: 3/8/13
  * Time: 1:16 PM
  */
-public class KMerErrorCorrector {
-    private final static Logger logger = Logger.getLogger(KMerErrorCorrector.class);
-
-    /**
-     * The maximum number of bad kmer -> good kmer correction operations we'll consider doing before
-     * aborting for efficiency reasons.  Basically, the current algorithm sucks, and is O(n^2), and
-     * so we cannot simply error correct 10K bad kmers against a db of 100K kmers if we ever want
-     * to finish running in a reasonable amount of time.  This isn't worth fixing because fundamentally
-     * the entire error correction algorithm is just not right (i.e., it's correct but not ideal conceptually
-     * so we'll just fix the conceptual problem than the performance issue).
-     */
-    private final static int MAX_CORRECTION_OPS_TO_ALLOW = 5000 * 1000;
+public class KMerCounter {
+    private final static Logger logger = Logger.getLogger(KMerCounter.class);
 
     /**
      * A map of for each kmer to its num occurrences in addKmers
      */
-    Map<String, CountedKmer> countsByKMer = new HashMap<String, CountedKmer>();
+    private final Map<String, CountedKmer> countsByKMer = new HashMap<String, CountedKmer>();
+    private final int kmerLength;
 
     /**
-     * A map from raw kmer -> error corrected kmer
-     */
-    Map<String, String> rawToErrorCorrectedMap = null;
-
-    final int kmerLength;
-    final int maxCountToCorrect;
-    final int maxMismatchesToCorrect;
-    final int minCountOfKmerToBeCorrection;
-
-    /**
-     * Create a new kmer corrector
+     * Create a new kmer counter
      *
      * @param kmerLength the length of kmers we'll be counting to error correct, must be >= 1
-     * @param maxCountToCorrect kmers with < maxCountToCorrect will try to be error corrected to another kmer, must be >= 0
-     * @param maxMismatchesToCorrect the maximum number of mismatches between a to-be-corrected kmer and its
-     *                               best match that we attempt to error correct.  If no sufficiently similar
-     *                               kmer exists, it will be remapped to null.  Must be >= 1
-     * @param minCountOfKmerToBeCorrection the minimum count of a kmer to be considered a target for correction.
-     *                                     That is, kmers that need correction will only be matched with kmers
-     *                                     with at least minCountOfKmerToBeCorrection occurrences.  Must be >= 1
      */
-    public KMerErrorCorrector(final int kmerLength,
-                              final int maxCountToCorrect,
-                              final int maxMismatchesToCorrect,
-                              final int minCountOfKmerToBeCorrection) {
+    public KMerCounter(final int kmerLength) {
         if ( kmerLength < 1 ) throw new IllegalArgumentException("kmerLength must be > 0 but got " + kmerLength);
-        if ( maxCountToCorrect < 0 ) throw new IllegalArgumentException("maxCountToCorrect must be >= 0 but got " + maxCountToCorrect);
-        if ( maxMismatchesToCorrect < 1 ) throw new IllegalArgumentException("maxMismatchesToCorrect must be >= 1 but got " + maxMismatchesToCorrect);
-        if ( minCountOfKmerToBeCorrection < 1 ) throw new IllegalArgumentException("minCountOfKmerToBeCorrection must be >= 1 but got " + minCountOfKmerToBeCorrection);
-
         this.kmerLength = kmerLength;
-        this.maxCountToCorrect = maxCountToCorrect;
-        this.maxMismatchesToCorrect = maxMismatchesToCorrect;
-        this.minCountOfKmerToBeCorrection = minCountOfKmerToBeCorrection;
     }
 
     /**
@@ -165,7 +86,17 @@ public class KMerErrorCorrector {
     protected void addKmers(final String ... kmers) {
         for ( final String kmer : kmers )
             addKmer(kmer, 1);
-        computeErrorCorrectionMap();
+    }
+
+    /**
+     * Get the count of kmer in this kmer counter
+     * @param kmer a non-null counter to get
+     * @return a positive integer
+     */
+    public int getKmerCount(final byte[] kmer) {
+        if ( kmer == null ) throw new IllegalArgumentException("kmer cannot be null");
+        final CountedKmer counted = countsByKMer.get(new String(kmer));
+        return counted == null ? 0 : counted.count;
     }
 
     /**
@@ -178,68 +109,9 @@ public class KMerErrorCorrector {
         addKmer(new String(rawKmer), kmerCount);
     }
 
-
-    /**
-     * Get the error corrected kmer for rawKmer
-     *
-     * @param rawKmer a kmer that was already added that we want to get an error corrected version for
-     * @return an error corrected kmer to use instead of rawKmer.  May be == rawKmer if no error correction
-     *         is not necessary.  May be null, indicating the rawKmer shouldn't be used at all
-     */
-    public byte[] getErrorCorrectedKmer(final byte[] rawKmer) {
-        final String result = getErrorCorrectedKmer(new String(rawKmer));
-        return result == null ? null : result.getBytes();
-    }
-
-    /**
-     * Indicate that no more kmers will be added to the kmer error corrector, so that the
-     * error correction data structure should be computed from the added kmers.  Enabled calls
-     * to getErrorCorrectedKmer, and disable calls to addKmer.
-     *
-     * @return true if the error correction map could actually be computed, false if for any reason
-     *         (efficiency, memory, we're out to lunch) a correction map couldn't be created.
-     */
-    public boolean computeErrorCorrectionMap() {
-        if ( countsByKMer == null )
-            throw new IllegalStateException("computeErrorCorrectionMap can only be called once");
-
-        final LinkedList<CountedKmer> needsCorrection = new LinkedList<CountedKmer>();
-        final List<CountedKmer> goodKmers = new ArrayList<CountedKmer>(countsByKMer.size());
-
-        rawToErrorCorrectedMap = new HashMap<String, String>(countsByKMer.size());
-        for ( final CountedKmer countedKmer: countsByKMer.values() ) {
-            if ( countedKmer.count <= maxCountToCorrect )
-                needsCorrection.add(countedKmer);
-            else {
-                // todo -- optimization could make not in map mean ==
-                rawToErrorCorrectedMap.put(countedKmer.kmer, countedKmer.kmer);
-
-                // only allow corrections to kmers with at least this count
-                if ( countedKmer.count >= minCountOfKmerToBeCorrection )
-                    goodKmers.add(countedKmer);
-            }
-        }
-
-        // cleanup memory -- we don't need the counts for each kmer any longer
-        countsByKMer = null;
-
-        if ( goodKmers.size() * needsCorrection.size() > MAX_CORRECTION_OPS_TO_ALLOW )
-            return false;
-        else {
-            Collections.sort(goodKmers);
-            for ( final CountedKmer toCorrect : needsCorrection ) {
-                final String corrected = findClosestKMer(toCorrect, goodKmers);
-                rawToErrorCorrectedMap.put(toCorrect.kmer, corrected);
-            }
-
-            return true;
-        }
-    }
-
     protected void addKmer(final String rawKmer, final int kmerCount) {
         if ( rawKmer.length() != kmerLength ) throw new IllegalArgumentException("bad kmer length " + rawKmer + " expected size " + kmerLength);
         if ( kmerCount < 0 ) throw new IllegalArgumentException("bad kmerCount " + kmerCount);
-        if ( countsByKMer == null ) throw new IllegalStateException("Cannot add kmers to an already finalized error corrector");
 
         CountedKmer countFromMap = countsByKMer.get(rawKmer);
         if ( countFromMap == null ) {
@@ -249,55 +121,10 @@ public class KMerErrorCorrector {
         countFromMap.count += kmerCount;
     }
 
-    protected String findClosestKMer(final CountedKmer kmer, final Collection<CountedKmer> goodKmers) {
-        String bestMatch = null;
-        int minMismatches = Integer.MAX_VALUE;
-
-        for ( final CountedKmer goodKmer : goodKmers ) {
-            final int mismatches = countMismatches(kmer.kmer, goodKmer.kmer, minMismatches);
-            if ( mismatches < minMismatches ) {
-                minMismatches = mismatches;
-                bestMatch = goodKmer.kmer;
-            }
-
-            // if we find an edit-distance 1 result, abort early, as we know there can be no edit distance 0 results
-            if ( mismatches == 1 )
-                break;
-        }
-
-        return minMismatches > maxMismatchesToCorrect ? null : bestMatch;
-    }
-
-    protected int countMismatches(final String one, final String two, final int currentBest) {
-        int mismatches = 0;
-        for ( int i = 0; i < one.length(); i++ ) {
-            mismatches += one.charAt(i) == two.charAt(i) ? 0 : 1;
-            if ( mismatches > currentBest )
-                break;
-            if ( mismatches > maxMismatchesToCorrect )
-                return Integer.MAX_VALUE;
-        }
-        return mismatches;
-    }
-
-    protected String getErrorCorrectedKmer(final String rawKmer) {
-        if ( rawToErrorCorrectedMap == null ) throw new IllegalStateException("Cannot get error corrected kmers until after computeErrorCorrectionMap has been called");
-        if ( rawKmer.length() != kmerLength ) throw new IllegalArgumentException("bad kmer length " + rawKmer + " expected size " + kmerLength);
-        return rawToErrorCorrectedMap.get(rawKmer);
-    }
-
     @Override
     public String toString() {
-        final StringBuilder b = new StringBuilder("KMerErrorCorrector{");
-        if ( rawToErrorCorrectedMap == null ) {
-            b.append("counting ").append(countsByKMer.size()).append(" distinct kmers");
-        } else {
-            for ( Map.Entry<String, String> toCorrect : rawToErrorCorrectedMap.entrySet() ) {
-                final boolean correcting = ! toCorrect.getKey().equals(toCorrect.getValue());
-                if ( correcting )
-                    b.append(String.format("%n\tCorrecting %s -> %s", toCorrect.getKey(), toCorrect.getValue()));
-            }
-        }
+        final StringBuilder b = new StringBuilder("KMerCounter{");
+        b.append("counting ").append(countsByKMer.size()).append(" distinct kmers");
         b.append("\n}");
         return b.toString();
     }

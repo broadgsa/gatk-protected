@@ -55,6 +55,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.SWPairwiseAlignment;
@@ -161,8 +162,9 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), pruneFactor);
 
                 if ( shouldErrorCorrectKmers() ) {
-                    graph = errorCorrect(graph);
-                    if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), pruneFactor);
+                    throw new UserException("Error correction no longer supported because of the " +
+                            "incredibly naive way this was implemented.  The command line argument remains because some" +
+                            " future subsystem will actually go and error correct the reads");
                 }
 
                 final SeqGraph seqGraph = toSeqGraph(graph);
@@ -214,6 +216,16 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             return null;
 
         seqGraph.removePathsNotConnectedToRef();
+        seqGraph.simplifyGraph();
+        if ( seqGraph.vertexSet().size() == 1 ) {
+            // we've prefectly assembled into a single reference haplotype, add a empty seq vertex to stop
+            // the code from blowing up.
+            // TODO -- ref properties should really be on the vertices, not the graph itself
+            final SeqVertex complete = seqGraph.vertexSet().iterator().next();
+            final SeqVertex dummy = new SeqVertex("");
+            seqGraph.addVertex(dummy);
+            seqGraph.addEdge(complete, dummy, new BaseEdge(true, 0));
+        }
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.5.final.dot"), pruneFactor);
 
         return seqGraph;
@@ -332,39 +344,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         return true;
     }
 
-    /**
-     * Error correct the kmers in this graph, returning a new graph built from those error corrected kmers
-     * @return an error corrected version of this (freshly allocated graph) or simply this graph if for some reason
-     *         we cannot actually do the error correction
-     */
-    public DeBruijnGraph errorCorrect(final DeBruijnGraph graph) {
-        final KMerErrorCorrector corrector = new KMerErrorCorrector(graph.getKmerSize(), 1, 1, 5); // TODO -- should be static variables
-
-        for( final BaseEdge e : graph.edgeSet() ) {
-            for ( final byte[] kmer : Arrays.asList(graph.getEdgeSource(e).getSequence(), graph.getEdgeTarget(e).getSequence())) {
-                // TODO -- need a cleaner way to deal with the ref weight
-                corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
-            }
-        }
-
-        if ( corrector.computeErrorCorrectionMap() ) {
-            final DeBruijnGraph correctedGraph = new DeBruijnGraph(graph.getKmerSize());
-
-            for( final BaseEdge e : graph.edgeSet() ) {
-                final byte[] source = corrector.getErrorCorrectedKmer(graph.getEdgeSource(e).getSequence());
-                final byte[] target = corrector.getErrorCorrectedKmer(graph.getEdgeTarget(e).getSequence());
-                if ( source != null && target != null ) {
-                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
-                }
-            }
-
-            return correctedGraph;
-        } else {
-            // the error correction wasn't possible, simply return this graph
-            return graph;
-        }
-    }
-
     protected void printGraphs(final List<SeqGraph> graphs) {
         final int writeFirstGraphWithSizeSmallerThan = 50;
 
@@ -460,6 +439,9 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 }
             }
         }
+
+        // add genome locs to the haplotypes
+        for ( final Haplotype h : returnHaplotypes ) h.setGenomeLocation(activeRegionWindow);
 
         if ( returnHaplotypes.size() < returnHaplotypes.size() )
             logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);
