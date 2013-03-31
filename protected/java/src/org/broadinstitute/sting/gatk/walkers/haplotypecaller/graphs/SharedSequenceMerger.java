@@ -75,7 +75,7 @@ public class SharedSequenceMerger {
         if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
         if ( ! graph.vertexSet().contains(v) ) throw new IllegalArgumentException("graph doesn't contain vertex " + v);
 
-        final Set<SeqVertex> prevs = graph.incomingVerticesOf(v);
+        final List<SeqVertex> prevs = graph.incomingVerticesOf(v);
         if ( ! canMerge(graph, v, prevs) )
             return false;
         else {

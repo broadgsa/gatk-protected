@@ -185,6 +185,14 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         final SeqGraph seqGraph = deBruijnGraph.convertToSequenceGraph();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), pruneFactor);
 
+        // TODO -- we need to come up with a consistent pruning algorithm.  The current pruning algorithm
+        // TODO -- works well but it doesn't differentiate between an isolated chain that doesn't connect
+        // TODO -- to anything from one that's actuall has good support along the chain but just happens
+        // TODO -- to have a connection in the middle that has weight of < pruneFactor.  Ultimately
+        // TODO -- the pruning algorithm really should be an error correction algorithm that knows more
+        // TODO -- about the structure of the data and can differeniate between an infrequent path but
+        // TODO -- without evidence against it (such as occurs when a region is hard to get any reads through)
+        // TODO -- from a error with lots of weight going along another similar path
         // the very first thing we need to do is zip up the graph, or pruneGraph will be too aggressive
         seqGraph.zipLinearChains();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.zipped.dot"), pruneFactor);

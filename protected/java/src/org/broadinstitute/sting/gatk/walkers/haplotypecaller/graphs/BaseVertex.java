@@ -58,6 +58,7 @@ import java.util.Arrays;
  */
 public class BaseVertex {
     final byte[] sequence;
+    int cachedHashCode = -1;
 
     /**
      * Create a new sequence vertex with sequence
@@ -128,8 +129,10 @@ public class BaseVertex {
      */
     @Override
     public int hashCode() {
-        // TODO -- optimization, could compute upfront once and cached in debruijn graph
-        return Arrays.hashCode(sequence);
+        if ( cachedHashCode == -1 ) {
+            cachedHashCode = Arrays.hashCode(sequence);
+        }
+        return cachedHashCode;
     }
 
     @Override

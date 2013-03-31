@@ -59,7 +59,7 @@ import java.util.Map;
  * User: rpoplin
  * Date: 2/6/13
  */
-public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
+public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
     /**
      * Create an empty DeBruijnGraph with default kmer size
      */
