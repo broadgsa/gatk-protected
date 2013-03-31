@@ -55,7 +55,7 @@ import org.broadinstitute.sting.utils.QualityUtils;
  * User: rpoplin, carneiro
  * Date: 10/16/12
  */
-public class LoglessPairHMM extends PairHMM {
+public final class LoglessPairHMM extends PairHMM {
     protected static final double SCALE_FACTOR_LOG10 = 300.0;
     protected static final double INITIAL_CONDITION = Math.pow(10, SCALE_FACTOR_LOG10);
 
