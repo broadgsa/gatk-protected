@@ -64,4 +64,14 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
                  Arrays.asList("bcf05f56adbb32a47b6d6b27b327d5c2"));
          executeTest("test left alignment", spec);
     }
+
+    @Test
+    public void testLeftAlignmentWithTrimmingAndMultialleliecs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --no_cmdline_in_header -trim -split",
+                1,
+                Arrays.asList("4ae03954f8bd66e73fd005c49ea301db"));
+        executeTest("test left alignment with trimming and hard multiple alleles", spec);
+
+    }
 }
