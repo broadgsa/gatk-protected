@@ -123,7 +123,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * The number of bases to keep around mismatches (potential variation)
      */
     @Argument(fullName = "context_size", shortName = "cs", doc = "", required = false)
-    private int contextSize = 10;
+    public int contextSize = 10;
 
     /**
      * The minimum mapping quality to be considered for the consensus synthetic read. Reads that have
@@ -131,7 +131,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * towards variable regions.
      */
     @Argument(fullName = "minimum_mapping_quality", shortName = "minmap", doc = "", required = false)
-    private int minMappingQuality = 20;
+    public int minMappingQuality = 20;
 
     /**
      * The minimum base quality to be considered for the consensus synthetic read. Reads that have
@@ -139,14 +139,14 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * towards variable regions.
      */
     @Argument(fullName = "minimum_base_quality_to_consider", shortName = "minqual", doc = "", required = false)
-    private byte minBaseQual = 20;
+    public byte minBaseQual = 20;
 
     /**
      * Reads have notoriously low quality bases on the tails (left and right). Consecutive bases with quality
      * lower than this threshold will be hard clipped off before entering the reduce reads algorithm.
      */
     @Argument(fullName = "minimum_tail_qualities", shortName = "mintail", doc = "", required = false)
-    private byte minTailQuality = 2;
+    public byte minTailQuality = 2;
 
     /**
      * Any number of VCF files representing known SNPs to be used for the experimental polyploid-based reduction.
@@ -161,21 +161,21 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * and read group).
      */
     @Argument(fullName = "dont_simplify_reads", shortName = "nosimplify", doc = "", required = false)
-    private boolean DONT_SIMPLIFY_READS = false;
+    public boolean DONT_SIMPLIFY_READS = false;
 
     /**
      * Do not hard clip adaptor sequences. Note: You don't have to turn this on for reads that are not mate paired.
      * The program will behave correctly in those cases.
      */
     @Argument(fullName = "dont_hardclip_adaptor_sequences", shortName = "noclip_ad", doc = "", required = false)
-    private boolean DONT_CLIP_ADAPTOR_SEQUENCES = false;
+    public boolean DONT_CLIP_ADAPTOR_SEQUENCES = false;
 
     /**
      * Do not hard clip the low quality tails of the reads. This option overrides the argument of minimum tail
      * quality.
      */
     @Argument(fullName = "dont_hardclip_low_qual_tails", shortName = "noclip_tail", doc = "", required = false)
-    private boolean DONT_CLIP_LOW_QUAL_TAILS = false;
+    public boolean DONT_CLIP_LOW_QUAL_TAILS = false;
 
     /**
      * Do not use high quality soft-clipped bases. By default, ReduceReads will hard clip away any low quality soft clipped
@@ -183,7 +183,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * regions. The minimum quality for soft clipped bases is the same as the minimum base quality to consider (minqual)
      */
     @Argument(fullName = "dont_use_softclipped_bases", shortName = "no_soft", doc = "", required = false)
-    private boolean DONT_USE_SOFTCLIPPED_BASES = false;
+    public boolean DONT_USE_SOFTCLIPPED_BASES = false;
 
     /**
      * Do not compress read names. By default, ReduceReads will compress read names to numbers and guarantee 
@@ -191,55 +191,55 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * there is no guarantee that read name uniqueness will be maintained -- in this case we recommend not compressing. 
      */
     @Argument(fullName = "dont_compress_read_names", shortName = "nocmp_names", doc = "", required = false)
-    private boolean DONT_COMPRESS_READ_NAMES = false;
+    public boolean DONT_COMPRESS_READ_NAMES = false;
 
     /**
      * Optionally hard clip all incoming reads to the desired intervals. The hard clips will happen exactly at the interval
      * border.
      */
     @Argument(fullName = "hard_clip_to_interval", shortName = "clip_int", doc = "", required = false)
-    private boolean HARD_CLIP_TO_INTERVAL = false;
+    public boolean HARD_CLIP_TO_INTERVAL = false;
 
     /**
      * Minimum proportion of mismatches in a site to trigger a variant region. Anything below this will be
      * considered consensus.
      */
     @Argument(fullName = "minimum_alt_proportion_to_trigger_variant", shortName = "minvar", doc = "", required = false)
-    private double minAltProportionToTriggerVariant = 0.05;
+    public double minAltProportionToTriggerVariant = 0.05;
 
     /**
      * Minimum proportion of indels in a site to trigger a variant region. Anything below this will be
      * considered consensus.
      */
     @Argument(fullName = "minimum_del_proportion_to_trigger_variant", shortName = "mindel", doc = "", required = false)
-    private double minIndelProportionToTriggerVariant = 0.05;
+    public double minIndelProportionToTriggerVariant = 0.05;
 
     /**
      * Downsamples the coverage of a variable region approximately (guarantees the minimum to be equal to this).
      * A value of 0 turns downsampling off.
      */
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
-    private int downsampleCoverage = 250;
+    public int downsampleCoverage = 250;
 
     @Hidden
     @Argument(fullName = "nwayout", shortName = "nw", doc = "", required = false)
-    private boolean nwayout = false;
+    public boolean nwayout = false;
 
     @Hidden
     @Argument(fullName = "", shortName = "dl", doc = "", required = false)
-    private int debugLevel = 0;
+    public int debugLevel = 0;
 
     @Hidden
     @Argument(fullName = "", shortName = "dr", doc = "", required = false)
-    private String debugRead = "";
+    public String debugRead = "";
 
     @Hidden
     @Argument(fullName = "downsample_strategy", shortName = "dm", doc = "", required = false)
-    private DownsampleStrategy downsampleStrategy = DownsampleStrategy.Normal;
+    public DownsampleStrategy downsampleStrategy = DownsampleStrategy.Normal;
     
     @Hidden 
     @Argument(fullName = "no_pg_tag", shortName = "npt", doc ="", required = false)
-    private boolean NO_PG_TAG = false;
+    public boolean NO_PG_TAG = false;
 
     public enum DownsampleStrategy {
         Normal,
@@ -282,7 +282,6 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
 
         final boolean preSorted = true;
         final boolean indexOnTheFly = true;
-        final boolean keep_records = true;
         final SAMFileHeader.SortOrder sortOrder = SAMFileHeader.SortOrder.coordinate;
         if (nwayout) {
             SAMProgramRecord programRecord = NO_PG_TAG ? null : Utils.createProgramRecord(toolkit, this, PROGRAM_RECORD_NAME);
@@ -292,7 +291,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
             writerToUse = out;
             out.setPresorted(false);
             if (!NO_PG_TAG) {
-                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), !preSorted, keep_records, this, PROGRAM_RECORD_NAME);
+                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), !preSorted, this, PROGRAM_RECORD_NAME);
             }
         }
     }
