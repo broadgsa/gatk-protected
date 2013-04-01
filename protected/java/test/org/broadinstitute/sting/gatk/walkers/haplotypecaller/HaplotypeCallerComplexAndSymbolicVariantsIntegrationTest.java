@@ -49,9 +49,10 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.*;
-
 import java.util.Arrays;
+
+import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
+import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
 
 public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
 
@@ -63,7 +64,7 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "f9fa4d3c88fd9c0f23c7a3ddd3d24a8c");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "a898b551f78c71befee4d12070d3a788");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -87,12 +88,12 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleGGAComplex() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "e8ffbfae3c1af5be02631a31f386a431");
+                "8a110549543412fa682419e9a8f0dd1d");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "c3a98b19efa7cb36fe5f5f2ab893ef56");
+                "5429c234d471434adc09d9e60b87de24");
     }
 }

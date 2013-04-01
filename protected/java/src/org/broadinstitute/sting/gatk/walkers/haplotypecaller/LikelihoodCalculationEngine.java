@@ -80,7 +80,7 @@ public class LikelihoodCalculationEngine {
                 pairHMM = new Log10PairHMM(false);
                 break;
             case LOGLESS_CACHING:
-                pairHMM = new LoglessCachingPairHMM();
+                pairHMM = new LoglessPairHMM();
                 break;
             default:
                 throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");

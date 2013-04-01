@@ -49,7 +49,7 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
-import static org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperGeneralPloidyTestExecutor.*;
+import static org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperGeneralPloidyTestExecutor.LSV_ALLELES;
 
 /**
  * Created by IntelliJ IDEA.
@@ -79,6 +79,6 @@ public class UnifiedGenotyperGeneralPloidySuite1IntegrationTest extends WalkerTe
 
     @Test(enabled = true)
     public void testINDEL_maxAltAlleles2_ploidy1_Pools_noRef() {
-        executor.PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "5812da66811887d834d0379a33e655c0");
+        executor.PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "faadc0b77a91a716dbb1191fd579d025");
     }
 }
