@@ -794,7 +794,7 @@ public class GenotypingEngine {
         return vcs;
     }
 
-    private static class Event {
+    protected static class Event {
         public VariantContext vc;
 
         public Event( final VariantContext vc ) {
