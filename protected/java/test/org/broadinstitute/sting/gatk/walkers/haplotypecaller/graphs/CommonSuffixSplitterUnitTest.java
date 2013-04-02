@@ -51,13 +51,18 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.util.Arrays;
+
 public class CommonSuffixSplitterUnitTest extends BaseTest {
+    private final static boolean DEBUG = false;
+
     @DataProvider(name = "SplitData")
     public Object[][] makeSplitData() {
         return CommonSuffixMergerUnitTest.makeSplitMergeData(-1);
     }
 
-    @Test(dataProvider = "SplitData")
+    @Test(dataProvider = "SplitData", enabled = !DEBUG)
     public void testSplit(final CommonSuffixMergerUnitTest.SplitMergeData data) {
         final boolean expectedMerge = ! data.commonSuffix.isEmpty() && data.graph.inDegreeOf(data.v) > 1;
 
@@ -74,7 +79,7 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
         CommonSuffixMergerUnitTest.assertSameHaplotypes(String.format("suffixSplit.%s.%d", data.commonSuffix, data.graph.vertexSet().size()), data.graph, original);
     }
 
-    @Test
+    @Test(enabled = !DEBUG)
     public void testSplitPrevHaveMultipleEdges() {
         final SeqGraph original = new SeqGraph();
         final SeqVertex v1 = new SeqVertex("A");
@@ -93,7 +98,7 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
         Assert.assertFalse(new CommonSuffixSplitter().split(original, v3), "Cannot split graph with multiple outgoing edges from middle nodes");
     }
 
-    @Test
+    @Test(enabled = !DEBUG)
     public void testSplitNoCycles() {
         final SeqGraph original = new SeqGraph();
         final SeqVertex v1 = new SeqVertex("A");
@@ -109,5 +114,29 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
 
         original.addEdges(v4, v4);
         Assert.assertFalse(new CommonSuffixSplitter().split(original, v4), "Cannot split graph with a cycle of the bottom list");
+    }
+
+    @Test(timeOut = 10000)
+    public void testSplitComplexCycle() {
+        final SeqGraph original = new SeqGraph();
+        final SeqVertex r1 = new SeqVertex("ACTG");
+        final SeqVertex r2 = new SeqVertex("ATGC");
+        final SeqVertex cat1 = new SeqVertex("CAT");
+        final SeqVertex cat2 = new SeqVertex("CAT");
+        final SeqVertex c1 = new SeqVertex("C");
+        final SeqVertex c2 = new SeqVertex("C");
+
+        original.addVertices(r1, r2, cat1, cat2, c1, c2);
+        original.addEdges(r1, cat1, c1, cat2, c1);
+        original.addEdges(r2, c2, cat2);
+
+        original.printGraph(new File("testSplitComplexCycle.dot"), 0);
+
+        for ( final SeqVertex v : Arrays.asList(cat2) ) { // original.vertexSet() ) {
+            final SeqGraph graph = (SeqGraph)original.clone();
+            final boolean success = new CommonSuffixSplitter().split(graph, v);
+            if ( success ) graph.printGraph(new File("testSplitComplexCycle.fail.dot"), 0);
+            Assert.assertFalse(success, "Shouldn't be able to split any vertices but CommonSuffixSplitter says it could for " + v);
+        }
     }
 }
