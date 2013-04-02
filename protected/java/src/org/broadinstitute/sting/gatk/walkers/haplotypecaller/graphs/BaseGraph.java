@@ -348,7 +348,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @return a set of vertices connected by outgoing edges from v
      */
     public Set<T> outgoingVerticesOf(final T v) {
-        final Set<T> s = new HashSet<T>();
+        final Set<T> s = new LinkedHashSet<T>();
         for ( final BaseEdge e : outgoingEdgesOf(v) ) {
             s.add(getEdgeTarget(e));
         }
@@ -361,7 +361,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @return a set of vertices {X} connected X -> v
      */
     public Set<T> incomingVerticesOf(final T v) {
-        final Set<T> s = new HashSet<T>();
+        final Set<T> s = new LinkedHashSet<T>();
         for ( final BaseEdge e : incomingEdgesOf(v) ) {
             s.add(getEdgeSource(e));
         }
