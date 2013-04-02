@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Requires;
 
+import java.io.File;
 import java.util.*;
 
 /**
@@ -150,10 +151,14 @@ public class CommonSuffixSplitter {
      * @return true if we can safely split up toMerge
      */
     private boolean safeToSplit(final SeqGraph graph, final SeqVertex bot, final Collection<SeqVertex> toMerge) {
+        final Set<SeqVertex> outgoingOfBot = new HashSet<SeqVertex>(graph.outgoingVerticesOf(bot));
         for ( final SeqVertex m : toMerge ) {
             final Set<BaseEdge> outs = graph.outgoingEdgesOf(m);
             if ( m == bot || outs.size() != 1 || ! graph.outgoingVerticesOf(m).contains(bot) )
-                // m == bot => don't allow cycles in the graph
+                // m == bot => don't allow self cycles in the graph
+                return false;
+            if ( outgoingOfBot.contains(m) )
+                // forbid cycles from bottom -> mid
                 return false;
         }
 

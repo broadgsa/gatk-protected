@@ -72,6 +72,15 @@ public class CommonSuffixMergerUnitTest extends BaseTest {
             this.v = v;
             this.commonSuffix = commonSuffix;
         }
+
+        @Override
+        public String toString() {
+            return "SplitMergeData{" +
+                    "graph=" + graph +
+                    ", v=" + v +
+                    ", commonSuffix='" + commonSuffix + '\'' +
+                    '}';
+        }
     }
 
     public static Object[][] makeSplitMergeData(final int maxTests) {
