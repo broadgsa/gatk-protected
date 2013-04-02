@@ -118,7 +118,7 @@ public class BaseEdge {
     }
 
     /**
-     * Does this and edge have the same source and target vertices in graph?
+     * Does this and edge have the same source and target vertices in graph?
      *
      * @param graph the graph containing both this and edge
      * @param edge our comparator edge
