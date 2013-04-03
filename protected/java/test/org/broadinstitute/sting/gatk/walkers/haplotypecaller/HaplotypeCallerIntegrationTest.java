@@ -46,11 +46,22 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
+import net.sf.picard.reference.IndexedFastaSequenceFile;
+import org.broad.tribble.TribbleIndexedFeatureReader;
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFCodec;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.*;
 
 public class HaplotypeCallerIntegrationTest extends WalkerTest {
     final static String REF = b37KGReference;
@@ -88,6 +99,11 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 "70bd5d0805bf6f51e5f61b377526c979");
     }
 
+    @Test
+    public void testHaplotypeCallerInsertionOnEdgeOfContig() {
+        HCTest(CEUTRIO_MT_TEST_BAM, "-dcov 90 -L MT:1-10", "7f1fb8f9587f64643f6612ef1dd6d4ae");
+    }
+
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " -L 20:10,005,000-10,025,000 --no_cmdline_in_header -o %s -minPruning 2";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
@@ -99,9 +115,41 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "4141b4c24a136a3fe4c0b0a4c231cdfa");
     }
 
+    private void HCTestNearbySmallIntervals(String bam, String args, String md5) {
+        try {
+            final IndexedFastaSequenceFile fasta = new IndexedFastaSequenceFile(new File(b37KGReference));
+            final GenomeLocParser parser = new GenomeLocParser(fasta.getSequenceDictionary());
+
+            final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " -L 20:10,001,603-10,001,642 -L 20:10,001,653-10,001,742 --no_cmdline_in_header -o %s";
+            final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+            for( final File vcf : executeTest("testHaplotypeCallerNearbySmallIntervals: args=" + args, spec).getFirst() ) {
+                if( containsDuplicateRecord(vcf, parser) ) {
+                    throw new IllegalStateException("Duplicate records detected but there should be none.");
+                }
+            }
+        } catch( FileNotFoundException e ) {
+            throw new IllegalStateException("Could not find the b37 reference file.");
+        }
+    }
+
+    private boolean containsDuplicateRecord( final File vcf, final GenomeLocParser parser ) {
+        final List<Pair<GenomeLoc, GenotypingEngine.Event>> VCs = new ArrayList<Pair<GenomeLoc, GenotypingEngine.Event>>();
+        try {
+            for( final VariantContext vc :  GATKVCFUtils.readVCF(vcf).getSecond() ) {
+                VCs.add(new Pair<GenomeLoc, GenotypingEngine.Event>(parser.createGenomeLoc(vc), new GenotypingEngine.Event(vc)));
+            }
+        } catch( IOException e ) {
+            throw new IllegalStateException("Somehow the temporary VCF from the integration test could not be read.");
+        }
+
+        final Set<Pair<GenomeLoc, GenotypingEngine.Event>> VCsAsSet = new HashSet<Pair<GenomeLoc, GenotypingEngine.Event>>(VCs);
+        return VCsAsSet.size() != VCs.size(); // The set will remove duplicate Events.
+    }
+
+
     @Test
-    public void testHaplotypeCallerInsertionOnEdgeOfContig() {
-        HCTest(CEUTRIO_MT_TEST_BAM, "-dcov 90 -L MT:1-10", "7f1fb8f9587f64643f6612ef1dd6d4ae");
+    public void testHaplotypeCallerNearbySmallIntervals() {
+        HCTestNearbySmallIntervals(NA12878_BAM, "", "b9d614efdaf38b87b459df421aab93a7");
     }
 
     // This problem bam came from a user on the forum and it spotted a problem where the ReadClipper
