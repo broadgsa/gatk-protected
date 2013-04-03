@@ -134,24 +134,53 @@ public class SharedVertexSequenceSplitter {
     }
 
     /**
+     * Given sequencing that are all equal, does this splitter make those into prefix or suffix nodes?
+     * @return true if we merge equal nodes into prefix nodes or suffix nodes
+     */
+    protected static boolean prefersPrefixMerging() {
+        return true;
+    }
+
+    /**
      * Simple single-function interface to split and then update a graph
      *
      * @see #updateGraph(SeqVertex, SeqVertex) for a full description of top and bottom
      *
      * @param top the top vertex, may be null
      * @param bottom the bottom vertex, may be null
-     * @param minCommonSequence the minimum prefix or suffix size necessary among the vertices to split up
-     *                          before we'll go ahead and actually do the splitting.  Allows one to determine
-     *                          whether there's actually any useful splitting to do, as well as protect
-     *                          yourself against spurious splitting of nodes based on trivial amounts of overall
      * @return true if some useful splitting was done, false otherwise
      */
-    public boolean splitAndUpdate(final SeqVertex top, final SeqVertex bottom, final int minCommonSequence) {
-        if ( prefixV.length() < minCommonSequence && suffixV.length() < minCommonSequence )
-            return false;
+    public boolean splitAndUpdate(final SeqVertex top, final SeqVertex bottom) {
         split();
         updateGraph(top, bottom);
         return true;
+    }
+
+    /**
+     * Does either the common suffix or prefix have at least minCommonSequence bases in it?
+     * @param minCommonSequence a minimum length of the common sequence, must be >= 0
+     * @return true if either suffix or prefix length >= minCommonSequence
+     */
+    public boolean meetsMinMergableSequenceForEitherPrefixOrSuffix(final int minCommonSequence) {
+        return meetsMinMergableSequenceForPrefix(minCommonSequence) || meetsMinMergableSequenceForSuffix(minCommonSequence);
+    }
+
+    /**
+     * Does the common prefix have at least minCommonSequence bases in it?
+     * @param minCommonSequence a minimum length of the common sequence, must be >= 0
+     * @return true if prefix length >= minCommonSequence
+     */
+    public boolean meetsMinMergableSequenceForPrefix(final int minCommonSequence) {
+        return prefixV.length() >= minCommonSequence;
+    }
+
+    /**
+     * Does the common suffix have at least minCommonSequence bases in it?
+     * @param minCommonSequence a minimum length of the common sequence, must be >= 0
+     * @return true if suffix length >= minCommonSequence
+     */
+    public boolean meetsMinMergableSequenceForSuffix(final int minCommonSequence) {
+        return suffixV.length() >= minCommonSequence;
     }
 
     /**

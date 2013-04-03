@@ -63,7 +63,14 @@ import java.util.Set;
  */
 public final class SeqGraph extends BaseGraph<SeqVertex> {
     private final static boolean PRINT_SIMPLIFY_GRAPHS = false;
-    private final static int MIN_SUFFIX_TO_MERGE_TAILS = 5;
+
+    /**
+     * The minimum number of common bp from the prefix (head merging) or suffix (tail merging)
+     * required before we'll merge in such configurations.  A large value here is critical to avoid
+     * merging inappropriate head or tail nodes, which introduces large insertion / deletion events
+     * as the merge operation creates a link among the non-linked sink / source vertices
+     */
+    private final static int MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES = 10;
 
     /**
      * Construct an empty SeqGraph
@@ -103,15 +110,15 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
             //logger.info("simplifyGraph iteration " + i);
             // iterate until we haven't don't anything useful
             didSomeWork = false;
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".1.dot"), 0);
             didSomeWork |= new MergeDiamonds().transformUntilComplete();
             didSomeWork |= new MergeTails().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".diamonds_and_tails.dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".2.diamonds_and_tails.dot"), 0);
 
             didSomeWork |= new SplitCommonSuffices().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".split_suffix.dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".3.split_suffix.dot"), 0);
             didSomeWork |= new MergeCommonSuffices().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".merge_suffix.dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".4.merge_suffix.dot"), 0);
 
             didSomeWork |= new MergeHeadlessIncomingSources().transformUntilComplete();
             didSomeWork |= zipLinearChains();
@@ -375,7 +382,10 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
 
             // actually do the merging, returning true if at least 1 base was successfully split
             final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, middles);
-            return splitter.splitAndUpdate(top, bottom, 1);
+            if (splitter.meetsMinMergableSequenceForEitherPrefixOrSuffix(1))
+                return splitter.splitAndUpdate(top, bottom);
+            else
+                return false;
         }
     }
 
@@ -408,7 +418,11 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
             if ( dontModifyGraphEvenIfPossible() ) return true;
 
             final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, tails);
-            return splitter.splitAndUpdate(top, null, MIN_SUFFIX_TO_MERGE_TAILS);
+
+            if (splitter.meetsMinMergableSequenceForSuffix(MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES))
+                return splitter.splitAndUpdate(top, null);
+            else
+                return false;
         }
     }
 
@@ -492,7 +506,10 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
             if ( dontModifyGraphEvenIfPossible() ) return true;
 
             final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, incoming);
-            return splitter.splitAndUpdate(null, bottom, 1);
+            if (splitter.meetsMinMergableSequenceForPrefix(MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES))
+                return splitter.splitAndUpdate(null, bottom);
+            else
+                return false;
         }
     }
 }
