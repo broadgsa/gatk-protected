@@ -69,6 +69,7 @@ public class LikelihoodCalculationEngine {
     private final byte constantGCP;
     private final boolean DEBUG;
     private final PairHMM pairHMM;
+    private final int minReadLength = 20;
 
     public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType ) {
 
@@ -90,9 +91,16 @@ public class LikelihoodCalculationEngine {
         DEBUG = debug;
     }
 
-    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
-
-        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
+    /**
+     * Initialize our pairHMM with parameters appropriate to the haplotypes and reads we're going to evaluate
+     *
+     * After calling this routine the PairHMM will be configured to best evaluate all reads in the samples
+     * against the set of haplotypes
+     *
+     * @param haplotypes a non-null list of haplotypes
+     * @param perSampleReadList a mapping from sample -> reads
+     */
+    private void initializePairHMM(final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList) {
         int X_METRIC_LENGTH = 0;
         for( final Map.Entry<String, List<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
             for( final GATKSAMRecord read : sample.getValue() ) {
@@ -108,13 +116,20 @@ public class LikelihoodCalculationEngine {
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
         pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+    }
 
-        // for each sample's reads
+    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
+        // configure the HMM
+        initializePairHMM(haplotypes, perSampleReadList);
+
+        // Add likelihoods for each sample's reads to our stratifiedReadMap
+        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
             //if( DEBUG ) { System.out.println("Evaluating sample " + sample + " with " + perSampleReadList.get( sample ).size() + " passing reads"); }
             // evaluate the likelihood of the reads given those haplotypes
             stratifiedReadMap.put(sampleEntry.getKey(), computeReadLikelihoods(haplotypes, sampleEntry.getValue()));
         }
+
         return stratifiedReadMap;
     }
 
@@ -128,6 +143,10 @@ public class LikelihoodCalculationEngine {
 
         final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
         for( final GATKSAMRecord read : reads ) {
+            if ( read.getReadLength() < minReadLength )
+                // don't consider any reads that have a read length < the minimum
+                continue;
+
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
             // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
