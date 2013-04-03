@@ -71,6 +71,13 @@ public class LikelihoodCalculationEngine {
     private final PairHMM pairHMM;
     private final int minReadLength = 20;
 
+    /**
+     * The expected rate of random sequencing errors for a read originating from its true haplotype.
+     *
+     * For example, if this is 0.01, then we'd expect 1 error per 100 bp.
+     */
+    private final double EXPECTED_ERROR_RATE_PER_BASE = 0.02;
+
     public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType ) {
 
         switch (hmmType) {
@@ -127,7 +134,14 @@ public class LikelihoodCalculationEngine {
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
             //if( DEBUG ) { System.out.println("Evaluating sample " + sample + " with " + perSampleReadList.get( sample ).size() + " passing reads"); }
             // evaluate the likelihood of the reads given those haplotypes
-            stratifiedReadMap.put(sampleEntry.getKey(), computeReadLikelihoods(haplotypes, sampleEntry.getValue()));
+            final PerReadAlleleLikelihoodMap map = computeReadLikelihoods(haplotypes, sampleEntry.getValue());
+
+            final List<GATKSAMRecord> removedReads = map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
+//            logger.info("Removed " + removedReads.size() + " reads because of bad likelihoods from sample " + sampleEntry.getKey());
+//            for ( final GATKSAMRecord read : removedReads )
+//                logger.info("\tRemoved " + read.getReadName());
+
+            stratifiedReadMap.put(sampleEntry.getKey(), map);
         }
 
         return stratifiedReadMap;
@@ -170,6 +184,7 @@ public class LikelihoodCalculationEngine {
                 perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
             }
         }
+
         return perReadAlleleLikelihoodMap;
     }
 

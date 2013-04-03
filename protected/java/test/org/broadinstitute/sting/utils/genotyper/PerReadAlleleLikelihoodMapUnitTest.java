@@ -46,6 +46,8 @@
 
 package org.broadinstitute.sting.utils.genotyper;
 
+import net.sf.samtools.*;
+import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.sting.utils.BaseUtils;
@@ -54,33 +56,16 @@ import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.sting.utils.Utils;
 import java.util.Map;
 import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileReader;
-import net.sf.samtools.SAMRecord;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
-import org.broadinstitute.sting.utils.sam.ArtificialBAMBuilder;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.GATKSamRecordFactory;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
@@ -235,7 +220,82 @@ public class PerReadAlleleLikelihoodMapUnitTest extends BaseTest {
         Assert.assertEquals(downsampledStrat.get(base_A).size(),(int) (pileup.depthOfCoverage()/2) - 1);
         Assert.assertEquals(downsampledStrat.get(base_C).size(),(int) (pileup.depthOfCoverage()/2));
         Assert.assertEquals(downsampledStrat.get(base_T).size(),0);
+    }
+
+    @DataProvider(name = "PoorlyModelledReadData")
+    public Object[][] makePoorlyModelledReadData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        tests.add(new Object[]{10, 0.1, false, Arrays.asList(0.0)});
+        tests.add(new Object[]{10, 0.1, true, Arrays.asList(-10.0)});
+        tests.add(new Object[]{10, 0.1, false, Arrays.asList(0.0, -10.0)});
+        tests.add(new Object[]{10, 0.1, true, Arrays.asList(-5.0, -10.0)});
+        tests.add(new Object[]{100, 0.1, false, Arrays.asList(-5.0, -10.0)});
+        tests.add(new Object[]{100, 0.01, true, Arrays.asList(-5.0, -10.0)});
+        tests.add(new Object[]{100, 0.01, false, Arrays.asList(-5.0, -10.0, -3.0)});
+        tests.add(new Object[]{100, 0.01, false, Arrays.asList(-5.0, -10.0, -2.0)});
+        tests.add(new Object[]{100, 0.01, true, Arrays.asList(-5.0, -10.0, -4.0)});
+        tests.add(new Object[]{100, 0.001, true, Arrays.asList(-5.0, -10.0)});
+        tests.add(new Object[]{100, 0.001, false, Arrays.asList(-5.0, -10.0, 0.0)});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "PoorlyModelledReadData")
+    public void testPoorlyModelledRead(final int readLen, final double maxErrorRatePerBase, final boolean expected, final List<Double> log10likelihoods) {
+        final byte[] bases = Utils.dupBytes((byte)'A', readLen);
+        final byte[] quals = Utils.dupBytes((byte) 30, readLen);
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, quals, readLen + "M");
+
+        final PerReadAlleleLikelihoodMap map = new PerReadAlleleLikelihoodMap();
+        final boolean actual = map.readIsPoorlyModelled(read, log10likelihoods, maxErrorRatePerBase);
+        Assert.assertEquals(actual, expected);
+    }
 
 
+    @DataProvider(name = "RemovingPoorlyModelledReadData")
+    public Object[][] makeRemovingPoorlyModelledReadData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        final int readLen = 10;
+        for ( int nReads = 0; nReads < 4; nReads++ ) {
+            for ( int nBad = 0; nBad <= nReads; nBad++ ) {
+                final int nGood = nReads - nBad;
+                tests.add(new Object[]{readLen, nReads, nBad, nGood});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "RemovingPoorlyModelledReadData")
+    public void testRemovingPoorlyModelledReads(final int readLen, final int nReads, final int nBad, final int nGood) {
+        final PerReadAlleleLikelihoodMap map = new PerReadAlleleLikelihoodMap();
+        final Set<GATKSAMRecord> goodReads = new HashSet<GATKSAMRecord>();
+        final Set<GATKSAMRecord> badReads = new HashSet<GATKSAMRecord>();
+        for ( int readI = 0; readI < nReads; readI++ ) {
+            final boolean bad = readI < nBad;
+            final double likelihood = bad ? -100.0 : 0.0;
+
+            final byte[] bases = Utils.dupBytes((byte)'A', readLen);
+            final byte[] quals = Utils.dupBytes((byte) 30, readLen);
+
+            final Allele allele = Allele.create(Utils.dupString("A", readI+1));
+
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, quals, readLen + "M");
+            read.setReadName("readName" + readI);
+            map.add(read, allele, likelihood);
+            (bad ? badReads : goodReads).add(read);
+        }
+
+        final List<GATKSAMRecord> removedReads = map.filterPoorlyModelledReads(0.01);
+        Assert.assertEquals(removedReads.size(), nBad, "nBad " + nBad + " nGood " + nGood);
+        Assert.assertEquals(new HashSet<GATKSAMRecord>(removedReads), badReads, "nBad " + nBad + " nGood " + nGood);
+        Assert.assertEquals(map.size(), nGood, "nBad " + nBad + " nGood " + nGood);
+        Assert.assertTrue(map.getStoredElements().containsAll(goodReads), "nBad " + nBad + " nGood " + nGood);
+        Assert.assertEquals(map.getStoredElements().size(), nGood, "nBad " + nBad + " nGood " + nGood);
     }
 }
