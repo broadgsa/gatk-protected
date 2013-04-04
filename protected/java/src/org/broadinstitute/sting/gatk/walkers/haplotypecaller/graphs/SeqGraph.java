@@ -350,7 +350,7 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
     protected class MergeDiamonds extends VertexBasedTransformer {
         @Override
         protected boolean tryToTransform(final SeqVertex top) {
-            final List<SeqVertex> middles = outgoingVerticesOf(top);
+            final Set<SeqVertex> middles = outgoingVerticesOf(top);
             if ( middles.size() <= 1 )
                 // we can only merge if there's at least two middle nodes
                 return false;
@@ -407,7 +407,7 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
     protected class MergeTails extends VertexBasedTransformer {
         @Override
         protected boolean tryToTransform(final SeqVertex top) {
-            final List<SeqVertex> tails = outgoingVerticesOf(top);
+            final Set<SeqVertex> tails = outgoingVerticesOf(top);
             if ( tails.size() <= 1 )
                 return false;
 
@@ -495,7 +495,7 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
     protected class MergeHeadlessIncomingSources extends VertexBasedTransformer {
         @Override
         boolean tryToTransform(final SeqVertex bottom) {
-            final List<SeqVertex> incoming = incomingVerticesOf(bottom);
+            final Set<SeqVertex> incoming = incomingVerticesOf(bottom);
             if ( incoming.size() <= 1 )
                 return false;
 
