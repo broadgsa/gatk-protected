@@ -243,6 +243,32 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testKeepOriginalAC() {
+        String testFile = privateTestDir + "vcfexample.loseAlleleInSelection.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --keepOriginalAC -R " + b36KGReference + " -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("ad7e8b25e431a3229a78cec063876559")
+        );
+
+        executeTest("testKeepOriginalAC--" + testFile, spec);
+    }
+
+    @Test
+    public void testKeepOriginalACAndENV() {
+        String testFile = privateTestDir + "vcfexample.loseAlleleInSelection.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --keepOriginalAC -env -R " + b36KGReference + " -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("e9b8292212545684cdb163423329ee7e")
+        );
+
+        executeTest("testKeepOriginalACAndENV--" + testFile, spec);
+    }
+
+    @Test
     public void testMultipleRecordsAtOnePosition() {
         String testFile = privateTestDir + "selectVariants.onePosition.vcf";
 
