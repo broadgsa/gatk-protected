@@ -60,8 +60,8 @@ import java.util.List;
  * Date: 3/25/13
  * Time: 9:42 PM
  */
-final class Utils {
-    private Utils() {}
+final class GraphUtils {
+    private GraphUtils() {}
 
     /**
      * Compute the maximum shared prefix length of list of bytes.

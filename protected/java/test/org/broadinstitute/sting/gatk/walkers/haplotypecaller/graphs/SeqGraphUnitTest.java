@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -195,8 +196,8 @@ public class SeqGraphUnitTest extends BaseTest {
 
         final SeqGraph graph = new SeqGraph();
 
-        SeqVertex pre1 = new SeqVertex("ACT");
-        SeqVertex pre2 = new SeqVertex("AGT");
+        SeqVertex pre1 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "CT");
+        SeqVertex pre2 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "GT");
         SeqVertex top = new SeqVertex("A");
         SeqVertex middle1 = new SeqVertex("GC");
         SeqVertex middle2 = new SeqVertex("TC");
@@ -282,7 +283,7 @@ public class SeqGraphUnitTest extends BaseTest {
             final SeqVertex newMiddle1 = new SeqVertex("G");
             final SeqVertex newMiddle2 = new SeqVertex("T");
             final SeqVertex newBottom = new SeqVertex("C" + bottom.getSequenceString());
-            final SeqVertex newTop = new SeqVertex("A");
+            final SeqVertex newTop = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES));
             final SeqVertex newTopDown1 = new SeqVertex("G");
             final SeqVertex newTopDown2 = new SeqVertex("C");
             final SeqVertex newTopBottomMerged = new SeqVertex("TA");

@@ -98,10 +98,10 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
             min = Math.min(min, s.length());
         }
 
-        final int actualPrefixLen = org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Utils.compPrefixLen(bytes, min);
+        final int actualPrefixLen = GraphUtils.compPrefixLen(bytes, min);
         Assert.assertEquals(actualPrefixLen, expectedPrefixLen, "Failed prefix test");
 
-        final int actualSuffixLen = org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Utils.compSuffixLen(bytes, min - actualPrefixLen);
+        final int actualSuffixLen = GraphUtils.compSuffixLen(bytes, min - actualPrefixLen);
         Assert.assertEquals(actualSuffixLen, expectedSuffixLen, "Failed suffix test");
     }
 

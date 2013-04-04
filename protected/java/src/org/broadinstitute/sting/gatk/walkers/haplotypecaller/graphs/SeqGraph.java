@@ -70,7 +70,7 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
      * merging inappropriate head or tail nodes, which introduces large insertion / deletion events
      * as the merge operation creates a link among the non-linked sink / source vertices
      */
-    private final static int MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES = 10;
+    protected final static int MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES = 10;
 
     /**
      * Construct an empty SeqGraph

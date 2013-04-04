@@ -295,8 +295,8 @@ public class SharedVertexSequenceSplitter {
             min = Math.min(min, v.getSequence().length);
         }
 
-        final int prefixLen = Utils.compPrefixLen(kmers, min);
-        final int suffixLen = Utils.compSuffixLen(kmers, min - prefixLen);
+        final int prefixLen = GraphUtils.compPrefixLen(kmers, min);
+        final int suffixLen = GraphUtils.compSuffixLen(kmers, min - prefixLen);
 
         final byte[] kmer = kmers.get(0);
         final byte[] prefix = Arrays.copyOfRange(kmer, 0, prefixLen);
