@@ -149,6 +149,19 @@ public class Path<T extends BaseVertex> {
     }
 
     /**
+     * Does this path contain the given vertex?
+     *
+     * @param v a non-null vertex
+     * @return true if v occurs within this path, false otherwise
+     */
+    public boolean containsVertex(final T v) {
+        if ( v == null ) throw new IllegalArgumentException("Vertex cannot be null");
+
+        // TODO -- warning this is expense.  Need to do vertex caching
+        return getVertices().contains(v);
+    }
+
+    /**
      * Check that two paths have the same edges and total score
      * @param path the other path we might be the same as
      * @return true if this and path are the same

@@ -138,6 +138,30 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
     }
 
     /**
+     * Get the set of source vertices of this graph
+     * @return a non-null set
+     */
+    public Set<T> getSources() {
+        final Set<T> set = new LinkedHashSet<T>();
+        for ( final T v : vertexSet() )
+            if ( isSource(v) )
+                set.add(v);
+        return set;
+    }
+
+    /**
+     * Get the set of sink vertices of this graph
+     * @return a non-null set
+     */
+    public Set<T> getSinks() {
+        final Set<T> set = new LinkedHashSet<T>();
+        for ( final T v : vertexSet() )
+            if ( isSink(v) )
+                set.add(v);
+        return set;
+    }
+
+    /**
      * Pull out the additional sequence implied by traversing this node in the graph
      * @param v the vertex from which to pull out the additional base sequence
      * @return  non-null byte array

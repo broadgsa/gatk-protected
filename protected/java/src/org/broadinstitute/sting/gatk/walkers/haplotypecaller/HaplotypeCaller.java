@@ -314,6 +314,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="trimActiveRegions", shortName="trimActiveRegions", doc="If specified, we will trim down the active region from the full region (active + extension) to just the active interval for genotyping", required = false)
     protected boolean trimActiveRegions = false;
 
+    @Hidden
+    @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="If specified, we will allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
+    protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
+
+
     // the UG engines
     private UnifiedGenotyperEngine UG_engine = null;
     private UnifiedGenotyperEngine UG_engine_simple_genotyper = null;
@@ -424,7 +429,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         // setup the assembler
-        assemblyEngine = new DeBruijnAssembler( DEBUG, debugGraphTransformations, minKmer);
+        assemblyEngine = new DeBruijnAssembler(DEBUG, debugGraphTransformations, minKmer, allowCyclesInKmerGraphToGeneratePaths);
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
         assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);
         if ( graphWriter != null ) assemblyEngine.setGraphWriter(graphWriter);

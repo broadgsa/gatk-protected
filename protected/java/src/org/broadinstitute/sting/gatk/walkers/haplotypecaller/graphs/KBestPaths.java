@@ -50,10 +50,7 @@ import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.java.contract.Ensures;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Class for finding the K best paths (as determined by the sum of multiplicities of the edges) in a graph.
@@ -63,7 +60,23 @@ import java.util.List;
  * Date: Mar 23, 2011
  */
 public class KBestPaths<T extends BaseVertex> {
-    public KBestPaths() { }
+    private final boolean allowCycles;
+
+    /**
+     * Create a new KBestPaths finder that follows cycles in the graph
+     */
+    public KBestPaths() {
+        this(true);
+    }
+
+    /**
+     * Create a new KBestPaths finder
+     *
+     * @param allowCycles should we allow paths that follow cycles in the graph?
+     */
+    public KBestPaths(final boolean allowCycles) {
+        this.allowCycles = allowCycles;
+    }
 
     protected static class MyInt { public int val = 0; }
 
@@ -78,31 +91,61 @@ public class KBestPaths<T extends BaseVertex> {
     }
 
     /**
-     * @see #getKBestPaths(BaseGraph, int) retriving the first 1000 paths
+     * @see #getKBestPaths(BaseGraph, int) retriving the best 1000 paths
      */
     public List<Path<T>> getKBestPaths( final BaseGraph<T> graph ) {
         return getKBestPaths(graph, 1000);
     }
 
     /**
-     * Traverse the graph and pull out the best k paths.
-     * Paths are scored via their comparator function. The default being PathComparatorTotalScore()
-     * @param graph the graph from which to pull paths
-     * @param k     the number of paths to find
-     * @return      a list with at most k top-scoring paths from the graph
+     * @see #getKBestPaths(BaseGraph, int, java.util.Set, java.util.Set) retriving the first 1000 paths
+     * starting from all source vertices and ending with all sink vertices
      */
-    @Ensures({"result != null", "result.size() <= k"})
     public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k ) {
+        return getKBestPaths(graph, k, graph.getSources(), graph.getSinks());
+    }
+
+    /**
+     * @see #getKBestPaths(BaseGraph, int, java.util.Set, java.util.Set) with k=1000
+     */
+    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final Set<T> sources, final Set<T> sinks ) {
+        return getKBestPaths(graph, 1000, sources, sinks);
+    }
+
+    /**
+     * @see #getKBestPaths(BaseGraph, int, java.util.Set, java.util.Set) with k=1000
+     */
+    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final T source, final T sink ) {
+        return getKBestPaths(graph, 1000, source, sink);
+    }
+
+    /**
+     * @see #getKBestPaths(BaseGraph, int, java.util.Set, java.util.Set) with singleton source and sink sets
+     */
+    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k, final T source, final T sink ) {
+        return getKBestPaths(graph, k, Collections.singleton(source), Collections.singleton(sink));
+    }
+
+        /**
+         * Traverse the graph and pull out the best k paths.
+         * Paths are scored via their comparator function. The default being PathComparatorTotalScore()
+         * @param graph the graph from which to pull paths
+         * @param k     the number of paths to find
+         * @param sources a set of vertices we want to start paths with
+         * @param sinks   a set of vertices we want to end paths with
+         * @return      a list with at most k top-scoring paths from the graph
+         */
+    @Ensures({"result != null", "result.size() <= k"})
+    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k, final Set<T> sources, final Set<T> sinks ) {
         if( graph == null ) { throw  new IllegalArgumentException("Attempting to traverse a null graph."); }
 
         // a min max queue that will collect the best k paths
         final MinMaxPriorityQueue<Path<T>> bestPaths = MinMaxPriorityQueue.orderedBy(new PathComparatorTotalScore()).maximumSize(k).create();
 
         // run a DFS for best paths
-        for ( final T v : graph.vertexSet() ) {
-            if ( graph.inDegreeOf(v) == 0 ) {
-                findBestPaths(new Path<T>(v, graph), bestPaths, new MyInt());
-            }
+        for ( final T source : sources ) {
+            final Path<T> startingPath = new Path<T>(source, graph);
+            findBestPaths(startingPath, sinks, bestPaths, new MyInt());
         }
 
         // the MinMaxPriorityQueue iterator returns items in an arbitrary order, so we need to sort the final result
@@ -111,9 +154,15 @@ public class KBestPaths<T extends BaseVertex> {
         return toReturn;
     }
 
-    private void findBestPaths( final Path<T> path, final MinMaxPriorityQueue<Path<T>> bestPaths, final MyInt n ) {
-        // did we hit the end of a path?
-        if ( allOutgoingEdgesHaveBeenVisited(path) ) {
+    /**
+     * Recursive algorithm to find the K best paths in the graph from the current path to any of the sinks
+     * @param path the current path progress
+     * @param sinks a set of nodes that are sinks.  Will terminate and add a path if the last vertex of path is in this set
+     * @param bestPaths a path to collect completed paths.
+     * @param n used to limit the search by tracking the number of vertices visited across all paths
+     */
+    private void findBestPaths( final Path<T> path, final Set<T> sinks, final Collection<Path<T>> bestPaths, final MyInt n ) {
+        if ( sinks.contains(path.getLastVertex())) {
             bestPaths.add(path);
         } else if( n.val > 10000 ) {
             // do nothing, just return, as we've done too much work already
@@ -122,31 +171,15 @@ public class KBestPaths<T extends BaseVertex> {
             final ArrayList<BaseEdge> edgeArrayList = new ArrayList<BaseEdge>(path.getOutgoingEdgesOfLastVertex());
             Collections.sort(edgeArrayList, new BaseEdge.EdgeWeightComparator());
             for ( final BaseEdge edge : edgeArrayList ) {
+                final T target = path.getGraph().getEdgeTarget(edge);
                 // make sure the edge is not already in the path
-                if ( path.containsEdge(edge) )
-                    continue;
-
-                final Path<T> newPath = new Path<T>(path, edge);
-                n.val++;
-                findBestPaths(newPath, bestPaths, n);
+                final boolean alreadyVisited = allowCycles ? path.containsEdge(edge) : path.containsVertex(target);
+                if ( ! alreadyVisited ) {
+                    final Path<T> newPath = new Path<T>(path, edge);
+                    n.val++;
+                    findBestPaths(newPath, sinks, bestPaths, n);
+                }
             }
         }
-    }
-
-    /**
-     * Have all of the outgoing edges of the final vertex been visited?
-     *
-     * I.e., are all outgoing vertices of the current path in the list of edges of the graph?
-     *
-     * @param path  the path to test
-     * @return      true if all the outgoing edges at the end of this path have already been visited
-     */
-    private boolean allOutgoingEdgesHaveBeenVisited( final Path<T> path ) {
-        for( final BaseEdge edge : path.getOutgoingEdgesOfLastVertex() ) {
-            if( !path.containsEdge(edge) ) { // TODO -- investigate allowing numInPath < 2 to allow cycles
-                return false;
-            }
-        }
-        return true;
     }
 }

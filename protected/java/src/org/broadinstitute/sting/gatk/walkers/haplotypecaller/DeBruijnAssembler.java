@@ -95,22 +95,25 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private final boolean debug;
     private final boolean debugGraphTransformations;
     private final int minKmer;
+    private final boolean allowCyclesInKmerGraphToGeneratePaths;
 
     private final int onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms;
 
 
     protected DeBruijnAssembler() {
-        this(false, -1, 11);
+        this(false, -1, 11, false);
     }
 
     public DeBruijnAssembler(final boolean debug,
                              final int debugGraphTransformations,
-                             final int minKmer) {
+                             final int minKmer,
+                             final boolean allowCyclesInKmerGraphToGeneratePaths) {
         super();
         this.debug = debug;
         this.debugGraphTransformations = debugGraphTransformations > 0;
         this.onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms = debugGraphTransformations;
         this.minKmer = minKmer;
+        this.allowCyclesInKmerGraphToGeneratePaths = allowCyclesInKmerGraphToGeneratePaths;
     }
 
     /**
@@ -388,7 +391,12 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         }
 
         for( final SeqGraph graph : graphs ) {
-            for ( final Path<SeqVertex> path : new KBestPaths<SeqVertex>().getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
+            final SeqVertex source = graph.getReferenceSourceVertex();
+            final SeqVertex sink = graph.getReferenceSinkVertex();
+            if ( source == null || sink == null ) throw new IllegalArgumentException("Both source and sink cannot be null but got " + source + " and sink " + sink + " for graph "+ graph);
+
+            final KBestPaths<SeqVertex> pathFinder = new KBestPaths<SeqVertex>(allowCyclesInKmerGraphToGeneratePaths);
+            for ( final Path<SeqVertex> path : pathFinder.getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH, source, sink) ) {
 //                logger.info("Found path " + path);
                 Haplotype h = new Haplotype( path.getBases() );
                 if( !returnHaplotypes.contains(h) ) {

@@ -55,10 +55,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created with IntelliJ IDEA.
@@ -70,15 +67,13 @@ public class KBestPathsUnitTest {
     @DataProvider(name = "BasicPathFindingData")
     public Object[][] makeBasicPathFindingData() {
         List<Object[]> tests = new ArrayList<Object[]>();
-//        for ( final int nStartNodes : Arrays.asList(1) ) {
-//            for ( final int nBranchesPerBubble : Arrays.asList(2) ) {
-//                for ( final int nEndNodes : Arrays.asList(1) ) {
-//                    for ( final boolean addCycle : Arrays.asList(true) ) {
-                        for ( final int nStartNodes : Arrays.asList(1, 2, 3) ) {
-                            for ( final int nBranchesPerBubble : Arrays.asList(2, 3) ) {
-                                for ( final int nEndNodes : Arrays.asList(1, 2, 3) ) {
-                                    for ( final boolean addCycle : Arrays.asList(true, false) ) {
-                        tests.add(new Object[]{nStartNodes, nBranchesPerBubble, nEndNodes, addCycle});
+        for ( final boolean allowCycles : Arrays.asList(false, true)) {
+            for ( final int nStartNodes : Arrays.asList(1, 2, 3) ) {
+                for ( final int nBranchesPerBubble : Arrays.asList(2, 3) ) {
+                    for ( final int nEndNodes : Arrays.asList(1, 2, 3) ) {
+                        for ( final boolean addCycle : Arrays.asList(true, false) ) {
+                            tests.add(new Object[]{nStartNodes, nBranchesPerBubble, nEndNodes, addCycle, allowCycles});
+                        }
                     }
                 }
             }
@@ -88,9 +83,9 @@ public class KBestPathsUnitTest {
     }
 
     private static int weight = 1;
-    final List<SeqVertex> createVertices(final SeqGraph graph, final int n, final SeqVertex source, final SeqVertex target) {
+    final Set<SeqVertex> createVertices(final SeqGraph graph, final int n, final SeqVertex source, final SeqVertex target) {
         final List<String> seqs = Arrays.asList("A", "C", "G", "T");
-        final List<SeqVertex> vertices = new LinkedList<SeqVertex>();
+        final Set<SeqVertex> vertices = new LinkedHashSet<SeqVertex>();
         for ( int i = 0; i < n; i++ ) {
             final SeqVertex v = new SeqVertex(seqs.get(i));
             graph.addVertex(v);
@@ -102,22 +97,22 @@ public class KBestPathsUnitTest {
     }
 
     @Test(dataProvider = "BasicPathFindingData", enabled = true)
-    public void testBasicPathFinding(final int nStartNodes, final int nBranchesPerBubble, final int nEndNodes, final boolean addCycle) {
+    public void testBasicPathFinding(final int nStartNodes, final int nBranchesPerBubble, final int nEndNodes, final boolean addCycle, final boolean allowCycles) {
         SeqGraph graph = new SeqGraph();
 
         final SeqVertex middleTop = new SeqVertex("GTAC");
         final SeqVertex middleBottom = new SeqVertex("ACTG");
         graph.addVertices(middleTop, middleBottom);
-        final List<SeqVertex> starts = createVertices(graph, nStartNodes, null, middleTop);
-        final List<SeqVertex> bubbles = createVertices(graph, nBranchesPerBubble, middleTop, middleBottom);
-        final List<SeqVertex> ends = createVertices(graph, nEndNodes, middleBottom, null);
+        final Set<SeqVertex> starts = createVertices(graph, nStartNodes, null, middleTop);
+        final Set<SeqVertex> bubbles = createVertices(graph, nBranchesPerBubble, middleTop, middleBottom);
+        final Set<SeqVertex> ends = createVertices(graph, nEndNodes, middleBottom, null);
 
         if ( addCycle ) graph.addEdge(middleBottom, middleBottom);
 
         // enumerate all possible paths
-        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>().getKBestPaths(graph);
+        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>(allowCycles).getKBestPaths(graph, starts, ends);
 
-        final int expectedNumOfPaths = nStartNodes * nBranchesPerBubble * (addCycle ? 2 : 1) * nEndNodes;
+        final int expectedNumOfPaths = nStartNodes * nBranchesPerBubble * (addCycle && allowCycles ? 2 : 1) * nEndNodes;
         Assert.assertEquals(paths.size(), expectedNumOfPaths, "Didn't find the expected number of paths");
 
         int lastScore = Integer.MAX_VALUE;
@@ -128,9 +123,45 @@ public class KBestPathsUnitTest {
 
         // get the best path, and make sure it's the same as our optimal path overall
         final Path best = paths.get(0);
-        final List<Path<SeqVertex>> justOne = new KBestPaths<SeqVertex>().getKBestPaths(graph, 1);
+        final List<Path<SeqVertex>> justOne = new KBestPaths<SeqVertex>(allowCycles).getKBestPaths(graph, 1, starts, ends);
         Assert.assertEquals(justOne.size(), 1);
         Assert.assertTrue(justOne.get(0).pathsAreTheSame(best), "Best path from complete enumerate " + best + " not the same as from k = 1 search " + justOne.get(0));
+    }
+
+    @Test
+    public void testPathFindingComplexCycle() {
+        SeqGraph graph = new SeqGraph();
+
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("C");
+        final SeqVertex v3 = new SeqVertex("G");
+        final SeqVertex v4 = new SeqVertex("T");
+        final SeqVertex v5 = new SeqVertex("AA");
+        graph.addVertices(v1, v2, v3, v4, v5);
+        graph.addEdges(v1, v2, v3, v4, v5);
+        graph.addEdges(v3, v3);
+        graph.addEdges(v4, v2);
+
+        // enumerate all possible paths
+        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>(false).getKBestPaths(graph, v1, v5);
+
+        Assert.assertEquals(paths.size(), 1, "Didn't find the expected number of paths");
+    }
+
+    @Test
+    public void testPathFindingCycleLastNode() {
+        SeqGraph graph = new SeqGraph();
+
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("C");
+        final SeqVertex v3 = new SeqVertex("G");
+        graph.addVertices(v1, v2, v3);
+        graph.addEdges(v1, v2, v3, v3);
+
+        // enumerate all possible paths
+        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>(false).getKBestPaths(graph, v1, v3);
+
+        Assert.assertEquals(paths.size(), 1, "Didn't find the expected number of paths");
     }
 
     @DataProvider(name = "BasicBubbleDataProvider")
