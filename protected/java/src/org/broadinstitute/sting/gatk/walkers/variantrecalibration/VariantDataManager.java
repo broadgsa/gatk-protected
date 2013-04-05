@@ -335,19 +335,17 @@ public class VariantDataManager {
             }} );
 
         // create dummy alleles to be used
-        final List<Allele> alleles = new ArrayList<Allele>(2);
-        alleles.add(Allele.create("N", true));
-        alleles.add(Allele.create("<VQSR>", false));
-
-        // to be used for the important INFO tags
-        final HashMap<String, Object> attributes = new HashMap<String, Object>(3);
+        final List<Allele> alleles = Arrays.asList(Allele.create("N", true), Allele.create("<VQSR>", false));
 
         for( final VariantDatum datum : data ) {
-            attributes.put(VCFConstants.END_KEY, datum.loc.getStop());
-            attributes.put(VariantRecalibrator.VQS_LOD_KEY, String.format("%.4f", datum.lod));
-            attributes.put(VariantRecalibrator.CULPRIT_KEY, (datum.worstAnnotation != -1 ? annotationKeys.get(datum.worstAnnotation) : "NULL"));
+            VariantContextBuilder builder = new VariantContextBuilder("VQSR", datum.loc.getContig(), datum.loc.getStart(), datum.loc.getStop(), alleles);
+            builder.attribute(VCFConstants.END_KEY, datum.loc.getStop());
+            builder.attribute(VariantRecalibrator.VQS_LOD_KEY, String.format("%.4f", datum.lod));
+            builder.attribute(VariantRecalibrator.CULPRIT_KEY, (datum.worstAnnotation != -1 ? annotationKeys.get(datum.worstAnnotation) : "NULL"));
 
-            VariantContextBuilder builder = new VariantContextBuilder("VQSR", datum.loc.getContig(), datum.loc.getStart(), datum.loc.getStop(), alleles).attributes(attributes);
+            if ( datum.atTrainingSite ) builder.attribute(VariantRecalibrator.POSITIVE_LABEL_KEY, true);
+            if ( datum.atAntiTrainingSite ) builder.attribute(VariantRecalibrator.NEGATIVE_LABEL_KEY, true);
+
             recalWriter.add(builder.make());
         }
     }
