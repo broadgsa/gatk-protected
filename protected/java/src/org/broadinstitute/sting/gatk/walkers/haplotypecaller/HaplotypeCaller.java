@@ -137,7 +137,7 @@ import java.util.*;
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 @PartitionBy(PartitionType.LOCUS)
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
-@ActiveRegionTraversalParameters(extension=85, maxRegion=300)
+@ActiveRegionTraversalParameters(extension=200, maxRegion=300)
 @ReadFilters({HCMappingQualityFilter.class})
 @Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=250)
 public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
@@ -200,7 +200,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     @Advanced
     @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = false)
-    protected int MIN_PRUNE_FACTOR = 1;
+    protected int MIN_PRUNE_FACTOR = 0;
 
     @Advanced
     @Argument(fullName="gcpHMM", shortName="gcpHMM", doc="Flat gap continuation penalty for use in the Pair HMM", required = false)
@@ -284,6 +284,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
     protected List<String> annotationsToExclude = new ArrayList<String>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator"}));
 
+    @Advanced
+    @Argument(fullName="dontMergeVariantsViaLD", shortName="dontMergeVariantsViaLD", doc="If specified, we will include low quality bases when doing the assembly", required = false)
+    protected boolean dontMergeVariantsViaLD = false;
+
     /**
      * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
      */
@@ -301,18 +305,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler for only this graph size", required = false)
     protected int debugGraphTransformations = -1;
 
-    // TODO -- not currently useful
-    @Hidden
+    @Hidden // TODO -- not currently useful
     @Argument(fullName="useLowQualityBasesForAssembly", shortName="useLowQualityBasesForAssembly", doc="If specified, we will include low quality bases when doing the assembly", required = false)
     protected boolean useLowQualityBasesForAssembly = false;
 
     @Hidden
-    @Argument(fullName="useNewLDMerger", shortName="useNewLDMerger", doc="If specified, we will include low quality bases when doing the assembly", required = false)
-    protected boolean useNewLDMerger = false;
-
-    @Hidden
-    @Argument(fullName="trimActiveRegions", shortName="trimActiveRegions", doc="If specified, we will trim down the active region from the full region (active + extension) to just the active interval for genotyping", required = false)
-    protected boolean trimActiveRegions = false;
+    @Argument(fullName="dontTrimActiveRegions", shortName="donTrimActiveRegions", doc="If specified, we will not trim down the active region from the full region (active + extension) to just the active interval for genotyping", required = false)
+    protected boolean dontTrimActiveRegions = false;
 
     @Hidden
     @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="If specified, we will allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
@@ -437,7 +436,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
 
-        final LDMerger ldMerger = new LDMerger(DEBUG, useNewLDMerger ? 10 : 10, useNewLDMerger ? 1 : 10);
+        final LDMerger ldMerger = new LDMerger(DEBUG, dontMergeVariantsViaLD ? 10000000 : 10, dontMergeVariantsViaLD ? 10000000 : 1);
 
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS, ldMerger );
 
@@ -640,7 +639,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype );
 
-        if ( trimActiveRegions ) {
+        if ( ! dontTrimActiveRegions ) {
             return trimActiveRegion(activeRegion, haplotypes, fullReferenceWithPadding, paddedReferenceLoc);
         } else {
             // we don't want to or cannot create a trimmed active region, so go ahead and use the old one
