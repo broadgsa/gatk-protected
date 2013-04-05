@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.filters;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -106,6 +107,13 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         executeTest("test filter sites not in mask", spec3);
     }
 
+    @Test
+    public void testIllegalFilterName() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " -filter 'DoC < 20 || FisherStrand > 20.0' -filterName 'foo < foo' --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000", 1,
+                UserException.class);
+        executeTest("test illegal filter name", spec);
+    }
 
     @Test
     public void testFilter1() {
