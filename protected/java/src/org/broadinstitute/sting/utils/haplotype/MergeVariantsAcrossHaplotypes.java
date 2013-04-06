@@ -44,136 +44,36 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.utils.haplotype;
 
-import com.google.java.contract.Ensures;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 
-import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 /**
- * A graph vertex that holds some sequence information
+ * Baseclass for code that wants to merge variants together in the haplotype caller
  *
- * @author: depristo
- * @since 03/2013
+ * This root class is basically a no-op, and can be used to not do any merging
  */
-public class BaseVertex {
-    final byte[] sequence;
-    private final static int UNASSIGNED_HASHCODE = -1;
-    int cachedHashCode = UNASSIGNED_HASHCODE;
-
+public class MergeVariantsAcrossHaplotypes {
     /**
-     * Create a new sequence vertex with sequence
+     * Merge variants across the haplotypes, updating the haplotype event maps and startPos set as appropriate
      *
-     * This code doesn't copy sequence for efficiency reasons, so sequence should absolutely not be modified
-     * in any way after passing this sequence to the BaseVertex
-     *
-     * @param sequence a non-null, non-empty sequence of bases contained in this vertex
+     * @param haplotypes a list of haplotypes whose events we want to merge
+     * @param haplotypeReadMap map from sample name -> read likelihoods for each haplotype
+     * @param startPosKeySet a set of starting positions of all events among the haplotypes
+     * @param ref the reference bases
+     * @param refLoc the span of the reference bases
+     * @return true if anything was merged
      */
-    public BaseVertex(final byte[] sequence) {
-        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
-        this.sequence = sequence;
-    }
-
-    /**
-     * Does this vertex have an empty sequence?
-     *
-     * That is, is it a dummy node that's only present for structural reasons but doesn't actually
-     * contribute to the sequence of the graph?
-     *
-     * @return true if sequence is empty, false otherwise
-     */
-    public boolean isEmpty() {
-        return length() == 0;
-    }
-
-    /**
-     * Get the length of this sequence
-     * @return a positive integer >= 1
-     */
-    public int length() {
-        return sequence.length;
-    }
-
-    /**
-     * For testing purposes only -- low performance
-     * @param sequence the sequence as a string
-     */
-    protected BaseVertex(final String sequence) {
-        this(sequence.getBytes());
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        BaseVertex that = (BaseVertex) o;
-
-        if (!Arrays.equals(sequence, that.sequence)) return false;
-
-        return true;
-    }
-
-    /**
-     * Are b and this equal according to their base sequences?
-     *
-     * @param b the vertex to compare ourselves to
-     * @return true if b and this have the same sequence, regardless of other attributes that might differentiate them
-     */
-    public boolean seqEquals(final BaseVertex b) {
-        return Arrays.equals(this.getSequence(), b.getSequence());
-    }
-
-    /**
-     * necessary to override here so that graph.containsVertex() works the same way as vertex.equals() as one might expect
-     * @return
-     */
-    @Override
-    public int hashCode() {
-        if ( cachedHashCode == UNASSIGNED_HASHCODE ) {
-            cachedHashCode = Arrays.hashCode(sequence);
-        }
-        return cachedHashCode;
-    }
-
-    @Override
-    public String toString() {
-        return getSequenceString();
-    }
-
-    /**
-     * Get the sequence of bases contained in this vertex
-     *
-     * Do not modify these bytes in any way!
-     *
-     * @return a non-null pointer to the bases contained in this vertex
-     */
-    @Ensures("result != null")
-    public byte[] getSequence() {
-        return sequence;
-    }
-
-    /**
-     * Get a string representation of the bases in this vertex
-     * @return a non-null String
-     */
-    @Ensures("result != null")
-    public String getSequenceString() {
-        return new String(sequence);
-    }
-
-    /**
-     * Get the sequence unique to this vertex
-     *
-     * This function may not return the entire sequence stored in the vertex, as kmer graphs
-     * really only provide 1 base of additional sequence (the last base of the kmer).
-     *
-     * The base implementation simply returns the sequence.
-     *
-     * @param source is this vertex a source vertex (i.e., no in nodes) in the graph
-     * @return a byte[] of the sequence added by this vertex to the overall sequence
-     */
-    public byte[] getAdditionalSequence(final boolean source) {
-        return getSequence();
+    public boolean merge( final List<Haplotype> haplotypes,
+                          final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                          final TreeSet<Integer> startPosKeySet,
+                          final byte[] ref,
+                          final GenomeLoc refLoc ) {
+        return false;
     }
 }

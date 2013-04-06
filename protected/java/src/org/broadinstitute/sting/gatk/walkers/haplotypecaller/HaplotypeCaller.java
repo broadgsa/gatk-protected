@@ -77,10 +77,7 @@ import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.fragments.FragmentCollection;
 import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.EventMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.haplotype.HaplotypeBaseComparator;
-import org.broadinstitute.sting.utils.haplotype.LDMerger;
+import org.broadinstitute.sting.utils.haplotype.*;
 import org.broadinstitute.sting.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
@@ -436,9 +433,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
 
-        final LDMerger ldMerger = new LDMerger(DEBUG, dontMergeVariantsViaLD ? 10000000 : 10, dontMergeVariantsViaLD ? 10000000 : 1);
+        final MergeVariantsAcrossHaplotypes variantMerger = dontMergeVariantsViaLD
+                ? new MergeVariantsAcrossHaplotypes()
+                : new LDMerger(DEBUG, 10, 1);
 
-        genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS, ldMerger );
+        genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS, variantMerger );
 
         if ( bamWriter != null )
             haplotypeBAMWriter = HaplotypeBAMWriter.create(bamWriterType, bamWriter, getToolkit().getSAMFileHeader());

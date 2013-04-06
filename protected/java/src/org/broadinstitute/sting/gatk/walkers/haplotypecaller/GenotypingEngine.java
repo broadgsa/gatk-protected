@@ -59,7 +59,7 @@ import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.EventMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.haplotype.LDMerger;
+import org.broadinstitute.sting.utils.haplotype.MergeVariantsAcrossHaplotypes;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
@@ -74,16 +74,16 @@ public class GenotypingEngine {
     private final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS;
     private final static List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
     private final VariantAnnotatorEngine annotationEngine;
-    private final LDMerger ldMerger;
+    private final MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
     public GenotypingEngine( final boolean DEBUG, final VariantAnnotatorEngine annotationEngine,
                              final boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS,
-                             final LDMerger ldMerger) {
+                             final MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger) {
         this.DEBUG = DEBUG;
         this.annotationEngine = annotationEngine;
         this.USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = USE_FILTERED_READ_MAP_FOR_ANNOTATIONS;
         noCall.add(Allele.NO_CALL);
-        this.ldMerger = ldMerger;
+        this.crossHaplotypeEventMerger = crossHaplotypeEventMerger;
     }
 
     /**
@@ -247,8 +247,8 @@ public class GenotypingEngine {
 
         cleanUpSymbolicUnassembledEvents( haplotypes );
         if ( !in_GGA_mode ) {
-            // if not in GGA mode and have at least 10 samples try to create MNP and complex events by looking at LD structure
-            final boolean mergedAnything = ldMerger.mergeConsecutiveEventsBasedOnLD( haplotypes, haplotypeReadMap, startPosKeySet, ref, refLoc );
+            // run the event merger if we're not in GGA mode
+            final boolean mergedAnything = crossHaplotypeEventMerger.merge(haplotypes, haplotypeReadMap, startPosKeySet, ref, refLoc);
             if ( mergedAnything )
                 cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events
         }

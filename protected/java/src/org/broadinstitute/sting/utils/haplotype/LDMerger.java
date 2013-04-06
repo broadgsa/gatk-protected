@@ -63,7 +63,7 @@ import java.util.*;
  * Date: 3/28/13
  * Time: 6:17 PM
  */
-public class LDMerger {
+public class LDMerger extends MergeVariantsAcrossHaplotypes {
     private final static Logger logger = Logger.getLogger(LDMerger.class);
 
     private final boolean DEBUG;
@@ -71,6 +71,7 @@ public class LDMerger {
     private final int minSamplesToMergeOtherEvents;
 
     public LDMerger(boolean DEBUG, int minSamplesToMergeSNPs, int minSamplesToMergeOtherEvents) {
+        super();
         this.DEBUG = DEBUG;
         this.minSamplesToMergeSNPs = minSamplesToMergeSNPs;
         this.minSamplesToMergeOtherEvents = minSamplesToMergeOtherEvents;
@@ -98,11 +99,12 @@ public class LDMerger {
      * @param ref the reference bases
      * @param refLoc the span of the reference bases
      */
-    public boolean mergeConsecutiveEventsBasedOnLD( final List<Haplotype> haplotypes,
-                                                    final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
-                                                    final TreeSet<Integer> startPosKeySet,
-                                                    final byte[] ref,
-                                                    final GenomeLoc refLoc ) {
+    @Override
+    public boolean merge( final List<Haplotype> haplotypes,
+                          final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                          final TreeSet<Integer> startPosKeySet,
+                          final byte[] ref,
+                          final GenomeLoc refLoc ) {
         if ( haplotypes == null ) throw new IllegalArgumentException("haplotypes cannot be null");
         if ( haplotypeReadMap == null ) throw new IllegalArgumentException("haplotypeReadMap cannot be null");
         if ( startPosKeySet == null ) throw new IllegalArgumentException("startPosKeySet cannot be null");

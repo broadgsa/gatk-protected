@@ -157,7 +157,7 @@ public class Path<T extends BaseVertex> {
     public boolean containsVertex(final T v) {
         if ( v == null ) throw new IllegalArgumentException("Vertex cannot be null");
 
-        // TODO -- warning this is expense.  Need to do vertex caching
+        // TODO -- warning this is expensive.  Need to do vertex caching
         return getVertices().contains(v);
     }
 
