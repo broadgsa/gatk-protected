@@ -55,13 +55,16 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
+import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.*;
@@ -122,4 +125,77 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
         }
     }
 
+    private static class MockBuilder extends DeBruijnGraphBuilder {
+        public final List<Kmer> addedPairs = new LinkedList<Kmer>();
+
+        private MockBuilder(final int kmerSize) {
+            super(new DeBruijnGraph(kmerSize));
+        }
+
+        @Override
+        public void addKmerPair(Kmer kmerPair, int multiplicity) {
+            logger.info("addKmerPair" + kmerPair);
+            addedPairs.add(kmerPair);
+        }
+
+        @Override
+        public void flushKmersToGraph(boolean addRefEdges) {
+            // do nothing
+        }
+    }
+
+    @DataProvider(name = "AddReadKmersToGraph")
+    public Object[][] makeAddReadKmersToGraphData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
+        final int readLen = bases.length();
+        final List<Integer> allBadStarts = new ArrayList<Integer>(readLen);
+        for ( int i = 0; i < readLen; i++ ) allBadStarts.add(i);
+
+        for ( final int kmerSize : Arrays.asList(3, 4, 5) ) {
+            for ( final int nBadQuals : Arrays.asList(0, 1, 2) ) {
+                for ( final List<Integer> badStarts : Utils.makePermutations(allBadStarts, nBadQuals, false) ) {
+                    tests.add(new Object[]{bases, kmerSize, badStarts});
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "AddReadKmersToGraph")
+    public void testAddReadKmersToGraph(final String bases, final int kmerSize, final List<Integer> badQualsSites) {
+        final int readLen = bases.length();
+        final DeBruijnAssembler assembler = new DeBruijnAssembler();
+        final MockBuilder builder = new MockBuilder(kmerSize);
+
+        final SAMFileHeader header = ArtificialSAMUtils.createArtificialSamHeader(1, 1, 1000);
+
+        final byte[] quals = Utils.dupBytes((byte)20, bases.length());
+        for ( final int badSite : badQualsSites ) quals[badSite] = 0;
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "myRead", 0, 1, readLen);
+        read.setReadBases(bases.getBytes());
+        read.setBaseQualities(quals);
+
+        final Set<String> expectedBases = new HashSet<String>();
+        final Set<Integer> expectedStarts = new LinkedHashSet<Integer>();
+        for ( int i = 0; i < readLen; i++) {
+            boolean good = true;
+            for ( int j = 0; j < kmerSize + 1; j++ ) { // +1 is for pairing
+                good &= i + j < readLen && quals[i+j] >= assembler.getMinBaseQualityToUseInAssembly();
+            }
+            if ( good ) {
+                expectedStarts.add(i);
+                expectedBases.add(bases.substring(i, i + kmerSize + 1));
+            }
+        }
+
+        assembler.addReadKmersToGraph(builder, Arrays.asList(read));
+        Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
+        for ( final Kmer addedKmer : builder.addedPairs ) {
+            Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);
+        }
+    }
 }

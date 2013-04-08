@@ -59,8 +59,8 @@ import java.util.Map;
  * Date: 3/8/13
  * Time: 1:16 PM
  */
-public class KmerCounter {
-    //private final static Logger logger = Logger.getLogger(KmerCounter.class);
+public class KMerCounter {
+    //private final static Logger logger = Logger.getLogger(KMerCounter.class);
 
     /**
      * A map of for each kmer to its num occurrences in addKmers
@@ -73,7 +73,7 @@ public class KmerCounter {
      *
      * @param kmerLength the length of kmers we'll be counting to error correct, must be >= 1
      */
-    public KmerCounter(final int kmerLength) {
+    public KMerCounter(final int kmerLength) {
         if ( kmerLength < 1 ) throw new IllegalArgumentException("kmerLength must be > 0 but got " + kmerLength);
         this.kmerLength = kmerLength;
     }
@@ -89,10 +89,17 @@ public class KmerCounter {
         return counted == null ? 0 : counted.count;
     }
 
+    /**
+     * Get an unordered collection of the counted kmers in this counter
+     * @return a non-null collection
+     */
     public Collection<CountedKmer> getCountedKmers() {
         return countsByKMer.values();
     }
 
+    /**
+     * Remove all current counts, resetting the counter to an empty state
+     */
     public void clear() {
         countsByKMer.clear();
     }
@@ -117,7 +124,7 @@ public class KmerCounter {
 
     @Override
     public String toString() {
-        final StringBuilder b = new StringBuilder("KmerCounter{");
+        final StringBuilder b = new StringBuilder("KMerCounter{");
         b.append("counting ").append(countsByKMer.size()).append(" distinct kmers");
         b.append("\n}");
         return b.toString();

@@ -46,32 +46,56 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
 
 /**
+ * Fast approach to building a DeBruijnGraph
+ *
+ * Follows the model:
+ *
+ * for each X that has bases for the final graph:
+ *   addKmer pair (single kmer with kmer size + 1 spanning the pair)
+ *
+ * flushKmersToGraph
+ *
  * User: depristo
  * Date: 4/7/13
  * Time: 4:14 PM
  */
 public class DeBruijnGraphBuilder {
-    private final static Logger logger = Logger.getLogger(DeBruijnGraphBuilder.class);
-
+    /** The size of the kmer graph we want to build */
     private final int kmerSize;
-    private final DeBruijnGraph graph;
-    private final KmerCounter counter;
 
+    /** The graph we're going to add kmers to */
+    private final DeBruijnGraph graph;
+
+    /** keeps counts of all kmer pairs added since the last flush */
+    private final KMerCounter counter;
+
+    /**
+     * Create a new builder that will write out kmers to graph
+     *
+     * @param graph a non-null graph that can contain already added kmers
+     */
     public DeBruijnGraphBuilder(final DeBruijnGraph graph) {
         if ( graph == null ) throw new IllegalArgumentException("Graph cannot be null");
         this.kmerSize = graph.getKmerSize();
         this.graph = graph;
-        this.counter = new KmerCounter(kmerSize + 1);
+        this.counter = new KMerCounter(kmerSize + 1);
     }
 
+    /**
+     * The graph we're building
+     * @return a non-null graph
+     */
     public DeBruijnGraph getGraph() {
         return graph;
     }
 
+    /**
+     * The kmer size of our graph
+     * @return positive integer
+     */
     public int getKmerSize() {
         return kmerSize;
     }
@@ -93,14 +117,30 @@ public class DeBruijnGraphBuilder {
         addKmerPair(kmerPair, multiplicity);
     }
 
-
+    /**
+     * Add a single kmer pair to this builder
+     * @param kmerPair a kmer pair is a single kmer that has kmerSize + 1 bp, where 0 -> kmersize and 1 -> kmersize + 1
+     *                 will have an edge added to this
+     * @param multiplicity the desired multiplicity of this edge
+     */
     public void addKmerPair(final Kmer kmerPair, final int multiplicity) {
         if ( kmerPair.length() != kmerSize + 1 )  throw new IllegalArgumentException("kmer pair must be of length kmerSize + 1 = " + kmerSize + 1 + " but got " + kmerPair.length());
         counter.addKmer(kmerPair, multiplicity);
     }
 
+    /**
+     * Flushes the currently added kmers to the graph
+     *
+     * After this function is called the builder is reset to an empty state
+     *
+     * This flushing is expensive, so many kmers should be added to the builder before flushing.  The most
+     * efficient workflow is to add all of the kmers of a particular class (all ref bases, or all read bases)
+     * then and do one flush when completed
+     *
+     * @param addRefEdges should the kmers present in the builder be added to the graph with isRef = true for the edges?
+     */
     public void flushKmersToGraph(final boolean addRefEdges) {
-        for ( final KmerCounter.CountedKmer countedKmer : counter.getCountedKmers() ) {
+        for ( final KMerCounter.CountedKmer countedKmer : counter.getCountedKmers() ) {
             final byte[] first = countedKmer.getKmer().subKmer(0, kmerSize).bases();
             final byte[] second = countedKmer.getKmer().subKmer(1, kmerSize).bases();
             graph.addKmersToGraph(first, second, addRefEdges, countedKmer.getCount());

@@ -50,10 +50,10 @@ import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class KmerCounterUnitTest extends BaseTest {
+public class KMerCounterCaseFixUnitTest extends BaseTest {
     @Test
 	public void testMyData() {
-        final KmerCounter counter = new KmerCounter(3);
+        final KMerCounter counter = new KMerCounter(3);
 
         Assert.assertNotNull(counter.toString());
 
@@ -78,7 +78,7 @@ public class KmerCounterUnitTest extends BaseTest {
         Assert.assertNotNull(counter.toString());
     }
 
-    private void testCounting(final KmerCounter counter, final String in, final int expectedCount) {
+    private void testCounting(final KMerCounter counter, final String in, final int expectedCount) {
         Assert.assertEquals(counter.getKmerCount(new Kmer(in)), expectedCount);
     }
 }

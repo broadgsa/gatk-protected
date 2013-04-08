@@ -55,11 +55,11 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
+import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
@@ -283,30 +283,27 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
             final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
-            if( sequence.length > kmerLength + KMER_OVERLAP ) {
-                final int kmersInSequence = sequence.length - kmerLength + 1;
-                for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-                    // TODO -- this is quite expense as it does O(kmerLength^2 work) per read
-                    // if the qualities of all the bases in the kmers are high enough
-                    boolean badKmer = false;
-                    for( int jjj = iii; jjj < iii + kmerLength + 1; jjj++) {
-                        if( qualities[jjj] < minBaseQualityToUseInAssembly ) {
-                            badKmer = true;
-                            break;
-                        }
-                    }
-                    if( !badKmer ) {
+            if ( sequence.length > kmerLength + KMER_OVERLAP ) {
+                int lastGood = -1; // the index of the last good base we've seen
+                for( int end = 0; end < sequence.length; end++ ) {
+                    if ( qualities[end] < minBaseQualityToUseInAssembly ) {
+                        lastGood = -1; // reset the last good base
+                    } else if ( lastGood == -1 ) {
+                        lastGood = end; // we're at a good base, the last good one is us
+                    } else if ( end - kmerLength >= lastGood ) {
+                        // end - kmerLength (the start) is after the lastGood base, so that kmer is good
+                        final int start = end - kmerLength;
                         // how many observations of this kmer have we seen?  A normal read counts for 1, but
                         // a reduced read might imply a higher multiplicity for our the edge
                         int countNumber = 1;
-                        if( read.isReducedRead() ) {
+                        if ( read.isReducedRead() ) {
                             // compute mean number of reduced read counts in current kmer span
                             // precise rounding can make a difference with low consensus counts
                             // TODO -- optimization: should extend arrayMax function to take start stop values
-                            countNumber = MathUtils.arrayMax(Arrays.copyOfRange(reducedReadCounts, iii, iii + kmerLength));
+                            countNumber = MathUtils.arrayMax(Arrays.copyOfRange(reducedReadCounts, start, end));
                         }
 
-                        builder.addKmerPairFromSeqToGraph(sequence, iii, countNumber);
+                        builder.addKmerPairFromSeqToGraph(sequence, start, countNumber);
                     }
                 }
             }
