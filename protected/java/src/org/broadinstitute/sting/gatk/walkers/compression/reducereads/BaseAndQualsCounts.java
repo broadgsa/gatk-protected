@@ -69,10 +69,30 @@ public class BaseAndQualsCounts extends BaseCounts {
     private long sumInsertionQual_N = 0;
     private long sumDeletionQual_N = 0;
 
+    /*
+     * Increments the count
+     *
+     * @param base            the base
+     * @param baseQual        the base quality
+     * @param insQual         the insertion quality
+     * @param delQual         the deletion quality
+     * @param baseMappingQual the mapping quality
+     * @param isLowQualBase   true if the base is low quality
+     */
+    public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase) {
+        // if we already have high quality bases, ignore low quality ones
+        if ( isLowQualBase && !isLowQuality() )
+            return;
 
-    public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual) {
+        // if this is a high quality base then remove any low quality bases and start from scratch
+        if ( !isLowQualBase && isLowQuality() ) {
+            if ( totalCount() > 0 )
+                clear();
+            setLowQuality(false);
+        }
+
         final BaseIndex i = BaseIndex.byteToBase(base);
-        super.incr(i, baseQual);
+        super.incr(i, baseQual, baseMappingQual);
         switch (i) {
             case A: sumInsertionQual_A += insQual; sumDeletionQual_A += delQual; break;
             case C: sumInsertionQual_C += insQual; sumDeletionQual_C += delQual; break;
@@ -84,9 +104,23 @@ public class BaseAndQualsCounts extends BaseCounts {
         }
     }
 
-    public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual) {
+    /*
+     * Decrements the count
+     *
+     * @param base            the base
+     * @param baseQual        the base quality
+     * @param insQual         the insertion quality
+     * @param delQual         the deletion quality
+     * @param baseMappingQual the mapping quality
+     * @param isLowQualBase   true if the base is low quality
+     */
+    public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase) {
+        // if this is not the right type of base, ignore it
+        if ( isLowQualBase != isLowQuality() )
+            return;
+
         final BaseIndex i = BaseIndex.byteToBase(base);
-        super.decr(i, baseQual);
+        super.decr(i, baseQual, baseMappingQual);
         switch (i) {
             case A: sumInsertionQual_A -= insQual; sumDeletionQual_A -= delQual; break;
             case C: sumInsertionQual_C -= insQual; sumDeletionQual_C -= delQual; break;
@@ -130,5 +164,14 @@ public class BaseAndQualsCounts extends BaseCounts {
             case N: return sumDeletionQual_N;
             default: throw new IllegalArgumentException(base.name());
         }
+    }
+
+    /**
+     * Clears out all stored data in this object
+     */
+    public void clear() {
+        super.clear();
+        sumInsertionQual_A = sumInsertionQual_C = sumInsertionQual_G = sumInsertionQual_T = sumInsertionQual_D = sumInsertionQual_I = sumInsertionQual_N = 0;
+        sumDeletionQual_A = sumDeletionQual_C = sumDeletionQual_G = sumDeletionQual_T = sumDeletionQual_D = sumDeletionQual_I = sumDeletionQual_N = 0;
     }
 }

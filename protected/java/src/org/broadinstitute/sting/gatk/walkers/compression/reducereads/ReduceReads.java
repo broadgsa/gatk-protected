@@ -64,6 +64,7 @@ import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -139,19 +140,21 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * towards variable regions.
      */
     @Argument(fullName = "minimum_base_quality_to_consider", shortName = "minqual", doc = "", required = false)
-    public byte minBaseQual = 20;
+    public byte minBaseQual = 15;
 
     /**
-     * Reads have notoriously low quality bases on the tails (left and right). Consecutive bases with quality
-     * lower than this threshold will be hard clipped off before entering the reduce reads algorithm.
+     * Reads have notoriously low quality bases on the tails (left and right).  Consecutive bases at the tails with
+     * quality at or lower than this threshold will be hard clipped off before entering the reduce reads algorithm.
      */
     @Argument(fullName = "minimum_tail_qualities", shortName = "mintail", doc = "", required = false)
     public byte minTailQuality = 2;
 
     /**
-     * Any number of VCF files representing known SNPs to be used for the experimental polyploid-based reduction.
+     * Any number of VCF files representing known SNPs to be used for the polyploid-based reduction.
      * Could be e.g. dbSNP and/or official 1000 Genomes SNP calls.  Non-SNP variants in these files will be ignored.
-     * Note that polyploid ("het") compression will work only when a single SNP is present in a consensus window.
+     * If provided, the polyploid ("het") compression will work only when a single SNP from the known set is present
+     * in a consensus window (otherwise there will be no reduction); if not provided then polyploid compression will
+     * be triggered anywhere there is a single SNP present in a consensus window.
      */
     @Input(fullName="known_sites_for_polyploid_reduction", shortName = "known", doc="Input VCF file(s) with known SNPs", required=false)
     public List<RodBinding<VariantContext>> known = Collections.emptyList();
@@ -204,8 +207,17 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * Minimum proportion of mismatches in a site to trigger a variant region. Anything below this will be
      * considered consensus.
      */
+    @Deprecated
     @Argument(fullName = "minimum_alt_proportion_to_trigger_variant", shortName = "minvar", doc = "", required = false)
     public double minAltProportionToTriggerVariant = 0.05;
+
+    /**
+     * Minimum p-value from binomial distribution of mismatches in a site to trigger a variant region.
+     * Any site with a value falling below this will be considered consensus and reduced (otherwise we will try to trigger polyploid compression).
+     */
+    @Advanced
+    @Argument(fullName = "minimum_alt_pvalue_to_trigger_variant", shortName = "min_pvalue", doc = "", required = false)
+    public double minAltPValueToTriggerVariant = 0.01;
 
     /**
      * Minimum proportion of indels in a site to trigger a variant region. Anything below this will be
@@ -253,7 +265,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
 
     ObjectSortedSet<GenomeLoc> intervalList;
 
-    final ObjectSortedSet<GenomeLoc> knownSnpPositions = new ObjectAVLTreeSet<GenomeLoc>();
+    ObjectSortedSet<GenomeLoc> knownSnpPositions;
 
     // IMPORTANT: DO NOT CHANGE THE VALUE OF THIS CONSTANT VARIABLE; IT IS NOW PERMANENTLY THE @PG NAME THAT EXTERNAL TOOLS LOOK FOR IN THE BAM HEADER
     public static final String PROGRAM_RECORD_NAME = "GATK ReduceReads";   // The name that will go in the @PG tag
@@ -272,6 +284,14 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
 
         if ( nwayout && out != null )
             throw new UserException.CommandLineException("--out and --nwayout can not be used simultaneously; please use one or the other");
+
+        if ( minAltPValueToTriggerVariant < 0.0 || minAltPValueToTriggerVariant > 1.0 )
+            throw new UserException.BadArgumentValue("--minimum_alt_pvalue_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
+
+        if ( known.isEmpty() )
+            knownSnpPositions = null;
+        else
+            knownSnpPositions = new ObjectAVLTreeSet<GenomeLoc>();
 
         GenomeAnalysisEngine toolkit = getToolkit();
         readNameHash = new Object2LongOpenHashMap<String>(100000);     // prepare the read name hash to keep track of what reads have had their read names compressed
@@ -392,7 +412,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      */
     @Override
     public ReduceReadsStash reduceInit() {
-        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
+        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltPValueToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
     }
 
     /**
@@ -470,8 +490,8 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * @param read    the current read, used for checking whether there are stale positions we can remove
      */
     protected void clearStaleKnownPositions(final GATKSAMRecord read) {
-        // nothing to clear if empty
-        if ( knownSnpPositions.isEmpty() )
+        // nothing to clear if not used or empty
+        if ( knownSnpPositions == null || knownSnpPositions.isEmpty() )
             return;
 
         // not ready to be cleared until we encounter a read from a different contig
