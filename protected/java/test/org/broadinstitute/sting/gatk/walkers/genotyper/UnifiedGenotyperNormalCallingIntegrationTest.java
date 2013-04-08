@@ -64,7 +64,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMultiSamplePilot1() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000", 1,
-                Arrays.asList("3f8ee598c9b85aa1d2b85746ad46c1af"));
+                Arrays.asList("52b6086f4597da5b35ab902bea4066fc"));
         executeTest("test MultiSample Pilot1", spec);
     }
 
@@ -96,7 +96,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMultipleSNPAlleles() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH --dbsnp " + b37dbSNP129 + " -I " + privateTestDir + "multiallelic.snps.bam -o %s -L " + privateTestDir + "multiallelic.snps.intervals", 1,
-                Arrays.asList("31c0f0074b3306b54170056e93b69e11"));
+                Arrays.asList("28bfbff3da3af43d6a1eff673e5cb0f8"));
         executeTest("test Multiple SNP alleles", spec);
     }
 
@@ -112,7 +112,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testReverseTrim() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam -o %s -L 20:10289124 -L 20:10090289", 1,
-                Arrays.asList("753d6358b1634107de76900200116805"));
+                Arrays.asList("a9edd04374ee9c42970291f39a50c191"));
         executeTest("test reverse trim", spec);
     }
 
@@ -120,7 +120,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMismatchedPLs() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + privateTestDir + "mismatchedPLs.bam -o %s -L 1:24020341", 1,
-                Arrays.asList("274eadae8a630a3fda9281d6d6253dea"));
+                Arrays.asList("6fc32ca9de769060f3c2a3d94f8f2f91"));
         executeTest("test mismatched PLs", spec);
     }
 }

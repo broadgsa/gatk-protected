@@ -349,7 +349,6 @@ public class PairHMMIndelErrorModel {
 
                     int j=0;
 
-                    byte[] previousHaplotypeSeen = null;
                     final byte[] contextLogGapOpenProbabilities = new byte[readBases.length];
                     final byte[] contextLogGapContinuationProbabilities  = new byte[readBases.length];
 
@@ -392,34 +391,25 @@ public class PairHMMIndelErrorModel {
                         final byte[] haplotypeBases = Arrays.copyOfRange(haplotype.getBases(),
                                 (int)indStart, (int)indStop);
 
-                        final int X_METRIC_LENGTH = readBases.length+2;
-                        final int Y_METRIC_LENGTH = haplotypeBases.length+2;
-
-                        if (previousHaplotypeSeen == null) {
+                        if (firstHap) {
                             //no need to reallocate arrays for each new haplotype, as length won't change
-                            pairHMM.initialize(Y_METRIC_LENGTH, X_METRIC_LENGTH);
+                            pairHMM.initialize(readBases.length, haplotypeBases.length);
+                            firstHap = false;
                         }
 
-                        int startIndexInHaplotype = 0;
-                        if (previousHaplotypeSeen != null)
-                            startIndexInHaplotype = computeFirstDifferingPosition(haplotypeBases, previousHaplotypeSeen);
-                        previousHaplotypeSeen = haplotypeBases.clone();
 
                         readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotypeBases, readBases, readQuals,
-                                baseInsertionQualities, baseDeletionQualities,
-                                contextLogGapContinuationProbabilities, startIndexInHaplotype, firstHap);
+                                baseInsertionQualities, baseDeletionQualities, contextLogGapContinuationProbabilities, firstHap);
 
 
                         if (DEBUG) {
                             System.out.println("H:"+new String(haplotypeBases));
                             System.out.println("R:"+new String(readBases));
                             System.out.format("L:%4.2f\n",readLikelihood);
-                            System.out.format("StPos:%d\n", startIndexInHaplotype);
                         }
 
                         perReadAlleleLikelihoodMap.add(p, a, readLikelihood);
                         readLikelihoods[readIdx][j++] = readLikelihood;
-                        firstHap = false;
                     }
                 }
             }

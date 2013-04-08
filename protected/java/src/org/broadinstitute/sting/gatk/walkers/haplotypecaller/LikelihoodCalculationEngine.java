@@ -106,12 +106,8 @@ public class LikelihoodCalculationEngine {
             if( haplotypeLength > Y_METRIC_LENGTH ) { Y_METRIC_LENGTH = haplotypeLength; }
         }
 
-        // M, X, and Y arrays are of size read and haplotype + 1 because of an extra column for initial conditions and + 1 to consider the final base in a non-global alignment
-        X_METRIC_LENGTH += 2;
-        Y_METRIC_LENGTH += 2;
-
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMM.initialize(Y_METRIC_LENGTH, X_METRIC_LENGTH);
+        pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
 
         // for each sample's reads
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
@@ -134,7 +130,6 @@ public class LikelihoodCalculationEngine {
         for( final GATKSAMRecord read : reads ) {
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
-            Haplotype previousHaplotypeSeen = null;
             // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
             final byte[] readQuals = read.getBaseQualities().clone();
             final byte[] readInsQuals = read.getBaseInsertionQualities();
@@ -149,14 +144,9 @@ public class LikelihoodCalculationEngine {
 
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
                 final Haplotype haplotype = haplotypes.get(jjj);
-
-                final int haplotypeStart = ( previousHaplotypeSeen == null ? 0 : PairHMM.findFirstPositionWhereHaplotypesDiffer(haplotype.getBases(), previousHaplotypeSeen.getBases()) );
-                previousHaplotypeSeen = haplotype;
-
                 final boolean isFirstHaplotype = jjj == 0;
                 final double log10l = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
-                        read.getReadBases(), readQuals, readInsQuals, readDelQuals,
-                        overallGCP, haplotypeStart, isFirstHaplotype);
+                        read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
 
                 perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
             }

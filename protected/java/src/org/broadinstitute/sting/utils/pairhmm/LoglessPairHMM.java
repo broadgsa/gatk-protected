@@ -59,16 +59,20 @@ public final class LoglessPairHMM extends PairHMM {
     protected static final double SCALE_FACTOR_LOG10 = 300.0;
     protected static final double INITIAL_CONDITION = Math.pow(10, SCALE_FACTOR_LOG10);
 
-    double[][] transition = null; // The cache
-    double[][] prior = null; // The cache
-    boolean constantsAreInitialized = false;
+    private static final int matchToMatch = 0;
+    private static final int indelToMatch = 1;
+    private static final int matchToInsertion = 2;
+    private static final int insertionToInsertion = 3;
+    private static final int matchToDeletion = 4;
+    private static final int deletionToDeletion = 5;
+
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void initialize( final int haplotypeMaxLength, final int readMaxLength) {
-        super.initialize(haplotypeMaxLength, readMaxLength);
+    public void initialize(final int readMaxLength, final int haplotypeMaxLength ) {
+        super.initialize(readMaxLength, haplotypeMaxLength);
 
         transition = new double[paddedMaxReadLength][6];
         prior = new double[paddedMaxReadLength][paddedMaxHaplotypeLength];
@@ -86,18 +90,22 @@ public final class LoglessPairHMM extends PairHMM {
                                                                final byte[] overallGCP,
                                                                final int hapStartIndex,
                                                                final boolean recacheReadValues ) {
+
+        if (previousHaplotypeBases == null || previousHaplotypeBases.length != haplotypeBases.length) {
+            final double initialValue = INITIAL_CONDITION / haplotypeBases.length;
+            // set the initial value (free deletions in the beginning) for the first row in the deletion matrix
+            for( int j = 0; j < paddedHaplotypeLength; j++ ) {
+                deletionMatrix[0][j] = initialValue;
+            }
+        }
+
         if ( ! constantsAreInitialized || recacheReadValues )
-            initializeProbabilities(haplotypeBases.length, insertionGOP, deletionGOP, overallGCP);
+            initializeProbabilities(insertionGOP, deletionGOP, overallGCP);
         initializePriors(haplotypeBases, readBases, readQuals, hapStartIndex);
 
-        // NOTE NOTE NOTE -- because of caching we need to only operate over X and Y according to this
-        // read and haplotype lengths, not the max lengths
-        final int readXMetricLength = readBases.length + 2;
-        final int hapYMetricLength = haplotypeBases.length + 2;
-
-        for (int i = 2; i < readXMetricLength; i++) {
+        for (int i = 1; i < paddedReadLength; i++) {
             // +1 here is because hapStartIndex is 0-based, but our matrices are 1 based
-            for (int j = hapStartIndex+1; j < hapYMetricLength; j++) {
+            for (int j = hapStartIndex+1; j < paddedHaplotypeLength; j++) {
                 updateCell(i, j, prior[i][j], transition[i]);
             }
         }
@@ -105,9 +113,9 @@ public final class LoglessPairHMM extends PairHMM {
         // final probability is the log10 sum of the last element in the Match and Insertion state arrays
         // this way we ignore all paths that ended in deletions! (huge)
         // but we have to sum all the paths ending in the M and I matrices, because they're no longer extended.
-        final int endI = readXMetricLength - 1;
+        final int endI = paddedReadLength - 1;
         double finalSumProbabilities = 0.0;
-        for (int j = 0; j < hapYMetricLength; j++) {
+        for (int j = 1; j < paddedHaplotypeLength; j++) {
             finalSumProbabilities += matchMatrix[endI][j] + insertionMatrix[endI][j];
         }
         return Math.log10(finalSumProbabilities) - SCALE_FACTOR_LOG10;
@@ -132,7 +140,7 @@ public final class LoglessPairHMM extends PairHMM {
             final byte qual = readQuals[i];
             for (int j = startIndex; j < haplotypeBases.length; j++) {
                 final byte y = haplotypeBases[j];
-                prior[i+2][j+2] = ( x == y || x == (byte) 'N' || y == (byte) 'N' ?
+                prior[i+1][j+1] = ( x == y || x == (byte) 'N' || y == (byte) 'N' ?
                         QualityUtils.qualToProb(qual) : QualityUtils.qualToErrorProb(qual) );
             }
         }
@@ -151,25 +159,15 @@ public final class LoglessPairHMM extends PairHMM {
             "overallGCP != null"
     })
     @Ensures("constantsAreInitialized")
-    private void initializeProbabilities(final int haplotypeLength, final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP) {
-        // the initial condition -- must be here because it needs that actual read and haplotypes, not the maximum in init
-        final double initialValue = INITIAL_CONDITION / haplotypeLength;
-        matchMatrix[1][1] = initialValue;
-
-        // fill in the first row
-        for( int jjj = 2; jjj < paddedMaxHaplotypeLength; jjj++ ) {
-            deletionMatrix[1][jjj] = initialValue;
-        }
-
-        final int l = insertionGOP.length;
-        for (int i = 0; i < l; i++) {
+    private void initializeProbabilities(final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP) {
+        for (int i = 0; i < insertionGOP.length; i++) {
             final int qualIndexGOP = Math.min(insertionGOP[i] + deletionGOP[i], Byte.MAX_VALUE);
-            transition[i+2][0] = QualityUtils.qualToProb((byte) qualIndexGOP);
-            transition[i+2][1] = QualityUtils.qualToProb(overallGCP[i]);
-            transition[i+2][2] = QualityUtils.qualToErrorProb(insertionGOP[i]);
-            transition[i+2][3] = QualityUtils.qualToErrorProb(overallGCP[i]);
-            transition[i+2][4] = QualityUtils.qualToErrorProb(deletionGOP[i]);
-            transition[i+2][5] = QualityUtils.qualToErrorProb(overallGCP[i]);
+            transition[i+1][matchToMatch] = QualityUtils.qualToProb((byte) qualIndexGOP);
+            transition[i+1][indelToMatch] = QualityUtils.qualToProb(overallGCP[i]);
+            transition[i+1][matchToInsertion] = QualityUtils.qualToErrorProb(insertionGOP[i]);
+            transition[i+1][insertionToInsertion] = QualityUtils.qualToErrorProb(overallGCP[i]);
+            transition[i+1][matchToDeletion] = QualityUtils.qualToErrorProb(deletionGOP[i]);
+            transition[i+1][deletionToDeletion] = QualityUtils.qualToErrorProb(overallGCP[i]);
         }
 
         // note that we initialized the constants
@@ -185,14 +183,14 @@ public final class LoglessPairHMM extends PairHMM {
      * @param indI             row index in the matrices to update
      * @param indJ             column index in the matrices to update
      * @param prior            the likelihood editing distance matrix for the read x haplotype
-     * @param transitition        an array with the six transitition relevant to this location
+     * @param transition        an array with the six transition relevant to this location
      */
-    private void updateCell( final int indI, final int indJ, final double prior, final double[] transitition) {
+    private void updateCell( final int indI, final int indJ, final double prior, final double[] transition) {
 
-        matchMatrix[indI][indJ] = prior * ( matchMatrix[indI - 1][indJ - 1] * transitition[0] +
-                                                 insertionMatrix[indI - 1][indJ - 1] * transitition[1] +
-                                                 deletionMatrix[indI - 1][indJ - 1] * transitition[1] );
-        insertionMatrix[indI][indJ] = matchMatrix[indI - 1][indJ] * transitition[2] + insertionMatrix[indI - 1][indJ] * transitition[3];
-        deletionMatrix[indI][indJ] = matchMatrix[indI][indJ - 1] * transitition[4] + deletionMatrix[indI][indJ - 1] * transitition[5];
+        matchMatrix[indI][indJ] = prior * ( matchMatrix[indI - 1][indJ - 1] * transition[matchToMatch] +
+                                                 insertionMatrix[indI - 1][indJ - 1] * transition[indelToMatch] +
+                                                 deletionMatrix[indI - 1][indJ - 1] * transition[indelToMatch] );
+        insertionMatrix[indI][indJ] = matchMatrix[indI - 1][indJ] * transition[matchToInsertion] + insertionMatrix[indI - 1][indJ] * transition[insertionToInsertion];
+        deletionMatrix[indI][indJ] = matchMatrix[indI][indJ - 1] * transition[matchToDeletion] + deletionMatrix[indI][indJ - 1] * transition[deletionToDeletion];
     }
 }
