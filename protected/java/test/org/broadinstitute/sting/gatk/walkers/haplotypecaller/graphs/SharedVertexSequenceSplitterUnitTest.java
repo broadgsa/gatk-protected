@@ -98,10 +98,10 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
             min = Math.min(min, s.length());
         }
 
-        final int actualPrefixLen = org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Utils.compPrefixLen(bytes, min);
+        final int actualPrefixLen = GraphUtils.compPrefixLen(bytes, min);
         Assert.assertEquals(actualPrefixLen, expectedPrefixLen, "Failed prefix test");
 
-        final int actualSuffixLen = org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Utils.compSuffixLen(bytes, min - actualPrefixLen);
+        final int actualSuffixLen = GraphUtils.compSuffixLen(bytes, min - actualPrefixLen);
         Assert.assertEquals(actualSuffixLen, expectedSuffixLen, "Failed suffix test");
     }
 
@@ -249,5 +249,46 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
                 Assert.assertTrue(splitPaths.get(i).equalScoreAndSequence(originalPaths.get(i)), "Paths not equal " + splitPaths.get(i) + " vs. original " + originalPaths.get(i));
             }
         }
+    }
+
+    @DataProvider(name = "MeetsMinSequenceData")
+    public Object[][] makeMeetsMinSequenceData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final boolean prefixBiased = SharedVertexSequenceSplitter.prefersPrefixMerging();
+        tests.add(new Object[]{Arrays.asList("AC", "AC"), 0, true, true});
+        tests.add(new Object[]{Arrays.asList("AC", "AC"), 1, prefixBiased, ! prefixBiased});
+        tests.add(new Object[]{Arrays.asList("AC", "AC"), 2, prefixBiased, ! prefixBiased});
+        tests.add(new Object[]{Arrays.asList("AC", "AC"), 3, false, false});
+        tests.add(new Object[]{Arrays.asList("A", "AC"), 1, true, false});
+        tests.add(new Object[]{Arrays.asList("A", "AC"), 2, false, false});
+        tests.add(new Object[]{Arrays.asList("AT", "AC"), 1, true, false});
+        tests.add(new Object[]{Arrays.asList("AAT", "AAC"), 1, true, false});
+        tests.add(new Object[]{Arrays.asList("AAT", "AAC"), 2, true, false});
+        tests.add(new Object[]{Arrays.asList("AAT", "AAC"), 3, false, false});
+        tests.add(new Object[]{Arrays.asList("AATCCC", "AACCCC"), 1, true, true});
+        tests.add(new Object[]{Arrays.asList("AATCCC", "AACCCC"), 2, true, true});
+        tests.add(new Object[]{Arrays.asList("AATCCC", "AACCCC"), 3, false, true});
+        tests.add(new Object[]{Arrays.asList("AATCCC", "AACCCC"), 4, false, false});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MeetsMinSequenceData")
+    public void testSplitterCompleteCycle(final List<String> mids, final int minSeqLength, final boolean prefixMeets, final boolean suffixMeets) {
+        final SeqGraph graph = new SeqGraph();
+
+        final SeqVertex top = new SeqVertex("AAAAAAAA");
+        final SeqVertex bot = new SeqVertex("GGGGGGGG");
+        final List<SeqVertex> v = new ArrayList<SeqVertex>();
+        for ( final String s : mids ) { v.add(new SeqVertex(s)); }
+        graph.addVertices(v.toArray(new SeqVertex[]{}));
+        graph.addVertices(top, bot);
+        for ( final SeqVertex vi : v ) { graph.addEdge(top, vi); graph.addEdge(vi, bot); }
+
+        final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(graph, v);
+        Assert.assertEquals(splitter.meetsMinMergableSequenceForPrefix(minSeqLength), prefixMeets, "Prefix failed");
+        Assert.assertEquals(splitter.meetsMinMergableSequenceForSuffix(minSeqLength), suffixMeets, "Suffix failed");
+        Assert.assertEquals(splitter.meetsMinMergableSequenceForEitherPrefixOrSuffix(minSeqLength), suffixMeets || prefixMeets, "Either prefix or suffix failed");
     }
 }

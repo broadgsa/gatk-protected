@@ -44,62 +44,151 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.haplotype;
 
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
+import com.google.java.contract.Requires;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.LikelihoodCalculationEngine;
+import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
-import java.io.PrintStream;
-import java.util.List;
+import java.util.*;
 
 /**
- * Created by IntelliJ IDEA.
- * User: ebanks
- * Date: Mar 14, 2011
+ * Computes the likelihood based probability that haplotypes for first and second variant contexts
+ * only appear in their fully linked form (x11 and x22) given a set of haplotypes where they might occur
+ * and read likelihoods per sample
+ *
+ * User: depristo
+ * Date: 3/29/13
+ * Time: 9:23 AM
  */
-public abstract class LocalAssemblyEngine {
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
+public class HaplotypeLDCalculator {
+    private final List<Haplotype> haplotypes;
+    private final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap;
+    private List<Map<Haplotype, Double>> haplotypeLikelihoodsPerSample = null;
 
-    protected PrintStream graphWriter = null;
-    protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
-    protected int pruneFactor = 2;
-    protected boolean errorCorrectKmers = false;
+    // linear contigency table with table[0] == [0][0], table[1] = [0][1], table[2] = [1][0], table[3] = [1][1]
+    private final double[] table = new double[4];
 
-    protected LocalAssemblyEngine() { }
-
-    public int getPruneFactor() {
-        return pruneFactor;
+    /**
+     * For testing
+     */
+    protected HaplotypeLDCalculator() {
+        haplotypes = Collections.emptyList();
+        haplotypeReadMap = Collections.emptyMap();
     }
 
-    public void setPruneFactor(int pruneFactor) {
-        this.pruneFactor = pruneFactor;
+    public HaplotypeLDCalculator(List<Haplotype> haplotypes, Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap) {
+        this.haplotypes = haplotypes;
+        this.haplotypeReadMap = haplotypeReadMap;
     }
 
-    public boolean shouldErrorCorrectKmers() {
-        return errorCorrectKmers;
+    /**
+     * Construct the cached list of summed haplotype likelihoods per sample if it
+     * hasn't already been computed.  This data structure is lazy created but only
+     * needs to be made once when we make 1 merge decision as the data doesn't change
+     * no matter how many calls to computeProbOfBeingPhased
+     */
+    private void buildHaplotypeLikelihoodsPerSampleIfNecessary() {
+        if ( haplotypeLikelihoodsPerSample == null ) {
+            // do the lazy computation
+            final Set<String> samples = haplotypeReadMap.keySet();
+            haplotypeLikelihoodsPerSample = new LinkedList<Map<Haplotype, Double>>();
+            for( final String sample : samples ) {
+                final Map<Haplotype, Double> map = new HashMap<Haplotype, Double>(haplotypes.size());
+                for( final Haplotype h : haplotypes ) {
+                    // count up the co-occurrences of the events for the R^2 calculation
+                    final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, haplotypeReadMap, Collections.singletonList(Allele.create(h, true)), false)[0][0];
+                    map.put(h, haplotypeLikelihood);
+                }
+                haplotypeLikelihoodsPerSample.add(map);
+            }
+        }
     }
 
-    public void setErrorCorrectKmers(boolean errorCorrectKmers) {
-        this.errorCorrectKmers = errorCorrectKmers;
+    /**
+     * Compute the likelihood based probability that that haplotypes for first and second are only x11 and x22
+     *
+     * As opposed to the hypothesis that all four haplotypes (x11, x12, x21, and x22) exist in the population
+     *
+     * @param first a non-null VariantContext
+     * @param second a non-null VariantContext
+     * @return the probability that only x11 and x22 exist among the samples
+     */
+    protected double computeProbOfBeingPhased(final VariantContext first, final VariantContext second) {
+        buildHaplotypeLikelihoodsPerSampleIfNecessary();
+
+        Arrays.fill(table, Double.NEGATIVE_INFINITY);
+
+        for ( final Map<Haplotype, Double> entry : haplotypeLikelihoodsPerSample ) {
+            for ( final Map.Entry<Haplotype, Double> haplotypeLikelihood : entry.entrySet() ) {
+                final Haplotype h = haplotypeLikelihood.getKey();
+                // count up the co-occurrences of the events for the R^2 calculation
+                final VariantContext thisHapVC = h.getEventMap().get(first.getStart());
+                final VariantContext nextHapVC = h.getEventMap().get(second.getStart()); // TODO -- add function to take a VC
+                final int i = thisHapVC == null ? 0 : 1;
+                final int j = nextHapVC == null ? 0 : 1;
+                final int index = 2 * i + j;
+                table[index] = MathUtils.approximateLog10SumLog10(table[index], haplotypeLikelihood.getValue());
+            }
+        }
+
+        return pPhased(table);
     }
 
-    public PrintStream getGraphWriter() {
-        return graphWriter;
+    /**
+     * Compute probability that two variants are in phase with each other and that no
+     * compound hets exist in the population.
+     *
+     * Implemented as a likelihood ratio test of the hypothesis:
+     *
+     * x11 and x22 are the only haplotypes in the populations
+     *
+     * vs.
+     *
+     * all four haplotype combinations (x11, x12, x21, and x22) all exist in the population.
+     *
+     * Now, since we have to have both variants in the population, we exclude the x11 & x11 state.  So the
+     * p of having just x11 and x22 is P(x11 & x22) + p(x22 & x22).
+     *
+     * Alternatively, we might have any configuration that gives us both 1 and 2 alts, which are:
+     *
+     * - P(x11 & x12 & x21) -- we have hom-ref and both hets
+     * - P(x22 & x12 & x21) -- we have hom-alt and both hets
+     * - P(x22 & x12) -- one haplotype is 22 and the other is het 12
+     * - P(x22 & x21) -- one haplotype is 22 and the other is het 21
+     *
+     * The probability is just p11_22 / (p11_22 + p hets)
+     *
+     * @table linear contigency table with table[0] == [0][0], table[1] = [0][1], table[2] = [1][0], table[3] = [1][1]
+     *      doesn't have to be normalized as this function does the normalization internally
+     * @return the real space probability that the data is phased
+     */
+    @Requires("table.length == 4")
+    protected double pPhased( double[] table ) {
+        final double[] normTable = MathUtils.normalizeFromLog10(table, true);
+
+        final double x11 = normTable[0], x12 = normTable[1], x21 = normTable[2], x22 = normTable[3];
+
+        // probability that we are only x11 && x22
+        final double p11_22 = MathUtils.approximateLog10SumLog10(x11 + x22, x22 + x22);
+
+        // probability of having any of the other pairs
+        final double p11_12_21 = MathUtils.approximateLog10SumLog10(x11 + x12, x11 + x21, x12 + x21);
+        final double p22_12_21 = MathUtils.approximateLog10SumLog10(x22 + x12, x22 + x21, x12 + x21);
+        final double p22_12 = x22 + x12;
+        final double p22_21 = x22 + x21;
+        final double pOthers = MathUtils.approximateLog10SumLog10(new double[]{p11_12_21, p22_12_21, p22_12, p22_21});
+
+        // probability of being phases is the ratio of p11_22 / pOthers which in log space is just a substraction
+        final double log10phased = p11_22 - (MathUtils.approximateLog10SumLog10(p11_22, pOthers));
+
+        return Math.pow(10.0, log10phased);
     }
 
-    public void setGraphWriter(PrintStream graphWriter) {
-        this.graphWriter = graphWriter;
+    protected double pPhasedTest( final double x11, final double x12, final double x21, final double x22 ) {
+        return pPhased(new double[]{x11, x12, x21, x22});
     }
-
-    public byte getMinBaseQualityToUseInAssembly() {
-        return minBaseQualityToUseInAssembly;
-    }
-
-    public void setMinBaseQualityToUseInAssembly(byte minBaseQualityToUseInAssembly) {
-        this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
-    }
-
-    public abstract List<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, List<VariantContext> activeAllelesToGenotype);
 }

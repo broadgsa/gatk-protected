@@ -53,13 +53,9 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
  */
 
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.utils.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.*;
 
 /**
  * Unit tests for LikelihoodCalculationEngine

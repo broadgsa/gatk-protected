@@ -44,62 +44,95 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
 
-import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
- * Created by IntelliJ IDEA.
- * User: ebanks
- * Date: Mar 14, 2011
+ * Utility functions used in the graphs package
+ *
+ * User: depristo
+ * Date: 3/25/13
+ * Time: 9:42 PM
  */
-public abstract class LocalAssemblyEngine {
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
+final class GraphUtils {
+    private GraphUtils() {}
 
-    protected PrintStream graphWriter = null;
-    protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
-    protected int pruneFactor = 2;
-    protected boolean errorCorrectKmers = false;
+    /**
+     * Compute the maximum shared prefix length of list of bytes.
+     *
+     * @param listOfBytes a list of bytes with at least one element
+     * @param minLength the min. length among all byte[] in listOfBytes
+     * @return the number of shared bytes common at the start of all bytes
+     */
+    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
+    @Ensures("result >= 0")
+    protected static int compPrefixLen(final List<byte[]> listOfBytes, final int minLength) {
+        for ( int i = 0; i < minLength; i++ ) {
+            final byte b = listOfBytes.get(0)[i];
+            for ( int j = 1; j < listOfBytes.size(); j++ ) {
+                if ( b != listOfBytes.get(j)[i] )
+                    return i;
+            }
+        }
 
-    protected LocalAssemblyEngine() { }
-
-    public int getPruneFactor() {
-        return pruneFactor;
+        return minLength;
     }
 
-    public void setPruneFactor(int pruneFactor) {
-        this.pruneFactor = pruneFactor;
+    /**
+     * Compute the maximum shared suffix length of list of bytes.
+     *
+     * @param listOfBytes a list of bytes with at least one element
+     * @param minLength the min. length among all byte[] in listOfBytes
+     * @return the number of shared bytes common at the end of all bytes
+     */
+    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
+    @Ensures("result >= 0")
+    protected static int compSuffixLen(final List<byte[]> listOfBytes, final int minLength) {
+        for ( int suffixLen = 0; suffixLen < minLength; suffixLen++ ) {
+            final byte b = listOfBytes.get(0)[listOfBytes.get(0).length - suffixLen - 1];
+            for ( int j = 1; j < listOfBytes.size(); j++ ) {
+                if ( b != listOfBytes.get(j)[listOfBytes.get(j).length - suffixLen - 1] )
+                    return suffixLen;
+            }
+        }
+        return minLength;
     }
 
-    public boolean shouldErrorCorrectKmers() {
-        return errorCorrectKmers;
+    /**
+     * Get the list of kmers as byte[] from the vertices in the graph
+     *
+     * @param vertices a collection of vertices
+     * @return a list of their kmers in order of the iterator on vertices
+     */
+    protected static List<byte[]> getKmers(final Collection<SeqVertex> vertices) {
+        final List<byte[]> kmers = new ArrayList<byte[]>(vertices.size());
+        for ( final SeqVertex v : vertices ) {
+            kmers.add(v.getSequence());
+        }
+        return kmers;
     }
 
-    public void setErrorCorrectKmers(boolean errorCorrectKmers) {
-        this.errorCorrectKmers = errorCorrectKmers;
+    /**
+     * Get the minimum length of a collection of byte[]
+     *
+     * @param kmers a list of kmers whose .length min we want
+     * @return the min of the kmers, if kmers is empty the result is 0
+     */
+    protected static int minKmerLength(final Collection<byte[]> kmers) {
+        if ( kmers == null ) throw new IllegalArgumentException("kmers cannot be null");
+
+        if ( kmers.isEmpty() ) return 0;
+        int min = Integer.MAX_VALUE;
+        for ( final byte[] kmer : kmers ) {
+            min = Math.min(min, kmer.length);
+        }
+        return min;
     }
 
-    public PrintStream getGraphWriter() {
-        return graphWriter;
-    }
-
-    public void setGraphWriter(PrintStream graphWriter) {
-        this.graphWriter = graphWriter;
-    }
-
-    public byte getMinBaseQualityToUseInAssembly() {
-        return minBaseQualityToUseInAssembly;
-    }
-
-    public void setMinBaseQualityToUseInAssembly(byte minBaseQualityToUseInAssembly) {
-        this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
-    }
-
-    public abstract List<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, List<VariantContext> activeAllelesToGenotype);
 }

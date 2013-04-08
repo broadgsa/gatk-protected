@@ -46,10 +46,13 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.apache.commons.lang.ArrayUtils;
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
 
 import java.io.File;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -58,9 +61,16 @@ import java.util.Set;
  * @author: depristo
  * @since 03/2013
  */
-public class SeqGraph extends BaseGraph<SeqVertex> {
+public final class SeqGraph extends BaseGraph<SeqVertex> {
     private final static boolean PRINT_SIMPLIFY_GRAPHS = false;
-    private final static int MIN_SUFFIX_TO_MERGE_TAILS = 5;
+
+    /**
+     * The minimum number of common bp from the prefix (head merging) or suffix (tail merging)
+     * required before we'll merge in such configurations.  A large value here is critical to avoid
+     * merging inappropriate head or tail nodes, which introduces large insertion / deletion events
+     * as the merge operation creates a link among the non-linked sink / source vertices
+     */
+    protected final static int MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES = 10;
 
     /**
      * Construct an empty SeqGraph
@@ -100,15 +110,15 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
             //logger.info("simplifyGraph iteration " + i);
             // iterate until we haven't don't anything useful
             didSomeWork = false;
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".1.dot"), 0);
             didSomeWork |= new MergeDiamonds().transformUntilComplete();
             didSomeWork |= new MergeTails().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".diamonds_and_tails.dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".2.diamonds_and_tails.dot"), 0);
 
             didSomeWork |= new SplitCommonSuffices().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".split_suffix.dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".3.split_suffix.dot"), 0);
             didSomeWork |= new MergeCommonSuffices().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".merge_suffix.dot"), 0);
+            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".4.merge_suffix.dot"), 0);
 
             didSomeWork |= new MergeHeadlessIncomingSources().transformUntilComplete();
             didSomeWork |= zipLinearChains();
@@ -118,18 +128,8 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
 
     /**
      * Zip up all of the simple linear chains present in this graph.
-     */
-    public boolean zipLinearChains() {
-        boolean foundOne = false;
-        while( zipOneLinearChain() ) {
-            // just keep going until zipOneLinearChain says its done
-            foundOne = true;
-        }
-        return foundOne;
-    }
-
-    /**
-     * Merge together two vertices in the graph v1 -> v2 into a single vertex v' containing v1 + v2 sequence
+     *
+     * Merges together all pairs of vertices in the graph v1 -> v2 into a single vertex v' containing v1 + v2 sequence
      *
      * Only works on vertices where v1's only outgoing edge is to v2 and v2's only incoming edge is from v1.
      *
@@ -137,44 +137,153 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
      *
      * @return true if any such pair of vertices could be found, false otherwise
      */
-    protected boolean zipOneLinearChain() {
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex outgoingVertex = getEdgeTarget(e);
-            final SeqVertex incomingVertex = getEdgeSource(e);
-            if( !outgoingVertex.equals(incomingVertex)
-                    && outDegreeOf(incomingVertex) == 1 && inDegreeOf(outgoingVertex) == 1
-                    && isReferenceNode(incomingVertex) == isReferenceNode(outgoingVertex) ) {
-
-                final Set<BaseEdge> outEdges = outgoingEdgesOf(outgoingVertex);
-                final Set<BaseEdge> inEdges = incomingEdgesOf(incomingVertex);
-                final BaseEdge singleOutEdge = outEdges.isEmpty() ? null : outEdges.iterator().next();
-                final BaseEdge singleInEdge = inEdges.isEmpty() ? null : inEdges.iterator().next();
-
-                if( inEdges.size() == 1 && outEdges.size() == 1 ) {
-                    singleInEdge.setMultiplicity( singleInEdge.getMultiplicity() + ( e.getMultiplicity() / 2 ) );
-                    singleOutEdge.setMultiplicity( singleOutEdge.getMultiplicity() + ( e.getMultiplicity() / 2 ) );
-                } else if( inEdges.size() == 1 ) {
-                    singleInEdge.setMultiplicity( Math.max(singleInEdge.getMultiplicity() + ( e.getMultiplicity() - 1 ), 0) );
-                } else if( outEdges.size() == 1 ) {
-                    singleOutEdge.setMultiplicity( Math.max( singleOutEdge.getMultiplicity() + ( e.getMultiplicity() - 1 ), 0) );
-                }
-
-                final SeqVertex addedVertex = new SeqVertex( ArrayUtils.addAll(incomingVertex.getSequence(), outgoingVertex.getSequence()) );
-                addVertex(addedVertex);
-                for( final BaseEdge edge : outEdges ) {
-                    addEdge(addedVertex, getEdgeTarget(edge), new BaseEdge(edge.isRef(), edge.getMultiplicity()));
-                }
-                for( final BaseEdge edge : inEdges ) {
-                    addEdge(getEdgeSource(edge), addedVertex, new BaseEdge(edge.isRef(), edge.getMultiplicity()));
-                }
-
-                removeVertex(incomingVertex);
-                removeVertex(outgoingVertex);
-                return true;
-            }
+    public boolean zipLinearChains() {
+        // create the list of start sites [doesn't modify graph yet]
+        final List<SeqVertex> zipStarts = new LinkedList<SeqVertex>();
+        for ( final SeqVertex source : vertexSet() ) {
+            if ( isLinearChainStart(source) )
+                zipStarts.add(source);
         }
 
-        return false;
+        if ( zipStarts.isEmpty() ) // nothing to do, as nothing could start a chain
+            return false;
+
+        // At this point, zipStarts contains all of the vertices in this graph that might start some linear
+        // chain of vertices.  We walk through each start, building up the linear chain of vertices and then
+        // zipping them up with mergeLinearChain, if possible
+        boolean mergedOne = false;
+        for ( final SeqVertex zipStart : zipStarts ) {
+            final LinkedList<SeqVertex> linearChain = traceLinearChain(zipStart);
+
+            // merge the linearized chain, recording if we actually did some useful work
+            mergedOne |= mergeLinearChain(linearChain);
+        }
+
+        return mergedOne;
+    }
+
+    /**
+     * Is source vertex potentially a start of a linear chain of vertices?
+     *
+     * We are a start of a zip chain if our out degree is 1 and either the
+     * the vertex has no incoming connections or 2 or more (we must start a chain) or
+     * we have exactly one incoming vertex and that one has out-degree > 1 (i.e., source's incoming
+     * vertex couldn't be a start itself
+     *
+     * @param source a non-null vertex
+     * @return true if source might start a linear chain
+     */
+    @Requires("source != null")
+    private boolean isLinearChainStart(final SeqVertex source) {
+        return outDegreeOf(source) == 1
+                && ( inDegreeOf(source) != 1
+                     || outDegreeOf(incomingVerticesOf(source).iterator().next()) > 1 );
+    }
+
+    /**
+     * Get all of the vertices in a linear chain of vertices starting at zipStart
+     *
+     * Build a list of vertices (in order) starting from zipStart such that each sequential pair of vertices
+     * in the chain A and B can be zipped together.
+     *
+     * @param zipStart a vertex that starts a linear chain
+     * @return a list of vertices that comprise a linear chain starting with zipStart.  The resulting
+     *         list will always contain at least zipStart as the first element.
+     */
+    @Requires("isLinearChainStart(zipStart)")
+    @Ensures({"result != null", "result.size() >= 1"})
+    private LinkedList<SeqVertex> traceLinearChain(final SeqVertex zipStart) {
+        final LinkedList<SeqVertex> linearChain = new LinkedList<SeqVertex>();
+        linearChain.add(zipStart);
+
+        boolean lastIsRef = isReferenceNode(zipStart); // remember because this calculation is expensive
+        SeqVertex last = zipStart;
+        while (true) {
+            if ( outDegreeOf(last) != 1 )
+                // cannot extend a chain from last if last has multiple outgoing branches
+                break;
+
+            // there can only be one (outgoing edge of last) by contract
+            final SeqVertex target = getEdgeTarget(outgoingEdgeOf(last));
+
+            if ( inDegreeOf(target) != 1 || last.equals(target) )
+                // cannot zip up a target that has multiple incoming nodes or that's a cycle to the last node
+                break;
+
+            final boolean targetIsRef = isReferenceNode(target);
+            if ( lastIsRef != targetIsRef ) // both our isRef states must be equal
+                break;
+
+            linearChain.add(target); // extend our chain by one
+
+            // update our last state to be the current state, and continue
+            last = target;
+            lastIsRef = targetIsRef;
+        }
+
+        return linearChain;
+    }
+
+    /**
+     * Merge a linear chain of vertices into a single combined vertex, and update this graph to such that
+     * the incoming edges into the first element of the linearChain and the outgoing edges from linearChain.getLast()
+     * all point to this new combined vertex.
+     *
+     * @param linearChain a non-empty chain of vertices that can be zipped up into a single vertex
+     * @return true if we actually merged at least two vertices together
+     */
+    protected boolean mergeLinearChain(final LinkedList<SeqVertex> linearChain) {
+        if ( linearChain.isEmpty() ) throw new IllegalArgumentException("BUG: cannot have linear chain with 0 elements but got " + linearChain);
+
+        final SeqVertex first = linearChain.getFirst();
+        final SeqVertex last = linearChain.getLast();
+
+        if ( first == last ) return false; // only one element in the chain, cannot be extended
+
+        // create the combined vertex, and add it to the graph
+        // TODO -- performance problem -- can be optimized if we want
+        final List<byte[]> seqs = new LinkedList<byte[]>();
+        for ( SeqVertex v : linearChain ) seqs.add(v.getSequence());
+        final byte[] seqsCat = org.broadinstitute.sting.utils.Utils.concat(seqs.toArray(new byte[][]{}));
+        final SeqVertex addedVertex = new SeqVertex( seqsCat );
+        addVertex(addedVertex);
+
+        final Set<BaseEdge> inEdges = incomingEdgesOf(first);
+        final Set<BaseEdge> outEdges = outgoingEdgesOf(last);
+
+        final int nEdges = inEdges.size() + outEdges.size();
+        int sharedWeightAmongEdges = nEdges == 0 ? 0 : sumEdgeWeightAlongChain(linearChain) / nEdges;
+        final BaseEdge inc = new BaseEdge(false, sharedWeightAmongEdges); // template to make .add function call easy
+
+        // update the incoming and outgoing edges to point to the new vertex
+        for( final BaseEdge edge : outEdges ) { addEdge(addedVertex, getEdgeTarget(edge), new BaseEdge(edge).add(inc)); }
+        for( final BaseEdge edge : inEdges )  { addEdge(getEdgeSource(edge), addedVertex, new BaseEdge(edge).add(inc)); }
+
+        removeAllVertices(linearChain);
+        return true;
+    }
+
+    /**
+     * Get the sum of the edge weights on a linear chain of at least 2 elements
+     *
+     * @param chain a linear chain of vertices with at least 2 vertices
+     * @return the sum of the multiplicities along all edges connecting vertices within the chain
+     */
+    @Requires({"chain != null", "chain.size() >= 2"})
+    private int sumEdgeWeightAlongChain(final LinkedList<SeqVertex> chain) {
+        int sum = 0;
+        SeqVertex prev = null;
+
+        for ( final SeqVertex v : chain ) {
+            if ( prev != null ) {
+                final BaseEdge e = getEdge(prev, v);
+                if ( e == null ) throw new IllegalStateException("Something wrong with the linear chain, got a null edge between " + prev + " and " + v);
+                sum += e.getMultiplicity();
+            }
+            prev = v;
+        }
+
+        return sum;
     }
 
     /**
@@ -273,7 +382,10 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
 
             // actually do the merging, returning true if at least 1 base was successfully split
             final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, middles);
-            return splitter.splitAndUpdate(top, bottom, 1);
+            if (splitter.meetsMinMergableSequenceForEitherPrefixOrSuffix(1))
+                return splitter.splitAndUpdate(top, bottom);
+            else
+                return false;
         }
     }
 
@@ -306,7 +418,11 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
             if ( dontModifyGraphEvenIfPossible() ) return true;
 
             final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, tails);
-            return splitter.splitAndUpdate(top, null, MIN_SUFFIX_TO_MERGE_TAILS);
+
+            if (splitter.meetsMinMergableSequenceForSuffix(MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES))
+                return splitter.splitAndUpdate(top, null);
+            else
+                return false;
         }
     }
 
@@ -390,7 +506,10 @@ public class SeqGraph extends BaseGraph<SeqVertex> {
             if ( dontModifyGraphEvenIfPossible() ) return true;
 
             final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, incoming);
-            return splitter.splitAndUpdate(null, bottom, 1);
+            if (splitter.meetsMinMergableSequenceForPrefix(MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES))
+                return splitter.splitAndUpdate(null, bottom);
+            else
+                return false;
         }
     }
 }

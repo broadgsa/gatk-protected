@@ -241,9 +241,11 @@ public class BaseGraphUnitTest extends BaseTest {
         graph.printGraph(tmp, 10);
     }
 
-    private void assertVertexSetEquals(final Set<SeqVertex> actual, final SeqVertex ... expected) {
+    private void assertVertexSetEquals(final Collection<SeqVertex> actual, final SeqVertex ... expected) {
+        final Set<SeqVertex> actualSet = new HashSet<SeqVertex>(actual);
+        Assert.assertEquals(actualSet.size(), actual.size(), "Duplicate elements found in vertex list");
         final Set<SeqVertex> expectedSet = expected == null ? Collections.<SeqVertex>emptySet() : new HashSet<SeqVertex>(Arrays.asList(expected));
-        Assert.assertEquals(actual, expectedSet);
+        Assert.assertEquals(actualSet, expectedSet);
     }
 
     @Test(enabled = true)

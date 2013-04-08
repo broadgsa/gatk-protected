@@ -44,44 +44,34 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.haplotype;
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class KMerErrorCorrectorUnitTest extends BaseTest {
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+public class HaplotypeBaseComparatorUnitTest extends BaseTest {
     @Test
-    public void testMyData() {
-        final KMerErrorCorrector corrector = new KMerErrorCorrector(3, 1, 2, 2);
+    public void testComparison() {
+        final List<String> rawStrings = Arrays.asList("A", "C", "AC", "CT", "GTC", "ACGT");
+        final List<String> lexStrings = new ArrayList<String>(rawStrings);
+        Collections.sort(lexStrings);
 
-        Assert.assertNotNull(corrector.toString());
+        for ( final List<String> seqs : Utils.makePermutations(lexStrings, lexStrings.size(), false) ) {
+            final List<Haplotype> haps = new ArrayList<Haplotype>(seqs.size());
+            for ( final String seq : seqs ) {
+                haps.add(new Haplotype(seq.getBytes(), false));
+            }
 
-        corrector.addKmers(
-                "ATG", "ATG", "ATG", "ATG",
-                "ACC", "ACC", "ACC",
-                "AAA", "AAA",
-                "CTG", // -> ATG
-                "NNA", // -> AAA
-                "CCC", // => ACC
-                "NNN", // => null
-                "NNC"  // => ACC [because of min count won't go to NNA]
-        );
-
-        testCorrection(corrector, "ATG", "ATG");
-        testCorrection(corrector, "ACC", "ACC");
-        testCorrection(corrector, "AAA", "AAA");
-        testCorrection(corrector, "CTG", "ATG");
-        testCorrection(corrector, "NNA", "AAA");
-        testCorrection(corrector, "CCC", "ACC");
-        testCorrection(corrector, "NNN", null);
-        testCorrection(corrector, "NNC", "ACC");
-
-        Assert.assertNotNull(corrector.toString());
-    }
-
-    private void testCorrection(final KMerErrorCorrector corrector, final String in, final String out) {
-        Assert.assertEquals(corrector.getErrorCorrectedKmer(in), out);
-        Assert.assertEquals(corrector.getErrorCorrectedKmer(in.getBytes()), out == null ? null : out.getBytes());
+            Collections.sort(haps, new HaplotypeBaseComparator());
+            for ( int i = 0; i < lexStrings.size(); i++ )
+                Assert.assertEquals(haps.get(i).getBaseString(), lexStrings.get(i), "Failed sort " + haps + " expected " + lexStrings);
+        }
     }
 }

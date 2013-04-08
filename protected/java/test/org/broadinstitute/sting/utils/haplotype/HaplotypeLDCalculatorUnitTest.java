@@ -44,62 +44,75 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.haplotype;
 
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
-import java.io.PrintStream;
-import java.util.List;
+public class HaplotypeLDCalculatorUnitTest extends BaseTest {
+    HaplotypeLDCalculator calculator;
 
-/**
- * Created by IntelliJ IDEA.
- * User: ebanks
- * Date: Mar 14, 2011
- */
-public abstract class LocalAssemblyEngine {
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
-
-    protected PrintStream graphWriter = null;
-    protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
-    protected int pruneFactor = 2;
-    protected boolean errorCorrectKmers = false;
-
-    protected LocalAssemblyEngine() { }
-
-    public int getPruneFactor() {
-        return pruneFactor;
+    @BeforeMethod
+    public void setUp() throws Exception {
+        calculator = new HaplotypeLDCalculator();
     }
 
-    public void setPruneFactor(int pruneFactor) {
-        this.pruneFactor = pruneFactor;
-    }
+    /**
+     * Tests that we get the right values from the R^2 calculation
+     */
+    @Test
+    public void computeProbOfBeingPhased() {
+        logger.warn("Executing testCalculateR2LD");
 
-    public boolean shouldErrorCorrectKmers() {
-        return errorCorrectKmers;
-    }
+        // See AA, AB, and BA in population
+        Assert.assertEquals(calculator.pPhasedTest(0, 0, 0, -100), 0, 0.00001);
 
-    public void setErrorCorrectKmers(boolean errorCorrectKmers) {
-        this.errorCorrectKmers = errorCorrectKmers;
-    }
+        // See AA, AB, BB in population
+        Assert.assertTrue(calculator.pPhasedTest(0, 0, -100, 0) < 0.5);
 
-    public PrintStream getGraphWriter() {
-        return graphWriter;
-    }
+        // See AA and BB in population
+        Assert.assertEquals(calculator.pPhasedTest(0, -100, -100, 0), 1, 0.00001);
 
-    public void setGraphWriter(PrintStream graphWriter) {
-        this.graphWriter = graphWriter;
-    }
+        // See AA, AB, and BA but no BBs in population
+        Assert.assertEquals(calculator.pPhasedTest(0, -20, -40, Double.NEGATIVE_INFINITY), 0, 0.00001);
 
-    public byte getMinBaseQualityToUseInAssembly() {
-        return minBaseQualityToUseInAssembly;
-    }
+        // See BB, AB, and BA but no AAs in population, so BB is the best explanation
+        Assert.assertEquals(calculator.pPhasedTest(Double.NEGATIVE_INFINITY, -20, -40, 0), 1, 0.00001);
 
-    public void setMinBaseQualityToUseInAssembly(byte minBaseQualityToUseInAssembly) {
-        this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
-    }
+        // See only AB and BA but no AAs nor BBs in population
+        Assert.assertEquals(calculator.pPhasedTest(Double.NEGATIVE_INFINITY, -20, -40, Double.NEGATIVE_INFINITY), 0, 0.00001);
 
-    public abstract List<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, List<VariantContext> activeAllelesToGenotype);
+        // Previously bad input
+        Assert.assertEquals(calculator.pPhasedTest(-400, -600, -1200, Double.NEGATIVE_INFINITY), 0, 0.00001);
+
+        // first variant is just bad, so BA and BB are both very bad, shouldn't be phased
+        Assert.assertEquals(calculator.pPhasedTest(0, -1000, -100, -10000), 0, 0.00001);
+
+        // second variant is just bad, so AB and BB are both very bad, shouldn't be phased
+        Assert.assertEquals(calculator.pPhasedTest(0, -100, -1000, -10000), 0, 0.00001);
+
+        // AA is very good, all all others are quite poor.  Shouldn't be phased
+        Assert.assertEquals(calculator.pPhasedTest(0, -1000, -1000, -10000), 0, 0.00001);
+
+
+        for ( int i = -10; i > -10000; i -= 10 ) {
+            // only bad het states
+            Assert.assertTrue(calculator.pPhasedTest(0, i, i, 0) > 0.99, "Failed for " + i);
+
+            // BB state is terrible
+            Assert.assertTrue(calculator.pPhasedTest(0, 0, 0, i) < 0.5, "Failed for " + i);
+
+            // truth is AB, BA, and BB
+            Assert.assertTrue(calculator.pPhasedTest(i, 0, 0, 0) < 0.5, "Failed for " + i);
+
+            // truth is AB, BA
+            Assert.assertTrue(calculator.pPhasedTest(i, 0, 0, i) < 0.5, "Failed for " + i);
+
+            // Only good signal is AB, so we shouldn't be phased
+            Assert.assertTrue(calculator.pPhasedTest(i, i, 0, i) < 0.5, "Failed for " + i);
+            Assert.assertTrue(calculator.pPhasedTest(i, 0, i, i) < 0.5, "Failed for " + i);
+        }
+    }
 }

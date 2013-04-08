@@ -55,7 +55,8 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.Haplotype;
+import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
@@ -94,22 +95,25 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private final boolean debug;
     private final boolean debugGraphTransformations;
     private final int minKmer;
+    private final boolean allowCyclesInKmerGraphToGeneratePaths;
 
     private final int onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms;
 
 
     protected DeBruijnAssembler() {
-        this(false, -1, 11);
+        this(false, -1, 11, false);
     }
 
     public DeBruijnAssembler(final boolean debug,
                              final int debugGraphTransformations,
-                             final int minKmer) {
+                             final int minKmer,
+                             final boolean allowCyclesInKmerGraphToGeneratePaths) {
         super();
         this.debug = debug;
         this.debugGraphTransformations = debugGraphTransformations > 0;
         this.onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms = debugGraphTransformations;
         this.minKmer = minKmer;
+        this.allowCyclesInKmerGraphToGeneratePaths = allowCyclesInKmerGraphToGeneratePaths;
     }
 
     /**
@@ -161,8 +165,9 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), pruneFactor);
 
                 if ( shouldErrorCorrectKmers() ) {
-                    graph = errorCorrect(graph);
-                    if ( debugGraphTransformations ) graph.printGraph(new File("errorCorrected.dot"), pruneFactor);
+                    throw new UserException("Error correction no longer supported because of the " +
+                            "incredibly naive way this was implemented.  The command line argument remains because some" +
+                            " future subsystem will actually go and error correct the reads");
                 }
 
                 final SeqGraph seqGraph = toSeqGraph(graph);
@@ -185,6 +190,14 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         final SeqGraph seqGraph = deBruijnGraph.convertToSequenceGraph();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), pruneFactor);
 
+        // TODO -- we need to come up with a consistent pruning algorithm.  The current pruning algorithm
+        // TODO -- works well but it doesn't differentiate between an isolated chain that doesn't connect
+        // TODO -- to anything from one that's actuall has good support along the chain but just happens
+        // TODO -- to have a connection in the middle that has weight of < pruneFactor.  Ultimately
+        // TODO -- the pruning algorithm really should be an error correction algorithm that knows more
+        // TODO -- about the structure of the data and can differeniate between an infrequent path but
+        // TODO -- without evidence against it (such as occurs when a region is hard to get any reads through)
+        // TODO -- from a error with lots of weight going along another similar path
         // the very first thing we need to do is zip up the graph, or pruneGraph will be too aggressive
         seqGraph.zipLinearChains();
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.zipped.dot"), pruneFactor);
@@ -206,6 +219,16 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             return null;
 
         seqGraph.removePathsNotConnectedToRef();
+        seqGraph.simplifyGraph();
+        if ( seqGraph.vertexSet().size() == 1 ) {
+            // we've prefectly assembled into a single reference haplotype, add a empty seq vertex to stop
+            // the code from blowing up.
+            // TODO -- ref properties should really be on the vertices, not the graph itself
+            final SeqVertex complete = seqGraph.vertexSet().iterator().next();
+            final SeqVertex dummy = new SeqVertex("");
+            seqGraph.addVertex(dummy);
+            seqGraph.addEdge(complete, dummy, new BaseEdge(true, 0));
+        }
         if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.5.final.dot"), pruneFactor);
 
         return seqGraph;
@@ -324,39 +347,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         return true;
     }
 
-    /**
-     * Error correct the kmers in this graph, returning a new graph built from those error corrected kmers
-     * @return an error corrected version of this (freshly allocated graph) or simply this graph if for some reason
-     *         we cannot actually do the error correction
-     */
-    public DeBruijnGraph errorCorrect(final DeBruijnGraph graph) {
-        final KMerErrorCorrector corrector = new KMerErrorCorrector(graph.getKmerSize(), 1, 1, 5); // TODO -- should be static variables
-
-        for( final BaseEdge e : graph.edgeSet() ) {
-            for ( final byte[] kmer : Arrays.asList(graph.getEdgeSource(e).getSequence(), graph.getEdgeTarget(e).getSequence())) {
-                // TODO -- need a cleaner way to deal with the ref weight
-                corrector.addKmer(kmer, e.isRef() ? 1000 : e.getMultiplicity());
-            }
-        }
-
-        if ( corrector.computeErrorCorrectionMap() ) {
-            final DeBruijnGraph correctedGraph = new DeBruijnGraph(graph.getKmerSize());
-
-            for( final BaseEdge e : graph.edgeSet() ) {
-                final byte[] source = corrector.getErrorCorrectedKmer(graph.getEdgeSource(e).getSequence());
-                final byte[] target = corrector.getErrorCorrectedKmer(graph.getEdgeTarget(e).getSequence());
-                if ( source != null && target != null ) {
-                    correctedGraph.addKmersToGraph(source, target, e.isRef(), e.getMultiplicity());
-                }
-            }
-
-            return correctedGraph;
-        } else {
-            // the error correction wasn't possible, simply return this graph
-            return graph;
-        }
-    }
-
     protected void printGraphs(final List<SeqGraph> graphs) {
         final int writeFirstGraphWithSizeSmallerThan = 50;
 
@@ -401,7 +391,12 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         }
 
         for( final SeqGraph graph : graphs ) {
-            for ( final Path<SeqVertex> path : new KBestPaths<SeqVertex>().getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH) ) {
+            final SeqVertex source = graph.getReferenceSourceVertex();
+            final SeqVertex sink = graph.getReferenceSinkVertex();
+            if ( source == null || sink == null ) throw new IllegalArgumentException("Both source and sink cannot be null but got " + source + " and sink " + sink + " for graph "+ graph);
+
+            final KBestPaths<SeqVertex> pathFinder = new KBestPaths<SeqVertex>(allowCyclesInKmerGraphToGeneratePaths);
+            for ( final Path<SeqVertex> path : pathFinder.getKBestPaths(graph, NUM_BEST_PATHS_PER_KMER_GRAPH, source, sink) ) {
 //                logger.info("Found path " + path);
                 Haplotype h = new Haplotype( path.getBases() );
                 if( !returnHaplotypes.contains(h) ) {
@@ -432,7 +427,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
                         // for GGA mode, add the desired allele into the haplotype if it isn't already present
                         if( !activeAllelesToGenotype.isEmpty() ) {
-                            final Map<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, h.getAlignmentStartHapwrtRef(), h.getCigar(), refWithPadding, h.getBases(), refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
+                            final Map<Integer,VariantContext> eventMap = GenotypingEngine.generateVCsFromAlignment( h, refWithPadding, refLoc, "HCassembly" ); // BUGBUG: need to put this function in a shared place
                             for( final VariantContext compVC : activeAllelesToGenotype ) { // for GGA mode, add the desired allele into the haplotype if it isn't already present
                                 final VariantContext vcOnHaplotype = eventMap.get(compVC.getStart());
 
@@ -452,6 +447,9 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 }
             }
         }
+
+        // add genome locs to the haplotypes
+        for ( final Haplotype h : returnHaplotypes ) h.setGenomeLocation(activeRegionWindow);
 
         if ( returnHaplotypes.size() < returnHaplotypes.size() )
             logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);

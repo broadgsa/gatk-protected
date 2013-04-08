@@ -235,7 +235,7 @@ public class SyntheticRead {
         read.setReadBases(convertReadBases());
         read.setMappingQuality((int) Math.ceil(mappingQuality / basesCountsQuals.size()));
         read.setReadGroup(readGroupRecord);
-        read.setReducedReadCounts(convertBaseCounts());
+        read.setReducedReadCountsTag(convertBaseCounts());
 
         if (hasIndelQualities) {
             read.setBaseQualities(convertInsertionQualities(), EventType.BASE_INSERTION);

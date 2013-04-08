@@ -46,60 +46,39 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-import java.io.PrintStream;
-import java.util.List;
+public class KMerCounterUnitTest extends BaseTest {
+    @Test
+    public void testMyData() {
+        final KMerCounter counter = new KMerCounter(3);
 
-/**
- * Created by IntelliJ IDEA.
- * User: ebanks
- * Date: Mar 14, 2011
- */
-public abstract class LocalAssemblyEngine {
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
+        Assert.assertNotNull(counter.toString());
 
-    protected PrintStream graphWriter = null;
-    protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
-    protected int pruneFactor = 2;
-    protected boolean errorCorrectKmers = false;
+        counter.addKmers(
+                "ATG", "ATG", "ATG", "ATG",
+                "ACC", "ACC", "ACC",
+                "AAA", "AAA",
+                "CTG",
+                "NNA",
+                "CCC"
+        );
 
-    protected LocalAssemblyEngine() { }
+        testCounting(counter, "ATG", 4);
+        testCounting(counter, "ACC", 3);
+        testCounting(counter, "AAA", 2);
+        testCounting(counter, "CTG", 1);
+        testCounting(counter, "NNA", 1);
+        testCounting(counter, "CCC", 1);
+        testCounting(counter, "NNN", 0);
+        testCounting(counter, "NNC", 0);
 
-    public int getPruneFactor() {
-        return pruneFactor;
+        Assert.assertNotNull(counter.toString());
     }
 
-    public void setPruneFactor(int pruneFactor) {
-        this.pruneFactor = pruneFactor;
+    private void testCounting(final KMerCounter counter, final String in, final int expectedCount) {
+        Assert.assertEquals(counter.getKmerCount(in.getBytes()), expectedCount);
     }
-
-    public boolean shouldErrorCorrectKmers() {
-        return errorCorrectKmers;
-    }
-
-    public void setErrorCorrectKmers(boolean errorCorrectKmers) {
-        this.errorCorrectKmers = errorCorrectKmers;
-    }
-
-    public PrintStream getGraphWriter() {
-        return graphWriter;
-    }
-
-    public void setGraphWriter(PrintStream graphWriter) {
-        this.graphWriter = graphWriter;
-    }
-
-    public byte getMinBaseQualityToUseInAssembly() {
-        return minBaseQualityToUseInAssembly;
-    }
-
-    public void setMinBaseQualityToUseInAssembly(byte minBaseQualityToUseInAssembly) {
-        this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
-    }
-
-    public abstract List<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, List<VariantContext> activeAllelesToGenotype);
 }

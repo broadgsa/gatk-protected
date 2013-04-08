@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.KMerErrorCorrector;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -59,7 +58,7 @@ import java.util.Map;
  * User: rpoplin
  * Date: 2/6/13
  */
-public class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
+public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
     /**
      * Create an empty DeBruijnGraph with default kmer size
      */

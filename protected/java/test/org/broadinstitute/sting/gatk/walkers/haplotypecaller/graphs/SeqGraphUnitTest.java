@@ -47,15 +47,20 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 public class SeqGraphUnitTest extends BaseTest {
+    private final static boolean DEBUG = false;
+
     private class MergeNodesWithNoVariationTestProvider extends TestDataProvider {
         public byte[] sequence;
         public int KMER_LENGTH;
@@ -98,7 +103,7 @@ public class SeqGraphUnitTest extends BaseTest {
         return MergeNodesWithNoVariationTestProvider.getTests(MergeNodesWithNoVariationTestProvider.class);
     }
 
-    @Test(dataProvider = "MergeNodesWithNoVariationTestProvider", enabled = true)
+    @Test(dataProvider = "MergeNodesWithNoVariationTestProvider", enabled = !DEBUG)
     public void testMergeNodesWithNoVariation(MergeNodesWithNoVariationTestProvider cfg) {
         logger.warn(String.format("Test: %s", cfg.toString()));
 
@@ -178,7 +183,7 @@ public class SeqGraphUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "IsDiamondData", enabled = true)
+    @Test(dataProvider = "IsDiamondData", enabled = !DEBUG)
     public void testIsDiamond(final SeqGraph graph, final SeqVertex v, final boolean isRootOfDiamond) {
         final SeqGraph.MergeDiamonds merger = graph.new MergeDiamonds();
         merger.setDontModifyGraphEvenIfPossible();
@@ -191,8 +196,8 @@ public class SeqGraphUnitTest extends BaseTest {
 
         final SeqGraph graph = new SeqGraph();
 
-        SeqVertex pre1 = new SeqVertex("ACT");
-        SeqVertex pre2 = new SeqVertex("AGT");
+        SeqVertex pre1 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "CT");
+        SeqVertex pre2 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "GT");
         SeqVertex top = new SeqVertex("A");
         SeqVertex middle1 = new SeqVertex("GC");
         SeqVertex middle2 = new SeqVertex("TC");
@@ -278,7 +283,7 @@ public class SeqGraphUnitTest extends BaseTest {
             final SeqVertex newMiddle1 = new SeqVertex("G");
             final SeqVertex newMiddle2 = new SeqVertex("T");
             final SeqVertex newBottom = new SeqVertex("C" + bottom.getSequenceString());
-            final SeqVertex newTop = new SeqVertex("A");
+            final SeqVertex newTop = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES));
             final SeqVertex newTopDown1 = new SeqVertex("G");
             final SeqVertex newTopDown2 = new SeqVertex("C");
             final SeqVertex newTopBottomMerged = new SeqVertex("TA");
@@ -311,7 +316,7 @@ public class SeqGraphUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "MergingData", enabled = true)
+    @Test(dataProvider = "MergingData", enabled = !DEBUG)
     public void testMerging(final SeqGraph graph, final SeqGraph expected) {
         final SeqGraph merged = (SeqGraph)graph.clone();
         merged.simplifyGraph(1);
@@ -333,7 +338,7 @@ public class SeqGraphUnitTest extends BaseTest {
     //
     // Should become A -> ACT -> C [ref and non-ref edges]
     //
-    @Test
+    @Test(enabled = !DEBUG)
     public void testBubbleSameBasesWithRef() {
         final SeqGraph graph = new SeqGraph();
         final SeqVertex top = new SeqVertex("A");
@@ -350,5 +355,170 @@ public class SeqGraphUnitTest extends BaseTest {
         final SeqGraph actual = ((SeqGraph)graph.clone());
         actual.simplifyGraph();
         Assert.assertTrue(BaseGraph.graphEquals(actual, expected), "Wrong merging result after complete merging");
+    }
+
+    @DataProvider(name = "LinearZipData")
+    public Object[][] makeLinearZipData() throws Exception {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        SeqGraph graph = new SeqGraph();
+        SeqGraph expected = new SeqGraph();
+
+        // empty graph => empty graph
+        tests.add(new Object[]{graph.clone(), expected.clone()});
+
+        SeqVertex a1 = new SeqVertex("A");
+        SeqVertex c1 = new SeqVertex("C");
+        SeqVertex ac1 = new SeqVertex("AC");
+
+        // just a single vertex
+        graph.addVertices(a1, c1);
+        expected.addVertices(a1, c1);
+
+        tests.add(new Object[]{graph.clone(), expected.clone()});
+
+        graph.addEdges(a1, c1);
+        expected = new SeqGraph();
+        expected.addVertices(ac1);
+        tests.add(new Object[]{graph.clone(), expected.clone()});
+
+        // three long chain merged corrected
+        SeqVertex g1 = new SeqVertex("G");
+        graph.addVertices(g1);
+        graph.addEdges(c1, g1);
+        expected = new SeqGraph();
+        expected.addVertex(new SeqVertex("ACG"));
+        tests.add(new Object[]{graph.clone(), expected.clone()});
+
+        // adding something that isn't connected isn't a problem
+        SeqVertex t1 = new SeqVertex("T");
+        graph.addVertices(t1);
+        expected = new SeqGraph();
+        expected.addVertices(new SeqVertex("ACG"), new SeqVertex("T"));
+        tests.add(new Object[]{graph.clone(), expected.clone()});
+
+        // splitting chain with branch produces the correct zipped subgraphs
+        final SeqVertex a2 = new SeqVertex("A");
+        final SeqVertex c2 = new SeqVertex("C");
+        graph = new SeqGraph();
+        graph.addVertices(a1, c1, g1, t1, a2, c2);
+        graph.addEdges(a1, c1, g1, t1, a2);
+        graph.addEdges(g1, c2);
+        expected = new SeqGraph();
+        SeqVertex acg = new SeqVertex("ACG");
+        SeqVertex ta = new SeqVertex("TA");
+        expected.addVertices(acg, ta, c2);
+        expected.addEdges(acg, ta);
+        expected.addEdges(acg, c2);
+        tests.add(new Object[]{graph.clone(), expected.clone()});
+
+        // Can merge chains with loops in them
+        {
+            graph = new SeqGraph();
+            graph.addVertices(a1, c1, g1);
+            graph.addEdges(a1, c1, g1);
+            graph.addEdges(a1, a1);
+            expected = new SeqGraph();
+
+            SeqVertex ac = new SeqVertex("AC");
+            SeqVertex cg = new SeqVertex("CG");
+
+            expected.addVertices(a1, cg);
+            expected.addEdges(a1, cg);
+            expected.addEdges(a1, a1);
+            tests.add(new Object[]{graph.clone(), expected.clone()});
+
+            graph.removeEdge(a1, a1);
+            graph.addEdges(c1, c1);
+            tests.add(new Object[]{graph.clone(), graph.clone()});
+
+            graph.removeEdge(c1, c1);
+            graph.addEdges(g1, g1);
+            expected = new SeqGraph();
+            expected.addVertices(ac, g1);
+            expected.addEdges(ac, g1, g1);
+            tests.add(new Object[]{graph.clone(), expected.clone()});
+        }
+
+        // check building n element long chains
+        {
+            final List<String> bases = Arrays.asList("A", "C", "G", "T", "TT", "GG", "CC", "AA");
+            for ( final int len : Arrays.asList(1, 2, 10, 100, 1000)) {
+                graph = new SeqGraph();
+                expected = new SeqGraph();
+                SeqVertex last = null;
+                String expectedBases = "";
+                for ( int i = 0; i < len; i++ ) {
+                    final String seq = bases.get(i % bases.size());
+                    expectedBases += seq;
+                    SeqVertex a = new SeqVertex(seq);
+                    graph.addVertex(a);
+                    if ( last != null ) graph.addEdge(last, a);
+                    last = a;
+                }
+                expected.addVertex(new SeqVertex(expectedBases));
+                tests.add(new Object[]{graph.clone(), expected.clone()});
+            }
+        }
+
+        // check that edge connections are properly maintained
+        {
+            int edgeWeight = 1;
+            for ( final int nIncoming : Arrays.asList(0, 2, 5, 10) ) {
+                for ( final int nOutgoing : Arrays.asList(0, 2, 5, 10) ) {
+                    graph = new SeqGraph();
+                    expected = new SeqGraph();
+
+                    graph.addVertices(a1, c1, g1);
+                    graph.addEdges(a1, c1, g1);
+                    expected.addVertex(acg);
+
+                    for ( final SeqVertex v : makeVertices(nIncoming) ) {
+                        final BaseEdge e = new BaseEdge(false, edgeWeight++);
+                        graph.addVertices(v);
+                        graph.addEdge(v, a1, e);
+                        expected.addVertex(v);
+                        expected.addEdge(v, acg, e);
+                    }
+
+                    for ( final SeqVertex v : makeVertices(nOutgoing) ) {
+                        final BaseEdge e = new BaseEdge(false, edgeWeight++);
+                        graph.addVertices(v);
+                        graph.addEdge(g1, v, e);
+                        expected.addVertex(v);
+                        expected.addEdge(acg, v, e);
+                    }
+
+                    tests.add(new Object[]{graph, expected});
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    private List<SeqVertex> makeVertices(final int n) {
+        final List<SeqVertex> vs = new LinkedList<SeqVertex>();
+        final List<String> bases = Arrays.asList("A", "C", "G", "T", "TT", "GG", "CC", "AA");
+
+        for ( int i = 0; i < n; i++ )
+            vs.add(new SeqVertex(bases.get(i % bases.size())));
+        return vs;
+    }
+
+    @Test(dataProvider = "LinearZipData", enabled = true)
+    public void testLinearZip(final SeqGraph graph, final SeqGraph expected) {
+        final SeqGraph merged = (SeqGraph)graph.clone();
+        merged.zipLinearChains();
+        try {
+            Assert.assertTrue(SeqGraph.graphEquals(merged, expected));
+        } catch (AssertionError e) {
+            if ( ! SeqGraph.graphEquals(merged, expected) ) {
+                graph.printGraph(new File("graph.dot"), 0);
+                merged.printGraph(new File("merged.dot"), 0);
+                expected.printGraph(new File("expected.dot"), 0);
+            }
+            throw e;
+        }
     }
 }

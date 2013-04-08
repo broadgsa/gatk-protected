@@ -44,62 +44,36 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.haplotype;
 
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 
-import java.io.PrintStream;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 /**
- * Created by IntelliJ IDEA.
- * User: ebanks
- * Date: Mar 14, 2011
+ * Baseclass for code that wants to merge variants together in the haplotype caller
+ *
+ * This root class is basically a no-op, and can be used to not do any merging
  */
-public abstract class LocalAssemblyEngine {
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
-
-    protected PrintStream graphWriter = null;
-    protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
-    protected int pruneFactor = 2;
-    protected boolean errorCorrectKmers = false;
-
-    protected LocalAssemblyEngine() { }
-
-    public int getPruneFactor() {
-        return pruneFactor;
+public class MergeVariantsAcrossHaplotypes {
+    /**
+     * Merge variants across the haplotypes, updating the haplotype event maps and startPos set as appropriate
+     *
+     * @param haplotypes a list of haplotypes whose events we want to merge
+     * @param haplotypeReadMap map from sample name -> read likelihoods for each haplotype
+     * @param startPosKeySet a set of starting positions of all events among the haplotypes
+     * @param ref the reference bases
+     * @param refLoc the span of the reference bases
+     * @return true if anything was merged
+     */
+    public boolean merge( final List<Haplotype> haplotypes,
+                          final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                          final TreeSet<Integer> startPosKeySet,
+                          final byte[] ref,
+                          final GenomeLoc refLoc ) {
+        return false;
     }
-
-    public void setPruneFactor(int pruneFactor) {
-        this.pruneFactor = pruneFactor;
-    }
-
-    public boolean shouldErrorCorrectKmers() {
-        return errorCorrectKmers;
-    }
-
-    public void setErrorCorrectKmers(boolean errorCorrectKmers) {
-        this.errorCorrectKmers = errorCorrectKmers;
-    }
-
-    public PrintStream getGraphWriter() {
-        return graphWriter;
-    }
-
-    public void setGraphWriter(PrintStream graphWriter) {
-        this.graphWriter = graphWriter;
-    }
-
-    public byte getMinBaseQualityToUseInAssembly() {
-        return minBaseQualityToUseInAssembly;
-    }
-
-    public void setMinBaseQualityToUseInAssembly(byte minBaseQualityToUseInAssembly) {
-        this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
-    }
-
-    public abstract List<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, List<VariantContext> activeAllelesToGenotype);
 }

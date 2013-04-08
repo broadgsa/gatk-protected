@@ -48,7 +48,6 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Requires;
 
-import java.io.File;
 import java.util.*;
 
 /**
@@ -177,9 +176,9 @@ public class CommonSuffixSplitter {
      */
     @Requires("!middleVertices.isEmpty()")
     protected static SeqVertex commonSuffix(final Collection<SeqVertex> middleVertices) {
-        final List<byte[]> kmers = Utils.getKmers(middleVertices);
-        final int min = Utils.minKmerLength(kmers);
-        final int suffixLen = Utils.compSuffixLen(kmers, min);
+        final List<byte[]> kmers = GraphUtils.getKmers(middleVertices);
+        final int min = GraphUtils.minKmerLength(kmers);
+        final int suffixLen = GraphUtils.compSuffixLen(kmers, min);
         final byte[] kmer = kmers.get(0);
         final byte[] suffix = Arrays.copyOfRange(kmer, kmer.length - suffixLen, kmer.length);
         return new SeqVertex(suffix);

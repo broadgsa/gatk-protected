@@ -44,95 +44,110 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
+import org.apache.log4j.Logger;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 /**
- * Utility functions used in the graphs package
+ * generic utility class that counts kmers
+ *
+ * Basically you add kmers to the counter, and it tells you how many occurrences of each kmer it's seen.
  *
  * User: depristo
- * Date: 3/25/13
- * Time: 9:42 PM
+ * Date: 3/8/13
+ * Time: 1:16 PM
  */
-final class Utils {
-    private Utils() {}
+public class KMerCounter {
+    private final static Logger logger = Logger.getLogger(KMerCounter.class);
 
     /**
-     * Compute the maximum shared prefix length of list of bytes.
-     *
-     * @param listOfBytes a list of bytes with at least one element
-     * @param minLength the min. length among all byte[] in listOfBytes
-     * @return the number of shared bytes common at the start of all bytes
+     * A map of for each kmer to its num occurrences in addKmers
      */
-    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
-    @Ensures("result >= 0")
-    protected static int compPrefixLen(final List<byte[]> listOfBytes, final int minLength) {
-        for ( int i = 0; i < minLength; i++ ) {
-            final byte b = listOfBytes.get(0)[i];
-            for ( int j = 1; j < listOfBytes.size(); j++ ) {
-                if ( b != listOfBytes.get(j)[i] )
-                    return i;
-            }
-        }
+    private final Map<String, CountedKmer> countsByKMer = new HashMap<String, CountedKmer>();
+    private final int kmerLength;
 
-        return minLength;
+    /**
+     * Create a new kmer counter
+     *
+     * @param kmerLength the length of kmers we'll be counting to error correct, must be >= 1
+     */
+    public KMerCounter(final int kmerLength) {
+        if ( kmerLength < 1 ) throw new IllegalArgumentException("kmerLength must be > 0 but got " + kmerLength);
+        this.kmerLength = kmerLength;
     }
 
     /**
-     * Compute the maximum shared suffix length of list of bytes.
+     * For testing purposes
      *
-     * @param listOfBytes a list of bytes with at least one element
-     * @param minLength the min. length among all byte[] in listOfBytes
-     * @return the number of shared bytes common at the end of all bytes
+     * @param kmers
      */
-    @Requires({"listOfBytes.size() >= 1", "minLength >= 0"})
-    @Ensures("result >= 0")
-    protected static int compSuffixLen(final List<byte[]> listOfBytes, final int minLength) {
-        for ( int suffixLen = 0; suffixLen < minLength; suffixLen++ ) {
-            final byte b = listOfBytes.get(0)[listOfBytes.get(0).length - suffixLen - 1];
-            for ( int j = 1; j < listOfBytes.size(); j++ ) {
-                if ( b != listOfBytes.get(j)[listOfBytes.get(j).length - suffixLen - 1] )
-                    return suffixLen;
-            }
-        }
-        return minLength;
+    protected void addKmers(final String ... kmers) {
+        for ( final String kmer : kmers )
+            addKmer(kmer, 1);
     }
 
     /**
-     * Get the list of kmers as byte[] from the vertices in the graph
-     *
-     * @param vertices a collection of vertices
-     * @return a list of their kmers in order of the iterator on vertices
+     * Get the count of kmer in this kmer counter
+     * @param kmer a non-null counter to get
+     * @return a positive integer
      */
-    protected static List<byte[]> getKmers(final Collection<SeqVertex> vertices) {
-        final List<byte[]> kmers = new ArrayList<byte[]>(vertices.size());
-        for ( final SeqVertex v : vertices ) {
-            kmers.add(v.getSequence());
-        }
-        return kmers;
+    public int getKmerCount(final byte[] kmer) {
+        if ( kmer == null ) throw new IllegalArgumentException("kmer cannot be null");
+        final CountedKmer counted = countsByKMer.get(new String(kmer));
+        return counted == null ? 0 : counted.count;
     }
 
     /**
-     * Get the minimum length of a collection of byte[]
+     * Add a kmer that occurred kmerCount times
      *
-     * @param kmers a list of kmers whose .length min we want
-     * @return the min of the kmers, if kmers is empty the result is 0
+     * @param rawKmer a kmer
+     * @param kmerCount the number of occurrences
      */
-    protected static int minKmerLength(final Collection<byte[]> kmers) {
-        if ( kmers == null ) throw new IllegalArgumentException("kmers cannot be null");
-
-        if ( kmers.isEmpty() ) return 0;
-        int min = Integer.MAX_VALUE;
-        for ( final byte[] kmer : kmers ) {
-            min = Math.min(min, kmer.length);
-        }
-        return min;
+    public void addKmer(final byte[] rawKmer, final int kmerCount) {
+        addKmer(new String(rawKmer), kmerCount);
     }
 
+    protected void addKmer(final String rawKmer, final int kmerCount) {
+        if ( rawKmer.length() != kmerLength ) throw new IllegalArgumentException("bad kmer length " + rawKmer + " expected size " + kmerLength);
+        if ( kmerCount < 0 ) throw new IllegalArgumentException("bad kmerCount " + kmerCount);
+
+        CountedKmer countFromMap = countsByKMer.get(rawKmer);
+        if ( countFromMap == null ) {
+            countFromMap = new CountedKmer(rawKmer);
+            countsByKMer.put(rawKmer, countFromMap);
+        }
+        countFromMap.count += kmerCount;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder b = new StringBuilder("KMerCounter{");
+        b.append("counting ").append(countsByKMer.size()).append(" distinct kmers");
+        b.append("\n}");
+        return b.toString();
+    }
+
+    private static class CountedKmer implements Comparable<CountedKmer> {
+        final String kmer;
+        int count;
+
+        private CountedKmer(String kmer) {
+            this.kmer = kmer;
+        }
+
+        @Override
+        public String toString() {
+            return "CountedKmer{" +
+                    "kmer='" + kmer + '\'' +
+                    ", count=" + count +
+                    '}';
+        }
+
+        @Override
+        public int compareTo(CountedKmer o) {
+            return o.count - count;
+        }
+    }
 }

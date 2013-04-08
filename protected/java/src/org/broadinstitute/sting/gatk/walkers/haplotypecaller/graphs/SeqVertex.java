@@ -70,7 +70,7 @@ import java.util.Arrays;
  * @author: depristo
  * @since 03/2013
  */
-public class SeqVertex extends BaseVertex {
+public final class SeqVertex extends BaseVertex {
     private static int idCounter = 0;
     public final int id;
 
