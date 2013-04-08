@@ -46,39 +46,65 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.BaseTest;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.apache.log4j.Logger;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
 
-public class KMerCounterUnitTest extends BaseTest {
-    @Test
-    public void testMyData() {
-        final KMerCounter counter = new KMerCounter(3);
+/**
+ * User: depristo
+ * Date: 4/7/13
+ * Time: 4:14 PM
+ */
+public class DeBruijnGraphBuilder {
+    private final static Logger logger = Logger.getLogger(DeBruijnGraphBuilder.class);
 
-        Assert.assertNotNull(counter.toString());
+    private final int kmerSize;
+    private final DeBruijnGraph graph;
+    private final KmerCounter counter;
 
-        counter.addKmers(
-                "ATG", "ATG", "ATG", "ATG",
-                "ACC", "ACC", "ACC",
-                "AAA", "AAA",
-                "CTG",
-                "NNA",
-                "CCC"
-        );
-
-        testCounting(counter, "ATG", 4);
-        testCounting(counter, "ACC", 3);
-        testCounting(counter, "AAA", 2);
-        testCounting(counter, "CTG", 1);
-        testCounting(counter, "NNA", 1);
-        testCounting(counter, "CCC", 1);
-        testCounting(counter, "NNN", 0);
-        testCounting(counter, "NNC", 0);
-
-        Assert.assertNotNull(counter.toString());
+    public DeBruijnGraphBuilder(final DeBruijnGraph graph) {
+        if ( graph == null ) throw new IllegalArgumentException("Graph cannot be null");
+        this.kmerSize = graph.getKmerSize();
+        this.graph = graph;
+        this.counter = new KmerCounter(kmerSize + 1);
     }
 
-    private void testCounting(final KMerCounter counter, final String in, final int expectedCount) {
-        Assert.assertEquals(counter.getKmerCount(in.getBytes()), expectedCount);
+    public DeBruijnGraph getGraph() {
+        return graph;
+    }
+
+    public int getKmerSize() {
+        return kmerSize;
+    }
+
+    /**
+     * Higher-level interface to #addKmersToGraph that adds a pair of kmers from a larger sequence of bytes to this
+     * graph.  The kmers start at start (first) and start + 1 (second) have have length getKmerSize().  The
+     * edge between them is added with isRef and multiplicity
+     *
+     * @param sequence a sequence of bases from which we want to extract a pair of kmers
+     * @param start the start of the first kmer in sequence, must be between 0 and sequence.length - 2 - getKmerSize()
+     * @param multiplicity what's the multiplicity of the edge between these two kmers
+     */
+    public void addKmerPairFromSeqToGraph( final byte[] sequence, final int start, final int multiplicity ) {
+        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
+        if ( start < 0 ) throw new IllegalArgumentException("start must be >= 0 but got " + start);
+        if ( start + 1 + getKmerSize() > sequence.length ) throw new IllegalArgumentException("start " + start + " is too big given kmerSize " + getKmerSize() + " and sequence length " + sequence.length);
+        final Kmer kmerPair = new Kmer(sequence, start, getKmerSize() + 1);
+        addKmerPair(kmerPair, multiplicity);
+    }
+
+
+    public void addKmerPair(final Kmer kmerPair, final int multiplicity) {
+        if ( kmerPair.length() != kmerSize + 1 )  throw new IllegalArgumentException("kmer pair must be of length kmerSize + 1 = " + kmerSize + 1 + " but got " + kmerPair.length());
+        counter.addKmer(kmerPair, multiplicity);
+    }
+
+    public void flushKmersToGraph(final boolean addRefEdges) {
+        for ( final KmerCounter.CountedKmer countedKmer : counter.getCountedKmers() ) {
+            final byte[] first = countedKmer.getKmer().subKmer(0, kmerSize).bases();
+            final byte[] second = countedKmer.getKmer().subKmer(1, kmerSize).bases();
+            graph.addKmersToGraph(first, second, addRefEdges, countedKmer.getCount());
+        }
+        counter.clear();
     }
 }

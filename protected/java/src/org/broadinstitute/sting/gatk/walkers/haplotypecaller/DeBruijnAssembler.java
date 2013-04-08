@@ -252,14 +252,15 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     @Requires({"reads != null", "kmerLength > 0", "refHaplotype != null"})
     protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int kmerLength, final Haplotype refHaplotype ) {
         final DeBruijnGraph graph = new DeBruijnGraph(kmerLength);
+        final DeBruijnGraphBuilder builder = new DeBruijnGraphBuilder(graph);
 
         // First pull kmers from the reference haplotype and add them to the graph
-        if ( ! addReferenceKmersToGraph(graph, refHaplotype.getBases()) )
+        if ( ! addReferenceKmersToGraph(builder, refHaplotype.getBases()) )
             // something went wrong, so abort right now with a null graph
             return null;
 
         // now go through the graph already seeded with the reference sequence and add the read kmers to it
-        if ( ! addReadKmersToGraph(graph, reads) )
+        if ( ! addReadKmersToGraph(builder, reads) )
             // some problem was detected adding the reads to the graph, return null to indicate we failed
             return null;
 
@@ -270,12 +271,12 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     /**
      * Add the high-quality kmers from the reads to the graph
      *
-     * @param graph a graph to add the read kmers to
+     * @param builder a debruijn graph builder to add the read kmers to
      * @param reads a non-null list of reads whose kmers we want to add to the graph
      * @return true if we successfully added the read kmers to the graph without corrupting it in some way
      */
-    protected boolean addReadKmersToGraph(final DeBruijnGraph graph, final List<GATKSAMRecord> reads) {
-        final int kmerLength = graph.getKmerSize();
+    protected boolean addReadKmersToGraph(final DeBruijnGraphBuilder builder, final List<GATKSAMRecord> reads) {
+        final int kmerLength = builder.getKmerSize();
 
         // Next pull kmers out of every read and throw them on the graph
         for( final GATKSAMRecord read : reads ) {
@@ -285,6 +286,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             if( sequence.length > kmerLength + KMER_OVERLAP ) {
                 final int kmersInSequence = sequence.length - kmerLength + 1;
                 for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
+                    // TODO -- this is quite expense as it does O(kmerLength^2 work) per read
                     // if the qualities of all the bases in the kmers are high enough
                     boolean badKmer = false;
                     for( int jjj = iii; jjj < iii + kmerLength + 1; jjj++) {
@@ -304,11 +306,13 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                             countNumber = MathUtils.arrayMax(Arrays.copyOfRange(reducedReadCounts, iii, iii + kmerLength));
                         }
 
-                        graph.addKmerPairFromSeqToGraph(sequence, iii, false, countNumber);
+                        builder.addKmerPairFromSeqToGraph(sequence, iii, countNumber);
                     }
                 }
             }
         }
+
+        builder.flushKmersToGraph(false);
 
         // always returns true now, but it's possible that we'd add reads and decide we don't like the graph in some way
         return true;
@@ -317,17 +321,17 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     /**
      * Add the kmers from the reference sequence to the DeBruijnGraph
      *
-     * @param graph the graph to add the reference kmers to. Must be empty
+     * @param builder the graph to add the reference kmers to. Must be empty
      * @param refSequence the reference sequence from which we'll get our kmers
      * @return true if we succeeded in creating a good graph from the reference sequence, false otherwise
      */
-    protected boolean addReferenceKmersToGraph(final DeBruijnGraph graph, final byte[] refSequence) {
-        if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
-        if ( graph.vertexSet().size() != 0 ) throw new IllegalArgumentException("Reference sequences must be added before any other vertices, but got a graph with " + graph.vertexSet().size() + " vertices in it already: " + graph);
+    protected boolean addReferenceKmersToGraph(final DeBruijnGraphBuilder builder, final byte[] refSequence) {
+        if ( builder == null ) throw new IllegalArgumentException("graph cannot be null");
+        if ( builder.getGraph().vertexSet().size() != 0 )
+            throw new IllegalArgumentException("Reference sequences must be added before any other vertices, but got a graph with " + builder.getGraph().vertexSet().size() + " vertices in it already: " + builder.getGraph());
         if ( refSequence == null ) throw new IllegalArgumentException("refSequence cannot be null");
 
-
-        final int kmerLength = graph.getKmerSize();
+        final int kmerLength = builder.getKmerSize();
         if( refSequence.length < kmerLength + KMER_OVERLAP ) {
             // not enough reference sequence to build a kmer graph of this length, return null
             return false;
@@ -335,11 +339,12 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         final int kmersInSequence = refSequence.length - kmerLength + 1;
         for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            graph.addKmerPairFromSeqToGraph(refSequence, iii, true, 1);
+            builder.addKmerPairFromSeqToGraph(refSequence, iii, 1);
         }
+        builder.flushKmersToGraph(true);
 
         // we expect that every kmer in the sequence is unique, so that the graph has exactly kmersInSequence vertices
-        if ( graph.vertexSet().size() != kmersInSequence ) {
+        if ( builder.getGraph().vertexSet().size() != kmersInSequence ) {
             if( debug ) logger.info("Cycle detected in reference graph for kmer = " + kmerLength + " ...skipping");
             return false;
         }

@@ -46,9 +46,9 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.apache.log4j.Logger;
-
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * generic utility class that counts kmers
@@ -59,13 +59,13 @@ import java.util.*;
  * Date: 3/8/13
  * Time: 1:16 PM
  */
-public class KMerCounter {
-    private final static Logger logger = Logger.getLogger(KMerCounter.class);
+public class KmerCounter {
+    //private final static Logger logger = Logger.getLogger(KmerCounter.class);
 
     /**
      * A map of for each kmer to its num occurrences in addKmers
      */
-    private final Map<String, CountedKmer> countsByKMer = new HashMap<String, CountedKmer>();
+    private final Map<Kmer, CountedKmer> countsByKMer = new HashMap<Kmer, CountedKmer>();
     private final int kmerLength;
 
     /**
@@ -73,19 +73,9 @@ public class KMerCounter {
      *
      * @param kmerLength the length of kmers we'll be counting to error correct, must be >= 1
      */
-    public KMerCounter(final int kmerLength) {
+    public KmerCounter(final int kmerLength) {
         if ( kmerLength < 1 ) throw new IllegalArgumentException("kmerLength must be > 0 but got " + kmerLength);
         this.kmerLength = kmerLength;
-    }
-
-    /**
-     * For testing purposes
-     *
-     * @param kmers
-     */
-    protected void addKmers(final String ... kmers) {
-        for ( final String kmer : kmers )
-            addKmer(kmer, 1);
     }
 
     /**
@@ -93,48 +83,60 @@ public class KMerCounter {
      * @param kmer a non-null counter to get
      * @return a positive integer
      */
-    public int getKmerCount(final byte[] kmer) {
+    public int getKmerCount(final Kmer kmer) {
         if ( kmer == null ) throw new IllegalArgumentException("kmer cannot be null");
-        final CountedKmer counted = countsByKMer.get(new String(kmer));
+        final CountedKmer counted = countsByKMer.get(kmer);
         return counted == null ? 0 : counted.count;
+    }
+
+    public Collection<CountedKmer> getCountedKmers() {
+        return countsByKMer.values();
+    }
+
+    public void clear() {
+        countsByKMer.clear();
     }
 
     /**
      * Add a kmer that occurred kmerCount times
      *
-     * @param rawKmer a kmer
+     * @param kmer a kmer
      * @param kmerCount the number of occurrences
      */
-    public void addKmer(final byte[] rawKmer, final int kmerCount) {
-        addKmer(new String(rawKmer), kmerCount);
-    }
-
-    protected void addKmer(final String rawKmer, final int kmerCount) {
-        if ( rawKmer.length() != kmerLength ) throw new IllegalArgumentException("bad kmer length " + rawKmer + " expected size " + kmerLength);
+    public void addKmer(final Kmer kmer, final int kmerCount) {
+        if ( kmer.length() != kmerLength ) throw new IllegalArgumentException("bad kmer length " + kmer + " expected size " + kmerLength);
         if ( kmerCount < 0 ) throw new IllegalArgumentException("bad kmerCount " + kmerCount);
 
-        CountedKmer countFromMap = countsByKMer.get(rawKmer);
+        CountedKmer countFromMap = countsByKMer.get(kmer);
         if ( countFromMap == null ) {
-            countFromMap = new CountedKmer(rawKmer);
-            countsByKMer.put(rawKmer, countFromMap);
+            countFromMap = new CountedKmer(kmer);
+            countsByKMer.put(kmer, countFromMap);
         }
         countFromMap.count += kmerCount;
     }
 
     @Override
     public String toString() {
-        final StringBuilder b = new StringBuilder("KMerCounter{");
+        final StringBuilder b = new StringBuilder("KmerCounter{");
         b.append("counting ").append(countsByKMer.size()).append(" distinct kmers");
         b.append("\n}");
         return b.toString();
     }
 
-    private static class CountedKmer implements Comparable<CountedKmer> {
-        final String kmer;
-        int count;
+    protected static class CountedKmer implements Comparable<CountedKmer> {
+        final Kmer kmer;
+        int count = 0;
 
-        private CountedKmer(String kmer) {
+        private CountedKmer(final Kmer kmer) {
             this.kmer = kmer;
+        }
+
+        public Kmer getKmer() {
+            return kmer;
+        }
+
+        public int getCount() {
+            return count;
         }
 
         @Override
@@ -149,5 +151,26 @@ public class KMerCounter {
         public int compareTo(CountedKmer o) {
             return o.count - count;
         }
+    }
+
+    // -------------------------------------------------------------------------------------
+    // Protected methods for testing purposes only
+    // -------------------------------------------------------------------------------------
+
+    /**
+     * For testing purposes only
+     */
+    protected void addKmer(final String rawKmer, final int kmerCount) {
+        addKmer(new Kmer(rawKmer), kmerCount);
+    }
+
+    /**
+     * For testing purposes
+     *
+     * @param kmers
+     */
+    protected void addKmers(final String ... kmers) {
+        for ( final String kmer : kmers )
+            addKmer(kmer, 1);
     }
 }
