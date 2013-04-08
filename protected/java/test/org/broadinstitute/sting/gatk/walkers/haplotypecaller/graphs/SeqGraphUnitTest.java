@@ -521,4 +521,22 @@ public class SeqGraphUnitTest extends BaseTest {
             throw e;
         }
     }
+
+    @Test(timeOut = 10000)
+    public void testInfiniteCycleFromEmpiricalRuns() {
+        final SeqVertex v1 = new SeqVertex("CCCT");
+        final SeqVertex v2 = new SeqVertex("CATCCTCCCTTCTAGACTTCTCCTCCTCCTCCACCATCCTCCCCTCTAGACTTCTCCTCCTCCTCCACCATCCTCCCCTCTAGACTTCTCCTCCTCCTCC");
+        final SeqVertex v3 = new SeqVertex("CTAGACTTCTCCTCCTCCTCC");
+        final SeqVertex v4 = new SeqVertex("ACCATC");
+        final SeqVertex v5 = new SeqVertex("CCTCCACCATCCTCCCCTCTAGGCTTCTCCTCCTCCTCCACCATCCTCCCCTCTAGACTTCTCCTCCTCCTCCACCATCCTCCCCTCTAGACTTCTCCTCCTCCTCCACCATC");
+        final SeqVertex v6 = new SeqVertex("CTCCCCT");
+
+        final SeqGraph graph = new SeqGraph();
+        graph.addVertices(v1, v2, v3, v4, v5, v6);
+        graph.addEdges(v1, v3, v4, v6, v3);
+        graph.addEdges(v2, v4);
+        graph.addEdges(v5, v6);
+
+        graph.simplifyGraph();
+    }
 }
