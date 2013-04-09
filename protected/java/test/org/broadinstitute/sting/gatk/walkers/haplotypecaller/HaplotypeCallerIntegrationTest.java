@@ -188,7 +188,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("e30b974b038293841e6be23c93ce76e1"));
+                Arrays.asList("020b1a4feb82f050894f6066dc07cc4a"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
 
