@@ -282,8 +282,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected List<String> annotationsToExclude = new ArrayList<String>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator"}));
 
     @Advanced
-    @Argument(fullName="dontMergeVariantsViaLD", shortName="dontMergeVariantsViaLD", doc="If specified, we will include low quality bases when doing the assembly", required = false)
-    protected boolean dontMergeVariantsViaLD = false;
+    @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="If specified, we will merge variants together into block substitutions that are in strong local LD", required = false)
+    protected boolean mergeVariantsViaLD = false;
 
     /**
      * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
@@ -433,9 +433,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
 
-        final MergeVariantsAcrossHaplotypes variantMerger = dontMergeVariantsViaLD
-                ? new MergeVariantsAcrossHaplotypes()
-                : new LDMerger(DEBUG, 10, 1);
+        final MergeVariantsAcrossHaplotypes variantMerger = mergeVariantsViaLD ? new LDMerger(DEBUG, 10, 1) : new MergeVariantsAcrossHaplotypes();
 
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS, variantMerger );
 
