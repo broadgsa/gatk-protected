@@ -195,7 +195,7 @@ public class HeaderElementUnitTest extends BaseTest {
             if ( count == 0 )
                 continue;
 
-            final double pvalue = MathUtils.binomialCumulativeProbability(0, count + 1, total, 0.5);
+            final double pvalue = MathUtils.binomialCumulativeProbability(total, 0, count);
 
             if ( pvalue > targetPvalue ) {
                 if ( index == BaseIndex.D.index )

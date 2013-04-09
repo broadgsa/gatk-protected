@@ -253,7 +253,7 @@ public class HeaderElement {
         final int totalCount = consensusBaseCounts.totalCountWithoutIndels();
         final BaseIndex mostCommon = consensusBaseCounts.baseIndexWithMostProbabilityWithoutIndels();
         final int countOfOtherBases = totalCount - consensusBaseCounts.countOfBase(mostCommon);
-        final double pvalue = countOfOtherBases == 0 ? 0.0 : MathUtils.binomialCumulativeProbability(0, countOfOtherBases+1, totalCount, 0.5);
+        final double pvalue = countOfOtherBases == 0 ? 0.0 : MathUtils.binomialCumulativeProbability(totalCount, 0, countOfOtherBases);
         return pvalue > minVariantPvalue;
     }
 
@@ -301,7 +301,7 @@ public class HeaderElement {
             if ( baseCount == 0 )
                 continue;
 
-            final double pvalue = MathUtils.binomialCumulativeProbability(0, baseCount+1, totalBaseCount, 0.5);
+            final double pvalue = MathUtils.binomialCumulativeProbability(totalBaseCount, 0, baseCount);
 
             if ( pvalue > minVariantPvalue ) {
                 if ( base == BaseIndex.D )
@@ -334,7 +334,8 @@ public class HeaderElement {
         if ( count == 0 || totalBaseCount == 0 )
             return false;
 
-        final double pvalue = MathUtils.binomialCumulativeProbability(0, count+1, totalBaseCount, 0.5);
+        // technically, count can be greater than totalBaseCount (because of the way insertions are counted) so we need to account for that
+        final double pvalue = MathUtils.binomialCumulativeProbability(totalBaseCount, 0, Math.min(count, totalBaseCount));
         return pvalue > minVariantPvalue;
     }
 }
