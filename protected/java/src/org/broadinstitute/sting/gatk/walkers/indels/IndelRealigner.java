@@ -62,7 +62,8 @@ import org.broadinstitute.sting.gatk.walkers.BAQMode;
 import org.broadinstitute.sting.gatk.walkers.ReadWalker;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.SWPairwiseAlignment;
+import org.broadinstitute.sting.utils.smithwaterman.Parameters;
+import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.collections.Pair;
@@ -328,10 +329,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     // fraction of mismatches that need to no longer mismatch for a column to be considered cleaned
     private static final double MISMATCH_COLUMN_CLEANED_FRACTION = 0.75;
 
-    private static final double SW_MATCH = 30.0;      // 1.0;
-    private static final double SW_MISMATCH = -10.0;  //-1.0/3.0;
-    private static final double SW_GAP = -10.0;       //-1.0-1.0/3.0;
-    private static final double SW_GAP_EXTEND = -2.0; //-1.0/.0;
+    private final static Parameters swParameters = new Parameters(30.0, -10.0, -10.0, -2.0);
 
     // reference base padding size
     // TODO -- make this a command-line argument if the need arises
@@ -999,7 +997,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     private void createAndAddAlternateConsensus(final byte[] read, final Set<Consensus> altConsensesToPopulate, final byte[] reference) {
 
         // do a pairwise alignment against the reference
-         SWPairwiseAlignment swConsensus = new SWPairwiseAlignment(reference, read, SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND);
+         SWPairwiseAlignment swConsensus = new SWPairwiseAlignment(reference, read, swParameters);
          Consensus c = createAlternateConsensus(swConsensus.getAlignmentStart2wrt1(), swConsensus.getCigar(), reference, read);
          if ( c != null )
              altConsensesToPopulate.add(c);
@@ -1016,7 +1014,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
          }
          // do a pairwise alignment against the reference
          SWalignmentRuns++;
-         SWPairwiseAlignment swConsensus = new SWPairwiseAlignment(reference, read.getReadBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND);
+         SWPairwiseAlignment swConsensus = new SWPairwiseAlignment(reference, read.getReadBases(), swParameters);
          Consensus c = createAlternateConsensus(swConsensus.getAlignmentStart2wrt1(), swConsensus.getCigar(), reference, read.getReadBases());
          if ( c != null ) {
              altConsensesToPopulate.add(c);
