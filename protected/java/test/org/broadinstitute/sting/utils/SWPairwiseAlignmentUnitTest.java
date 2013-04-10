@@ -72,22 +72,22 @@ public class SWPairwiseAlignmentUnitTest extends BaseTest {
         Assert.assertEquals(sw.getCigar().toString(), expectedCigar);
     }
 
-    // TODO
-    // TODO
-    // TODO this example demonstrates some kind of failure mode of SW that results in the read not being aligned
-    // TODO to the reference at all.  It has something to do with the specific parameters provided to the
-    // TODO SW code.  With the default parameters the result is the one expected.  With the specified parameters
-    // TODO the code fails
-    // TODO
-    // TODO
-    @Test(enabled = false)
-    public void testOddNoAlignment() {
-        final String reference = "AAAGACTACTG";
-        final String read = "AACGGACACTG";
-        final int expectedStart = 0;
-        final String expectedCigar = "11M";
-        final SWPairwiseAlignment sw = new SWPairwiseAlignment(reference.getBytes(), read.getBytes(), 5.0, -10.0, -22.0, -1.2);
-        sw.printAlignment(reference.getBytes(), read.getBytes());
+    @DataProvider(name = "OddNoAlignment")
+    public Object[][] makeOddNoAlignment() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final String ref1     = "AAAGACTACTG";
+        final String read1    = "AACGGACACTG";
+        tests.add(new Object[]{ref1, read1, 5.0, -10.0, -22.0, -1.2, 1, "2M2I3M1D4M"});
+        tests.add(new Object[]{ref1, read1, 20.0, -5.0, -30.0, -2.2, 0, "11M"});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "OddNoAlignment", enabled = true)
+    public void testOddNoAlignment(final String reference, final String read, final double match, final double mismatch, final double gap, final double gap_extend,
+                                   final int expectedStart, final String expectedCigar) {
+        final SWPairwiseAlignment sw = new SWPairwiseAlignment(reference.getBytes(), read.getBytes(), match, mismatch, gap, gap_extend);
         Assert.assertEquals(sw.getAlignmentStart2wrt1(), expectedStart);
         Assert.assertEquals(sw.getCigar().toString(), expectedCigar);
     }
