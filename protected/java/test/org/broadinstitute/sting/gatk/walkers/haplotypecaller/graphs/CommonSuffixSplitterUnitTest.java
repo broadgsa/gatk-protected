@@ -102,8 +102,8 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
     public void testSplitNoCycles() {
         final SeqGraph original = new SeqGraph();
         final SeqVertex v1 = new SeqVertex("A");
-        final SeqVertex v2 = new SeqVertex("C");
-        final SeqVertex v3 = new SeqVertex("C");
+        final SeqVertex v2 = new SeqVertex("AC");
+        final SeqVertex v3 = new SeqVertex("TC");
         final SeqVertex v4 = new SeqVertex("G");
 
         original.addVertices(v1, v2, v3, v4);
@@ -116,7 +116,7 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
         Assert.assertFalse(new CommonSuffixSplitter().split(original, v4), "Cannot split graph with a cycle of the bottom list");
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 10000, enabled = !DEBUG)
     public void testSplitComplexCycle() {
         final SeqGraph original = new SeqGraph();
         final SeqVertex r1 = new SeqVertex("ACTG");
@@ -130,13 +130,41 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
         original.addEdges(r1, cat1, c1, cat2, c1);
         original.addEdges(r2, c2, cat2);
 
-        original.printGraph(new File("testSplitComplexCycle.dot"), 0);
+        //original.printGraph(new File("testSplitComplexCycle.dot"), 0);
 
         for ( final SeqVertex v : Arrays.asList(cat2) ) { // original.vertexSet() ) {
             final SeqGraph graph = (SeqGraph)original.clone();
             final boolean success = new CommonSuffixSplitter().split(graph, v);
             if ( success ) graph.printGraph(new File("testSplitComplexCycle.fail.dot"), 0);
             Assert.assertFalse(success, "Shouldn't be able to split any vertices but CommonSuffixSplitter says it could for " + v);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testSplitInfiniteCycleFailure() {
+        final SeqGraph original = new SeqGraph();
+        final SeqVertex v1 = new SeqVertex("GC");
+        final SeqVertex v2 = new SeqVertex("X");
+        final SeqVertex v3 = new SeqVertex("N");
+        final SeqVertex v4 = new SeqVertex("C");
+
+        original.addVertices(v1, v2, v3, v4);
+        original.addEdge(v1, v2, new BaseEdge(false, 12));
+        original.addEdge(v2, v3, new BaseEdge(false, 23));
+        original.addEdge(v3, v4, new BaseEdge(false, 34));
+        original.addEdge(v4, v2, new BaseEdge(false, 42));
+
+        original.printGraph(new File("testSplitInfiniteCycleFailure.dot"), 0);
+
+        final SeqGraph graph = (SeqGraph)original.clone();
+        final boolean success = new CommonSuffixSplitter().split(graph, v2);
+        Assert.assertTrue(success);
+
+        for ( final SeqVertex v : graph.vertexSet() ) {
+            graph.printGraph(new File("testSplitInfiniteCycleFailure.first_split.dot"), 0);
+            final boolean success2 = new CommonSuffixSplitter().split((SeqGraph)graph.clone(), v);
+            if ( success2 ) graph.printGraph(new File("testSplitInfiniteCycleFailure.fail.dot"), 0);
+            Assert.assertFalse(success2, "Shouldn't be able to split any vertices but CommonSuffixSplitter says it could for " + v);
         }
     }
 }

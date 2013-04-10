@@ -90,21 +90,23 @@ public class CommonSuffixSplitter {
         if ( v == null ) throw new IllegalArgumentException("v cannot be null");
         if ( ! graph.vertexSet().contains(v) ) throw new IllegalArgumentException("graph doesn't contain vertex v " + v);
 
-        final Collection<SeqVertex> toMerge = graph.incomingVerticesOf(v);
-        if ( toMerge.size() < 2 )
+        final Collection<SeqVertex> toSplit = graph.incomingVerticesOf(v);
+        if ( toSplit.size() < 2 )
             // Can only split at least 2 vertices
             return false;
-        else if ( ! safeToSplit(graph, v, toMerge) ) {
+        else if ( ! safeToSplit(graph, v, toSplit) ) {
             return false;
         } else {
-            final SeqVertex suffixVTemplate = commonSuffix(toMerge);
+            final SeqVertex suffixVTemplate = commonSuffix(toSplit);
             if ( suffixVTemplate.isEmpty() ) {
+                return false;
+            } else if ( allVerticesAreTheCommonSuffix(suffixVTemplate, toSplit) ) {
                 return false;
             } else {
                 final List<BaseEdge> edgesToRemove = new LinkedList<BaseEdge>();
 
 //                graph.printGraph(new File("split.pre_" + v.getSequenceString() + "." + counter + ".dot"), 0);
-                for ( final SeqVertex mid : toMerge ) {
+                for ( final SeqVertex mid : toSplit ) {
                     // create my own copy of the suffix
                     final SeqVertex suffixV = new SeqVertex(suffixVTemplate.getSequence());
                     graph.addVertex(suffixV);
@@ -130,7 +132,7 @@ public class CommonSuffixSplitter {
                     }
                 }
 
-                graph.removeAllVertices(toMerge);
+                graph.removeAllVertices(toSplit);
                 graph.removeAllEdges(edgesToRemove);
 //                graph.printGraph(new File("split.post_" + v.getSequenceString() + "." + counter++ + ".dot"), 0);
 
@@ -140,6 +142,25 @@ public class CommonSuffixSplitter {
     }
 
 //    private static int counter = 0;
+
+    /**
+     * Would all vertices that we'd split just result in the common suffix?
+     *
+     * That is, suppose we have prefix nodes ABC and ABC.  After splitting all of the vertices would
+     * just be ABC again, and we'd enter into an infinite loop.
+     *
+     * @param commonSuffix the common suffix of all vertices in toSplits
+     * @param toSplits the collection of vertices we want to split
+     * @return true if all of the vertices are equal to the common suffix
+     */
+    private boolean allVerticesAreTheCommonSuffix(final SeqVertex commonSuffix, final Collection<SeqVertex> toSplits) {
+        for ( final SeqVertex toSplit : toSplits ) {
+            if ( toSplit.length() != commonSuffix.length() )
+                return false;
+        }
+
+        return true;
+    }
 
     /**
      * Can we safely split up the vertices in toMerge?

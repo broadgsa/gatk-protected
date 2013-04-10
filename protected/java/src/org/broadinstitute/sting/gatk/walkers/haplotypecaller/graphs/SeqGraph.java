@@ -73,6 +73,12 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
     protected final static int MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES = 10;
 
     /**
+     * How many cycles of the graph simplifications algorithms will we run before
+     * thinking something has gone wrong and throw an exception?
+     */
+    private final static int MAX_REASONABLE_SIMPLIFICATION_CYCLES = 100;
+
+    /**
      * Construct an empty SeqGraph
      */
     public SeqGraph() {
@@ -101,29 +107,56 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
     }
 
     protected void simplifyGraph(final int maxCycles) {
-        boolean didSomeWork;
-        int i = 0;
-
         // start off with one round of zipping of chains for performance reasons
         zipLinearChains();
-        do {
-            //logger.info("simplifyGraph iteration " + i);
-            // iterate until we haven't don't anything useful
-            didSomeWork = false;
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".1.dot"), 0);
-            didSomeWork |= new MergeDiamonds().transformUntilComplete();
-            didSomeWork |= new MergeTails().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".2.diamonds_and_tails.dot"), 0);
 
-            didSomeWork |= new SplitCommonSuffices().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".3.split_suffix.dot"), 0);
-            didSomeWork |= new MergeCommonSuffices().transformUntilComplete();
-            if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + i + ".4.merge_suffix.dot"), 0);
+        SeqGraph prevGraph = null;
+        for( int i = 0; i < maxCycles; i++ ) {
+            if ( i > MAX_REASONABLE_SIMPLIFICATION_CYCLES ) {
+                logger.warn("Infinite loop detected in simpliciation routines.  Writing current graph to debugMeMark.dot");
+                printGraph(new File("debugMeMark.dot"), 0);
+                throw new IllegalStateException("Infinite loop detected in simplification routines for kmer graph " + getKmerSize());
+            }
 
-            didSomeWork |= new MergeHeadlessIncomingSources().transformUntilComplete();
-            didSomeWork |= zipLinearChains();
-            i++;
-        } while (didSomeWork && i < maxCycles);
+            final boolean didSomeWork = simplifyGraphOnce(i);
+            if ( ! didSomeWork )
+                // no simplification algorithm could run, so stop
+                break;
+
+            // we get five cycles before we start looking for changes in the graph
+            // by cloning ourselves and then checking for any changes
+            if ( i > 5 ) {
+                // the previous graph and this graph have the same structure, so the simplification
+                // algorithms are looping endless between states.  Just break and consider ourselves done
+                if ( prevGraph != null && graphEquals(prevGraph, this) )
+                    break;
+
+                prevGraph = (SeqGraph)clone();
+            }
+        }
+    }
+
+    /**
+     * Run one full cycle of the graph simplification algorithms
+     * @return true if any algorithms said they did some simplification
+     */
+    private boolean simplifyGraphOnce(final int iteration) {
+        //logger.info("simplifyGraph iteration " + i);
+        // iterate until we haven't don't anything useful
+        boolean didSomeWork = false;
+        if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".1.dot"), 0);
+        didSomeWork |= new MergeDiamonds().transformUntilComplete();
+        didSomeWork |= new MergeTails().transformUntilComplete();
+        if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".2.diamonds_and_tails.dot"), 0);
+
+        didSomeWork |= new SplitCommonSuffices().transformUntilComplete();
+        if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".3.split_suffix.dot"), 0);
+        didSomeWork |= new MergeCommonSuffices().transformUntilComplete();
+        if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".4.merge_suffix.dot"), 0);
+
+        didSomeWork |= new MergeHeadlessIncomingSources().transformUntilComplete();
+        didSomeWork |= zipLinearChains();
+        return didSomeWork;
     }
 
     /**
@@ -431,15 +464,13 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
      *
      * Performs the transformation:
      *
-     * { x + S_i + y -> Z }
+     * { x + S_i -> y -> Z }
      *
      * goes to:
      *
-     * { x -> S_i -> y -> Z }
+     * { x -> S_i -> y + Z }
      *
      * for all nodes that match this configuration.
-     *
-     * Differs from the diamond transform in that no top node is required
      */
     protected class MergeCommonSuffices extends VertexBasedTransformer {
         @Override
@@ -449,8 +480,6 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
     }
 
     /**
-     * Merge headless configurations:
-     *
      * Performs the transformation:
      *
      * { x + S_i + y -> Z }
