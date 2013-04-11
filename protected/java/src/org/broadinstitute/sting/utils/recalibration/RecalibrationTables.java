@@ -125,6 +125,16 @@ public final class RecalibrationTables {
     }
 
     /**
+     * @return true if all the tables contain no RecalDatums
+     */
+    public boolean isEmpty() {
+        for( final NestedIntegerArray<RecalDatum> table : tables ) {
+            if( !table.getAllValues().isEmpty() ) { return false; }
+        }
+        return true;
+    }
+
+    /**
      * Allocate a new quality score table, based on requested parameters
      * in this set of tables, without any data in it.  The return result
      * of this table is suitable for acting as a thread-local cache

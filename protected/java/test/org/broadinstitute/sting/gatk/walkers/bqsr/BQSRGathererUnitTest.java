@@ -69,6 +69,7 @@ public class BQSRGathererUnitTest extends BaseTest {
     private static File recal3 = new File(privateTestDir + "HiSeq.1mb.1RG.sg3.table");
     private static File recal4 = new File(privateTestDir + "HiSeq.1mb.1RG.sg4.table");
     private static File recal5 = new File(privateTestDir + "HiSeq.1mb.1RG.sg5.table");
+    private static File recalEmpty = new File(privateTestDir + "HiSeq.1mb.1RG.empty.table");
 
     private static File recal_original = new File(privateTestDir + "HiSeq.1mb.1RG.noSG.table");
 
@@ -102,6 +103,26 @@ public class BQSRGathererUnitTest extends BaseTest {
         recalFiles.add(recal3);
         recalFiles.add(recal4);
         recalFiles.add(recal5);
+        gatherer.gather(recalFiles, output);
+
+        GATKReport originalReport = new GATKReport(recal_original);
+        GATKReport calculatedReport = new GATKReport(output);
+
+        testReports(originalReport, calculatedReport);
+    }
+
+    @Test(enabled = true)
+    public void testGatherBQSRWithEmptyFile() {
+        BQSRGatherer gatherer = new BQSRGatherer();
+        List<File> recalFiles = new LinkedList<File> ();
+        final File output = BaseTest.createTempFile("BQSRgathererTest", ".table");
+
+        recalFiles.add(recal1);
+        recalFiles.add(recal2);
+        recalFiles.add(recal3);
+        recalFiles.add(recal4);
+        recalFiles.add(recal5);
+        recalFiles.add(recalEmpty);
         gatherer.gather(recalFiles, output);
 
         GATKReport originalReport = new GATKReport(recal_original);
