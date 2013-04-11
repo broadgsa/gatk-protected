@@ -44,96 +44,90 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.java.contract.Ensures;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
-/**
- * A DeBruijn kmer graph
- *
- * User: rpoplin
- * Date: 2/6/13
- */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        super();
+public class KmerUnitTest extends BaseTest {
+    @DataProvider(name = "KMerCreationData")
+    public Object[][] makeKMerCreationData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
+        for ( int start = 0; start < bases.length(); start++ ) {
+            for ( int length = 1; start + length < bases.length(); length++ ) {
+                final String myBases = bases.substring(start, start+length);
+                tests.add(new Object[]{bases.getBytes(), start, length, myBases});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
     }
 
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize);
+    @Test(dataProvider = "KMerCreationData")
+    public void testFullConstructor(final byte[] allBases, final int start, final int length, final String expected) {
+        testKmerCreation(new Kmer(allBases, start, length), start, length, expected);
     }
 
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
+    @Test(dataProvider = "KMerCreationData")
+    public void testCopyConstructor(final byte[] allBases, final int start, final int length, final String expected) {
+        testKmerCreation(new Kmer(new Kmer(allBases, start, length)), start, length, expected);
+    }
+
+    @Test(dataProvider = "KMerCreationData")
+    public void testByteConstructor(final byte[] allBases, final int start, final int length, final String expected) {
+        testKmerCreation(new Kmer(Arrays.copyOfRange(allBases, start, start + length)), 0, length, expected);
+    }
+
+    @Test(dataProvider = "KMerCreationData")
+    public void testStringConstructor(final byte[] allBases, final int start, final int length, final String expected) {
+        testKmerCreation(new Kmer(new String(Arrays.copyOfRange(allBases, start, start + length))), 0, length, expected);
+    }
+
+    private void testKmerCreation(final Kmer kmer, final int start, final int length, final String expected) {
+        Assert.assertEquals(kmer.start, start);
+        Assert.assertEquals(kmer.length(), length);
+        Assert.assertEquals(new String(kmer.bases()), expected);
+
+        // check that the caching is working by calling again
+        Assert.assertEquals(kmer.start, 0);
+        Assert.assertEquals(kmer.length(), length);
+        Assert.assertEquals(new String(kmer.bases()), expected);
+    }
+
+    @Test
+    public void testEquals() {
+        final byte[] bases = "ACGTACGT".getBytes();
+        final Kmer eq1 = new Kmer(bases, 0, 3);
+        final Kmer eq2 = new Kmer(bases, 4, 3);
+        final Kmer eq3 = new Kmer(new Kmer(bases, 4, 3));
+        final Kmer eq4 = new Kmer(new Kmer(bases, 4, 3).bases());
+        final Kmer neq = new Kmer(bases, 1, 3);
+
+//        for ( final Kmer eq : Arrays.asList(eq1, eq2) ) { // TODO -- deal with me
+        for ( final Kmer eq : Arrays.asList(eq1, eq2, eq3, eq4) ) {
+            Assert.assertEquals(eq1, eq, "Should have been equal but wasn't: " + eq1.hash + " vs " + eq.hash); // , "should be equals " + eq1 + " with " + eq);
+            Assert.assertEquals(eq1.hashCode(), eq.hashCode());
+            Assert.assertNotEquals(eq, neq, "incorrectly equals " + eq + " with " + neq);
         }
     }
 
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+    @Test
+    public void testSubkmer() {
+        final String bases = "ACGT";
+        final Kmer one = new Kmer(bases.getBytes());
 
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+        for ( int start = 0; start < bases.length(); start++ ) {
+            for ( int length = 0; start + length < bases.length(); length++ ) {
+                Assert.assertEquals(new String(one.subKmer(start,length).bases()), bases.substring(start, start+length));
+            }
         }
-
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
-
-        return seqGraph;
     }
 }

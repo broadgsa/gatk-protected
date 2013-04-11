@@ -44,96 +44,164 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
-
-import com.google.java.contract.Ensures;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * A DeBruijn kmer graph
+ * Fast wrapper for byte[] kmers
  *
- * User: rpoplin
- * Date: 2/6/13
+ * This objects has several important features that make it better than using a raw byte[] for a kmer:
+ *
+ * -- Can create kmer from a range of a larger byte[], allowing us to avoid Array.copyOfRange
+ * -- Fast equals and hashcode methods
+ * -- can get actual byte[] of the kmer, even if it's from a larger byte[], and this operation
+ *    only does the work of that operation once, updating its internal state
+ *
+ * User: depristo
+ * Date: 4/8/13
+ * Time: 7:54 AM
  */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
+public class Kmer {
+    // this values may be updated in the course of interacting with this kmer
+    private byte[] bases;
+    protected int start;
+
+    // two constants
+    final protected int length;
+    final protected int hash;
+
     /**
-     * Create an empty DeBruijnGraph with default kmer size
+     * Create a new kmer using all bases in kmer
+     * @param kmer a non-null byte[]
      */
-    public DeBruijnGraph() {
-        super();
+    public Kmer(byte[] kmer) {
+        this(kmer, 0, kmer.length);
     }
 
     /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize);
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
-
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
+     * Create a new kmer based on the string kmer
      *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
+     * This is not a good method to use for performance
      *
-     * @return a newly allocated SequenceGraph
+     * @param kmer the bases as a string
      */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+    public Kmer(final String kmer) {
+        this(kmer.getBytes());
+    }
 
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+    /**
+     * Create a new kmer backed by the bases in bases, spanning start -> start + length
+     *
+     * Under no circumstances can bases be modified anywhere in the client code.  This does not make a copy
+     * of bases for performance reasons
+     *
+     * @param bases an array of bases
+     * @param start the start of the kmer in bases, must be >= 0 and < bases.length
+     * @param length the length of the kmer.  Must be >= 0 and start + length < bases.length
+     */
+    public Kmer(final byte[] bases, final int start, final int length) {
+        if ( bases == null ) throw new IllegalArgumentException("bases cannot be null");
+        if ( start < 0 ) throw new IllegalArgumentException("start must be >= 0 but got " + start);
+        if ( length < 0 ) throw new IllegalArgumentException("length must be >= 0 but got " + length);
+        if ( (start + length) > bases.length ) throw new IllegalArgumentException("start + length " + (start + length) + " must be <= bases.length " + bases.length + " but got " + start + " with length " + length);
+        this.bases = bases;
+        this.start = start;
+        this.length = length;
+        this.hash = myHashCode(bases, start, length);
+    }
+
+    /**
+     * Create a new kmer that's a shallow copy of kmer
+     * @param kmer the kmer to shallow copy
+     */
+    public Kmer(final Kmer kmer) {
+        this.bases = kmer.bases;
+        this.start = kmer.start;
+        this.length = kmer.length;
+        this.hash = kmer.hash;
+    }
+
+    /**
+     * Create a derived shallow kmer that starts at newStart and has newLength bases
+     * @param newStart the new start of kmer, where 0 means that start of the kmer, 1 means skip the first base
+     * @param newLength the new length
+     * @return a new kmer based on the data in this kmer.  Does not make a copy, so shares most of the data
+     */
+    public Kmer subKmer(final int newStart, final int newLength) {
+        return new Kmer(bases, start + newStart, newLength);
+    }
+
+    /**
+     * Get the bases of this kmer.  May create a copy of the bases, depending on how this kmer was constructed.
+     *
+     * Note that this function is efficient in that if it needs to copy the bases this only occurs once.
+     *
+     * @return a non-null byte[] containing length() bases of this kmer, regardless of how this kmer was created
+     */
+    public byte[] bases() {
+        if ( start != 0 || bases.length != length ) {
+            // update operation.  Rip out the exact byte[] and update start so we don't ever do this again
+            bases = Arrays.copyOfRange(bases, start, start + length);
+            start = 0;
         }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
+        return bases;
+    }
 
-        return seqGraph;
+    /**
+     * The length of this kmer
+     * @return an integer >= 0
+     */
+    public int length() {
+        return length;
+    }
+
+    @Override
+    public String toString() {
+        return "Kmer{" + new String(bases()) + "}";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        final Kmer kmer = (Kmer) o;
+
+        // very fast test.  If hash aren't equal you are done, otherwise compare the bases
+        if ( hash != kmer.hash ) return false;
+        if ( length != kmer.length ) return false;
+
+        for ( int i = 0; i < length; i++ )
+            if ( bases[start + i] != kmer.bases[kmer.start + i] )
+                return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return hash;
+    }
+
+    /**
+     * Helper method that computes the hashcode for this kmer based only the bases in
+     * a[], starting at start and running length bases
+     *
+     * @param a a non-null bases array
+     * @param start where to start in bases
+     * @param length the length of the bases
+     * @return a hashcode value appropriate for a[start] -> a[start + length]
+     */
+    private static int myHashCode(final byte a[], final int start, final int length) {
+        if (a == null)
+            return 0;
+
+        int result = 1;
+        for (int i = 0; i < length; i++)
+            result = 31 * result + a[start + i];
+
+        return result;
     }
 }
