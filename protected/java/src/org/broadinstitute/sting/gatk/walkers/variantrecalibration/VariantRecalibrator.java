@@ -435,14 +435,20 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
                 stream.print("surface <- c(");
                 for( final VariantDatum datum : fakeData ) {
-                    stream.print(String.format("%.3f, %.3f, %.3f, ", datum.annotations[iii], datum.annotations[jjj], Math.min(4.0, Math.max(-4.0, datum.lod))));
+                    stream.print(String.format("%.3f, %.3f, %.3f, ",
+                            dataManager.denormalizeDatum(datum.annotations[iii], iii),
+                            dataManager.denormalizeDatum(datum.annotations[jjj], jjj),
+                            Math.min(4.0, Math.max(-4.0, datum.lod))));
                 }
                 stream.println("NA,NA,NA)");
                 stream.println("s <- matrix(surface,ncol=3,byrow=T)");
 
                 stream.print("data <- c(");
                 for( final VariantDatum datum : randomData ) {
-                    stream.print(String.format("%.3f, %.3f, %.3f, %d, %d,", datum.annotations[iii], datum.annotations[jjj], (datum.lod < lodCutoff ? -1.0 : 1.0),
+                    stream.print(String.format("%.3f, %.3f, %.3f, %d, %d,",
+                            dataManager.denormalizeDatum(datum.annotations[iii], iii),
+                            dataManager.denormalizeDatum(datum.annotations[jjj], jjj),
+                            (datum.lod < lodCutoff ? -1.0 : 1.0),
                             (datum.atAntiTrainingSite ? -1 : (datum.atTrainingSite ? 1 : 0)), (datum.isKnown ? 1 : -1)));
                 }
                 stream.println("NA,NA,NA,NA,1)");
