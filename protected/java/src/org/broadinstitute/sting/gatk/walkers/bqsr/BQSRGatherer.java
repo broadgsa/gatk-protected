@@ -65,7 +65,7 @@ import java.util.List;
 
 public class BQSRGatherer extends Gatherer  {
     
-    private static final String EMPTY_INPUT_LIST = "list of inputs files is empty";
+    private static final String EMPTY_INPUT_LIST = "list of inputs files is empty or there is no usable data in any input file";
     private static final String MISSING_OUTPUT_FILE = "missing output file name";
 
     @Override
@@ -80,6 +80,8 @@ public class BQSRGatherer extends Gatherer  {
         RecalibrationReport generalReport = null;
         for (File input : inputs) {
             final RecalibrationReport inputReport = new RecalibrationReport(input);
+            if( inputReport.isEmpty() ) { continue; }
+
             if (generalReport == null)
                 generalReport = inputReport;
             else
