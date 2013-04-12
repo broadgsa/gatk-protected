@@ -56,13 +56,14 @@ import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.SWPairwiseAlignment;
+import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.sting.utils.smithwaterman.SWParameterSet;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
@@ -85,12 +86,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     // TODO -- we are no longer considering a combinatorial number of haplotypes as the number of bubbles increases
     private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 25;
     private static final int GRAPH_KMER_STEP = 6;
-
-    // Smith-Waterman parameters originally copied from IndelRealigner, only used during GGA mode
-    private static final double SW_MATCH = 5.0;      // 1.0;
-    private static final double SW_MISMATCH = -10.0;  //-1.0/3.0;
-    private static final double SW_GAP = -22.0;       //-1.0-1.0/3.0;
-    private static final double SW_GAP_EXTEND = -1.2; //-1.0/.0;
 
     private final boolean debug;
     private final boolean debugGraphTransformations;
@@ -587,7 +582,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private boolean addHaplotypeForGGA( final Haplotype haplotype, final byte[] ref, final List<Haplotype> haplotypeList, final int activeRegionStart, final int activeRegionStop, final boolean FORCE_INCLUSION_FOR_GGA_MODE ) {
         if( haplotype == null ) { return false; }
 
-        final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( ref, haplotype.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
+        final SWPairwiseAlignment swConsensus = new SWPairwiseAlignment( ref, haplotype.getBases(), SWParameterSet.STANDARD_NGS );
         haplotype.setAlignmentStartHapwrtRef( swConsensus.getAlignmentStart2wrt1() );
 
         if( swConsensus.getCigar().toString().contains("S") || swConsensus.getCigar().getReferenceLength() < 60 || swConsensus.getAlignmentStart2wrt1() < 0 ) { // protect against unhelpful haplotype alignments
@@ -616,7 +611,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         }
 
         final Haplotype h = new Haplotype( newHaplotypeBases );
-        final SWPairwiseAlignment swConsensus2 = new SWPairwiseAlignment( ref, h.getBases(), SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
+        final SWPairwiseAlignment swConsensus2 = new SWPairwiseAlignment( ref, h.getBases(), SWParameterSet.STANDARD_NGS );
 
         h.setAlignmentStartHapwrtRef( swConsensus2.getAlignmentStart2wrt1() );
         if ( haplotype.isArtificialHaplotype() ) {

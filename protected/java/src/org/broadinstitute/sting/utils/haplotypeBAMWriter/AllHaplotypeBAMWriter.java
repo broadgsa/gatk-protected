@@ -44,51 +44,55 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils;
+package org.broadinstitute.sting.utils.haplotypeBAMWriter;
 
-import org.broadinstitute.sting.BaseTest;
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import net.sf.samtools.*;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.variant.variantcontext.Allele;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-public class SWPairwiseAlignmentUnitTest extends BaseTest {
-    @DataProvider(name = "ComplexReadAlignedToRef")
-    public Object[][] makeComplexReadAlignedToRef() {
-        List<Object[]> tests = new ArrayList<Object[]>();
-
-        final String ref1     = "ACTGACTGACTG";
-        tests.add(new Object[]{"AAAGGACTGACTG", ref1, 1, "12M"});
-
-        return tests.toArray(new Object[][]{});
+/**
+ * A haplotype bam writer that writes out all haplotypes as reads and then
+ * the alignment of reach read to its best match among the best haplotypes.
+ *
+ * Primarily useful for people working on the HaplotypeCaller method itself
+ *
+ * User: depristo
+ * Date: 2/22/13
+ * Time: 1:50 PM
+ */
+class AllHaplotypeBAMWriter extends HaplotypeBAMWriter {
+    public AllHaplotypeBAMWriter(final SAMFileWriter bamWriter) {
+        super(bamWriter);
     }
 
-    @Test(dataProvider = "ComplexReadAlignedToRef", enabled = true)
-    public void testReadAlignedToRefComplexAlignment(final String reference, final String read, final int expectedStart, final String expectedCigar) {
-        final SWPairwiseAlignment sw = new SWPairwiseAlignment(reference.getBytes(), read.getBytes());
-        Assert.assertEquals(sw.getAlignmentStart2wrt1(), expectedStart);
-        Assert.assertEquals(sw.getCigar().toString(), expectedCigar);
-    }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void writeReadsAlignedToHaplotypes(final List<Haplotype> haplotypes,
+                                              final GenomeLoc paddedReferenceLoc,
+                                              final List<Haplotype> bestHaplotypes,
+                                              final Set<Haplotype> calledHaplotypes,
+                                              final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+        writeHaplotypesAsReads(haplotypes, new HashSet<Haplotype>(bestHaplotypes), paddedReferenceLoc);
 
-    @DataProvider(name = "OddNoAlignment")
-    public Object[][] makeOddNoAlignment() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
+        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<Allele, Haplotype>(haplotypes.size());
+        for ( final Haplotype haplotype : haplotypes )
+            alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
 
-        final String ref1     = "AAAGACTACTG";
-        final String read1    = "AACGGACACTG";
-        tests.add(new Object[]{ref1, read1, 5.0, -10.0, -22.0, -1.2, 1, "2M2I3M1D4M"});
-        tests.add(new Object[]{ref1, read1, 20.0, -5.0, -30.0, -2.2, 0, "11M"});
-
-        return tests.toArray(new Object[][]{});
-    }
-
-    @Test(dataProvider = "OddNoAlignment", enabled = true)
-    public void testOddNoAlignment(final String reference, final String read, final double match, final double mismatch, final double gap, final double gap_extend,
-                                   final int expectedStart, final String expectedCigar) {
-        final SWPairwiseAlignment sw = new SWPairwiseAlignment(reference.getBytes(), read.getBytes(), match, mismatch, gap, gap_extend);
-        Assert.assertEquals(sw.getAlignmentStart2wrt1(), expectedStart);
-        Assert.assertEquals(sw.getCigar().toString(), expectedCigar);
+        // next, output the interesting reads for each sample aligned against the appropriate haplotype
+        for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
+            for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
+                final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
+                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart());
+            }
+        }
     }
 }

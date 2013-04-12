@@ -49,6 +49,8 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
+import net.sf.samtools.TextCigarCodec;
+import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.testng.Assert;
@@ -63,7 +65,9 @@ import java.util.*;
  * Date: 1/31/13
  */
 
-public class KBestPathsUnitTest {
+public class KBestPathsUnitTest extends BaseTest {
+    private final static boolean DEBUG = false;
+
     @DataProvider(name = "BasicPathFindingData")
     public Object[][] makeBasicPathFindingData() {
         List<Object[]> tests = new ArrayList<Object[]>();
@@ -96,7 +100,7 @@ public class KBestPathsUnitTest {
         return vertices;
     }
 
-    @Test(dataProvider = "BasicPathFindingData", enabled = true)
+    @Test(dataProvider = "BasicPathFindingData", enabled = !DEBUG)
     public void testBasicPathFinding(final int nStartNodes, final int nBranchesPerBubble, final int nEndNodes, final boolean addCycle, final boolean allowCycles) {
         SeqGraph graph = new SeqGraph();
 
@@ -128,7 +132,7 @@ public class KBestPathsUnitTest {
         Assert.assertTrue(justOne.get(0).pathsAreTheSame(best), "Best path from complete enumerate " + best + " not the same as from k = 1 search " + justOne.get(0));
     }
 
-    @Test
+    @Test(enabled = !DEBUG)
     public void testPathFindingComplexCycle() {
         SeqGraph graph = new SeqGraph();
 
@@ -148,7 +152,7 @@ public class KBestPathsUnitTest {
         Assert.assertEquals(paths.size(), 1, "Didn't find the expected number of paths");
     }
 
-    @Test
+    @Test(enabled = !DEBUG)
     public void testPathFindingCycleLastNode() {
         SeqGraph graph = new SeqGraph();
 
@@ -175,7 +179,7 @@ public class KBestPathsUnitTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "BasicBubbleDataProvider", enabled = true)
+    @Test(dataProvider = "BasicBubbleDataProvider", enabled = !DEBUG)
     public void testBasicBubbleData(final int refBubbleLength, final int altBubbleLength) {
         // Construct the assembly graph
         SeqGraph graph = new SeqGraph(3);
@@ -232,7 +236,7 @@ public class KBestPathsUnitTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "GetBasesData", enabled = true)
+    @Test(dataProvider = "GetBasesData", enabled = !DEBUG)
     public void testGetBases(final List<String> frags) {
         // Construct the assembly graph
         SeqGraph graph = new SeqGraph(3);
@@ -268,7 +272,7 @@ public class KBestPathsUnitTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "TripleBubbleDataProvider", enabled = true)
+    @Test(dataProvider = "TripleBubbleDataProvider", enabled = !DEBUG)
     public void testTripleBubbleData(final int refBubbleLength, final int altBubbleLength, final boolean offRefBeginning, final boolean offRefEnding) {
         // Construct the assembly graph
         SeqGraph graph = new SeqGraph();
@@ -370,5 +374,121 @@ public class KBestPathsUnitTest {
         }
 
         Assert.assertEquals(path.calculateCigar().toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar string mismatch");
+    }
+
+    @Test(enabled = !DEBUG)
+    public void testIntraNodeInsertionDeletion() {
+        // Construct the assembly graph
+        SeqGraph graph = new SeqGraph();
+        final SeqVertex top = new SeqVertex("T");
+        final SeqVertex bot = new SeqVertex("T");
+        final SeqVertex alt = new SeqVertex("AAACCCCC");
+        final SeqVertex ref = new SeqVertex("CCCCCGGG");
+
+        graph.addVertices(top, bot, alt, ref);
+        graph.addEdges(new BaseEdge(true, 1), top, ref, bot);
+        graph.addEdges(new BaseEdge(false, 1), top, alt, bot);
+
+        final KBestPaths<SeqVertex> pathFinder = new KBestPaths<SeqVertex>();
+        final List<Path<SeqVertex>> paths = pathFinder.getKBestPaths(graph, top, bot);
+
+        Assert.assertEquals(paths.size(), 2);
+
+        final Path<SeqVertex> refPath = paths.get(0);
+        final Path<SeqVertex> altPath = paths.get(1);
+
+        Assert.assertEquals(refPath.calculateCigar().toString(), "10M");
+        Assert.assertEquals(altPath.calculateCigar().toString(), "1M3I5M3D1M");
+    }
+
+    @Test(enabled = !DEBUG)
+    public void testHardSWPath() {
+        // Construct the assembly graph
+        SeqGraph graph = new SeqGraph();
+        final SeqVertex top = new SeqVertex( "NNN");
+        final SeqVertex bot = new SeqVertex( "NNN");
+        final SeqVertex alt = new SeqVertex(               "ACAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGA" );
+        final SeqVertex ref = new SeqVertex( "TGTGTGTGTGTGTGACAGAGAGAGAGAGAGAGAGAGAGAGAGAGA" );
+        graph.addVertices(top, bot, alt, ref);
+        graph.addEdges(new BaseEdge(true, 1), top, ref, bot);
+        graph.addEdges(new BaseEdge(false, 1), top, alt, bot);
+
+        final KBestPaths<SeqVertex> pathFinder = new KBestPaths<SeqVertex>();
+        final List<Path<SeqVertex>> paths = pathFinder.getKBestPaths(graph, top, bot);
+
+        Assert.assertEquals(paths.size(), 2);
+
+        final Path<SeqVertex> refPath = paths.get(0);
+        final Path<SeqVertex> altPath = paths.get(1);
+
+        logger.warn("RefPath : " + refPath + " cigar " + refPath.calculateCigar());
+        logger.warn("AltPath : " + altPath + " cigar " + altPath.calculateCigar());
+
+        Assert.assertEquals(refPath.calculateCigar().toString(), "51M");
+        Assert.assertEquals(altPath.calculateCigar().toString(), "3M14D2M20I32M");
+    }
+
+    // -----------------------------------------------------------------
+    //
+    // Systematic tests to ensure that we get the correct SW result for
+    // a variety of variants in the ref vs alt bubble
+    //
+    // -----------------------------------------------------------------
+
+    @DataProvider(name = "SystematicRefAltSWTestData")
+    public Object[][] makeSystematicRefAltSWTestData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final List<List<String>> allDiffs = Arrays.asList(
+                Arrays.asList("G", "C", "1M"),
+                Arrays.asList("G", "", "1D"),
+                Arrays.asList("", "C", "1I"),
+                Arrays.asList("AAA", "CGT", "3D3I"),
+                Arrays.asList("TAT", "CAC", "3M"),
+                Arrays.asList("AAAAA", "", "5D"),
+                Arrays.asList("", "AAAAA", "5I"),
+                Arrays.asList("AAAAACC", "CCGGGGGG", "5D2M6I")
+        );
+
+        for ( final String prefix : Arrays.asList("", "X", "XXXXXXXXXXXXX")) {
+            for ( final String end : Arrays.asList("", "X", "XXXXXXXXXXXXX")) {
+                for ( final List<String> diffs : allDiffs )
+                    tests.add(new Object[]{prefix, end, diffs.get(0), diffs.get(1), diffs.get(2)});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "SystematicRefAltSWTestData", enabled = true)
+    public void testRefAltSW(final String prefix, final String end, final String refMid, final String altMid, final String midCigar) {
+        // Construct the assembly graph
+        SeqGraph graph = new SeqGraph();
+
+        SeqVertex top = new SeqVertex("");
+        SeqVertex ref = new SeqVertex(prefix + refMid + end);
+        SeqVertex alt = new SeqVertex(prefix + altMid + end);
+        SeqVertex bot = new SeqVertex("");
+
+        graph.addVertices(top, ref, alt, bot);
+        graph.addEdges(new BaseEdge(true, 1), top, ref, bot);
+        graph.addEdges(new BaseEdge(false, 1), top, alt, bot);
+
+        // Construct the test path
+        Path<SeqVertex> path = Path.makePath(Arrays.asList(top, alt, bot), graph);
+
+        Cigar expected = new Cigar();
+        if ( ! prefix.equals("") ) expected.add(new CigarElement(prefix.length(), CigarOperator.M));
+        for ( final CigarElement elt : TextCigarCodec.getSingleton().decode(midCigar).getCigarElements() ) expected.add(elt);
+        if ( ! end.equals("") ) expected.add(new CigarElement(end.length(), CigarOperator.M));
+        expected = AlignmentUtils.consolidateCigar(expected);
+
+        final Cigar pathCigar = path.calculateCigar();
+
+        logger.warn("diffs: " + ref + " vs. " + alt + " cigar " + midCigar);
+        logger.warn("Path " + path + " with cigar " + pathCigar);
+        logger.warn("Expected cigar " + expected);
+
+        Assert.assertEquals(pathCigar, expected, "Cigar mismatch");
     }
 }

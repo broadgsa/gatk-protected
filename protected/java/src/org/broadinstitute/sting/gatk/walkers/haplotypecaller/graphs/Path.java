@@ -52,7 +52,8 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
-import org.broadinstitute.sting.utils.SWPairwiseAlignment;
+import org.broadinstitute.sting.utils.smithwaterman.Parameters;
+import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 
 import java.util.*;
@@ -85,10 +86,8 @@ public class Path<T extends BaseVertex> {
 
     // used in the bubble state machine to apply Smith-Waterman to the bubble sequence
     // these values were chosen via optimization against the NA12878 knowledge base
-    private static final double SW_MATCH = 20.0;
-    private static final double SW_MISMATCH = -15.0;
-    private static final double SW_GAP = -26.0;
-    private static final double SW_GAP_EXTEND = -1.1;
+    public static final Parameters NEW_SW_PARAMETERS = new Parameters(20.0, -20.0, -26.0, -0.1);
+
     private static final byte[] STARTING_SW_ANCHOR_BYTES = "XXXXXXXXX".getBytes();
 
     /**
@@ -105,6 +104,16 @@ public class Path<T extends BaseVertex> {
         edgesInOrder = new LinkedList<BaseEdge>();
         totalScore = 0;
         this.graph = graph;
+    }
+
+    /**
+     * Convenience constructor for testing that creates a path through vertices in graph
+     */
+    protected static <T extends BaseVertex> Path<T> makePath(final List<T> vertices, final BaseGraph<T> graph) {
+        Path<T> path = new Path<T>(vertices.get(0), graph);
+        for ( int i = 1; i < vertices.size(); i++ )
+            path = new Path<T>(path, graph.getEdge(path.lastVertex, vertices.get(i)));
+        return path;
     }
 
     /**
@@ -362,7 +371,7 @@ public class Path<T extends BaseVertex> {
             padding = ArrayUtils.addAll(padding, padding); // double the size of the padding each time
             final byte[] reference = ArrayUtils.addAll( ArrayUtils.addAll(padding, refBytes), padding );
             final byte[] alternate = ArrayUtils.addAll( ArrayUtils.addAll(padding, bubbleBytes), padding );
-            swConsensus = new SWPairwiseAlignment( reference, alternate, SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
+            swConsensus = new SWPairwiseAlignment( reference, alternate, NEW_SW_PARAMETERS );
             if( swConsensus.getAlignmentStart2wrt1() == 0 && !swConsensus.getCigar().toString().contains("S") && swConsensus.getCigar().getReferenceLength() == reference.length ) {
                 goodAlignment = true;
             }
