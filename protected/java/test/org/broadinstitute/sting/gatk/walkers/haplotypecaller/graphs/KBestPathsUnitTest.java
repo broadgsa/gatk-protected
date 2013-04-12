@@ -445,6 +445,7 @@ public class KBestPathsUnitTest extends BaseTest {
                 Arrays.asList("", "C", "1I"),
                 Arrays.asList("AAA", "CGT", "3D3I"),
                 Arrays.asList("TAT", "CAC", "3M"),
+                Arrays.asList("GCTG", "GTCG", "4M"),
                 Arrays.asList("AAAAA", "", "5D"),
                 Arrays.asList("", "AAAAA", "5I"),
                 Arrays.asList("AAAAACC", "CCGGGGGG", "5D2M6I")
@@ -460,7 +461,7 @@ public class KBestPathsUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "SystematicRefAltSWTestData", enabled = true)
+    @Test(dataProvider = "SystematicRefAltSWTestData", enabled = !DEBUG)
     public void testRefAltSW(final String prefix, final String end, final String refMid, final String altMid, final String midCigar) {
         // Construct the assembly graph
         SeqGraph graph = new SeqGraph();
