@@ -51,6 +51,7 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
@@ -193,5 +194,15 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                 assessMinIndelFraction + " -minIndelFrac 1", 1,
                 Arrays.asList("3f07efb768e08650a7ce333edd4f9a52"));
         executeTest("test minIndelFraction 1.0", spec);
+    }
+
+    // No testing of MD5 here, we previously blew up due to a 0 length haplotypes, so we just need to pass
+    @Test
+    public void testHaplotype0Length() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T UnifiedGenotyper -I " + privateTestDir + "haplotype0.bam -L 20:47507681 -R " + b37KGReference + " -baq CALCULATE_AS_NECESSARY -glm BOTH -o /dev/null",
+                0,
+                Collections.<String>emptyList());
+        executeTest("testHaplotype0Length", spec);
     }
 }
