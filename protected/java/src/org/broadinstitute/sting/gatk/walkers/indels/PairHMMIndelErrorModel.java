@@ -388,19 +388,21 @@ public class PairHMMIndelErrorModel {
                             System.out.format("indStart: %d indStop: %d WinStart:%d WinStop:%d start: %d stop: %d readLength: %d C:%s\n",
                                     indStart, indStop, ref.getWindow().getStart(), ref.getWindow().getStop(), startLocationInRefForHaplotypes, stopLocationInRefForHaplotypes, read.getReadLength(), read.getCigar().toString());
 
-                        final byte[] haplotypeBases = Arrays.copyOfRange(haplotype.getBases(),
-                                (int)indStart, (int)indStop);
+                        final byte[] haplotypeBases = Arrays.copyOfRange(haplotype.getBases(), (int)indStart, (int)indStop);
 
-                        if (firstHap) {
-                            //no need to reallocate arrays for each new haplotype, as length won't change
-                            pairHMM.initialize(readBases.length, haplotypeBases.length);
-                            firstHap = false;
+                        // it's possible that the indel starts at the last base of the haplotypes
+                        if ( haplotypeBases.length == 0 ) {
+                            readLikelihood = -Double.MAX_VALUE;
+                        } else {
+                            if (firstHap) {
+                                //no need to reallocate arrays for each new haplotype, as length won't change
+                                pairHMM.initialize(readBases.length, haplotypeBases.length);
+                                firstHap = false;
+                            }
+
+                            readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotypeBases, readBases, readQuals,
+                                    baseInsertionQualities, baseDeletionQualities, contextLogGapContinuationProbabilities, firstHap);
                         }
-
-
-                        readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotypeBases, readBases, readQuals,
-                                baseInsertionQualities, baseDeletionQualities, contextLogGapContinuationProbabilities, firstHap);
-
 
                         if (DEBUG) {
                             System.out.println("H:"+new String(haplotypeBases));
