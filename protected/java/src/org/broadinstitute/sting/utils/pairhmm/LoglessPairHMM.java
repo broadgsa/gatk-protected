@@ -56,8 +56,8 @@ import org.broadinstitute.sting.utils.QualityUtils;
  * Date: 10/16/12
  */
 public final class LoglessPairHMM extends PairHMM {
-    protected static final double SCALE_FACTOR_LOG10 = 300.0;
-    protected static final double INITIAL_CONDITION = Math.pow(10, SCALE_FACTOR_LOG10);
+    protected static final double INITIAL_CONDITION = Math.pow(2, 1020);
+    protected static final double INITIAL_CONDITION_LOG10 = Math.log10(INITIAL_CONDITION);
 
     private static final int matchToMatch = 0;
     private static final int indelToMatch = 1;
@@ -118,7 +118,7 @@ public final class LoglessPairHMM extends PairHMM {
         for (int j = 1; j < paddedHaplotypeLength; j++) {
             finalSumProbabilities += matchMatrix[endI][j] + insertionMatrix[endI][j];
         }
-        return Math.log10(finalSumProbabilities) - SCALE_FACTOR_LOG10;
+        return Math.log10(finalSumProbabilities) - INITIAL_CONDITION_LOG10;
     }
 
     /**
