@@ -96,14 +96,14 @@ public class MultiSampleCompressor {
                                  final int contextSize,
                                  final int downsampleCoverage,
                                  final int minMappingQuality,
-                                 final double minAltProportionToTriggerVariant,
+                                 final double minAltPValueToTriggerVariant,
                                  final double minIndelProportionToTriggerVariant,
                                  final int minBaseQual,
                                  final ReduceReads.DownsampleStrategy downsampleStrategy) {
         for ( String name : SampleUtils.getSAMFileSamples(header) ) {
             compressorsPerSample.put(name,
                     new SingleSampleCompressor(contextSize, downsampleCoverage,
-                                    minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
+                                    minMappingQuality, minAltPValueToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
         }
     }
 

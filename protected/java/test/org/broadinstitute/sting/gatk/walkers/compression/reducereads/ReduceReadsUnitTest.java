@@ -46,9 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.*;
 import net.sf.samtools.SAMFileHeader;
 import org.broad.tribble.Feature;
 import org.broadinstitute.sting.BaseTest;
@@ -58,6 +56,7 @@ import org.broadinstitute.sting.gatk.refdata.RODRecordListImpl;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.refdata.utils.GATKFeature;
 import org.broadinstitute.sting.gatk.refdata.utils.RODRecordList;
+import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -198,6 +197,7 @@ public class ReduceReadsUnitTest extends BaseTest {
         final ReduceReads rr = new ReduceReads();
         RodBinding.resetNameCounter();
         rr.known = Arrays.<RodBinding<VariantContext>>asList(new RodBinding(VariantContext.class, "known"));
+        rr.knownSnpPositions = new ObjectAVLTreeSet<GenomeLoc>();
 
         final GenomeAnalysisEngine engine = new GenomeAnalysisEngine();
         engine.setGenomeLocParser(genomeLocParser);

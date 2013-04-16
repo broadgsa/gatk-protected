@@ -610,20 +610,8 @@ public class UnifiedGenotyperEngine {
         return stratifiedContexts;
     }
 
-    private final static double[] binomialProbabilityDepthCache = new double[10000];
-    private final static double REF_BINOMIAL_PROB_LOG10_0_5 = Math.log10(0.5);
-
-    static {
-        for ( int i = 1; i < binomialProbabilityDepthCache.length; i++ ) {
-            binomialProbabilityDepthCache[i] = MathUtils.log10BinomialProbability(i, 0, REF_BINOMIAL_PROB_LOG10_0_5);
-        }
-    }
-
     private final double getRefBinomialProbLog10(final int depth) {
-        if ( depth < binomialProbabilityDepthCache.length )
-            return binomialProbabilityDepthCache[depth];
-        else
-            return MathUtils.log10BinomialProbability(depth, 0, REF_BINOMIAL_PROB_LOG10_0_5);
+        return MathUtils.log10BinomialProbability(depth, 0);
     }
 
     private VariantCallContext estimateReferenceConfidence(VariantContext vc, Map<String, AlignmentContext> contexts, double theta, boolean ignoreCoveredSamples, double initialPofRef) {

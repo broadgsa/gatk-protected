@@ -55,6 +55,7 @@ import org.broadinstitute.sting.gatk.walkers.LocusWalker;
 import org.broadinstitute.sting.gatk.walkers.TreeReducible;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -99,7 +100,7 @@ public class AssessReducedQuals extends LocusWalker<GenomeLoc, GenomeLoc> implem
     public int sufficientQualSum = 600;
 
     @Argument(fullName = "qual_epsilon", shortName = "epsilon", doc = "when |Quals_reduced_bam - Quals_original_bam| > (epsilon * Quals_original_bam) we output this interval", required = false)
-    public double qual_epsilon = 0.25;
+    public double qual_epsilon = 0.10;
 
     @Output
     protected PrintStream out;
@@ -145,7 +146,7 @@ public class AssessReducedQuals extends LocusWalker<GenomeLoc, GenomeLoc> implem
     }
 
     private boolean isGoodRead(final PileupElement p) {
-        return !p.isDeletion() && (int)p.getQual() >= 20 && p.getMappingQual() >= 20;
+        return !p.isDeletion() && (int)p.getQual() >= 15 && p.getMappingQual() >= 20;
     }
 
     private int getTagIndex(final List<String> tags) {

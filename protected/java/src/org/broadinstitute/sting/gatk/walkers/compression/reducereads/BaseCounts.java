@@ -48,6 +48,8 @@ package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import org.broadinstitute.sting.utils.MathUtils;
 
 
 /**
@@ -78,6 +80,8 @@ import com.google.java.contract.Requires;
     private int count_N = 0;
     private int sumQual_N = 0;
     private int totalCount = 0;       // keeps track of total count since this is requested so often
+    private final IntArrayList mappingQualities = new IntArrayList();  // keeps the mapping quality of each read that contributed to this
+    private boolean isLowQuality = true;  // this object represents low quality bases unless we are told otherwise
 
 
     public static BaseCounts createWithCounts(int[] countsACGT) {
@@ -100,6 +104,7 @@ import com.google.java.contract.Requires;
         this.count_I += other.count_I;
         this.count_N += other.count_N;
         this.totalCount += other.totalCount;
+        this.mappingQualities.addAll(other.mappingQualities);
     }
 
     @Requires("other != null")
@@ -112,6 +117,7 @@ import com.google.java.contract.Requires;
         this.count_I -= other.count_I;
         this.count_N -= other.count_N;
         this.totalCount -= other.totalCount;
+        this.mappingQualities.removeAll(other.mappingQualities);
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
@@ -120,7 +126,7 @@ import com.google.java.contract.Requires;
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
-    public void incr(final BaseIndex base, final byte qual) {
+    public void incr(final BaseIndex base, final byte qual, final int mappingQuality) {
         switch (base) {
             case A: ++count_A; sumQual_A += qual; break;
             case C: ++count_C; sumQual_C += qual; break;
@@ -131,6 +137,7 @@ import com.google.java.contract.Requires;
             case N: ++count_N; sumQual_N += qual; break;
         }
         ++totalCount;
+        mappingQualities.add(mappingQuality);
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
@@ -152,7 +159,7 @@ import com.google.java.contract.Requires;
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
-    public void decr(final BaseIndex base, final byte qual) {
+    public void decr(final BaseIndex base, final byte qual, final int mappingQuality) {
         switch (base) {
             case A: --count_A; sumQual_A -= qual; break;
             case C: --count_C; sumQual_C -= qual; break;
@@ -163,6 +170,7 @@ import com.google.java.contract.Requires;
             case N: --count_N; sumQual_N -= qual; break;
         }
         --totalCount;
+        mappingQualities.remove((Integer) mappingQuality);
     }
 
     @Ensures("result >= 0")
@@ -227,6 +235,15 @@ import com.google.java.contract.Requires;
     @Ensures("result >= 0")
     public int totalCount() {
         return totalCount;
+    }
+
+    /**
+     * The RMS of the mapping qualities of all reads that contributed to this object
+     *
+     * @return the RMS of the mapping qualities of all reads that contributed to this object
+     */
+    public double getRMS() {
+        return MathUtils.rms(mappingQualities);
     }
 
     /**
@@ -324,5 +341,27 @@ import com.google.java.contract.Requires;
     public double baseCountProportionWithoutIndels(final BaseIndex base) {
         final int total = totalCountWithoutIndels();
         return (total == 0) ? 0.0 : (double)countOfBase(base) / (double)total;
+    }
+
+    /**
+     * @return true if this instance represents low quality bases
+     */
+    public boolean isLowQuality() { return isLowQuality; }
+
+    /**
+     * Sets the low quality value
+     *
+     * @param value    true if this instance represents low quality bases false otherwise
+     */
+    public void setLowQuality(final boolean value) { isLowQuality = value; }
+
+    /**
+     * Clears out all stored data in this object
+     */
+    public void clear() {
+        count_A = count_C = count_G = count_T = count_D = count_I = count_N = 0;
+        sumQual_A = sumQual_C = sumQual_G = sumQual_T = sumQual_D = sumQual_I = sumQual_N = 0;
+        totalCount = 0;
+        mappingQualities.clear();
     }
 }
