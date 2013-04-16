@@ -565,16 +565,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         // abort early if something is out of the acceptable range
         if( assemblyResult.haplotypes.size() == 1 ) { return 1; } // only the reference haplotype remains so nothing else to do!
-        if( assemblyResult.regionForGenotyping.size() == 0 ) { return 1; } // no reads remain after filtering so nothing else to do!
         if (dontGenotype) return 1; // user requested we not proceed
-
-        // evaluate each sample's reads against all haplotypes
-        //logger.info("Computing read likelihoods with " + assemblyResult.regionForGenotyping.size() + " reads");
-        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods( assemblyResult.haplotypes, splitReadsBySample( assemblyResult.regionForGenotyping.getReads() ) );
 
         // filter out reads from genotyping which fail mapping quality based criteria
         final List<GATKSAMRecord> filteredReads = filterNonPassingReads( assemblyResult.regionForGenotyping );
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
+
+        if( assemblyResult.regionForGenotyping.size() == 0 ) { return 1; } // no reads remain after filtering so nothing else to do!
+
+        // evaluate each sample's reads against all haplotypes
+        //logger.info("Computing read likelihoods with " + assemblyResult.regionForGenotyping.size() + " reads");
+        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods( assemblyResult.haplotypes, splitReadsBySample( assemblyResult.regionForGenotyping.getReads() ) );
 
         // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
         final List<Haplotype> bestHaplotypes = selectBestHaplotypesForGenotyping(assemblyResult.haplotypes, stratifiedReadMap);
