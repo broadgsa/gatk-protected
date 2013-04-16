@@ -47,11 +47,9 @@
 package org.broadinstitute.sting.utils.genotyper;
 
 import net.sf.samtools.*;
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
@@ -297,5 +295,56 @@ public class PerReadAlleleLikelihoodMapUnitTest extends BaseTest {
         Assert.assertEquals(map.size(), nGood, "nBad " + nBad + " nGood " + nGood);
         Assert.assertTrue(map.getStoredElements().containsAll(goodReads), "nBad " + nBad + " nGood " + nGood);
         Assert.assertEquals(map.getStoredElements().size(), nGood, "nBad " + nBad + " nGood " + nGood);
+    }
+
+    @DataProvider(name = "MostLikelyAlleleData")
+    public Object[][] makeMostLikelyAlleleData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final Allele a = Allele.create("A");
+        final Allele c = Allele.create("C");
+        final Allele g = Allele.create("G");
+
+        tests.add(new Object[]{Arrays.asList(a), Arrays.asList(Arrays.asList(0.0)), a, a});
+        tests.add(new Object[]{Arrays.asList(a, c), Arrays.asList(Arrays.asList(0.0, -1.0)), a, a});
+        tests.add(new Object[]{Arrays.asList(a, c), Arrays.asList(Arrays.asList(-1.0, 0.0)), c, c});
+        tests.add(new Object[]{Arrays.asList(a, c, g), Arrays.asList(Arrays.asList(0.0, 0.0, -10.0)), a, a});
+        tests.add(new Object[]{Arrays.asList(a, c, g), Arrays.asList(Arrays.asList(0.0, 0.0, -10.0)), a, a});
+        tests.add(new Object[]{Arrays.asList(a, c, g),
+                Arrays.asList(
+                        Arrays.asList(0.0, -10.0, -10.0),
+                        Arrays.asList(-100.0, 0.0, -10.0)),
+                c, a});
+        tests.add(new Object[]{Arrays.asList(a, c, g),
+                Arrays.asList(
+                        Arrays.asList(0.0, -10.0, -10.0),
+                        Arrays.asList(-20.0, 0.0, -100.0)),
+                c, a});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MostLikelyAlleleData")
+    public void testMostLikelyAllele(final List<Allele> alleles, final List<List<Double>> perReadlikelihoods, final Allele best, final Allele second) {
+        final PerReadAlleleLikelihoodMap map = new PerReadAlleleLikelihoodMap();
+
+        for ( int readI = 0; readI < perReadlikelihoods.size(); readI++ ) {
+            final List<Double> likelihoods = perReadlikelihoods.get(readI);
+
+            final byte[] bases = Utils.dupBytes((byte)'A', 10);
+            final byte[] quals = Utils.dupBytes((byte) 30, 10);
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, quals, "10M");
+            read.setReadName("readName" + readI);
+
+            for ( int i = 0; i < alleles.size(); i++ ) {
+                final Allele allele = alleles.get(i);
+                final double likelihood = likelihoods.get(i);
+                map.add(read, allele, likelihood);
+            }
+        }
+
+        final MostLikelyAllele mla = map.getMostLikelyDiploidAlleles();
+        Assert.assertEquals(mla.getMostLikelyAllele(), best);
+        Assert.assertEquals(mla.getSecondMostLikelyAllele(), second);
     }
 }

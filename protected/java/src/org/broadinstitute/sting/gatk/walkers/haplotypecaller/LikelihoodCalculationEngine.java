@@ -49,12 +49,14 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import org.apache.log4j.Logger;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.haplotype.HaplotypeScoreComparator;
 import org.broadinstitute.sting.utils.pairhmm.*;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
@@ -253,54 +255,127 @@ public class LikelihoodCalculationEngine {
         return likelihoodMatrix;
     }
 
-    @Requires({"haplotypes.size() > 0"})
-    @Ensures({"result.size() <= haplotypes.size()"})
-    public List<Haplotype> selectBestHaplotypesFromPooledLikelihoods(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation) {
+    // --------------------------------------------------------------------------------
+    //
+    // System to compute the best N haplotypes for genotyping
+    //
+    // --------------------------------------------------------------------------------
 
-        final int numHaplotypes = haplotypes.size();
-        final Set<String> sampleKeySet = stratifiedReadMap.keySet();
-        final List<Integer> bestHaplotypesIndexList = new ArrayList<Integer>();
-        bestHaplotypesIndexList.add( findReferenceIndex(haplotypes) ); // always start with the reference haplotype
-        final List<Allele> haplotypesAsAlleles = new ArrayList<Allele>();
-        for( final Haplotype h : haplotypes ) { haplotypesAsAlleles.add(Allele.create(h, true)); }
+    /**
+     * Helper function for selectBestHaplotypesFromEachSample that updates the score of haplotype haplotypeAsAllele
+     * @param map an annoying map object that moves us between the allele and haplotype representation
+     * @param haplotypeAsAllele the allele version of the haplotype
+     * @return the haplotype version, with its score incremented by 1 if its non-reference
+     */
+    private Haplotype updateSelectHaplotype(final Map<Allele, Haplotype> map, final Allele haplotypeAsAllele) {
+        final Haplotype h = map.get(haplotypeAsAllele); // TODO -- fixme when haplotypes are properly generic
+        if ( h.isNonReference() ) h.setScore(h.getScore() + 1); // ref is already at max value
+        return h;
+    }
 
-        final double[][] haplotypeLikelihoodMatrix = computeDiploidHaplotypeLikelihoods( sampleKeySet, stratifiedReadMap, haplotypesAsAlleles, true ); // all samples pooled together
+    /**
+     * Take the best N haplotypes and return them as a list
+     *
+     * Only considers the haplotypes selectedHaplotypes that were actually selected by at least one sample
+     * as it's preferred haplotype.  Takes the best N haplotypes from selectedHaplotypes in decreasing
+     * order of score (so higher score haplotypes are preferred).  The N we take is determined by
+     *
+     * N = min(2 * nSamples + 1, maxNumHaplotypesInPopulation)
+     *
+     * where 2 * nSamples is the number of chromosomes in 2 samples including the reference, and our workload is
+     * bounded by maxNumHaplotypesInPopulation as that number can grow without bound
+     *
+     * @param selectedHaplotypes a non-null set of haplotypes with scores >= 1
+     * @param nSamples the number of samples used to select the haplotypes
+     * @param maxNumHaplotypesInPopulation the maximum number of haplotypes we're allowed to take, regardless of nSamples
+     * @return a list of N or fewer haplotypes, with the reference haplotype first
+     */
+    private List<Haplotype> selectBestHaplotypesAccordingToScore(final Set<Haplotype> selectedHaplotypes, final int nSamples, final int maxNumHaplotypesInPopulation) {
+        final List<Haplotype> selectedHaplotypesList = new ArrayList<Haplotype>(selectedHaplotypes);
+        Collections.sort(selectedHaplotypesList, new HaplotypeScoreComparator());
+        final int numChromosomesInSamplesPlusRef = 2 * nSamples + 1;
+        final int haplotypesToKeep = Math.min(numChromosomesInSamplesPlusRef, maxNumHaplotypesInPopulation);
+        final List<Haplotype> bestHaplotypes = selectedHaplotypesList.size() <= haplotypesToKeep ? selectedHaplotypesList : selectedHaplotypesList.subList(0, haplotypesToKeep);
+        if ( bestHaplotypes.get(0).isNonReference()) throw new IllegalStateException("BUG: reference haplotype should be first in list");
+        return bestHaplotypes;
+    }
 
-        int hap1 = 0;
-        int hap2 = 0;
-        //double bestElement = Double.NEGATIVE_INFINITY;
-        final int maxChosenHaplotypes = Math.min( maxNumHaplotypesInPopulation, sampleKeySet.size() * 2 + 1 );
-        while( bestHaplotypesIndexList.size() < maxChosenHaplotypes ) {
-            double maxElement = Double.NEGATIVE_INFINITY;
-            for( int iii = 0; iii < numHaplotypes; iii++ ) {
-                for( int jjj = 0; jjj <= iii; jjj++ ) {
-                    if( haplotypeLikelihoodMatrix[iii][jjj] > maxElement ) {
-                        maxElement = haplotypeLikelihoodMatrix[iii][jjj];
-                        hap1 = iii;
-                        hap2 = jjj;
-                    }
-                }
-            }
-            if( maxElement == Double.NEGATIVE_INFINITY ) { break; }
-            if( DEBUG ) { logger.info("Chose haplotypes " + hap1 + " and " + hap2 + " with diploid likelihood = " + haplotypeLikelihoodMatrix[hap1][hap2]); }
-            haplotypeLikelihoodMatrix[hap1][hap2] = Double.NEGATIVE_INFINITY;
+    /**
+     * Select the best haplotypes for genotyping the samples in stratifiedReadMap
+     *
+     * Selects these haplotypes by counting up how often each haplotype is selected as one of the most likely
+     * haplotypes per sample.  What this means is that each sample computes the diploid genotype likelihoods for
+     * all possible pairs of haplotypes, and the pair with the highest likelihood has each haplotype each get
+     * one extra count for each haplotype (so hom-var haplotypes get two counts).  After performing this calculation
+     * the best N haplotypes are selected (@see #selectBestHaplotypesAccordingToScore) and a list of the
+     * haplotypes in order of score are returned, ensuring that at least one of the haplotypes is reference.
+     *
+     * @param haplotypes a list of all haplotypes we're considering
+     * @param stratifiedReadMap a map from sample -> read likelihoods per haplotype
+     * @param maxNumHaplotypesInPopulation the max. number of haplotypes we can select from haplotypes
+     * @return a list of selected haplotypes with size <= maxNumHaplotypesInPopulation
+     */
+    public List<Haplotype> selectBestHaplotypesFromEachSample(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation) {
+        if ( haplotypes.size() < 2 ) throw new IllegalArgumentException("Must have at least 2 haplotypes to consider but only have " + haplotypes);
 
-            if( !bestHaplotypesIndexList.contains(hap1) ) { bestHaplotypesIndexList.add(hap1); }
-            if( !bestHaplotypesIndexList.contains(hap2) ) { bestHaplotypesIndexList.add(hap2); }
+        if ( haplotypes.size() == 2 ) return haplotypes; // fast path -- we'll always want to use 2 haplotypes
+
+        // all of the haplotypes that at least one sample called as one of the most likely
+        final Set<Haplotype> selectedHaplotypes = new HashSet<Haplotype>();
+        selectedHaplotypes.add(findReferenceHaplotype(haplotypes)); // ref is always one of the selected
+
+        // our annoying map from allele -> haplotype
+        final Map<Allele, Haplotype> allele2Haplotype = new HashMap<Allele, Haplotype>();
+        for ( final Haplotype h : haplotypes ) {
+            h.setScore(h.isReference() ? Double.MAX_VALUE : 0.0); // set all of the scores to 0 (lowest value) for all non-ref haplotypes
+            allele2Haplotype.put(Allele.create(h, h.isReference()), h);
         }
 
-        if( DEBUG ) { logger.info("Chose " + (bestHaplotypesIndexList.size() - 1) + " alternate haplotypes to genotype in all samples."); }
+        // for each sample, compute the most likely pair of haplotypes
+        for ( final Map.Entry<String, PerReadAlleleLikelihoodMap> entry : stratifiedReadMap.entrySet() ) {
+            // get the two most likely haplotypes under a diploid model for this sample
+            final MostLikelyAllele mla = entry.getValue().getMostLikelyDiploidAlleles();
 
-        final List<Haplotype> bestHaplotypes = new ArrayList<Haplotype>();
-        for( final int hIndex : bestHaplotypesIndexList ) {
-            bestHaplotypes.add( haplotypes.get(hIndex) );
+            if ( mla != null ) { // there was something to evaluate in this sample
+                // note that there must be at least 2 haplotypes
+                final Haplotype best = updateSelectHaplotype(allele2Haplotype, mla.getMostLikelyAllele());
+                final Haplotype second = updateSelectHaplotype(allele2Haplotype, mla.getSecondMostLikelyAllele());
+
+//            if ( DEBUG ) {
+//                logger.info("Chose haplotypes " + best + " " + best.getCigar() + " and " + second + " " + second.getCigar() + " for sample " + entry.getKey());
+//            }
+
+                // add these two haplotypes to the set of haplotypes that have been selected
+                selectedHaplotypes.add(best);
+                selectedHaplotypes.add(second);
+
+                // we've already selected all of our haplotypes, and we don't need to prune them down
+                if ( selectedHaplotypes.size() == haplotypes.size() && haplotypes.size() < maxNumHaplotypesInPopulation )
+                    break;
+            }
+        }
+
+        // take the best N haplotypes forward, in order of the number of samples that choose them
+        final int nSamples = stratifiedReadMap.size();
+        final List<Haplotype> bestHaplotypes = selectBestHaplotypesAccordingToScore(selectedHaplotypes, nSamples, maxNumHaplotypesInPopulation);
+
+        if ( DEBUG ) {
+            logger.info("Chose " + (bestHaplotypes.size() - 1) + " alternate haplotypes to genotype in all samples.");
+            for ( final Haplotype h : bestHaplotypes ) {
+                logger.info("\tHaplotype " + h.getCigar() + " selected for further genotyping" + (h.isNonReference() ? " found " + (int)h.getScore() + " haplotypes" : " as ref haplotype"));
+            }
         }
         return bestHaplotypes;
     }
 
-    public static int findReferenceIndex( final List<Haplotype> haplotypes ) {
+    /**
+     * Find the haplotype that isRef(), or @throw ReviewedStingException if one isn't found
+     * @param haplotypes non-null list of haplotypes
+     * @return the reference haplotype
+     */
+    private static Haplotype findReferenceHaplotype( final List<Haplotype> haplotypes ) {
         for( final Haplotype h : haplotypes ) {
-            if( h.isReference() ) { return haplotypes.indexOf(h); }
+            if( h.isReference() ) return h;
         }
         throw new ReviewedStingException( "No reference haplotype found in the list of haplotypes!" );
     }

@@ -737,7 +737,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         // sort haplotypes to take full advantage of haplotype start offset optimizations in PairHMM
         Collections.sort( trimmedHaplotypes, new HaplotypeBaseComparator() );
 
-        if ( DEBUG ) logger.info("Trimming haplotypes reduced number of haplotypes from " + haplotypes.size() + " to only " + trimmedHaplotypes.size());
+        if ( DEBUG ) {
+            logger.info("Trimming haplotypes reduced number of haplotypes from " + haplotypes.size() + " to only " + trimmedHaplotypes.size());
+            for ( final Haplotype remaining: trimmedHaplotypes ) {
+                logger.info("  Remains: " + remaining + " cigar " + remaining.getCigar());
+            }
+        }
+
 
         // trim down the reads and add them to the trimmed active region
         final List<GATKSAMRecord> trimmedReads = new ArrayList<GATKSAMRecord>(originalActiveRegion.getReads().size());
@@ -761,11 +767,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
      * @return the list of haplotypes to genotype
      */
     protected List<Haplotype> selectBestHaplotypesForGenotyping(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        // TODO -- skip this calculation if the list of haplotypes is of size 2 (as we'll always use 2 for genotyping)
         if ( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
             return haplotypes;
         } else {
-            return likelihoodCalculationEngine.selectBestHaplotypesFromPooledLikelihoods(haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation);
+            return likelihoodCalculationEngine.selectBestHaplotypesFromEachSample(haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation);
         }
     }
 
