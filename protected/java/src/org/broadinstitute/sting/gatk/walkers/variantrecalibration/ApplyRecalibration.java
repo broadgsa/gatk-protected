@@ -200,6 +200,8 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
         hInfo.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
         hInfo.add(new VCFInfoHeaderLine(VariantRecalibrator.VQS_LOD_KEY, 1, VCFHeaderLineType.Float, "Log odds ratio of being a true variant versus being false under the trained gaussian mixture model"));
         hInfo.add(new VCFInfoHeaderLine(VariantRecalibrator.CULPRIT_KEY, 1, VCFHeaderLineType.String, "The annotation which was the worst performing in the Gaussian mixture model, likely the reason why the variant was filtered out"));
+        hInfo.add(new VCFInfoHeaderLine(VariantRecalibrator.POSITIVE_LABEL_KEY, 1, VCFHeaderLineType.Flag, "This variant was used to build the positive training set of good variants"));
+        hInfo.add(new VCFInfoHeaderLine(VariantRecalibrator.NEGATIVE_LABEL_KEY, 1, VCFHeaderLineType.Flag, "This variant was used to build the negative training set of bad variants"));
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -243,6 +245,10 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
                 // Annotate the new record with its VQSLOD and the worst performing annotation
                 builder.attribute(VariantRecalibrator.VQS_LOD_KEY, lod);
                 builder.attribute(VariantRecalibrator.CULPRIT_KEY, recalDatum.getAttribute(VariantRecalibrator.CULPRIT_KEY));
+                if ( recalDatum.hasAttribute(VariantRecalibrator.POSITIVE_LABEL_KEY))
+                    builder.attribute(VariantRecalibrator.POSITIVE_LABEL_KEY, true);
+                if ( recalDatum.hasAttribute(VariantRecalibrator.NEGATIVE_LABEL_KEY))
+                    builder.attribute(VariantRecalibrator.NEGATIVE_LABEL_KEY, true);
 
                 for( int i = tranches.size() - 1; i >= 0; i-- ) {
                     final Tranche tranche = tranches.get(i);
