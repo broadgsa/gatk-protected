@@ -237,7 +237,9 @@ public class CycleCovariate implements StandardCovariate {
 
         // Unknown platforms
         else {
-            throw new UserException("The platform (" + read.getReadGroup().getPlatform() + ") associated with read group " + read.getReadGroup() + " is not a recognized platform. Implemented options are e.g. illumina, 454, and solid");
+            throw new UserException("The platform (" + read.getReadGroup().getPlatform()
+                    + ") associated with read group " + read.getReadGroup()
+                    + " is not a recognized platform. Allowable options are " + NGSPlatform.knownPlatformsString());
         }
     }
 
