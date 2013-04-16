@@ -53,12 +53,14 @@ import org.testng.annotations.Test;
 
 public class MostLikelyAlleleUnitTest extends BaseTest {
     final Allele a = Allele.create("A");
+    final Allele b = Allele.create("C");
 
     @Test
     public void testBasicCreation() {
         final double second = -1 - MostLikelyAllele.INFORMATIVE_LIKELIHOOD_THRESHOLD - 1;
-        MostLikelyAllele mla = new MostLikelyAllele(a, -1.0, second);
+        MostLikelyAllele mla = new MostLikelyAllele(a, b, -1.0, second);
         Assert.assertEquals(mla.getMostLikelyAllele(), a);
+        Assert.assertEquals(mla.getSecondMostLikelyAllele(), b);
         Assert.assertEquals(mla.getLog10LikelihoodOfMostLikely(), -1.0);
         Assert.assertEquals(mla.getLog10LikelihoodOfSecondBest(), second);
 
@@ -73,7 +75,7 @@ public class MostLikelyAlleleUnitTest extends BaseTest {
     @Test
     public void testNotDefaultInformative() {
         final double second = -1.0 - (MostLikelyAllele.INFORMATIVE_LIKELIHOOD_THRESHOLD - 1e-2);
-        MostLikelyAllele mla = new MostLikelyAllele(a, -1.0, second);
+        MostLikelyAllele mla = new MostLikelyAllele(a, b, -1.0, second);
         Assert.assertEquals(mla.isInformative(), false);
         Assert.assertEquals(mla.isInformative(10), false);
         Assert.assertEquals(mla.isInformative(0), true);
@@ -84,8 +86,9 @@ public class MostLikelyAlleleUnitTest extends BaseTest {
 
     @Test
     public void testCreationNoGoodSecond() {
-        MostLikelyAllele mla = new MostLikelyAllele(a, -1.0, Double.NEGATIVE_INFINITY);
+        MostLikelyAllele mla = new MostLikelyAllele(a, null, -1.0, Double.NEGATIVE_INFINITY);
         Assert.assertEquals(mla.getMostLikelyAllele(), a);
+        Assert.assertEquals(mla.getSecondMostLikelyAllele(), null);
         Assert.assertEquals(mla.getLog10LikelihoodOfMostLikely(), -1.0);
         Assert.assertEquals(mla.getLog10LikelihoodOfSecondBest(), Double.NEGATIVE_INFINITY);
 
@@ -99,7 +102,7 @@ public class MostLikelyAlleleUnitTest extends BaseTest {
 
     @Test
     public void testCreationNoAllele() {
-        MostLikelyAllele mla = new MostLikelyAllele(Allele.NO_CALL, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
+        MostLikelyAllele mla = new MostLikelyAllele(Allele.NO_CALL, null, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
         Assert.assertEquals(mla.getMostLikelyAllele(), Allele.NO_CALL);
         Assert.assertEquals(mla.getLog10LikelihoodOfMostLikely(), Double.NEGATIVE_INFINITY);
         Assert.assertEquals(mla.getLog10LikelihoodOfSecondBest(), Double.NEGATIVE_INFINITY);
