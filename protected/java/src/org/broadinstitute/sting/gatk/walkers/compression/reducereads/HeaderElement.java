@@ -62,8 +62,9 @@ public class HeaderElement {
     private BaseAndQualsCounts consensusBaseCounts;                                                                     // How many A,C,G,T (and D's) are in this site.
     private BaseAndQualsCounts filteredBaseCounts;                                                                      // How many A,C,G,T (and D's) were filtered out in this site.
     private int insertionsToTheRight;                                                                                   // How many reads in this site had insertions to the immediate right
-    private int nSoftClippedBases;                                                                                      // How many bases in this site came from soft clipped bases
     private int location;                                                                                               // Genome location of this site (the sliding window knows which contig we're at
+
+    protected static final int MIN_COUNT_FOR_USING_PVALUE = 2;
 
     public int getLocation() {
         return location;
@@ -84,7 +85,7 @@ public class HeaderElement {
      * @param location the reference location for the new element
      */
     public HeaderElement(final int location) {
-        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, 0, location);
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, location);
     }
 
     /**
@@ -94,7 +95,7 @@ public class HeaderElement {
      * @param location the reference location for the new element
      */
     public HeaderElement(final int location, final int insertionsToTheRight) {
-        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, 0, location);
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, location);
     }
 
     /**
@@ -103,15 +104,13 @@ public class HeaderElement {
      * @param consensusBaseCounts  the BaseCounts object for the running consensus synthetic read
      * @param filteredBaseCounts   the BaseCounts object for the filtered data synthetic read
      * @param insertionsToTheRight number of insertions to the right of this HeaderElement
-     * @param nSoftClippedBases    number of softclipped bases of this HeaderElement
      * @param location             the reference location of this reference element
      *                             HeaderElement
      */
-    public HeaderElement(BaseAndQualsCounts consensusBaseCounts, BaseAndQualsCounts filteredBaseCounts, int insertionsToTheRight, int nSoftClippedBases, int location) {
+    public HeaderElement(BaseAndQualsCounts consensusBaseCounts, BaseAndQualsCounts filteredBaseCounts, int insertionsToTheRight, int location) {
         this.consensusBaseCounts = consensusBaseCounts;
         this.filteredBaseCounts = filteredBaseCounts;
         this.insertionsToTheRight = insertionsToTheRight;
-        this.nSoftClippedBases = nSoftClippedBases;
         this.location = location;
     }
 
@@ -119,10 +118,13 @@ public class HeaderElement {
      * Whether or not the site represented by this HeaderElement is variant according to the definitions of variant
      * by insertion, deletion and mismatches.
      *
+     * @param minVariantPvalue       min p-value for deciding that a position is or is not variable due to mismatches
+     * @param minVariantProportion   min proportion for deciding that a position is or is not variable due to mismatches
+     * @param minIndelProportion     min proportion for deciding that a position is or is not variable due to indels
      * @return true if site is variant by any definition. False otherwise.
      */
-    public boolean isVariant(double minVariantPvalue, double minIndelProportion) {
-        return hasConsensusData() && (isVariantFromInsertions(minIndelProportion) || isVariantFromMismatches(minVariantPvalue) || isVariantFromDeletions(minIndelProportion) || isVariantFromSoftClips());
+    public boolean isVariant(final double minVariantPvalue, final double minVariantProportion, final double minIndelProportion) {
+        return hasConsensusData() && (isVariantFromInsertions(minIndelProportion) || isVariantFromMismatches(minVariantPvalue, minVariantProportion) || isVariantFromDeletions(minIndelProportion) || isVariantFromSoftClips());
     }
 
     /**
@@ -140,11 +142,9 @@ public class HeaderElement {
     public void addBase(byte base, byte baseQual, byte insQual, byte delQual, int baseMappingQuality, int minBaseQual, int minMappingQual, boolean isSoftClipped) {
         // If the base passes the MQ filter it is included in the consensus base counts, otherwise it's part of the filtered counts
         if ( baseMappingQuality >= minMappingQual )
-            consensusBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual);
+            consensusBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
         else
             filteredBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual);
-
-        nSoftClippedBases += isSoftClipped ? 1 : 0;
     }
 
     /**
@@ -162,11 +162,9 @@ public class HeaderElement {
     public void removeBase(byte base, byte baseQual, byte insQual, byte delQual, int baseMappingQuality, int minBaseQual, int minMappingQual, boolean isSoftClipped) {
         // If the base passes the MQ filter it is included in the consensus base counts, otherwise it's part of the filtered counts
         if ( baseMappingQuality >= minMappingQual )
-            consensusBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual);
+            consensusBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
         else
             filteredBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual);
-
-        nSoftClippedBases -= isSoftClipped ? 1 : 0;
     }
     /**
      * Adds an insertions to the right of the HeaderElement and updates all counts accordingly. All insertions
@@ -246,15 +244,15 @@ public class HeaderElement {
     /**
      * Whether or not the HeaderElement is variant due to excess mismatches
      *
-     * @param minVariantPvalue     the minimum pvalue to call a site variant.
+     * @param minVariantPvalue     the minimum pvalue to call a site variant (used with low coverage).
+     * @param minVariantProportion the minimum proportion to call a site variant (used with high coverage).
      * @return whether or not the HeaderElement is variant due to excess mismatches
      */
-    protected boolean isVariantFromMismatches(double minVariantPvalue) {
+    protected boolean isVariantFromMismatches(final double minVariantPvalue, final double minVariantProportion) {
         final int totalCount = consensusBaseCounts.totalCountWithoutIndels();
         final BaseIndex mostCommon = consensusBaseCounts.baseIndexWithMostProbabilityWithoutIndels();
         final int countOfOtherBases = totalCount - consensusBaseCounts.countOfBase(mostCommon);
-        final double pvalue = countOfOtherBases == 0 ? 0.0 : MathUtils.binomialCumulativeProbability(totalCount, 0, countOfOtherBases);
-        return pvalue > minVariantPvalue;
+        return hasSignificantCount(countOfOtherBases, totalCount, minVariantPvalue, minVariantProportion);
     }
 
     /**
@@ -264,6 +262,7 @@ public class HeaderElement {
      * @return true if we had more soft clipped bases contributing to this site than matches/mismatches.
      */
     protected boolean isVariantFromSoftClips() {
+        final int nSoftClippedBases = consensusBaseCounts.nSoftclips();
         return nSoftClippedBases > 0 && nSoftClippedBases >= (consensusBaseCounts.totalCount() - nSoftClippedBases);
     }
 
@@ -271,10 +270,11 @@ public class HeaderElement {
      * Calculates the number of alleles necessary to represent this site.
      *
      * @param minVariantPvalue     the minimum pvalue to call a site variant.
+     * @param minVariantProportion the minimum proportion to call a site variant.
      * @return the number of alleles necessary to represent this site or -1 if there are too many indels
      */
-    public int getNumberOfBaseAlleles(final double minVariantPvalue) {
-        final ObjectArrayList<BaseIndex> alleles = getAlleles(minVariantPvalue);
+    public int getNumberOfBaseAlleles(final double minVariantPvalue, final double minVariantProportion) {
+        final ObjectArrayList<BaseIndex> alleles = getAlleles(minVariantPvalue, minVariantProportion);
         return alleles == null ? -1 : alleles.size();
     }
 
@@ -282,16 +282,18 @@ public class HeaderElement {
      * Calculates the alleles necessary to represent this site.
      *
      * @param minVariantPvalue     the minimum pvalue to call a site variant.
+     * @param minVariantProportion the minimum proportion to call a site variant.
      * @return the list of alleles necessary to represent this site or null if there are too many indels
      */
-    public ObjectArrayList<BaseIndex> getAlleles(final double minVariantPvalue) {
+    public ObjectArrayList<BaseIndex> getAlleles(final double minVariantPvalue, final double minVariantProportion) {
         // make sure we have bases at all
         final int totalBaseCount = consensusBaseCounts.totalCount();
         if ( totalBaseCount == 0 )
             return new ObjectArrayList<BaseIndex>(0);
 
-        // next, check for insertions
-        if ( hasSignificantCount(insertionsToTheRight, minVariantPvalue) )
+        // next, check for insertions; technically, the insertion count can be greater than totalBaseCount
+        // (because of the way insertions are counted), so we need to account for that
+        if ( hasSignificantCount(Math.min(totalBaseCount, insertionsToTheRight), totalBaseCount, minVariantPvalue, minVariantProportion) )
             return null;
 
         // finally, check for the bases themselves (including deletions)
@@ -301,9 +303,7 @@ public class HeaderElement {
             if ( baseCount == 0 )
                 continue;
 
-            final double pvalue = MathUtils.binomialCumulativeProbability(totalBaseCount, 0, baseCount);
-
-            if ( pvalue > minVariantPvalue ) {
+            if ( hasSignificantCount(baseCount, totalBaseCount, minVariantPvalue, minVariantProportion) ) {
                 if ( base == BaseIndex.D )
                     return null;
                 alleles.add(base);
@@ -316,26 +316,34 @@ public class HeaderElement {
      * Checks whether there are a significant number of softclips.
      *
      * @param minVariantPvalue     the minimum pvalue to call a site variant.
+     * @param minVariantProportion the minimum proportion to call a site variant.
      * @return true if there are significant softclips, false otherwise
      */
-    public boolean hasSignificantSoftclips(final double minVariantPvalue) {
-        return hasSignificantCount(nSoftClippedBases, minVariantPvalue);
+    public boolean hasSignificantSoftclips(final double minVariantPvalue, final double minVariantProportion) {
+        return hasSignificantCount(consensusBaseCounts.nSoftclips(), consensusBaseCounts.totalCount(), minVariantPvalue, minVariantProportion);
     }
 
     /*
      * Checks whether there are a significant number of count.
      *
-     * @param count                the count to test against
+     * @param count                the count (k) to test against
+     * @param total                the total (n) to test against
      * @param minVariantPvalue     the minimum pvalue to call a site variant.
+     * @param minVariantProportion the minimum proportion to call a site variant.
      * @return true if there is a significant count given the provided pvalue, false otherwise
      */
-    private boolean hasSignificantCount(final int count, final double minVariantPvalue) {
-        final int totalBaseCount = consensusBaseCounts.totalCount();
-        if ( count == 0 || totalBaseCount == 0 )
+    private boolean hasSignificantCount(final int count, final int total, final double minVariantPvalue, final double minVariantProportion) {
+        if ( count == 0 || total == 0 )
             return false;
 
-        // technically, count can be greater than totalBaseCount (because of the way insertions are counted) so we need to account for that
-        final double pvalue = MathUtils.binomialCumulativeProbability(totalBaseCount, 0, Math.min(count, totalBaseCount));
-        return pvalue > minVariantPvalue;
+        // use p-values for low counts of k
+        if ( count <= MIN_COUNT_FOR_USING_PVALUE ) {
+            final double pvalue = MathUtils.binomialCumulativeProbability(total, 0, count);
+            return pvalue > minVariantPvalue;
+        }
+
+        // otherwise, use straight proportions
+        final int minBaseCountForSignificance = (int)(minVariantProportion * total);
+        return count >= minBaseCountForSignificance;
     }
 }

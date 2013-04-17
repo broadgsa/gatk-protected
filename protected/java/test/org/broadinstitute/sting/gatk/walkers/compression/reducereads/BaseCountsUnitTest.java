@@ -179,7 +179,7 @@ public class BaseCountsUnitTest extends BaseTest {
         BaseCounts counts = new BaseCounts();
 
         for ( int qual : test.quals )
-            counts.incr(BaseIndex.A, (byte)qual, 20);
+            counts.incr(BaseIndex.A, (byte)qual, 20, false);
 
         final int actualSum = (int)counts.getSumQuals((byte)'A');
         final int expectedSum = qualSum(test.quals);

@@ -80,6 +80,7 @@ import org.broadinstitute.sting.utils.MathUtils;
     private int count_N = 0;
     private int sumQual_N = 0;
     private int totalCount = 0;       // keeps track of total count since this is requested so often
+    private int nSoftClippedBases = 0;
     private final IntArrayList mappingQualities = new IntArrayList();  // keeps the mapping quality of each read that contributed to this
     private boolean isLowQuality = true;  // this object represents low quality bases unless we are told otherwise
 
@@ -104,6 +105,7 @@ import org.broadinstitute.sting.utils.MathUtils;
         this.count_I += other.count_I;
         this.count_N += other.count_N;
         this.totalCount += other.totalCount;
+        this.nSoftClippedBases = other.nSoftClippedBases;
         this.mappingQualities.addAll(other.mappingQualities);
     }
 
@@ -117,6 +119,7 @@ import org.broadinstitute.sting.utils.MathUtils;
         this.count_I -= other.count_I;
         this.count_N -= other.count_N;
         this.totalCount -= other.totalCount;
+        this.nSoftClippedBases -= other.nSoftClippedBases;
         this.mappingQualities.removeAll(other.mappingQualities);
     }
 
@@ -126,7 +129,7 @@ import org.broadinstitute.sting.utils.MathUtils;
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) + 1")
-    public void incr(final BaseIndex base, final byte qual, final int mappingQuality) {
+    public void incr(final BaseIndex base, final byte qual, final int mappingQuality, final boolean isSoftclip) {
         switch (base) {
             case A: ++count_A; sumQual_A += qual; break;
             case C: ++count_C; sumQual_C += qual; break;
@@ -137,6 +140,7 @@ import org.broadinstitute.sting.utils.MathUtils;
             case N: ++count_N; sumQual_N += qual; break;
         }
         ++totalCount;
+        nSoftClippedBases += isSoftclip ? 1 : 0;
         mappingQualities.add(mappingQuality);
     }
 
@@ -159,7 +163,7 @@ import org.broadinstitute.sting.utils.MathUtils;
     }
 
     @Ensures("totalCount() == old(totalCount()) || totalCount() == old(totalCount()) - 1")
-    public void decr(final BaseIndex base, final byte qual, final int mappingQuality) {
+    public void decr(final BaseIndex base, final byte qual, final int mappingQuality, final boolean isSoftclip) {
         switch (base) {
             case A: --count_A; sumQual_A -= qual; break;
             case C: --count_C; sumQual_C -= qual; break;
@@ -170,6 +174,7 @@ import org.broadinstitute.sting.utils.MathUtils;
             case N: --count_N; sumQual_N -= qual; break;
         }
         --totalCount;
+        nSoftClippedBases -= isSoftclip ? 1 : 0;
         mappingQualities.remove((Integer) mappingQuality);
     }
 
@@ -231,6 +236,10 @@ import org.broadinstitute.sting.utils.MathUtils;
         return (byte) (sumQualsOfBase(base) / countOfBase(base));
     }
 
+    @Ensures("result >= 0")
+    public int nSoftclips() {
+        return nSoftClippedBases;
+    }
 
     @Ensures("result >= 0")
     public int totalCount() {
@@ -281,22 +290,42 @@ import org.broadinstitute.sting.utils.MathUtils;
         return baseIndexWithMostCounts().getByte();
     }
 
+    /**
+     * @return the base index for which the count is highest, including indel indexes
+     */
     @Ensures("result != null")
     public BaseIndex baseIndexWithMostCounts() {
-        BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
-        for (final BaseIndex i : BaseIndex.values()) {
-            if (countOfBase(i) > countOfBase(maxI))
-                maxI = i;
-        }
-        return maxI;
+        return baseIndexWithMostCounts(true);
     }
 
+    /**
+     * @return the base index for which the count is highest, excluding indel indexes
+     */
     @Ensures("result != null")
     public BaseIndex baseIndexWithMostCountsWithoutIndels() {
+        return baseIndexWithMostCounts(false);
+    }
+
+    /**
+     * Finds the base index with the most counts
+     *
+     * @param allowIndels    should we allow base indexes representing indels?
+     * @return non-null base index
+     */
+    @Ensures("result != null")
+    protected BaseIndex baseIndexWithMostCounts(final boolean allowIndels) {
         BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
+        int maxCount = countOfBase(maxI);
+
         for (final BaseIndex i : BaseIndex.values()) {
-            if (i.isNucleotide() && countOfBase(i) > countOfBase(maxI))
+            if ( !allowIndels && !i.isNucleotide() )
+                continue;
+
+            final int myCount = countOfBase(i);
+            if (myCount > maxCount) {
                 maxI = i;
+                maxCount = myCount;
+            }
         }
         return maxI;
     }
@@ -307,22 +336,36 @@ import org.broadinstitute.sting.utils.MathUtils;
 
     @Ensures("result != null")
     public BaseIndex baseIndexWithMostProbability() {
-        BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
-        for (final BaseIndex i : BaseIndex.values()) {
-            if (getSumQuals(i) > getSumQuals(maxI))
-                maxI = i;
-        }
-        return (getSumQuals(maxI) > 0L ? maxI : baseIndexWithMostCounts());
+        return baseIndexWithMostProbability(true);
     }
 
     @Ensures("result != null")
     public BaseIndex baseIndexWithMostProbabilityWithoutIndels() {
+        return baseIndexWithMostProbability(false);
+    }
+
+    /**
+     * Finds the base index with the most probability
+     *
+     * @param allowIndels    should we allow base indexes representing indels?
+     * @return non-null base index
+     */
+    @Ensures("result != null")
+    public BaseIndex baseIndexWithMostProbability(final boolean allowIndels) {
         BaseIndex maxI = MAX_BASE_INDEX_WITH_NO_COUNTS;
+        long maxSum = getSumQuals(maxI);
+
         for (final BaseIndex i : BaseIndex.values()) {
-            if (i.isNucleotide() && getSumQuals(i) > getSumQuals(maxI))
+            if ( !allowIndels && !i.isNucleotide() )
+                continue;
+
+            final long mySum = getSumQuals(i);
+            if (mySum > maxSum) {
                 maxI = i;
+                maxSum = mySum;
+            }
         }
-        return (getSumQuals(maxI) > 0L ? maxI : baseIndexWithMostCountsWithoutIndels());
+        return (maxSum > 0L ? maxI : baseIndexWithMostCounts(allowIndels));
     }
 
     @Ensures("result >=0")
@@ -362,6 +405,7 @@ import org.broadinstitute.sting.utils.MathUtils;
         count_A = count_C = count_G = count_T = count_D = count_I = count_N = 0;
         sumQual_A = sumQual_C = sumQual_G = sumQual_T = sumQual_D = sumQual_I = sumQual_N = 0;
         totalCount = 0;
+        nSoftClippedBases = 0;
         mappingQualities.clear();
     }
 }

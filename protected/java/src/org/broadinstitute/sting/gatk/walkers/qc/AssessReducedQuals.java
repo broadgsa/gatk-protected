@@ -102,6 +102,9 @@ public class AssessReducedQuals extends LocusWalker<GenomeLoc, GenomeLoc> implem
     @Argument(fullName = "qual_epsilon", shortName = "epsilon", doc = "when |Quals_reduced_bam - Quals_original_bam| > (epsilon * Quals_original_bam) we output this interval", required = false)
     public double qual_epsilon = 0.10;
 
+    @Argument(fullName = "exclude_low_mq", shortName = "excludeMQ", doc = "ignore reads with mapping quality below this number", required = false)
+    public int excludeMQ = 0;
+
     @Output
     protected PrintStream out;
 
@@ -146,7 +149,7 @@ public class AssessReducedQuals extends LocusWalker<GenomeLoc, GenomeLoc> implem
     }
 
     private boolean isGoodRead(final PileupElement p) {
-        return !p.isDeletion() && (int)p.getQual() >= 15 && p.getMappingQual() >= 20;
+        return !p.isDeletion() && (int)p.getQual() >= 15 && p.getMappingQual() >= excludeMQ;
     }
 
     private int getTagIndex(final List<String> tags) {

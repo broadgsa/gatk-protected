@@ -205,15 +205,17 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
 
     /**
      * Minimum proportion of mismatches in a site to trigger a variant region. Anything below this will be
-     * considered consensus.
+     * considered consensus and reduced (otherwise we will try to trigger polyploid compression).  Note that
+     * this value is used only regions with high coverage.
      */
-    @Deprecated
+    @Advanced
     @Argument(fullName = "minimum_alt_proportion_to_trigger_variant", shortName = "minvar", doc = "", required = false)
     public double minAltProportionToTriggerVariant = 0.05;
 
     /**
      * Minimum p-value from binomial distribution of mismatches in a site to trigger a variant region.
-     * Any site with a value falling below this will be considered consensus and reduced (otherwise we will try to trigger polyploid compression).
+     * Any site with a value falling below this will be considered consensus and reduced (otherwise we will try to
+     * trigger polyploid compression).  Note that this value is used only regions with low coverage.
      */
     @Advanced
     @Argument(fullName = "minimum_alt_pvalue_to_trigger_variant", shortName = "min_pvalue", doc = "", required = false)
@@ -287,6 +289,9 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
 
         if ( minAltPValueToTriggerVariant < 0.0 || minAltPValueToTriggerVariant > 1.0 )
             throw new UserException.BadArgumentValue("--minimum_alt_pvalue_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
+
+        if ( minAltProportionToTriggerVariant < 0.0 || minAltProportionToTriggerVariant > 1.0 )
+            throw new UserException.BadArgumentValue("--minimum_alt_proportion_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
 
         if ( known.isEmpty() )
             knownSnpPositions = null;
@@ -412,7 +417,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      */
     @Override
     public ReduceReadsStash reduceInit() {
-        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltPValueToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
+        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltPValueToTriggerVariant, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
     }
 
     /**

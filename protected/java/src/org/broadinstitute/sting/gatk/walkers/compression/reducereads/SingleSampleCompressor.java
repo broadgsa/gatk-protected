@@ -63,6 +63,7 @@ public class SingleSampleCompressor {
     final private int downsampleCoverage;
     final private int minMappingQuality;
     final private double minAltPValueToTriggerVariant;
+    final private double minAltProportionToTriggerVariant;
     final private double minIndelProportionToTriggerVariant;
     final private int minBaseQual;
     final private ReduceReads.DownsampleStrategy downsampleStrategy;
@@ -76,6 +77,7 @@ public class SingleSampleCompressor {
                                   final int downsampleCoverage,
                                   final int minMappingQuality,
                                   final double minAltPValueToTriggerVariant,
+                                  final double minAltProportionToTriggerVariant,
                                   final double minIndelProportionToTriggerVariant,
                                   final int minBaseQual,
                                   final ReduceReads.DownsampleStrategy downsampleStrategy) {
@@ -84,6 +86,7 @@ public class SingleSampleCompressor {
         this.minMappingQuality = minMappingQuality;
         this.slidingWindowCounter = 0;
         this.minAltPValueToTriggerVariant = minAltPValueToTriggerVariant;
+        this.minAltProportionToTriggerVariant = minAltProportionToTriggerVariant;
         this.minIndelProportionToTriggerVariant = minIndelProportionToTriggerVariant;
         this.minBaseQual = minBaseQual;
         this.downsampleStrategy = downsampleStrategy;
@@ -114,7 +117,9 @@ public class SingleSampleCompressor {
         }
 
         if ( slidingWindow == null) {                                                  // this is the first read
-            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltPValueToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities());
+            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(),
+                    slidingWindowCounter, minAltPValueToTriggerVariant, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant,
+                    minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities());
             slidingWindowCounter++;
         }
 
