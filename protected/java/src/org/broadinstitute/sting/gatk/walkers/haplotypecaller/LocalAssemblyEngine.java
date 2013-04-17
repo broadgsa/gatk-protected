@@ -60,7 +60,7 @@ import java.util.List;
  * Date: Mar 14, 2011
  */
 public abstract class LocalAssemblyEngine {
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 16;
+    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 8;
 
     protected PrintStream graphWriter = null;
     protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
