@@ -49,8 +49,8 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import scala.actors.threadpool.Arrays;
 
 import java.io.File;
 import java.util.*;

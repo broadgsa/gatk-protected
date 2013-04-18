@@ -46,105 +46,58 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
+import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.Utils;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
-/**
- * A DeBruijn kmer graph
- *
- * User: rpoplin
- * Date: 2/6/13
- */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
-        }
-    }
+public class MultiSampleEdgeUnitTest extends BaseTest {
+    @DataProvider(name = "MultiplicityData")
+    public Object[][] makeMultiplicityData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
 
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
-    }
-
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
-
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+        final List<Integer> countsPerSample = Arrays.asList(0, 1, 2, 3, 4, 5);
+        for ( final int nSamples : Arrays.asList(1, 2, 3, 4, 5)) {
+            for ( final List<Integer> perm : Utils.makePermutations(countsPerSample, nSamples, false) ) {
+                tests.add(new Object[]{perm});
+            }
         }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
+        return tests.toArray(new Object[][]{});
+    }
+
+    /**
+     * Example testng test using MyDataProvider
+     */
+    @Test(dataProvider = "MultiplicityData")
+    public void testMultiplicity(final List<Integer> countsPerSample) {
+        final MultiSampleEdge edge = new MultiSampleEdge(false, 0);
+        Assert.assertEquals(edge.getMultiplicity(), 0);
+        Assert.assertEquals(edge.getPruningMultiplicity(), 0);
+
+        int total = 0;
+        for ( int i = 0; i < countsPerSample.size(); i++ ) {
+            int countForSample = 0;
+            for ( int count = 0; count < countsPerSample.get(i); count++ ) {
+                edge.incMultiplicity(1);
+                total++;
+                countForSample++;
+                Assert.assertEquals(edge.getMultiplicity(), total);
+                Assert.assertEquals(edge.getCurrentSingleSampleMultiplicity(), countForSample);
+            }
+            edge.flushSingleSampleMultiplicity();
         }
 
-        return seqGraph;
+        final int max = MathUtils.arrayMax(ArrayUtils.toPrimitive(countsPerSample.toArray(new Integer[countsPerSample.size()])));
+        Assert.assertEquals(edge.getMultiplicity(), total);
+        Assert.assertEquals(edge.getPruningMultiplicity(), max);
+        Assert.assertEquals(edge.getMaxSingleSampleMultiplicity(), max);
     }
 }

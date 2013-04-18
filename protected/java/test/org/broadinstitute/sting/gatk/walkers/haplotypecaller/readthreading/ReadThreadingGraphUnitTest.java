@@ -44,107 +44,148 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Kmer;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.MultiSampleEdge;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.File;
+import java.util.*;
 
-/**
- * A DeBruijn kmer graph
- *
- * User: rpoplin
- * Date: 2/6/13
- */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
+public class ReadThreadingGraphUnitTest extends BaseTest {
+    private final static boolean DEBUG = false;
+
+    public static byte[] getBytes(final String alignment) {
+        return alignment.replace("-","").getBytes();
+    }
+
+    private void assertNonUniques(final ReadThreadingGraph assembler, String ... nonUniques) {
+        final Set<String> actual = new HashSet<>();
+        assembler.buildGraphIfNecessary();
+        for ( final Kmer kmer : assembler.getNonUniqueKmers() ) actual.add(kmer.baseString());
+        final Set<String> expected = new HashSet<>(Arrays.asList(nonUniques));
+        Assert.assertEquals(actual, expected);
+    }
+
+    @Test(enabled = ! DEBUG)
+    public void testNonUniqueMiddle() {
+        final ReadThreadingGraph assembler = new ReadThreadingGraph(3);
+        final String ref   = "GACACACAGTCA";
+        final String read1 = "GACAC---GTCA";
+        final String read2 =   "CAC---GTCA";
+        assembler.addSequence(getBytes(ref), true);
+        assembler.addSequence(getBytes(read1), false);
+        assembler.addSequence(getBytes(read2), false);
+        assertNonUniques(assembler, "ACA", "CAC");
+    }
+
+    @Test(enabled = ! DEBUG)
+    public void testReadsCreateNonUnique() {
+        final ReadThreadingGraph assembler = new ReadThreadingGraph(3);
+        final String ref   = "GCAC--GTCA"; // CAC is unique
+        final String read1 = "GCACACGTCA"; // makes CAC non unique because it has a duplication
+        final String read2 =    "CACGTCA"; // shouldn't be allowed to match CAC as start
+        assembler.addSequence(getBytes(ref), true);
+        assembler.addSequence(getBytes(read1), false);
+        assembler.addSequence(getBytes(read2), false);
+//        assembler.convertToSequenceGraph().printGraph(new File("test.dot"), 0);
+
+        assertNonUniques(assembler, "CAC");
+        //assertSingleBubble(assembler, ref, "CAAAATCGGG");
+    }
+
+    @Test(enabled = ! DEBUG)
+         public void testCountingOfStartEdges() {
+        final ReadThreadingGraph assembler = new ReadThreadingGraph(3);
+        final String ref   = "NNNGTCAAA"; // ref has some bases before start
+        final String read1 =    "GTCAAA"; // starts at first non N base
+
+        assembler.addSequence(getBytes(ref), true);
+        assembler.addSequence(getBytes(read1), false);
+        assembler.buildGraphIfNecessary();
+//        assembler.printGraph(new File("test.dot"), 0);
+
+        for ( final MultiSampleEdge edge : assembler.edgeSet() ) {
+            final MultiDeBruijnVertex source = assembler.getEdgeSource(edge);
+            final MultiDeBruijnVertex target = assembler.getEdgeTarget(edge);
+            final boolean headerVertex = source.getSuffix() == 'N' || target.getSuffix() == 'N';
+            if ( headerVertex ) {
+                Assert.assertEquals(edge.getMultiplicity(), 1, "Bases in the unique reference header should have multiplicity of 1");
+            } else {
+                Assert.assertEquals(edge.getMultiplicity(), 2, "Should have multiplicity of 2 for any edge outside the ref header but got " + edge + " " + source + " -> " + target);
+            }
         }
     }
 
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
-    }
+    @Test(enabled = !DEBUG)
+    public void testCountingOfStartEdgesWithMultiplePrefixes() {
+        final ReadThreadingGraph assembler = new ReadThreadingGraph(3);
+        assembler.increaseCountsThroughBranches = true;
+        final String ref   = "NNNGTCAXX"; // ref has some bases before start
+        final String alt1  = "NNNCTCAXX"; // alt1 has SNP right after N
+        final String read  =     "TCAXX"; // starts right after SNP, but merges right before branch
 
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
+        assembler.addSequence(getBytes(ref), true);
+        assembler.addSequence(getBytes(alt1), false);
+        assembler.addSequence(getBytes(read), false);
+        assembler.buildGraphIfNecessary();
+        assembler.printGraph(new File("test.dot"), 0);
 
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
+        final List<String> oneCountVertices = Arrays.asList("NNN", "NNG", "NNC", "NGT", "NCT");
+        final List<String> threeCountVertices = Arrays.asList("CAX", "AXX");
+
+        for ( final MultiSampleEdge edge : assembler.edgeSet() ) {
+            final MultiDeBruijnVertex source = assembler.getEdgeSource(edge);
+            final MultiDeBruijnVertex target = assembler.getEdgeTarget(edge);
+            final int expected = oneCountVertices.contains(target.getSequenceString()) ? 1 : (threeCountVertices.contains(target.getSequenceString()) ? 3 : 2);
+            Assert.assertEquals(edge.getMultiplicity(), expected, "Bases at edge " + edge + " from " + source + " to " + target + " has bad multiplicity");
         }
     }
 
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+    // TODO -- update to use determineKmerSizeAndNonUniques directly
+//    @DataProvider(name = "KmerSizeData")
+//    public Object[][] makeKmerSizeDataProvider() {
+//        List<Object[]> tests = new ArrayList<Object[]>();
+//
+//        // this functionality can be adapted to provide input data for whatever you might want in your data
+//        tests.add(new Object[]{3, 3, 3, Arrays.asList("ACG"), Arrays.asList()});
+//        tests.add(new Object[]{3, 4, 3, Arrays.asList("CAGACG"), Arrays.asList()});
+//
+//        tests.add(new Object[]{3, 3, 3, Arrays.asList("AAAAC"), Arrays.asList("AAA")});
+//        tests.add(new Object[]{3, 4, 4, Arrays.asList("AAAAC"), Arrays.asList()});
+//        tests.add(new Object[]{3, 5, 4, Arrays.asList("AAAAC"), Arrays.asList()});
+//        tests.add(new Object[]{3, 4, 3, Arrays.asList("CAAA"), Arrays.asList()});
+//        tests.add(new Object[]{3, 4, 4, Arrays.asList("CAAAA"), Arrays.asList()});
+//        tests.add(new Object[]{3, 5, 4, Arrays.asList("CAAAA"), Arrays.asList()});
+//        tests.add(new Object[]{3, 5, 5, Arrays.asList("ACGAAAAACG"), Arrays.asList()});
+//
+//        for ( int maxSize = 3; maxSize < 20; maxSize++ ) {
+//            for ( int dupSize = 3; dupSize < 20; dupSize++ ) {
+//                final int expectedSize = Math.min(maxSize, dupSize);
+//                final String dup = Utils.dupString("C", dupSize);
+//                final List<String> nonUnique = dupSize > maxSize ? Arrays.asList(Utils.dupString("C", maxSize)) : Collections.<String>emptyList();
+//                tests.add(new Object[]{3, maxSize, expectedSize, Arrays.asList("ACGT", "A" + dup + "GT"), nonUnique});
+//                tests.add(new Object[]{3, maxSize, expectedSize, Arrays.asList("A" + dup + "GT", "ACGT"), nonUnique});
+//            }
+//        }
+//
+//        return tests.toArray(new Object[][]{});
+//    }
+//
+//    /**
+//     * Example testng test using MyDataProvider
+//     */
+//    @Test(dataProvider = "KmerSizeData")
+//    public void testDynamicKmerSizing(final int min, final int max, final int expectKmer, final List<String> seqs, final List<String> expectedNonUniques) {
+//        final ReadThreadingGraph assembler = new ReadThreadingGraph(min, max);
+//        for ( String seq : seqs ) assembler.addSequence(seq.getBytes(), false);
+//        assembler.buildGraphIfNecessary();
+//        Assert.assertEquals(assembler.getKmerSize(), expectKmer);
+//        assertNonUniques(assembler, expectedNonUniques.toArray(new String[]{}));
+//    }
 
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
 
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
-        }
-
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
-
-        return seqGraph;
-    }
 }

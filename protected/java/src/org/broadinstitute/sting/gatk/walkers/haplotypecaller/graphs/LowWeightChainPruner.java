@@ -46,105 +46,125 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
- * A DeBruijn kmer graph
+ /**
+ * Prune all chains from this graph where all edges in the path have multiplicity <= pruneFactor
  *
- * User: rpoplin
- * Date: 2/6/13
+ * Unlike pruneGraph, this function will remove only linear chains in the graph where all edges have weight <= pruneFactor.
+ *
+ * For A -[1]> B -[1]> C -[1]> D would be removed with pruneFactor 1
+ * but A -[1]> B -[2]> C -[1]> D would not be because the linear chain includes an edge with weight >= 2
+ *
+ * User: depristo
+ * Date: 5/2/13
+ * Time: 10:38 AM
  */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
+public class LowWeightChainPruner<V extends BaseVertex, E extends BaseEdge> {
+    private final int pruneFactor;
+
+    public LowWeightChainPruner(int pruneFactor) {
+        if ( pruneFactor < 0 ) throw new IllegalArgumentException("pruneFactor must be >= 0 but got " + pruneFactor);
+        this.pruneFactor = pruneFactor;
+    }
+
     /**
-     * Edge factory that creates non-reference multiplicity 1 edges
+     * Prune graph
+     * @param graph the graph to prune
      */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
+    public void pruneLowWeightChains(final BaseGraph<V,E> graph) {
+        if ( graph == null ) throw new IllegalArgumentException("Graph cannot be null");
+
+        if ( pruneFactor > 0 ) {
+            final Set<E> edgesToKeep = new LinkedHashSet<>();
+
+            for ( final Path<V,E> linearChain : getLinearChains(graph) ) {
+                if( mustBeKeep(linearChain, pruneFactor) ) {
+                    // we must keep edges in any path that contains a reference edge or an edge with weight > pruneFactor
+                    edgesToKeep.addAll(linearChain.getEdges());
+                }
+            }
+
+            // we want to remove all edges not in the keep set
+            final Set<E> edgesToRemove = new HashSet<>(graph.edgeSet());
+            edgesToRemove.removeAll(edgesToKeep);
+            graph.removeAllEdges(edgesToRemove);
+
+            graph.removeSingletonOrphanVertices();
         }
     }
 
     /**
-     * Create an empty DeBruijnGraph with default kmer size
+     * Get the maximum pruning multiplicity seen on any edge in this graph
+     * @return an integer > 0
      */
-    public DeBruijnGraph() {
-        this(11);
-    }
-
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
+    private boolean mustBeKeep(final Path<V,E> path, final int pruneFactor) {
+        for ( final E edge : path.getEdges() ) {
+            if ( edge.getPruningMultiplicity() >= pruneFactor || edge.isRef() )
+                return true;
         }
+        return false;
     }
 
     /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
+     * Get all of the linear chains in graph
      *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
+     * A linear chain is a series of vertices that start from either a source of a vertex with
+     * out-degree > 1 and extend through all vertices accessible via an outgoing edge from this
+     * vertex that have in == 1 and out degree of 0 or 1.
      *
-     * @return a newly allocated SequenceGraph
+     * @param graph the graph
+     * @return a non-null collection of paths in graph
      */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+    protected final Collection<Path<V,E>> getLinearChains(final BaseGraph<V,E> graph) {
+        final Set<V> chainStarts = new LinkedHashSet<>();
 
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+        for ( final V v : graph.vertexSet() ) {
+            // we want a list of all chain start vertices.  These are all vertices with out
+            // degree > 1, or all source vertices.
+            final int outDegree = graph.outDegreeOf(v);
+            final int inDegree = graph.inDegreeOf(v);
+            if ( outDegree > 1 || inDegree > 1 || (inDegree == 0 && outDegree > 0)) // don't add isolated vertices
+                chainStarts.add(v);
         }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
+        // must be after since we can add duplicate starts in the above finding algorithm
+        final List<Path<V, E>> linearChains = new LinkedList<>();
+        for ( final V chainStart : chainStarts ) {
+            for ( final E outEdge : graph.outgoingEdgesOf(chainStart) ) {
+                // these chains are composed of the starts + their next vertices
+                linearChains.add(extendLinearChain(new Path<>(new Path<>(chainStart, graph), outEdge)));
+            }
         }
 
-        return seqGraph;
+        return linearChains;
+    }
+
+    /**
+     * Extend path while the last vertex has in and out degrees of 1 or 0
+     * @param path the path to extend
+     * @return a fully extended linear path
+     */
+    protected final Path<V,E> extendLinearChain(final Path<V, E> path) {
+        final V last = path.getLastVertex();
+        final Set<E> outEdges = path.getGraph().outgoingEdgesOf(last);
+
+        final int outDegree = outEdges.size();
+        final int inDegree = path.getGraph().inDegreeOf(last);
+
+        if ( outDegree != 1 || inDegree > 1 ) {
+            // out next vertex has multiple outgoing edges, so we are done with the linear path
+            return path;
+        } else {
+            final V next = path.getGraph().getEdgeTarget(outEdges.iterator().next());
+            if ( path.containsVertex(next) ) {
+                // we are done if the path contains a cycle
+                return path;
+            } else {
+                // we now know that last has outdegree == 1, so we keep extending the chain
+                return extendLinearChain(new Path<>(path, outEdges.iterator().next()));
+            }
+        }
     }
 }

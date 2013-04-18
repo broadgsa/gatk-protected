@@ -46,105 +46,78 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * A DeBruijn kmer graph
+ * edge class for connecting nodes in the graph that tracks some per-sample information
  *
- * User: rpoplin
- * Date: 2/6/13
+ * This class extends BaseEdge with the additional functionality of tracking the maximum
+ * multiplicity seen within any single sample.  The workflow for using this class is:
+ *
+ * MultiSampleEdge e = new MultiSampleEdge(ref, 1)
+ * e.incMultiplicity(1)              // total is 2, per sample is 2, max per sample is 1
+ * e.getPruningMultiplicity()        // = 1
+ * e.flushSingleSampleMultiplicity() // total is 2, per sample is 0, max per sample is 2
+ * e.getPruningMultiplicity()        // = 2
+ * e.incMultiplicity(3)              // total is 5, per sample is 3, max per sample is 2
+ * e.getPruningMultiplicity()        // = 2
+ * e.flushSingleSampleMultiplicity() // total is 5, per sample is 0, max per sample is 3
+ * e.getPruningMultiplicity()        // = 3
  */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
-        }
-    }
+public class MultiSampleEdge extends BaseEdge {
+    private int maxSingleSampleMultiplicity, currentSingleSampleMultiplicity;
 
     /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
-    }
-
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
-
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
+     * Create a new MultiSampleEdge with weight multiplicity and, if isRef == true, indicates a path through the reference
      *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
+     * @param isRef indicates whether this edge is a path through the reference
+     * @param multiplicity the number of observations of this edge in this sample
      */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+    public MultiSampleEdge(final boolean isRef, final int multiplicity) {
+        super(isRef, multiplicity);
+        maxSingleSampleMultiplicity = multiplicity;
+        currentSingleSampleMultiplicity = multiplicity;
+    }
 
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
-        }
+    @Override
+    public MultiSampleEdge copy() {
+        return new MultiSampleEdge(isRef(), getMultiplicity()); // TODO -- should I copy values for other features?
+    }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
+    /**
+     * update the max single sample multiplicity based on the current single sample multiplicity, and
+     * reset the current single sample multiplicity to 0.
+     */
+    public void flushSingleSampleMultiplicity() {
+        if ( currentSingleSampleMultiplicity > maxSingleSampleMultiplicity )
+            maxSingleSampleMultiplicity = currentSingleSampleMultiplicity;
+        currentSingleSampleMultiplicity = 0;
+    }
 
-        return seqGraph;
+    @Override
+    public void incMultiplicity(final int incr) {
+        super.incMultiplicity(incr);
+        currentSingleSampleMultiplicity += incr;
+    }
+
+    @Override
+    public int getPruningMultiplicity() {
+        return getMaxSingleSampleMultiplicity();
+    }
+
+    @Override
+    public String getDotLabel() {
+        return super.getDotLabel() + "/" + getMaxSingleSampleMultiplicity();
+    }
+
+    /**
+     * Get the maximum multiplicity for this edge seen in any single sample
+     * @return an integer >= 0
+     */
+    public int getMaxSingleSampleMultiplicity() {
+        return maxSingleSampleMultiplicity;
+    }
+
+    /** only provided for testing purposes */
+    protected int getCurrentSingleSampleMultiplicity() {
+        return currentSingleSampleMultiplicity;
     }
 }

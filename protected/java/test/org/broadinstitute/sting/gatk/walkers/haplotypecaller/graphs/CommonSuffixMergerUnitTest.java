@@ -137,12 +137,12 @@ public class CommonSuffixMergerUnitTest extends BaseTest {
     public static void assertSameHaplotypes(final String name, final SeqGraph actual, final SeqGraph original) {
         try {
             final Set<String> haplotypes = new HashSet<String>();
-            final List<Path<SeqVertex>> originalPaths = new KBestPaths<SeqVertex>().getKBestPaths(original);
-            for ( final Path<SeqVertex> path : originalPaths )
+            final List<Path<SeqVertex,BaseEdge>> originalPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(original);
+            for ( final Path<SeqVertex,BaseEdge> path : originalPaths )
                 haplotypes.add(new String(path.getBases()));
 
-            final List<Path<SeqVertex>> splitPaths = new KBestPaths<SeqVertex>().getKBestPaths(actual);
-            for ( final Path<SeqVertex> path : splitPaths ) {
+            final List<Path<SeqVertex,BaseEdge>> splitPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(actual);
+            for ( final Path<SeqVertex,BaseEdge> path : splitPaths ) {
                 final String h = new String(path.getBases());
                 Assert.assertTrue(haplotypes.contains(h), "Failed to find haplotype " + h);
             }

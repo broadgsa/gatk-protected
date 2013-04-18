@@ -44,107 +44,119 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
+import org.apache.log4j.Logger;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.LocalAssemblyEngine;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
+import java.io.File;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 
-/**
- * A DeBruijn kmer graph
- *
- * User: rpoplin
- * Date: 2/6/13
- */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
-        }
+public class ReadThreadingAssembler extends LocalAssemblyEngine {
+    private final static Logger logger = Logger.getLogger(ReadThreadingAssembler.class);
+
+    private final static int DEFAULT_NUM_PATHS_PER_GRAPH = 128;
+
+    /** The min and max kmer sizes to try when building the graph. */
+    private final List<Integer> kmerSizes;
+    private final int maxAllowedPathsForReadThreadingAssembler;
+
+    private boolean requireReasonableNumberOfPaths = false;
+    protected boolean removePathsNotConnectedToRef = true;
+    private boolean justReturnRawGraph = false;
+
+    /** for testing only */
+    public ReadThreadingAssembler() {
+        this(DEFAULT_NUM_PATHS_PER_GRAPH, Arrays.asList(25));
     }
 
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
+    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes) {
+        super(maxAllowedPathsForReadThreadingAssembler);
+        this.kmerSizes = kmerSizes;
+        this.maxAllowedPathsForReadThreadingAssembler = maxAllowedPathsForReadThreadingAssembler;
     }
 
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
+    /** for testing purposes */
+    protected void setJustReturnRawGraph(boolean justReturnRawGraph) {
+        this.justReturnRawGraph = justReturnRawGraph;
     }
 
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
+    @Override
+    public List<SeqGraph> assemble( final List<GATKSAMRecord> reads, final Haplotype refHaplotype) {
+        final List<SeqGraph> graphs = new LinkedList<>();
 
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+        for ( final int kmerSize : kmerSizes ) {
+            final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly);
 
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
+            // add the reference sequence to the graph
+            rtgraph.addSequence("ref", refHaplotype.getBases(), null, true);
 
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
+            // Next pull kmers out of every read and throw them on the graph
+            for( final GATKSAMRecord read : reads ) {
+                rtgraph.addRead(read);
+            }
 
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+            // actually build the read threading graph
+            rtgraph.buildGraphIfNecessary();
+            if ( debugGraphTransformations ) rtgraph.printGraph(new File("sequenceGraph.0.0.raw_readthreading_graph.dot"), pruneFactor);
 
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+            // go through and prune all of the chains where all edges have <= pruneFactor.  This must occur
+            // before recoverDanglingTails in the graph, so that we don't spend a ton of time recovering
+            // tails that we'll ultimately just trim away anyway, as the dangling tail edges have weight of 1
+            rtgraph.pruneLowWeightChains(pruneFactor);
+
+            // look at all chains in the graph that terminate in a non-ref node (dangling sinks) and see if
+            // we can recover them by merging some N bases from the chain back into the reference uniquely, for
+            // N < kmerSize
+            if ( recoverDanglingTails ) rtgraph.recoverDanglingTails();
+
+            // remove all heading and trailing paths
+            if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();
+
+            if ( debugGraphTransformations ) rtgraph.printGraph(new File("sequenceGraph.0.1.cleaned_readthreading_graph.dot"), pruneFactor);
+
+            final SeqGraph initialSeqGraph = rtgraph.convertToSequenceGraph();
+
+            // if the unit tests don't want us to cleanup the graph, just return the raw sequence graph
+            if ( justReturnRawGraph ) return Collections.singletonList(initialSeqGraph);
+
+            if ( debug ) logger.info("Using kmer size of " + rtgraph.getKmerSize() + " in read threading assembler");
+            if ( debugGraphTransformations ) initialSeqGraph.printGraph(new File("sequenceGraph.0.2.initial_seqgraph.dot"), pruneFactor);
+            initialSeqGraph.cleanNonRefPaths(); // TODO -- I don't this is possible by construction
+
+            final SeqGraph seqGraph = cleanupSeqGraph(initialSeqGraph);
+            if ( seqGraph != null ) {
+                if ( ! requireReasonableNumberOfPaths || reasonableNumberOfPaths(seqGraph) ) {
+                    graphs.add(seqGraph);
+                }
+            }
         }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
+        return graphs;
+    }
 
-        return seqGraph;
+    /**
+     * Did we find a reasonable number of paths in this graph?
+     * @param graph
+     * @return
+     */
+    private boolean reasonableNumberOfPaths(final SeqGraph graph) {
+        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<SeqVertex,BaseEdge>(false);
+        final List<Path<SeqVertex,BaseEdge>> allPaths = pathFinder.getKBestPaths(graph, 100000);
+        logger.info("Found " + allPaths.size() + " paths through " + graph + " with maximum " + maxAllowedPathsForReadThreadingAssembler);
+        return allPaths.size() <= maxAllowedPathsForReadThreadingAssembler;
+    }
+
+    @Override
+    public String toString() {
+        return "ReadThreadingAssembler{" +
+                "kmerSizes=" + kmerSizes +
+                '}';
     }
 }

@@ -44,107 +44,50 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
-
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
 /**
- * A DeBruijn kmer graph
+ * Keeps track of the information needed to add a sequence to the read threading assembly graph
  *
- * User: rpoplin
- * Date: 2/6/13
+ * User: depristo
+ * Date: 4/18/13
+ * Time: 8:59 AM
+ * To change this template use File | Settings | File Templates.
  */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
+final class SequenceForKmers {
+    final String name;
+    final byte[] sequence;
+    final int start, stop;
+    final private int[] counts;
+    final boolean isRef;
+
     /**
-     * Edge factory that creates non-reference multiplicity 1 edges
+     * Create a new sequence for creating kmers
      */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
-        }
+    SequenceForKmers(final String name, byte[] sequence, int start, int stop, int[] counts, boolean ref) {
+        if ( start < 0 ) throw new IllegalArgumentException("Invalid start " + start);
+        if ( stop < start ) throw new IllegalArgumentException("Invalid stop " + stop);
+        if ( sequence == null ) throw new IllegalArgumentException("Sequence is null ");
+        if ( counts != null && counts.length != sequence.length ) throw new IllegalArgumentException("Sequence and counts don't have the same length " + sequence.length + " vs " + counts.length);
+
+        this.name = name;
+        this.sequence = sequence;
+        this.start = start;
+        this.stop = stop;
+        this.isRef = ref;
+        this.counts = counts;
     }
 
     /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
-    }
-
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
-
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
+     * Get the number of observations of the kmer starting at i in this sequence
      *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
+     * Can we > 1 because sequence may be a reduced read and therefore count as N observations
      *
-     * @return a newly allocated SequenceGraph
+     * @param i the offset into sequence for the start of the kmer
+     * @return a count >= 1 that indicates the number of observations of kmer starting at i in this sequence.
      */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
-        }
-
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
-
-        return seqGraph;
+    public int getCount(final int i) {
+        if ( i < 0 || i > sequence.length ) throw new ArrayIndexOutOfBoundsException("i must be >= 0 and <= " + sequence.length + " but got " + i);
+        return counts == null ? 1 : counts[i];
     }
 }

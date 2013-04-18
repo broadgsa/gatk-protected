@@ -154,16 +154,16 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
         original.addEdge(v3, v4, new BaseEdge(false, 34));
         original.addEdge(v4, v2, new BaseEdge(false, 42));
 
-        original.printGraph(new File("testSplitInfiniteCycleFailure.dot"), 0);
+//        original.printGraph(new File("testSplitInfiniteCycleFailure.dot"), 0);
 
         final SeqGraph graph = (SeqGraph)original.clone();
         final boolean success = new CommonSuffixSplitter().split(graph, v2);
         Assert.assertTrue(success);
 
         for ( final SeqVertex v : graph.vertexSet() ) {
-            graph.printGraph(new File("testSplitInfiniteCycleFailure.first_split.dot"), 0);
+//            graph.printGraph(new File("testSplitInfiniteCycleFailure.first_split.dot"), 0);
             final boolean success2 = new CommonSuffixSplitter().split((SeqGraph)graph.clone(), v);
-            if ( success2 ) graph.printGraph(new File("testSplitInfiniteCycleFailure.fail.dot"), 0);
+//            if ( success2 ) graph.printGraph(new File("testSplitInfiniteCycleFailure.fail.dot"), 0);
             Assert.assertFalse(success2, "Shouldn't be able to split any vertices but CommonSuffixSplitter says it could for " + v);
         }
     }

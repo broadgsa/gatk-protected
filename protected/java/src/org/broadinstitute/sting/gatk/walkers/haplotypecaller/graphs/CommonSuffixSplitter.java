@@ -126,10 +126,10 @@ public class CommonSuffixSplitter {
                         edgesToRemove.add(out);
                     }
 
-                    graph.addEdge(suffixV, graph.getEdgeTarget(out), new BaseEdge(out));
+                    graph.addEdge(suffixV, graph.getEdgeTarget(out), out.copy());
 
                     for ( final BaseEdge in : graph.incomingEdgesOf(mid) ) {
-                        graph.addEdge(graph.getEdgeSource(in), incomingTarget, new BaseEdge(in));
+                        graph.addEdge(graph.getEdgeSource(in), incomingTarget, in.copy());
                         edgesToRemove.add(in);
                     }
                 }
