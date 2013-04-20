@@ -152,11 +152,14 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
     @Argument(fullName = "print_debug_log", shortName = "dl", doc = "Used only for debugging the walker. Prints extra info to screen", required = false)
     private boolean debug = false;
 
-    private HashMap<GenomeLoc, IntervalStatistics> intervalMap = null;                                                  // maps each interval => statistics
-    private PeekableIterator<GenomeLoc> intervalListIterator;                                                           // an iterator to go over all the intervals provided as we traverse the genome
-    private Set<String> samples = null;                                                                                 // all the samples being processed
-    private final Allele SYMBOLIC_ALLELE = Allele.create("<DT>", false);                                                // avoid creating the symbolic allele multiple times
-    private ThresHolder thresholds = null;
+    private Map<GenomeLoc, IntervalStatistics> intervalMap = null;              // maps each interval => statistics
+    private PeekableIterator<GenomeLoc> intervalListIterator;                   // an iterator to go over all the intervals provided as we traverse the genome
+    private Set<String> samples = null;                                         // all the samples being processed
+    private static final Allele SYMBOLIC_ALLELE = Allele.create("<DT>", false); // avoid creating the symbolic allele multiple times
+    private static final Allele UNCOVERED_ALLELE = Allele.create("A", true);    // avoid creating the 'fake' ref allele for uncovered intervals multiple times
+    private ThresHolder thresholds = null;                                      // object that holds all the thresholds for Diagnose Targets (todo -- should become a plugin based system)
+
+    private static final int INITIAL_HASH_SIZE = 500000;
 
     @Override
     public void initialize() {
@@ -165,24 +168,32 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         if (getToolkit().getIntervals() == null)
             throw new UserException("This tool only works if you provide one or more intervals. ( Use the -L argument )");
 
-        thresholds = new ThresHolder(minimumBaseQuality, minimumMappingQuality, minimumCoverage, maximumCoverage, minMedianDepth, maxInsertSize, votePercentage, lowMedianDepthPercentage, badMateStatusThreshold, coverageStatusThreshold, excessiveCoverageThreshold, qualityStatusThreshold);
+        thresholds = new ThresHolder(minimumBaseQuality, minimumMappingQuality, minimumCoverage, maximumCoverage,
+                                     minMedianDepth, maxInsertSize, votePercentage, lowMedianDepthPercentage,
+                                     badMateStatusThreshold, coverageStatusThreshold, excessiveCoverageThreshold,
+                                     qualityStatusThreshold);
 
-        intervalMap = new HashMap<GenomeLoc, IntervalStatistics>();
+        intervalMap = new HashMap<GenomeLoc, IntervalStatistics>(INITIAL_HASH_SIZE);
         intervalListIterator = new PeekableIterator<GenomeLoc>(getToolkit().getIntervals().iterator());
 
-        samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());                                       // get all of the unique sample names for the VCF Header
-        vcfWriter.writeHeader(new VCFHeader(ThresHolder.getHeaderInfo(), samples));                                                 // initialize the VCF header
+        // get all of the unique sample names for the VCF Header
+        samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
+        vcfWriter.writeHeader(new VCFHeader(ThresHolder.getHeaderInfo(), samples));
     }
 
     @Override
     public Long map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
         GenomeLoc refLocus = ref.getLocus();
 
-        removePastIntervals(refLocus, ref.getBase());                                                                   // process and remove any intervals in the map that are don't overlap the current locus anymore
-        addNewOverlappingIntervals(refLocus);                                                                           // add all new intervals that may overlap this reference locus    
+        // process and remove any intervals in the map that are don't overlap the current locus anymore
+        // and add all new intervals that may overlap this reference locus
+        outputFinishedIntervals(refLocus, ref.getBase());
+        addNewOverlappingIntervals(refLocus);
 
+        // at this point, all intervals in intervalMap overlap with this locus, so update all of them
         for (IntervalStatistics intervalStatistics : intervalMap.values())
-            intervalStatistics.addLocus(context, ref, thresholds);                                                      // Add current locus to stats
+            intervalStatistics.addLocus(context, ref, thresholds);
+
 
         return 1L;
     }
@@ -212,53 +223,40 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
     @Override
     public void onTraversalDone(Long result) {
         for (GenomeLoc interval : intervalMap.keySet())
-            outputStatsToVCF(intervalMap.get(interval), Allele.create("A", true));
-    }
+            outputStatsToVCF(intervalMap.get(interval), UNCOVERED_ALLELE);
 
-    private GenomeLoc getIntervalMapSpan() {
-        GenomeLoc loc = null;
-        for (GenomeLoc interval : intervalMap.keySet()) {
-            if (loc == null) {
-                loc = interval;
-            } else
-                loc = interval.union(loc);
+        GenomeLoc interval = intervalListIterator.peek();
+        while (interval != null) {
+            outputStatsToVCF(createIntervalStatistic(interval), UNCOVERED_ALLELE);
+            intervalListIterator.next();
+            interval = intervalListIterator.peek();
         }
-
-        return loc;
-    }
-
-    private GenomeLoc getFinishedIntervalSpan(GenomeLoc pos) {
-        GenomeLoc loc = null;
-        for (GenomeLoc interval : intervalMap.keySet()) {
-            if (interval.isBefore(pos)) {
-                if (loc == null)
-                    loc = interval;
-                else
-                    loc = interval.union(loc);
-            }
-        }
-
-        return loc;
     }
 
     /**
-     * Removes all intervals that are behind the current reference locus from the intervalMap
+     * Outputs all intervals that are behind the current reference locus
      *
      * @param refLocus the current reference locus
      * @param refBase  the reference allele
      */
-    private void removePastIntervals(GenomeLoc refLocus, byte refBase) {
-        // if there are statistics to output/ check to see that we can output them in order
-        if (getFinishedIntervalSpan(refLocus) != null &&
-                getIntervalMapSpan().getStart() == getFinishedIntervalSpan(refLocus).getStart()) {
+    private void outputFinishedIntervals(final GenomeLoc refLocus, final byte refBase) {
+        GenomeLoc interval = intervalListIterator.peek();
 
-            for (GenomeLoc interval : intervalMap.keySet()) {
-                if (interval.isBefore(refLocus)) {
-                    outputStatsToVCF(intervalMap.get(interval), Allele.create(refBase, true));
-                    intervalMap.remove(interval);
-                }
+        // output empty statistics for uncovered intervals
+        while (interval != null && interval.isBefore(refLocus)) {
+            final IntervalStatistics stats = intervalMap.get(interval);
+            outputStatsToVCF(stats != null ? stats : createIntervalStatistic(interval), UNCOVERED_ALLELE);
+            if (stats != null) intervalMap.remove(interval);
+            intervalListIterator.next();
+            interval = intervalListIterator.peek();
+        }
+
+        // remove any potential leftover interval in intervalMap (this will only happen when we have overlapping intervals)
+        for (GenomeLoc key : intervalMap.keySet()) {
+            if (key.isBefore(refLocus)) {
+                outputStatsToVCF(intervalMap.get(key), Allele.create(refBase, true));
+                intervalMap.remove(key);
             }
-
         }
     }
 
@@ -269,17 +267,9 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      */
     private void addNewOverlappingIntervals(GenomeLoc refLocus) {
         GenomeLoc interval = intervalListIterator.peek();
-
-        // skip any intervals with no coverage that we have passed
-        while (interval != null && interval.isBefore(refLocus)) {
-            intervalListIterator.next();                                                                                // discard the interval (we've already added it to the map)
-            interval = intervalListIterator.peek();
-        }
-
-        // add any intervals that overlap this one
         while (interval != null && !interval.isPast(refLocus)) {
             intervalMap.put(interval, createIntervalStatistic(interval));
-            intervalListIterator.next();                                                                                // discard the interval (we've already added it to the map)
+            intervalListIterator.next();
             interval = intervalListIterator.peek();
         }
     }
