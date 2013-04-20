@@ -148,24 +148,34 @@ class IntervalStatistics {
                 votes.put(status, votes.get(status) + 1);
 
         // output tall values above the threshold
+        final double minVotesNeeded = thresholds.getVotePercentageThreshold() * samples.size();
         for (CallableStatus status : votes.keySet()) {
-            if (votes.get(status) > (samples.size() * thresholds.getVotePercentageThreshold()) && !(status.equals(CallableStatus.PASS)))
+            if (!status.equals((CallableStatus.PASS)) && votes.get(status) > minVotesNeeded)
                 output.add(status);
         }
-
 
         if (hasNref)
             output.add(CallableStatus.REF_N);
 
         // get median DP of each sample
+        final double minMedianDepth = thresholds.getLowMedianDepthThreshold() * samples.size();
+        final int nSamples = samples.size();
         int nLowMedianDepth = 0;
+        int samplesSeen = 0;
         for (SampleStatistics sample : samples.values()) {
-            if (sample.getQuantileDepth(0.5) < thresholds.getMinimumMedianDepth())
+            samplesSeen++;
+            final double medianDepth = sample.getQuantileDepth(0.5);
+            if (medianDepth > 0 && medianDepth < thresholds.getMinimumMedianDepth()) {
                 nLowMedianDepth++;
+            }
+            if (nLowMedianDepth > minMedianDepth) {
+                output.add(CallableStatus.LOW_MEDIAN_DEPTH);
+                break;
+            }
+            if (nSamples - samplesSeen + nLowMedianDepth < minMedianDepth)
+                break;
         }
 
-        if (nLowMedianDepth > (samples.size() * thresholds.getLowMedianDepthThreshold()))
-            output.add(CallableStatus.LOW_MEDIAN_DEPTH);
 
         return output;
     }

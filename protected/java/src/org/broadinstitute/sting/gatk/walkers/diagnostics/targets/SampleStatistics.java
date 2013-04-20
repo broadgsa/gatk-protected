@@ -101,7 +101,7 @@ class SampleStatistics {
      * @return the callable statuses of the entire sample
      */
     public Set<CallableStatus> getCallableStatuses(ThresHolder thresholds) {
-        // We check if reads are present ot prevent div / 0 exceptions
+        // We check if reads are present to prevent div / 0 exceptions
         if (nReads == 0) {
             return Collections.singleton(CallableStatus.NO_READS);
         }
