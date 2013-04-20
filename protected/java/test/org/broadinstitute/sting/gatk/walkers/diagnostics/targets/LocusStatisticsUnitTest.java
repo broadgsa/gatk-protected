@@ -57,7 +57,7 @@ public class LocusStatisticsUnitTest /*extends BaseTest*/ {
     @Test(dataProvider = "StatusTestValues")
     public void testCallableStatuses(int coverage, int rawCoverage, CallableStatus status) {
         // The min Coverage threshold is 10, the max is 100
-        ThresHolder thresholds = new ThresHolder(20, 20, 10, 100, 20, 50, 0.5, 0.2, 0.5, 0.2, 0.2, 0.5);
+        ThresHolder thresholds = new ThresHolder(20, 20, 10, 100, 50, 0.5, 0.5, 0.2, 0.2, 0.5);
         Set<CallableStatus> statuses = new LocusStatistics(coverage, rawCoverage).callableStatuses(thresholds);
         // Check to make sure the status provides matches the actual
         Assert.assertTrue((status == null) ? statuses.isEmpty() : (statuses.contains(status) && statuses.size() == 1));

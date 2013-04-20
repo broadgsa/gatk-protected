@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
 import net.sf.picard.util.PeekableIterator;
 import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.commandline.Hidden;
 import org.broadinstitute.sting.commandline.Output;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
@@ -110,45 +111,71 @@ import java.util.*;
 @PartitionBy(PartitionType.INTERVAL)
 public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
-    @Output(doc = "File to which variants should be written")
+    @Output(doc = "File to which interval statistics should be written")
     private VariantContextWriter vcfWriter = null;
 
+    /**
+     * Only bases with quality greater than this will be considered in the coverage metrics.
+     */
     @Argument(fullName = "minimum_base_quality", shortName = "BQ", doc = "The minimum Base Quality that is considered for calls", required = false)
     private int minimumBaseQuality = 20;
 
+    /**
+     * Only reads with mapping quality greater than this will be considered in the coverage metrics.
+     */
     @Argument(fullName = "minimum_mapping_quality", shortName = "MQ", doc = "The minimum read mapping quality considered for calls", required = false)
     private int minimumMappingQuality = 20;
 
+    /**
+     * If at any locus, a sample has less coverage than this, it will be reported as LOW_COVERAGE
+     */
     @Argument(fullName = "minimum_coverage", shortName = "min", doc = "The minimum allowable coverage, used for calling LOW_COVERAGE", required = false)
     private int minimumCoverage = 5;
 
+    /**
+     * If at any locus, a sample has more coverage than this, it will be reported as EXCESSIVE_COVERAGE
+     */
     @Argument(fullName = "maximum_coverage", shortName = "max", doc = "The maximum allowable coverage, used for calling EXCESSIVE_COVERAGE", required = false)
     private int maximumCoverage = 700;
 
-    @Argument(fullName = "minimum_median_depth", shortName = "med", doc = "The minimum allowable median coverage, used for calling LOW_MEDIAN_DEPTH", required = false)
-    private int minMedianDepth = 10;
-
+    /**
+     * If any sample has a paired read whose distance between alignment starts (between the pairs) is greater than this, it will be reported as BAD_MATE
+     */
     @Argument(fullName = "maximum_insert_size", shortName = "ins", doc = "The maximum allowed distance between a read and its mate", required = false)
     private int maxInsertSize = 500;
 
-    @Argument(fullName = "voting_status_threshold", shortName = "stV", doc = "The needed percentage of samples containing a call for the interval to adopt the call ", required = false)
+    /**
+     * The proportion of samples that must have a status for it to filter the entire interval. Example: 8 out of 10 samples have low coverage status on the interval,
+     * with a threshold higher than 0.2, this interval will be filtered as LOW_COVERAGE.
+     */
+    @Argument(fullName = "voting_status_threshold", shortName = "stV", doc = "The needed proportion of samples containing a call for the interval to adopt the call ", required = false)
     private double votePercentage = 0.50;
 
-    @Argument(fullName = "low_median_depth_status_threshold", shortName = "stMED", doc = "The percentage of the loci needed for calling LOW_MEDIAN_DEPTH", required = false)
-    private double lowMedianDepthPercentage = 0.20;
-
-    @Argument(fullName = "bad_mate_status_threshold", shortName = "stBM", doc = "The percentage of the loci needed for calling BAD_MATE", required = false)
+    /**
+     * The proportion of reads in the loci that must have bad mates for the sample to be reported as BAD_MATE
+     */
+    @Argument(fullName = "bad_mate_status_threshold", shortName = "stBM", doc = "The proportion of the loci needed for calling BAD_MATE", required = false)
     private double badMateStatusThreshold = 0.50;
 
-    @Argument(fullName = "coverage_status_threshold", shortName = "stC", doc = "The percentage of the loci needed for calling LOW_COVERAGE and COVERAGE_GAPS", required = false)
+    /**
+     * The proportion of loci in a sample that must fall under the LOW_COVERAGE or COVERAGE_GAPS category for the sample to be reported as either (or both)
+     */
+    @Argument(fullName = "coverage_status_threshold", shortName = "stC", doc = "The proportion of the loci needed for calling LOW_COVERAGE and COVERAGE_GAPS", required = false)
     private double coverageStatusThreshold = 0.20;
 
-    @Argument(fullName = "excessive_coverage_status_threshold", shortName = "stXC", doc = "The percentage of the loci needed for calling EXCESSIVE_COVERAGE", required = false)
+    /**
+     * The proportion of loci in a sample that must fall under the EXCESSIVE_COVERAGE category for the sample to be reported as EXCESSIVE_COVERAGE
+     */
+    @Argument(fullName = "excessive_coverage_status_threshold", shortName = "stXC", doc = "The proportion of the loci needed for calling EXCESSIVE_COVERAGE", required = false)
     private double excessiveCoverageThreshold = 0.20;
 
-    @Argument(fullName = "quality_status_threshold", shortName = "stQ", doc = "The percentage of the loci needed for calling POOR_QUALITY", required = false)
+    /**
+     * The proportion of loci in a sample that must fall under the LOW_QUALITY category for the sample to be reported as LOW_QUALITY
+     */
+    @Argument(fullName = "quality_status_threshold", shortName = "stQ", doc = "The proportion of the loci needed for calling POOR_QUALITY", required = false)
     private double qualityStatusThreshold = 0.50;
 
+    @Hidden
     @Argument(fullName = "print_debug_log", shortName = "dl", doc = "Used only for debugging the walker. Prints extra info to screen", required = false)
     private boolean debug = false;
 
@@ -168,10 +195,8 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         if (getToolkit().getIntervals() == null)
             throw new UserException("This tool only works if you provide one or more intervals. ( Use the -L argument )");
 
-        thresholds = new ThresHolder(minimumBaseQuality, minimumMappingQuality, minimumCoverage, maximumCoverage,
-                                     minMedianDepth, maxInsertSize, votePercentage, lowMedianDepthPercentage,
-                                     badMateStatusThreshold, coverageStatusThreshold, excessiveCoverageThreshold,
-                                     qualityStatusThreshold);
+        thresholds = new ThresHolder(minimumBaseQuality, minimumMappingQuality, minimumCoverage, maximumCoverage, maxInsertSize, votePercentage,
+                                     badMateStatusThreshold, coverageStatusThreshold, excessiveCoverageThreshold, qualityStatusThreshold);
 
         intervalMap = new HashMap<GenomeLoc, IntervalStatistics>(INITIAL_HASH_SIZE);
         intervalListIterator = new PeekableIterator<GenomeLoc>(getToolkit().getIntervals().iterator());

@@ -293,17 +293,11 @@ class SampleStatistics {
         if (read.getReadNegativeStrandFlag() == read.getMateNegativeStrandFlag())
             return false;
 
-        // inverted
-        if (read.getReadNegativeStrandFlag() ==
-                read.getAlignmentStart() < read.getMateAlignmentStart())
-            return false;
+        // todo -- inverted ?
 
-        // TODO note: IGV uses a different algorithm for insert size, there should be a common util class that does this for you
         // mates are too far apart
-        if (Math.abs(read.getAlignmentStart() - read.getMateAlignmentStart()) > thresholds.getMaximumInsertSize())
-            return false;
+        return Math.abs(read.getAlignmentStart() - read.getMateAlignmentStart()) <= thresholds.getMaximumInsertSize();
 
-        return true;
     }
 
     public int getnReads() {

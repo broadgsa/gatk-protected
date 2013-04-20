@@ -54,44 +54,38 @@ import java.util.Set;
 
 class ThresHolder {
     public static final String AVG_INTERVAL_DP_KEY = "AVG_INTERVAL_DP";
-    public static final ThresHolder DEFAULTS = new ThresHolder(20, 20, 5, 700, 20, 50, 0.5, 0.2, 0.5, 0.2, 0.2, 0.5);
+    public static final ThresHolder DEFAULTS = new ThresHolder(20, 20, 5, 700, 50, 0.5, 0.5, 0.2, 0.2, 0.5);
 
     private final int minimumBaseQuality;
     private final int minimumMappingQuality;
 
     private final int minimumCoverage;
     private final int maximumCoverage;
-    private final int minimumMedianDepth;
 
     private final int maximumInsertSize;
 
     private final double votePercentageThreshold;
-    private final double lowMedianDepthThreshold;
     private final double badMateStatusThreshold;
     private final double coverageStatusThreshold;
     private final double excessiveCoverageThreshold;
     private final double qualityStatusThreshold;
 
-    public ThresHolder(int minimumBaseQuality,
-                       int minimumMappingQuality,
-                       int minimumCoverage,
-                       int maximumCoverage,
-                       int minimumMedianDepth,
-                       int maximumInsertSize,
-                       double votePercentageThreshold,
-                       double lowMedianDepthThreshold,
-                       double badMateStatusThreshold,
-                       double coverageStatusThreshold,
-                       double excessiveCoverageThreshold,
-                       double qualityStatusThreshold) {
+    public ThresHolder(final int minimumBaseQuality,
+                       final int minimumMappingQuality,
+                       final int minimumCoverage,
+                       final int maximumCoverage,
+                       final int maximumInsertSize,
+                       final double votePercentageThreshold,
+                       final double badMateStatusThreshold,
+                       final double coverageStatusThreshold,
+                       final double excessiveCoverageThreshold,
+                       final double qualityStatusThreshold) {
         this.minimumBaseQuality = minimumBaseQuality;
         this.minimumMappingQuality = minimumMappingQuality;
         this.minimumCoverage = minimumCoverage;
         this.maximumCoverage = maximumCoverage;
-        this.minimumMedianDepth = minimumMedianDepth;
         this.maximumInsertSize = maximumInsertSize;
         this.votePercentageThreshold = votePercentageThreshold;
-        this.lowMedianDepthThreshold = lowMedianDepthThreshold;
         this.badMateStatusThreshold = badMateStatusThreshold;
         this.coverageStatusThreshold = coverageStatusThreshold;
         this.excessiveCoverageThreshold = excessiveCoverageThreshold;
@@ -106,20 +100,12 @@ class ThresHolder {
         return maximumCoverage;
     }
 
-    public int getMinimumMedianDepth() {
-        return minimumMedianDepth;
-    }
-
     public int getMaximumInsertSize() {
         return maximumInsertSize;
     }
 
     public double getVotePercentageThreshold() {
         return votePercentageThreshold;
-    }
-
-    public double getLowMedianDepthThreshold() {
-        return lowMedianDepthThreshold;
     }
 
     public double getBadMateStatusThreshold() {
@@ -156,7 +142,6 @@ class ThresHolder {
         headerLines.add(new VCFInfoHeaderLine("Diagnose Targets", 0, VCFHeaderLineType.Flag, "DiagnoseTargets mode"));
 
         // FORMAT fields for each genotype
-        // todo -- find the appropriate VCF constants
         headerLines.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY));
         headerLines.add(new VCFFormatHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average depth across the interval. Sum of the depth in a loci divided by interval size."));
         headerLines.add(new VCFFormatHeaderLine("Q1", 1, VCFHeaderLineType.Float, "Lower Quartile of depth distribution."));

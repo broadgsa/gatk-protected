@@ -154,26 +154,6 @@ class IntervalStatistics {
                 output.add(status);
         }
 
-        // get median DP of each sample
-        final double minMedianDepth = thresholds.getLowMedianDepthThreshold() * samples.size();
-        final int nSamples = samples.size();
-        int nLowMedianDepth = 0;
-        int samplesSeen = 0;
-        for (SampleStatistics sample : samples.values()) {
-            samplesSeen++;
-            final double medianDepth = sample.getQuantileDepth(0.5);
-            if (medianDepth > 0 && medianDepth < thresholds.getMinimumMedianDepth()) {
-                nLowMedianDepth++;
-            }
-            if (nLowMedianDepth > minMedianDepth) {
-                output.add(CallableStatus.LOW_MEDIAN_DEPTH);
-                break;
-            }
-            if (nSamples - samplesSeen + nLowMedianDepth < minMedianDepth)
-                break;
-        }
-
-
         return output;
     }
 }

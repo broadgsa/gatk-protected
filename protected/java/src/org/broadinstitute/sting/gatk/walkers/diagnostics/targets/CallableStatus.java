@@ -66,12 +66,7 @@ public enum CallableStatus {
 
     BAD_MATE("the reads are not properly mated, suggesting mapping errors"),
 
-    NO_READS("there are no reads contained in the interval"),
-
-    //
-    // Interval-level statuses
-    //
-    LOW_MEDIAN_DEPTH("interval has insufficient median depth across samples");
+    NO_READS("there are no reads contained in the interval");
 
     public final String description;
 

@@ -95,7 +95,7 @@ public class SampleStatisticsUnitTest/* extends BaseTest */ {
         GATKSAMRecord noPair = ArtificialSAMUtils.createArtificialRead(header, "test", 0, 100, 50);
         GATKSAMRecord good = ArtificialSAMUtils.createPair(header, "test", 30, 100, 150, true, false).get(0);
         GATKSAMRecord bigInsertSize = ArtificialSAMUtils.createPair(header, "test", 30, 100, 151, true, false).get(0);
-        GATKSAMRecord inverted = ArtificialSAMUtils.createPair(header, "test", 30, 151, 150, true, false).get(0);
+//        GATKSAMRecord inverted = ArtificialSAMUtils.createPair(header, "test", 30, 151, 150, true, false).get(0);
         GATKSAMRecord sameOrientation = ArtificialSAMUtils.createPair(header, "test", 30, 100, 151, true, true).get(0);
 
         GATKSAMRecord pairNotMapped = ArtificialSAMUtils.createPair(header, "test", 30, 100, 140, true, false).get(1);
@@ -106,7 +106,7 @@ public class SampleStatisticsUnitTest/* extends BaseTest */ {
                 new Object[]{noPair, false},
                 new Object[]{good, true},
                 new Object[]{bigInsertSize, false},
-                new Object[]{inverted, false},
+//                new Object[]{inverted, false},
                 new Object[]{sameOrientation, false},
                 new Object[]{pairNotMapped, false}
         };
