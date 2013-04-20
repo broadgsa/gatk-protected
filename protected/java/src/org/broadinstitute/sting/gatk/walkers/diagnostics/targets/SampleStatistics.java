@@ -139,10 +139,6 @@ class SampleStatistics {
         if ((totals.get(CallableStatus.POOR_QUALITY) / intervalSize) >= thresholds.getQualityStatusThreshold())
             output.add(CallableStatus.POOR_QUALITY);
 
-        if (totals.get(CallableStatus.REF_N) > 0)
-            output.add(CallableStatus.REF_N);
-
-
         if (output.isEmpty()) {
             output.add(CallableStatus.PASS);
         }

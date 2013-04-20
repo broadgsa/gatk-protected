@@ -54,8 +54,6 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
  */
 public enum CallableStatus {
 
-    REF_N("the reference base was an N, which is not considered callable the GATK"),
-
     PASS("the base satisfied the min. depth for calling but had less than maxDepth to avoid having EXCESSIVE_COVERAGE"),
 
     COVERAGE_GAPS("absolutely no coverage was observed at a locus, regardless of the filtering parameters"),

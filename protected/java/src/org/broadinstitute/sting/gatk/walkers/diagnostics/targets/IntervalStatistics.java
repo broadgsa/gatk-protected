@@ -154,9 +154,6 @@ class IntervalStatistics {
                 output.add(status);
         }
 
-        if (hasNref)
-            output.add(CallableStatus.REF_N);
-
         // get median DP of each sample
         final double minMedianDepth = thresholds.getLowMedianDepthThreshold() * samples.size();
         final int nSamples = samples.size();
