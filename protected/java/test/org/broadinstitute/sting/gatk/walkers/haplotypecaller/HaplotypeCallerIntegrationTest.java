@@ -96,7 +96,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "3e2e4a62c6c60d432fa1ca32aee2635b");
+                "28c3b1f276ec8198801aafe880e40fb6");
     }
 
     @Test
@@ -166,7 +166,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestStructuralIndels() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("ab518ae32535714604a4ffc71fe42511"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("cac0d88fa4471c7a0ac96533a9a6354b"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
 
