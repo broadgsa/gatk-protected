@@ -46,21 +46,25 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Locus;
+
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-class LocusStatistics {
-    private final int coverage;
-    private final int rawCoverage;
+public class LocusStatistics {
+    private int coverage;
+    private int rawCoverage;
+    private final List<Locus> locusStatisticsList;
 
-    public LocusStatistics() {
-        this.coverage = 0;
-        this.rawCoverage = 0;
+    public LocusStatistics(ThresHolder thresholds) {
+        this(0,0,thresholds);
     }
 
-    public LocusStatistics(int coverage, int rawCoverage) {
+    protected LocusStatistics(int coverage, int rawCoverage, ThresHolder thresholds) {
         this.coverage = coverage;
         this.rawCoverage = rawCoverage;
+        this.locusStatisticsList = thresholds.locusStatisticList;
     }
 
     public int getCoverage() {
@@ -74,31 +78,21 @@ class LocusStatistics {
     /**
      * Generates all applicable statuses from the coverages in this locus
      *
-     * @param thresholds the class contains the statistical threshold for making calls
      * @return a set of all statuses that apply
      */
-    public Set<CallableStatus> callableStatuses(ThresHolder thresholds) {
+    public Set<CallableStatus> callableStatuses() {
         Set<CallableStatus> output = new HashSet<CallableStatus>();
-
-        // if too much coverage
-        if (getCoverage() > thresholds.getMaximumCoverage())
-            output.add(CallableStatus.EXCESSIVE_COVERAGE);
-
-        // if not enough coverage
-        if (getCoverage() < thresholds.getMinimumCoverage()) {
-            // was there a lot of low Qual coverage?
-            if (getRawCoverage() >= thresholds.getMinimumCoverage())
-                output.add(CallableStatus.POOR_QUALITY);
-                // no?
-            else {
-                // is there any coverage?
-                if (getRawCoverage() > 0)
-                    output.add(CallableStatus.LOW_COVERAGE);
-                else
-                    output.add(CallableStatus.COVERAGE_GAPS);
+        for (Locus stats : locusStatisticsList) {
+            CallableStatus status = stats.status(this);
+            if (status != null) {
+                output.add(status);
             }
         }
-
         return output;
+    }
+
+    public void set(final int coverage, final int rawCoverage) {
+        this.coverage = coverage;
+        this.rawCoverage = rawCoverage;
     }
 }

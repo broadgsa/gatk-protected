@@ -46,29 +46,82 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
-import org.broadinstitute.variant.vcf.*;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Interval;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Locus;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Sample;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.LinkedList;
+import java.util.List;
 
-class ThresHolder {
-    public static final String AVG_INTERVAL_DP_KEY = "AVG_INTERVAL_DP";
-    public static final ThresHolder DEFAULTS = new ThresHolder(20, 20, 5, 700, 50, 0.5, 0.5, 0.2, 0.2, 0.5);
+public class ThresHolder {
 
-    private final int minimumBaseQuality;
-    private final int minimumMappingQuality;
+    /**
+     * Only bases with quality greater than this will be considered in the coverage metrics.
+     */
+    @Argument(fullName = "minimum_base_quality", shortName = "BQ", doc = "The minimum Base Quality that is considered for calls", required = false)
+    public int minimumBaseQuality = 20;
 
-    private final int minimumCoverage;
-    private final int maximumCoverage;
+    /**
+     * Only reads with mapping quality greater than this will be considered in the coverage metrics.
+     */
+    @Argument(fullName = "minimum_mapping_quality", shortName = "MQ", doc = "The minimum read mapping quality considered for calls", required = false)
+    public int minimumMappingQuality = 20;
 
-    private final int maximumInsertSize;
+    /**
+     * If at any locus, a sample has less coverage than this, it will be reported as LOW_COVERAGE
+     */
+    @Argument(fullName = "minimum_coverage", shortName = "min", doc = "The minimum allowable coverage, used for calling LOW_COVERAGE", required = false)
+    public int minimumCoverage = 5;
 
-    private final double votePercentageThreshold;
-    private final double badMateStatusThreshold;
-    private final double coverageStatusThreshold;
-    private final double excessiveCoverageThreshold;
-    private final double qualityStatusThreshold;
+    /**
+     * If at any locus, a sample has more coverage than this, it will be reported as EXCESSIVE_COVERAGE
+     */
+    @Argument(fullName = "maximum_coverage", shortName = "max", doc = "The maximum allowable coverage, used for calling EXCESSIVE_COVERAGE", required = false)
+    public int maximumCoverage = 700;
+
+    /**
+     * If any sample has a paired read whose distance between alignment starts (between the pairs) is greater than this, it will be reported as BAD_MATE
+     */
+    @Argument(fullName = "maximum_insert_size", shortName = "ins", doc = "The maximum allowed distance between a read and its mate", required = false)
+    public int maximumInsertSize = 500;
+
+    /**
+     * The proportion of samples that must have a status for it to filter the entire interval. Example: 8 out of 10 samples have low coverage status on the interval,
+     * with a threshold higher than 0.2, this interval will be filtered as LOW_COVERAGE.
+     */
+    @Argument(fullName = "voting_status_threshold", shortName = "stV", doc = "The needed proportion of samples containing a call for the interval to adopt the call ", required = false)
+    public double votePercentageThreshold = 0.50;
+
+    /**
+     * The proportion of reads in the loci that must have bad mates for the sample to be reported as BAD_MATE
+     */
+    @Argument(fullName = "bad_mate_status_threshold", shortName = "stBM", doc = "The proportion of the loci needed for calling BAD_MATE", required = false)
+    public double badMateStatusThreshold = 0.50;
+
+    /**
+     * The proportion of loci in a sample that must fall under the LOW_COVERAGE or COVERAGE_GAPS category for the sample to be reported as either (or both)
+     */
+    @Argument(fullName = "coverage_status_threshold", shortName = "stC", doc = "The proportion of the loci needed for calling LOW_COVERAGE and COVERAGE_GAPS", required = false)
+    public double coverageStatusThreshold = 0.20;
+
+    /**
+     * The proportion of loci in a sample that must fall under the EXCESSIVE_COVERAGE category for the sample to be reported as EXCESSIVE_COVERAGE
+     */
+    @Argument(fullName = "excessive_coverage_status_threshold", shortName = "stXC", doc = "The proportion of the loci needed for calling EXCESSIVE_COVERAGE", required = false)
+    public double excessiveCoverageThreshold = 0.20;
+
+    /**
+     * The proportion of loci in a sample that must fall under the LOW_QUALITY category for the sample to be reported as LOW_QUALITY
+     */
+    @Argument(fullName = "quality_status_threshold", shortName = "stQ", doc = "The proportion of the loci needed for calling POOR_QUALITY", required = false)
+    public double qualityStatusThreshold = 0.50;
+
+    public final List<Locus> locusStatisticList = new LinkedList<Locus>();
+    public final List<Sample> sampleStatisticList = new LinkedList<Sample>();
+    public final List<Interval> intervalStatisticList = new LinkedList<Interval>();
+
+    public ThresHolder() {}
 
     public ThresHolder(final int minimumBaseQuality,
                        final int minimumMappingQuality,
@@ -91,69 +144,4 @@ class ThresHolder {
         this.excessiveCoverageThreshold = excessiveCoverageThreshold;
         this.qualityStatusThreshold = qualityStatusThreshold;
     }
-
-    public int getMinimumCoverage() {
-        return minimumCoverage;
-    }
-
-    public int getMaximumCoverage() {
-        return maximumCoverage;
-    }
-
-    public int getMaximumInsertSize() {
-        return maximumInsertSize;
-    }
-
-    public double getVotePercentageThreshold() {
-        return votePercentageThreshold;
-    }
-
-    public double getBadMateStatusThreshold() {
-        return badMateStatusThreshold;
-    }
-
-    public double getCoverageStatusThreshold() {
-        return coverageStatusThreshold;
-    }
-
-    public double getExcessiveCoverageThreshold() {
-        return excessiveCoverageThreshold;
-    }
-
-    public double getQualityStatusThreshold() {
-        return qualityStatusThreshold;
-    }
-
-    public int getFilteredCoverage(ReadBackedPileup pileup) {
-        return pileup.getBaseAndMappingFilteredPileup(minimumBaseQuality, minimumMappingQuality).depthOfCoverage();
-    }
-
-    /**
-     * Gets the header lines for the VCF writer
-     *
-     * @return A set of VCF header lines
-     */
-    public static Set<VCFHeaderLine> getHeaderInfo() {
-        Set<VCFHeaderLine> headerLines = new HashSet<VCFHeaderLine>();
-
-        // INFO fields for overall data
-        headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
-        headerLines.add(new VCFInfoHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average depth across the interval. Sum of the depth in a loci divided by interval size."));
-        headerLines.add(new VCFInfoHeaderLine("Diagnose Targets", 0, VCFHeaderLineType.Flag, "DiagnoseTargets mode"));
-
-        // FORMAT fields for each genotype
-        headerLines.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY));
-        headerLines.add(new VCFFormatHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average depth across the interval. Sum of the depth in a loci divided by interval size."));
-        headerLines.add(new VCFFormatHeaderLine("Q1", 1, VCFHeaderLineType.Float, "Lower Quartile of depth distribution."));
-        headerLines.add(new VCFFormatHeaderLine("MED", 1, VCFHeaderLineType.Float, "Median of depth distribution."));
-        headerLines.add(new VCFFormatHeaderLine("Q3", 1, VCFHeaderLineType.Float, "Upper Quartile of depth Distribution."));
-
-
-        // FILTER fields
-        for (CallableStatus stat : CallableStatus.values())
-            headerLines.add(new VCFFilterHeaderLine(stat.name(), stat.description));
-
-        return headerLines;
-    }
-
 }

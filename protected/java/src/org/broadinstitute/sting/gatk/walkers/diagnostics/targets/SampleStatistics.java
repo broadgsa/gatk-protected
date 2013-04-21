@@ -46,6 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Locus;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Sample;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -56,92 +58,99 @@ import java.util.*;
 /**
  * The statistics calculator for a specific sample given the interval
  */
-class SampleStatistics {
+public class SampleStatistics {
     private final GenomeLoc interval;
     private final ArrayList<LocusStatistics> loci;
+    private final ThresHolder thresholds;
 
-    private int[] preSortedDepths = null;
-    private int preComputedTotalCoverage = -1;         // avoids re-calculating the total sum (-1 means we haven't pre-computed it yet)
-
+    // avoids re-calculating these sums over loci
+    private int preComputedTotalCoverage = -1;
+    private Map<CallableStatus, Integer> locusStatusTally = null;
     private int nReads = -1;
     private int nBadMates = -1;
 
-    private SampleStatistics(GenomeLoc interval, ArrayList<LocusStatistics> loci) {
+    public SampleStatistics(final GenomeLoc interval, final ThresHolder thresholds) {
         this.interval = interval;
-        this.loci = loci;
+        this.loci = new ArrayList<LocusStatistics>(interval.size());
+        this.thresholds = thresholds;
         nReads = 0;
         nBadMates = 0;
-    }
-
-    public SampleStatistics(GenomeLoc interval) {
-        this(interval, new ArrayList<LocusStatistics>(interval.size()));
 
         // Initialize every loci (this way we don't have to worry about non-existent loci in the object
         for (int i = 0; i < interval.size(); i++)
-            this.loci.add(new LocusStatistics());
+            this.loci.add(new LocusStatistics(thresholds));
 
     }
 
+    /**
+     * Calculates the total "good" coverage of this sample. Good means "passes the base and 
+     * mapping quality requirements.
+     * 
+     * @return the total "good" coverage across the interval for this sample
+     */
     public long totalCoverage() {
         if (preComputedTotalCoverage < 0)
             calculateTotalCoverage();
         return preComputedTotalCoverage;
     }
 
+    /**
+     * Calculates the average "good" coverage of this sample. Good means "passes the base and 
+     * mapping quality requirements.
+     * 
+     * @return the average "good" coverage
+     */
     public double averageCoverage() {
-        if (preComputedTotalCoverage < 0)
-            calculateTotalCoverage();
-        return (double) preComputedTotalCoverage / loci.size();
+        return (double) totalCoverage() / loci.size();
+    }
+
+    /**
+     * Tally up all the callable status of all the loci in this sample.
+     * 
+     * @return a map of callable status and counts
+     */
+    public Map<CallableStatus, Integer> getLocusStatusTally() {
+        if (locusStatusTally == null) {
+            locusStatusTally = new HashMap<CallableStatus, Integer>(CallableStatus.values().length);
+
+            // sum up all the callable statuses for each locus
+            for (int i = 0; i < interval.size(); i++) {
+                LocusStatistics locus = loci.get(i);
+                for (CallableStatus status : locus.callableStatuses()) {
+                    locusStatusTally.put(status, !locusStatusTally.containsKey(status) ? 1 : locusStatusTally.get(status) + 1);
+                }
+            }
+        }
+        return locusStatusTally;
     }
 
     /**
      * Calculates the callable statuses of the entire sample
      *
-     * @param thresholds the class contains the statistical threshold for making calls
      * @return the callable statuses of the entire sample
      */
-    public Set<CallableStatus> getCallableStatuses(ThresHolder thresholds) {
-        // We check if reads are present to prevent div / 0 exceptions
-        if (nReads == 0) {
-            return Collections.singleton(CallableStatus.NO_READS);
-        }
+    public Set<CallableStatus> getCallableStatuses() {
+        final Set<CallableStatus> output = new HashSet<CallableStatus>();
 
-        Set<CallableStatus> output = new HashSet<CallableStatus>();
-        Map<CallableStatus, Double> totals = new HashMap<CallableStatus, Double>(CallableStatus.values().length);
-
-        // initialize map
-        for (CallableStatus status : CallableStatus.values())
-            totals.put(status, 0.0);
-
-        // sum up all the callable statuses for each locus
-        for (int i = 0; i < interval.size(); i++) {
-            for (CallableStatus status : callableStatus(i, thresholds)) {
-                double count = totals.get(status);
-
-                totals.put(status, count + 1);
+        // get the tally of all the locus callable statuses
+        for (Locus locusStat : thresholds.locusStatisticList) {
+            final CallableStatus status = locusStat.sampleStatus(this);
+            if (status != null) {
+                output.add(status);
             }
         }
 
-        double intervalSize = interval.size();
-
-        if (((double) nBadMates / nReads) >= thresholds.getBadMateStatusThreshold())
-            output.add(CallableStatus.BAD_MATE);
-
-        if ((totals.get(CallableStatus.COVERAGE_GAPS) / intervalSize) >= thresholds.getCoverageStatusThreshold())
-            output.add(CallableStatus.COVERAGE_GAPS);
-
-        if ((totals.get(CallableStatus.LOW_COVERAGE) / intervalSize) >= thresholds.getCoverageStatusThreshold())
-            output.add(CallableStatus.LOW_COVERAGE);
-
-        if ((totals.get(CallableStatus.EXCESSIVE_COVERAGE) / intervalSize) >= thresholds.getExcessiveCoverageThreshold())
-            output.add(CallableStatus.EXCESSIVE_COVERAGE);
-
-        if ((totals.get(CallableStatus.POOR_QUALITY) / intervalSize) >= thresholds.getQualityStatusThreshold())
-            output.add(CallableStatus.POOR_QUALITY);
-
-        if (output.isEmpty()) {
-            output.add(CallableStatus.PASS);
+        // get the sample specific statitics statuses
+        for (Sample sampleStat : thresholds.sampleStatisticList) {
+            final CallableStatus status = sampleStat.status(this);
+            if (status != null) {
+                output.add(status);
+            }
         }
+
+        // special case, if there are no reads, then there is no sense reporting coverage gaps.
+        if (output.contains(CallableStatus.NO_READS) && output.contains(CallableStatus.COVERAGE_GAPS))
+            output.remove(CallableStatus.COVERAGE_GAPS);
 
         return output;
     }
@@ -151,50 +160,37 @@ class SampleStatistics {
      *
      * @param locus      The locus given as a GenomeLoc
      * @param pileup     The pileup of that locus, this exclusively contains the sample
-     * @param thresholds the class contains the statistical threshold for making calls
      */
-    public void addLocus(GenomeLoc locus, ReadBackedPileup pileup, ThresHolder thresholds) {
+    public void addLocus(GenomeLoc locus, ReadBackedPileup pileup) {
         if (!interval.containsP(locus))
             throw new ReviewedStingException(String.format("Locus %s is not part of the Interval %s", locus, interval));
 
         // a null pileup means there nothing ot add
         if (pileup != null) {
-
-            int locusIndex = locus.getStart() - interval.getStart();
-
-            int rawCoverage = pileup.depthOfCoverage();
-            int coverage = thresholds.getFilteredCoverage(pileup);
-
-            LocusStatistics locusData = new LocusStatistics(coverage, rawCoverage);
-
-            loci.set(locusIndex, locusData);
+            final int locusIndex = locus.getStart() - interval.getStart();
+            final int rawCoverage = pileup.depthOfCoverage();
+            final int coverage = pileup.getBaseAndMappingFilteredPileup(thresholds.minimumBaseQuality, thresholds.minimumMappingQuality).depthOfCoverage();
+            final LocusStatistics locusData = loci.get(locusIndex);
+            locusData.set(coverage, rawCoverage);
 
             for (GATKSAMRecord read : pileup.getReads())
-                processRead(read, thresholds);
-        }
-    }
-
-    private void processRead(GATKSAMRecord read, ThresHolder thresholds) {
-        // Was this read already processed?
-        if (read.getTemporaryAttribute("checkedBadMate") == null) {
-            nReads++;
-            if (!hasValidMate(read, thresholds))
-                nBadMates++;
-            read.setTemporaryAttribute("checkedBadMate", true);
+                processRead(read);
         }
     }
 
     /**
-     * returns the callable status of a given locus without taking the reference base into account.
-     *
-     * @param locusIndex location in the genome to inquire (only one locus)
-     * @param thresholds the class contains the statistical threshold for making calls
-     * @return the callable status of a locus
+     * Account for the read and check it for any statistics necessary. Reads are marked in the temporary
+     * attribute "seen" to make sure they're not counted twice.
+     * 
+     * @param read the read
      */
-    private Set<CallableStatus> callableStatus(int locusIndex, ThresHolder thresholds) {
-        LocusStatistics locus = loci.get(locusIndex);
-
-        return locus.callableStatuses(thresholds);
+    private void processRead(GATKSAMRecord read) {
+        if (read.getTemporaryAttribute("seen") == null) {
+            nReads++;
+            if (read.getReadPairedFlag() && !read.getProperPairFlag())
+                nBadMates++;
+            read.setTemporaryAttribute("seen", true);
+        }
     }
 
     private void calculateTotalCoverage() {
@@ -203,101 +199,8 @@ class SampleStatistics {
             preComputedTotalCoverage += locus.getCoverage();
     }
 
-    public double getQuantileDepth(double percentage) {
-        if (preSortedDepths == null)
-            getDepthsAsSortedArray();
-
-        return getQuartile(preSortedDepths, percentage);
-    }
-
-    static double getQuartile(int[] data, double percentage) {
-        int size = data.length;
-        if (size == 1)
-            return (double) data[0];
-
-        if (percentage == 0.5) {
-            return getMedian(data);
-        }
-
-        double position = (size - 1.0) / 2;
-        if (percentage == 0.25) {
-            // if the position is a whole number
-            return getMedian(Arrays.copyOfRange(data, 0, (int) position + 1));
-
-        }
-        if (percentage == 0.75) {
-            if (position % 1 == 0) {
-                return getMedian(Arrays.copyOfRange(data, (int) position, size));
-            } else {
-                return getMedian(Arrays.copyOfRange(data, (int) position + 1, size));
-            }
-        }
-        return -1;
-    }
-
-    // Assumes data is sorted
-    private static double getMedian(int[] data) {
-        double size = (double) data.length;
-        if (size == 1)
-            return (double) data[0];
-
-        double position = (size - 1.0) / 2;
-
-        if (position % 1 == 0)
-            return (double) data[(int) position];
-
-        else {
-            double high = (double) data[(int) Math.ceil(position)];
-            double low = (double) data[(int) Math.floor(position)];
-
-            return (high + low) / 2;
-
-        }
-
-    }
-
-    private void getDepthsAsSortedArray() {
-        preSortedDepths = new int[loci.size()];
-
-        for (int i = 0; i < loci.size(); i++)
-            preSortedDepths[i] = loci.get(i).getCoverage();
-
-        Arrays.sort(preSortedDepths);
-    }
-
-    boolean hasValidMate(GATKSAMRecord read, ThresHolder thresholds) {
-        /** Check the following
-         * Does it have a pair?
-         * reasonable insert size?
-         * inverted?
-         * same orientation?
-         * same contig?
-         * is pair mapped?
-         * todo - is forced mate?
-         *
-         */
-
-        // has NO pair
-        if (!read.getReadPairedFlag())
-            return false;
-
-        // different contigs
-        if (!read.getMateReferenceIndex().equals(read.getReferenceIndex()))
-            return false;
-
-        // unmapped
-        if (read.getMateUnmappedFlag() || read.getReadUnmappedFlag())
-            return false;
-
-        // same orientation
-        if (read.getReadNegativeStrandFlag() == read.getMateNegativeStrandFlag())
-            return false;
-
-        // todo -- inverted ?
-
-        // mates are too far apart
-        return Math.abs(read.getAlignmentStart() - read.getMateAlignmentStart()) <= thresholds.getMaximumInsertSize();
-
+    public int getIntervalSize() {
+        return interval.size();
     }
 
     public int getnReads() {

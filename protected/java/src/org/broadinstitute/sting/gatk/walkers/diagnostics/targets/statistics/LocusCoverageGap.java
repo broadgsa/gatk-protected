@@ -44,98 +44,34 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics;
 
-import org.broadinstitute.sting.commandline.Argument;
-import org.broadinstitute.sting.commandline.Output;
-import org.broadinstitute.sting.gatk.CommandLineGATK;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.ActiveRegionTraversalParameters;
-import org.broadinstitute.sting.gatk.walkers.ActiveRegionWalker;
-import org.broadinstitute.sting.gatk.walkers.PartitionBy;
-import org.broadinstitute.sting.gatk.walkers.PartitionType;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
-import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
-import org.broadinstitute.sting.utils.help.HelpConstants;
-
-import java.io.PrintStream;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.CallableStatus;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.LocusStatistics;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.SampleStatistics;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.ThresHolder;
 
 /**
- * Outputs a list of intervals that are covered above a given threshold.
- *
- * <p>The list can be used as an interval list for other walkers. Note that if the -uncovered argument is given, the tool will instead output intervals that fail the coverage threshold.</p>
- *
- * <h3>Input</h3>
- * <p>
- * One or more BAM files.
- * </p>
- *
- * <h3>Output</h3>
- * <p>
- * List of covered (or uncovered) intervals.
- * </p>
- *
- * <h3>Example</h3>
- * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -T FindCoveredIntervals \
- *   -R ref.fasta \
- *   -I my_file.bam \
- *   -o output.list
- * </pre>
- *
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:44 PM
  */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
-@PartitionBy(PartitionType.CONTIG)
-@ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)
-public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
-    @Output
-    private PrintStream out;
-
-    @Argument(fullName = "uncovered", shortName = "u", required = false, doc = "output intervals that fail the coverage threshold instead")
-    private boolean outputUncovered = false;
-
-    @Argument(fullName = "coverage_threshold", shortName = "cov", doc = "The minimum allowable coverage to be considered covered", required = false)
-    private int coverageThreshold = 20;
+public class LocusCoverageGap implements Locus {
+    private double threshold;
+    private static final CallableStatus CALL = CallableStatus.COVERAGE_GAPS;
 
     @Override
-    // Look to see if the region has sufficient coverage
-    public ActivityProfileState isActive(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
-
-        int depth = context.getBasePileup().getBaseFilteredPileup(coverageThreshold).depthOfCoverage();
-
-        // note the linear probability scale
-        return new ActivityProfileState(ref.getLocus(), Math.min(depth / coverageThreshold, 1));
-
+    public void initialize(ThresHolder thresholds) {
+        threshold = thresholds.coverageStatusThreshold;
     }
 
     @Override
-    public GenomeLoc map(final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker tracker) {
-        if ((!outputUncovered && activeRegion.isActive()) || (outputUncovered && !activeRegion.isActive()))
-            return activeRegion.getLocation();
-
-        return null;
+    public CallableStatus status(LocusStatistics locusStatistics) {
+        return locusStatistics.getRawCoverage() == 0 ? CALL : null;
     }
 
     @Override
-    public Long reduceInit() {
-        return 0L;
-    }
-
-    @Override
-    public Long reduce(final GenomeLoc value, Long reduce) {
-        if (value != null) {
-            out.println(value.toString());
-            reduce++;
-        }
-        return reduce;
-    }
-
-    @Override
-    public void onTraversalDone(Long reduce) {
-        logger.info(String.format("Found %d intervals", reduce));
+    public CallableStatus sampleStatus(SampleStatistics sampleStatistics) {
+        return PluginUtils.genericSampleStatus(sampleStatistics, CALL, threshold);
     }
 }

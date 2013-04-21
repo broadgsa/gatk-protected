@@ -47,23 +47,26 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
 import net.sf.picard.util.PeekableIterator;
-import org.broadinstitute.sting.commandline.Argument;
-import org.broadinstitute.sting.commandline.Hidden;
+import org.broadinstitute.sting.commandline.ArgumentCollection;
 import org.broadinstitute.sting.commandline.Output;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Interval;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Locus;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Sample;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.SampleUtils;
-import org.broadinstitute.sting.utils.help.HelpConstants;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.sting.utils.classloader.PluginManager;
+import org.broadinstitute.sting.utils.exceptions.DynamicClassResolutionException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.vcf.*;
 
 import java.util.*;
 
@@ -111,80 +114,19 @@ import java.util.*;
 @PartitionBy(PartitionType.INTERVAL)
 public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
+    private static final String AVG_INTERVAL_DP_KEY = "IDP";
+
     @Output(doc = "File to which interval statistics should be written")
     private VariantContextWriter vcfWriter = null;
 
-    /**
-     * Only bases with quality greater than this will be considered in the coverage metrics.
-     */
-    @Argument(fullName = "minimum_base_quality", shortName = "BQ", doc = "The minimum Base Quality that is considered for calls", required = false)
-    private int minimumBaseQuality = 20;
-
-    /**
-     * Only reads with mapping quality greater than this will be considered in the coverage metrics.
-     */
-    @Argument(fullName = "minimum_mapping_quality", shortName = "MQ", doc = "The minimum read mapping quality considered for calls", required = false)
-    private int minimumMappingQuality = 20;
-
-    /**
-     * If at any locus, a sample has less coverage than this, it will be reported as LOW_COVERAGE
-     */
-    @Argument(fullName = "minimum_coverage", shortName = "min", doc = "The minimum allowable coverage, used for calling LOW_COVERAGE", required = false)
-    private int minimumCoverage = 5;
-
-    /**
-     * If at any locus, a sample has more coverage than this, it will be reported as EXCESSIVE_COVERAGE
-     */
-    @Argument(fullName = "maximum_coverage", shortName = "max", doc = "The maximum allowable coverage, used for calling EXCESSIVE_COVERAGE", required = false)
-    private int maximumCoverage = 700;
-
-    /**
-     * If any sample has a paired read whose distance between alignment starts (between the pairs) is greater than this, it will be reported as BAD_MATE
-     */
-    @Argument(fullName = "maximum_insert_size", shortName = "ins", doc = "The maximum allowed distance between a read and its mate", required = false)
-    private int maxInsertSize = 500;
-
-    /**
-     * The proportion of samples that must have a status for it to filter the entire interval. Example: 8 out of 10 samples have low coverage status on the interval,
-     * with a threshold higher than 0.2, this interval will be filtered as LOW_COVERAGE.
-     */
-    @Argument(fullName = "voting_status_threshold", shortName = "stV", doc = "The needed proportion of samples containing a call for the interval to adopt the call ", required = false)
-    private double votePercentage = 0.50;
-
-    /**
-     * The proportion of reads in the loci that must have bad mates for the sample to be reported as BAD_MATE
-     */
-    @Argument(fullName = "bad_mate_status_threshold", shortName = "stBM", doc = "The proportion of the loci needed for calling BAD_MATE", required = false)
-    private double badMateStatusThreshold = 0.50;
-
-    /**
-     * The proportion of loci in a sample that must fall under the LOW_COVERAGE or COVERAGE_GAPS category for the sample to be reported as either (or both)
-     */
-    @Argument(fullName = "coverage_status_threshold", shortName = "stC", doc = "The proportion of the loci needed for calling LOW_COVERAGE and COVERAGE_GAPS", required = false)
-    private double coverageStatusThreshold = 0.20;
-
-    /**
-     * The proportion of loci in a sample that must fall under the EXCESSIVE_COVERAGE category for the sample to be reported as EXCESSIVE_COVERAGE
-     */
-    @Argument(fullName = "excessive_coverage_status_threshold", shortName = "stXC", doc = "The proportion of the loci needed for calling EXCESSIVE_COVERAGE", required = false)
-    private double excessiveCoverageThreshold = 0.20;
-
-    /**
-     * The proportion of loci in a sample that must fall under the LOW_QUALITY category for the sample to be reported as LOW_QUALITY
-     */
-    @Argument(fullName = "quality_status_threshold", shortName = "stQ", doc = "The proportion of the loci needed for calling POOR_QUALITY", required = false)
-    private double qualityStatusThreshold = 0.50;
-
-    @Hidden
-    @Argument(fullName = "print_debug_log", shortName = "dl", doc = "Used only for debugging the walker. Prints extra info to screen", required = false)
-    private boolean debug = false;
+    @ArgumentCollection
+    private ThresHolder thresholds = new ThresHolder();
 
     private Map<GenomeLoc, IntervalStatistics> intervalMap = null;              // maps each interval => statistics
     private PeekableIterator<GenomeLoc> intervalListIterator;                   // an iterator to go over all the intervals provided as we traverse the genome
     private Set<String> samples = null;                                         // all the samples being processed
     private static final Allele SYMBOLIC_ALLELE = Allele.create("<DT>", false); // avoid creating the symbolic allele multiple times
     private static final Allele UNCOVERED_ALLELE = Allele.create("A", true);    // avoid creating the 'fake' ref allele for uncovered intervals multiple times
-    private ThresHolder thresholds = null;                                      // object that holds all the thresholds for Diagnose Targets (todo -- should become a plugin based system)
 
     private static final int INITIAL_HASH_SIZE = 500000;
 
@@ -192,18 +134,18 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
     public void initialize() {
         super.initialize();
 
-        if (getToolkit().getIntervals() == null)
-            throw new UserException("This tool only works if you provide one or more intervals. ( Use the -L argument )");
-
-        thresholds = new ThresHolder(minimumBaseQuality, minimumMappingQuality, minimumCoverage, maximumCoverage, maxInsertSize, votePercentage,
-                                     badMateStatusThreshold, coverageStatusThreshold, excessiveCoverageThreshold, qualityStatusThreshold);
+        if (getToolkit().getIntervals() == null || getToolkit().getIntervals().isEmpty())
+            throw new UserException("This tool only works if you provide one or more intervals (use the -L argument). If you want to run whole genome, use -T DepthOfCoverage instead.");
 
         intervalMap = new HashMap<GenomeLoc, IntervalStatistics>(INITIAL_HASH_SIZE);
         intervalListIterator = new PeekableIterator<GenomeLoc>(getToolkit().getIntervals().iterator());
 
         // get all of the unique sample names for the VCF Header
         samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
-        vcfWriter.writeHeader(new VCFHeader(ThresHolder.getHeaderInfo(), samples));
+        vcfWriter.writeHeader(new VCFHeader(getHeaderInfo(), samples));
+
+        // pre load all the statistics classes because it is costly to operate on the JVM and we only want to do it once.
+        loadAllPlugins(thresholds);
     }
 
     @Override
@@ -217,8 +159,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
         // at this point, all intervals in intervalMap overlap with this locus, so update all of them
         for (IntervalStatistics intervalStatistics : intervalMap.values())
-            intervalStatistics.addLocus(context, ref, thresholds);
-
+            intervalStatistics.addLocus(context);
 
         return 1L;
     }
@@ -317,37 +258,26 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         alleles.add(SYMBOLIC_ALLELE);
         VariantContextBuilder vcb = new VariantContextBuilder("DiagnoseTargets", interval.getContig(), interval.getStart(), interval.getStop(), alleles);
 
-        vcb = vcb.log10PError(VariantContext.NO_LOG10_PERROR);                                                          // QUAL field makes no sense in our VCF
-        vcb.filters(new HashSet<String>(statusesToStrings(stats.callableStatuses(thresholds), true)));
+        vcb = vcb.log10PError(VariantContext.NO_LOG10_PERROR);
+        vcb.filters(new HashSet<String>(statusesToStrings(stats.callableStatuses(), true)));
 
         attributes.put(VCFConstants.END_KEY, interval.getStop());
-        attributes.put(ThresHolder.AVG_INTERVAL_DP_KEY, stats.averageCoverage());
+        attributes.put(AVG_INTERVAL_DP_KEY, stats.averageCoverage());
 
         vcb = vcb.attributes(attributes);
-        if (debug) {
-            System.out.printf("Output -- Interval: %s, Coverage: %.2f%n", stats.getInterval(), stats.averageCoverage());
-        }
         for (String sample : samples) {
             final GenotypeBuilder gb = new GenotypeBuilder(sample);
 
-            SampleStatistics sampleStat = stats.getSample(sample);
-            gb.attribute(ThresHolder.AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage());
-            gb.attribute("Q1", sampleStat.getQuantileDepth(0.25));
-            gb.attribute("MED", sampleStat.getQuantileDepth(0.50));
-            gb.attribute("Q3", sampleStat.getQuantileDepth(0.75));
+            SampleStatistics sampleStat = stats.getSampleStatics(sample);
+            gb.attribute(AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage());
 
-            if (debug) {
-                System.out.printf("Found %d bad mates out of %d reads %n", sampleStat.getnBadMates(), sampleStat.getnReads());
-            }
-            gb.filters(statusesToStrings(stats.getSample(sample).getCallableStatuses(thresholds), false));
+            gb.filters(statusesToStrings(stats.getSampleStatics(sample).getCallableStatuses(), false));
 
             genotypes.add(gb.make());
         }
         vcb = vcb.genotypes(genotypes);
 
-
         vcfWriter.add(vcb.make());
-
     }
 
     /**
@@ -356,17 +286,74 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @param statuses the set of statuses to be converted
      * @return a matching set of strings
      */
-    private List<String> statusesToStrings(Set<CallableStatus> statuses, final boolean includePASS) {
+    private List<String> statusesToStrings(Set<CallableStatus> statuses, final boolean isInfoField) {
         List<String> output = new ArrayList<String>(statuses.size());
 
         for (CallableStatus status : statuses)
-            if ( includePASS || status != CallableStatus.PASS ) // adding pass => results in a filter for genotypes
+            if ( isInfoField || status != CallableStatus.PASS )
                 output.add(status.name());
 
         return output;
     }
 
     private IntervalStatistics createIntervalStatistic(GenomeLoc interval) {
-        return new IntervalStatistics(samples, interval);
+        return new IntervalStatistics(samples, interval, thresholds);
     }
+
+    protected static void loadAllPlugins(final ThresHolder thresholds) {
+        for (Class<?> stat : new PluginManager<Locus>(Locus.class).getPlugins()) {
+            try {
+                final Locus stats = (Locus) stat.newInstance();
+                stats.initialize(thresholds);
+                thresholds.locusStatisticList.add(stats);
+            } catch (Exception e) {
+                throw new DynamicClassResolutionException(stat, e);
+            }
+        }
+
+        for (Class<?> stat : new PluginManager<Sample>(Sample.class).getPlugins()) {
+            try {
+                final Sample stats = (Sample) stat.newInstance();
+                stats.initialize(thresholds);
+                thresholds.sampleStatisticList.add(stats);
+            } catch (Exception e) {
+                throw new DynamicClassResolutionException(stat, e);
+            }
+        }
+
+        for (Class<?> stat : new PluginManager<Interval>(Interval.class).getPlugins()) {
+            try {
+                final Interval stats = (Interval) stat.newInstance();
+                stats.initialize(thresholds);
+                thresholds.intervalStatisticList.add(stats);
+            } catch (Exception e) {
+                throw new DynamicClassResolutionException(stat, e);
+            }
+        }
+    }
+
+    /**
+     * Gets the header lines for the VCF writer
+     *
+     * @return A set of VCF header lines
+     */
+    private static Set<VCFHeaderLine> getHeaderInfo() {
+        Set<VCFHeaderLine> headerLines = new HashSet<VCFHeaderLine>();
+
+        // INFO fields for overall data
+        headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
+        headerLines.add(new VCFInfoHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average depth across the interval. Sum of the depth in a loci divided by interval size."));
+        headerLines.add(new VCFInfoHeaderLine("Diagnose Targets", 0, VCFHeaderLineType.Flag, "DiagnoseTargets mode"));
+
+        // FORMAT fields for each genotype
+        headerLines.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY));
+        headerLines.add(new VCFFormatHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average sample depth across the interval. Sum of the sample specific depth in all loci divided by interval size."));
+
+        // FILTER fields
+        for (CallableStatus stat : CallableStatus.values())
+            headerLines.add(new VCFFilterHeaderLine(stat.name(), stat.description));
+
+        return headerLines;
+    }
+
 }

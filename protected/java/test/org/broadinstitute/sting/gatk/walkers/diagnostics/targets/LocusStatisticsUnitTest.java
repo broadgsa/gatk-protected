@@ -47,37 +47,43 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Set;
 
-public class LocusStatisticsUnitTest /*extends BaseTest*/ {
+public class LocusStatisticsUnitTest {
+
+    ThresHolder thresholds = new ThresHolder();
+
+    @BeforeClass
+    public void init() {
+        DiagnoseTargets.loadAllPlugins(thresholds);
+    }
 
     @Test(dataProvider = "StatusTestValues")
     public void testCallableStatuses(int coverage, int rawCoverage, CallableStatus status) {
-        // The min Coverage threshold is 10, the max is 100
-        ThresHolder thresholds = new ThresHolder(20, 20, 10, 100, 50, 0.5, 0.5, 0.2, 0.2, 0.5);
-        Set<CallableStatus> statuses = new LocusStatistics(coverage, rawCoverage).callableStatuses(thresholds);
-        // Check to make sure the status provides matches the actual
+        Set<CallableStatus> statuses = new LocusStatistics(coverage, rawCoverage, thresholds).callableStatuses();
         Assert.assertTrue((status == null) ? statuses.isEmpty() : (statuses.contains(status) && statuses.size() == 1));
-
     }
 
     @DataProvider(name = "StatusTestValues")
     public Object[][] getStatusTestValues() {
+        final int max = thresholds.maximumCoverage;
+        final int min = thresholds.minimumCoverage;
         return new Object[][]{
-                new Object[]{100, 100, null},
-                new Object[]{100, 101, null},
-                new Object[]{101, 101, CallableStatus.EXCESSIVE_COVERAGE},
-                new Object[]{10, 101, null},
-                new Object[]{9, 101, CallableStatus.POOR_QUALITY},
-                new Object[]{9, 10, CallableStatus.POOR_QUALITY},
-                new Object[]{9, 9, CallableStatus.LOW_COVERAGE},
+                new Object[]{max, max, null},
+                new Object[]{max, max+1, null},
+                new Object[]{max+1, max+1, CallableStatus.EXCESSIVE_COVERAGE},
+                new Object[]{min, max+1, null},
+                new Object[]{min-1, max+1, CallableStatus.POOR_QUALITY},
+                new Object[]{min-1, min, CallableStatus.POOR_QUALITY},
+                new Object[]{min-1, min-1, CallableStatus.LOW_COVERAGE},
                 new Object[]{0, 0, CallableStatus.COVERAGE_GAPS},
-                new Object[]{0, 9, CallableStatus.LOW_COVERAGE},
-                new Object[]{0, 101, CallableStatus.POOR_QUALITY},
-                new Object[]{10, Integer.MAX_VALUE, null},
+                new Object[]{0, min-1, CallableStatus.LOW_COVERAGE},
+                new Object[]{0, max+1, CallableStatus.POOR_QUALITY},
+                new Object[]{min, Integer.MAX_VALUE, null},
                 new Object[]{Integer.MAX_VALUE, Integer.MAX_VALUE, CallableStatus.EXCESSIVE_COVERAGE},
         };
     }

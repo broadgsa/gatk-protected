@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
 
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Interval;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -57,27 +57,23 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-class IntervalStatistics {
+public class IntervalStatistics {
 
     private final Map<String, SampleStatistics> samples;
     private final GenomeLoc interval;
-    private boolean hasNref = false;
+    private final ThresHolder thresholds;
 
-    private int preComputedTotalCoverage = -1;                                                                          // avoids re-calculating the total sum (-1 means we haven't pre-computed it yet)
+    private int preComputedTotalCoverage = -1;
 
-    /*
-    private double minMedianDepth = 20.0;
-    private double badMedianDepthPercentage = 0.20;
-    private double votePercentage = 0.50;
-    */
-    public IntervalStatistics(Set<String> samples, GenomeLoc interval/*, int minimumCoverageThreshold, int maximumCoverageThreshold, int minimumMappingQuality, int minimumBaseQuality*/) {
+    public IntervalStatistics(Set<String> samples, GenomeLoc interval, ThresHolder thresholds) {
         this.interval = interval;
+        this.thresholds = thresholds;
         this.samples = new HashMap<String, SampleStatistics>(samples.size());
         for (String sample : samples)
-            this.samples.put(sample, new SampleStatistics(interval /*, minimumCoverageThreshold, maximumCoverageThreshold, minimumMappingQuality, minimumBaseQuality*/));
+            this.samples.put(sample, new SampleStatistics(interval, thresholds));
     }
 
-    public SampleStatistics getSample(String sample) {
+    public SampleStatistics getSampleStatics(String sample) {
         return samples.get(sample);
     }
 
@@ -85,18 +81,18 @@ class IntervalStatistics {
         return interval;
     }
 
+    public int getNSamples() {
+        return samples.size();
+    }
+
     /**
      * The function to populate data into the Statistics from the walker.
      * This takes the input and manages passing the data to the SampleStatistics and Locus Statistics
      *
      * @param context    The alignment context given from the walker
-     * @param ref        the reference context given from the walker
-     * @param thresholds the class contains the statistical threshold for making calls
      */
-    public void addLocus(AlignmentContext context, ReferenceContext ref, ThresHolder thresholds) {
+    public void addLocus(AlignmentContext context) {
         ReadBackedPileup pileup = context.getBasePileup();
-
-        //System.out.println(ref.getLocus().toString());
 
         Map<String, ReadBackedPileup> samplePileups = pileup.getPileupsForSamples(samples.keySet());
 
@@ -108,11 +104,9 @@ class IntervalStatistics {
             if (sampleStatistics == null)
                 throw new ReviewedStingException(String.format("Trying to add locus statistics to a sample (%s) that doesn't exist in the Interval.", sample));
 
-            sampleStatistics.addLocus(context.getLocation(), samplePileup, thresholds);
+            sampleStatistics.addLocus(context.getLocation(), samplePileup);
         }
 
-        if (!hasNref && ref.getBase() == 'N')
-            hasNref = true;
     }
 
     public double averageCoverage() {
@@ -129,29 +123,34 @@ class IntervalStatistics {
 
     /**
      * Return the Callable statuses for the interval as a whole
-     * todo -- add missingness filter
      *
-     * @param thresholds the class contains the statistical threshold for making calls
      * @return the callable status(es) for the whole interval
      */
-    public Set<CallableStatus> callableStatuses(ThresHolder thresholds) {
-        Set<CallableStatus> output = new HashSet<CallableStatus>();
+    public Set<CallableStatus> callableStatuses() {
+        final Set<CallableStatus> output = new HashSet<CallableStatus>();
 
-        // Initialize the Map
-        Map<CallableStatus, Integer> votes = new HashMap<CallableStatus, Integer>();
-        for (CallableStatus status : CallableStatus.values())
-            votes.put(status, 0);
+        // sum up all the callable status for each sample
+        final Map<CallableStatus, Integer> sampleStatusTally = new HashMap<CallableStatus, Integer>(CallableStatus.values().length);
+        for (SampleStatistics sampleStatistics : samples.values()) {
+            for (CallableStatus status : sampleStatistics.getCallableStatuses()) {
+                sampleStatusTally.put(status, !sampleStatusTally.containsKey(status) ? 1 : sampleStatusTally.get(status) + 1);
+            }
+        }
 
-        // tally up the votes
-        for (SampleStatistics sample : samples.values())
-            for (CallableStatus status : sample.getCallableStatuses(thresholds))
-                votes.put(status, votes.get(status) + 1);
+        // check if any of the votes pass the threshold
+        final int nSamples = getNSamples();
+        for (Map.Entry<CallableStatus, Integer> entry : sampleStatusTally.entrySet()) {
+            if ((double) entry.getValue() / nSamples > thresholds.votePercentageThreshold) {
+                output.add(entry.getKey());
+            }
+        }
 
-        // output tall values above the threshold
-        final double minVotesNeeded = thresholds.getVotePercentageThreshold() * samples.size();
-        for (CallableStatus status : votes.keySet()) {
-            if (!status.equals((CallableStatus.PASS)) && votes.get(status) > minVotesNeeded)
+        // add the interval specific statitics statuses
+        for (Interval intervalStat : thresholds.intervalStatisticList) {
+            final CallableStatus status = intervalStat.status(this);
+            if (status != null) {
                 output.add(status);
+            }
         }
 
         return output;
