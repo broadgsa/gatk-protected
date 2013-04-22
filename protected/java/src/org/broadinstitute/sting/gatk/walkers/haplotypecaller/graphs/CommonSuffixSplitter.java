@@ -100,6 +100,8 @@ public class CommonSuffixSplitter {
             final SeqVertex suffixVTemplate = commonSuffix(toSplit);
             if ( suffixVTemplate.isEmpty() ) {
                 return false;
+            } else if ( wouldEliminateRefSource(graph, suffixVTemplate, toSplit) ) {
+                return false;
             } else if ( allVerticesAreTheCommonSuffix(suffixVTemplate, toSplit) ) {
                 return false;
             } else {
@@ -139,6 +141,21 @@ public class CommonSuffixSplitter {
                 return true;
             }
         }
+    }
+
+    /**
+     * Would factoring out this suffix result in elimating the reference source vertex?
+     * @param graph the graph
+     * @param commonSuffix the common suffix of all toSplits
+     * @param toSplits the list of vertices we're are trying to split
+     * @return true if toSplit contains the reference source and this ref source has all and only the bases of commonSuffix
+     */
+    private boolean wouldEliminateRefSource(final SeqGraph graph, final SeqVertex commonSuffix, final Collection<SeqVertex> toSplits) {
+        for ( final SeqVertex toSplit : toSplits ) {
+            if ( graph.isRefSource(toSplit) )
+                return toSplit.length() == commonSuffix.length();
+        }
+        return false;
     }
 
 //    private static int counter = 0;
