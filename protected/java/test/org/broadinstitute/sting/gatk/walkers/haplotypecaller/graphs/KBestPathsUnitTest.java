@@ -425,7 +425,7 @@ public class KBestPathsUnitTest extends BaseTest {
         logger.warn("AltPath : " + altPath + " cigar " + altPath.calculateCigar());
 
         Assert.assertEquals(refPath.calculateCigar().toString(), "51M");
-        Assert.assertEquals(altPath.calculateCigar().toString(), "3M14D2M20I32M");
+        Assert.assertEquals(altPath.calculateCigar().toString(), "3M6I48M");
     }
 
     // -----------------------------------------------------------------
@@ -443,7 +443,7 @@ public class KBestPathsUnitTest extends BaseTest {
                 Arrays.asList("G", "C", "1M"),
                 Arrays.asList("G", "", "1D"),
                 Arrays.asList("", "C", "1I"),
-                Arrays.asList("AAA", "CGT", "3D3I"),
+                Arrays.asList("AAA", "CGT", "3M"),
                 Arrays.asList("TAT", "CAC", "3M"),
                 Arrays.asList("GCTG", "GTCG", "4M"),
                 Arrays.asList("AAAAA", "", "5D"),

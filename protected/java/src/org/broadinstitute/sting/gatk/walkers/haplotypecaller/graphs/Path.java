@@ -86,7 +86,7 @@ public class Path<T extends BaseVertex> {
 
     // used in the bubble state machine to apply Smith-Waterman to the bubble sequence
     // these values were chosen via optimization against the NA12878 knowledge base
-    public static final Parameters NEW_SW_PARAMETERS = new Parameters(10, -20.0, -26.0, -0.1);
+    public static final Parameters NEW_SW_PARAMETERS = new Parameters(20.0, -15.0, -26.0, -1.1);
 
     private static final byte[] STARTING_SW_ANCHOR_BYTES = "XXXXXXXXX".getBytes();
 
