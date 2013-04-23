@@ -47,29 +47,11 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 /**
- * User: carneiro
- * Date: 4/20/13
- * Time: 11:44 PM
+ *
+ * @author Mauricio Carneiro
+ * @since 4/23/13
  */
-final class LocusPoorQuality implements Locus {
-    private int minCoverage;
-    private double threshold;
-    private static final CallableStatus CALL = CallableStatus.POOR_QUALITY ;
-
-    @Override
-    public void initialize(ThresHolder thresholds) {
-        this.minCoverage = thresholds.minimumCoverage;
-        this.threshold = thresholds.coverageStatusThreshold;
-    }
-
-    @Override
-    public CallableStatus status(AbstractStatistics statistics) {
-        final LocusStatistics locusStatistics = (LocusStatistics) statistics;
-        return locusStatistics.getCoverage() < minCoverage && locusStatistics.getRawCoverage() >= minCoverage ? CALL: null;
-    }
-
-    @Override
-    public CallableStatus sampleStatus(SampleStatistics sampleStatistics) {
-        return PluginUtils.genericSampleStatus(sampleStatistics, CALL, threshold);
-    }
+interface Statistic {
+    public void initialize(ThresHolder thresholds);
+    public CallableStatus status (AbstractStatistics statistic);
 }

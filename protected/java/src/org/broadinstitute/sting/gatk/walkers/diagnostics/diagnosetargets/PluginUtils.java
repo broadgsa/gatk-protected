@@ -55,7 +55,7 @@ import java.util.Map;
  */
 final class PluginUtils {
     public static CallableStatus genericSampleStatus (final SampleStatistics sampleStatistics, final CallableStatus CALL, final double threshold) {
-        final Map<CallableStatus, Integer> totals = sampleStatistics.getLocusStatusTally();
+        final Map<CallableStatus, Integer> totals = sampleStatistics.getStatusTally();
         final int size = sampleStatistics.getIntervalSize();
         final int statusCount = totals.containsKey(CALL) ? totals.get(CALL) : 0;
         return ( (double) statusCount / size) >= threshold ? CALL: null;

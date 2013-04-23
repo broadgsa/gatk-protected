@@ -53,8 +53,6 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
  * Time: 11:29 PM
  * To change this template use File | Settings | File Templates.
  */
-interface Locus {
-    public void initialize(ThresHolder thresholds);
-    public CallableStatus status (LocusStatistics locusStatistics);
+interface Locus extends Statistic {
     public CallableStatus sampleStatus (SampleStatistics sampleStatistics);
 }

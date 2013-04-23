@@ -53,7 +53,5 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
  * Time: 11:30 PM
  * To change this template use File | Settings | File Templates.
  */
-interface Interval {
-    public void initialize(ThresHolder thresholds);
-    public CallableStatus status (IntervalStatistics intervalStatistics);
+interface Interval extends Statistic {
 }

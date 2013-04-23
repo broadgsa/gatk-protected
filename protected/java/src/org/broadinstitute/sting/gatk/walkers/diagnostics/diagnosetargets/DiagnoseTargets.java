@@ -259,14 +259,14 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         vcb.filters(new LinkedHashSet<String>(statusToStrings(stats.callableStatuses(), true)));
 
         attributes.put(VCFConstants.END_KEY, interval.getStop());
-        attributes.put(AVG_INTERVAL_DP_KEY, stats.averageCoverage());
+        attributes.put(AVG_INTERVAL_DP_KEY, stats.averageCoverage(interval.size()));
 
         vcb = vcb.attributes(attributes);
         for (String sample : samples) {
             final GenotypeBuilder gb = new GenotypeBuilder(sample);
 
             SampleStatistics sampleStat = stats.getSampleStatistics(sample);
-            gb.attribute(AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage());
+            gb.attribute(AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage(interval.size()));
 
             gb.filters(statusToStrings(stats.getSampleStatistics(sample).callableStatuses(), false));
 
@@ -283,8 +283,8 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @param statuses the set of statuses to be converted
      * @return a matching set of strings
      */
-    private List<String> statusToStrings(List<CallableStatus> statuses, final boolean isInfoField) {
-        List<String> output = new ArrayList<String>(statuses.size());
+    private List<String> statusToStrings(Iterable<CallableStatus> statuses, final boolean isInfoField) {
+        List<String> output = new LinkedList<String>();
 
         for (CallableStatus status : statuses)
             if ( isInfoField || status != CallableStatus.PASS )

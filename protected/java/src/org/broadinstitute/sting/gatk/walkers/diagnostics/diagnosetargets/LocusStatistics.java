@@ -49,10 +49,10 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 import java.util.LinkedList;
 import java.util.List;
 
-final class LocusStatistics {
-    private int coverage;
-    private int rawCoverage;
-    private final List<Locus> locusStatisticsList;
+final class LocusStatistics extends AbstractStatistics{
+    private long coverage;
+    private long rawCoverage;
+    private final List<Statistic> locusStatisticsList;
 
     public LocusStatistics(ThresHolder thresholds) {
         this(0,0,thresholds);
@@ -64,12 +64,13 @@ final class LocusStatistics {
         this.locusStatisticsList = thresholds.locusStatisticList;
     }
 
-    public int getCoverage() {
-        return coverage;
-    }
+    @Override
+    public long getCoverage() {return coverage;}
+    public long getRawCoverage() {return rawCoverage;}
 
-    public int getRawCoverage() {
-        return rawCoverage;
+    public void addLocus(final int coverage, final int rawCoverage) {
+        this.coverage = coverage;
+        this.rawCoverage = rawCoverage;
     }
 
     /**
@@ -79,7 +80,7 @@ final class LocusStatistics {
      */
     public List<CallableStatus> callableStatuses() {
         List<CallableStatus> output = new LinkedList<CallableStatus>();
-        for (Locus stats : locusStatisticsList) {
+        for (Statistic stats : locusStatisticsList) {
             CallableStatus status = stats.status(this);
             if (status != null) {
                 output.add(status);
@@ -88,8 +89,9 @@ final class LocusStatistics {
         return output;
     }
 
-    public void set(final int coverage, final int rawCoverage) {
-        this.coverage = coverage;
-        this.rawCoverage = rawCoverage;
+    @Override
+    public Iterable<AbstractStatistics> getElements() {
+        return null;
     }
+
 }

@@ -61,7 +61,8 @@ final class LocusCoverageGap implements Locus {
     }
 
     @Override
-    public CallableStatus status(LocusStatistics locusStatistics) {
+    public CallableStatus status(AbstractStatistics statistics) {
+        final LocusStatistics locusStatistics = (LocusStatistics) statistics;
         return locusStatistics.getRawCoverage() == 0 ? CALL : null;
     }
 

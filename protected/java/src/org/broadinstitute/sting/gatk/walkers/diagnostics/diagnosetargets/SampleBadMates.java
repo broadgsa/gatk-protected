@@ -64,7 +64,8 @@ final class SampleBadMates implements Sample {
     }
 
     @Override
-    public CallableStatus status(SampleStatistics sampleStatistics) {
+    public CallableStatus status(AbstractStatistics statistics) {
+        final SampleStatistics sampleStatistics = (SampleStatistics) statistics;
         final int nReads = sampleStatistics.getnReads();
         return  nReads > 0 && (double) sampleStatistics.getnBadMates() / nReads > threshold ? CALL : null;
     }

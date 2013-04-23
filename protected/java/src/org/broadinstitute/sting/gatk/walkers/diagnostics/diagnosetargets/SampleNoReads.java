@@ -53,16 +53,13 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
  */
 final class SampleNoReads implements Sample {
     private static final CallableStatus CALL = CallableStatus.NO_READS;
-
-    private double votingThreshold;
-
-    @Override
+@Override
     public void initialize(ThresHolder thresholds) {
-        votingThreshold = thresholds.votePercentageThreshold;
     }
 
     @Override
-    public CallableStatus status(SampleStatistics sampleStatistics) {
+    public CallableStatus status(AbstractStatistics statistics) {
+        final SampleStatistics sampleStatistics = (SampleStatistics) statistics;
         return sampleStatistics.getnReads() == 0 ? CALL : null;
     }
 

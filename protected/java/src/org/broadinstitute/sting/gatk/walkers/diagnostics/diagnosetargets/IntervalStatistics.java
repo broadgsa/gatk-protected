@@ -53,23 +53,21 @@ import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 
 import java.util.*;
 
-final class IntervalStatistics {
-    private final Map<String, SampleStatistics> samples;
+final class IntervalStatistics extends AbstractStatistics{
+    private final Map<String, AbstractStatistics> samples;
     private final GenomeLoc interval;
     private final ThresHolder thresholds;
-
-    private int preComputedTotalCoverage = -1;
 
     public IntervalStatistics(Set<String> samples, GenomeLoc interval, ThresHolder thresholds) {
         this.interval = interval;
         this.thresholds = thresholds;
-        this.samples = new HashMap<String, SampleStatistics>(samples.size());
+        this.samples = new HashMap<String, AbstractStatistics>(samples.size());
         for (String sample : samples)
             this.samples.put(sample, new SampleStatistics(interval, thresholds));
     }
 
     public SampleStatistics getSampleStatistics(String sample) {
-        return samples.get(sample);
+        return (SampleStatistics) samples.get(sample);
     }
 
     public GenomeLoc getInterval() {
@@ -94,7 +92,7 @@ final class IntervalStatistics {
         for (Map.Entry<String, ReadBackedPileup> entry : samplePileups.entrySet()) {
             String sample = entry.getKey();
             ReadBackedPileup samplePileup = entry.getValue();
-            SampleStatistics sampleStatistics = samples.get(sample);
+            SampleStatistics sampleStatistics = (SampleStatistics) samples.get(sample);
 
             if (sampleStatistics == null)
                 throw new ReviewedStingException(String.format("Trying to add locus statistics to a sample (%s) that doesn't exist in the Interval.", sample));
@@ -104,49 +102,30 @@ final class IntervalStatistics {
 
     }
 
-    public double averageCoverage() {
-        if (preComputedTotalCoverage < 0)
-            calculateTotalCoverage();
-        return (double) preComputedTotalCoverage / interval.size();
-    }
-
-    private void calculateTotalCoverage() {
-        preComputedTotalCoverage = 0;
-        for (SampleStatistics sample : samples.values())
-            preComputedTotalCoverage += sample.totalCoverage();
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Iterable<AbstractStatistics> getElements() {
+        return samples.values();
     }
 
     /**
-     * Return the Callable statuses for the interval as a whole
-     *
-     * @return the callable status(es) for the whole interval
+     * {@inheritDoc}
      */
-    public List<CallableStatus> callableStatuses() {
+    @Override
+    public Iterable<CallableStatus> callableStatuses() {
         final List<CallableStatus> output = new LinkedList<CallableStatus>();
-
-        // sum up all the callable status for each sample
-        final Map<CallableStatus, Integer> sampleStatusTally = new HashMap<CallableStatus, Integer>(CallableStatus.values().length);
-        for (SampleStatistics sampleStatistics : samples.values()) {
-            for (CallableStatus status : sampleStatistics.callableStatuses()) {
-                sampleStatusTally.put(status, !sampleStatusTally.containsKey(status) ? 1 : sampleStatusTally.get(status) + 1);
-            }
-        }
 
         // check if any of the votes pass the threshold
         final int nSamples = getNSamples();
-        for (Map.Entry<CallableStatus, Integer> entry : sampleStatusTally.entrySet()) {
+        for (Map.Entry<CallableStatus, Integer> entry : getStatusTally().entrySet()) {
             if ((double) entry.getValue() / nSamples > thresholds.votePercentageThreshold) {
                 output.add(entry.getKey());
             }
         }
 
-        // add the interval specific statitics statuses
-        for (Interval intervalStat : thresholds.intervalStatisticList) {
-            final CallableStatus status = intervalStat.status(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
+        output.addAll(queryStatus(thresholds.intervalStatisticList, this));
 
         return output;
     }

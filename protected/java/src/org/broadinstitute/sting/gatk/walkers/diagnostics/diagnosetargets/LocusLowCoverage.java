@@ -63,8 +63,9 @@ final class LocusLowCoverage implements Locus {
     }
 
     @Override
-    public CallableStatus status(LocusStatistics locusStatistics) {
-        final int raw = locusStatistics.getRawCoverage();
+    public CallableStatus status(AbstractStatistics statistics) {
+        final LocusStatistics locusStatistics = (LocusStatistics) statistics;
+        final long raw = locusStatistics.getRawCoverage();
         return raw > 0 && raw < minCoverage ? CALL: null;
     }
 
