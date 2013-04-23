@@ -44,36 +44,16 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics;
-
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.CallableStatus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.LocusStatistics;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.SampleStatistics;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.ThresHolder;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 /**
+ * Created with IntelliJ IDEA.
  * User: carneiro
  * Date: 4/20/13
- * Time: 11:44 PM
+ * Time: 11:30 PM
+ * To change this template use File | Settings | File Templates.
  */
-public class LocusPoorQuality implements Locus {
-    private int minCoverage;
-    private double threshold;
-    private static final CallableStatus CALL = CallableStatus.POOR_QUALITY ;
-
-    @Override
-    public void initialize(ThresHolder thresholds) {
-        this.minCoverage = thresholds.minimumCoverage;
-        this.threshold = thresholds.coverageStatusThreshold;
-    }
-
-    @Override
-    public CallableStatus status(LocusStatistics locusStatistics) {
-        return locusStatistics.getCoverage() < minCoverage && locusStatistics.getRawCoverage() >= minCoverage ? CALL: null;
-    }
-
-    @Override
-    public CallableStatus sampleStatus(SampleStatistics sampleStatistics) {
-        return PluginUtils.genericSampleStatus(sampleStatistics, CALL, threshold);
-    }
+interface Interval {
+    public void initialize(ThresHolder thresholds);
+    public CallableStatus status (IntervalStatistics intervalStatistics);
 }

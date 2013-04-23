@@ -44,104 +44,31 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.commandline.Argument;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Interval;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Locus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Sample;
+/**
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:44 PM
+ */
+final class LocusPoorQuality implements Locus {
+    private int minCoverage;
+    private double threshold;
+    private static final CallableStatus CALL = CallableStatus.POOR_QUALITY ;
 
-import java.util.LinkedList;
-import java.util.List;
+    @Override
+    public void initialize(ThresHolder thresholds) {
+        this.minCoverage = thresholds.minimumCoverage;
+        this.threshold = thresholds.coverageStatusThreshold;
+    }
 
-public class ThresHolder {
+    @Override
+    public CallableStatus status(LocusStatistics locusStatistics) {
+        return locusStatistics.getCoverage() < minCoverage && locusStatistics.getRawCoverage() >= minCoverage ? CALL: null;
+    }
 
-    /**
-     * Only bases with quality greater than this will be considered in the coverage metrics.
-     */
-    @Argument(fullName = "minimum_base_quality", shortName = "BQ", doc = "The minimum Base Quality that is considered for calls", required = false)
-    public int minimumBaseQuality = 20;
-
-    /**
-     * Only reads with mapping quality greater than this will be considered in the coverage metrics.
-     */
-    @Argument(fullName = "minimum_mapping_quality", shortName = "MQ", doc = "The minimum read mapping quality considered for calls", required = false)
-    public int minimumMappingQuality = 20;
-
-    /**
-     * If at any locus, a sample has less coverage than this, it will be reported as LOW_COVERAGE
-     */
-    @Argument(fullName = "minimum_coverage", shortName = "min", doc = "The minimum allowable coverage, used for calling LOW_COVERAGE", required = false)
-    public int minimumCoverage = 5;
-
-    /**
-     * If at any locus, a sample has more coverage than this, it will be reported as EXCESSIVE_COVERAGE
-     */
-    @Argument(fullName = "maximum_coverage", shortName = "max", doc = "The maximum allowable coverage, used for calling EXCESSIVE_COVERAGE", required = false)
-    public int maximumCoverage = 700;
-
-    /**
-     * If any sample has a paired read whose distance between alignment starts (between the pairs) is greater than this, it will be reported as BAD_MATE
-     */
-    @Argument(fullName = "maximum_insert_size", shortName = "ins", doc = "The maximum allowed distance between a read and its mate", required = false)
-    public int maximumInsertSize = 500;
-
-    /**
-     * The proportion of samples that must have a status for it to filter the entire interval. Example: 8 out of 10 samples have low coverage status on the interval,
-     * with a threshold higher than 0.2, this interval will be filtered as LOW_COVERAGE.
-     */
-    @Argument(fullName = "voting_status_threshold", shortName = "stV", doc = "The needed proportion of samples containing a call for the interval to adopt the call ", required = false)
-    public double votePercentageThreshold = 0.50;
-
-    /**
-     * The proportion of reads in the loci that must have bad mates for the sample to be reported as BAD_MATE
-     */
-    @Argument(fullName = "bad_mate_status_threshold", shortName = "stBM", doc = "The proportion of the loci needed for calling BAD_MATE", required = false)
-    public double badMateStatusThreshold = 0.50;
-
-    /**
-     * The proportion of loci in a sample that must fall under the LOW_COVERAGE or COVERAGE_GAPS category for the sample to be reported as either (or both)
-     */
-    @Argument(fullName = "coverage_status_threshold", shortName = "stC", doc = "The proportion of the loci needed for calling LOW_COVERAGE and COVERAGE_GAPS", required = false)
-    public double coverageStatusThreshold = 0.20;
-
-    /**
-     * The proportion of loci in a sample that must fall under the EXCESSIVE_COVERAGE category for the sample to be reported as EXCESSIVE_COVERAGE
-     */
-    @Argument(fullName = "excessive_coverage_status_threshold", shortName = "stXC", doc = "The proportion of the loci needed for calling EXCESSIVE_COVERAGE", required = false)
-    public double excessiveCoverageThreshold = 0.20;
-
-    /**
-     * The proportion of loci in a sample that must fall under the LOW_QUALITY category for the sample to be reported as LOW_QUALITY
-     */
-    @Argument(fullName = "quality_status_threshold", shortName = "stQ", doc = "The proportion of the loci needed for calling POOR_QUALITY", required = false)
-    public double qualityStatusThreshold = 0.50;
-
-    public final List<Locus> locusStatisticList = new LinkedList<Locus>();
-    public final List<Sample> sampleStatisticList = new LinkedList<Sample>();
-    public final List<Interval> intervalStatisticList = new LinkedList<Interval>();
-
-    public ThresHolder() {}
-
-    public ThresHolder(final int minimumBaseQuality,
-                       final int minimumMappingQuality,
-                       final int minimumCoverage,
-                       final int maximumCoverage,
-                       final int maximumInsertSize,
-                       final double votePercentageThreshold,
-                       final double badMateStatusThreshold,
-                       final double coverageStatusThreshold,
-                       final double excessiveCoverageThreshold,
-                       final double qualityStatusThreshold) {
-        this.minimumBaseQuality = minimumBaseQuality;
-        this.minimumMappingQuality = minimumMappingQuality;
-        this.minimumCoverage = minimumCoverage;
-        this.maximumCoverage = maximumCoverage;
-        this.maximumInsertSize = maximumInsertSize;
-        this.votePercentageThreshold = votePercentageThreshold;
-        this.badMateStatusThreshold = badMateStatusThreshold;
-        this.coverageStatusThreshold = coverageStatusThreshold;
-        this.excessiveCoverageThreshold = excessiveCoverageThreshold;
-        this.qualityStatusThreshold = qualityStatusThreshold;
+    @Override
+    public CallableStatus sampleStatus(SampleStatistics sampleStatistics) {
+        return PluginUtils.genericSampleStatus(sampleStatistics, CALL, threshold);
     }
 }

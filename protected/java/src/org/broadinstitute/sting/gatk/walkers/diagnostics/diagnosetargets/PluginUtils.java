@@ -44,10 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics;
-
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.CallableStatus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.SampleStatistics;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 import java.util.Map;
 
@@ -56,7 +53,7 @@ import java.util.Map;
  * Date: 4/21/13
  * Time: 11:23 AM
  */
-public class PluginUtils {
+final class PluginUtils {
     public static CallableStatus genericSampleStatus (final SampleStatistics sampleStatistics, final CallableStatus CALL, final double threshold) {
         final Map<CallableStatus, Integer> totals = sampleStatistics.getLocusStatusTally();
         final int size = sampleStatistics.getIntervalSize();

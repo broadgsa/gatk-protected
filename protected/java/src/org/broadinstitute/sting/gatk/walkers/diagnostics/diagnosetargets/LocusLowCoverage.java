@@ -44,33 +44,32 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics;
-
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.CallableStatus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.SampleStatistics;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.ThresHolder;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 /**
  * User: carneiro
  * Date: 4/20/13
  * Time: 11:44 PM
  */
-public class SampleBadMates implements Sample {
-    private static final CallableStatus CALL = CallableStatus.NO_READS ;
-
+final class LocusLowCoverage implements Locus {
+    private int minCoverage;
     private double threshold;
-    private double votingThreshold;
+    private static final CallableStatus CALL = CallableStatus.LOW_COVERAGE ;
 
     @Override
     public void initialize(ThresHolder thresholds) {
-        threshold = thresholds.badMateStatusThreshold;
-        votingThreshold = thresholds.votePercentageThreshold;
+        this.minCoverage = thresholds.minimumCoverage;
+        this.threshold = thresholds.coverageStatusThreshold;
     }
 
     @Override
-    public CallableStatus status(SampleStatistics sampleStatistics) {
-        final int nReads = sampleStatistics.getnReads();
-        return  nReads > 0 && (double) sampleStatistics.getnBadMates() / nReads > threshold ? CALL : null;
+    public CallableStatus status(LocusStatistics locusStatistics) {
+        final int raw = locusStatistics.getRawCoverage();
+        return raw > 0 && raw < minCoverage ? CALL: null;
     }
 
+    @Override
+    public CallableStatus sampleStatus(SampleStatistics sampleStatistics) {
+        return PluginUtils.genericSampleStatus(sampleStatistics, CALL, threshold);
+    }
 }

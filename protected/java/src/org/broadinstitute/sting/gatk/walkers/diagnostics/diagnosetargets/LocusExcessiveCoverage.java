@@ -44,33 +44,31 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 /**
- * Short one line description of the walker.
- *
- * @author Mauricio Carneiro
- * @since 2/1/12
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:44 PM
  */
-public enum CallableStatus {
+final class LocusExcessiveCoverage implements Locus {
+    private int excessiveCoverage;
+    private double threshold;
+    private static final CallableStatus CALL = CallableStatus.EXCESSIVE_COVERAGE ;
 
-    PASS("the base satisfied the min. depth for calling but had less than maxDepth to avoid having EXCESSIVE_COVERAGE"),
+    @Override
+    public void initialize(ThresHolder thresholds) {
+        this.excessiveCoverage = thresholds.maximumCoverage;
+        this.threshold = thresholds.coverageStatusThreshold;
+    }
 
-    COVERAGE_GAPS("absolutely no coverage was observed at a locus, regardless of the filtering parameters"),
+    @Override
+    public CallableStatus status(LocusStatistics locusStatistics) {
+        return locusStatistics.getCoverage() > excessiveCoverage ? CALL : null;
+    }
 
-    LOW_COVERAGE("there were less than min. depth bases at the locus, after applying filters"),
-
-    EXCESSIVE_COVERAGE("more than -maxDepth read at the locus, indicating some sort of mapping problem"),
-
-    POOR_QUALITY("more than --maxFractionOfReadsWithLowMAPQ at the locus, indicating a poor mapping quality of the reads"),
-
-    BAD_MATE("the reads are not properly mated, suggesting mapping errors"),
-
-    NO_READS("there are no reads contained in the interval");
-
-    public final String description;
-
-    private CallableStatus(String description) {
-        this.description = description;
+    @Override
+    public CallableStatus sampleStatus(SampleStatistics sampleStatistics) {
+        return PluginUtils.genericSampleStatus(sampleStatistics, CALL, threshold);
     }
 }

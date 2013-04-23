@@ -44,20 +44,29 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics;
-
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.CallableStatus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.SampleStatistics;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.ThresHolder;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 /**
- * Created with IntelliJ IDEA.
  * User: carneiro
  * Date: 4/20/13
- * Time: 11:30 PM
- * To change this template use File | Settings | File Templates.
+ * Time: 11:44 PM
  */
-public interface Sample {
-    public void initialize(ThresHolder thresholds);
-    public CallableStatus status (SampleStatistics sampleStatistics);
+final class SampleBadMates implements Sample {
+    private static final CallableStatus CALL = CallableStatus.NO_READS ;
+
+    private double threshold;
+    private double votingThreshold;
+
+    @Override
+    public void initialize(ThresHolder thresholds) {
+        threshold = thresholds.badMateStatusThreshold;
+        votingThreshold = thresholds.votePercentageThreshold;
+    }
+
+    @Override
+    public CallableStatus status(SampleStatistics sampleStatistics) {
+        final int nReads = sampleStatistics.getnReads();
+        return  nReads > 0 && (double) sampleStatistics.getnBadMates() / nReads > threshold ? CALL : null;
+    }
+
 }

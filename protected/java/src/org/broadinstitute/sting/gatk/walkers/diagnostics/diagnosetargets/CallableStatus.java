@@ -44,55 +44,33 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Locus;
+/**
+ * Short one line description of the walker.
+ *
+ * @author Mauricio Carneiro
+ * @since 2/1/12
+ */
+enum CallableStatus {
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+    PASS("the base satisfied the min. depth for calling but had less than maxDepth to avoid having EXCESSIVE_COVERAGE"),
 
-public class LocusStatistics {
-    private int coverage;
-    private int rawCoverage;
-    private final List<Locus> locusStatisticsList;
+    COVERAGE_GAPS("absolutely no coverage was observed at a locus, regardless of the filtering parameters"),
 
-    public LocusStatistics(ThresHolder thresholds) {
-        this(0,0,thresholds);
-    }
+    LOW_COVERAGE("there were less than min. depth bases at the locus, after applying filters"),
 
-    protected LocusStatistics(int coverage, int rawCoverage, ThresHolder thresholds) {
-        this.coverage = coverage;
-        this.rawCoverage = rawCoverage;
-        this.locusStatisticsList = thresholds.locusStatisticList;
-    }
+    EXCESSIVE_COVERAGE("more than -maxDepth read at the locus, indicating some sort of mapping problem"),
 
-    public int getCoverage() {
-        return coverage;
-    }
+    POOR_QUALITY("more than --maxFractionOfReadsWithLowMAPQ at the locus, indicating a poor mapping quality of the reads"),
 
-    public int getRawCoverage() {
-        return rawCoverage;
-    }
+    BAD_MATE("the reads are not properly mated, suggesting mapping errors"),
 
-    /**
-     * Generates all applicable statuses from the coverages in this locus
-     *
-     * @return a set of all statuses that apply
-     */
-    public Set<CallableStatus> callableStatuses() {
-        Set<CallableStatus> output = new HashSet<CallableStatus>();
-        for (Locus stats : locusStatisticsList) {
-            CallableStatus status = stats.status(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
-        return output;
-    }
+    NO_READS("there are no reads contained in the interval");
 
-    public void set(final int coverage, final int rawCoverage) {
-        this.coverage = coverage;
-        this.rawCoverage = rawCoverage;
+    public final String description;
+
+    private CallableStatus(String description) {
+        this.description = description;
     }
 }

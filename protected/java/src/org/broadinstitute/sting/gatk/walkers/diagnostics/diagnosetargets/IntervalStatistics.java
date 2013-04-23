@@ -44,21 +44,16 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Interval;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-public class IntervalStatistics {
-
+final class IntervalStatistics {
     private final Map<String, SampleStatistics> samples;
     private final GenomeLoc interval;
     private final ThresHolder thresholds;
@@ -73,7 +68,7 @@ public class IntervalStatistics {
             this.samples.put(sample, new SampleStatistics(interval, thresholds));
     }
 
-    public SampleStatistics getSampleStatics(String sample) {
+    public SampleStatistics getSampleStatistics(String sample) {
         return samples.get(sample);
     }
 
@@ -126,13 +121,13 @@ public class IntervalStatistics {
      *
      * @return the callable status(es) for the whole interval
      */
-    public Set<CallableStatus> callableStatuses() {
-        final Set<CallableStatus> output = new HashSet<CallableStatus>();
+    public List<CallableStatus> callableStatuses() {
+        final List<CallableStatus> output = new LinkedList<CallableStatus>();
 
         // sum up all the callable status for each sample
         final Map<CallableStatus, Integer> sampleStatusTally = new HashMap<CallableStatus, Integer>(CallableStatus.values().length);
         for (SampleStatistics sampleStatistics : samples.values()) {
-            for (CallableStatus status : sampleStatistics.getCallableStatuses()) {
+            for (CallableStatus status : sampleStatistics.callableStatuses()) {
                 sampleStatusTally.put(status, !sampleStatusTally.containsKey(status) ? 1 : sampleStatusTally.get(status) + 1);
             }
         }

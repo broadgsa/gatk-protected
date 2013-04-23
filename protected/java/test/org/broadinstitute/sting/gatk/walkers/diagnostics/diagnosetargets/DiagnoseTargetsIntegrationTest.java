@@ -44,170 +44,33 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Locus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Sample;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.WalkerTest;
+import org.testng.annotations.Test;
 
-import java.util.*;
+import java.util.Arrays;
 
-/**
- * The statistics calculator for a specific sample given the interval
- */
-public class SampleStatistics {
-    private final GenomeLoc interval;
-    private final ArrayList<LocusStatistics> loci;
-    private final ThresHolder thresholds;
+public class DiagnoseTargetsIntegrationTest extends WalkerTest {
+    final static String REF = BaseTest.b37KGReference;
+    final String singleSample = BaseTest.validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.bam";
+    final String multiSample = BaseTest.validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam";
+    final String L = BaseTest.validationDataLocation + "DT-itest.interval_list";
 
-    // avoids re-calculating these sums over loci
-    private int preComputedTotalCoverage = -1;
-    private Map<CallableStatus, Integer> locusStatusTally = null;
-    private int nReads = -1;
-    private int nBadMates = -1;
-
-    public SampleStatistics(final GenomeLoc interval, final ThresHolder thresholds) {
-        this.interval = interval;
-        this.loci = new ArrayList<LocusStatistics>(interval.size());
-        this.thresholds = thresholds;
-        nReads = 0;
-        nBadMates = 0;
-
-        // Initialize every loci (this way we don't have to worry about non-existent loci in the object
-        for (int i = 0; i < interval.size(); i++)
-            this.loci.add(new LocusStatistics(thresholds));
-
+    private void DTTest(String testName, String args, String md5) {
+        String base = String.format("-T DiagnoseTargets  --no_cmdline_in_header -R %s -L %s", REF, L) + " -o %s ";
+        WalkerTestSpec spec = new WalkerTestSpec(base + args, Arrays.asList(md5));
+        executeTest(testName, spec);
     }
 
-    /**
-     * Calculates the total "good" coverage of this sample. Good means "passes the base and 
-     * mapping quality requirements.
-     * 
-     * @return the total "good" coverage across the interval for this sample
-     */
-    public long totalCoverage() {
-        if (preComputedTotalCoverage < 0)
-            calculateTotalCoverage();
-        return preComputedTotalCoverage;
+    @Test(enabled = true)
+    public void testSingleSample() {
+        DTTest("testSingleSample ", "-I " + singleSample + " -max 75", "850304909477afa8c2a8f128d6eedde9");
     }
 
-    /**
-     * Calculates the average "good" coverage of this sample. Good means "passes the base and 
-     * mapping quality requirements.
-     * 
-     * @return the average "good" coverage
-     */
-    public double averageCoverage() {
-        return (double) totalCoverage() / loci.size();
-    }
-
-    /**
-     * Tally up all the callable status of all the loci in this sample.
-     * 
-     * @return a map of callable status and counts
-     */
-    public Map<CallableStatus, Integer> getLocusStatusTally() {
-        if (locusStatusTally == null) {
-            locusStatusTally = new HashMap<CallableStatus, Integer>(CallableStatus.values().length);
-
-            // sum up all the callable statuses for each locus
-            for (int i = 0; i < interval.size(); i++) {
-                LocusStatistics locus = loci.get(i);
-                for (CallableStatus status : locus.callableStatuses()) {
-                    locusStatusTally.put(status, !locusStatusTally.containsKey(status) ? 1 : locusStatusTally.get(status) + 1);
-                }
-            }
-        }
-        return locusStatusTally;
-    }
-
-    /**
-     * Calculates the callable statuses of the entire sample
-     *
-     * @return the callable statuses of the entire sample
-     */
-    public Set<CallableStatus> getCallableStatuses() {
-        final Set<CallableStatus> output = new HashSet<CallableStatus>();
-
-        // get the tally of all the locus callable statuses
-        for (Locus locusStat : thresholds.locusStatisticList) {
-            final CallableStatus status = locusStat.sampleStatus(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
-
-        // get the sample specific statitics statuses
-        for (Sample sampleStat : thresholds.sampleStatisticList) {
-            final CallableStatus status = sampleStat.status(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
-
-        // special case, if there are no reads, then there is no sense reporting coverage gaps.
-        if (output.contains(CallableStatus.NO_READS) && output.contains(CallableStatus.COVERAGE_GAPS))
-            output.remove(CallableStatus.COVERAGE_GAPS);
-
-        return output;
-    }
-
-    /**
-     * Adds a locus to the interval wide stats
-     *
-     * @param locus      The locus given as a GenomeLoc
-     * @param pileup     The pileup of that locus, this exclusively contains the sample
-     */
-    public void addLocus(GenomeLoc locus, ReadBackedPileup pileup) {
-        if (!interval.containsP(locus))
-            throw new ReviewedStingException(String.format("Locus %s is not part of the Interval %s", locus, interval));
-
-        // a null pileup means there nothing ot add
-        if (pileup != null) {
-            final int locusIndex = locus.getStart() - interval.getStart();
-            final int rawCoverage = pileup.depthOfCoverage();
-            final int coverage = pileup.getBaseAndMappingFilteredPileup(thresholds.minimumBaseQuality, thresholds.minimumMappingQuality).depthOfCoverage();
-            final LocusStatistics locusData = loci.get(locusIndex);
-            locusData.set(coverage, rawCoverage);
-
-            for (GATKSAMRecord read : pileup.getReads())
-                processRead(read);
-        }
-    }
-
-    /**
-     * Account for the read and check it for any statistics necessary. Reads are marked in the temporary
-     * attribute "seen" to make sure they're not counted twice.
-     * 
-     * @param read the read
-     */
-    private void processRead(GATKSAMRecord read) {
-        if (read.getTemporaryAttribute("seen") == null) {
-            nReads++;
-            if (read.getReadPairedFlag() && !read.getProperPairFlag())
-                nBadMates++;
-            read.setTemporaryAttribute("seen", true);
-        }
-    }
-
-    private void calculateTotalCoverage() {
-        preComputedTotalCoverage = 0;
-        for (LocusStatistics locus : loci)
-            preComputedTotalCoverage += locus.getCoverage();
-    }
-
-    public int getIntervalSize() {
-        return interval.size();
-    }
-
-    public int getnReads() {
-        return nReads;
-    }
-
-    public int getnBadMates() {
-        return nBadMates;
+    @Test(enabled = true)
+    public void testMultiSample() {
+        DTTest("testMultiSample ", "-I " + multiSample, "bedd19bcf21d1a779f6706c0351c9d26");
     }
 }

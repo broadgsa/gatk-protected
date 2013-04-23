@@ -44,19 +44,14 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics;
-
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.CallableStatus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.LocusStatistics;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.SampleStatistics;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.ThresHolder;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 /**
  * User: carneiro
  * Date: 4/20/13
  * Time: 11:44 PM
  */
-public class LocusCoverageGap implements Locus {
+final class LocusCoverageGap implements Locus {
     private double threshold;
     private static final CallableStatus CALL = CallableStatus.COVERAGE_GAPS;
 

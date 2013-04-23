@@ -44,20 +44,52 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.CallableStatus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.IntervalStatistics;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.ThresHolder;
+import java.util.LinkedList;
+import java.util.List;
 
-/**
- * Created with IntelliJ IDEA.
- * User: carneiro
- * Date: 4/20/13
- * Time: 11:30 PM
- * To change this template use File | Settings | File Templates.
- */
-public interface Interval {
-    public void initialize(ThresHolder thresholds);
-    public CallableStatus status (IntervalStatistics intervalStatistics);
+final class LocusStatistics {
+    private int coverage;
+    private int rawCoverage;
+    private final List<Locus> locusStatisticsList;
+
+    public LocusStatistics(ThresHolder thresholds) {
+        this(0,0,thresholds);
+    }
+
+    protected LocusStatistics(int coverage, int rawCoverage, ThresHolder thresholds) {
+        this.coverage = coverage;
+        this.rawCoverage = rawCoverage;
+        this.locusStatisticsList = thresholds.locusStatisticList;
+    }
+
+    public int getCoverage() {
+        return coverage;
+    }
+
+    public int getRawCoverage() {
+        return rawCoverage;
+    }
+
+    /**
+     * Generates all applicable statuses from the coverages in this locus
+     *
+     * @return a set of all statuses that apply
+     */
+    public List<CallableStatus> callableStatuses() {
+        List<CallableStatus> output = new LinkedList<CallableStatus>();
+        for (Locus stats : locusStatisticsList) {
+            CallableStatus status = stats.status(this);
+            if (status != null) {
+                output.add(status);
+            }
+        }
+        return output;
+    }
+
+    public void set(final int coverage, final int rawCoverage) {
+        this.coverage = coverage;
+        this.rawCoverage = rawCoverage;
+    }
 }

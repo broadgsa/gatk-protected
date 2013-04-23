@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 import net.sf.picard.util.PeekableIterator;
 import org.broadinstitute.sting.commandline.ArgumentCollection;
@@ -54,9 +54,6 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Interval;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Locus;
-import org.broadinstitute.sting.gatk.walkers.diagnostics.targets.statistics.Sample;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.classloader.PluginManager;
@@ -259,7 +256,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         VariantContextBuilder vcb = new VariantContextBuilder("DiagnoseTargets", interval.getContig(), interval.getStart(), interval.getStop(), alleles);
 
         vcb = vcb.log10PError(VariantContext.NO_LOG10_PERROR);
-        vcb.filters(new HashSet<String>(statusesToStrings(stats.callableStatuses(), true)));
+        vcb.filters(new LinkedHashSet<String>(statusToStrings(stats.callableStatuses(), true)));
 
         attributes.put(VCFConstants.END_KEY, interval.getStop());
         attributes.put(AVG_INTERVAL_DP_KEY, stats.averageCoverage());
@@ -268,10 +265,10 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         for (String sample : samples) {
             final GenotypeBuilder gb = new GenotypeBuilder(sample);
 
-            SampleStatistics sampleStat = stats.getSampleStatics(sample);
+            SampleStatistics sampleStat = stats.getSampleStatistics(sample);
             gb.attribute(AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage());
 
-            gb.filters(statusesToStrings(stats.getSampleStatics(sample).getCallableStatuses(), false));
+            gb.filters(statusToStrings(stats.getSampleStatistics(sample).callableStatuses(), false));
 
             genotypes.add(gb.make());
         }
@@ -286,7 +283,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @param statuses the set of statuses to be converted
      * @return a matching set of strings
      */
-    private List<String> statusesToStrings(Set<CallableStatus> statuses, final boolean isInfoField) {
+    private List<String> statusToStrings(List<CallableStatus> statuses, final boolean isInfoField) {
         List<String> output = new ArrayList<String>(statuses.size());
 
         for (CallableStatus status : statuses)
