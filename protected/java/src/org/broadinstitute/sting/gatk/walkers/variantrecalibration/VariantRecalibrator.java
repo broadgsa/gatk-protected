@@ -173,7 +173,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     // Additional Command Line Arguments
     /////////////////////////////
     /**
-     * The expected transition / tranversion ratio of true novel variants in your targeted region (whole genome, exome, specific
+     * The expected transition / transversion ratio of true novel variants in your targeted region (whole genome, exome, specific
      * genes), which varies greatly by the CpG and GC content of the region. See expected Ti/Tv ratios section of the GATK best
      * practices documentation (http://www.broadinstitute.org/gatk/guide/topic?name=best-practices) for more information. Normal whole genome values are 2.15 and for whole exome 3.2. Note
      * that this parameter is used for display purposes only and isn't used anywhere in the algorithm!

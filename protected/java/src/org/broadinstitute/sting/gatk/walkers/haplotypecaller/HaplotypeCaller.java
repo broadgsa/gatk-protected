@@ -308,7 +308,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     protected boolean useLowQualityBasesForAssembly = false;
 
     @Hidden
-    @Argument(fullName="dontTrimActiveRegions", shortName="donTrimActiveRegions", doc="If specified, we will not trim down the active region from the full region (active + extension) to just the active interval for genotyping", required = false)
+    @Argument(fullName="dontTrimActiveRegions", shortName="dontTrimActiveRegions", doc="If specified, we will not trim down the active region from the full region (active + extension) to just the active interval for genotyping", required = false)
     protected boolean dontTrimActiveRegions = false;
 
     @Hidden

@@ -81,7 +81,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
     private static final int KMER_OVERLAP = 5; // the additional size of a valid chunk of sequence, used to string together k-mers
 
-    // TODO -- this number is very low, and limits our ability to explore low-frequnecy variants.  It should
+    // TODO -- this number is very low, and limits our ability to explore low-frequency variants.  It should
     // TODO -- be increased to a large number of eliminated altogether when moving to the bubble caller where
     // TODO -- we are no longer considering a combinatorial number of haplotypes as the number of bubbles increases
     private static final int NUM_BEST_PATHS_PER_KMER_GRAPH = 25;
@@ -187,10 +187,10 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         // TODO -- we need to come up with a consistent pruning algorithm.  The current pruning algorithm
         // TODO -- works well but it doesn't differentiate between an isolated chain that doesn't connect
-        // TODO -- to anything from one that's actuall has good support along the chain but just happens
+        // TODO -- to anything from one that's actually has good support along the chain but just happens
         // TODO -- to have a connection in the middle that has weight of < pruneFactor.  Ultimately
         // TODO -- the pruning algorithm really should be an error correction algorithm that knows more
-        // TODO -- about the structure of the data and can differeniate between an infrequent path but
+        // TODO -- about the structure of the data and can differentiate between an infrequent path but
         // TODO -- without evidence against it (such as occurs when a region is hard to get any reads through)
         // TODO -- from a error with lots of weight going along another similar path
         // the very first thing we need to do is zip up the graph, or pruneGraph will be too aggressive
@@ -216,7 +216,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         seqGraph.removePathsNotConnectedToRef();
         seqGraph.simplifyGraph();
         if ( seqGraph.vertexSet().size() == 1 ) {
-            // we've prefectly assembled into a single reference haplotype, add a empty seq vertex to stop
+            // we've perfectly assembled into a single reference haplotype, add a empty seq vertex to stop
             // the code from blowing up.
             // TODO -- ref properties should really be on the vertices, not the graph itself
             final SeqVertex complete = seqGraph.vertexSet().iterator().next();
