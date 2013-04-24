@@ -64,7 +64,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMultiSamplePilot1() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000", 1,
-                Arrays.asList("a6c224235c21b4af816b1512eb0624df"));
+                Arrays.asList("5e8f1fa88dc93320cc0e75e9fe6e153b"));
         executeTest("test MultiSample Pilot1", spec);
     }
 
