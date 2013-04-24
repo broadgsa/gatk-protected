@@ -54,9 +54,9 @@ import java.util.Map;
  * Time: 11:23 AM
  */
 final class PluginUtils {
-    public static CallableStatus genericSampleStatus (final SampleStatistics sampleStatistics, final CallableStatus CALL, final double threshold) {
-        final Map<CallableStatus, Integer> totals = sampleStatistics.getStatusTally();
-        final int size = sampleStatistics.getIntervalSize();
+    public static CallableStatus genericSampleStatus (final SampleStratification sampleStratification, final CallableStatus CALL, final double threshold) {
+        final Map<CallableStatus, Integer> totals = sampleStratification.getStatusTally();
+        final int size = sampleStratification.getIntervalSize();
         final int statusCount = totals.containsKey(CALL) ? totals.get(CALL) : 0;
         return ( (double) statusCount / size) >= threshold ? CALL: null;
     }

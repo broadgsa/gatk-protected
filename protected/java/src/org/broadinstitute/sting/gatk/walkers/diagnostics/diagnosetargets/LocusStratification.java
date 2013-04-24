@@ -46,30 +46,52 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-/**
- * User: carneiro
- * Date: 4/20/13
- * Time: 11:44 PM
- */
-final class LocusExcessiveCoverage implements Locus {
-    private int excessiveCoverage;
-    private double threshold;
-    private static final CallableStatus CALL = CallableStatus.EXCESSIVE_COVERAGE ;
+import java.util.LinkedList;
+import java.util.List;
 
-    @Override
-    public void initialize(ThresHolder thresholds) {
-        this.excessiveCoverage = thresholds.maximumCoverage;
-        this.threshold = thresholds.coverageStatusThreshold;
+final class LocusStratification extends AbstractStratification {
+    private long coverage;
+    private long rawCoverage;
+    private final List<Metric> locusStatisticsList;
+
+    public LocusStratification(ThresHolder thresholds) {
+        this(0,0,thresholds);
+    }
+
+    protected LocusStratification(int coverage, int rawCoverage, ThresHolder thresholds) {
+        this.coverage = coverage;
+        this.rawCoverage = rawCoverage;
+        this.locusStatisticsList = thresholds.locusMetricList;
     }
 
     @Override
-    public CallableStatus status(AbstractStatistics statistics) {
-        final LocusStatistics locusStatistics = (LocusStatistics) statistics;
-        return locusStatistics.getCoverage() > excessiveCoverage ? CALL : null;
+    public long getCoverage() {return coverage;}
+    public long getRawCoverage() {return rawCoverage;}
+
+    public void addLocus(final int coverage, final int rawCoverage) {
+        this.coverage = coverage;
+        this.rawCoverage = rawCoverage;
+    }
+
+    /**
+     * Generates all applicable statuses from the coverages in this locus
+     *
+     * @return a set of all statuses that apply
+     */
+    public List<CallableStatus> callableStatuses() {
+        List<CallableStatus> output = new LinkedList<CallableStatus>();
+        for (Metric stats : locusStatisticsList) {
+            CallableStatus status = stats.status(this);
+            if (status != null) {
+                output.add(status);
+            }
+        }
+        return output;
     }
 
     @Override
-    public CallableStatus sampleStatus(SampleStatistics sampleStatistics) {
-        return PluginUtils.genericSampleStatus(sampleStatistics, CALL, threshold);
+    public Iterable<AbstractStratification> getElements() {
+        return null;
     }
+
 }

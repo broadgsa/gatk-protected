@@ -46,28 +46,87 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-/**
- * User: carneiro
- * Date: 4/20/13
- * Time: 11:44 PM
- */
-final class SampleBadMates implements Sample {
-    private static final CallableStatus CALL = CallableStatus.NO_READS ;
+import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 
-    private double threshold;
-    private double votingThreshold;
+import java.util.*;
 
-    @Override
-    public void initialize(ThresHolder thresholds) {
-        threshold = thresholds.badMateStatusThreshold;
-        votingThreshold = thresholds.votePercentageThreshold;
+final class IntervalStratification extends AbstractStratification {
+    private final Map<String, AbstractStratification> samples;
+    private final GenomeLoc interval;
+    private final ThresHolder thresholds;
+
+    public IntervalStratification(Set<String> samples, GenomeLoc interval, ThresHolder thresholds) {
+        this.interval = interval;
+        this.thresholds = thresholds;
+        this.samples = new HashMap<String, AbstractStratification>(samples.size());
+        for (String sample : samples)
+            this.samples.put(sample, new SampleStratification(interval, thresholds));
     }
 
-    @Override
-    public CallableStatus status(AbstractStatistics statistics) {
-        final SampleStatistics sampleStatistics = (SampleStatistics) statistics;
-        final int nReads = sampleStatistics.getnReads();
-        return  nReads > 0 && (double) sampleStatistics.getnBadMates() / nReads > threshold ? CALL : null;
+    public SampleStratification getSampleStatistics(String sample) {
+        return (SampleStratification) samples.get(sample);
     }
 
+    public GenomeLoc getInterval() {
+        return interval;
+    }
+
+    public int getNSamples() {
+        return samples.size();
+    }
+
+    /**
+     * The function to populate data into the Statistics from the walker.
+     * This takes the input and manages passing the data to the SampleStatistics and Locus Statistics
+     *
+     * @param context    The alignment context given from the walker
+     */
+    public void addLocus(AlignmentContext context) {
+        ReadBackedPileup pileup = context.getBasePileup();
+
+        Map<String, ReadBackedPileup> samplePileups = pileup.getPileupsForSamples(samples.keySet());
+
+        for (Map.Entry<String, ReadBackedPileup> entry : samplePileups.entrySet()) {
+            String sample = entry.getKey();
+            ReadBackedPileup samplePileup = entry.getValue();
+            SampleStratification sampleStratification = (SampleStratification) samples.get(sample);
+
+            if (sampleStratification == null)
+                throw new ReviewedStingException(String.format("Trying to add locus statistics to a sample (%s) that doesn't exist in the Interval.", sample));
+
+            sampleStratification.addLocus(context.getLocation(), samplePileup);
+        }
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Iterable<AbstractStratification> getElements() {
+        return samples.values();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Iterable<CallableStatus> callableStatuses() {
+        final List<CallableStatus> output = new LinkedList<CallableStatus>();
+
+        // check if any of the votes pass the threshold
+        final int nSamples = getNSamples();
+        for (Map.Entry<CallableStatus, Integer> entry : getStatusTally().entrySet()) {
+            if ((double) entry.getValue() / nSamples > thresholds.votePercentageThreshold) {
+                output.add(entry.getKey());
+            }
+        }
+
+        output.addAll(queryStatus(thresholds.intervalMetricList, this));
+
+        return output;
+    }
 }

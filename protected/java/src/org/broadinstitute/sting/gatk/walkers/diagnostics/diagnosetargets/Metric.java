@@ -46,116 +46,12 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-
-import java.util.*;
-
 /**
- * The statistics calculator for a specific sample given the interval
+ *
+ * @author Mauricio Carneiro
+ * @since 4/23/13
  */
-final class SampleStatistics extends AbstractStatistics {
-    private final GenomeLoc interval;
-    private final ArrayList<AbstractStatistics> loci;
-    private final ThresHolder thresholds;
-
-    private Map<CallableStatus, Integer> locusStatusTally = null;
-    private int nReads = -1;
-    private int nBadMates = -1;
-
-    public SampleStatistics(final GenomeLoc interval, final ThresHolder thresholds) {
-        this.interval = interval;
-        this.loci = new ArrayList<AbstractStatistics>(interval.size());
-        this.thresholds = thresholds;
-        nReads = 0;
-        nBadMates = 0;
-
-        // Initialize every loci (this way we don't have to worry about non-existent loci in the object
-        for (int i = 0; i < interval.size(); i++)
-            this.loci.add(new LocusStatistics(thresholds));
-    }
-
-    /**
-     * Simple Getters
-     */
-    public int getIntervalSize() {return interval.size();}
-    public int getnReads() {return nReads;}
-    public int getnBadMates() {return nBadMates;}
-
-    /**
-     * Adds a locus to the interval wide stats
-     *
-     * @param locus      The locus given as a GenomeLoc
-     * @param pileup     The pileup of that locus, this exclusively contains the sample
-     */
-    public void addLocus(GenomeLoc locus, ReadBackedPileup pileup) {
-        if (!interval.containsP(locus))
-            throw new ReviewedStingException(String.format("Locus %s is not part of the Interval %s", locus, interval));
-
-        // a null pileup means there nothing to add
-        if (pileup != null) {
-            final int locusIndex = locus.getStart() - interval.getStart();
-            final int rawCoverage = pileup.depthOfCoverage();
-            final int coverage = pileup.getBaseAndMappingFilteredPileup(thresholds.minimumBaseQuality, thresholds.minimumMappingQuality).depthOfCoverage();
-            final LocusStatistics locusData = (LocusStatistics) loci.get(locusIndex);
-            locusData.addLocus(coverage, rawCoverage);
-
-            // process all the reads in this pileup (tallying number of reads and bad mates)
-            for (GATKSAMRecord read : pileup.getReads())
-                processRead(read);
-        }
-    }
-
-    @Override
-    public Iterable<AbstractStatistics> getElements() {
-        return loci;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Iterable<CallableStatus> callableStatuses() {
-        final List<CallableStatus> output = new LinkedList<CallableStatus>();
-
-        // get the tally of all the locus callable statuses
-        for (Statistic locusStat : thresholds.locusStatisticList) {
-            final CallableStatus status = ((Locus) locusStat).sampleStatus(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
-
-        // get the sample specific statitics statuses
-        for (Statistic sampleStat : thresholds.sampleStatisticList) {
-            final CallableStatus status = sampleStat.status(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
-
-        // special case, if there are no reads, then there is no sense reporting coverage gaps.
-        if (output.contains(CallableStatus.NO_READS) && output.contains(CallableStatus.COVERAGE_GAPS))
-            output.remove(CallableStatus.COVERAGE_GAPS);
-
-        return output;
-    }
-
-
-    /**
-     * Account for the read and check it for any statistics necessary. Reads are marked in the temporary
-     * attribute "seen" to make sure they're not counted twice.
-     * 
-     * @param read the read
-     */
-    private void processRead(GATKSAMRecord read) {
-        if (read.getTemporaryAttribute("seen") == null) {
-            nReads++;
-            if (read.getReadPairedFlag() && !read.getProperPairFlag())
-                nBadMates++;
-            read.setTemporaryAttribute("seen", true);
-        }
-    }
+interface Metric {
+    public void initialize(ThresHolder thresholds);
+    public CallableStatus status (AbstractStratification statistic);
 }

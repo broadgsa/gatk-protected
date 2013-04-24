@@ -119,7 +119,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
     @ArgumentCollection
     private ThresHolder thresholds = new ThresHolder();
 
-    private Map<GenomeLoc, IntervalStatistics> intervalMap = null;              // maps each interval => statistics
+    private Map<GenomeLoc, IntervalStratification> intervalMap = null;              // maps each interval => statistics
     private PeekableIterator<GenomeLoc> intervalListIterator;                   // an iterator to go over all the intervals provided as we traverse the genome
     private Set<String> samples = null;                                         // all the samples being processed
     private static final Allele SYMBOLIC_ALLELE = Allele.create("<DT>", false); // avoid creating the symbolic allele multiple times
@@ -134,7 +134,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         if (getToolkit().getIntervals() == null || getToolkit().getIntervals().isEmpty())
             throw new UserException("This tool only works if you provide one or more intervals (use the -L argument). If you want to run whole genome, use -T DepthOfCoverage instead.");
 
-        intervalMap = new HashMap<GenomeLoc, IntervalStatistics>(INITIAL_HASH_SIZE);
+        intervalMap = new HashMap<GenomeLoc, IntervalStratification>(INITIAL_HASH_SIZE);
         intervalListIterator = new PeekableIterator<GenomeLoc>(getToolkit().getIntervals().iterator());
 
         // get all of the unique sample names for the VCF Header
@@ -155,8 +155,8 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         addNewOverlappingIntervals(refLocus);
 
         // at this point, all intervals in intervalMap overlap with this locus, so update all of them
-        for (IntervalStatistics intervalStatistics : intervalMap.values())
-            intervalStatistics.addLocus(context);
+        for (IntervalStratification intervalStratification : intervalMap.values())
+            intervalStratification.addLocus(context);
 
         return 1L;
     }
@@ -207,7 +207,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
         // output empty statistics for uncovered intervals
         while (interval != null && interval.isBefore(refLocus)) {
-            final IntervalStatistics stats = intervalMap.get(interval);
+            final IntervalStratification stats = intervalMap.get(interval);
             outputStatsToVCF(stats != null ? stats : createIntervalStatistic(interval), UNCOVERED_ALLELE);
             if (stats != null) intervalMap.remove(interval);
             intervalListIterator.next();
@@ -243,7 +243,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @param stats     The statistics of the interval
      * @param refAllele the reference allele
      */
-    private void outputStatsToVCF(IntervalStatistics stats, Allele refAllele) {
+    private void outputStatsToVCF(IntervalStratification stats, Allele refAllele) {
         GenomeLoc interval = stats.getInterval();
 
 
@@ -265,7 +265,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         for (String sample : samples) {
             final GenotypeBuilder gb = new GenotypeBuilder(sample);
 
-            SampleStatistics sampleStat = stats.getSampleStatistics(sample);
+            SampleStratification sampleStat = stats.getSampleStatistics(sample);
             gb.attribute(AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage(interval.size()));
 
             gb.filters(statusToStrings(stats.getSampleStatistics(sample).callableStatuses(), false));
@@ -293,36 +293,36 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         return output;
     }
 
-    private IntervalStatistics createIntervalStatistic(GenomeLoc interval) {
-        return new IntervalStatistics(samples, interval, thresholds);
+    private IntervalStratification createIntervalStatistic(GenomeLoc interval) {
+        return new IntervalStratification(samples, interval, thresholds);
     }
 
     protected static void loadAllPlugins(final ThresHolder thresholds) {
-        for (Class<?> stat : new PluginManager<Locus>(Locus.class).getPlugins()) {
+        for (Class<?> stat : new PluginManager<LocusMetric>(LocusMetric.class).getPlugins()) {
             try {
-                final Locus stats = (Locus) stat.newInstance();
+                final LocusMetric stats = (LocusMetric) stat.newInstance();
                 stats.initialize(thresholds);
-                thresholds.locusStatisticList.add(stats);
+                thresholds.locusMetricList.add(stats);
             } catch (Exception e) {
                 throw new DynamicClassResolutionException(stat, e);
             }
         }
 
-        for (Class<?> stat : new PluginManager<Sample>(Sample.class).getPlugins()) {
+        for (Class<?> stat : new PluginManager<SampleMetric>(SampleMetric.class).getPlugins()) {
             try {
-                final Sample stats = (Sample) stat.newInstance();
+                final SampleMetric stats = (SampleMetric) stat.newInstance();
                 stats.initialize(thresholds);
-                thresholds.sampleStatisticList.add(stats);
+                thresholds.sampleMetricList.add(stats);
             } catch (Exception e) {
                 throw new DynamicClassResolutionException(stat, e);
             }
         }
 
-        for (Class<?> stat : new PluginManager<Interval>(Interval.class).getPlugins()) {
+        for (Class<?> stat : new PluginManager<IntervalMetric>(IntervalMetric.class).getPlugins()) {
             try {
-                final Interval stats = (Interval) stat.newInstance();
+                final IntervalMetric stats = (IntervalMetric) stat.newInstance();
                 stats.initialize(thresholds);
-                thresholds.intervalStatisticList.add(stats);
+                thresholds.intervalMetricList.add(stats);
             } catch (Exception e) {
                 throw new DynamicClassResolutionException(stat, e);
             }

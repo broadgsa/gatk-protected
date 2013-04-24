@@ -46,105 +46,12 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
 /**
- * Generic code for Diagnose Target Statistics
- *
- * @author Mauricio Carneiro
- * @since 4/23/13
+ * Created with IntelliJ IDEA.
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:30 PM
+ * To change this template use File | Settings | File Templates.
  */
-abstract class AbstractStatistics {
-
-    private long preComputedTotalCoverage = -1;
-    private Map<CallableStatus, Integer> statusTally = null;
-    protected ThresHolder thresholds;
-
-    /**
-     * Calculates the average "good" coverage of this sample. Good means "passes the base and
-     * mapping quality requirements.
-     *
-     * @return the average "good" coverage
-     */
-    public double averageCoverage(final int size) {
-        if (preComputedTotalCoverage < 0)
-            preComputedTotalCoverage = calculateTotalCoverage(getElements());
-        return (double) preComputedTotalCoverage / size;
-    }
-
-    /**
-     * Calculates the total "good" coverage of this sample. Good means "passes the base and
-     * mapping quality requirements.
-     *
-     * @return the total "good" coverage across the interval for this sample
-     */
-    public long getCoverage() {
-        if (preComputedTotalCoverage < 0)
-            preComputedTotalCoverage = calculateTotalCoverage(getElements());
-        return preComputedTotalCoverage;
-    }
-
-
-    /**
-     * This is how the extending class will calculate it's own total coverage
-     *
-     * @return the total coverage
-     */
-    private long calculateTotalCoverage(Iterable<AbstractStatistics> elements) {
-        long cov = 0;
-        for (AbstractStatistics element : elements) {
-            cov += element.getCoverage();
-        }
-        return cov;
-    }
-
-    /**
-     * What are the list of elements in your class? For example:
-     *
-     * IntervalStatistics => List<SampleStatistics>
-     * SampleStatistics => List<LocusStatistics>
-     *
-     * @return the corresponding list of elements of the extending class
-     */
-    public abstract Iterable<AbstractStatistics> getElements();
-
-    /**
-     * Calculates the Callable statuses for the statistic as a whole (interval, sample or locus)
-     *
-     * @return the callable status(es) for the whole object
-     */
-    public abstract Iterable<CallableStatus> callableStatuses();
-
-
-    /**
-     * Tally up all the callable status of all the loci in this sample.
-     *
-     * @return a map of callable status and counts
-     */
-    public Map<CallableStatus, Integer> getStatusTally() {
-        if (statusTally == null) {
-            statusTally = new HashMap<CallableStatus, Integer>(CallableStatus.values().length);
-            for (AbstractStatistics stats : getElements()) {
-                for (CallableStatus status : stats.callableStatuses()) {
-                    statusTally.put(status, !statusTally.containsKey(status) ? 1 : statusTally.get(status) + 1);
-                }
-            }
-        }
-        return statusTally;
-    }
-
-    public static List<CallableStatus> queryStatus(List<Statistic> statList, AbstractStatistics stratification) {
-        List<CallableStatus> output = new LinkedList<CallableStatus>();
-        for (Statistic stat : statList) {
-            final CallableStatus status = stat.status(stratification);
-            if (status != null) {
-                output.add(status);
-            }
-        }
-        return output;
-    }
-
+interface IntervalMetric extends Metric {
 }

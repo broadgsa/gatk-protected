@@ -46,52 +46,13 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import java.util.LinkedList;
-import java.util.List;
-
-final class LocusStatistics extends AbstractStatistics{
-    private long coverage;
-    private long rawCoverage;
-    private final List<Statistic> locusStatisticsList;
-
-    public LocusStatistics(ThresHolder thresholds) {
-        this(0,0,thresholds);
-    }
-
-    protected LocusStatistics(int coverage, int rawCoverage, ThresHolder thresholds) {
-        this.coverage = coverage;
-        this.rawCoverage = rawCoverage;
-        this.locusStatisticsList = thresholds.locusStatisticList;
-    }
-
-    @Override
-    public long getCoverage() {return coverage;}
-    public long getRawCoverage() {return rawCoverage;}
-
-    public void addLocus(final int coverage, final int rawCoverage) {
-        this.coverage = coverage;
-        this.rawCoverage = rawCoverage;
-    }
-
-    /**
-     * Generates all applicable statuses from the coverages in this locus
-     *
-     * @return a set of all statuses that apply
-     */
-    public List<CallableStatus> callableStatuses() {
-        List<CallableStatus> output = new LinkedList<CallableStatus>();
-        for (Statistic stats : locusStatisticsList) {
-            CallableStatus status = stats.status(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
-        return output;
-    }
-
-    @Override
-    public Iterable<AbstractStatistics> getElements() {
-        return null;
-    }
-
+/**
+ * Created with IntelliJ IDEA.
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:29 PM
+ * To change this template use File | Settings | File Templates.
+ */
+interface LocusMetric extends Metric {
+    public CallableStatus sampleStatus (SampleStratification sampleStratification);
 }

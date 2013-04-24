@@ -51,25 +51,23 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
  * Date: 4/20/13
  * Time: 11:44 PM
  */
-final class LocusPoorQuality implements Locus {
-    private int minCoverage;
+final class LocusMetricCoverageGap implements LocusMetric {
     private double threshold;
-    private static final CallableStatus CALL = CallableStatus.POOR_QUALITY ;
+    private static final CallableStatus CALL = CallableStatus.COVERAGE_GAPS;
 
     @Override
     public void initialize(ThresHolder thresholds) {
-        this.minCoverage = thresholds.minimumCoverage;
-        this.threshold = thresholds.coverageStatusThreshold;
+        threshold = thresholds.coverageStatusThreshold;
     }
 
     @Override
-    public CallableStatus status(AbstractStatistics statistics) {
-        final LocusStatistics locusStatistics = (LocusStatistics) statistics;
-        return locusStatistics.getCoverage() < minCoverage && locusStatistics.getRawCoverage() >= minCoverage ? CALL: null;
+    public CallableStatus status(AbstractStratification statistics) {
+        final LocusStratification locusStratification = (LocusStratification) statistics;
+        return locusStratification.getRawCoverage() == 0 ? CALL : null;
     }
 
     @Override
-    public CallableStatus sampleStatus(SampleStatistics sampleStatistics) {
-        return PluginUtils.genericSampleStatus(sampleStatistics, CALL, threshold);
+    public CallableStatus sampleStatus(SampleStratification sampleStratification) {
+        return PluginUtils.genericSampleStatus(sampleStratification, CALL, threshold);
     }
 }

@@ -114,9 +114,9 @@ final class ThresHolder {
     @Argument(fullName = "quality_status_threshold", shortName = "stQ", doc = "The proportion of the loci needed for calling POOR_QUALITY", required = false)
     public double qualityStatusThreshold = 0.50;
 
-    public final List<Statistic> locusStatisticList = new LinkedList<Statistic>();
-    public final List<Statistic> sampleStatisticList = new LinkedList<Statistic>();
-    public final List<Statistic> intervalStatisticList = new LinkedList<Statistic>();
+    public final List<Metric> locusMetricList = new LinkedList<Metric>();
+    public final List<Metric> sampleMetricList = new LinkedList<Metric>();
+    public final List<Metric> intervalMetricList = new LinkedList<Metric>();
 
     public ThresHolder() {}
 

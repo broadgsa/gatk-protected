@@ -47,11 +47,20 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 /**
- *
- * @author Mauricio Carneiro
- * @since 4/23/13
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:44 PM
  */
-interface Statistic {
-    public void initialize(ThresHolder thresholds);
-    public CallableStatus status (AbstractStatistics statistic);
+final class SampleMetricNoReads implements SampleMetric {
+    private static final CallableStatus CALL = CallableStatus.NO_READS;
+@Override
+    public void initialize(ThresHolder thresholds) {
+    }
+
+    @Override
+    public CallableStatus status(AbstractStratification statistics) {
+        final SampleStratification sampleStratification = (SampleStratification) statistics;
+        return sampleStratification.getnReads() == 0 ? CALL : null;
+    }
+
 }

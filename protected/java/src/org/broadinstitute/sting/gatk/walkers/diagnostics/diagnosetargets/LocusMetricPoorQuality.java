@@ -46,87 +46,30 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+/**
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:44 PM
+ */
+final class LocusMetricPoorQuality implements LocusMetric {
+    private int minCoverage;
+    private double threshold;
+    private static final CallableStatus CALL = CallableStatus.POOR_QUALITY ;
 
-import java.util.*;
-
-final class IntervalStatistics extends AbstractStatistics{
-    private final Map<String, AbstractStatistics> samples;
-    private final GenomeLoc interval;
-    private final ThresHolder thresholds;
-
-    public IntervalStatistics(Set<String> samples, GenomeLoc interval, ThresHolder thresholds) {
-        this.interval = interval;
-        this.thresholds = thresholds;
-        this.samples = new HashMap<String, AbstractStatistics>(samples.size());
-        for (String sample : samples)
-            this.samples.put(sample, new SampleStatistics(interval, thresholds));
-    }
-
-    public SampleStatistics getSampleStatistics(String sample) {
-        return (SampleStatistics) samples.get(sample);
-    }
-
-    public GenomeLoc getInterval() {
-        return interval;
-    }
-
-    public int getNSamples() {
-        return samples.size();
-    }
-
-    /**
-     * The function to populate data into the Statistics from the walker.
-     * This takes the input and manages passing the data to the SampleStatistics and Locus Statistics
-     *
-     * @param context    The alignment context given from the walker
-     */
-    public void addLocus(AlignmentContext context) {
-        ReadBackedPileup pileup = context.getBasePileup();
-
-        Map<String, ReadBackedPileup> samplePileups = pileup.getPileupsForSamples(samples.keySet());
-
-        for (Map.Entry<String, ReadBackedPileup> entry : samplePileups.entrySet()) {
-            String sample = entry.getKey();
-            ReadBackedPileup samplePileup = entry.getValue();
-            SampleStatistics sampleStatistics = (SampleStatistics) samples.get(sample);
-
-            if (sampleStatistics == null)
-                throw new ReviewedStingException(String.format("Trying to add locus statistics to a sample (%s) that doesn't exist in the Interval.", sample));
-
-            sampleStatistics.addLocus(context.getLocation(), samplePileup);
-        }
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public Iterable<AbstractStatistics> getElements() {
-        return samples.values();
+    public void initialize(ThresHolder thresholds) {
+        this.minCoverage = thresholds.minimumCoverage;
+        this.threshold = thresholds.coverageStatusThreshold;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public Iterable<CallableStatus> callableStatuses() {
-        final List<CallableStatus> output = new LinkedList<CallableStatus>();
+    public CallableStatus status(AbstractStratification statistics) {
+        final LocusStratification locusStratification = (LocusStratification) statistics;
+        return locusStratification.getCoverage() < minCoverage && locusStratification.getRawCoverage() >= minCoverage ? CALL: null;
+    }
 
-        // check if any of the votes pass the threshold
-        final int nSamples = getNSamples();
-        for (Map.Entry<CallableStatus, Integer> entry : getStatusTally().entrySet()) {
-            if ((double) entry.getValue() / nSamples > thresholds.votePercentageThreshold) {
-                output.add(entry.getKey());
-            }
-        }
-
-        output.addAll(queryStatus(thresholds.intervalStatisticList, this));
-
-        return output;
+    @Override
+    public CallableStatus sampleStatus(SampleStratification sampleStratification) {
+        return PluginUtils.genericSampleStatus(sampleStratification, CALL, threshold);
     }
 }

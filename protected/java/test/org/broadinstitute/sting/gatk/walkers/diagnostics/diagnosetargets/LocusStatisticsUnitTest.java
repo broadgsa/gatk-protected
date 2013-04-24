@@ -64,7 +64,7 @@ public class LocusStatisticsUnitTest {
 
     @Test(dataProvider = "StatusTestValues")
     public void testCallableStatuses(int coverage, int rawCoverage, CallableStatus status) {
-        List<CallableStatus> statuses = new LocusStatistics(coverage, rawCoverage, thresholds).callableStatuses();
+        List<CallableStatus> statuses = new LocusStratification(coverage, rawCoverage, thresholds).callableStatuses();
         Assert.assertTrue((status == null) ? statuses.isEmpty() : (statuses.contains(status) && statuses.size() == 1));
     }
 
