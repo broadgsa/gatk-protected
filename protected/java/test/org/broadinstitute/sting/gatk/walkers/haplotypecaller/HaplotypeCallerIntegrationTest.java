@@ -85,7 +85,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "c1530f2158cb41d50e830ca5be0f97a0");
+        HCTest(NA12878_BAM, "", "18d5671d8454e8a0c05ee5f6e9fabfe3");
     }
 
     @Test(enabled = false) // can't annotate the rsID's yet
@@ -166,7 +166,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestStructuralIndels() {
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("eb5772b825120a0b8710e5add485d73a"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("cb190c935541ebb9f660f713a882b922"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
 
