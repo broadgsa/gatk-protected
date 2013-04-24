@@ -61,7 +61,6 @@ import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -213,13 +212,12 @@ public class PairHMMIndelErrorModel {
                                                                         final ReferenceContext ref,
                                                                         final int eventLength,
                                                                         final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap,
-                                                                        final double downsamplingFraction,
-                                                                        final PrintStream downsamplingLog) {
+                                                                        final double downsamplingFraction) {
         final int numHaplotypes = haplotypeMap.size();
 
         final int readCounts[] = new int[pileup.getNumberOfElements()];
         final double[][] readLikelihoods = computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, ref, eventLength, perReadAlleleLikelihoodMap, readCounts);
-        perReadAlleleLikelihoodMap.performPerAlleleDownsampling(downsamplingFraction, downsamplingLog);
+        perReadAlleleLikelihoodMap.performPerAlleleDownsampling(downsamplingFraction);
         return getDiploidHaplotypeLikelihoods(numHaplotypes, readCounts, readLikelihoods);
         
     }
