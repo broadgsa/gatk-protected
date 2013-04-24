@@ -227,7 +227,7 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
      * @param capBaseQualsAtMappingQual         Cap base at mapping qual
      * @param minBaseQual                       Minimum base quality to consider
      * @param errorModel                        Site error model
-     * @return                                  Number of bases added
+     * @return                                  Number of bases added - only good bases actually added to GLs are counted.
      */
     private int add(ReadBackedPileup pileup, boolean ignoreBadBases, boolean capBaseQualsAtMappingQual, int minBaseQual, ErrorModel errorModel) {
          // Number of [A C G T]'s in pileup, in that order
@@ -235,28 +235,29 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
         for (byte b: BaseUtils.BASES)
             numSeenBases.add(0);
 
-        if (hasReferenceSampleData) {
-            // count number of elements in pileup
-            for (PileupElement elt : pileup) {
-                byte obsBase = elt.getBase();
-                byte qual = qualToUse(elt, ignoreBadBases, capBaseQualsAtMappingQual, minBaseQual);
-                if ( qual == 0 )
-                    continue;
-    
-                int idx = 0;
-    
-                for (byte base:BaseUtils.BASES) {
-                    int cnt = numSeenBases.get(idx); 
-                    numSeenBases.set(idx++,cnt + (base == obsBase?1:0));
-    
-                }
-    
+        int nGoodBases = 0;
+        // count number of elements in pileup
+        for (PileupElement elt : pileup) {
+            byte obsBase = elt.getBase();
+            byte qual = qualToUse(elt, ignoreBadBases, capBaseQualsAtMappingQual, minBaseQual);
+            if ( qual == 0 )
+                continue;
+
+            int idx = 0;
+
+            for (byte base:BaseUtils.BASES) {
+                int cnt = numSeenBases.get(idx);
+                numSeenBases.set(idx++,cnt + (base == obsBase?1:0));
+
             }
-            if (VERBOSE)
-                System.out.format("numSeenBases: %d %d %d %d\n",numSeenBases.get(0),numSeenBases.get(1),numSeenBases.get(2),numSeenBases.get(3));
+            nGoodBases++;
         }
+
+        if (VERBOSE)
+            System.out.format("numSeenBases: %d %d %d %d\n",numSeenBases.get(0),numSeenBases.get(1),numSeenBases.get(2),numSeenBases.get(3));
+
         computeLikelihoods(errorModel, myAlleles, numSeenBases, pileup);
-        return pileup.getNumberOfElements();
+        return nGoodBases;
     }
 
     /**
@@ -281,7 +282,8 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
         double p1 = 0.0;
         
         if (!hasReferenceSampleData) {
-            // no error model: loop throught pileup to compute likalihoods just on base qualities
+            // no error model: loop through pileup to compute likelihoods just on base qualities
+            // In this case, vector numObservations is not used directly for GL computation
             for (final PileupElement elt : pileup) {
                 final byte obsBase = elt.getBase();
                 final byte qual = qualToUse(elt, true, true, mbq);
