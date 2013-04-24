@@ -44,33 +44,33 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.testng.annotations.Test;
+/**
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:44 PM
+ */
+final class LocusMetricLowCoverage implements LocusMetric {
+    private int minCoverage;
+    private double threshold;
+    private static final CallableStatus CALL = CallableStatus.LOW_COVERAGE ;
 
-import java.util.Arrays;
-
-public class DiagnoseTargetsIntegrationTest extends WalkerTest {
-    final static String REF = b37KGReference;
-    final String singleSample = validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.bam";
-    final String multiSample = validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam";
-    final String L = validationDataLocation + "DT-itest.interval_list";
-
-    private void DTTest(String testName, String args, String md5) {
-        String base = String.format("-T DiagnoseTargets  --no_cmdline_in_header -R %s -L %s", REF, L) + " -o %s ";
-        WalkerTestSpec spec = new WalkerTestSpec(base + args, Arrays.asList(md5));
-        //spec.disableShadowBCF();
-        executeTest(testName, spec);
+    @Override
+    public void initialize(ThresHolder thresholds) {
+        this.minCoverage = thresholds.minimumCoverage;
+        this.threshold = thresholds.coverageStatusThreshold;
     }
 
-    @Test(enabled = true)
-    public void testSingleSample() {
-        DTTest("testSingleSample ", "-I " + singleSample + " -max 75", "9954b21163d3e66db232938ec509067f");
+    @Override
+    public CallableStatus status(AbstractStratification statistics) {
+        final LocusStratification locusStratification = (LocusStratification) statistics;
+        final long raw = locusStratification.getRawCoverage();
+        return raw > 0 && raw < minCoverage ? CALL: null;
     }
 
-    @Test(enabled = true)
-    public void testMultiSample() {
-        DTTest("testMultiSample ", "-I " + multiSample, "7c5277261e8e9dd74666f04843ffb09c");
+    @Override
+    public CallableStatus sampleStatus(SampleStratification sampleStratification) {
+        return PluginUtils.genericSampleStatus(sampleStratification, CALL, threshold);
     }
 }

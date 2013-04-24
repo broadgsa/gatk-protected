@@ -44,78 +44,20 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import net.sf.samtools.SAMFileHeader;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import java.util.Map;
 
-public class SampleStatisticsUnitTest/* extends BaseTest */ {
-
-    @DataProvider(name = "QuartileValues")
-    public Object[][] getQuantileValues() {
-
-        int[] a1 = {5};
-        int[] a2 = {1, 2};
-        int[] a5 = {10, 20, 30, 40, 50};
-        int[] a10 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-
-
-        return new Object[][]{
-                new Object[]{a1, 0.5, 5},
-                new Object[]{a1, 0, 5},
-                new Object[]{a1, 1, 5},
-                new Object[]{a2, 0.5, 1.5},
-                new Object[]{a2, 0.25, 1},
-                new Object[]{a2, 0.75, 2},
-                new Object[]{a5, 0.5, 30},
-                new Object[]{a5, 0.25, 20},
-                new Object[]{a5, 0.75, 40},
-                new Object[]{a5, 0, -1},
-                new Object[]{a10, 0.5, 5.5},
-                new Object[]{a10, 0.25, 3},
-                new Object[]{a10, 0.75, 8}
-        };
+/**
+ * User: carneiro
+ * Date: 4/21/13
+ * Time: 11:23 AM
+ */
+final class PluginUtils {
+    public static CallableStatus genericSampleStatus (final SampleStratification sampleStratification, final CallableStatus CALL, final double threshold) {
+        final Map<CallableStatus, Integer> totals = sampleStratification.getStatusTally();
+        final int size = sampleStratification.getIntervalSize();
+        final int statusCount = totals.containsKey(CALL) ? totals.get(CALL) : 0;
+        return ( (double) statusCount / size) >= threshold ? CALL: null;
     }
-
-    @Test(dataProvider = "QuartileValues")
-    public void testGetQuartile(int[] dataList, double percentage, double expected) {
-        Assert.assertEquals(SampleStatistics.getQuartile(dataList, percentage), expected);
-
-    }
-
-    @DataProvider(name = "ReadsAndMates")
-    public Object[][] getReadAndMates() {
-        SAMFileHeader header = ArtificialSAMUtils.createArtificialSamHeader(1, 1, 1000);
-
-        GATKSAMRecord noPair = ArtificialSAMUtils.createArtificialRead(header, "test", 0, 100, 50);
-        GATKSAMRecord good = ArtificialSAMUtils.createPair(header, "test", 30, 100, 150, true, false).get(0);
-        GATKSAMRecord bigInsertSize = ArtificialSAMUtils.createPair(header, "test", 30, 100, 151, true, false).get(0);
-        GATKSAMRecord inverted = ArtificialSAMUtils.createPair(header, "test", 30, 151, 150, true, false).get(0);
-        GATKSAMRecord sameOrientation = ArtificialSAMUtils.createPair(header, "test", 30, 100, 151, true, true).get(0);
-
-        GATKSAMRecord pairNotMapped = ArtificialSAMUtils.createPair(header, "test", 30, 100, 140, true, false).get(1);
-        pairNotMapped.setMateUnmappedFlag(true);
-
-        // finish test
-        return new Object[][]{
-                new Object[]{noPair, false},
-                new Object[]{good, true},
-                new Object[]{bigInsertSize, false},
-                new Object[]{inverted, false},
-                new Object[]{sameOrientation, false},
-                new Object[]{pairNotMapped, false}
-        };
-    }
-
-    @Test(dataProvider = "ReadsAndMates")
-    public void testHasValidMate(GATKSAMRecord read, boolean expected) {
-        //50 is out maximum insert size
-        Assert.assertEquals(new SampleStatistics(GenomeLoc.UNMAPPED).hasValidMate(read, ThresHolder.DEFAULTS), expected);
-    }
-
 }

@@ -44,61 +44,32 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import java.util.HashSet;
-import java.util.Set;
+/**
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:44 PM
+ */
+final class LocusMetricPoorQuality implements LocusMetric {
+    private int minCoverage;
+    private double threshold;
+    private static final CallableStatus CALL = CallableStatus.POOR_QUALITY ;
 
-class LocusStatistics {
-    private final int coverage;
-    private final int rawCoverage;
-
-    public LocusStatistics() {
-        this.coverage = 0;
-        this.rawCoverage = 0;
+    @Override
+    public void initialize(ThresHolder thresholds) {
+        this.minCoverage = thresholds.minimumCoverage;
+        this.threshold = thresholds.coverageStatusThreshold;
     }
 
-    public LocusStatistics(int coverage, int rawCoverage) {
-        this.coverage = coverage;
-        this.rawCoverage = rawCoverage;
+    @Override
+    public CallableStatus status(AbstractStratification statistics) {
+        final LocusStratification locusStratification = (LocusStratification) statistics;
+        return locusStratification.getCoverage() < minCoverage && locusStratification.getRawCoverage() >= minCoverage ? CALL: null;
     }
 
-    public int getCoverage() {
-        return coverage;
-    }
-
-    public int getRawCoverage() {
-        return rawCoverage;
-    }
-
-    /**
-     * Generates all applicable statuses from the coverages in this locus
-     *
-     * @param thresholds the class contains the statistical threshold for making calls
-     * @return a set of all statuses that apply
-     */
-    public Set<CallableStatus> callableStatuses(ThresHolder thresholds) {
-        Set<CallableStatus> output = new HashSet<CallableStatus>();
-
-        // if too much coverage
-        if (getCoverage() > thresholds.getMaximumCoverage())
-            output.add(CallableStatus.EXCESSIVE_COVERAGE);
-
-        // if not enough coverage
-        if (getCoverage() < thresholds.getMinimumCoverage()) {
-            // was there a lot of low Qual coverage?
-            if (getRawCoverage() >= thresholds.getMinimumCoverage())
-                output.add(CallableStatus.POOR_QUALITY);
-                // no?
-            else {
-                // is there any coverage?
-                if (getRawCoverage() > 0)
-                    output.add(CallableStatus.LOW_COVERAGE);
-                else
-                    output.add(CallableStatus.COVERAGE_GAPS);
-            }
-        }
-
-        return output;
+    @Override
+    public CallableStatus sampleStatus(SampleStratification sampleStratification) {
+        return PluginUtils.genericSampleStatus(sampleStratification, CALL, threshold);
     }
 }

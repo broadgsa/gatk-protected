@@ -44,129 +44,30 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.targets;
+package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+/**
+ * User: carneiro
+ * Date: 4/20/13
+ * Time: 11:44 PM
+ */
+final class LocusMetricCoverageGap implements LocusMetric {
+    private double threshold;
+    private static final CallableStatus CALL = CallableStatus.COVERAGE_GAPS;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-class IntervalStatistics {
-
-    private final Map<String, SampleStatistics> samples;
-    private final GenomeLoc interval;
-    private boolean hasNref = false;
-
-    private int preComputedTotalCoverage = -1;                                                                          // avoids re-calculating the total sum (-1 means we haven't pre-computed it yet)
-
-    /*
-    private double minMedianDepth = 20.0;
-    private double badMedianDepthPercentage = 0.20;
-    private double votePercentage = 0.50;
-    */
-    public IntervalStatistics(Set<String> samples, GenomeLoc interval/*, int minimumCoverageThreshold, int maximumCoverageThreshold, int minimumMappingQuality, int minimumBaseQuality*/) {
-        this.interval = interval;
-        this.samples = new HashMap<String, SampleStatistics>(samples.size());
-        for (String sample : samples)
-            this.samples.put(sample, new SampleStatistics(interval /*, minimumCoverageThreshold, maximumCoverageThreshold, minimumMappingQuality, minimumBaseQuality*/));
+    @Override
+    public void initialize(ThresHolder thresholds) {
+        threshold = thresholds.coverageStatusThreshold;
     }
 
-    public SampleStatistics getSample(String sample) {
-        return samples.get(sample);
+    @Override
+    public CallableStatus status(AbstractStratification statistics) {
+        final LocusStratification locusStratification = (LocusStratification) statistics;
+        return locusStratification.getRawCoverage() == 0 ? CALL : null;
     }
 
-    public GenomeLoc getInterval() {
-        return interval;
-    }
-
-    /**
-     * The function to populate data into the Statistics from the walker.
-     * This takes the input and manages passing the data to the SampleStatistics and Locus Statistics
-     *
-     * @param context    The alignment context given from the walker
-     * @param ref        the reference context given from the walker
-     * @param thresholds the class contains the statistical threshold for making calls
-     */
-    public void addLocus(AlignmentContext context, ReferenceContext ref, ThresHolder thresholds) {
-        ReadBackedPileup pileup = context.getBasePileup();
-
-        //System.out.println(ref.getLocus().toString());
-
-        Map<String, ReadBackedPileup> samplePileups = pileup.getPileupsForSamples(samples.keySet());
-
-        for (Map.Entry<String, ReadBackedPileup> entry : samplePileups.entrySet()) {
-            String sample = entry.getKey();
-            ReadBackedPileup samplePileup = entry.getValue();
-            SampleStatistics sampleStatistics = samples.get(sample);
-
-            if (sampleStatistics == null)
-                throw new ReviewedStingException(String.format("Trying to add locus statistics to a sample (%s) that doesn't exist in the Interval.", sample));
-
-            sampleStatistics.addLocus(context.getLocation(), samplePileup, thresholds);
-        }
-
-        if (!hasNref && ref.getBase() == 'N')
-            hasNref = true;
-    }
-
-    public double averageCoverage() {
-        if (preComputedTotalCoverage < 0)
-            calculateTotalCoverage();
-        return (double) preComputedTotalCoverage / interval.size();
-    }
-
-    private void calculateTotalCoverage() {
-        preComputedTotalCoverage = 0;
-        for (SampleStatistics sample : samples.values())
-            preComputedTotalCoverage += sample.totalCoverage();
-    }
-
-    /**
-     * Return the Callable statuses for the interval as a whole
-     * todo -- add missingness filter
-     *
-     * @param thresholds the class contains the statistical threshold for making calls
-     * @return the callable status(es) for the whole interval
-     */
-    public Set<CallableStatus> callableStatuses(ThresHolder thresholds) {
-        Set<CallableStatus> output = new HashSet<CallableStatus>();
-
-        // Initialize the Map
-        Map<CallableStatus, Integer> votes = new HashMap<CallableStatus, Integer>();
-        for (CallableStatus status : CallableStatus.values())
-            votes.put(status, 0);
-
-        // tally up the votes
-        for (SampleStatistics sample : samples.values())
-            for (CallableStatus status : sample.getCallableStatuses(thresholds))
-                votes.put(status, votes.get(status) + 1);
-
-        // output tall values above the threshold
-        for (CallableStatus status : votes.keySet()) {
-            if (votes.get(status) > (samples.size() * thresholds.getVotePercentageThreshold()) && !(status.equals(CallableStatus.PASS)))
-                output.add(status);
-        }
-
-
-        if (hasNref)
-            output.add(CallableStatus.REF_N);
-
-        // get median DP of each sample
-        int nLowMedianDepth = 0;
-        for (SampleStatistics sample : samples.values()) {
-            if (sample.getQuantileDepth(0.5) < thresholds.getMinimumMedianDepth())
-                nLowMedianDepth++;
-        }
-
-        if (nLowMedianDepth > (samples.size() * thresholds.getLowMedianDepthThreshold()))
-            output.add(CallableStatus.LOW_MEDIAN_DEPTH);
-
-        return output;
+    @Override
+    public CallableStatus sampleStatus(SampleStratification sampleStratification) {
+        return PluginUtils.genericSampleStatus(sampleStratification, CALL, threshold);
     }
 }
