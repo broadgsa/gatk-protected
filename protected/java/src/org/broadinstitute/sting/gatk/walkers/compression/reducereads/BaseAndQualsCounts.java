@@ -80,6 +80,21 @@ public class BaseAndQualsCounts extends BaseCounts {
      * @param isLowQualBase   true if the base is low quality
      */
     public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase) {
+        incr(base, baseQual, insQual, delQual, baseMappingQual, isLowQualBase, false);
+    }
+
+    /*
+     * Increments the count
+     *
+     * @param base            the base
+     * @param baseQual        the base quality
+     * @param insQual         the insertion quality
+     * @param delQual         the deletion quality
+     * @param baseMappingQual the mapping quality
+     * @param isLowQualBase   true if the base is low quality
+     * @param isSoftClip      true if is soft-clipped
+     */
+    public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase, final boolean isSoftClip) {
         // if we already have high quality bases, ignore low quality ones
         if ( isLowQualBase && !isLowQuality() )
             return;
@@ -92,7 +107,7 @@ public class BaseAndQualsCounts extends BaseCounts {
         }
 
         final BaseIndex i = BaseIndex.byteToBase(base);
-        super.incr(i, baseQual, baseMappingQual);
+        super.incr(i, baseQual, baseMappingQual, isSoftClip);
         switch (i) {
             case A: sumInsertionQual_A += insQual; sumDeletionQual_A += delQual; break;
             case C: sumInsertionQual_C += insQual; sumDeletionQual_C += delQual; break;
@@ -114,13 +129,28 @@ public class BaseAndQualsCounts extends BaseCounts {
      * @param baseMappingQual the mapping quality
      * @param isLowQualBase   true if the base is low quality
      */
-    public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase) {
+   public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase) {
+        decr(base, baseQual, insQual, delQual, baseMappingQual, isLowQualBase, false);
+    }
+
+    /*
+     * Decrements the count
+     *
+     * @param base            the base
+     * @param baseQual        the base quality
+     * @param insQual         the insertion quality
+     * @param delQual         the deletion quality
+     * @param baseMappingQual the mapping quality
+     * @param isLowQualBase   true if the base is low quality
+     * @param isSoftClip      true if is soft-clipped
+     */
+    public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase, final boolean isSoftClip) {
         // if this is not the right type of base, ignore it
         if ( isLowQualBase != isLowQuality() )
             return;
 
         final BaseIndex i = BaseIndex.byteToBase(base);
-        super.decr(i, baseQual, baseMappingQual);
+        super.decr(i, baseQual, baseMappingQual, isSoftClip);
         switch (i) {
             case A: sumInsertionQual_A -= insQual; sumDeletionQual_A -= delQual; break;
             case C: sumInsertionQual_C -= insQual; sumDeletionQual_C -= delQual; break;

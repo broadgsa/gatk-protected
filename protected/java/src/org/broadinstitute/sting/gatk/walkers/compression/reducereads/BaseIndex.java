@@ -121,7 +121,7 @@ public enum BaseIndex {
      *
      * @return whether or not it is a nucleotide, given the definition above
      */
-    public boolean isNucleotide() {
+    public final boolean isNucleotide() {
         return !isIndel();
     }
 
@@ -130,7 +130,7 @@ public enum BaseIndex {
      *
      * @return true for I or D, false otherwise
      */
-    public boolean isIndel() {
+    public final boolean isIndel() {
         return this == D || this == I;
     }
 }

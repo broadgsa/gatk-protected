@@ -128,8 +128,8 @@ public class HeaderElementUnitTest extends BaseTest {
         Assert.assertEquals(headerElement.hasConsensusData(), test.MQ >= minMappingQual);
         Assert.assertEquals(headerElement.hasFilteredData(), test.MQ < minMappingQual);
         Assert.assertEquals(headerElement.hasConsensusData() ? headerElement.getConsensusBaseCounts().getRMS() :  headerElement.getFilteredBaseCounts().getRMS(), (double)test.MQ);
-        Assert.assertFalse(headerElement.isVariantFromMismatches(0.05));
-        Assert.assertEquals(headerElement.isVariant(0.05, 0.05), test.isClip);
+        Assert.assertFalse(headerElement.isVariantFromMismatches(0.05, 0.05));
+        Assert.assertEquals(headerElement.isVariant(0.05, 0.05, 0.05), test.isClip);
     }
 
 
@@ -177,7 +177,7 @@ public class HeaderElementUnitTest extends BaseTest {
                 headerElement.addBase(base.b, byte20, byte10, byte10, byte20, minBaseQual, minMappingQual, false);
         }
 
-        final int nAllelesSeen = headerElement.getNumberOfBaseAlleles(test.pvalue);
+        final int nAllelesSeen = headerElement.getNumberOfBaseAlleles(test.pvalue, test.pvalue);
         final int nAllelesExpected = calculateExpectedAlleles(test.counts, test.pvalue);
 
         Assert.assertEquals(nAllelesSeen, nAllelesExpected);
@@ -195,9 +195,14 @@ public class HeaderElementUnitTest extends BaseTest {
             if ( count == 0 )
                 continue;
 
-            final double pvalue = MathUtils.binomialCumulativeProbability(total, 0, count);
+            final boolean isSignificant;
+            if ( count <= HeaderElement.MIN_COUNT_FOR_USING_PVALUE ) {
+                isSignificant = MathUtils.binomialCumulativeProbability(total, 0, count) > targetPvalue;
+            } else {
+                isSignificant = (count >= targetPvalue * total);
+            }
 
-            if ( pvalue > targetPvalue ) {
+            if ( isSignificant ) {
                 if ( index == BaseIndex.D.index )
                     return -1;
                 result++;
