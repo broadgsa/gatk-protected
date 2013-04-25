@@ -58,6 +58,6 @@ final class PluginUtils {
         final Map<CallableStatus, Integer> totals = sampleStratification.getStatusTally();
         final int size = sampleStratification.getIntervalSize();
         final int statusCount = totals.containsKey(CALL) ? totals.get(CALL) : 0;
-        return ( (double) statusCount / size) >= threshold ? CALL: null;
+        return ( (double) statusCount / size) > threshold ? CALL: null;
     }
 }

@@ -61,15 +61,14 @@ import java.util.List;
 final class SampleStratification extends AbstractStratification {
     private final GenomeLoc interval;
     private final ArrayList<AbstractStratification> loci;
-    private final ThresHolder thresholds;
 
     private int nReads = -1;
     private int nBadMates = -1;
 
     public SampleStratification(final GenomeLoc interval, final ThresHolder thresholds) {
+        super(thresholds);
         this.interval = interval;
         this.loci = new ArrayList<AbstractStratification>(interval.size());
-        this.thresholds = thresholds;
         nReads = 0;
         nBadMates = 0;
 
@@ -121,7 +120,7 @@ final class SampleStratification extends AbstractStratification {
     public Iterable<CallableStatus> callableStatuses() {
         final List<CallableStatus> output = new LinkedList<CallableStatus>();
 
-        // get the tally of all the locus callable statuses
+        // get the sample statuses of all the Loci Metrics
         for (Metric locusStat : thresholds.locusMetricList) {
             final CallableStatus status = ((LocusMetric) locusStat).sampleStatus(this);
             if (status != null) {
@@ -130,12 +129,7 @@ final class SampleStratification extends AbstractStratification {
         }
 
         // get the sample specific statitics statuses
-        for (Metric sampleStat : thresholds.sampleMetricList) {
-            final CallableStatus status = sampleStat.status(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
+        output.addAll(queryStatus(thresholds.sampleMetricList));
 
         // special case, if there are no reads, then there is no sense reporting coverage gaps.
         if (output.contains(CallableStatus.NO_READS) && output.contains(CallableStatus.COVERAGE_GAPS))
@@ -158,5 +152,18 @@ final class SampleStratification extends AbstractStratification {
                 nBadMates++;
             read.setTemporaryAttribute("seen", true);
         }
+    }
+
+    public int getNLowCoveredLoci() {
+        return getCallableStatusCount(CallableStatus.LOW_COVERAGE);
+    }
+
+    public int getNUncoveredLoci() {
+        return getCallableStatusCount(CallableStatus.COVERAGE_GAPS);
+    }
+
+    private int getCallableStatusCount(CallableStatus status) {
+        final Integer x = getStatusTally().get(status);
+        return x == null ? 0 : x;
     }
 }

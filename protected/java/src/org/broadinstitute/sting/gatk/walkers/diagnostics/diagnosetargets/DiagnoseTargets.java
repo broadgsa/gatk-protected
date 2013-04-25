@@ -112,6 +112,9 @@ import java.util.*;
 public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
     private static final String AVG_INTERVAL_DP_KEY = "IDP";
+    private static final String LOW_COVERAGE_LOCI = "LL";
+    private static final String ZERO_COVERAGE_LOCI = "ZL";
+
 
     @Output(doc = "File to which interval statistics should be written")
     private VariantContextWriter vcfWriter = null;
@@ -134,7 +137,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         if (getToolkit().getIntervals() == null || getToolkit().getIntervals().isEmpty())
             throw new UserException("This tool only works if you provide one or more intervals (use the -L argument). If you want to run whole genome, use -T DepthOfCoverage instead.");
 
-        intervalMap = new HashMap<GenomeLoc, IntervalStratification>(INITIAL_HASH_SIZE);
+        intervalMap = new LinkedHashMap<GenomeLoc, IntervalStratification>(INITIAL_HASH_SIZE);
         intervalListIterator = new PeekableIterator<GenomeLoc>(getToolkit().getIntervals().iterator());
 
         // get all of the unique sample names for the VCF Header
@@ -151,8 +154,8 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
         // process and remove any intervals in the map that are don't overlap the current locus anymore
         // and add all new intervals that may overlap this reference locus
-        outputFinishedIntervals(refLocus, ref.getBase());
         addNewOverlappingIntervals(refLocus);
+        outputFinishedIntervals(refLocus, ref.getBase());
 
         // at this point, all intervals in intervalMap overlap with this locus, so update all of them
         for (IntervalStratification intervalStratification : intervalMap.values())
@@ -203,23 +206,16 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @param refBase  the reference allele
      */
     private void outputFinishedIntervals(final GenomeLoc refLocus, final byte refBase) {
-        GenomeLoc interval = intervalListIterator.peek();
-
-        // output empty statistics for uncovered intervals
-        while (interval != null && interval.isBefore(refLocus)) {
-            final IntervalStratification stats = intervalMap.get(interval);
-            outputStatsToVCF(stats != null ? stats : createIntervalStatistic(interval), UNCOVERED_ALLELE);
-            if (stats != null) intervalMap.remove(interval);
-            intervalListIterator.next();
-            interval = intervalListIterator.peek();
-        }
-
-        // remove any potential leftover interval in intervalMap (this will only happen when we have overlapping intervals)
+        // output any intervals that were finished
+        final List<GenomeLoc> toRemove = new LinkedList<GenomeLoc>();
         for (GenomeLoc key : intervalMap.keySet()) {
             if (key.isBefore(refLocus)) {
                 outputStatsToVCF(intervalMap.get(key), Allele.create(refBase, true));
-                intervalMap.remove(key);
+                toRemove.add(key);
             }
+        }
+        for (GenomeLoc key : toRemove) {
+            intervalMap.remove(key);
         }
     }
 
@@ -247,10 +243,21 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         GenomeLoc interval = stats.getInterval();
 
 
-        List<Allele> alleles = new ArrayList<Allele>();
-        Map<String, Object> attributes = new HashMap<String, Object>();
-        ArrayList<Genotype> genotypes = new ArrayList<Genotype>();
+        final List<Allele> alleles = new ArrayList<Allele>();
+        final Map<String, Object> attributes = new HashMap<String, Object>();
+        final ArrayList<Genotype> genotypes = new ArrayList<Genotype>();
 
+        for (String sample : samples) {
+            final GenotypeBuilder gb = new GenotypeBuilder(sample);
+
+            SampleStratification sampleStat = stats.getSampleStatistics(sample);
+            gb.attribute(AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage(interval.size()));
+            gb.attribute(LOW_COVERAGE_LOCI, sampleStat.getNLowCoveredLoci());
+            gb.attribute(ZERO_COVERAGE_LOCI, sampleStat.getNUncoveredLoci());
+            gb.filters(statusToStrings(stats.getSampleStatistics(sample).callableStatuses(), false));
+
+            genotypes.add(gb.make());
+        }
         alleles.add(refAllele);
         alleles.add(SYMBOLIC_ALLELE);
         VariantContextBuilder vcb = new VariantContextBuilder("DiagnoseTargets", interval.getContig(), interval.getStart(), interval.getStop(), alleles);
@@ -262,16 +269,6 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         attributes.put(AVG_INTERVAL_DP_KEY, stats.averageCoverage(interval.size()));
 
         vcb = vcb.attributes(attributes);
-        for (String sample : samples) {
-            final GenotypeBuilder gb = new GenotypeBuilder(sample);
-
-            SampleStratification sampleStat = stats.getSampleStatistics(sample);
-            gb.attribute(AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage(interval.size()));
-
-            gb.filters(statusToStrings(stats.getSampleStatistics(sample).callableStatuses(), false));
-
-            genotypes.add(gb.make());
-        }
         vcb = vcb.genotypes(genotypes);
 
         vcfWriter.add(vcb.make());
@@ -345,6 +342,8 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         // FORMAT fields for each genotype
         headerLines.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY));
         headerLines.add(new VCFFormatHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average sample depth across the interval. Sum of the sample specific depth in all loci divided by interval size."));
+        headerLines.add(new VCFFormatHeaderLine(LOW_COVERAGE_LOCI, 1, VCFHeaderLineType.Integer, "Number of loci for this sample, in this interval with low coverage (below the minimum coverage) but not zero."));
+        headerLines.add(new VCFFormatHeaderLine(ZERO_COVERAGE_LOCI, 1, VCFHeaderLineType.Integer, "Number of loci for this sample, in this interval with zero coverage."));
 
         // FILTER fields
         for (CallableStatus stat : CallableStatus.values())
