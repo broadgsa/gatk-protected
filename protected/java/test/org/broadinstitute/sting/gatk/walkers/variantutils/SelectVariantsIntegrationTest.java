@@ -144,7 +144,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testSampleExclusion() {
+    public void testSampleExclusionFromFileAndSeparateSample() {
         String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
         String samplesFile = validationDataLocation + "SelectVariants.samples.txt";
 
@@ -152,6 +152,21 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 "-T SelectVariants -R " + b36KGReference + " -L 1:1-1000000 -o %s --no_cmdline_in_header -xl_sn A -xl_sf " + samplesFile + " --variant " + testfile,
                 1,
                 Arrays.asList("1f5c72951a35667c4bdf1be153787e27")
+        );
+        spec.disableShadowBCF();
+
+        executeTest("testSampleExclusion--" + testfile, spec);
+    }
+
+    @Test
+    public void testSampleExclusionJustFromFile() {
+        String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
+        String samplesFile = validationDataLocation + "SelectVariants.samples.txt";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b36KGReference + " -L 1:1-1000000 -o %s --no_cmdline_in_header -xl_sf " + samplesFile + " --variant " + testfile,
+                1,
+                Arrays.asList("875d7e00ac8081e87ab9fb1b20c83677")
         );
         spec.disableShadowBCF();
 
