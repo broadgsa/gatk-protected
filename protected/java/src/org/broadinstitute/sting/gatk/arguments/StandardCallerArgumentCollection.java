@@ -54,7 +54,6 @@ import org.broadinstitute.sting.utils.collections.DefaultHashMap;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
-import java.io.PrintStream;
 import java.util.Collections;
 import java.util.Map;
 
@@ -171,10 +170,6 @@ public class StandardCallerArgumentCollection {
     public AFCalcFactory.Calculation AFmodel = AFCalcFactory.Calculation.getDefaultModel();
 
     @Hidden
-    @Argument(fullName = "logRemovedReadsFromContaminationFiltering", shortName="contaminationLog", required=false)
-    public PrintStream contaminationLog = null;
-
-    @Hidden
     @Argument(shortName = "logExactCalls", doc="x", required=false)
     public File exactCallsLog = null;
 
@@ -192,7 +187,6 @@ public class StandardCallerArgumentCollection {
         this.STANDARD_CONFIDENCE_FOR_EMITTING = SCAC.STANDARD_CONFIDENCE_FOR_EMITTING;
         this.CONTAMINATION_FRACTION = SCAC.CONTAMINATION_FRACTION;
         this.CONTAMINATION_FRACTION_FILE=SCAC.CONTAMINATION_FRACTION_FILE;
-        this.contaminationLog = SCAC.contaminationLog;
         this.exactCallsLog = SCAC.exactCallsLog;
         this.sampleContamination=SCAC.sampleContamination;
         this.AFmodel = SCAC.AFmodel;

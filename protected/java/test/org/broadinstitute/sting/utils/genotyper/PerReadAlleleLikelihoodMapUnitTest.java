@@ -211,7 +211,7 @@ public class PerReadAlleleLikelihoodMapUnitTest extends BaseTest {
 
         Assert.assertEquals(perReadAlleleLikelihoodMap.size(),pileup.depthOfCoverage()+10);
         Assert.assertEquals(perReadAlleleLikelihoodMap.getAlleleStratifiedReadMap().get(base_A).size(),60);
-        perReadAlleleLikelihoodMap.performPerAlleleDownsampling(0.1,null);
+        perReadAlleleLikelihoodMap.performPerAlleleDownsampling(0.1);
         Assert.assertEquals(perReadAlleleLikelihoodMap.size(),(int) (0.9*(pileup.depthOfCoverage()+10)));
 
         Map<Allele,List<GATKSAMRecord>> downsampledStrat = perReadAlleleLikelihoodMap.getAlleleStratifiedReadMap();
