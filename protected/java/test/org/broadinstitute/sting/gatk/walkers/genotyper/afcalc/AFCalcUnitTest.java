@@ -176,7 +176,7 @@ public class AFCalcUnitTest extends BaseTest {
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
             final double[] humanPriors = new double[nPriorValues];
-            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, false);
+            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
 
             for ( final double[] priors : Arrays.asList(flatPriors, humanPriors) ) { // , humanPriors) ) {
                 for ( AFCalc model : calcs ) {
@@ -583,8 +583,12 @@ public class AFCalcUnitTest extends BaseTest {
 
             final double[] flatPriors = new double[]{0.0,0.0,0.0};
             final double[] noPriors = new double[3];
-            // test that function computeAlleleFrequency correctly operates when the -noPrior option is set
-            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(2, noPriors, 0.001, true);
+            // test that function computeAlleleFrequency correctly operates when the flat prior option is set
+            // computeAlleleFrequencyPriors takes linear priors
+            final ArrayList<Double> inputPrior = new ArrayList<Double>();
+            inputPrior.add(1.0/3);
+            inputPrior.add(1.0/3);
+            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(2, noPriors, 0.0,inputPrior);
 
             GetGLsTest cfgFlatPrior = new GetGLsTest(model, 1, Arrays.asList(AB), flatPriors, "flatPrior");
             GetGLsTest cfgNoPrior = new GetGLsTest(model, 1, Arrays.asList(AB), flatPriors, "noPrior");
