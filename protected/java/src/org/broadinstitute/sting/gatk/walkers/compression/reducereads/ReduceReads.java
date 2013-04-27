@@ -64,7 +64,6 @@ import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -229,7 +228,9 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     public double minIndelProportionToTriggerVariant = 0.05;
 
     /**
-     * Downsamples the coverage of a variable region approximately (guarantees the minimum to be equal to this).
+     * The number of reads emitted per sample in a variant region can be downsampled for better compression.
+     * This level of downsampling only happens after the region has been evaluated, therefore it can
+     * be combined with the engine level downsampling.
      * A value of 0 turns downsampling off.
      */
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
