@@ -120,7 +120,7 @@ abstract class AbstractStratification {
      *
      * @return the callable status(es) for the whole object
      */
-    public abstract Iterable<CallableStatus> callableStatuses();
+    public abstract List<CallableStatus> callableStatuses();
 
 
     /**

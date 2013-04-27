@@ -56,6 +56,7 @@ import java.util.*;
 final class IntervalStratification extends AbstractStratification {
     private final Map<String, AbstractStratification> samples;
     private final GenomeLoc interval;
+    private List<CallableStatus> callableStatuses;
 
     public IntervalStratification(Set<String> samples, GenomeLoc interval, ThresHolder thresholds) {
         super(thresholds);
@@ -113,7 +114,13 @@ final class IntervalStratification extends AbstractStratification {
      * {@inheritDoc}
      */
     @Override
-    public Iterable<CallableStatus> callableStatuses() {
+    public List<CallableStatus> callableStatuses() {
+        if (callableStatuses == null)
+            callableStatuses = calculateStatus();
+        return callableStatuses;
+    }
+
+    private List<CallableStatus> calculateStatus() {
         final List<CallableStatus> output = new LinkedList<CallableStatus>();
 
         // check if any of the votes pass the threshold

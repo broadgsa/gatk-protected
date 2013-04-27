@@ -65,6 +65,8 @@ import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.*;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -122,13 +124,12 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
     @ArgumentCollection
     private ThresHolder thresholds = new ThresHolder();
 
-    private Map<GenomeLoc, IntervalStratification> intervalMap = null;              // maps each interval => statistics
+    private Map<GenomeLoc, IntervalStratification> intervalMap = null;          // maps each interval => statistics
     private PeekableIterator<GenomeLoc> intervalListIterator;                   // an iterator to go over all the intervals provided as we traverse the genome
     private Set<String> samples = null;                                         // all the samples being processed
     private static final Allele SYMBOLIC_ALLELE = Allele.create("<DT>", false); // avoid creating the symbolic allele multiple times
     private static final Allele UNCOVERED_ALLELE = Allele.create("A", true);    // avoid creating the 'fake' ref allele for uncovered intervals multiple times
-
-    private static final int INITIAL_HASH_SIZE = 500000;
+    private static final int INITIAL_HASH_SIZE = 50;                            // enough room for potential overlapping intervals plus recently finished intervals
 
     @Override
     public void initialize() {
@@ -149,7 +150,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
     }
 
     @Override
-    public Long map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
+    public Long map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
         GenomeLoc refLocus = ref.getLocus();
 
         // process and remove any intervals in the map that are don't overlap the current locus anymore
@@ -187,7 +188,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @param result number of loci processed by the walker
      */
     @Override
-    public void onTraversalDone(Long result) {
+    public void onTraversalDone(final Long result) {
         for (GenomeLoc interval : intervalMap.keySet())
             outputStatsToVCF(intervalMap.get(interval), UNCOVERED_ALLELE);
 
@@ -196,6 +197,14 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
             outputStatsToVCF(createIntervalStatistic(interval), UNCOVERED_ALLELE);
             intervalListIterator.next();
             interval = intervalListIterator.peek();
+        }
+
+        if (thresholds.missingTargets != null) {
+            try {
+                thresholds.missingTargets.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -210,7 +219,11 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         final List<GenomeLoc> toRemove = new LinkedList<GenomeLoc>();
         for (GenomeLoc key : intervalMap.keySet()) {
             if (key.isBefore(refLocus)) {
-                outputStatsToVCF(intervalMap.get(key), Allele.create(refBase, true));
+                final IntervalStratification intervalStats = intervalMap.get(key);
+                outputStatsToVCF(intervalStats, Allele.create(refBase, true));
+                if (hasMissingLoci(intervalStats)) {
+                    outputMissingInterval(intervalStats);
+                }
                 toRemove.add(key);
             }
         }
@@ -224,7 +237,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      *
      * @param refLocus the current reference locus
      */
-    private void addNewOverlappingIntervals(GenomeLoc refLocus) {
+    private void addNewOverlappingIntervals(final GenomeLoc refLocus) {
         GenomeLoc interval = intervalListIterator.peek();
         while (interval != null && !interval.isPast(refLocus)) {
             intervalMap.put(interval, createIntervalStatistic(interval));
@@ -239,9 +252,8 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @param stats     The statistics of the interval
      * @param refAllele the reference allele
      */
-    private void outputStatsToVCF(IntervalStratification stats, Allele refAllele) {
+    private void outputStatsToVCF(final IntervalStratification stats, final Allele refAllele) {
         GenomeLoc interval = stats.getInterval();
-
 
         final List<Allele> alleles = new ArrayList<Allele>();
         final Map<String, Object> attributes = new HashMap<String, Object>();
@@ -272,6 +284,55 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         vcb = vcb.genotypes(genotypes);
 
         vcfWriter.add(vcb.make());
+    }
+
+    private boolean hasMissingStatuses(AbstractStratification stats) {
+        return !stats.callableStatuses().isEmpty();
+    }
+
+    private boolean hasMissingLoci(final IntervalStratification stats) {
+        return thresholds.missingTargets != null && hasMissingStatuses(stats);
+    }
+
+    private void outputMissingInterval(final IntervalStratification stats) {
+        final GenomeLoc interval = stats.getInterval();
+        final boolean missing[] = new boolean[interval.size()];
+        Arrays.fill(missing, true);
+        for (AbstractStratification sample : stats.getElements()) {
+            if (hasMissingStatuses(sample)) {
+                int pos = 0;
+                for (AbstractStratification locus : sample.getElements()) {
+                    if (locus.callableStatuses().isEmpty()) {
+                        missing[pos] = false;
+                    }
+                    pos++;
+                }
+            }
+        }
+        int start = -1;
+        boolean insideMissing = false;
+        for (int i = 0; i < missing.length; i++) {
+            if (missing[i] && !insideMissing) {
+                start = interval.getStart() + i;
+                insideMissing = true;
+            } else if (!missing[i] && insideMissing) {
+                final int stop = interval.getStart() + i - 1;
+                outputMissingInterval(interval.getContig(), start, stop);
+                insideMissing = false;
+            }
+        }
+        if (insideMissing) {
+            outputMissingInterval(interval.getContig(), start, interval.getStop());
+        }
+    }
+
+    private void outputMissingInterval(final String contig, final int start, final int stop){
+        final FileWriter out = thresholds.missingTargets;
+        try {
+            out.write(String.format("%s:%d-%d\n", contig, start, stop));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**

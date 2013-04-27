@@ -117,7 +117,7 @@ final class SampleStratification extends AbstractStratification {
      * {@inheritDoc}
      */
     @Override
-    public Iterable<CallableStatus> callableStatuses() {
+    public List<CallableStatus> callableStatuses() {
         final List<CallableStatus> output = new LinkedList<CallableStatus>();
 
         // get the sample statuses of all the Loci Metrics
