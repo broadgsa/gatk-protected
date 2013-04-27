@@ -54,7 +54,10 @@ import org.broadinstitute.sting.utils.collections.DefaultHashMap;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
+import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -118,13 +121,27 @@ public class StandardCallerArgumentCollection {
     public int MAX_ALTERNATE_ALLELES = 6;
 
     /**
-     * By default, the prior specified with the argument --heterozygosity/-hets is used for variant discovery at a particular locus.
-     * If This argument is true, the heterozygosity prior will not be used - main application is for population studies where prior might not be appropriate,
+     * By default, the prior specified with the argument --heterozygosity/-hets is used for variant discovery at a particular locus, using an infinite sites model,
+     * see e.g. Waterson (1975) or Tajima (1996).
+     * This model asserts that the probability of having a population of k variant sites in N chromosomes is proportional to theta/k, for 1=1:N
+     *
+     * There are instances where using this prior might not be desireable, e.g. for population studies where prior might not be appropriate,
      * as for example when the ancestral status of the reference allele is not known.
+     * By using this argument, user can manually specify priors to be used for calling as a vector for doubles, with the following restriciotns:
+     * a) User must specify 2N values, where N is the number of samples.
+     * b) Only diploid calls supported.
+     * c) Probability values are specified in double format, in linear space.
+     * d) No negative values allowed.
+     * e) Values will be added and Pr(AC=0) will be 1-sum, so that they sum up to one.
+     * f) If user-defined values add to more than one, an error will be produced.
+     *
+     * If user wants completely flat priors, then user should specify the same value (=1/(2*N+1)) 2*N times,e.g.
+     *   -inputPrior 0.33 -inputPrior 0.33
+     * for the single-sample diploid case.
      */
     @Advanced
-    @Argument(fullName = "dont_use_site_prior", shortName = "noPrior", doc = "If true, skip prior for variant discovery", required = false)
-    public boolean ignoreHeterozygosityPrior = false;
+    @Argument(fullName = "input_prior", shortName = "inputPrior", doc = "Input prior for calls", required = false)
+    public List<Double> inputPrior = Collections.emptyList();
 
     /**
      * If this fraction is greater is than zero, the caller will aggressively attempt to remove contamination through biased down-sampling of reads.
@@ -190,6 +207,6 @@ public class StandardCallerArgumentCollection {
         this.exactCallsLog = SCAC.exactCallsLog;
         this.sampleContamination=SCAC.sampleContamination;
         this.AFmodel = SCAC.AFmodel;
-        this.ignoreHeterozygosityPrior = SCAC.ignoreHeterozygosityPrior;
+        this.inputPrior = SCAC.inputPrior;
     }
 }

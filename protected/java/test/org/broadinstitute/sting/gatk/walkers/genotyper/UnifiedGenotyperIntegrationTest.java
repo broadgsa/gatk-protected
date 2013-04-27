@@ -142,9 +142,17 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     @Test
     public void testNoPrior() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -stand_call_conf 10 -noPrior", 1,
+                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -stand_call_conf 10 -inputPrior 0.33333 -inputPrior 0.33333", 1,
                 Arrays.asList("7ac60bdc355d97c0939e644b58de47d7"));
         executeTest("test no prior 1", spec1);
+
+    }
+    @Test
+    public void testUserPrior() {
+        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
+                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -stand_call_conf 10 -inputPrior 0.001 -inputPrior 0.495", 1,
+                Arrays.asList("04d05900849d5a3f6f3f98bd0f262369"));
+        executeTest("test user prior 1", spec1);
 
     }
 
