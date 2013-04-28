@@ -245,8 +245,13 @@ public class PairHMMIndelErrorModel {
                 }
             }
             else {
-                final int refWindowStart = ref.getWindow().getStart();
-                final int refWindowStop  = ref.getWindow().getStop();
+                // extra padding on candidate haplotypes to make sure reads are always strictly contained
+                // in them - a value of 1 will in theory do but we use a slightly higher one just for safety sake, mostly
+                // in case bases at edge of reads have lower quality.
+                final int trailingBases = 3;
+                final int extraOffset = Math.abs(eventLength);
+                final int refWindowStart = ref.getWindow().getStart()+(trailingBases+extraOffset);
+                final int refWindowStop  = ref.getWindow().getStop()-(trailingBases+extraOffset);
 
                 if (DEBUG) {
                     System.out.format("Read Name:%s, aln start:%d aln stop:%d orig cigar:%s\n",p.getRead().getReadName(), p.getRead().getAlignmentStart(), p.getRead().getAlignmentEnd(), p.getRead().getCigarString());
@@ -255,10 +260,10 @@ public class PairHMMIndelErrorModel {
                 GATKSAMRecord read = ReadClipper.hardClipAdaptorSequence(p.getRead());
 
                 if (!read.isEmpty() && (read.getSoftEnd() > refWindowStop && read.getSoftStart() < refWindowStop))
-                    read = ReadClipper.hardClipByReferenceCoordinatesRightTail(read, ref.getWindow().getStop());
+                    read = ReadClipper.hardClipByReferenceCoordinatesRightTail(read, refWindowStop);
 
                 if (!read.isEmpty() && (read.getSoftStart() < refWindowStart && read.getSoftEnd() > refWindowStart))
-                    read = ReadClipper.hardClipByReferenceCoordinatesLeftTail (read, ref.getWindow().getStart());
+                    read = ReadClipper.hardClipByReferenceCoordinatesLeftTail (read, refWindowStart);
 
                 if (read.isEmpty())
                     continue;
@@ -270,7 +275,6 @@ public class PairHMMIndelErrorModel {
                     continue;
 
                 // get bases of candidate haplotypes that overlap with reads
-                final int trailingBases = 3;
                 final long readStart = read.getSoftStart();
                 final long readEnd = read.getSoftEnd();
 
@@ -286,7 +290,6 @@ public class PairHMMIndelErrorModel {
                 final int numEndSoftClippedBases = softClips ? read.getSoftEnd()- read.getAlignmentEnd() : 0 ;
                 final byte [] unclippedReadBases = read.getReadBases();
                 final byte [] unclippedReadQuals = read.getBaseQualities();
-                final int extraOffset = Math.abs(eventLength);
 
                 /**
                  * Compute genomic locations that candidate haplotypes will span.
@@ -313,6 +316,7 @@ public class PairHMMIndelErrorModel {
                     startLocationInRefForHaplotypes = ref.getWindow().getStop();                                        // read starts after haplotype: read will have to be clipped completely;
                 }
 
+                // candidate haplotype cannot go beyond reference context
                 if (stopLocationInRefForHaplotypes > ref.getWindow().getStop()) {
                     stopLocationInRefForHaplotypes = ref.getWindow().getStop();                                         // check also if end of read will go beyond reference context
                 }
