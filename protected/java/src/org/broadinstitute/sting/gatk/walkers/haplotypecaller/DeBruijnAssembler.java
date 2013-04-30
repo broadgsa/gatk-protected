@@ -277,7 +277,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
         for( final GATKSAMRecord read : reads ) {
             final byte[] sequence = read.getReadBases();
             final byte[] qualities = read.getBaseQualities();
-            final byte[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
+            final int[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
             if ( sequence.length > kmerLength + KMER_OVERLAP ) {
                 int lastGood = -1; // the index of the last good base we've seen
                 for( int end = 0; end < sequence.length; end++ ) {

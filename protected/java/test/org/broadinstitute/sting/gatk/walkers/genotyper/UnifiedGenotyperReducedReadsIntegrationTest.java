@@ -63,13 +63,13 @@ public class UnifiedGenotyperReducedReadsIntegrationTest extends WalkerTest {
     public void testReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("da3fd775c8add1f7962baabf06b7d372"));
+                Arrays.asList("e6565060b44a7804935973efcd56e596"));
         executeTest("test calling on a ReducedRead BAM", spec);
     }
 
     @Test
     public void testReducedBamSNPs() {
-        testReducedCalling("SNP", "76244ab1be60814f1412e6cd09e546cc");
+        testReducedCalling("SNP", "ab776d74c41ce2b859e2b2466a76204a");
     }
 
     @Test
