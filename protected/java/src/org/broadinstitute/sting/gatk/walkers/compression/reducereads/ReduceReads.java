@@ -46,13 +46,15 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectSortedSet;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMProgramRecord;
 import net.sf.samtools.util.SequenceUtil;
-import org.broadinstitute.sting.commandline.Argument;
-import org.broadinstitute.sting.commandline.Hidden;
-import org.broadinstitute.sting.commandline.Output;
+import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
@@ -65,13 +67,17 @@ import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.sam.BySampleSAMFileWriter;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.variant.variantcontext.VariantContext;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+
 
 /**
  * Reduces the BAM file using read based compression that keeps only essential information for variant calling
@@ -83,17 +89,17 @@ import java.util.*;
  * shown to reduce a typical whole exome BAM file 100x. The higher the coverage, the bigger the
  * savings in file size and performance of the downstream tools.
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * The BAM file to be compressed
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * The compressed (reduced) BAM file.
  *
  * <p/>
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \
@@ -107,9 +113,9 @@ import java.util.*;
 @PartitionBy(PartitionType.CONTIG)
 @ReadFilters({UnmappedReadFilter.class, NotPrimaryAlignmentFilter.class, DuplicateReadFilter.class, FailsVendorQualityCheckFilter.class, BadCigarFilter.class})
 @Downsample(by=DownsampleType.BY_SAMPLE, toCoverage=40)
-public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceReadsStash> {
+public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, ReduceReadsStash> {
 
-    @Output
+    @Output(required = false, defaultToStdout = false)
     private StingSAMFileWriter out = null;
     private SAMFileWriter writerToUse = null;
 
@@ -117,7 +123,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * The number of bases to keep around mismatches (potential variation)
      */
     @Argument(fullName = "context_size", shortName = "cs", doc = "", required = false)
-    private int contextSize = 10;
+    public int contextSize = 10;
 
     /**
      * The minimum mapping quality to be considered for the consensus synthetic read. Reads that have
@@ -125,7 +131,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * towards variable regions.
      */
     @Argument(fullName = "minimum_mapping_quality", shortName = "minmap", doc = "", required = false)
-    private int minMappingQuality = 20;
+    public int minMappingQuality = 20;
 
     /**
      * The minimum base quality to be considered for the consensus synthetic read. Reads that have
@@ -133,41 +139,45 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * towards variable regions.
      */
     @Argument(fullName = "minimum_base_quality_to_consider", shortName = "minqual", doc = "", required = false)
-    private byte minBaseQual = 20;
+    public byte minBaseQual = 15;
 
     /**
-     * Reads have notoriously low quality bases on the tails (left and right). Consecutive bases with quality
-     * lower than this threshold will be hard clipped off before entering the reduce reads algorithm.
+     * Reads have notoriously low quality bases on the tails (left and right).  Consecutive bases at the tails with
+     * quality at or lower than this threshold will be hard clipped off before entering the reduce reads algorithm.
      */
     @Argument(fullName = "minimum_tail_qualities", shortName = "mintail", doc = "", required = false)
-    private byte minTailQuality = 2;
+    public byte minTailQuality = 2;
 
     /**
-     * Allow the experimental polyploid-based reduction capabilities of this tool
+     * Any number of VCF files representing known SNPs to be used for the polyploid-based reduction.
+     * Could be e.g. dbSNP and/or official 1000 Genomes SNP calls.  Non-SNP variants in these files will be ignored.
+     * If provided, the polyploid ("het") compression will work only when a single SNP from the known set is present
+     * in a consensus window (otherwise there will be no reduction); if not provided then polyploid compression will
+     * be triggered anywhere there is a single SNP present in a consensus window.
      */
-    @Argument(fullName = "allow_polyploid_reduction", shortName = "polyploid", doc = "", required = false)
-    private boolean USE_POLYPLOID_REDUCTION = false;
+    @Input(fullName="known_sites_for_polyploid_reduction", shortName = "known", doc="Input VCF file(s) with known SNPs", required=false)
+    public List<RodBinding<VariantContext>> known = Collections.emptyList();
 
     /**
      * Do not simplify read (strip away all extra information of the read -- anything other than bases, quals
      * and read group).
      */
     @Argument(fullName = "dont_simplify_reads", shortName = "nosimplify", doc = "", required = false)
-    private boolean DONT_SIMPLIFY_READS = false;
+    public boolean DONT_SIMPLIFY_READS = false;
 
     /**
      * Do not hard clip adaptor sequences. Note: You don't have to turn this on for reads that are not mate paired.
      * The program will behave correctly in those cases.
      */
     @Argument(fullName = "dont_hardclip_adaptor_sequences", shortName = "noclip_ad", doc = "", required = false)
-    private boolean DONT_CLIP_ADAPTOR_SEQUENCES = false;
+    public boolean DONT_CLIP_ADAPTOR_SEQUENCES = false;
 
     /**
      * Do not hard clip the low quality tails of the reads. This option overrides the argument of minimum tail
      * quality.
      */
     @Argument(fullName = "dont_hardclip_low_qual_tails", shortName = "noclip_tail", doc = "", required = false)
-    private boolean DONT_CLIP_LOW_QUAL_TAILS = false;
+    public boolean DONT_CLIP_LOW_QUAL_TAILS = false;
 
     /**
      * Do not use high quality soft-clipped bases. By default, ReduceReads will hard clip away any low quality soft clipped
@@ -175,7 +185,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * regions. The minimum quality for soft clipped bases is the same as the minimum base quality to consider (minqual)
      */
     @Argument(fullName = "dont_use_softclipped_bases", shortName = "no_soft", doc = "", required = false)
-    private boolean DONT_USE_SOFTCLIPPED_BASES = false;
+    public boolean DONT_USE_SOFTCLIPPED_BASES = false;
 
     /**
      * Do not compress read names. By default, ReduceReads will compress read names to numbers and guarantee 
@@ -183,55 +193,68 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * there is no guarantee that read name uniqueness will be maintained -- in this case we recommend not compressing. 
      */
     @Argument(fullName = "dont_compress_read_names", shortName = "nocmp_names", doc = "", required = false)
-    private boolean DONT_COMPRESS_READ_NAMES = false;
+    public boolean DONT_COMPRESS_READ_NAMES = false;
 
     /**
      * Optionally hard clip all incoming reads to the desired intervals. The hard clips will happen exactly at the interval
      * border.
      */
     @Argument(fullName = "hard_clip_to_interval", shortName = "clip_int", doc = "", required = false)
-    private boolean HARD_CLIP_TO_INTERVAL = false;
+    public boolean HARD_CLIP_TO_INTERVAL = false;
 
     /**
      * Minimum proportion of mismatches in a site to trigger a variant region. Anything below this will be
-     * considered consensus.
+     * considered consensus and reduced (otherwise we will try to trigger polyploid compression).  Note that
+     * this value is used only regions with high coverage.
      */
+    @Advanced
     @Argument(fullName = "minimum_alt_proportion_to_trigger_variant", shortName = "minvar", doc = "", required = false)
-    private double minAltProportionToTriggerVariant = 0.05;
+    public double minAltProportionToTriggerVariant = 0.05;
+
+    /**
+     * Minimum p-value from binomial distribution of mismatches in a site to trigger a variant region.
+     * Any site with a value falling below this will be considered consensus and reduced (otherwise we will try to
+     * trigger polyploid compression).  Note that this value is used only regions with low coverage.
+     */
+    @Advanced
+    @Argument(fullName = "minimum_alt_pvalue_to_trigger_variant", shortName = "min_pvalue", doc = "", required = false)
+    public double minAltPValueToTriggerVariant = 0.01;
 
     /**
      * Minimum proportion of indels in a site to trigger a variant region. Anything below this will be
      * considered consensus.
      */
     @Argument(fullName = "minimum_del_proportion_to_trigger_variant", shortName = "mindel", doc = "", required = false)
-    private double minIndelProportionToTriggerVariant = 0.05;
+    public double minIndelProportionToTriggerVariant = 0.05;
 
     /**
-     * Downsamples the coverage of a variable region approximately (guarantees the minimum to be equal to this).
+     * The number of reads emitted per sample in a variant region can be downsampled for better compression.
+     * This level of downsampling only happens after the region has been evaluated, therefore it can
+     * be combined with the engine level downsampling.
      * A value of 0 turns downsampling off.
      */
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
-    private int downsampleCoverage = 250;
+    public int downsampleCoverage = 250;
 
     @Hidden
     @Argument(fullName = "nwayout", shortName = "nw", doc = "", required = false)
-    private boolean nwayout = false;
+    public boolean nwayout = false;
 
     @Hidden
     @Argument(fullName = "", shortName = "dl", doc = "", required = false)
-    private int debugLevel = 0;
+    public int debugLevel = 0;
 
     @Hidden
     @Argument(fullName = "", shortName = "dr", doc = "", required = false)
-    private String debugRead = "";
+    public String debugRead = "";
 
     @Hidden
     @Argument(fullName = "downsample_strategy", shortName = "dm", doc = "", required = false)
-    private DownsampleStrategy downsampleStrategy = DownsampleStrategy.Normal;
+    public DownsampleStrategy downsampleStrategy = DownsampleStrategy.Normal;
     
     @Hidden 
     @Argument(fullName = "no_pg_tag", shortName = "npt", doc ="", required = false)
-    private boolean NO_PG_TAG = false;
+    public boolean NO_PG_TAG = false;
 
     public enum DownsampleStrategy {
         Normal,
@@ -240,10 +263,12 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     
     int nCompressedReads = 0;
 
-    HashMap<String, Long> readNameHash;                                     // This hash will keep the name of the original read the new compressed name (a number).
+    Object2LongOpenHashMap<String> readNameHash;                         // This hash will keep the name of the original read the new compressed name (a number).
     Long nextReadNumber = 1L;                                               // The next number to use for the compressed read name.
 
-    SortedSet<GenomeLoc> intervalList;
+    ObjectSortedSet<GenomeLoc> intervalList;
+
+    ObjectSortedSet<GenomeLoc> knownSnpPositions;
 
     // IMPORTANT: DO NOT CHANGE THE VALUE OF THIS CONSTANT VARIABLE; IT IS NOW PERMANENTLY THE @PG NAME THAT EXTERNAL TOOLS LOOK FOR IN THE BAM HEADER
     public static final String PROGRAM_RECORD_NAME = "GATK ReduceReads";   // The name that will go in the @PG tag
@@ -256,17 +281,33 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     @Override
     public void initialize() {
         super.initialize();
+
+        if ( !nwayout && out == null )
+            throw new UserException.MissingArgument("out", "the output must be provided and is optional only for certain debugging modes");
+
+        if ( nwayout && out != null )
+            throw new UserException.CommandLineException("--out and --nwayout can not be used simultaneously; please use one or the other");
+
+        if ( minAltPValueToTriggerVariant < 0.0 || minAltPValueToTriggerVariant > 1.0 )
+            throw new UserException.BadArgumentValue("--minimum_alt_pvalue_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
+
+        if ( minAltProportionToTriggerVariant < 0.0 || minAltProportionToTriggerVariant > 1.0 )
+            throw new UserException.BadArgumentValue("--minimum_alt_proportion_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
+
+        if ( known.isEmpty() )
+            knownSnpPositions = null;
+        else
+            knownSnpPositions = new ObjectAVLTreeSet<GenomeLoc>();
+
         GenomeAnalysisEngine toolkit = getToolkit();
-        readNameHash = new HashMap<String, Long>();           // prepare the read name hash to keep track of what reads have had their read names compressed
-        intervalList = new TreeSet<GenomeLoc>();              // get the interval list from the engine. If no interval list was provided, the walker will work in WGS mode
+        readNameHash = new Object2LongOpenHashMap<String>(100000);     // prepare the read name hash to keep track of what reads have had their read names compressed
+        intervalList = new ObjectAVLTreeSet<GenomeLoc>();                          // get the interval list from the engine. If no interval list was provided, the walker will work in WGS mode
 
         if (toolkit.getIntervals() != null)
             intervalList.addAll(toolkit.getIntervals());
 
-
         final boolean preSorted = true;
         final boolean indexOnTheFly = true;
-        final boolean keep_records = true;
         final SAMFileHeader.SortOrder sortOrder = SAMFileHeader.SortOrder.coordinate;
         if (nwayout) {
             SAMProgramRecord programRecord = NO_PG_TAG ? null : Utils.createProgramRecord(toolkit, this, PROGRAM_RECORD_NAME);
@@ -276,7 +317,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
             writerToUse = out;
             out.setPresorted(false);
             if (!NO_PG_TAG) {
-                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), !preSorted, keep_records, this, PROGRAM_RECORD_NAME);
+                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), !preSorted, this, PROGRAM_RECORD_NAME);
             }
         }
     }
@@ -295,8 +336,8 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * @return a linked list with all the reads produced by the clipping operations
      */
     @Override
-    public LinkedList<GATKSAMRecord> map(ReferenceContext ref, GATKSAMRecord read, RefMetaDataTracker metaDataTracker) {
-        LinkedList<GATKSAMRecord> mappedReads;
+    public ObjectArrayList<GATKSAMRecord> map(ReferenceContext ref, GATKSAMRecord read, RefMetaDataTracker metaDataTracker) {
+        ObjectArrayList<GATKSAMRecord> mappedReads;
         if (!debugRead.isEmpty() && read.getReadName().contains(debugRead))
                 System.out.println("Found debug read!");
 
@@ -325,18 +366,18 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
             if (HARD_CLIP_TO_INTERVAL)
                 mappedReads = hardClipReadToInterval(read);                                                             // Hard clip the remainder of the read to the desired interval
             else {
-                mappedReads = new LinkedList<GATKSAMRecord>();
+                mappedReads = new ObjectArrayList<GATKSAMRecord>();
                 mappedReads.add(read);
             }
         }
         else {
-            mappedReads = new LinkedList<GATKSAMRecord>();
+            mappedReads = new ObjectArrayList<GATKSAMRecord>();
             if (!read.isEmpty())
                 mappedReads.add(read);
         }
 
         if (!mappedReads.isEmpty() && !DONT_USE_SOFTCLIPPED_BASES) {
-            LinkedList<GATKSAMRecord> tempList = new LinkedList<GATKSAMRecord>();
+            ObjectArrayList<GATKSAMRecord> tempList = new ObjectArrayList<GATKSAMRecord>();
             for (GATKSAMRecord mRead : mappedReads) {
                 GATKSAMRecord clippedRead = ReadClipper.hardClipLowQualitySoftClips(mRead, minBaseQual);
                 if (!clippedRead.isEmpty())
@@ -349,8 +390,22 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
             for (GATKSAMRecord mappedRead : mappedReads)
                 System.out.printf("MAPPED: %s %d %d\n", mappedRead.getCigar(), mappedRead.getAlignmentStart(), mappedRead.getAlignmentEnd());
 
-        return mappedReads;
+        // add the SNPs to the list of known positions
+        populateKnownSNPs(metaDataTracker);
 
+        return mappedReads;
+    }
+
+    /*
+     * Add the positions of known SNPs to the set so that we can keep track of it
+     *
+     * @param metaDataTracker   the ref meta data tracker
+     */
+    protected void populateKnownSNPs(final RefMetaDataTracker metaDataTracker) {
+        for ( final VariantContext vc : metaDataTracker.getValues(known) ) {
+            if ( vc.isSNP() )
+                knownSnpPositions.add(getToolkit().getGenomeLocParser().createGenomeLoc(vc));
+        }
     }
 
     /**
@@ -363,7 +418,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      */
     @Override
     public ReduceReadsStash reduceInit() {
-        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy, USE_POLYPLOID_REDUCTION));
+        return new ReduceReadsStash(new MultiSampleCompressor(getToolkit().getSAMFileHeader(), contextSize, downsampleCoverage, minMappingQuality, minAltPValueToTriggerVariant, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, downsampleStrategy));
     }
 
     /**
@@ -375,7 +430,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * @param stash       the stash that keeps the reads in order for processing
      * @return the stash with all reads that have not been processed yet
      */
-    public ReduceReadsStash reduce(LinkedList<GATKSAMRecord> mappedReads, ReduceReadsStash stash) {
+    public ReduceReadsStash reduce(ObjectArrayList<GATKSAMRecord> mappedReads, ReduceReadsStash stash) {
         if (debugLevel == 1)
             stash.print();
 
@@ -387,7 +442,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
                 throw new ReviewedStingException("Empty read sent to reduce, this should never happen! " + read.getReadName() + " -- " + read.getCigar() + " -- " + read.getReferenceName() + ":" + read.getAlignmentStart() + "-" + read.getAlignmentEnd());
 
             if (originalRead) {
-                List<GATKSAMRecord> readsReady = new LinkedList<GATKSAMRecord>();
+                ObjectArrayList<GATKSAMRecord> readsReady = new ObjectArrayList<GATKSAMRecord>();
                 readsReady.addAll(stash.getAllReadsBefore(read));
                 readsReady.add(read);
 
@@ -395,8 +450,15 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
                     if (debugLevel == 1)
                         System.out.println("REDUCE: " + readReady.getCigar() + " " + readReady.getAlignmentStart() + " " + readReady.getAlignmentEnd());
 
-                    for (GATKSAMRecord compressedRead : stash.compress(readReady))
+                    for (GATKSAMRecord compressedRead : stash.compress(readReady, knownSnpPositions))
                         outputRead(compressedRead);
+
+                    // We only care about maintaining the link between read pairs if they are in the same variant
+                    // region.  Since an entire variant region's worth of reads is returned in a single call to
+                    // stash.compress(), the readNameHash can be cleared after the for() loop above.
+                    // The advantage of clearing the hash is that otherwise it holds all reads that have been encountered,
+                    // which can use a lot of memory and cause RR to slow to a crawl and/or run out of memory.
+                    readNameHash.clear();
 
                 }
             } else
@@ -404,6 +466,10 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
 
             firstRead = false;
         }
+
+        // reduce memory requirements by removing old positions
+        if ( !mappedReads.isEmpty() )
+            clearStaleKnownPositions(mappedReads.get(0));
 
         return stash;
     }
@@ -417,11 +483,36 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
     public void onTraversalDone(ReduceReadsStash stash) {
 
         // output any remaining reads in the compressor
-        for (GATKSAMRecord read : stash.close())
+        for (GATKSAMRecord read : stash.close(knownSnpPositions))
             outputRead(read);
 
         if (nwayout)
             writerToUse.close();
+    }
+
+    /**
+     * Removes known positions that are no longer relevant for use with het compression.
+     *
+     * @param read    the current read, used for checking whether there are stale positions we can remove
+     */
+    protected void clearStaleKnownPositions(final GATKSAMRecord read) {
+        // nothing to clear if not used or empty
+        if ( knownSnpPositions == null || knownSnpPositions.isEmpty() )
+            return;
+
+        // not ready to be cleared until we encounter a read from a different contig
+        final int contigIndexOfRead = read.getReferenceIndex();
+        if ( knownSnpPositions.first().getContigIndex() == contigIndexOfRead )
+            return;
+
+        // because we expect most elements to be stale, it's not going to be efficient to remove them one at a time
+        final ObjectAVLTreeSet<GenomeLoc> goodLocs = new ObjectAVLTreeSet<GenomeLoc>();
+        for ( final GenomeLoc loc : knownSnpPositions ) {
+            if ( loc.getContigIndex() == contigIndexOfRead )
+                goodLocs.add(loc);
+        }
+        knownSnpPositions.clear();
+        knownSnpPositions.addAll(goodLocs);
     }
 
     /**
@@ -433,8 +524,8 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * @param read the read to be hard clipped to the interval.
      * @return a shallow copy of the read hard clipped to the interval
      */
-    private LinkedList<GATKSAMRecord> hardClipReadToInterval(GATKSAMRecord read) {
-        LinkedList<GATKSAMRecord> clippedReads = new LinkedList<GATKSAMRecord>();
+    private ObjectArrayList<GATKSAMRecord> hardClipReadToInterval(GATKSAMRecord read) {
+        ObjectArrayList<GATKSAMRecord> clippedReads = new ObjectArrayList<GATKSAMRecord>();
 
         GenomeLoc intervalOverlapped = null;       // marks the interval to which the original read overlapped (so we can cut all previous intervals from the list)
 
@@ -588,7 +679,7 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
             System.out.println("BAM: " + read.getCigar() + " " + read.getAlignmentStart() + " " + read.getAlignmentEnd());
 
         if (!DONT_COMPRESS_READ_NAMES)
-            compressReadName(read);
+            nextReadNumber = compressReadName(readNameHash, read, nextReadNumber);
 
         writerToUse.addAlignment(read);
     }
@@ -623,21 +714,28 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * Compresses the read name using the readNameHash if we have already compressed
      * this read name before.
      *
-     * @param read any read
+     * @param hash           the hash table containing the read name to compressed read name map
+     * @param read           any read
+     * @param nextReadNumber the number to use in the compressed read name in case this is a new read name
+     * @return the next number to use in the compressed read name
      */
-    private void compressReadName(GATKSAMRecord read) {
-        String name = read.getReadName();
-        String compressedName = read.isReducedRead() ? "C" : "";
-        final Long readNumber = readNameHash.get(name);
-        if (readNumber != null) {
-            compressedName += readNumber.toString();
-        } else {
-            readNameHash.put(name, nextReadNumber);
-            compressedName += nextReadNumber.toString();
-            nextReadNumber++;
+    protected static long compressReadName(final Object2LongOpenHashMap<String> hash, final GATKSAMRecord read, final long nextReadNumber) {
+        final String name = read.getReadName();
+        final StringBuilder compressedName = new StringBuilder();
+        long result = nextReadNumber;
+        if (read.isReducedRead()) {
+            compressedName.append("C");
         }
-
-        read.setReadName(compressedName);
+        final Long readNumber = hash.get(name);
+        if (readNumber != null) {
+            compressedName.append(readNumber);
+        } else {
+            hash.put(name, nextReadNumber);
+            compressedName.append(nextReadNumber);
+            result++;
+        }
+        read.setReadName(compressedName.toString());
+        return result;
     }
 
     /**
@@ -649,8 +747,8 @@ public class ReduceReads extends ReadWalker<LinkedList<GATKSAMRecord>, ReduceRea
      * @param read the read
      * @return Returns true if the read is the original read that went through map().
      */
-    private boolean isOriginalRead(LinkedList<GATKSAMRecord> list, GATKSAMRecord read) {
-        return isWholeGenome() || list.getFirst().equals(read);
+    private boolean isOriginalRead(ObjectArrayList<GATKSAMRecord> list, GATKSAMRecord read) {
+        return isWholeGenome() || list.get(0).equals(read);
     }
 
     /**

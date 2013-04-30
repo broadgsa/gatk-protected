@@ -46,13 +46,12 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import com.google.java.contract.Ensures;
+import it.unimi.dsi.fastutil.objects.*;
+import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-
-import java.util.Collections;
-import java.util.Set;
-import java.util.TreeSet;
 
 /**
  *
@@ -63,38 +62,45 @@ public class SingleSampleCompressor {
     final private int contextSize;
     final private int downsampleCoverage;
     final private int minMappingQuality;
+    final private double minAltPValueToTriggerVariant;
     final private double minAltProportionToTriggerVariant;
     final private double minIndelProportionToTriggerVariant;
     final private int minBaseQual;
     final private ReduceReads.DownsampleStrategy downsampleStrategy;
-    final private boolean allowPolyploidReduction;
 
     private SlidingWindow slidingWindow;
     private int slidingWindowCounter;
 
-    public static Pair<Set<GATKSAMRecord>, CompressionStash> emptyPair = new Pair<Set<GATKSAMRecord>,CompressionStash>(new TreeSet<GATKSAMRecord>(), new CompressionStash());
+    public static Pair<ObjectSet<GATKSAMRecord>, CompressionStash> emptyPair = new Pair<ObjectSet<GATKSAMRecord>,CompressionStash>(new ObjectAVLTreeSet<GATKSAMRecord>(), new CompressionStash());
 
     public SingleSampleCompressor(final int contextSize,
                                   final int downsampleCoverage,
                                   final int minMappingQuality,
+                                  final double minAltPValueToTriggerVariant,
                                   final double minAltProportionToTriggerVariant,
                                   final double minIndelProportionToTriggerVariant,
                                   final int minBaseQual,
-                                  final ReduceReads.DownsampleStrategy downsampleStrategy,
-                                  final boolean allowPolyploidReduction) {
+                                  final ReduceReads.DownsampleStrategy downsampleStrategy) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
         this.minMappingQuality = minMappingQuality;
         this.slidingWindowCounter = 0;
+        this.minAltPValueToTriggerVariant = minAltPValueToTriggerVariant;
         this.minAltProportionToTriggerVariant = minAltProportionToTriggerVariant;
         this.minIndelProportionToTriggerVariant = minIndelProportionToTriggerVariant;
         this.minBaseQual = minBaseQual;
         this.downsampleStrategy = downsampleStrategy;
-        this.allowPolyploidReduction = allowPolyploidReduction;
     }
 
-    public Pair<Set<GATKSAMRecord>, CompressionStash> addAlignment( GATKSAMRecord read ) {
-        Set<GATKSAMRecord> reads = new TreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+    /**
+     * Add an alignment to the compressor
+     *
+     * @param read                  the read to be added
+     * @param knownSnpPositions     the set of known SNP positions
+     * @return any compressed reads that may have resulted from adding this read to the machinery (due to the sliding window)
+     */
+    public Pair<ObjectSet<GATKSAMRecord>, CompressionStash> addAlignment( final GATKSAMRecord read, final ObjectSortedSet<GenomeLoc> knownSnpPositions ) {
+        ObjectSet<GATKSAMRecord> reads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
         CompressionStash stash = new CompressionStash();
         int readOriginalStart = read.getUnclippedStart();
 
@@ -104,27 +110,43 @@ public class SingleSampleCompressor {
               (readOriginalStart - contextSize > slidingWindow.getStopLocation()))) {  // this read is too far away from the end of the current sliding window
 
             // close the current sliding window
-            Pair<Set<GATKSAMRecord>, CompressionStash> readsAndStash = slidingWindow.close();
+            Pair<ObjectSet<GATKSAMRecord>, CompressionStash> readsAndStash = slidingWindow.close(knownSnpPositions);
             reads = readsAndStash.getFirst();
             stash = readsAndStash.getSecond();
             slidingWindow = null;                                                      // so we create a new one on the next if
         }
 
         if ( slidingWindow == null) {                                                  // this is the first read
-            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(), slidingWindowCounter, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant, minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities(), allowPolyploidReduction);
+            slidingWindow = new SlidingWindow(read.getReferenceName(), read.getReferenceIndex(), contextSize, read.getHeader(), read.getReadGroup(),
+                    slidingWindowCounter, minAltPValueToTriggerVariant, minAltProportionToTriggerVariant, minIndelProportionToTriggerVariant,
+                    minBaseQual, minMappingQuality, downsampleCoverage, downsampleStrategy, read.hasBaseIndelQualities());
             slidingWindowCounter++;
         }
 
         stash.addAll(slidingWindow.addRead(read));
-        return new Pair<Set<GATKSAMRecord>, CompressionStash>(reads, stash);
+        return new Pair<ObjectSet<GATKSAMRecord>, CompressionStash>(reads, stash);
     }
 
-    public Pair<Set<GATKSAMRecord>, CompressionStash> close() {
-        return (slidingWindow != null) ? slidingWindow.close() : emptyPair;
+    /**
+     * Properly closes the compressor.
+     *
+     * @param knownSnpPositions  the set of known SNP positions
+     * @return A non-null set/list of all reads generated
+     */
+    @Ensures("result != null")
+    public Pair<ObjectSet<GATKSAMRecord>, CompressionStash> close(final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
+        return (slidingWindow != null) ? slidingWindow.close(knownSnpPositions) : emptyPair;
     }
 
-    public Set<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
-        return slidingWindow == null ? Collections.<GATKSAMRecord>emptySet() : slidingWindow.closeVariantRegions(regions);
+    /**
+     * Finalizes current variant regions.
+     *
+     * @param knownSnpPositions  the set of known SNP positions
+     * @return A non-null set/list of all reads generated
+     */
+    @Ensures("result != null")
+    public ObjectSet<GATKSAMRecord> closeVariantRegions(final CompressionStash regions, final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
+        return slidingWindow == null ? ObjectSets.EMPTY_SET : slidingWindow.closeVariantRegions(regions, knownSnpPositions);
     }
 
 }

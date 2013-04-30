@@ -226,15 +226,29 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testSnpEffAnnotationsUnsupportedVersion() {
+    public void testSnpEffAnnotationsUnsupportedVersionGATKMode() {
         WalkerTestSpec spec = new WalkerTestSpec(
-            "-T VariantAnnotator -R " + hg19Reference + " --no_cmdline_in_header -o %s -A SnpEff --variant " +
-            validationDataLocation + "1kg_exomes_unfiltered.AFR.unfiltered.vcf --snpEffFile  " + validationDataLocation +
-            "snpEff.AFR.unfiltered.unsupported.version.vcf -L 1:1-1,500,000",
+            "-T VariantAnnotator -R " + b37KGReference + " --no_cmdline_in_header -o %s -A SnpEff " +
+            "--variant " + privateTestDir + "vcf4.1.example.vcf " +
+            "--snpEffFile  " + privateTestDir + "snpEff_unsupported_version_gatk_mode.vcf " +
+            "-L 1:10001292-10012424",
+            1,
+            Arrays.asList("7352cf23a4d45d3d2bb34ab44a4100ae")
+        );
+        executeTest("Testing SnpEff annotations (unsupported version, GATK mode)", spec);
+    }
+
+    @Test
+    public void testSnpEffAnnotationsUnsupportedVersionNoGATKMode() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+            "-T VariantAnnotator -R " + b37KGReference + " --no_cmdline_in_header -o %s -A SnpEff " +
+            "--variant " + privateTestDir + "vcf4.1.example.vcf " +
+            "--snpEffFile  " + privateTestDir + "snpEff_unsupported_version_no_gatk_mode.vcf " +
+            "-L 1:10001292-10012424",
             1,
             UserException.class
         );
-        executeTest("Testing SnpEff annotations (unsupported version)", spec);
+        executeTest("Testing SnpEff annotations (unsupported version, no GATK mode)", spec);
     }
 
     @Test

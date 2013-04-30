@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.filters;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -96,6 +97,22 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
                 baseTestString() + " -maskName foo -maskExtend 10 --mask:VCF " + privateTestDir + "vcfMask.vcf --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000", 1,
                 Arrays.asList("4351e00bd9d821e37cded5a86100c973"));
         executeTest("test mask extend", spec3);
+    }
+
+    @Test
+    public void testMaskReversed() {
+        WalkerTestSpec spec3 = new WalkerTestSpec(
+                baseTestString() + " -maskName outsideGoodSites -filterNotInMask --mask:BED " + privateTestDir + "goodMask.bed --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000", 1,
+                Arrays.asList("e65d27c13953fc3a77dcad27a4357786"));
+        executeTest("test filter sites not in mask", spec3);
+    }
+
+    @Test
+    public void testIllegalFilterName() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " -filter 'DoC < 20 || FisherStrand > 20.0' -filterName 'foo < foo' --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000", 1,
+                UserException.class);
+        executeTest("test illegal filter name", spec);
     }
 
     @Test

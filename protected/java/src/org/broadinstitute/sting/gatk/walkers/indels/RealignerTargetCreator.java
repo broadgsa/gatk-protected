@@ -91,27 +91,30 @@ import java.util.TreeSet;
  *     <li>Running the realigner over those intervals (see the IndelRealigner tool)</li>
  *     </ol>
  *     <p>
- * An important note: the input BAM(s), reference, and known indel file(s) should be the same ones to be used for the IndelRealigner step.
+ * Important note 1: the input BAM(s), reference, and known indel file(s) should be the same ones to be used for the IndelRealigner step.
  * <p>
- * Another important note: because reads produced from the 454 technology inherently contain false indels, the realigner will not currently work with them
+ * Important note 2: when multiple potential indels are found by the tool in the same general region, the tool will choose the most likely
+ * one for realignment to the exclusion of the others.  This is a known limitation of the tool.
+ * <p>
+ * Important note 3: because reads produced from the 454 technology inherently contain false indels, the realigner will not currently work with them
  * (or with reads from similar technologies).   This tool also ignores MQ0 reads and reads with consecutive indel operators in the CIGAR string.
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * One or more aligned BAM files and optionally one or more lists of known indels.
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A list of target intervals to pass to the Indel Realigner.
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -I input.bam \
- *   -R ref.fasta \
  *   -T RealignerTargetCreator \
+ *   -R ref.fasta \
+ *   -I input.bam \
  *   -o forIndelRealigner.intervals \
  *   [--known /path/to/indels.vcf]
  * </pre>
@@ -140,7 +143,7 @@ public class RealignerTargetCreator extends RodWalker<RealignerTargetCreator.Eve
     public List<RodBinding<VariantContext>> known = Collections.emptyList();
 
     /**
-     * Any two SNP calls and/or high entropy positions are considered clustered when they occur no more than this many basepairs apart.
+     * Any two SNP calls and/or high entropy positions are considered clustered when they occur no more than this many basepairs apart. Must be > 1.
      */
     @Argument(fullName="windowSize", shortName="window", doc="window size for calculating entropy or SNP clusters", required=false)
     protected int windowSize = 10;

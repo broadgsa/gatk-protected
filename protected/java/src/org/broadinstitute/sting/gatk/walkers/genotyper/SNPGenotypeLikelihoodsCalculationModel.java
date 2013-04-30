@@ -105,7 +105,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
             ReadBackedPileup pileup = AlignmentContextUtils.stratify(sample.getValue(), contextType).getBasePileup();
             final Double contamination =  UAC.getSampleContamination().get(sample.getKey());
             if( contamination > 0.0 ) //no need to enter if no contamination reduction
-                pileup = perReadAlleleLikelihoodMap.createPerAlleleDownsampledBasePileup(pileup,contamination, UAC.contaminationLog);
+                pileup = perReadAlleleLikelihoodMap.createPerAlleleDownsampledBasePileup(pileup, contamination);
             if ( useBAQedPileup )
                 pileup = createBAQedPileup(pileup);
 

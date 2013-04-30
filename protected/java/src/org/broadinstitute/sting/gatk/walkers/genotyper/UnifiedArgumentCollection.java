@@ -113,12 +113,6 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
     @Argument(fullName = "min_indel_fraction_per_sample", shortName = "minIndelFrac", doc = "Minimum fraction of all reads at a locus that must contain an indel (of any allele) for that sample to contribute to the indel count for alleles", required = false)
     public double MIN_INDEL_FRACTION_PER_SAMPLE = 0.25;
 
-    /**
-     * This argument informs the prior probability of having an indel at a site.
-     */
-    @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling", required = false)
-    public double INDEL_HETEROZYGOSITY = 1.0/8000;
-
     @Advanced
     @Argument(fullName = "indelGapContinuationPenalty", shortName = "indelGCP", doc = "Indel gap continuation penalty, as Phred-scaled probability.  I.e., 30 => 10^-30/10", required = false)
     public byte INDEL_GAP_CONTINUATION_PENALTY = 10;
@@ -238,7 +232,6 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
         this.MAX_DELETION_FRACTION = uac.MAX_DELETION_FRACTION;
         this.MIN_INDEL_COUNT_FOR_GENOTYPING = uac.MIN_INDEL_COUNT_FOR_GENOTYPING;
         this.MIN_INDEL_FRACTION_PER_SAMPLE = uac.MIN_INDEL_FRACTION_PER_SAMPLE;
-        this.INDEL_HETEROZYGOSITY = uac.INDEL_HETEROZYGOSITY;
         this.INDEL_GAP_OPEN_PENALTY = uac.INDEL_GAP_OPEN_PENALTY;
         this.INDEL_GAP_CONTINUATION_PENALTY = uac.INDEL_GAP_CONTINUATION_PENALTY;
         this.OUTPUT_DEBUG_INDEL_INFO = uac.OUTPUT_DEBUG_INDEL_INFO;

@@ -53,39 +53,155 @@ package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
  * @since 6/15/12
  */
 public class BaseAndQualsCounts extends BaseCounts {
-    private final long[] sumInsertionQuals;
-    private final long[] sumDeletionQuals;
 
-    public BaseAndQualsCounts() {
-        super();
-        this.sumInsertionQuals = new long[BaseIndex.values().length];
-        this.sumDeletionQuals  = new long[BaseIndex.values().length];
-        // Java primitive arrays comes zero-filled, so no need to do it explicitly.
+    private long sumInsertionQual_A = 0;
+    private long sumDeletionQual_A = 0;
+    private long sumInsertionQual_C = 0;
+    private long sumDeletionQual_C = 0;
+    private long sumInsertionQual_G = 0;
+    private long sumDeletionQual_G = 0;
+    private long sumInsertionQual_T = 0;
+    private long sumDeletionQual_T = 0;
+    private long sumInsertionQual_D = 0;
+    private long sumDeletionQual_D = 0;
+    private long sumInsertionQual_I = 0;
+    private long sumDeletionQual_I = 0;
+    private long sumInsertionQual_N = 0;
+    private long sumDeletionQual_N = 0;
+
+    /*
+     * Increments the count
+     *
+     * @param base            the base
+     * @param baseQual        the base quality
+     * @param insQual         the insertion quality
+     * @param delQual         the deletion quality
+     * @param baseMappingQual the mapping quality
+     * @param isLowQualBase   true if the base is low quality
+     */
+    public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase) {
+        incr(base, baseQual, insQual, delQual, baseMappingQual, isLowQualBase, false);
     }
 
-    public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual) {
+    /*
+     * Increments the count
+     *
+     * @param base            the base
+     * @param baseQual        the base quality
+     * @param insQual         the insertion quality
+     * @param delQual         the deletion quality
+     * @param baseMappingQual the mapping quality
+     * @param isLowQualBase   true if the base is low quality
+     * @param isSoftClip      true if is soft-clipped
+     */
+    public void incr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase, final boolean isSoftClip) {
+        // if we already have high quality bases, ignore low quality ones
+        if ( isLowQualBase && !isLowQuality() )
+            return;
+
+        // if this is a high quality base then remove any low quality bases and start from scratch
+        if ( !isLowQualBase && isLowQuality() ) {
+            if ( totalCount() > 0 )
+                clear();
+            setLowQuality(false);
+        }
+
         final BaseIndex i = BaseIndex.byteToBase(base);
-        super.incr(i, baseQual);
-        sumInsertionQuals[i.index] += insQual;
-        sumDeletionQuals[i.index] += delQual;
+        super.incr(i, baseQual, baseMappingQual, isSoftClip);
+        switch (i) {
+            case A: sumInsertionQual_A += insQual; sumDeletionQual_A += delQual; break;
+            case C: sumInsertionQual_C += insQual; sumDeletionQual_C += delQual; break;
+            case G: sumInsertionQual_G += insQual; sumDeletionQual_G += delQual; break;
+            case T: sumInsertionQual_T += insQual; sumDeletionQual_T += delQual; break;
+            case D: sumInsertionQual_D += insQual; sumDeletionQual_D += delQual; break;
+            case I: sumInsertionQual_I += insQual; sumDeletionQual_I += delQual; break;
+            case N: sumInsertionQual_N += insQual; sumDeletionQual_N += delQual; break;
+        }
     }
 
-    public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual) {
+    /*
+     * Decrements the count
+     *
+     * @param base            the base
+     * @param baseQual        the base quality
+     * @param insQual         the insertion quality
+     * @param delQual         the deletion quality
+     * @param baseMappingQual the mapping quality
+     * @param isLowQualBase   true if the base is low quality
+     */
+   public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase) {
+        decr(base, baseQual, insQual, delQual, baseMappingQual, isLowQualBase, false);
+    }
+
+    /*
+     * Decrements the count
+     *
+     * @param base            the base
+     * @param baseQual        the base quality
+     * @param insQual         the insertion quality
+     * @param delQual         the deletion quality
+     * @param baseMappingQual the mapping quality
+     * @param isLowQualBase   true if the base is low quality
+     * @param isSoftClip      true if is soft-clipped
+     */
+    public void decr(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQual, final boolean isLowQualBase, final boolean isSoftClip) {
+        // if this is not the right type of base, ignore it
+        if ( isLowQualBase != isLowQuality() )
+            return;
+
         final BaseIndex i = BaseIndex.byteToBase(base);
-        super.decr(i, baseQual);
-        sumInsertionQuals[i.index] -= insQual;
-        sumDeletionQuals[i.index] -= delQual;
+        super.decr(i, baseQual, baseMappingQual, isSoftClip);
+        switch (i) {
+            case A: sumInsertionQual_A -= insQual; sumDeletionQual_A -= delQual; break;
+            case C: sumInsertionQual_C -= insQual; sumDeletionQual_C -= delQual; break;
+            case G: sumInsertionQual_G -= insQual; sumDeletionQual_G -= delQual; break;
+            case T: sumInsertionQual_T -= insQual; sumDeletionQual_T -= delQual; break;
+            case D: sumInsertionQual_D -= insQual; sumDeletionQual_D -= delQual; break;
+            case I: sumInsertionQual_I -= insQual; sumDeletionQual_I -= delQual; break;
+            case N: sumInsertionQual_N -= insQual; sumDeletionQual_N -= delQual; break;
+        }
     }
 
     public byte averageInsertionQualsOfBase(final BaseIndex base) {
-        return getGenericAverageQualOfBase(base, sumInsertionQuals);
+        return (byte) (getInsertionQual(base) / countOfBase(base));
     }
 
     public byte averageDeletionQualsOfBase(final BaseIndex base) {
-        return getGenericAverageQualOfBase(base, sumDeletionQuals);
+        return (byte) (getDeletionQual(base) / countOfBase(base));
     }
 
-    private byte getGenericAverageQualOfBase(final BaseIndex base, final long[] sumQuals) {
-        return (byte) (sumQuals[base.index] / countOfBase(base));
+    private long getInsertionQual(final BaseIndex base) {
+        switch (base) {
+            case A: return sumInsertionQual_A;
+            case C: return sumInsertionQual_C;
+            case G: return sumInsertionQual_G;
+            case T: return sumInsertionQual_T;
+            case D: return sumInsertionQual_D;
+            case I: return sumInsertionQual_I;
+            case N: return sumInsertionQual_N;
+            default: throw new IllegalArgumentException(base.name());
+        }
+    }
+
+    private long getDeletionQual(final BaseIndex base) {
+        switch (base) {
+            case A: return sumDeletionQual_A;
+            case C: return sumDeletionQual_C;
+            case G: return sumDeletionQual_G;
+            case T: return sumDeletionQual_T;
+            case D: return sumDeletionQual_D;
+            case I: return sumDeletionQual_I;
+            case N: return sumDeletionQual_N;
+            default: throw new IllegalArgumentException(base.name());
+        }
+    }
+
+    /**
+     * Clears out all stored data in this object
+     */
+    public void clear() {
+        super.clear();
+        sumInsertionQual_A = sumInsertionQual_C = sumInsertionQual_G = sumInsertionQual_T = sumInsertionQual_D = sumInsertionQual_I = sumInsertionQual_N = 0;
+        sumDeletionQual_A = sumDeletionQual_C = sumDeletionQual_G = sumDeletionQual_T = sumDeletionQual_D = sumDeletionQual_I = sumDeletionQual_N = 0;
     }
 }

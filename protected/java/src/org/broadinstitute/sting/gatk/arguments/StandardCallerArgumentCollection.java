@@ -55,7 +55,9 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -73,6 +75,12 @@ public class StandardCallerArgumentCollection {
      */
     @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus", required = false)
     public Double heterozygosity = UnifiedGenotyperEngine.HUMAN_SNP_HETEROZYGOSITY;
+
+    /**
+     * This argument informs the prior probability of having an indel at a site.
+     */
+    @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling", required = false)
+    public double INDEL_HETEROZYGOSITY = 1.0/8000;
 
     @Argument(fullName = "genotyping_mode", shortName = "gt_mode", doc = "Specifies how to determine the alternate alleles to use for genotyping", required = false)
     public GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY;
@@ -111,6 +119,29 @@ public class StandardCallerArgumentCollection {
     @Advanced
     @Argument(fullName = "max_alternate_alleles", shortName = "maxAltAlleles", doc = "Maximum number of alternate alleles to genotype", required = false)
     public int MAX_ALTERNATE_ALLELES = 6;
+
+    /**
+     * By default, the prior specified with the argument --heterozygosity/-hets is used for variant discovery at a particular locus, using an infinite sites model,
+     * see e.g. Waterson (1975) or Tajima (1996).
+     * This model asserts that the probability of having a population of k variant sites in N chromosomes is proportional to theta/k, for 1=1:N
+     *
+     * There are instances where using this prior might not be desireable, e.g. for population studies where prior might not be appropriate,
+     * as for example when the ancestral status of the reference allele is not known.
+     * By using this argument, user can manually specify priors to be used for calling as a vector for doubles, with the following restriciotns:
+     * a) User must specify 2N values, where N is the number of samples.
+     * b) Only diploid calls supported.
+     * c) Probability values are specified in double format, in linear space.
+     * d) No negative values allowed.
+     * e) Values will be added and Pr(AC=0) will be 1-sum, so that they sum up to one.
+     * f) If user-defined values add to more than one, an error will be produced.
+     *
+     * If user wants completely flat priors, then user should specify the same value (=1/(2*N+1)) 2*N times,e.g.
+     *   -inputPrior 0.33 -inputPrior 0.33
+     * for the single-sample diploid case.
+     */
+    @Advanced
+    @Argument(fullName = "input_prior", shortName = "inputPrior", doc = "Input prior for calls", required = false)
+    public List<Double> inputPrior = Collections.emptyList();
 
     /**
      * If this fraction is greater is than zero, the caller will aggressively attempt to remove contamination through biased down-sampling of reads.
@@ -156,10 +187,6 @@ public class StandardCallerArgumentCollection {
     public AFCalcFactory.Calculation AFmodel = AFCalcFactory.Calculation.getDefaultModel();
 
     @Hidden
-    @Argument(fullName = "logRemovedReadsFromContaminationFiltering", shortName="contaminationLog", required=false)
-    public PrintStream contaminationLog = null;
-
-    @Hidden
     @Argument(shortName = "logExactCalls", doc="x", required=false)
     public File exactCallsLog = null;
 
@@ -170,15 +197,16 @@ public class StandardCallerArgumentCollection {
         this.alleles = SCAC.alleles;
         this.GenotypingMode = SCAC.GenotypingMode;
         this.heterozygosity = SCAC.heterozygosity;
+        this.INDEL_HETEROZYGOSITY = SCAC.INDEL_HETEROZYGOSITY;
         this.MAX_ALTERNATE_ALLELES = SCAC.MAX_ALTERNATE_ALLELES;
         this.OutputMode = SCAC.OutputMode;
         this.STANDARD_CONFIDENCE_FOR_CALLING = SCAC.STANDARD_CONFIDENCE_FOR_CALLING;
         this.STANDARD_CONFIDENCE_FOR_EMITTING = SCAC.STANDARD_CONFIDENCE_FOR_EMITTING;
         this.CONTAMINATION_FRACTION = SCAC.CONTAMINATION_FRACTION;
         this.CONTAMINATION_FRACTION_FILE=SCAC.CONTAMINATION_FRACTION_FILE;
-        this.contaminationLog = SCAC.contaminationLog;
         this.exactCallsLog = SCAC.exactCallsLog;
         this.sampleContamination=SCAC.sampleContamination;
         this.AFmodel = SCAC.AFmodel;
+        this.inputPrior = SCAC.inputPrior;
     }
 }

@@ -372,4 +372,11 @@ public class RecalibrationReport {
     public Covariate[] getCovariates() {
         return requestedCovariates;
     }
+
+    /**
+     * @return true if the report has no data
+     */
+    public boolean isEmpty() {
+        return recalibrationTables.isEmpty();
+    }
 }

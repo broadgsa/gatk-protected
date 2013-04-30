@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
 import cern.jet.math.Arithmetic;
+import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
@@ -54,6 +55,7 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ActiveRegionBa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -68,12 +70,19 @@ import java.util.*;
 
 
 /**
- * Phred-scaled p-value using Fisher's Exact Test to detect strand bias (the variation
- * being seen on only the forward or only the reverse strand) in the reads? More bias is
- * indicative of false positive calls.  Note that the fisher strand test may not be
- * calculated for certain complex indel cases or for multi-allelic sites.
+ * Phred-scaled p-value using Fisher's Exact Test to detect strand bias
+ *
+ * <p>Phred-scaled p-value using Fisher's Exact Test to detect strand bias (the variation
+ * being seen on only the forward or only the reverse strand) in the reads. More bias is
+ * indicative of false positive calls.
+ * </p>
+ *
+ * <h3>Caveat</h3>
+ * <p>The Fisher Strand test may not be calculated for certain complex indel cases or for multi-allelic sites.</p>
  */
 public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+    private final static Logger logger = Logger.getLogger(FisherStrand.class);
+
     private static final String FS = "FS";
     private static final double MIN_PVALUE = 1E-320;
     private static final int MIN_QUAL_FOR_FILTERED_TEST = 17;
@@ -95,6 +104,8 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         else if (stratifiedPerReadAlleleLikelihoodMap != null) {
             // either SNP with no alignment context, or indels: per-read likelihood map needed
             final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc);
+//            logger.info("VC " + vc);
+//            printTable(table, 0.0);
             return pValueForBestTable(table, null);
         }
         else
@@ -131,9 +142,6 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
     private Map<String, Object> annotationForOneTable(final double pValue) {
         final Object value = String.format("%.3f", QualityUtils.phredScaleErrorRate(Math.max(pValue, MIN_PVALUE))); // prevent INFINITYs
         return Collections.singletonMap(FS, value);
-//        Map<String, Object> map = new HashMap<String, Object>();
-//        map.put(FS, String.format("%.3f", QualityUtils.phredScaleErrorRate(pValue)));
-//        return map;
     }
 
     public List<String> getKeyNames() {
@@ -192,7 +200,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
 
     private static void printTable(int[][] table, double pValue) {
-        System.out.printf("%d %d; %d %d : %f\n", table[0][0], table[0][1], table[1][0], table[1][1], pValue);
+        logger.info(String.format("%d %d; %d %d : %f", table[0][0], table[0][1], table[1][0], table[1][1], pValue));
     }
 
     private static boolean rotateTable(int[][] table) {
@@ -266,10 +274,10 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
         for (PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
             for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
-                final Allele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+                final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
                 final GATKSAMRecord read = el.getKey();
                 final int representativeCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
-                updateTable(table, mostLikelyAllele, read, ref, alt, representativeCount);
+                updateTable(table, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt, representativeCount);
             }
         }
 
@@ -306,22 +314,31 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
     }
 
     private static void updateTable(final int[][] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt, final int representativeCount) {
-        // ignore reduced reads because they are always on the forward strand!
-        // TODO -- when het compression is enabled in RR, we somehow need to allow those reads through into the Fisher test
-        if ( read.isReducedRead() )
-            return;
 
         final boolean matchesRef = allele.equals(ref, true);
         final boolean matchesAlt = allele.equals(alt, true);
 
         if ( matchesRef || matchesAlt ) {
+            final int row = matchesRef ? 0 : 1;
 
-            final boolean isFW = !read.getReadNegativeStrandFlag();
+            if ( read.isStrandless() ) {
 
-            int row = matchesRef ? 0 : 1;
-            int column = isFW ? 0 : 1;
+                // ignore strandless reduced reads because they are always on the forward strand!
+                if ( !read.isReducedRead() ) {
 
-            table[row][column] += representativeCount;
+                    // a strandless read counts as observations on both strand, at 50% weight, with a minimum of 1
+                    // (the 1 is to ensure that a strandless read always counts as an observation on both strands, even
+                    // if the read is only seen once, because it's a merged read or other)
+                    final int toAdd = Math.max(representativeCount / 2, 1);
+                    table[row][0] += toAdd;
+                    table[row][1] += toAdd;
+                }
+            } else {
+                // a normal read with an actual strand
+                final boolean isFW = !read.getReadNegativeStrandFlag();
+                final int column = isFW ? 0 : 1;
+                table[row][column] += representativeCount;
+            }
         }
     }
 }

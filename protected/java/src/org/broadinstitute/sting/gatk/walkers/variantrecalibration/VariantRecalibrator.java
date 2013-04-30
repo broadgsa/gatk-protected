@@ -80,6 +80,7 @@ import java.util.*;
  *
  * <p>
  * This walker is the first pass in a two-stage processing step. This walker is designed to be used in conjunction with ApplyRecalibration walker.
+ *</p>
  *
  * <p>
  * The purpose of the variant recalibrator is to assign a well-calibrated probability to each variant call in a call set.
@@ -91,24 +92,26 @@ import java.util.*;
  * error model can then be applied to both known and novel variation discovered in the call set of interest to evaluate the
  * probability that each call is real. The score that gets added to the INFO field of each variant is called the VQSLOD. It is
  * the log odds ratio of being a true variant versus being false under the trained Gaussian mixture model.
+ * </p>
  *
  * <p>
  * NOTE: In order to create the model reporting plots Rscript needs to be in your environment PATH (this is the scripting version of R, not the interactive version).
  * See <a target="r-project" href="http://www.r-project.org">http://www.r-project.org</a> for more info on how to download and install R.
+ * </p>
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * The input raw variants to be recalibrated.
  * <p>
  * Known, truth, and training sets to be used by the algorithm. How these various sets are used is described below.
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A recalibration table file in VCF format that is used by the ApplyRecalibration walker.
  * <p>
  * A tranches file which shows various metrics of the recalibration callset as a function of making several slices through the data.
  *
- * <h2>Example</h2>
+ * <h3>Example</h3>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
  *   -T VariantRecalibrator \
@@ -132,6 +135,8 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
     public static final String VQS_LOD_KEY = "VQSLOD"; // Log odds ratio of being a true variant versus being false under the trained gaussian mixture model
     public static final String CULPRIT_KEY = "culprit"; // The annotation which was the worst performing in the Gaussian mixture model, likely the reason why the variant was filtered out
+    public static final String NEGATIVE_LABEL_KEY = "NEGATIVE_TRAIN_SITE"; // this variant was used in the negative training set
+    public static final String POSITIVE_LABEL_KEY = "POSITIVE_TRAIN_SITE"; // this variant was used in the positive traning set
     private static final String PLOT_TRANCHES_RSCRIPT = "plot_Tranches.R";
 
     @ArgumentCollection private VariantRecalibratorArgumentCollection VRAC = new VariantRecalibratorArgumentCollection();
@@ -152,7 +157,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      * Known - The known / novel status of a variant isn't used by the algorithm itself and is only used for reporting / display purposes.
      * Bad - In addition to using the worst 3% of variants as compared to the Gaussian mixture model, we can also supplement the list with a database of known bad variants.
      */
-    @Input(fullName="resource", shortName = "resource", doc="A list of sites for which to apply a prior probability of being correct but which aren't used by the algorithm", required=false)
+    @Input(fullName="resource", shortName = "resource", doc="A list of sites for which to apply a prior probability of being correct but which aren't used by the algorithm (training and truth sets are required to run)", required=true)
     public List<RodBinding<VariantContext>> resource = Collections.emptyList();
 
     /////////////////////////////
@@ -168,9 +173,9 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     // Additional Command Line Arguments
     /////////////////////////////
     /**
-     * The expected transition / tranversion ratio of true novel variants in your targeted region (whole genome, exome, specific
+     * The expected transition / transversion ratio of true novel variants in your targeted region (whole genome, exome, specific
      * genes), which varies greatly by the CpG and GC content of the region. See expected Ti/Tv ratios section of the GATK best
-     * practices wiki documentation for more information. Normal whole genome values are 2.15 and for whole exome 3.2. Note
+     * practices documentation (http://www.broadinstitute.org/gatk/guide/topic?name=best-practices) for more information. Normal whole genome values are 2.15 and for whole exome 3.2. Note
      * that this parameter is used for display purposes only and isn't used anywhere in the algorithm!
      */
     @Argument(fullName="target_titv", shortName="titv", doc="The expected novel Ti/Tv ratio to use when calculating FDR tranches and for display on the optimization curve output figures. (approx 2.15 for whole genome experiments). ONLY USED FOR PLOTTING PURPOSES!", required=false)
@@ -191,7 +196,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     private double[] TS_TRANCHES = new double[] {100.0, 99.9, 99.0, 90.0};
     @Argument(fullName="ignore_filter", shortName="ignoreFilter", doc="If specified the variant recalibrator will use variants even if the specified filter name is marked in the input VCF file", required=false)
     private String[] IGNORE_INPUT_FILTERS = null;
-    @Output(fullName="rscript_file", shortName="rscriptFile", doc="The output rscript file generated by the VQSR to aid in visualization of the input data and learned model", required=false)
+    @Output(fullName="rscript_file", shortName="rscriptFile", doc="The output rscript file generated by the VQSR to aid in visualization of the input data and learned model", required=false, defaultToStdout=false)
     private File RSCRIPT_FILE = null;
     @Argument(fullName="ts_filter_level", shortName="ts_filter_level", doc="The truth sensitivity level at which to start filtering, used here to indicate filtered variants in the model reporting plots", required=false)
     protected double TS_FILTER_LEVEL = 99.0;
@@ -430,14 +435,20 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
                 stream.print("surface <- c(");
                 for( final VariantDatum datum : fakeData ) {
-                    stream.print(String.format("%.3f, %.3f, %.3f, ", datum.annotations[iii], datum.annotations[jjj], Math.min(4.0, Math.max(-4.0, datum.lod))));
+                    stream.print(String.format("%.3f, %.3f, %.3f, ",
+                            dataManager.denormalizeDatum(datum.annotations[iii], iii),
+                            dataManager.denormalizeDatum(datum.annotations[jjj], jjj),
+                            Math.min(4.0, Math.max(-4.0, datum.lod))));
                 }
                 stream.println("NA,NA,NA)");
                 stream.println("s <- matrix(surface,ncol=3,byrow=T)");
 
                 stream.print("data <- c(");
                 for( final VariantDatum datum : randomData ) {
-                    stream.print(String.format("%.3f, %.3f, %.3f, %d, %d,", datum.annotations[iii], datum.annotations[jjj], (datum.lod < lodCutoff ? -1.0 : 1.0),
+                    stream.print(String.format("%.3f, %.3f, %.3f, %d, %d,",
+                            dataManager.denormalizeDatum(datum.annotations[iii], iii),
+                            dataManager.denormalizeDatum(datum.annotations[jjj], jjj),
+                            (datum.lod < lodCutoff ? -1.0 : 1.0),
                             (datum.atAntiTrainingSite ? -1 : (datum.atTrainingSite ? 1 : 0)), (datum.isKnown ? 1 : -1)));
                 }
                 stream.println("NA,NA,NA,NA,1)");

@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.bqsr;
 
 import org.broadinstitute.sting.commandline.*;
+import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.filters.*;
@@ -55,18 +56,27 @@ import org.broadinstitute.sting.gatk.report.GATKReport;
 import org.broadinstitute.sting.gatk.report.GATKReportTable;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.recalibration.*;
 
 import java.io.*;
 
 /**
+ * Evaluate the performance of the base recalibration process
+ *
+ * <p>This tool aims to evaluate the results of the Base Quality Score Recalibration (BQSR) process.</p>
+ *
+ * <h3>Caveat</h3>
+ * <p>This tool is currently experimental. We do not provide documentation nor support for its operation.</p>
+ *
  */
-
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 @ReadFilters({MappingQualityZeroFilter.class, MappingQualityUnavailableFilter.class, UnmappedReadFilter.class, NotPrimaryAlignmentFilter.class, DuplicateReadFilter.class, FailsVendorQualityCheckFilter.class})
 @PartitionBy(PartitionType.READ)
 public class RecalibrationPerformance extends RodWalker<Integer, Integer> implements NanoSchedulable {
 
-    @Output(doc="Write output to this file", required = true)
+    @Output
     public PrintStream out;
 
     @Input(fullName="recal", shortName="recal", required=false, doc="The input covariates table file")

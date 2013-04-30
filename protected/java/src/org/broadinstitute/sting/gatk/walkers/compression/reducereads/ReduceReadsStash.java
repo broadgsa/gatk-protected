@@ -46,6 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import it.unimi.dsi.fastutil.objects.ObjectSortedSet;
+import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
@@ -106,11 +108,12 @@ public class ReduceReadsStash {
     /**
      * sends the read to the MultiSampleCompressor
      *
-     * @param read the read to be compressed
+     * @param read                  the read to be compressed
+     * @param knownSnpPositions     the set of known SNP positions
      * @return any compressed reads that may have resulted from adding this read to the machinery (due to the sliding window)
      */
-    public Iterable<GATKSAMRecord> compress(GATKSAMRecord read) {
-        return compressor.addAlignment(read);
+    public Iterable<GATKSAMRecord> compress(final GATKSAMRecord read, final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
+        return compressor.addAlignment(read, knownSnpPositions);
     }
 
     /**
@@ -125,18 +128,19 @@ public class ReduceReadsStash {
     /**
      * Close the stash, processing all remaining reads in order
      *
+     * @param knownSnpPositions  the set of known SNP positions
      * @return a list of all the reads produced by the SlidingWindow machinery)
      */
-    public Iterable<GATKSAMRecord> close() {
+    public Iterable<GATKSAMRecord> close(final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
         LinkedList<GATKSAMRecord> result = new LinkedList<GATKSAMRecord>();
 
         // compress all the stashed reads (in order)
         for (GATKSAMRecord read : outOfOrderReads)
-            for (GATKSAMRecord compressedRead : compressor.addAlignment(read))
+            for (GATKSAMRecord compressedRead : compressor.addAlignment(read, knownSnpPositions))
                 result.add(compressedRead);
 
         // output any remaining reads from the compressor
-        for (GATKSAMRecord read : compressor.close())
+        for (GATKSAMRecord read : compressor.close(knownSnpPositions))
             result.add(read);
 
         return result;

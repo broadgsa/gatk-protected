@@ -82,7 +82,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                     " -I " + bam +
                     " -L " + interval +
                     args +
-                    " -knownSites " + (reference.equals(b36KGReference) ? b36dbSNP129 : hg18dbSNP132) +
+                    " -knownSites " + (reference.equals(b36KGReference) ? b36dbSNP129 : (reference.equals(b37KGReference) ? b37dbSNP129 : hg18dbSNP132)) +
                     " --allow_potentially_misencoded_quality_scores" +  // TODO -- remove me when we get new SOLiD bams
                     " -o %s" +
                     " -sortAllCols";
@@ -115,6 +115,8 @@ public class BQSRIntegrationTest extends WalkerTest {
                 {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "c1c3cda8caceed619d3d439c3990cd26")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "c9953f020a65c1603a6d71aeeb1b95f3")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "5bfff0c699345cca12a9b33acf95588f")},
+                // make sure we work with ION torrent bam
+                {new BQSRTest(b37KGReference, privateTestDir + "iontorrent.bam", "20:10,000,000-10,200,000", "", "7375c7b692e76b651c278a9fb478fa1c")},
         };
     }
 
@@ -151,7 +153,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -sortAllCols" +
                         " --plot_pdf_file /dev/null" +
                         " --intermediate_csv_file %s",
-                Arrays.asList("dd6e0e1e3f53f8ae0c8f5de21ded6ee9"));
+                Arrays.asList("90ad19143024684e3c4410dc8fd2bd9d"));
         executeTest("testBQSR-CSVfile", spec);
     }
 
@@ -256,5 +258,18 @@ public class BQSRIntegrationTest extends WalkerTest {
                 0,
                 UserException.class);
         executeTest("testPRFailWithLowMaxCycle", spec);
+    }
+
+    @Test
+    public void testPRFailWithBadPL() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T BaseRecalibrator" +
+                        " -R " + b37KGReference +
+                        " -I " + privateTestDir + "badPLForBQSR.bam" +
+                        " -L 1:10,000,000-10,200,000" +
+                        " -o %s",
+                1,
+                UserException.class);
+        executeTest("testPRFailWithBadPL", spec);
     }
 }

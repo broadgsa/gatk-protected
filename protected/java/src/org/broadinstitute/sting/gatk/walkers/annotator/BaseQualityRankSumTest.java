@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
@@ -58,8 +59,12 @@ import java.util.*;
 
 
 /**
- * The u-based z-approximation from the Mann-Whitney Rank Sum Test for base qualities (ref bases vs. bases of the alternate allele).
- * Note that the base quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.
+ * U-based z-approximation from the Mann-Whitney Rank Sum Test for base qualities
+ *
+ * <p>This tool calculates the u-based z-approximation from the Mann-Whitney Rank Sum Test for base qualities(ref bases vs. bases of the alternate allele).</p>
+ *
+ * <h3>Caveat</h3>
+ * <p>The base quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
  */
 public class BaseQualityRankSumTest extends RankSumTest implements StandardAnnotation {
     public List<String> getKeyNames() { return Arrays.asList("BaseQRankSum"); }
@@ -86,13 +91,13 @@ public class BaseQualityRankSumTest extends RankSumTest implements StandardAnnot
         }
 
         for (Map<Allele,Double> el : alleleLikelihoodMap.getLikelihoodMapValues()) {
-            final Allele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el);
-            if (a.isNoCall())
+            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el);
+            if (! a.isInformative())
                 continue; // read is non-informative
-            if (a.isReference())
-                refQuals.add(-10.0*(double)el.get(a));
-            else if (allAlleles.contains(a))
-                altQuals.add(-10.0*(double)el.get(a));
+            if (a.getMostLikelyAllele().isReference())
+                refQuals.add(-10.0*(double)el.get(a.getMostLikelyAllele()));
+            else if (allAlleles.contains(a.getMostLikelyAllele()))
+                altQuals.add(-10.0*(double)el.get(a.getMostLikelyAllele()));
 
 
         }

@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
@@ -54,16 +55,14 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Variant confidence (from the QUAL field) / unfiltered depth of non-reference samples.  Note that the QD is also normalized by event length.
@@ -72,6 +71,7 @@ import java.util.Map;
  * reads associated with the samples with polymorphic genotypes.
  */
 public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+//    private final static Logger logger = Logger.getLogger(QualByDepth.class);
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -113,12 +113,36 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         if ( depth == 0 )
             return null;
 
-        double altAlleleLength = AverageAltAlleleLength.getMeanAltAlleleLength(vc);
+        final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
         double QD = -10.0 * vc.getLog10PError() / ((double)depth * altAlleleLength);
+        QD = fixTooHighQD(QD);
         Map<String, Object> map = new HashMap<String, Object>();
         map.put(getKeyNames().get(0), String.format("%.2f", QD));
         return map;
     }
+
+    /**
+     * The haplotype caller generates very high quality scores when multiple events are on the
+     * same haplotype.  This causes some very good variants to have unusually high QD values,
+     * and VQSR will filter these out.  This code looks at the QD value, and if it is above
+     * threshold we map it down to the mean high QD value, with some jittering
+     *
+     * // TODO -- remove me when HaplotypeCaller bubble caller is live
+     *
+     * @param QD the raw QD score
+     * @return a QD value
+     */
+    private double fixTooHighQD(final double QD) {
+        if ( QD < MAX_QD_BEFORE_FIXING ) {
+            return QD;
+        } else {
+            return IDEAL_HIGH_QD + GenomeAnalysisEngine.getRandomGenerator().nextGaussian() * JITTER_SIGMA;
+        }
+    }
+
+    private final static double MAX_QD_BEFORE_FIXING = 35;
+    private final static double IDEAL_HIGH_QD = 30;
+    private final static double JITTER_SIGMA = 3;
 
     public List<String> getKeyNames() { return Arrays.asList("QD"); }
 

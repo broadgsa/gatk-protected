@@ -1,0 +1,190 @@
+/*
+*  By downloading the PROGRAM you agree to the following terms of use:
+*  
+*  BROAD INSTITUTE - SOFTWARE LICENSE AGREEMENT - FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+*  
+*  This Agreement is made between the Broad Institute, Inc. with a principal address at 7 Cambridge Center, Cambridge, MA 02142 (BROAD) and the LICENSEE and is effective at the date the downloading is completed (EFFECTIVE DATE).
+*  
+*  WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+*  WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+*  NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+*  
+*  1. DEFINITIONS
+*  1.1 PROGRAM shall mean copyright in the object code and source code known as GATK2 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute/GATK on the EFFECTIVE DATE.
+*  
+*  2. LICENSE
+*  2.1   Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. 
+*  The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only.  For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+*  2.2  No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD.  LICENSEE shall ensure that all of its users agree to the terms of this Agreement.  LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+*  2.3  License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.  
+*  
+*  3. OWNERSHIP OF INTELLECTUAL PROPERTY 
+*  LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies.  LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+*  Copyright 2012 Broad Institute, Inc.
+*  Notice of attribution:  The GATK2 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+*  LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+*  
+*  4. INDEMNIFICATION
+*  LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+*  
+*  5. NO REPRESENTATIONS OR WARRANTIES
+*  THE PROGRAM IS DELIVERED AS IS.  BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+*  IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+*  
+*  6. ASSIGNMENT
+*  This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+*  
+*  7. MISCELLANEOUS
+*  7.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+*  7.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+*  7.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+*  7.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested.  All notices under this Agreement shall be deemed effective upon receipt. 
+*  7.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter. 
+*  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+*  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+*/
+
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Comparator;
+
+/**
+ * simple edge class for connecting nodes in the graph
+ *
+ * Works equally well for all graph types (kmer or sequence)
+ *
+ * User: ebanks
+ * Date: Mar 23, 2011
+ */
+public class BaseEdge {
+    private int multiplicity;
+    private boolean isRef;
+
+    /**
+     * Create a new BaseEdge with weight multiplicity and, if isRef == true, indicates a path through the reference
+     *
+     * @param isRef indicates whether this edge is a path through the reference
+     * @param multiplicity the number of observations of this edge
+     */
+    public BaseEdge(final boolean isRef, final int multiplicity) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0 but got " + multiplicity);
+
+        this.multiplicity = multiplicity;
+        this.isRef = isRef;
+    }
+
+    /**
+     * Copy constructor
+     *
+     * @param toCopy
+     */
+    public BaseEdge(final BaseEdge toCopy) {
+        this(toCopy.isRef(), toCopy.getMultiplicity());
+    }
+
+    /**
+     * Get the number of observations of paths connecting two vertices
+     * @return a positive integer >= 0
+     */
+    public int getMultiplicity() {
+        return multiplicity;
+    }
+
+    /**
+     * Set the multiplicity of this edge to value
+     * @param value an integer >= 0
+     */
+    public void setMultiplicity( final int value ) {
+        if ( multiplicity < 0 ) throw new IllegalArgumentException("multiplicity must be >= 0");
+        multiplicity = value;
+    }
+
+    /**
+     * Does this edge indicate a path through the reference graph?
+     * @return true if so
+     */
+    public boolean isRef() {
+        return isRef;
+    }
+
+    /**
+     * Indicate that this edge follows the reference sequence, or not
+     * @param isRef true if this is a reference edge
+     */
+    public void setIsRef( final boolean isRef ) {
+        this.isRef = isRef;
+    }
+
+    /**
+     * Does this and edge have the same source and target vertices in graph?
+     *
+     * @param graph the graph containing both this and edge
+     * @param edge our comparator edge
+     * @param <T>
+     * @return true if we have the same source and target vertices
+     */
+    public <T extends BaseVertex> boolean hasSameSourceAndTarget(final BaseGraph<T> graph, final BaseEdge edge) {
+        return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
+    }
+
+    // For use when comparing edges across graphs!
+    public <T extends BaseVertex> boolean seqEquals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
+        return (graph.getEdgeSource(this).seqEquals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).seqEquals(graph2.getEdgeTarget(edge)));
+    }
+
+    /**
+     * Sorts a collection of BaseEdges in decreasing order of weight, so that the most
+     * heavily weighted is at the start of the list
+     */
+    public static class EdgeWeightComparator implements Comparator<BaseEdge>, Serializable {
+        @Override
+        public int compare(final BaseEdge edge1, final BaseEdge edge2) {
+            return edge2.multiplicity - edge1.multiplicity;
+        }
+    }
+
+    /**
+     * Add edge to this edge, updating isRef and multiplicity as appropriate
+     *
+     * isRef is simply the or of this and edge
+     * multiplicity is the sum
+     *
+     * @param edge the edge to add
+     * @return this
+     */
+    public BaseEdge add(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        this.multiplicity += edge.getMultiplicity();
+        this.isRef = this.isRef || edge.isRef();
+        return this;
+    }
+
+    /**
+     * Create a new BaseEdge with multiplicity and isRef that's an or of all edges
+     *
+     * @param edges a collection of edges to or their isRef values
+     * @param multiplicity our desired multiplicity
+     * @return a newly allocated BaseEdge
+     */
+    public static BaseEdge orRef(final Collection<BaseEdge> edges, final int multiplicity) {
+        for ( final BaseEdge e : edges )
+            if ( e.isRef() )
+                return new BaseEdge(true, multiplicity);
+        return new BaseEdge(false, multiplicity);
+    }
+
+    /**
+     * Return a new edge whose multiplicity is the max of this and edge, and isRef is or of this and edge
+     *
+     * isRef is simply the or of this and edge
+     * multiplicity is the max
+     *
+     * @param edge the edge to max
+     */
+    public BaseEdge max(final BaseEdge edge) {
+        if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
+        return new BaseEdge(isRef() || edge.isRef(), Math.max(getMultiplicity(), edge.getMultiplicity()));
+    }
+}

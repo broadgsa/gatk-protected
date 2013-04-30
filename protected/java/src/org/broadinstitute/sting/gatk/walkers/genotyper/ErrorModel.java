@@ -49,7 +49,7 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 import com.google.java.contract.Requires;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
-import org.broadinstitute.sting.utils.Haplotype;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;

@@ -47,12 +47,17 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 
 public class ReduceReadsIntegrationTest extends WalkerTest {
     final static String REF = b37KGReference;
+    final static String DBSNP = b37dbSNP132;
     final String BAM = validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.bam";
     final String DELETION_BAM = validationDataLocation + "filtered_deletion_for_reduce_reads.bam";
     final String STASH_BAM = validationDataLocation + "ReduceReadsStashBug.bam";
@@ -64,50 +69,172 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     final String COREDUCTION_BAM_B = validationDataLocation + "coreduction.test.B.bam";
     final String COREDUCTION_L = " -L 1:1,853,860-1,854,354 -L 1:1,884,131-1,892,057";
     final String OFFCONTIG_BAM = privateTestDir + "readOffb37contigMT.bam";
+    final String BOTH_ENDS_OF_PAIR_IN_VARIANT_REGION_BAM = privateTestDir + "bothEndsOfPairInVariantRegion.bam";
     final String INSERTIONS_AT_EDGE_OF_CONSENSUS_BAM = privateTestDir + "rr-too-many-insertions.bam";
 
-    private void RRTest(String testName, String args, String md5) {
-        String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, BAM) + " -o %s ";
-        WalkerTestSpec spec = new WalkerTestSpec(base + args, Arrays.asList(md5));
-        executeTest(testName, spec);
+    final static String emptyFileMd5 = "d41d8cd98f00b204e9800998ecf8427e";
+
+    protected Pair<List<File>, List<String>> executeTest(final String name, final WalkerTestSpec spec) {
+        return executeTest(name, spec, emptyFileMd5);
     }
 
-    @Test(enabled = true)
+    protected Pair<List<File>, List<String>> executeTest(final String name, final WalkerTestSpec spec, final String qualsTestMD5) {
+        final Pair<List<File>, List<String>> result = super.executeTest(name, spec);
+
+        // perform some Reduce Reads specific testing now
+        if ( result != null ) {
+
+            // generate a new command-line based on the old one
+            spec.disableImplicitArgs();
+            final String[] originalArgs = spec.getArgsWithImplicitArgs().split(" ");
+
+            final StringBuilder reducedInputs = new StringBuilder();
+            for ( final File file : result.getFirst() ) {
+                reducedInputs.append(" -I:reduced ");
+                reducedInputs.append(file.getAbsolutePath());
+            }
+
+            // the coverage test is a less stricter version of the quals test so we can safely ignore it for now
+            //final String coverageCommand = createCommandLine("AssessReducedCoverage", originalArgs);
+            //super.executeTest(name + " : COVERAGE_TEST", new WalkerTestSpec(coverageCommand + reducedInputs.toString(), Arrays.asList(emptyFileMd5)));
+
+            // run the quals test
+            final String qualsCommand = createCommandLine("AssessReducedQuals", originalArgs);
+            super.executeTest(name + " : QUALS_TEST", new WalkerTestSpec(qualsCommand + reducedInputs.toString(), Arrays.asList(qualsTestMD5)));
+        }
+
+        return result;
+    }
+
+    /*
+     * Generate a new command-line based on the old one
+     *
+     * @param walkerName    the new walker name to use
+     * @param originalArgs  the original arguments used for the test
+     * @return the new command line
+     */
+    private String createCommandLine(final String walkerName, final String[] originalArgs) {
+
+        final StringBuilder newArgs = new StringBuilder();
+
+        for ( int i = 0; i < originalArgs.length; i++ ) {
+            final String arg = originalArgs[i];
+
+            if ( arg.equals("-T") ) {
+                newArgs.append("-T ");
+                newArgs.append(walkerName);
+            } else if ( arg.startsWith("-I") ) {
+                newArgs.append("-I:original ");
+                newArgs.append(originalArgs[++i]);
+            } else if ( arg.equals("-R") || arg.equals("-L") ) {
+                newArgs.append(arg);
+                newArgs.append(" ");
+                newArgs.append(originalArgs[++i]);
+            }
+
+            // always add a trailing space
+            newArgs.append(" ");
+        }
+
+        newArgs.append("-o %s");
+
+        return newArgs.toString();
+    }
+
+    protected Pair<List<File>, List<String>> executeTestWithoutAdditionalRRTests(final String name, final WalkerTestSpec spec) {
+        return super.executeTest(name, spec);
+    }
+
+    private void RRTest(final String testName, final String args, final String md5, final boolean useKnowns) {
+        this.RRTest(testName, args, md5, useKnowns, emptyFileMd5);
+    }
+
+    private void RRTest(final String testName, final String args, final String md5, final boolean useKnowns, final String qualsTestMD5) {
+        String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, BAM) + " -o %s" + (useKnowns ? " -known " + DBSNP : "") + " ";
+        WalkerTestSpec spec = new WalkerTestSpec(base + args, Arrays.asList("bam"), Arrays.asList(md5));
+        executeTest(testName, spec, qualsTestMD5);
+    }
+
+        @Test(enabled = true)
     public void testDefaultCompression() {
-        RRTest("testDefaultCompression ", L, "17908e8515217c4693d303ed68108ccc");
+        RRTest("testDefaultCompression ", L, "fa1cffc4539e0c20b818a11da5dba5b9", false);
     }
 
     @Test(enabled = true)
-    public void testInsertionsAtEdgeOfConsensus() {
-        String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, INSERTIONS_AT_EDGE_OF_CONSENSUS_BAM) + " -o %s ";
-        executeTest("testInsertionsAtEdgeOfConsensus", new WalkerTestSpec(base, Arrays.asList("3103667fc68c3136a8cfa8e22429f94e")));
+    public void testDefaultCompressionWithKnowns() {
+        RRTest("testDefaultCompressionWithKnowns ", L, "d1b5fbc402810d9cdc020bb3503f1325", true);
     }
+
+    private final String intervals = "-L 20:10,100,000-10,100,500 -L 20:10,200,000-10,200,500 -L 20:10,300,000-10,300,500 -L 20:10,400,000-10,500,000 -L 20:10,500,050-10,500,060 -L 20:10,600,000-10,600,015 -L 20:10,700,000-10,700,110";
 
     @Test(enabled = true)
     public void testMultipleIntervals() {
-        String intervals = "-L 20:10,100,000-10,100,500 -L 20:10,200,000-10,200,500 -L 20:10,300,000-10,300,500 -L 20:10,400,000-10,500,000 -L 20:10,500,050-10,500,060 -L 20:10,600,000-10,600,015 -L 20:10,700,000-10,700,110";
-        RRTest("testMultipleIntervals ", intervals, "497c5e36c2beaad2fcdbd02a0b9c121b");
+        RRTest("testMultipleIntervals ", intervals, "7e9dcd157ad742d4ebae7e56bc4af663", false);
+    }
+
+    @Test(enabled = true)
+    public void testMultipleIntervalsWithKnowns() {
+        RRTest("testMultipleIntervalsWithKnowns ", intervals, "dbb1e95e1bcad956701142afac763717", true);
     }
 
     @Test(enabled = true)
     public void testHighCompression() {
-        RRTest("testHighCompression ", " -cs 10 -minvar 0.3 -mindel 0.3 " + L, "0ff4142e4d7b6a9a9c76012246ad9e2d");
+        RRTest("testHighCompression ", " -cs 10 -min_pvalue 0.3 -minvar 0.3 -mindel 0.3 " + L, "8f8fd1a53fa0789116f45e4cf2625906", false);
+    }
+
+    @Test(enabled = true)
+    public void testHighCompressionWithKnowns() {
+        RRTest("testHighCompressionWithKnowns ", " -cs 10 -min_pvalue 0.3 -minvar 0.3 -mindel 0.3 " + L, "52fd2a77802a4677b604abb18e15d96a", true);
     }
 
     @Test(enabled = true)
     public void testLowCompression() {
-        RRTest("testLowCompression ", " -cs 30 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "7890a37444a0e05b902f63a83238ce37");
+        RRTest("testLowCompression ", " -cs 30 -min_pvalue 0.001 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "79c6543d5ce84ebc2ca74404498edbd1", false);
+    }
+
+    @Test(enabled = true)
+    public void testLowCompressionWithKnowns() {
+        RRTest("testLowCompressionWithKnowns ", " -cs 30 -min_pvalue 0.001 -minvar 0.01 -mindel 0.01 -minmap 5 -minqual 5 " + L, "271aec358b309603291a974b5ba3bd60", true);
+    }
+
+    @Test(enabled = true)
+    public void testBadPvalueInput() {
+        final String cmd = String.format("-T ReduceReads -npt -R %s -I %s ", REF, BAM) + "-o %s -min_pvalue -0.01";
+        WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, UserException.BadArgumentValue.class);
+        executeTest("testBadPvalueInput", spec);
     }
 
     @Test(enabled = true)
     public void testIndelCompression() {
-        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", "f58ae2154e0e5716be0e850b7605856e");
+        final String md5 = "d20e6012300898a0315c795cab7583d8";
+        RRTest("testIndelCompression ", " -cs 50 -L 20:10,100,500-10,100,600 ", md5, false);
+        RRTest("testIndelCompressionWithKnowns ", " -cs 50 -L 20:10,100,500-10,100,600 ", md5, true);
     }
 
     @Test(enabled = true)
     public void testFilteredDeletionCompression() {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, DELETION_BAM) + " -o %s ";
-        executeTest("testFilteredDeletionCompression", new WalkerTestSpec(base, Arrays.asList("bfe0693aea74634f1035a9bd11302517")));
+        executeTest("testFilteredDeletionCompression", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("e5da09662708f562c0c617ba73cf4763")), "4f916da29d91852077f0a2fdbdd2c7f6");
+    }
+
+    private static final String COREDUCTION_QUALS_TEST_MD5 = "26d84a2bd549a01a63fcebf8847a1b7d";
+
+    @Test(enabled = true)
+    public void testCoReduction() {
+        String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
+        executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("5f4d2c1d9c010dfd6865aeba7d0336fe")), COREDUCTION_QUALS_TEST_MD5);
+    }
+
+    @Test(enabled = true)
+    public void testCoReductionWithKnowns() {
+        String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s -known %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B, DBSNP) + " -o %s ";
+        executeTest("testCoReductionWithKnowns", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("ca48dd972bf57595c691972c0f887cb4")), COREDUCTION_QUALS_TEST_MD5);
+    }
+
+    @Test(enabled = true)
+    public void testInsertionsAtEdgeOfConsensus() {
+        String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, INSERTIONS_AT_EDGE_OF_CONSENSUS_BAM) + " -o %s ";
+        executeTest("testInsertionsAtEdgeOfConsensus", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("760500a5b036b987f84099f45f26a804")));
     }
 
     /**
@@ -121,7 +248,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testAddingReadAfterTailingTheStash() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", STASH_L, REF, STASH_BAM) + " -o %s ";
-        executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("f118e83c394d21d901a24230379864fc")));
+        executeTest("testAddingReadAfterTailingTheStash", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("67f8a3a647f8ec5212104bdaafd8c862")), "3eab32c215ba68e75efd5ab7e9f7a2e7");
     }
 
     /**
@@ -131,24 +258,28 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testDivideByZero() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", DIVIDEBYZERO_L, REF, DIVIDEBYZERO_BAM) + " -o %s ";
-        executeTest("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("bd5198a3e21034887b741faaaa3964bf")));
-    }
-
-    @Test(enabled = true)
-    public void testCoReduction() {
-        String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
-        executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("13c44a9afa92ae728bf55b7075cc5de3")));
+        // we expect to lose coverage due to the downsampling so don't run the systematic tests
+        executeTestWithoutAdditionalRRTests("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("1663f35802f82333c5e15653e437ce2d")));
     }
 
     /**
-     * Bug happens when reads are soft-clipped off the  contig (usually in the MT). This test guarantees no changes to the upstream code will
+     * Bug happens when reads are soft-clipped off the contig (usually in the MT). This test guarantees no changes to the upstream code will
      * break the current hard-clipping routine that protects reduce reads from such reads.
      */
     @Test(enabled = true)
     public void testReadOffContig() {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", REF, OFFCONTIG_BAM) + " -o %s ";
-        executeTest("testReadOffContig", new WalkerTestSpec(base, Arrays.asList("922be8b1151dd0d92602af93b77f7a51")));
+        executeTest("testReadOffContig", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("0ce693b4ff925998867664e4099f3248")));
     }
 
+    /**
+     * Confirm that if both ends of pair are in same variant region, compressed names of both ends of pair are the same.
+     */
+    @Test(enabled = true)
+    public void testPairedReadsInVariantRegion() {
+        String base = String.format("-T ReduceReads -npt -R %s -I %s ", hg19Reference, BOTH_ENDS_OF_PAIR_IN_VARIANT_REGION_BAM) +
+                " -o %s  --downsample_coverage 250 -dcov 50  ";
+        executeTest("testPairedReadsInVariantRegion", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("7e7b358443827ca239db3b98f299aec6")), "2af063d1bd3c322b03405dbb3ecf59a9");
+    }
 }
 

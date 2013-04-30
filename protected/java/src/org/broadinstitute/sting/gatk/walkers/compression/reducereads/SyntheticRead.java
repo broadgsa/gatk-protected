@@ -47,20 +47,18 @@
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 import com.google.java.contract.Requires;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
-import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+
 
 /**
  * Running Consensus is a read that is compressed as a sliding window travels over the reads
@@ -76,17 +74,25 @@ import java.util.List;
  * @since 8/26/11
  */
 public class SyntheticRead {
-    // Rather than storing a separate list for each attribute in SingleBaseInfo, store one list to reduce
-    // memory footprint.
-    // TODO: better name
+
+    /**
+     * The types of strandedness for synthetic reads
+     */
+    public enum StrandType {
+        POSITIVE,
+        NEGATIVE,
+        STRANDLESS
+    }
+
+    // Rather than storing a separate list for each attribute in SingleBaseInfo, store one list to reduce memory footprint.
     private static class SingleBaseInfo {
         byte baseIndexOrdinal; // enum BaseIndex.ordinal
-        byte count;
+        int count;
         byte qual;
         byte insertionQual;
         byte deletionQual;
 
-        SingleBaseInfo(byte baseIndexOrdinal, byte count, byte qual, byte insertionQual, byte deletionQual) {
+        SingleBaseInfo(byte baseIndexOrdinal, int count, byte qual, byte insertionQual, byte deletionQual) {
             this.baseIndexOrdinal = baseIndexOrdinal;
             this.count = count;
             this.qual = qual;
@@ -123,9 +129,8 @@ public class SyntheticRead {
     }
     
     
-    private final List<SingleBaseInfo> basesCountsQuals;
-    private double mappingQuality;                                                                                      // the average of the rms of the mapping qualities of all the reads that contributed to this consensus
-    private String readTag;
+    private final ObjectArrayList<SingleBaseInfo> basesCountsQuals;
+    private double mappingQuality;
 
     // Information to produce a GATKSAMRecord
     private SAMFileHeader header;
@@ -135,7 +140,7 @@ public class SyntheticRead {
     private String readName;
     private int refStart;
     private boolean hasIndelQualities = false;
-    private boolean isNegativeStrand = false;
+    private StrandType strandType = StrandType.STRANDLESS;
 
     /**
      * Full initialization of the running consensus if you have all the information and are ready to
@@ -147,14 +152,12 @@ public class SyntheticRead {
      * @param contigIndex     the read's contig index
      * @param readName        the read's name
      * @param refStart        the alignment start (reference based)
-     * @param readTag         the reduce reads tag for the synthetic read
      */
-    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, String readTag, boolean hasIndelQualities, boolean isNegativeRead) {
+    public SyntheticRead(SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, StrandType strandType) {
         final int initialCapacity = 10000;
-        basesCountsQuals = new ArrayList<SingleBaseInfo>(initialCapacity);
+        basesCountsQuals = new ObjectArrayList<SingleBaseInfo>(initialCapacity);
         mappingQuality = 0.0;
 
-        this.readTag = readTag;
         this.header = header;
         this.readGroupRecord = readGroupRecord;
         this.contig = contig;
@@ -162,24 +165,7 @@ public class SyntheticRead {
         this.readName = readName;
         this.refStart = refStart;
         this.hasIndelQualities = hasIndelQualities;
-        this.isNegativeStrand = isNegativeRead;
-    }
-
-    public SyntheticRead(List<BaseIndex> bases, List<Byte> counts, List<Byte> quals, List<Byte> insertionQuals, List<Byte> deletionQuals, double mappingQuality, String readTag, SAMFileHeader header, GATKSAMReadGroupRecord readGroupRecord, String contig, int contigIndex, String readName, int refStart, boolean hasIndelQualities, boolean isNegativeRead) {
-        basesCountsQuals = new ArrayList<SingleBaseInfo>(bases.size());
-        for (int i = 0; i < bases.size(); ++i) {
-            basesCountsQuals.add(new SingleBaseInfo(bases.get(i).getOrdinalByte(), counts.get(i), quals.get(i), insertionQuals.get(i), deletionQuals.get(i)));
-        }
-        this.mappingQuality = mappingQuality;
-        this.readTag = readTag;
-        this.header = header;
-        this.readGroupRecord = readGroupRecord;
-        this.contig = contig;
-        this.contigIndex = contigIndex;
-        this.readName = readName;
-        this.refStart = refStart;
-        this.hasIndelQualities = hasIndelQualities;
-        this.isNegativeStrand = isNegativeRead;
+        this.strandType = strandType;
     }
 
     /**
@@ -190,7 +176,7 @@ public class SyntheticRead {
      * @param count  number of reads with this base
      */
     @Requires("count <= Byte.MAX_VALUE")
-    public void add(BaseIndex base, byte count, byte qual, byte insQual, byte delQual, double mappingQuality) {
+    public void add(BaseIndex base, int count, byte qual, byte insQual, byte delQual, double mappingQuality) {
         basesCountsQuals.add(new SingleBaseInfo(base.getOrdinalByte(), count, qual, insQual, delQual));
         this.mappingQuality += mappingQuality;
     }
@@ -220,15 +206,18 @@ public class SyntheticRead {
         read.setReferenceIndex(contigIndex);
         read.setReadPairedFlag(false);
         read.setReadUnmappedFlag(false);
-        read.setReadNegativeStrandFlag(isNegativeStrand);
-        read.setCigar(buildCigar());                                        // the alignment start may change while building the cigar (leading deletions)
+        if ( strandType != StrandType.STRANDLESS ) {
+            read.setAttribute(GATKSAMRecord.REDUCED_READ_STRANDED_TAG, '1');  // must come before next line
+            read.setReadNegativeStrandFlag(strandType == StrandType.NEGATIVE);
+        }
+        read.setCigar(buildCigar());           // the alignment start may change while building the cigar (leading deletions)
         read.setAlignmentStart(refStart);
         read.setReadName(readName);
         read.setBaseQualities(convertBaseQualities(), EventType.BASE_SUBSTITUTION);
         read.setReadBases(convertReadBases());
         read.setMappingQuality((int) Math.ceil(mappingQuality / basesCountsQuals.size()));
         read.setReadGroup(readGroupRecord);
-        read.setAttribute(readTag, convertBaseCounts());
+        read.setReducedReadCountsTag(convertBaseCounts());
 
         if (hasIndelQualities) {
             read.setBaseQualities(convertInsertionQualities(), EventType.BASE_INSERTION);
@@ -278,22 +267,14 @@ public class SyntheticRead {
             });
     }
 
-    protected byte [] convertBaseCounts() {
-        byte[] countsArray = convertVariableGivenBases(new SingleBaseInfoIterator() {
-                public Byte next() {
-                    return it.next().count;
-                }
-            });
-
-        if (countsArray.length == 0)
-            throw new ReviewedStingException("Reduced read has counts array of length 0");
-
-        byte[] compressedCountsArray = new byte [countsArray.length];
-        compressedCountsArray[0] = countsArray[0];
-        for (int i = 1; i < countsArray.length; i++)
-            compressedCountsArray[i] = (byte) MathUtils.bound(countsArray[i] - compressedCountsArray[0], Byte.MIN_VALUE, Byte.MAX_VALUE);
-
-        return compressedCountsArray;
+    protected int[] convertBaseCounts() {
+        int[] variableArray = new int[getReadLengthWithNoDeletions()];
+        int i = 0;
+        for (final SingleBaseInfo singleBaseInfo : basesCountsQuals) {
+            if (singleBaseInfo.baseIndexOrdinal != BaseIndex.D.getOrdinalByte())
+                variableArray[i++] = singleBaseInfo.count;
+        }
+        return variableArray;
     }
 
     private byte [] convertReadBases() {
@@ -316,7 +297,7 @@ public class SyntheticRead {
      * @return the cigar string for the synthetic read
      */
     private Cigar buildCigar() {
-        LinkedList<CigarElement> cigarElements = new LinkedList<CigarElement>();
+        ObjectArrayList<CigarElement> cigarElements = new ObjectArrayList<CigarElement>();
         CigarOperator cigarOperator = null;
         int length = 0;
         for (final SingleBaseInfo singleBaseInfo : basesCountsQuals) {
@@ -369,7 +350,6 @@ public class SyntheticRead {
                 variableArray[i++] = count;
         }
         return variableArray;
-
     }
 
     /**

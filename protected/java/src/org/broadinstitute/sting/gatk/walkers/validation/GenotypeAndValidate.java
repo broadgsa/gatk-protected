@@ -99,14 +99,14 @@ import static org.broadinstitute.sting.utils.IndelUtils.isInsideExtendedIndel;
  *  </p>
  *
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  *  <p>
  *      A BAM file to make calls on and a VCF file to use as truth validation dataset.
  *
  *      You also have the option to invert the roles of the files using the command line options listed below.
  *  </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  *  <p>
  *      GenotypeAndValidate has two outputs. The truth table and the optional VCF file. The truth table is a
  *      2x2 table correlating what was called in the dataset with the truth of the call (whether it's a true
@@ -176,7 +176,7 @@ import static org.broadinstitute.sting.utils.IndelUtils.isInsideExtendedIndel;
  *      </li>
  *  </ul>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <ol>
  *     <li>
  *         Genotypes BAM file from new technology using the VCF as a truth dataset:
