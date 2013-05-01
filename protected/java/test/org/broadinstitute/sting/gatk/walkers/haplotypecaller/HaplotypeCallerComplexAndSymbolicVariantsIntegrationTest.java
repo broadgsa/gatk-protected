@@ -64,7 +64,7 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "27db36467d40c3cde201f5826e959d78");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "0bf5ae740bf9bd14c8d60d7849c45eb3");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -88,12 +88,12 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleGGAComplex() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "ed3b577e6f7d68bba6774a62d9df9cd9");
+                "5954a46971b7546d30151b068cded42a");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "a594a28d8053c3e969c39de81a9d03d6");
+                "b3684c670f68f5a3a348a7fd2b25f10a");
     }
 }
