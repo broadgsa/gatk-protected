@@ -49,7 +49,7 @@ package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 import org.broadinstitute.sting.commandline.Argument;
 import org.broadinstitute.sting.commandline.Output;
 
-import java.io.FileWriter;
+import java.io.PrintStream;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -117,7 +117,7 @@ final class ThresHolder {
     public double qualityStatusThreshold = 0.50;
 
     @Output(fullName = "missing_intervals", shortName = "missing", doc ="Produces a file with the intervals that don't pass filters", required = false)
-    public FileWriter missingTargets = null;
+    public PrintStream missingTargets = null;
 
     public final List<Metric> locusMetricList = new LinkedList<Metric>();
     public final List<Metric> sampleMetricList = new LinkedList<Metric>();

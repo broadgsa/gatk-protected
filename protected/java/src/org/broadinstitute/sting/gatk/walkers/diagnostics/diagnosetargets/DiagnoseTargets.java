@@ -65,8 +65,7 @@ import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.*;
 
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.PrintStream;
 import java.util.*;
 
 /**
@@ -200,11 +199,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         }
 
         if (thresholds.missingTargets != null) {
-            try {
-                thresholds.missingTargets.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            thresholds.missingTargets.close();
         }
     }
 
@@ -326,13 +321,9 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         }
     }
 
-    private void outputMissingInterval(final String contig, final int start, final int stop){
-        final FileWriter out = thresholds.missingTargets;
-        try {
-            out.write(String.format("%s:%d-%d\n", contig, start, stop));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void outputMissingInterval(final String contig, final int start, final int stop) {
+        final PrintStream out = thresholds.missingTargets;
+            out.println(String.format("%s:%d-%d", contig, start, stop));
     }
 
     /**
