@@ -52,10 +52,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
  * Date: 3/27/12
  */
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.SAMFileHeader;
+import net.sf.samtools.*;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
@@ -125,6 +122,17 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
         }
     }
 
+    @Test(enabled = true)
+    public void testLeftAlignCigarSequentiallyAdjacentID() {
+        final String ref = "GTCTCTCTCTCTCTCTCTATATATATATATATATTT";
+        final String hap = "GTCTCTCTCTCTCTCTCTCTCTATATATATATATTT";
+        final Cigar originalCigar = TextCigarCodec.getSingleton().decode("18M4I12M4D2M");
+
+        final Cigar result = new DeBruijnAssembler().leftAlignCigarSequentially(originalCigar, ref.getBytes(), hap.getBytes(), 0, 0);
+        logger.warn("Result is " + result);
+        Assert.assertEquals(originalCigar.getReferenceLength(), result.getReferenceLength(), "Reference lengths are different");
+    }
+
     private static class MockBuilder extends DeBruijnGraphBuilder {
         public final List<Kmer> addedPairs = new LinkedList<Kmer>();
 
@@ -165,7 +173,7 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "AddReadKmersToGraph")
+    @Test(dataProvider = "AddReadKmersToGraph", enabled = ! DEBUG)
     public void testAddReadKmersToGraph(final String bases, final int kmerSize, final List<Integer> badQualsSites) {
         final int readLen = bases.length();
         final DeBruijnAssembler assembler = new DeBruijnAssembler();

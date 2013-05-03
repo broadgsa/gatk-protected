@@ -410,9 +410,6 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                     // extend partial haplotypes which are anchored in the reference to include the full active region
                     h = extendPartialHaplotype(h, activeRegionStart, refWithPadding);
                     final Cigar leftAlignedCigar = leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(h.getCigar()), refWithPadding, h.getBases(), activeRegionStart, 0);
-                    if( leftAlignedCigar.getReferenceLength() != refHaplotype.getCigar().getReferenceLength() ) { // left alignment failure
-                        continue;
-                    }
                     if( !returnHaplotypes.contains(h) ) {
                         h.setAlignmentStartHapwrtRef(activeRegionStart);
                         h.setCigar(leftAlignedCigar);
@@ -548,9 +545,8 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             final CigarElement ce = cigar.getCigarElement(i);
             if (ce.getOperator() == CigarOperator.D || ce.getOperator() == CigarOperator.I) {
                 cigarToAlign.add(ce);
-                for( final CigarElement toAdd : AlignmentUtils.leftAlignIndel(cigarToAlign, refSeq, readSeq, refIndex, readIndex, false).getCigarElements() ) {
-                    cigarToReturn.add(toAdd);
-                }
+                final Cigar leftAligned = AlignmentUtils.leftAlignSingleIndel(cigarToAlign, refSeq, readSeq, refIndex, readIndex, false);
+                for ( final CigarElement toAdd : leftAligned.getCigarElements() ) { cigarToReturn.add(toAdd); }
                 refIndex += cigarToAlign.getReferenceLength();
                 readIndex += cigarToAlign.getReadLength();
                 cigarToAlign = new Cigar();
@@ -563,7 +559,11 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 cigarToReturn.add(toAdd);
             }
         }
-        return cigarToReturn;
+
+        final Cigar result = AlignmentUtils.consolidateCigar(cigarToReturn);
+        if( result.getReferenceLength() != cigar.getReferenceLength() )
+            throw new IllegalStateException("leftAlignCigarSequentially failed to produce a valid CIGAR.  Reference lengths differ.  Initial cigar " + cigar + " left aligned into " + result);
+        return result;
     }
 
     /**
