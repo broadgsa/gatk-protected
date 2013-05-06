@@ -183,6 +183,6 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
      * @param headerLines
      */
     public void initialize ( AnnotatorCompatible walker, GenomeAnalysisEngine toolkit, Set<VCFHeaderLine> headerLines ) {
-        useDithering = ! toolkit.getArguments().disableRandomization;
+        useDithering = ! toolkit.getArguments().disableDithering;
     }
 }

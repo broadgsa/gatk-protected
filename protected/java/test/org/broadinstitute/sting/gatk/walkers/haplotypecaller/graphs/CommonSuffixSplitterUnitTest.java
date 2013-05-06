@@ -1,0 +1,170 @@
+/*
+*  By downloading the PROGRAM you agree to the following terms of use:
+*  
+*  BROAD INSTITUTE - SOFTWARE LICENSE AGREEMENT - FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+*  
+*  This Agreement is made between the Broad Institute, Inc. with a principal address at 7 Cambridge Center, Cambridge, MA 02142 (BROAD) and the LICENSEE and is effective at the date the downloading is completed (EFFECTIVE DATE).
+*  
+*  WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+*  WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+*  NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+*  
+*  1. DEFINITIONS
+*  1.1 PROGRAM shall mean copyright in the object code and source code known as GATK2 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute/GATK on the EFFECTIVE DATE.
+*  
+*  2. LICENSE
+*  2.1   Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. 
+*  The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only.  For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+*  2.2  No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD.  LICENSEE shall ensure that all of its users agree to the terms of this Agreement.  LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+*  2.3  License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.  
+*  
+*  3. OWNERSHIP OF INTELLECTUAL PROPERTY 
+*  LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies.  LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+*  Copyright 2012 Broad Institute, Inc.
+*  Notice of attribution:  The GATK2 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+*  LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+*  
+*  4. INDEMNIFICATION
+*  LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+*  
+*  5. NO REPRESENTATIONS OR WARRANTIES
+*  THE PROGRAM IS DELIVERED AS IS.  BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+*  IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+*  
+*  6. ASSIGNMENT
+*  This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+*  
+*  7. MISCELLANEOUS
+*  7.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+*  7.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+*  7.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+*  7.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested.  All notices under this Agreement shall be deemed effective upon receipt. 
+*  7.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter. 
+*  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+*  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+*/
+
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import java.io.File;
+import java.util.Arrays;
+
+public class CommonSuffixSplitterUnitTest extends BaseTest {
+    private final static boolean DEBUG = false;
+
+    @DataProvider(name = "SplitData")
+    public Object[][] makeSplitData() {
+        return CommonSuffixMergerUnitTest.makeSplitMergeData(-1);
+    }
+
+    @Test(dataProvider = "SplitData", enabled = !DEBUG)
+    public void testSplit(final CommonSuffixMergerUnitTest.SplitMergeData data) {
+        final boolean expectedMerge = ! data.commonSuffix.isEmpty() && data.graph.inDegreeOf(data.v) > 1;
+
+        final SeqGraph original = (SeqGraph)data.graph.clone();
+//        original.printGraph(new File("original.dot"), 0);
+        final CommonSuffixSplitter splitter = new CommonSuffixSplitter();
+        final boolean succeed = splitter.split(data.graph, data.v);
+//        data.graph.printGraph(new File("actual.dot"), 0);
+        Assert.assertEquals(succeed, expectedMerge, "Not excepted merge success/fail result");
+        if ( succeed ) {
+            Assert.assertEquals(data.graph.incomingVerticesOf(data.v).iterator().next().getSequenceString(), data.commonSuffix, "Common suffix not computed correctly");
+        }
+
+        CommonSuffixMergerUnitTest.assertSameHaplotypes(String.format("suffixSplit.%s.%d", data.commonSuffix, data.graph.vertexSet().size()), data.graph, original);
+    }
+
+    @Test(enabled = !DEBUG)
+    public void testSplitPrevHaveMultipleEdges() {
+        final SeqGraph original = new SeqGraph();
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("A");
+        final SeqVertex v3 = new SeqVertex("A");
+        final SeqVertex v4 = new SeqVertex("A");
+
+        original.addVertices(v1, v2, v3, v4);
+        original.addEdges(v1, v3);
+
+        Assert.assertFalse(new CommonSuffixSplitter().split(original, v3), "Cannot split graph with only one vertex");
+
+        original.addEdges(v2, v3);
+        original.addEdges(v2, v4);
+
+        Assert.assertFalse(new CommonSuffixSplitter().split(original, v3), "Cannot split graph with multiple outgoing edges from middle nodes");
+    }
+
+    @Test(enabled = !DEBUG)
+    public void testSplitNoCycles() {
+        final SeqGraph original = new SeqGraph();
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("AC");
+        final SeqVertex v3 = new SeqVertex("TC");
+        final SeqVertex v4 = new SeqVertex("G");
+
+        original.addVertices(v1, v2, v3, v4);
+        original.addEdges(v1, v3, v4);
+        original.addEdges(v1, v2, v4);
+
+        Assert.assertTrue(new CommonSuffixSplitter().split((SeqGraph)original.clone(), v4), "Should be able to split pre-cycle graph");
+
+        original.addEdges(v4, v4);
+        Assert.assertFalse(new CommonSuffixSplitter().split(original, v4), "Cannot split graph with a cycle of the bottom list");
+    }
+
+    @Test(timeOut = 10000, enabled = !DEBUG)
+    public void testSplitComplexCycle() {
+        final SeqGraph original = new SeqGraph();
+        final SeqVertex r1 = new SeqVertex("ACTG");
+        final SeqVertex r2 = new SeqVertex("ATGC");
+        final SeqVertex cat1 = new SeqVertex("CAT");
+        final SeqVertex cat2 = new SeqVertex("CAT");
+        final SeqVertex c1 = new SeqVertex("C");
+        final SeqVertex c2 = new SeqVertex("C");
+
+        original.addVertices(r1, r2, cat1, cat2, c1, c2);
+        original.addEdges(r1, cat1, c1, cat2, c1);
+        original.addEdges(r2, c2, cat2);
+
+        //original.printGraph(new File("testSplitComplexCycle.dot"), 0);
+
+        for ( final SeqVertex v : Arrays.asList(cat2) ) { // original.vertexSet() ) {
+            final SeqGraph graph = (SeqGraph)original.clone();
+            final boolean success = new CommonSuffixSplitter().split(graph, v);
+            if ( success ) graph.printGraph(new File("testSplitComplexCycle.fail.dot"), 0);
+            Assert.assertFalse(success, "Shouldn't be able to split any vertices but CommonSuffixSplitter says it could for " + v);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testSplitInfiniteCycleFailure() {
+        final SeqGraph original = new SeqGraph();
+        final SeqVertex v1 = new SeqVertex("GC");
+        final SeqVertex v2 = new SeqVertex("X");
+        final SeqVertex v3 = new SeqVertex("N");
+        final SeqVertex v4 = new SeqVertex("C");
+
+        original.addVertices(v1, v2, v3, v4);
+        original.addEdge(v1, v2, new BaseEdge(false, 12));
+        original.addEdge(v2, v3, new BaseEdge(false, 23));
+        original.addEdge(v3, v4, new BaseEdge(false, 34));
+        original.addEdge(v4, v2, new BaseEdge(false, 42));
+
+        original.printGraph(new File("testSplitInfiniteCycleFailure.dot"), 0);
+
+        final SeqGraph graph = (SeqGraph)original.clone();
+        final boolean success = new CommonSuffixSplitter().split(graph, v2);
+        Assert.assertTrue(success);
+
+        for ( final SeqVertex v : graph.vertexSet() ) {
+            graph.printGraph(new File("testSplitInfiniteCycleFailure.first_split.dot"), 0);
+            final boolean success2 = new CommonSuffixSplitter().split((SeqGraph)graph.clone(), v);
+            if ( success2 ) graph.printGraph(new File("testSplitInfiniteCycleFailure.fail.dot"), 0);
+            Assert.assertFalse(success2, "Shouldn't be able to split any vertices but CommonSuffixSplitter says it could for " + v);
+        }
+    }
+}

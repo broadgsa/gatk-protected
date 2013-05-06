@@ -50,26 +50,22 @@ import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import it.unimi.dsi.fastutil.bytes.Byte2IntArrayMap;
 import it.unimi.dsi.fastutil.bytes.Byte2IntMap;
-import it.unimi.dsi.fastutil.bytes.Byte2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.*;
-import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.gatk.downsampling.ReservoirDownsampler;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.sam.AlignmentStartWithNoTiesComparator;
 import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.ListIterator;
+import java.util.*;
 
 
 /**
@@ -81,8 +77,8 @@ import java.util.ListIterator;
 public class SlidingWindow {
 
     // Sliding Window data
-    final private ObjectAVLTreeSet<GATKSAMRecord> readsInWindow;
-    final private LinkedList<HeaderElement> windowHeader;
+    final protected PriorityQueue<GATKSAMRecord> readsInWindow;
+    final protected LinkedList<HeaderElement> windowHeader;
     protected int contextSize;                                                                                          // the largest context size (between mismatches and indels)
     protected String contig;
     protected int contigIndex;
@@ -100,17 +96,15 @@ public class SlidingWindow {
     protected int filteredDataConsensusCounter;
     protected String filteredDataReadName;
 
-
     // Additional parameters
-    protected double MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT;                                                        // proportion has to be greater than this value to trigger variant region due to mismatches
+    protected double MIN_ALT_PVALUE_TO_TRIGGER_VARIANT;                                                                 // pvalue has to be greater than this value to trigger variant region due to mismatches
+    protected double MIN_ALT_PROPORTION_TO_TRIGGER_VARIANT;                                                             // proportion has to be greater than this value to trigger variant region due to mismatches
     protected double MIN_INDEL_BASE_PROPORTION_TO_TRIGGER_VARIANT;                                                      // proportion has to be greater than this value to trigger variant region due to deletions
     protected int MIN_BASE_QUAL_TO_COUNT;                                                                               // qual has to be greater than or equal to this value
     protected int MIN_MAPPING_QUALITY;
 
     protected ReduceReads.DownsampleStrategy downsampleStrategy;
     private boolean hasIndelQualities;
-
-    private boolean allowPolyploidReductionInGeneral;
 
     private static CompressionStash emptyRegions = new CompressionStash();
 
@@ -127,8 +121,8 @@ public class SlidingWindow {
         return getStopLocation(windowHeader);
     }
 
-    private int getStopLocation(LinkedList<HeaderElement> header) {
-        return getStartLocation(header) + header.size() - 1;
+    private int getStopLocation(final LinkedList<HeaderElement> header) {
+        return header.isEmpty() ? -1 : header.peekLast().getLocation();
     }
 
     public String getContig() {
@@ -139,7 +133,7 @@ public class SlidingWindow {
         return contigIndex;
     }
 
-    public int getStartLocation(LinkedList<HeaderElement> header) {
+    public int getStartLocation(final LinkedList<HeaderElement> header) {
         return header.isEmpty() ? -1 : header.peek().getLocation();
     }
 
@@ -152,24 +146,33 @@ public class SlidingWindow {
 
         this.windowHeader = new LinkedList<HeaderElement>();
         windowHeader.addFirst(new HeaderElement(startLocation));
-        this.readsInWindow = new ObjectAVLTreeSet<GATKSAMRecord>();
+        this.readsInWindow = new PriorityQueue<GATKSAMRecord>(100, new Comparator<GATKSAMRecord>() {
+            @Override
+            public int compare(GATKSAMRecord read1, GATKSAMRecord read2) {
+                return read1.getSoftEnd() - read2.getSoftEnd();
+            }
+        });
     }
 
-    public SlidingWindow(String contig, int contigIndex, int contextSize, SAMFileHeader samHeader, GATKSAMReadGroupRecord readGroupAttribute, int windowNumber, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant, int minBaseQual, int minMappingQuality, int downsampleCoverage, final ReduceReads.DownsampleStrategy downsampleStrategy, boolean hasIndelQualities, boolean allowPolyploidReduction) {
+    public SlidingWindow(final String contig, final int contigIndex, final int contextSize, final SAMFileHeader samHeader,
+                         final GATKSAMReadGroupRecord readGroupAttribute, final int windowNumber,
+                         final double minAltPValueToTriggerVariant, final double minAltProportionToTriggerVariant, final double minIndelProportionToTriggerVariant,
+                         final int minBaseQual, final int minMappingQuality, final int downsampleCoverage,
+                         final ReduceReads.DownsampleStrategy downsampleStrategy, final boolean hasIndelQualities) {
         this.contextSize = contextSize;
         this.downsampleCoverage = downsampleCoverage;
 
-        this.MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT = minAltProportionToTriggerVariant;
+        this.MIN_ALT_PVALUE_TO_TRIGGER_VARIANT = minAltPValueToTriggerVariant;
+        this.MIN_ALT_PROPORTION_TO_TRIGGER_VARIANT = minAltProportionToTriggerVariant;
         this.MIN_INDEL_BASE_PROPORTION_TO_TRIGGER_VARIANT = minIndelProportionToTriggerVariant;
         this.MIN_BASE_QUAL_TO_COUNT = minBaseQual;
         this.MIN_MAPPING_QUALITY = minMappingQuality;
 
         this.windowHeader = new LinkedList<HeaderElement>();
-        this.readsInWindow = new ObjectAVLTreeSet<GATKSAMRecord>(new Comparator<GATKSAMRecord>() {
+        this.readsInWindow = new PriorityQueue<GATKSAMRecord>(1000, new Comparator<GATKSAMRecord>() {
             @Override
             public int compare(GATKSAMRecord read1, GATKSAMRecord read2) {
-                final int difference = read1.getSoftEnd() - read2.getSoftEnd();
-                return difference != 0 ? difference : read1.getReadName().compareTo(read2.getReadName());
+                return read1.getSoftEnd() - read2.getSoftEnd();
             }
         });
 
@@ -189,8 +192,6 @@ public class SlidingWindow {
         
         this.downsampleStrategy = downsampleStrategy;
         this.hasIndelQualities = hasIndelQualities;
-
-        this.allowPolyploidReductionInGeneral = allowPolyploidReduction;
     }
 
     /**
@@ -294,8 +295,8 @@ public class SlidingWindow {
             regions = findVariantRegions(0, breakpoint, markedSites.getVariantSiteBitSet(), !forceClose);
         }
 
-        while (!readsInWindow.isEmpty() && readsInWindow.first().getSoftEnd() < windowHeaderStartLocation) {
-                readsInWindow.remove(readsInWindow.first());
+        while (!readsInWindow.isEmpty() && readsInWindow.peek().getSoftEnd() < windowHeaderStartLocation) {
+                readsInWindow.poll();
         }
 
         return regions;
@@ -348,10 +349,16 @@ public class SlidingWindow {
     private final MarkedSites markedSites = new MarkedSites();
 
     /**
-     * returns an array marked with variant and non-variant regions (it uses
-     * markVariantRegions to make the marks)
+     * returns the MarkedSites object so that it can be tested after adding data to the Sliding Window
      *
-     * @param stop check the window from start to stop (not-inclusive)
+     * @return the Marked Sites object used by this Sliding Window
+     */
+    protected MarkedSites getMarkedSitesForTesting() { return markedSites; }
+
+    /**
+     * returns an array marked with variant and non-variant regions (it uses markVariantRegion to make the marks)
+     *
+     * @param stop check the window from start to stop (not-inclusive); given in global coordinates
      */
     protected void markSites(final int stop) {
 
@@ -361,22 +368,17 @@ public class SlidingWindow {
         // copy over as many bits as we can from the previous calculation.  Note that we can't trust the
         // last (contextSize - 1) worth of bits because we may not have actually looked at variant regions there.
         final int lastPositionMarked = markedSites.updateRegion(windowHeaderStartLocation, sizeOfMarkedRegion) - contextSize - 1;
-        final int locationToProcess = Math.min(lastPositionMarked, stop - contextSize);
+        final int locationToProcess = Math.max(windowHeaderStartLocation, Math.min(lastPositionMarked, stop - contextSize));
 
-        // update the iterator to the correct position
-        Iterator<HeaderElement> headerElementIterator = windowHeader.iterator();
-        for (int i = windowHeaderStartLocation; i < locationToProcess; i++) {
-            if (headerElementIterator.hasNext())
-                headerElementIterator.next();
-        }
+        final ListIterator<HeaderElement> headerElementIterator = windowHeader.listIterator(locationToProcess - windowHeaderStartLocation);
 
         // process a contextSize worth of region from scratch in case there's a variant there
         for (int i = locationToProcess; i < stop; i++) {
             if (headerElementIterator.hasNext()) {
                 HeaderElement headerElement = headerElementIterator.next();
 
-                if (headerElement.isVariant(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT, MIN_INDEL_BASE_PROPORTION_TO_TRIGGER_VARIANT))
-                    markVariantRegion(markedSites, i - windowHeaderStartLocation);
+                if (headerElement.isVariant(MIN_ALT_PVALUE_TO_TRIGGER_VARIANT, MIN_ALT_PROPORTION_TO_TRIGGER_VARIANT, MIN_INDEL_BASE_PROPORTION_TO_TRIGGER_VARIANT))
+                    markVariantRegion(i - windowHeaderStartLocation);
 
             } else
                 break;
@@ -386,33 +388,44 @@ public class SlidingWindow {
     /**
      * Marks the sites around the variant site (as true)
      *
-     * @param markedSites         the boolean array to bear the marks
      * @param variantSiteLocation the location where a variant site was found
      */
-    protected void markVariantRegion(final MarkedSites markedSites, final int variantSiteLocation) {
+    protected void markVariantRegion(final int variantSiteLocation) {
         int from = (variantSiteLocation < contextSize) ? 0 : variantSiteLocation - contextSize;
-        int to = (variantSiteLocation + contextSize + 1 > markedSites.getVariantSiteBitSet().length) ? markedSites.getVariantSiteBitSet().length : variantSiteLocation + contextSize + 1;
-        for (int i = from; i < to; i++)
-            markedSites.getVariantSiteBitSet()[i] = true;
+        int to = (variantSiteLocation + contextSize + 1 > markedSites.getVariantSiteBitSet().length) ? markedSites.getVariantSiteBitSet().length - 1 : variantSiteLocation + contextSize;
+        markRegionAs(from, to, true);
     }
 
     /**
-     * Adds bases to the running consensus or filtered data accordingly
+     * Marks the sites around the variant site (as true)
+     *
+     * @param from              the start index (inclusive) to mark
+     * @param to                the end index (inclusive) to mark
+     * @param isVariant         mark the region with this boolean value
+     */
+    private void markRegionAs(final int from, final int to, final boolean isVariant) {
+        for (int i = from; i <= to; i++)
+            markedSites.getVariantSiteBitSet()[i] = isVariant;
+    }
+
+    /**
+     * Adds bases to the running consensus
      * 
      * If adding a sequence with gaps, it will finalize multiple consensus reads and keep the last running consensus
      *
      * @param header  the window header
      * @param start   the first header index to add to consensus
      * @param end     the first header index NOT TO add to consensus
-     * @param isNegativeStrand  should the synthetic read be represented as being on the negative strand?
+     * @param strandType  the strandedness that the synthetic read should be represented as having
      * @return a non-null list of consensus reads generated by this call. Empty list if no consensus was generated.
      */
     @Requires({"start >= 0 && (end >= start || end == 0)"})
     @Ensures("result != null")
-    protected ObjectArrayList<GATKSAMRecord> addToSyntheticReads(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
-        ObjectArrayList<GATKSAMRecord> reads = new ObjectArrayList<GATKSAMRecord>();
-        if (start < end) {
-            ListIterator<HeaderElement> headerElementIterator = header.listIterator(start);
+    protected ObjectArrayList<GATKSAMRecord> addToSyntheticReads(final LinkedList<HeaderElement> header, final int start, final int end, final SyntheticRead.StrandType strandType) {
+        final ObjectArrayList<GATKSAMRecord> reads = new ObjectArrayList<GATKSAMRecord>();
+
+        if ( start < end ) {
+            final ListIterator<HeaderElement> headerElementIterator = header.listIterator(start);
 
             if (!headerElementIterator.hasNext())
                 throw new ReviewedStingException(String.format("Requested to add to synthetic reads a region that contains no header element at index: %d  - %d / %d", start, header.size(), end));
@@ -420,37 +433,29 @@ public class SlidingWindow {
             HeaderElement headerElement = headerElementIterator.next();
 
             if (headerElement.hasConsensusData()) {
-                reads.addAll(finalizeAndAdd(ConsensusType.FILTERED));
 
-                int endOfConsensus = findNextNonConsensusElement(header, start, end);
-                addToRunningConsensus(header, start, endOfConsensus, isNegativeStrand);
-
+                // find the end of the consecutive consensus data in the window
+                final int endOfConsensus = findNextNonConsensusElement(header, start, end);
                 if (endOfConsensus <= start)
                     throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfConsensus, start));
 
-                reads.addAll(addToSyntheticReads(header, endOfConsensus, end, isNegativeStrand));
-            } else if (headerElement.hasFilteredData()) {
+                // add to running consensus and recurse
+                addToRunningConsensus(header, start, endOfConsensus, strandType);
+                reads.addAll(addToSyntheticReads(header, endOfConsensus, end, strandType));
+
+            } else {
+
+                // add any outstanding consensus data
                 reads.addAll(finalizeAndAdd(ConsensusType.CONSENSUS));
 
-                int endOfFilteredData = findNextNonFilteredDataElement(header, start, end);
-                reads.addAll(addToFilteredData(header, start, endOfFilteredData, isNegativeStrand));
-
-                if (endOfFilteredData <= start)
-                    throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfFilteredData, start));
-
-                reads.addAll(addToSyntheticReads(header, endOfFilteredData, end, isNegativeStrand));
-            } else if (headerElement.isEmpty()) {
-                reads.addAll(finalizeAndAdd(ConsensusType.BOTH));
-
-                int endOfEmptyData = findNextNonEmptyElement(header, start, end);
-
+                // find the end of the consecutive empty data in the window
+                final int endOfEmptyData = findNextConsensusElement(header, start, end);
                 if (endOfEmptyData <= start)
                     throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfEmptyData, start));
 
-                reads.addAll(addToSyntheticReads(header, endOfEmptyData, end, isNegativeStrand));
-            } else
-                throw new ReviewedStingException(String.format("Header Element %d is neither Consensus, Data or Empty. Something is wrong.", start));
-
+                // recurse out of the empty region
+                reads.addAll(addToSyntheticReads(header, endOfEmptyData, end, strandType));
+            }
         }
 
         return reads;
@@ -462,24 +467,21 @@ public class SlidingWindow {
      * @param type the synthetic reads you want to close
      * @return a possibly null list of GATKSAMRecords generated by finalizing the synthetic reads
      */
-    private ObjectArrayList<GATKSAMRecord> finalizeAndAdd(ConsensusType type) {
-        GATKSAMRecord read = null;
-        ObjectArrayList<GATKSAMRecord> list = new ObjectArrayList<GATKSAMRecord>();
+    private ObjectArrayList<GATKSAMRecord> finalizeAndAdd(final ConsensusType type) {
 
-        switch (type) {
-            case CONSENSUS:
-                read = finalizeRunningConsensus();
-                break;
-            case FILTERED:
-                read = finalizeFilteredDataConsensus();
-                break;
-            case BOTH:
-                read = finalizeRunningConsensus();
-                if (read != null) list.add(read);
-                read = finalizeFilteredDataConsensus();
+        final ObjectArrayList<GATKSAMRecord> list = new ObjectArrayList<GATKSAMRecord>();
+
+        if ( type == ConsensusType.CONSENSUS || type == ConsensusType.BOTH ) {
+            final GATKSAMRecord read = finalizeRunningConsensus();
+            if ( read != null )
+                list.add(read);
         }
-        if (read != null)
-            list.add(read);
+
+        if ( type == ConsensusType.FILTERED || type == ConsensusType.BOTH ) {
+            final GATKSAMRecord read = finalizeFilteredDataConsensus();
+            if ( read != null )
+                list.add(read);
+        }
 
         return list;
     }
@@ -487,19 +489,145 @@ public class SlidingWindow {
     /**
      * Looks for the next position without consensus data
      *
-     * @param start beginning of the filtered region
-     * @param upTo  limit to search for another consensus element
+     * @param header the header to check
+     * @param start  beginning of the filtered region
+     * @param upTo   limit to search for another consensus element
      * @return next position in local coordinates (relative to the windowHeader) with consensus data; otherwise, the start position
      */
-    private int findNextNonConsensusElement(LinkedList<HeaderElement> header, int start, int upTo) {
-        Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
+    private int findNextNonConsensusElement(final LinkedList<HeaderElement> header, final int start, final int upTo) {
+        final Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
         int index = start;
         while (index < upTo) {
             if (!headerElementIterator.hasNext())
                 throw new ReviewedStingException("There are no more header elements in this window");
 
-            HeaderElement headerElement = headerElementIterator.next();
+            if (!headerElementIterator.next().hasConsensusData())
+                break;
+            index++;
+        }
+        return index;
+    }
+
+    /**
+     * Looks for the next position witho consensus data
+     *
+     * @param header the header to check
+     * @param start  beginning of the filtered region
+     * @param upTo   limit to search for another consensus element
+     * @return next position in local coordinates (relative to the windowHeader) with consensus data; otherwise, the start position
+     */
+    private int findNextConsensusElement(final LinkedList<HeaderElement> header, final int start, final int upTo) {
+        final Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
+        int index = start;
+        while (index < upTo) {
+            if (!headerElementIterator.hasNext())
+                throw new ReviewedStingException("There are no more header elements in this window");
+
+            if (headerElementIterator.next().hasConsensusData())
+                break;
+            index++;
+        }
+        return index;
+    }
+
+    /**
+     * Adds bases to the filtered data synthetic read.
+     *
+     * Different from the addToConsensus method, this method assumes a contiguous sequence of filteredData
+     * bases.
+     *
+     * @param header  the window header
+     * @param start the first header index to add to consensus
+     * @param end   the first header index NOT TO add to consensus
+     * @param strandType  the strandedness that the synthetic read should be represented as having
+     */
+    @Requires({"start >= 0 && (end >= start || end == 0)"})
+    private void addToRunningConsensus(final LinkedList<HeaderElement> header, final int start, final int end, final SyntheticRead.StrandType strandType) {
+        if (runningConsensus == null)
+            runningConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, consensusReadName + consensusCounter++, header.get(start).getLocation(), hasIndelQualities, strandType);
+
+        final Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
+
+        for (int index = start; index < end; index++) {
+            if (!headerElementIterator.hasNext())
+                throw new ReviewedStingException("Requested to create a running consensus synthetic read from " + start + " to " + end + " but " + index + " does not exist");
+
+            final HeaderElement headerElement = headerElementIterator.next();
             if (!headerElement.hasConsensusData())
+                throw new ReviewedStingException("No CONSENSUS data in " + index);
+
+            genericAddBaseToConsensus(runningConsensus, headerElement.getConsensusBaseCounts());
+        }
+    }
+
+    /**
+     * Adds bases to the running filtered data accordingly
+     *
+     * If adding a sequence with gaps, it will finalize multiple consensus reads and keep the last running consensus
+     *
+     * @param header  the window header
+     * @param start   the first header index to add to consensus
+     * @param end     the first header index NOT TO add to consensus
+     * @return a non-null list of consensus reads generated by this call. Empty list if no consensus was generated.
+     */
+    @Requires({"start >= 0 && (end >= start || end == 0)"})
+    @Ensures("result != null")
+    protected ObjectArrayList<GATKSAMRecord> addToFilteredReads(final LinkedList<HeaderElement> header, final int start, final int end) {
+        final ObjectArrayList<GATKSAMRecord> reads = new ObjectArrayList<GATKSAMRecord>();
+
+        if ( start < end ) {
+            final ListIterator<HeaderElement> headerElementIterator = header.listIterator(start);
+
+            if (!headerElementIterator.hasNext())
+                throw new ReviewedStingException(String.format("Requested to add to synthetic reads a region that contains no header element at index: %d  - %d / %d", start, header.size(), end));
+
+            HeaderElement headerElement = headerElementIterator.next();
+
+            if (headerElement.hasFilteredData()) {
+
+                // find the end of the consecutive filtered data in the window
+                final int endOfFiltered = findNextNonFilteredElement(header, start, end);
+                if (endOfFiltered <= start)
+                    throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfFiltered, start));
+
+                // add to running filtered consensus and recurse
+                addToFilteredData(header, start, endOfFiltered);
+                reads.addAll(addToFilteredReads(header, endOfFiltered, end));
+
+            } else {
+
+                // add any outstanding filtered data
+                reads.addAll(finalizeAndAdd(ConsensusType.FILTERED));
+
+                // find the end of the consecutive empty data in the window
+                final int endOfEmptyData = findNextFilteredElement(header, start, end);
+                if (endOfEmptyData <= start)
+                    throw new ReviewedStingException(String.format("next start is <= current start: (%d <= %d)", endOfEmptyData, start));
+
+                // recurse out of the empty region
+                reads.addAll(addToFilteredReads(header, endOfEmptyData, end));
+            }
+        }
+
+        return reads;
+    }
+
+    /**
+     * Looks for the next position without consensus data
+     *
+     * @param header the header to check
+     * @param start  beginning of the filtered region
+     * @param upTo   limit to search for another consensus element
+     * @return next position in local coordinates (relative to the windowHeader) with consensus data; otherwise, the start position
+     */
+    private int findNextNonFilteredElement(final LinkedList<HeaderElement> header, final int start, final int upTo) {
+        final Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
+        int index = start;
+        while (index < upTo) {
+            if (!headerElementIterator.hasNext())
+                throw new ReviewedStingException("There are no more header elements in this window");
+
+            if (!headerElementIterator.next().hasFilteredData())
                 break;
             index++;
         }
@@ -507,43 +635,21 @@ public class SlidingWindow {
     }
 
     /**
-     * Looks for the next position without filtered data
+     * Looks for the next position witho consensus data
      *
-     * @param start beginning of the region
-     * @param upTo  limit to search for
-     * @return next position in local coordinates (relative to the windowHeader) with no filtered data; otherwise, the start position
+     * @param header the header to check
+     * @param start  beginning of the filtered region
+     * @param upTo   limit to search for another consensus element
+     * @return next position in local coordinates (relative to the windowHeader) with consensus data; otherwise, the start position
      */
-    private int findNextNonFilteredDataElement(LinkedList<HeaderElement> header, int start, int upTo) {
-        Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
+    private int findNextFilteredElement(final LinkedList<HeaderElement> header, final int start, final int upTo) {
+        final Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
         int index = start;
         while (index < upTo) {
             if (!headerElementIterator.hasNext())
                 throw new ReviewedStingException("There are no more header elements in this window");
 
-            HeaderElement headerElement = headerElementIterator.next();
-            if (!headerElement.hasFilteredData() || headerElement.hasConsensusData())
-                break;
-            index++;
-        }
-        return index;
-    }
-
-    /**
-     * Looks for the next non-empty header element
-     *
-     * @param start beginning of the region
-     * @param upTo  limit to search for
-     * @return next position in local coordinates (relative to the windowHeader) with non-empty element; otherwise, the start position
-     */
-    private int findNextNonEmptyElement(LinkedList<HeaderElement> header, int start, int upTo) {
-        ListIterator<HeaderElement> headerElementIterator = header.listIterator(start);
-        int index = start;
-        while (index < upTo) {
-            if (!headerElementIterator.hasNext())
-                throw new ReviewedStingException("There are no more header elements in this window");
-
-            HeaderElement headerElement = headerElementIterator.next();
-            if (!headerElement.isEmpty())
+            if (headerElementIterator.next().hasFilteredData())
                 break;
             index++;
         }
@@ -559,66 +665,25 @@ public class SlidingWindow {
      * @param header  the window header
      * @param start   the first header index to add to consensus
      * @param end     the first header index NOT TO add to consensus
-     * @param isNegativeStrand  should the synthetic read be represented as being on the negative strand?
-     * @return a non-null list of GATKSAMRecords representing finalized filtered consensus data. Empty list if no consensus was generated.
      */
     @Requires({"start >= 0 && (end >= start || end == 0)"})
     @Ensures("result != null")
-    private ObjectArrayList<GATKSAMRecord> addToFilteredData(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
-        ObjectArrayList<GATKSAMRecord> result = new ObjectArrayList<GATKSAMRecord>();
+    private void addToFilteredData(final LinkedList<HeaderElement> header, final int start, final int end) {
 
         if (filteredDataConsensus == null)
-            filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, header.get(start).getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
+            filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, header.get(start).getLocation(), hasIndelQualities, SyntheticRead.StrandType.STRANDLESS);
 
         ListIterator<HeaderElement> headerElementIterator = header.listIterator(start);
         for (int index = start; index < end; index++) {
             if (!headerElementIterator.hasNext())
                 throw new ReviewedStingException("Requested to create a filtered data synthetic read from " + start + " to " + end + " but " + index + " does not exist");
 
-            HeaderElement headerElement = headerElementIterator.next();
-            if (headerElement.hasConsensusData())
-                throw new ReviewedStingException("Found consensus data inside region to add to filtered data.");
+            final HeaderElement headerElement = headerElementIterator.next();
 
             if (!headerElement.hasFilteredData())
                 throw new ReviewedStingException("No filtered data in " + index);
 
-            if ( filteredDataConsensus.getRefStart() + filteredDataConsensus.size() != headerElement.getLocation() ) {
-                result.add(finalizeFilteredDataConsensus());
-                filteredDataConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, filteredDataReadName + filteredDataConsensusCounter++, headerElement.getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
-            }
-
-            genericAddBaseToConsensus(filteredDataConsensus, headerElement.getFilteredBaseCounts(), headerElement.getRMS());
-        }
-
-        return result;
-    }
-
-    /**
-     * Adds bases to the filtered data synthetic read.
-     * 
-     * Different from the addToConsensus method, this method assumes a contiguous sequence of filteredData
-     * bases.
-     *
-     * @param header  the window header
-     * @param start the first header index to add to consensus
-     * @param end   the first header index NOT TO add to consensus
-     * @param isNegativeStrand  should the synthetic read be represented as being on the negative strand?
-     */
-    @Requires({"start >= 0 && (end >= start || end == 0)"})
-    private void addToRunningConsensus(LinkedList<HeaderElement> header, int start, int end, boolean isNegativeStrand) {
-        if (runningConsensus == null)
-            runningConsensus = new SyntheticRead(samHeader, readGroupAttribute, contig, contigIndex, consensusReadName + consensusCounter++, header.get(start).getLocation(), GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, hasIndelQualities, isNegativeStrand);
-
-        Iterator<HeaderElement> headerElementIterator = header.listIterator(start);
-        for (int index = start; index < end; index++) {
-            if (!headerElementIterator.hasNext())
-                throw new ReviewedStingException("Requested to create a running consensus synthetic read from " + start + " to " + end + " but " + index + " does not exist");
-
-            HeaderElement headerElement = headerElementIterator.next();
-            if (!headerElement.hasConsensusData())
-                throw new ReviewedStingException("No CONSENSUS data in " + index);
-
-            genericAddBaseToConsensus(runningConsensus, headerElement.getConsensusBaseCounts(), headerElement.getRMS());
+            genericAddBaseToConsensus(filteredDataConsensus, headerElement.getFilteredBaseCounts());
         }
     }
 
@@ -627,15 +692,14 @@ public class SlidingWindow {
      *
      * @param syntheticRead the synthetic read to add to
      * @param baseCounts    the base counts object in the header element
-     * @param rms           the rms mapping quality in the header element
      */
-    private void genericAddBaseToConsensus(SyntheticRead syntheticRead, BaseAndQualsCounts baseCounts, double rms) {
+    private void genericAddBaseToConsensus(final SyntheticRead syntheticRead, final BaseAndQualsCounts baseCounts) {
         final BaseIndex base = baseCounts.baseIndexWithMostProbability();
         byte count = (byte) Math.min(baseCounts.countOfBase(base), Byte.MAX_VALUE);
         byte qual = baseCounts.averageQualsOfBase(base);
         byte insQual = baseCounts.averageInsertionQualsOfBase(base);
         byte delQual = baseCounts.averageDeletionQualsOfBase(base);
-        syntheticRead.add(base, count, qual, insQual, delQual, rms);
+        syntheticRead.add(base, count, qual, insQual, delQual, baseCounts.getRMS());
     }
 
     /**
@@ -643,69 +707,118 @@ public class SlidingWindow {
      *
      * @param start   the first window header index in the variant region (inclusive)
      * @param stop    the last window header index of the variant region (inclusive)
-     * @param disallowPolyploidReductionAtThisPosition       should we disallow polyploid (het) compression here?
-     * @return a non-null list of all reads contained in the variant region
+     * @param knownSnpPositions  the set of known SNPs used to determine whether to allow polyploid consensus creation here; can be null (to allow polyploid consensus anywhere)
+     * @return a non-null object representing all reads contained in the variant region
      */
     @Requires({"start >= 0 && (stop >= start || stop == 0)"})
     @Ensures("result != null")
-    protected ObjectList<GATKSAMRecord> compressVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
-        ObjectList<GATKSAMRecord> allReads = new ObjectArrayList<GATKSAMRecord>();
+    protected CloseVariantRegionResult compressVariantRegion(final int start, final int stop, final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
+        final CloseVariantRegionResult allReads = new CloseVariantRegionResult(stop);
 
         // Try to compress into a polyploid consensus
-        int nVariantPositions = 0;
-        int hetRefPosition = -1;
-        boolean canCompress = true;
-        Object[] header = windowHeader.toArray();
+        // Optimization: don't bother if there are no known SNPs here
+        final int hetRefPosition = (knownSnpPositions != null && knownSnpPositions.isEmpty()) ? -1 : findSinglePolyploidCompressiblePosition(start, stop);
 
-        // foundEvent will remain false if we don't allow polyploid reduction
-        if ( allowPolyploidReductionInGeneral && !disallowPolyploidReductionAtThisPosition ) {
-            for (int i = start; i<=stop; i++) {
-
-                int nAlleles = ((HeaderElement) header[i]).getNumberOfAlleles(MIN_ALT_BASE_PROPORTION_TO_TRIGGER_VARIANT);
-
-                // we will only work on diploid cases because we just don't want to handle/test other scenarios
-                if ( nAlleles > 2 ) {
-                    canCompress = false;
-                    break;
-                } else if ( nAlleles == 2 ) {
-                    nVariantPositions++;
-
-                    // make sure that there is only 1 site in the variant region that contains more than one allele
-                    if ( nVariantPositions == 1 ) {
-                        hetRefPosition = i;
-                    } else if ( nVariantPositions > 1 ) {
-                        canCompress = false;
-                        break;
-                    }
-                }
-            }
+        // Note that using the hetRefPosition protects us from trying to compress variant regions that are created by
+        //   insertions (which we don't want because we can't confirm that they represent the same allele).
+        // Also, we only allow polyploid consensus creation at known sites if provided.
+        if ( hetRefPosition != -1 && matchesKnownPosition(windowHeader.get(hetRefPosition).getLocation(), knownSnpPositions) ) {
+            // try to create the polyploid consensus
+            allReads.reads.addAll(createPolyploidConsensus(hetRefPosition));
+            allReads.stopPerformed = hetRefPosition;  // we stopped at the het position
         }
-
-        // Try to compress the variant region; note that using the hetRefPosition protects us from trying to compress
-        // variant regions that are created by insertions (since we can't confirm here that they represent the same allele)
-        if ( canCompress && hetRefPosition != -1 ) {
-            allReads = createPolyploidConsensus(start, stop, ((HeaderElement) header[hetRefPosition]).getLocation());
-        }
-
-        // Return all reads that overlap the variant region and remove them from the window header entirely
-        // also remove all reads preceding the variant region (since they will be output as consensus right after compression
+        // if we can't create a polyploid consensus here, return all reads that overlap the variant region and remove them
+        // from the window header entirely; also remove all reads preceding the variant region (since they will be output
+        // as consensus right after compression)
         else {
             final int refStart = windowHeader.get(start).getLocation();
             final int refStop = windowHeader.get(stop).getLocation();
 
-            ObjectList<GATKSAMRecord> toRemove = new ObjectArrayList<GATKSAMRecord>();
-            for (GATKSAMRecord read : readsInWindow) {
-                if (read.getSoftStart() <= refStop) {
-                    if (read.getAlignmentEnd() >= refStart) {
-                        allReads.add(read);
+            final ObjectList<GATKSAMRecord> toRemove = new ObjectArrayList<GATKSAMRecord>();
+            for ( final GATKSAMRecord read : readsInWindow ) {
+                if ( read.getSoftStart() <= refStop ) {
+                    if ( read.getAlignmentEnd() >= refStart ) {
+                        allReads.reads.add(read);
                         removeFromHeader(windowHeader, read);
                     }
                     toRemove.add(read);
                 }
             }
-            removeReadsFromWindow(toRemove);
+
+            // remove all used reads
+            for ( final GATKSAMRecord read : toRemove )
+                readsInWindow.remove(read);
         }
+
         return allReads;
+    }
+
+    /**
+     * Determines whether the given position match one of the known sites
+     *
+     * @param targetPosition     the position of the het site
+     * @param knownSnpPositions  the set of known SNPs used to determine whether to allow polyploid consensus creation here; can be null (to allow polyploid consensus anywhere)
+     * @return true if the targetPosition matches a known SNP position, false otherwise
+     */
+    @Requires({"targetPosition >= 1 && knownSnpPositions != null"})
+    protected boolean matchesKnownPosition(final int targetPosition, final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
+        final GenomeLoc targetLoc = new UnvalidatingGenomeLoc(contig, contigIndex, targetPosition, targetPosition);
+        return knownSnpPositions == null || knownSnpPositions.contains(targetLoc);
+    }
+
+    /*
+     * Finds the het variant position located within start and stop (inclusive) if one exists.
+     *
+     * @param start   the first header index in the region to check (inclusive)
+     * @param stop    the last header index of the region to check (inclusive)
+     * @return the window header index of the single het position or -1 if either none or more than one exists
+     */
+    @Requires("start >= 0 && (stop >= start || stop == 0)")
+    protected int findSinglePolyploidCompressiblePosition(final int start, final int stop) {
+        int hetRefPosition = -1;
+
+        for ( int i = start; i <= stop; i++ ) {
+
+            final int nAlleles = windowHeader.get(i).getNumberOfBaseAlleles(MIN_ALT_PVALUE_TO_TRIGGER_VARIANT, MIN_ALT_PROPORTION_TO_TRIGGER_VARIANT);
+
+            // we will only work on diploid non-indel cases because we just don't want to handle/test other scenarios
+            if ( nAlleles > 2 || nAlleles == -1 )
+                return -1;
+
+            if ( nAlleles == 2 ) {
+
+                // make sure that there is only 1 site in the region that contains more than one allele
+                if ( hetRefPosition != -1 )
+                    return -1;
+
+                hetRefPosition = i;
+            }
+        }
+
+        return hetRefPosition;
+    }
+
+    /*
+     * Checks whether there's a position in the header with a significant number of softclips or a variant.
+     *
+     * @param header          the window header to examine
+     * @param positionToSkip  the global position to skip in the examination (use negative number if you don't want to make use of this argument)
+     * @return true if there exists a position with significant softclips, false otherwise
+     */
+    @Requires("header != null")
+    protected boolean hasPositionWithSignificantSoftclipsOrVariant(final List<HeaderElement> header, final int positionToSkip) {
+
+        for ( final HeaderElement headerElement : header ) {
+
+            if ( headerElement.getLocation() == positionToSkip )
+                continue;
+
+            if ( headerElement.hasSignificantSoftclips(MIN_ALT_PVALUE_TO_TRIGGER_VARIANT, MIN_ALT_PROPORTION_TO_TRIGGER_VARIANT) ||
+                 headerElement.getNumberOfBaseAlleles(MIN_ALT_PVALUE_TO_TRIGGER_VARIANT, MIN_ALT_PROPORTION_TO_TRIGGER_VARIANT) > 1 )
+                return true;
+        }
+
+        return false;
     }
 
     /**
@@ -713,47 +826,100 @@ public class SlidingWindow {
      *
      * @param start   the first window header index in the variant region (inclusive)
      * @param stop    the last window header index of the variant region (inclusive)
-     * @param disallowPolyploidReductionAtThisPosition       should we disallow polyploid (het) compression here?
-     * @return a non-null list of all reads contained in the variant region plus any adjacent synthetic reads
+     * @param knownSnpPositions  the set of known SNPs used to determine whether to allow polyploid consensus creation here; can be null (to allow polyploid consensus anywhere)
+     * @return a non-null object representing all reads contained in the variant region plus any adjacent synthetic reads
      */
     @Requires({"start >= 0 && (stop >= start || stop == 0)"})
     @Ensures("result != null")
-    protected ObjectList<GATKSAMRecord> closeVariantRegion(final int start, final int stop, final boolean disallowPolyploidReductionAtThisPosition) {
-        ObjectList<GATKSAMRecord> allReads = compressVariantRegion(start, stop, disallowPolyploidReductionAtThisPosition);
+    protected CloseVariantRegionResult closeVariantRegion(final int start, final int stop, final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
+        final CloseVariantRegionResult allReads = compressVariantRegion(start, stop, knownSnpPositions);
 
-        ObjectList<GATKSAMRecord> result = (downsampleCoverage > 0) ? downsampleVariantRegion(allReads) : allReads;
-        result.addAll(addToSyntheticReads(windowHeader, 0, stop, false));
-        result.addAll(finalizeAndAdd(ConsensusType.BOTH));
+        final CloseVariantRegionResult result = new CloseVariantRegionResult(allReads.stopPerformed);
+        result.reads.addAll(downsampleCoverage > 0 ? downsampleVariantRegion(allReads.reads) : allReads.reads);
+        result.reads.addAll(addToSyntheticReads(windowHeader, 0, allReads.stopPerformed + 1, SyntheticRead.StrandType.STRANDLESS));
+        result.reads.addAll(addToFilteredReads(windowHeader, 0, allReads.stopPerformed + 1));
+        result.reads.addAll(finalizeAndAdd(ConsensusType.BOTH));
 
         return result; // finalized reads will be downsampled if necessary
     }
 
-    public ObjectSet<GATKSAMRecord> closeVariantRegions(CompressionStash regions) {
-        ObjectAVLTreeSet<GATKSAMRecord> allReads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
-        if (!regions.isEmpty()) {
-            int lastStop = -1;
-            int windowHeaderStart = getStartLocation(windowHeader);
+    /*
+     * @see #closeVariantRegions(CompressionStash, ObjectSortedSet<GenomeLoc>, boolean) with forceCloseFullRegions set to false
+     */
+    public ObjectSet<GATKSAMRecord> closeVariantRegions(final CompressionStash regions, final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
+        return closeVariantRegions(regions, knownSnpPositions, false);
+    }
 
-            for (GenomeLoc region : regions) {
+    private static final class CloseVariantRegionResult {
+        final private ObjectList<GATKSAMRecord> reads = new ObjectArrayList<GATKSAMRecord>();
+        private int stopPerformed;
+
+        public CloseVariantRegionResult(final int stopPerformed) { this.stopPerformed = stopPerformed; }
+    }
+
+    /*
+     * Finalizes the list of regions requested (and any regions preceding them)
+     *
+     * @param regions            the list of regions to finalize
+     * @param knownSnpPositions  the set of known SNP positions; can be null (to allow polyploid consensus anywhere)
+     * @param forceCloseFullRegions if true, requires this method to make sure all regions are fully closed; otherwise, we may decide not to close up to the very end (e.g. during het compression)
+     * @return a non-null set of reduced reads representing the finalized regions
+     */
+    public ObjectSet<GATKSAMRecord> closeVariantRegions(final CompressionStash regions, final ObjectSortedSet<GenomeLoc> knownSnpPositions, final boolean forceCloseFullRegions) {
+        final ObjectAVLTreeSet<GATKSAMRecord> allReads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
+        if ( !regions.isEmpty() ) {
+
+            int windowHeaderStart = getStartLocation(windowHeader);
+            HeaderElement lastCleanedElement = null;
+
+            for ( final GenomeLoc region : regions ) {
                 if (((FinishedGenomeLoc)region).isFinished() && region.getContig().equals(contig) && region.getStart() >= windowHeaderStart && region.getStop() < windowHeaderStart + windowHeader.size()) {
-                    int start = region.getStart() - windowHeaderStart;
+                    final int start = region.getStart() - windowHeaderStart;
                     int stop = region.getStop() - windowHeaderStart;
 
-                    allReads.addAll(closeVariantRegion(start, stop, regions.size() > 1)); // todo -- add condition here dependent on dbSNP track
-                    lastStop = stop;
+                    CloseVariantRegionResult closeVariantRegionResult = closeVariantRegion(start, stop, knownSnpPositions);
+                    allReads.addAll(closeVariantRegionResult.reads);
+
+                    // check whether we didn't close the whole region that was requested
+                    if ( stop > 0 && closeVariantRegionResult.stopPerformed < stop ) {
+                        // we should update the variant sites bitset because the context size's worth of bases after the variant position are no longer "variant"
+                        markRegionAs(closeVariantRegionResult.stopPerformed + 1, stop, false);
+
+                        // if the calling method said that it didn't care then we are okay so update the stop
+                        if ( !forceCloseFullRegions ) {
+                            stop = closeVariantRegionResult.stopPerformed;
+                        }
+                        // otherwise, we need to forcibly push the stop that we originally requested
+                        else {
+                            while ( closeVariantRegionResult.stopPerformed < stop ) {
+                                // first clean up used header elements so they don't get reused
+                                for ( int i = 0; i <= closeVariantRegionResult.stopPerformed; i++ )
+                                    windowHeader.remove();
+                                stop -= (closeVariantRegionResult.stopPerformed + 1);
+
+                                closeVariantRegionResult = closeVariantRegion(0, stop, knownSnpPositions);
+                                allReads.addAll(closeVariantRegionResult.reads);
+                            }
+                        }
+                    }
+
+                    // We need to clean up the window header elements up until the end of the requested region so that they don't get used for future regions.
+                    // Note that this cleanup used to happen outside the above for-loop, but that was causing an occasional doubling of the reduced reads
+                    //  (in the case where there are multiple regions to close we'd reuse the reads for each region).
+                    if ( stop >= 0 ) {
+                        for ( int i = 0; i < stop; i++ )
+                            windowHeader.remove();
+                        lastCleanedElement = windowHeader.remove();
+                        windowHeaderStart = getStartLocation(windowHeader);
+                    }
                 }
             }
 
-            // clean up the window header elements up until the end of the variant region.
-            // note that we keep the last element of the region in the event that the following element has a read that starts with insertion.
-            if ( lastStop >= 0 ) {
-                for (int i = 0; i < lastStop; i++)
-                    windowHeader.remove();
-                final HeaderElement lastOfRegion = windowHeader.remove();
-                if ( lastOfRegion.hasInsertionToTheRight() )
-                    windowHeader.addFirst(new HeaderElement(lastOfRegion.getLocation(), lastOfRegion.numInsertionsToTheRight()));
-            }
+            // we need to keep the last element of the last cleaned region in the event that the following element has a read that starts with an insertion.
+            if ( lastCleanedElement != null && lastCleanedElement.hasInsertionToTheRight() )
+                windowHeader.addFirst(new HeaderElement(lastCleanedElement.getLocation(), lastCleanedElement.numInsertionsToTheRight()));
         }
+
         return allReads;
     }
 
@@ -786,22 +952,23 @@ public class SlidingWindow {
      * regions that still exist regardless of being able to fulfill the
      * context size requirement in the end.
      *
+     * @param knownSnpPositions  the set of known SNP positions; can be null (to allow polyploid consensus anywhere)
      * @return A non-null set/list of all reads generated
      */
     @Ensures("result != null")
-    public Pair<ObjectSet<GATKSAMRecord>, CompressionStash> close() {
+    public Pair<ObjectSet<GATKSAMRecord>, CompressionStash> close(final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
         // mark variant regions
         ObjectSet<GATKSAMRecord> finalizedReads = new ObjectAVLTreeSet<GATKSAMRecord>(new AlignmentStartWithNoTiesComparator());
         CompressionStash regions = new CompressionStash();
-        boolean forceCloseUnfinishedRegions = true;
 
         if (!windowHeader.isEmpty()) {
             markSites(getStopLocation(windowHeader) + 1);
-            regions = findVariantRegions(0, windowHeader.size(), markedSites.getVariantSiteBitSet(), forceCloseUnfinishedRegions);
-            finalizedReads = closeVariantRegions(regions);
+            regions = findVariantRegions(0, windowHeader.size(), markedSites.getVariantSiteBitSet(), true);
+            finalizedReads = closeVariantRegions(regions, knownSnpPositions, true);
 
             if (!windowHeader.isEmpty()) {
-                finalizedReads.addAll(addToSyntheticReads(windowHeader, 0, windowHeader.size(), false));
+                finalizedReads.addAll(addToSyntheticReads(windowHeader, 0, windowHeader.size(), SyntheticRead.StrandType.STRANDLESS));
+                finalizedReads.addAll(addToFilteredReads(windowHeader, 0, windowHeader.size()));
                 finalizedReads.addAll(finalizeAndAdd(ConsensusType.BOTH));                                              // if it ended in running consensus, finish it up
             }
         }
@@ -845,86 +1012,120 @@ public class SlidingWindow {
         return finalizedRead;
     }
 
+    // define this so that we can use Java generics below
+    private final static class HeaderElementList extends LinkedList<HeaderElement> {}
+
+    private final static class SingleStrandConsensusData {
+        final HeaderElementList consensus = new HeaderElementList();
+        final ObjectList<GATKSAMRecord> reads = new ObjectArrayList<GATKSAMRecord>();
+    }
+
     /**
-     * Finalizes a variant region, any adjacent synthetic reads.
+     * Finalizes a variant region - and any adjacent synthetic reads - for point mutations (indel sites are not
+     * supported) with polyploid compression.
      *
-     * @param start   the first window header index in the variant region (inclusive)
-     * @param stop    the last window header index of the variant region (inclusive)
-     * @param hetRefPosition    reference position (in global coordinates) of the het site
+     * @param hetRefPosition    window header index of the het site; MUST NOT BE AN INDEL SITE!
      * @return a non-null list of all reads contained in the variant region as a polyploid consensus
      */
     @Requires({"start >= 0 && (stop >= start || stop == 0)"})
-    @Ensures("result != null")
-    private ObjectList<GATKSAMRecord> createPolyploidConsensus(final int start, final int stop, final int hetRefPosition) {
-        // we will create two (positive strand, negative strand) headers for each contig
-        ObjectList<LinkedList<HeaderElement>> headersPosStrand = new ObjectArrayList<LinkedList<HeaderElement>>();
-        ObjectList<LinkedList<HeaderElement>> headersNegStrand = new ObjectArrayList<LinkedList<HeaderElement>>();
-        ObjectList<GATKSAMRecord> hetReads = new ObjectArrayList<GATKSAMRecord>();
-        Byte2IntMap haplotypeHeaderMap = new Byte2IntArrayMap(2);
-        int currentHaplotype = 0;
-        int refStart = windowHeader.get(start).getLocation();
-        int refStop = windowHeader.get(stop).getLocation();
-        ObjectList<GATKSAMRecord> toRemove = new ObjectArrayList<GATKSAMRecord>();
-        for (GATKSAMRecord read : readsInWindow) {
-            int haplotype;
+    @Ensures({"result != null"})
+    protected ObjectList<GATKSAMRecord> createPolyploidConsensus(final int hetRefPosition) {
+        // we will create two (positive strand, negative strand) headers for each haplotype
+        final SingleStrandConsensusData[] headersPosStrand = new SingleStrandConsensusData[2];
+        final SingleStrandConsensusData[] headersNegStrand = new SingleStrandConsensusData[2];
 
-            // check if the read is either before or inside the variant region
-            if (read.getSoftStart() <= refStop) {
-                // check if the read is inside the variant region
-                if (read.getMappingQuality() >= MIN_MAPPING_QUALITY && read.getSoftEnd() >= refStart) {
-                    // check if the read contains the het site
-                    if (read.getSoftStart() <= hetRefPosition && read.getSoftEnd() >= hetRefPosition) {
-                        int readPos = ReadUtils.getReadCoordinateForReferenceCoordinate(read, hetRefPosition, ReadUtils.ClippingTail.LEFT_TAIL);
-                        // TODO -- THIS IS A HUGE BUG AS IT WILL NOT WORK FOR DELETIONS; see commented out unit test
-                        byte base = read.getReadBases()[readPos];
-                        byte qual = read.getBaseQualities(EventType.BASE_SUBSTITUTION)[readPos];
+        final int globalHetRefPosition = windowHeader.get(hetRefPosition).getLocation();
 
-                        // check if base passes the filters!
-                        if (qual >= MIN_BASE_QUAL_TO_COUNT) {
-                            // check which haplotype this read represents and take the index of it from the list of headers
-                            if (haplotypeHeaderMap.containsKey(base)) {
-                                haplotype = haplotypeHeaderMap.get(base);
-                            }
-                            // create new lists if this haplotype has not been seen yet
-                            else {
-                                haplotype = currentHaplotype;
-                                haplotypeHeaderMap.put(base, currentHaplotype);
-                                headersPosStrand.add(new LinkedList<HeaderElement>());
-                                headersNegStrand.add(new LinkedList<HeaderElement>());
-                                currentHaplotype++;
-                            }
-                            LinkedList<HeaderElement> header = read.getReadNegativeStrandFlag() ? headersNegStrand.get(haplotype) : headersPosStrand.get(haplotype);
-                            // add to the polyploid header
-                            addToHeader(header, read);
-                            // remove from the standard header so that we don't double count it
-                            removeFromHeader(windowHeader, read);
-                        }
-                    }
-                }
+        // initialize the mapping from base (allele) to header
+        final Byte2IntMap alleleHeaderMap = new Byte2IntArrayMap(2);
+        for ( final BaseIndex allele : windowHeader.get(hetRefPosition).getAlleles(MIN_ALT_PVALUE_TO_TRIGGER_VARIANT, MIN_ALT_PROPORTION_TO_TRIGGER_VARIANT) ) {
+            final int currentIndex = alleleHeaderMap.size();
+            if ( currentIndex > 1 )
+                throw new IllegalStateException("There are more than 2 alleles present when creating a diploid consensus");
 
-                // we remove all reads before and inside the variant region from the window
-                toRemove.add(read);
+            alleleHeaderMap.put(allele.b, currentIndex);
+            headersPosStrand[currentIndex] = new SingleStrandConsensusData();
+            headersNegStrand[currentIndex] = new SingleStrandConsensusData();
+        }
+
+        // sanity check that we saw 2 alleles
+        if ( alleleHeaderMap.size() != 2 )
+            throw new IllegalStateException("We expected to see 2 alleles when creating a diploid consensus but saw " + alleleHeaderMap.size());
+
+        final ObjectList<GATKSAMRecord> readsToRemove = new ObjectArrayList<GATKSAMRecord>();
+
+        for ( final GATKSAMRecord read : readsInWindow ) {
+
+            // if the read falls after the het position, just skip it for now (we'll get to it later)
+            if ( read.getSoftStart() > globalHetRefPosition )
+                continue;
+
+            // remove all other reads from the read cache since we're going to use them here
+            readsToRemove.add(read);
+
+            // if the read falls before the het position or has low MQ, we don't need to look at it
+            if ( read.getSoftEnd() < globalHetRefPosition || read.getMappingQuality() < MIN_MAPPING_QUALITY)
+                continue;
+
+            // remove all spanning reads from the consensus header since we're going to incorporate them into a consensus here instead
+            removeFromHeader(windowHeader, read);
+
+            // where on the read is the het position?
+            final int readPosOfHet = ReadUtils.getReadCoordinateForReferenceCoordinate(read, globalHetRefPosition, ReadUtils.ClippingTail.LEFT_TAIL);
+
+            // this is safe because indels are not supported
+            final byte base = read.getReadBases()[readPosOfHet];
+
+            // check which allele this read represents
+            final Integer allele = alleleHeaderMap.get(base);
+
+            // ignore the read if it represents a base that's not part of the consensus
+            if ( allele != null ) {
+                // add to the appropriate polyploid header
+                final SingleStrandConsensusData header = read.getReadNegativeStrandFlag() ? headersNegStrand[allele] : headersPosStrand[allele];
+                header.reads.add(read);
+                addToHeader(header.consensus, read);
             }
         }
 
-        for (LinkedList<HeaderElement> header : headersPosStrand) {
-            if (header.size() > 0)
-                hetReads.addAll(addToSyntheticReads(header, 0, header.size(), false));
-            if (runningConsensus != null)
-                hetReads.add(finalizeRunningConsensus());
-        }
-        for (LinkedList<HeaderElement> header : headersNegStrand) {
-            if (header.size() > 0)
-                hetReads.addAll(addToSyntheticReads(header, 0, header.size(), true));
-            if (runningConsensus != null)
-                hetReads.add(finalizeRunningConsensus());
-        }
+        for ( final GATKSAMRecord read : readsToRemove )
+            readsInWindow.remove(read);
 
-        removeReadsFromWindow(toRemove);
+        // create the polyploid synthetic reads if we can
+        final ObjectList<GATKSAMRecord> hetReads = new ObjectArrayList<GATKSAMRecord>();
+
+        // sanity check that no new "variant region" exists on just a single consensus strand due to softclips
+        // or multi-allelic sites now that we've broken everything out into their component parts.  if one does
+        // exist then we need to back out the consensus for that strand only.
+        for ( final SingleStrandConsensusData header : headersPosStrand ) {
+            if ( hasPositionWithSignificantSoftclipsOrVariant(header.consensus, globalHetRefPosition) )
+                hetReads.addAll(header.reads);
+            else
+                finalizeHetConsensus(header.consensus, false, hetReads);
+        }
+        for ( final SingleStrandConsensusData header : headersNegStrand ) {
+            if ( hasPositionWithSignificantSoftclipsOrVariant(header.consensus, globalHetRefPosition) )
+                hetReads.addAll(header.reads);
+            else
+                finalizeHetConsensus(header.consensus, true, hetReads);
+        }
 
         return hetReads;
     }
 
+    /*
+     * Finalizes a particular het consensus for the given header representation
+     *
+     * @param header            the list of header elements representing the header for the consensus
+     * @param isNegativeStrand  does this header represent reads on the negative strand?
+     * @param result            list in which to store results
+     */
+    protected void finalizeHetConsensus(final LinkedList<HeaderElement> header, final boolean isNegativeStrand, final ObjectList<GATKSAMRecord> result) {
+        if ( header.size() > 0 )
+            result.addAll(addToSyntheticReads(header, 0, header.size(), isNegativeStrand ? SyntheticRead.StrandType.NEGATIVE : SyntheticRead.StrandType.POSITIVE));
+        if ( runningConsensus != null )
+            result.add(finalizeRunningConsensus());
+    }
 
     private void addToHeader(LinkedList<HeaderElement> header, GATKSAMRecord read) {
         updateHeaderCounts(header, read, false);
@@ -934,114 +1135,157 @@ public class SlidingWindow {
         updateHeaderCounts(header, read, true);
     }
 
-
     /**
      * Updates the sliding window's header counts with the incoming read bases, insertions
      * and deletions.
      *
-     * @param header the sliding window header to use
-     * @param read the incoming read to be added to the sliding window
-     * @param removeRead if we are removing the read from the header or adding
+     * @param header      the sliding window header to use
+     * @param read        the incoming read to be added to the sliding window
+     * @param removeRead  if we are removing the read from the header or adding
      */
-    private void updateHeaderCounts(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final boolean removeRead) {
-        byte[] bases = read.getReadBases();
-        byte[] quals = read.getBaseQualities();
-        byte[] insQuals = read.getExistingBaseInsertionQualities();
-        byte[] delQuals = read.getExistingBaseDeletionQualities();
-        int readStart = read.getSoftStart();
-        int readEnd = read.getSoftEnd();
-        Cigar cigar = read.getCigar();
+    protected void updateHeaderCounts(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final boolean removeRead) {
+        final int readStart = read.getSoftStart();
+        final int headerStart = getStartLocation(header);
+        int locationIndex = headerStart < 0 ? 0 : readStart - headerStart;
 
-        int readBaseIndex = 0;
-        int startLocation = getStartLocation(header);
-        int locationIndex = startLocation < 0 ? 0 : readStart - startLocation;
-        int stopLocation = getStopLocation(header);
+        if ( removeRead && locationIndex < 0 )
+            throw new IllegalStateException("Provided read is behind the Sliding Window! Read = " + read + ", readStart = " + readStart + ", cigar = " + read.getCigarString() + ", window = " + headerStart + "-" + getStopLocation(header));
 
-        if (removeRead && locationIndex < 0)
-            throw new ReviewedStingException("read is behind the Sliding Window. read: " + read + " start " + read.getUnclippedStart() + "," + read.getUnclippedEnd() + " cigar: " + read.getCigarString() + " window: " + startLocation + "," + stopLocation);
+        // we only need to create new header elements if we are adding the read, not when we're removing it
+        if ( !removeRead )
+            locationIndex = createNewHeaderElements(header, read, locationIndex);
 
-        if (!removeRead) {                                                                                              // we only need to create new header elements if we are adding the read, not when we're removing it
-            if (locationIndex < 0) {                                                                                    // Do we need to add extra elements before the start of the header? -- this may happen if the previous read was clipped and this alignment starts before the beginning of the window
-                for (int i = 1; i <= -locationIndex; i++)
-                    header.addFirst(new HeaderElement(startLocation - i));
+        actuallyUpdateHeaderForRead(header, read, removeRead, locationIndex);
+    }
 
-                startLocation = readStart;                                                               // update start location accordingly
-                locationIndex = 0;
-            }
+    /*
+     * Creates new header elements if needed for the given read.
+     *
+     * @param header        the sliding window header to use
+     * @param read          the incoming read to be added to the sliding window
+     * @param startIndex    the start location index into the header for this read
+     *
+     * @return an updated index into the modified header
+     */
+    @Requires("header != null && read != null")
+    protected int createNewHeaderElements(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final int startIndex) {
 
-            if (stopLocation < readEnd) {                                                                // Do we need to add extra elements to the header?
-                int elementsToAdd = (stopLocation < 0) ? readEnd - readStart + 1 : readEnd - stopLocation;
-                while (elementsToAdd-- > 0)
-                    header.addLast(new HeaderElement(readEnd - elementsToAdd));
-            }
+        int headerStart = getStartLocation(header);
+        int locationIndex = startIndex;
 
-            // Special case for leading insertions before the beginning of the sliding read
-            if (ReadUtils.readStartsWithInsertion(read).getFirst() && (readStart == startLocation || startLocation < 0)) {
-                header.addFirst(new HeaderElement(readStart - 1));                                 // create a new first element to the window header with no bases added
-                locationIndex = 1;                                                                                      // This allows the first element (I) to look at locationIndex - 1 in the subsequent switch and do the right thing.
-            }
+        // Do we need to add extra elements before the start of the header?  This could happen if the previous read was
+        // clipped and this alignment starts before the beginning of the window
+        final int readStart = read.getSoftStart();
+        if ( startIndex < 0 ) {
+            for ( int i = 1; i <= -startIndex; i++ )
+                header.addFirst(new HeaderElement(headerStart - i));
+
+            // update the start location accordingly
+            headerStart = readStart;
+            locationIndex = 0;
         }
 
-        Iterator<HeaderElement> headerElementIterator = header.listIterator(locationIndex);
+        // Do we need to add extra elements to the end of the header?
+        final int headerStop = getStopLocation(header);
+        final int readEnd = read.getSoftEnd();
+        if ( headerStop < readEnd ) {
+            final int elementsToAdd = (headerStop < 0) ? readEnd - readStart + 1 : readEnd - headerStop;
+            for ( int i = elementsToAdd - 1; i >= 0; i-- )
+                header.addLast(new HeaderElement(readEnd - i));
+        }
+
+        // Special case for leading insertions before the beginning of the sliding read
+        if ( ReadUtils.readStartsWithInsertion(read).getFirst() && (readStart == headerStart || headerStart < 0) ) {
+            // create a new first element to the window header with no bases added
+            header.addFirst(new HeaderElement(readStart - 1));
+            // this allows the first element (I) to look at locationIndex - 1 when we update the header and do the right thing
+            locationIndex = 1;
+        }
+
+        return locationIndex;
+    }
+
+    /*
+     * Actually updates the sliding window's header counts with the incoming read bases and quals (including insertion and deletion quals).
+     *
+     * @param header        the sliding window header to use
+     * @param read          the incoming read to be added to the sliding window
+     * @param removeRead    if we are removing the read from the header or adding
+     * @param startIndex    the start location index into the header for this read
+     */
+    @Requires("header != null && read != null && startIndex >= 0")
+    protected void actuallyUpdateHeaderForRead(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final boolean removeRead, final int startIndex) {
+
+        final Iterator<HeaderElement> headerElementIterator = header.listIterator(startIndex);
+        final byte mappingQuality = (byte) read.getMappingQuality();
+
+        // iterator variables
+        int locationIndex = startIndex;
+        int readBaseIndex = 0;
         HeaderElement headerElement;
-        for (CigarElement cigarElement : cigar.getCigarElements()) {
-            switch (cigarElement.getOperator()) {
+
+        for ( final CigarElement cigarElement : read.getCigar().getCigarElements() ) {
+            switch ( cigarElement.getOperator() ) {
                 case H:
                     break;
                 case I:
-                    if (removeRead && locationIndex == 0) {                                                             // special case, if we are removing a read that starts in insertion and we don't have the previous header element anymore, don't worry about it.
-                        break;
-                    }
-
-                    headerElement = header.get(locationIndex - 1);                                                // insertions are added to the base to the left (previous element)
-
-                    if (removeRead) {
-                        headerElement.removeInsertionToTheRight();
-                    }
-                    else {
-                        headerElement.addInsertionToTheRight();
-                    }
                     readBaseIndex += cigarElement.getLength();
-                    break;                                                                                              // just ignore the insertions at the beginning of the read
-                case D:
-                    int nDeletions = cigarElement.getLength();
-                    while (nDeletions-- > 0) {                                                                          // deletions are added to the baseCounts with the read mapping quality as it's quality score
-                        headerElement = headerElementIterator.next();
-                        byte mq = (byte) read.getMappingQuality();
-                        if (removeRead)
-                            headerElement.removeBase((byte) 'D', mq, mq, mq, mq, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false);
-                        else
-                            headerElement.addBase((byte) 'D', mq, mq, mq, mq, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false);
 
-                        locationIndex++;
+                    // special case, if we don't have the previous header element anymore, don't worry about it.
+                    if ( locationIndex == 0 )
+                        break;
+
+                    // insertions are added to the base to the left (previous element)
+                    headerElement = header.get(locationIndex - 1);
+
+                    if ( removeRead )
+                        headerElement.removeInsertionToTheRight();
+                    else
+                        headerElement.addInsertionToTheRight();
+
+                    break;
+                case D:
+                    // deletions are added to the baseCounts with the read mapping quality as it's quality score
+                    final int nDeletionBases = cigarElement.getLength();
+                    for ( int i = 0; i < nDeletionBases; i++ ) {
+                        headerElement = headerElementIterator.next();
+                        if (removeRead)
+                            headerElement.removeBase(BaseUtils.Base.D.base, mappingQuality, mappingQuality, mappingQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false);
+                        else
+                            headerElement.addBase(BaseUtils.Base.D.base, mappingQuality, mappingQuality, mappingQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false);
                     }
+                    locationIndex += nDeletionBases;
                     break;
                 case S:
                 case M:
                 case P:
                 case EQ:
                 case X:
-                    int nBasesToAdd = cigarElement.getLength();
-                    while (nBasesToAdd-- > 0) {
+                    final int nBasesToAdd = cigarElement.getLength();
+                    final boolean isSoftClip = cigarElement.getOperator() == CigarOperator.S;
+                    final byte[] readBases = read.getReadBases();
+                    final byte[] readQuals = read.getBaseQualities();
+                    final boolean readHasIndelQuals = read.hasBaseIndelQualities();
+                    final byte[] insertionQuals = readHasIndelQuals ? read.getBaseInsertionQualities() : null;
+                    final byte[] deletionQuals = readHasIndelQuals ? read.getBaseDeletionQualities() : null;
+
+                    for ( int i = 0; i < nBasesToAdd; i++ ) {
                         headerElement = headerElementIterator.next();
-                        byte insertionQuality = insQuals == null ? -1 : insQuals[readBaseIndex];                        // if the read doesn't have indel qualities, use -1 (doesn't matter the value because it won't be used for anything)
-                        byte deletionQuality = delQuals == null ? -1 : delQuals[readBaseIndex];
-                        if (removeRead)
-                            headerElement.removeBase(bases[readBaseIndex], quals[readBaseIndex], insertionQuality, deletionQuality, read.getMappingQuality(), MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, cigarElement.getOperator() == CigarOperator.S);
+                        final byte insertionQuality = readHasIndelQuals ? insertionQuals[readBaseIndex] : -1;
+                        final byte deletionQuality = readHasIndelQuals ? deletionQuals[readBaseIndex] : -1;
+
+                        if ( removeRead )
+                            headerElement.removeBase(readBases[readBaseIndex], readQuals[readBaseIndex], insertionQuality, deletionQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, isSoftClip);
                         else
-                            headerElement.addBase(bases[readBaseIndex], quals[readBaseIndex], insertionQuality, deletionQuality, read.getMappingQuality(), MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, cigarElement.getOperator() == CigarOperator.S);
+                            headerElement.addBase(readBases[readBaseIndex], readQuals[readBaseIndex], insertionQuality, deletionQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, isSoftClip);
 
                         readBaseIndex++;
-                        locationIndex++;
                     }
+                    locationIndex += nBasesToAdd;
+                    break;
+                default:
                     break;
             }
-        }
-    }
-
-    private void removeReadsFromWindow (ObjectList<GATKSAMRecord> readsToRemove) {
-        for (GATKSAMRecord read : readsToRemove) {
-            readsInWindow.remove(read);
         }
     }
 }

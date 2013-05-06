@@ -203,6 +203,27 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         Assert.assertEquals(metrics.getOverallSiteConcordance().getSiteConcordance()[ConcordanceMetrics.SiteConcordanceType.EVAL_SUPERSET_TRUTH.ordinal()],1);
         Assert.assertEquals(metrics.getOverallSiteConcordance().getSiteConcordance()[ConcordanceMetrics.SiteConcordanceType.ALLELES_DO_NOT_MATCH.ordinal()],0);
         Assert.assertEquals(metrics.getOverallSiteConcordance().getSiteConcordance()[ConcordanceMetrics.SiteConcordanceType.ALLELES_MATCH.ordinal()],0);
+
+        // now flip them around
+
+        eval = data.getSecond();
+        truth = data.getFirst();
+        codec = new VCFCodec();
+        evalHeader = (VCFHeader)codec.readHeader(new AsciiLineReader(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
+        compHeader = (VCFHeader)codec.readHeader(new AsciiLineReader(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
+        metrics = new ConcordanceMetrics(evalHeader,compHeader);
+        metrics.update(eval,truth);
+        Assert.assertEquals(eval.getGenotype("test1_sample2").getType().ordinal(), 2);
+        Assert.assertEquals(truth.getGenotype("test1_sample2").getType().ordinal(),2);
+        Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample2").getnMismatchingAlt(),1);
+        Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample2").getTable()[1][2],0);
+        Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample3").getTable()[1][2],0);
+        Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample3").getTable()[3][2],1);
+        Assert.assertEquals(metrics.getOverallGenotypeConcordance().getTable()[1][1],1);
+        Assert.assertEquals(metrics.getOverallSiteConcordance().getSiteConcordance()[ConcordanceMetrics.SiteConcordanceType.EVAL_SUPERSET_TRUTH.ordinal()],0);
+        Assert.assertEquals(metrics.getOverallSiteConcordance().getSiteConcordance()[ConcordanceMetrics.SiteConcordanceType.EVAL_SUBSET_TRUTH.ordinal()],1);
+        Assert.assertEquals(metrics.getOverallSiteConcordance().getSiteConcordance()[ConcordanceMetrics.SiteConcordanceType.ALLELES_DO_NOT_MATCH.ordinal()],0);
+        Assert.assertEquals(metrics.getOverallSiteConcordance().getSiteConcordance()[ConcordanceMetrics.SiteConcordanceType.ALLELES_MATCH.ordinal()],0);
     }
 
     private Pair<VariantContext,VariantContext> getData3() {

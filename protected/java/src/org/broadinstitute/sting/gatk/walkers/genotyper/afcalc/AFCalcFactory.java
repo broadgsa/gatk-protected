@@ -79,7 +79,7 @@ public class AFCalcFactory {
         /** original biallelic exact model, for testing only */
         EXACT_ORIGINAL(OriginalDiploidExactAFCalc.class, 2, 2),
 
-        /** implementation that supports any sample ploidy */
+        /** implementation that supports any sample ploidy.  Currently not available for the HaplotypeCaller */
         EXACT_GENERAL_PLOIDY("GeneralPloidyExactAFCalc", -1, -1);
 
         /**

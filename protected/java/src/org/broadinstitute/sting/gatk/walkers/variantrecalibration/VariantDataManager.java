@@ -127,30 +127,46 @@ public class VariantDataManager {
         }
     }
 
-     public void addTrainingSet( final TrainingSet trainingSet ) {
-         trainingSets.add( trainingSet );
-     }
+    /**
+     * Convert a normalized point to it's original annotation value
+     *
+     * norm = (orig - mu) / sigma
+     * orig = norm * sigma + mu
+     *
+     * @param normalizedValue the normalized value of the ith annotation
+     * @param annI the index of the annotation value
+     * @return the denormalized value for the annotation
+     */
+    public double denormalizeDatum(final double normalizedValue, final int annI) {
+        final double mu = meanVector[annI];
+        final double sigma = varianceVector[annI];
+        return normalizedValue * sigma + mu;
+    }
 
-     public boolean checkHasTrainingSet() {
-         for( final TrainingSet trainingSet : trainingSets ) {
-             if( trainingSet.isTraining ) { return true; }
-         }
-         return false;
-     }
+    public void addTrainingSet( final TrainingSet trainingSet ) {
+        trainingSets.add( trainingSet );
+    }
 
-     public boolean checkHasTruthSet() {
-         for( final TrainingSet trainingSet : trainingSets ) {
-             if( trainingSet.isTruth ) { return true; }
-         }
-         return false;
-     }
+    public boolean checkHasTrainingSet() {
+        for( final TrainingSet trainingSet : trainingSets ) {
+            if( trainingSet.isTraining ) { return true; }
+        }
+        return false;
+    }
 
-     public boolean checkHasKnownSet() {
-         for( final TrainingSet trainingSet : trainingSets ) {
-             if( trainingSet.isKnown ) { return true; }
-         }
-         return false;
-     }
+    public boolean checkHasTruthSet() {
+        for( final TrainingSet trainingSet : trainingSets ) {
+            if( trainingSet.isTruth ) { return true; }
+        }
+        return false;
+    }
+
+    public boolean checkHasKnownSet() {
+        for( final TrainingSet trainingSet : trainingSets ) {
+            if( trainingSet.isKnown ) { return true; }
+        }
+        return false;
+    }
 
     public ExpandingArrayList<VariantDatum> getTrainingData() {
         final ExpandingArrayList<VariantDatum> trainingData = new ExpandingArrayList<VariantDatum>();
@@ -260,7 +276,7 @@ public class VariantDataManager {
             value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
             if( Double.isInfinite(value) ) { value = Double.NaN; }
             if( jitter && annotationKey.equalsIgnoreCase("HRUN") ) { // Integer valued annotations must be jittered a bit to work in this GMM
-                  value += -0.25 + 0.5 * GenomeAnalysisEngine.getRandomGenerator().nextDouble();
+                value += -0.25 + 0.5 * GenomeAnalysisEngine.getRandomGenerator().nextDouble();
             }
 
             if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, 0.0001) == 0 ) { value = -0.2 + 0.4*GenomeAnalysisEngine.getRandomGenerator().nextDouble(); }
@@ -297,7 +313,7 @@ public class VariantDataManager {
 
     private boolean isValidVariant( final VariantContext evalVC, final VariantContext trainVC, final boolean TRUST_ALL_POLYMORPHIC) {
         return trainVC != null && trainVC.isNotFiltered() && trainVC.isVariant() && checkVariationClass( evalVC, trainVC ) &&
-                        (TRUST_ALL_POLYMORPHIC || !trainVC.hasGenotypes() || trainVC.isPolymorphicInSamples());
+                (TRUST_ALL_POLYMORPHIC || !trainVC.hasGenotypes() || trainVC.isPolymorphicInSamples());
     }
 
     protected static boolean checkVariationClass( final VariantContext evalVC, final VariantContext trainVC ) {
@@ -335,19 +351,17 @@ public class VariantDataManager {
             }} );
 
         // create dummy alleles to be used
-        final List<Allele> alleles = new ArrayList<Allele>(2);
-        alleles.add(Allele.create("N", true));
-        alleles.add(Allele.create("<VQSR>", false));
-
-        // to be used for the important INFO tags
-        final HashMap<String, Object> attributes = new HashMap<String, Object>(3);
+        final List<Allele> alleles = Arrays.asList(Allele.create("N", true), Allele.create("<VQSR>", false));
 
         for( final VariantDatum datum : data ) {
-            attributes.put(VCFConstants.END_KEY, datum.loc.getStop());
-            attributes.put(VariantRecalibrator.VQS_LOD_KEY, String.format("%.4f", datum.lod));
-            attributes.put(VariantRecalibrator.CULPRIT_KEY, (datum.worstAnnotation != -1 ? annotationKeys.get(datum.worstAnnotation) : "NULL"));
+            VariantContextBuilder builder = new VariantContextBuilder("VQSR", datum.loc.getContig(), datum.loc.getStart(), datum.loc.getStop(), alleles);
+            builder.attribute(VCFConstants.END_KEY, datum.loc.getStop());
+            builder.attribute(VariantRecalibrator.VQS_LOD_KEY, String.format("%.4f", datum.lod));
+            builder.attribute(VariantRecalibrator.CULPRIT_KEY, (datum.worstAnnotation != -1 ? annotationKeys.get(datum.worstAnnotation) : "NULL"));
 
-            VariantContextBuilder builder = new VariantContextBuilder("VQSR", datum.loc.getContig(), datum.loc.getStart(), datum.loc.getStop(), alleles).attributes(attributes);
+            if ( datum.atTrainingSite ) builder.attribute(VariantRecalibrator.POSITIVE_LABEL_KEY, true);
+            if ( datum.atAntiTrainingSite ) builder.attribute(VariantRecalibrator.NEGATIVE_LABEL_KEY, true);
+
             recalWriter.add(builder.make());
         }
     }

@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
@@ -62,9 +62,9 @@ public class HeaderElement {
     private BaseAndQualsCounts consensusBaseCounts;                                                                     // How many A,C,G,T (and D's) are in this site.
     private BaseAndQualsCounts filteredBaseCounts;                                                                      // How many A,C,G,T (and D's) were filtered out in this site.
     private int insertionsToTheRight;                                                                                   // How many reads in this site had insertions to the immediate right
-    private int nSoftClippedBases;                                                                                      // How many bases in this site came from soft clipped bases
     private int location;                                                                                               // Genome location of this site (the sliding window knows which contig we're at
-    private IntArrayList mappingQuality;                                                                         // keeps the mapping quality of each read that contributed to this element (site)
+
+    protected static final int MIN_COUNT_FOR_USING_PVALUE = 2;
 
     public int getLocation() {
         return location;
@@ -85,7 +85,7 @@ public class HeaderElement {
      * @param location the reference location for the new element
      */
     public HeaderElement(final int location) {
-        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, 0, location, new IntArrayList());
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, location);
     }
 
     /**
@@ -95,7 +95,7 @@ public class HeaderElement {
      * @param location the reference location for the new element
      */
     public HeaderElement(final int location, final int insertionsToTheRight) {
-        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, 0, location, new IntArrayList());
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, location);
     }
 
     /**
@@ -104,55 +104,67 @@ public class HeaderElement {
      * @param consensusBaseCounts  the BaseCounts object for the running consensus synthetic read
      * @param filteredBaseCounts   the BaseCounts object for the filtered data synthetic read
      * @param insertionsToTheRight number of insertions to the right of this HeaderElement
-     * @param nSoftClippedBases    number of softclipped bases of this HeaderElement
      * @param location             the reference location of this reference element
-     * @param mappingQuality       the list of mapping quality values of all reads that contributed to this
      *                             HeaderElement
      */
-    public HeaderElement(BaseAndQualsCounts consensusBaseCounts, BaseAndQualsCounts filteredBaseCounts, int insertionsToTheRight, int nSoftClippedBases, int location, IntArrayList mappingQuality) {
+    public HeaderElement(BaseAndQualsCounts consensusBaseCounts, BaseAndQualsCounts filteredBaseCounts, int insertionsToTheRight, int location) {
         this.consensusBaseCounts = consensusBaseCounts;
         this.filteredBaseCounts = filteredBaseCounts;
         this.insertionsToTheRight = insertionsToTheRight;
-        this.nSoftClippedBases = nSoftClippedBases;
         this.location = location;
-        this.mappingQuality = mappingQuality;
     }
 
     /**
      * Whether or not the site represented by this HeaderElement is variant according to the definitions of variant
      * by insertion, deletion and mismatches.
      *
+     * @param minVariantPvalue       min p-value for deciding that a position is or is not variable due to mismatches
+     * @param minVariantProportion   min proportion for deciding that a position is or is not variable due to mismatches
+     * @param minIndelProportion     min proportion for deciding that a position is or is not variable due to indels
      * @return true if site is variant by any definition. False otherwise.
      */
-    public boolean isVariant(double minVariantProportion, double minIndelProportion) {
-        return hasConsensusData() && (isVariantFromInsertions(minIndelProportion) || isVariantFromMismatches(minVariantProportion) || isVariantFromDeletions(minIndelProportion) || isVariantFromSoftClips());
+    public boolean isVariant(final double minVariantPvalue, final double minVariantProportion, final double minIndelProportion) {
+        return hasConsensusData() && (isVariantFromInsertions(minIndelProportion) || isVariantFromMismatches(minVariantPvalue, minVariantProportion) || isVariantFromDeletions(minIndelProportion) || isVariantFromSoftClips());
     }
 
     /**
      * Adds a new base to the HeaderElement updating all counts accordingly
      *
-     * @param base           the base to add
+     * @param base               the base to add
      * @param baseQual           the base quality
+     * @param insQual            the base insertion quality
+     * @param delQual            the base deletion quality
      * @param baseMappingQuality the mapping quality of the read this base belongs to
+     * @param minBaseQual        the minimum base qual allowed to be a good base
+     * @param minMappingQual     the minimum mapping qual allowed to be a good read
+     * @param isSoftClipped      true if the base is soft-clipped in the original read
      */
     public void addBase(byte base, byte baseQual, byte insQual, byte delQual, int baseMappingQuality, int minBaseQual, int minMappingQual, boolean isSoftClipped) {
-        if (basePassesFilters(baseQual, minBaseQual, baseMappingQuality, minMappingQual))
-            consensusBaseCounts.incr(base, baseQual, insQual, delQual);                                                 // If the base passes filters, it is included in the consensus base counts
+        // If the base passes the MQ filter it is included in the consensus base counts, otherwise it's part of the filtered counts
+        if ( baseMappingQuality >= minMappingQual )
+            consensusBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
         else
-            filteredBaseCounts.incr(base, baseQual, insQual, delQual);                                                  // If the base fails filters, it is included with the filtered data base counts
-
-        this.mappingQuality.add(baseMappingQuality);                                                                    // Filtered or not, the RMS mapping quality includes all bases in this site
-        nSoftClippedBases += isSoftClipped ? 1 : 0;                                                                     // if this base is softclipped, add the counter
+            filteredBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual);
     }
 
+    /**
+     * Adds a new base to the HeaderElement updating all counts accordingly
+     *
+     * @param base               the base to add
+     * @param baseQual           the base quality
+     * @param insQual            the base insertion quality
+     * @param delQual            the base deletion quality
+     * @param baseMappingQuality the mapping quality of the read this base belongs to
+     * @param minBaseQual        the minimum base qual allowed to be a good base
+     * @param minMappingQual     the minimum mapping qual allowed to be a good read
+     * @param isSoftClipped      true if the base is soft-clipped in the original read
+     */
     public void removeBase(byte base, byte baseQual, byte insQual, byte delQual, int baseMappingQuality, int minBaseQual, int minMappingQual, boolean isSoftClipped) {
-        if (basePassesFilters(baseQual, minBaseQual, baseMappingQuality, minMappingQual))
-            consensusBaseCounts.decr(base, baseQual, insQual, delQual);                                                 // If the base passes filters, it is included in the consensus base counts
+        // If the base passes the MQ filter it is included in the consensus base counts, otherwise it's part of the filtered counts
+        if ( baseMappingQuality >= minMappingQual )
+            consensusBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
         else
-            filteredBaseCounts.decr(base, baseQual, insQual, delQual);                                                  // If the base fails filters, it is included with the filtered data base counts
-
-        this.mappingQuality.remove((Integer) baseMappingQuality);                                                       // Filtered or not, the RMS mapping quality includes all bases in this site
-        nSoftClippedBases -= isSoftClipped ? 1 : 0;                                                                     // if this base is softclipped, add the counter
+            filteredBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual);
     }
     /**
      * Adds an insertions to the right of the HeaderElement and updates all counts accordingly. All insertions
@@ -190,15 +202,6 @@ public class HeaderElement {
     }
 
     /**
-     * The RMS of the mapping qualities of all reads that contributed to this HeaderElement
-     *
-     * @return the RMS of the mapping qualities of all reads that contributed to this HeaderElement
-     */
-    public double getRMS() {
-        return MathUtils.rms(mappingQuality);
-    }
-
-    /**
      * removes an insertion from this element (if you removed a read that had an insertion)
      */
     public void removeInsertionToTheRight() {
@@ -232,7 +235,7 @@ public class HeaderElement {
     /**
      * Whether or not the HeaderElement is variant due to excess deletions
      *
-     * @return whether or not the HeaderElement is variant due to excess insertions
+     * @return whether or not the HeaderElement is variant due to excess deletions
      */
     private boolean isVariantFromDeletions(double minIndelProportion) {
         return consensusBaseCounts.baseIndexWithMostCounts() == BaseIndex.D || consensusBaseCounts.baseCountProportion(BaseIndex.D) > minIndelProportion;
@@ -241,12 +244,15 @@ public class HeaderElement {
     /**
      * Whether or not the HeaderElement is variant due to excess mismatches
      *
-     * @return whether or not the HeaderElement is variant due to excess insertions
+     * @param minVariantPvalue     the minimum pvalue to call a site variant (used with low coverage).
+     * @param minVariantProportion the minimum proportion to call a site variant (used with high coverage).
+     * @return whether or not the HeaderElement is variant due to excess mismatches
      */
-    protected boolean isVariantFromMismatches(double minVariantProportion) {
-        BaseIndex mostCommon = consensusBaseCounts.baseIndexWithMostProbabilityWithoutIndels();
-        double mostCommonProportion = consensusBaseCounts.baseCountProportionWithoutIndels(mostCommon);
-        return mostCommonProportion != 0.0 && mostCommonProportion < (1 - minVariantProportion);
+    protected boolean isVariantFromMismatches(final double minVariantPvalue, final double minVariantProportion) {
+        final int totalCount = consensusBaseCounts.totalCountWithoutIndels();
+        final BaseIndex mostCommon = consensusBaseCounts.baseIndexWithMostProbabilityWithoutIndels();
+        final int countOfOtherBases = totalCount - consensusBaseCounts.countOfBase(mostCommon);
+        return hasSignificantCount(countOfOtherBases, totalCount, minVariantPvalue, minVariantProportion);
     }
 
     /**
@@ -256,37 +262,88 @@ public class HeaderElement {
      * @return true if we had more soft clipped bases contributing to this site than matches/mismatches.
      */
     protected boolean isVariantFromSoftClips() {
+        final int nSoftClippedBases = consensusBaseCounts.nSoftclips();
         return nSoftClippedBases > 0 && nSoftClippedBases >= (consensusBaseCounts.totalCount() - nSoftClippedBases);
     }
 
-    protected boolean basePassesFilters(byte baseQual, int minBaseQual, int baseMappingQuality, int minMappingQual) {
-        return baseQual >= minBaseQual && baseMappingQuality >= minMappingQual;
+    /**
+     * Calculates the number of alleles necessary to represent this site.
+     *
+     * @param minVariantPvalue     the minimum pvalue to call a site variant.
+     * @param minVariantProportion the minimum proportion to call a site variant.
+     * @return the number of alleles necessary to represent this site or -1 if there are too many indels
+     */
+    public int getNumberOfBaseAlleles(final double minVariantPvalue, final double minVariantProportion) {
+        final ObjectArrayList<BaseIndex> alleles = getAlleles(minVariantPvalue, minVariantProportion);
+        return alleles == null ? -1 : alleles.size();
     }
 
     /**
-     * Calculates the number of haplotypes necessary to represent this site.
+     * Calculates the alleles necessary to represent this site.
      *
+     * @param minVariantPvalue     the minimum pvalue to call a site variant.
      * @param minVariantProportion the minimum proportion to call a site variant.
-     * @return the number of alleles necessary to represent this site.
+     * @return the list of alleles necessary to represent this site or null if there are too many indels
      */
-    public int getNumberOfAlleles(final double minVariantProportion) {
+    public ObjectArrayList<BaseIndex> getAlleles(final double minVariantPvalue, final double minVariantProportion) {
+        // make sure we have bases at all
         final int totalBaseCount = consensusBaseCounts.totalCount();
-        if (totalBaseCount == 0)
-            return 0;
+        if ( totalBaseCount == 0 )
+            return new ObjectArrayList<BaseIndex>(0);
 
-        final int minBaseCountForRelevantAlleles = (int)(minVariantProportion * totalBaseCount);
+        // next, check for insertions; technically, the insertion count can be greater than totalBaseCount
+        // (because of the way insertions are counted), so we need to account for that
+        if ( hasSignificantCount(Math.min(totalBaseCount, insertionsToTheRight), totalBaseCount, minVariantPvalue, minVariantProportion) )
+            return null;
 
-        int nAlleles = 0;
-        for ( BaseIndex base : BaseIndex.values() ) {
+        // finally, check for the bases themselves (including deletions)
+        final ObjectArrayList<BaseIndex> alleles = new ObjectArrayList<BaseIndex>(4);
+        for ( final BaseIndex base : BaseIndex.values() ) {
             final int baseCount = consensusBaseCounts.countOfBase(base);
-
-            // don't consider this allele if the count is 0
             if ( baseCount == 0 )
                 continue;
 
-            if ( baseCount >= minBaseCountForRelevantAlleles )
-                nAlleles++;
+            if ( hasSignificantCount(baseCount, totalBaseCount, minVariantPvalue, minVariantProportion) ) {
+                if ( base == BaseIndex.D )
+                    return null;
+                alleles.add(base);
+            }
         }
-        return nAlleles;
+        return alleles;
+    }
+
+    /*
+     * Checks whether there are a significant number of softclips.
+     *
+     * @param minVariantPvalue     the minimum pvalue to call a site variant.
+     * @param minVariantProportion the minimum proportion to call a site variant.
+     * @return true if there are significant softclips, false otherwise
+     */
+    public boolean hasSignificantSoftclips(final double minVariantPvalue, final double minVariantProportion) {
+        return hasSignificantCount(consensusBaseCounts.nSoftclips(), consensusBaseCounts.totalCount(), minVariantPvalue, minVariantProportion);
+    }
+
+    /*
+     * Checks whether there are a significant number of count.
+     *
+     * @param count                the count (k) to test against
+     * @param total                the total (n) to test against
+     * @param minVariantPvalue     the minimum pvalue to call a site variant.
+     * @param minVariantProportion the minimum proportion to call a site variant.
+     * @return true if there is a significant count given the provided pvalue, false otherwise
+     */
+    private boolean hasSignificantCount(final int count, final int total, final double minVariantPvalue, final double minVariantProportion) {
+        if ( count == 0 || total == 0 )
+            return false;
+
+        // use p-values for low counts of k
+        if ( count <= MIN_COUNT_FOR_USING_PVALUE ) {
+            final double pvalue = MathUtils.binomialCumulativeProbability(total, 0, count);
+            return pvalue > minVariantPvalue;
+        }
+
+        // otherwise, use straight proportions
+        final int minBaseCountForSignificance = (int)(minVariantProportion * total);
+        return count >= minBaseCountForSignificance;
     }
 }

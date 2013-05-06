@@ -178,7 +178,7 @@ public class RecalibrationEngine {
         final NestedIntegerArray<RecalDatum> byQualTable = finalRecalibrationTables.getQualityScoreTable();
 
         // iterate over all values in the qual table
-        for ( NestedIntegerArray.Leaf<RecalDatum> leaf : byQualTable.getAllLeaves() ) {
+        for ( final NestedIntegerArray.Leaf<RecalDatum> leaf : byQualTable.getAllLeaves() ) {
             final int rgKey = leaf.keys[0];
             final int eventIndex = leaf.keys[2];
             final RecalDatum rgDatum = byReadGroupTable.get(rgKey, eventIndex);
@@ -206,7 +206,9 @@ public class RecalibrationEngine {
      */
     @Requires("! finalized")
     private RecalibrationTables mergeThreadLocalRecalibrationTables() {
-        if ( recalibrationTablesList.isEmpty() ) throw new IllegalStateException("recalibration tables list is empty");
+        if ( recalibrationTablesList.isEmpty() ) {
+            recalibrationTablesList.add( new RecalibrationTables(covariates, numReadGroups, maybeLogStream) );
+        }
 
         RecalibrationTables merged = null;
         for ( final RecalibrationTables table : recalibrationTablesList ) {

@@ -78,7 +78,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testHasAnnotsAsking1() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample2.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("fbfbd4d13b7ba3d76e8e186902e81378"));
+                Arrays.asList("42889072698af972f2004ccfe8eae15e"));
         executeTest("test file has annotations, asking for annotations, #1", spec);
     }
 
@@ -86,7 +86,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testHasAnnotsAsking2() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample3.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,050,000", 1,
-                Arrays.asList("19aef8914efc497192f89a9038310ca5"));
+                Arrays.asList("213560f395280e6a066d0b0497ce8881"));
         executeTest("test file has annotations, asking for annotations, #2", spec);
     }
 
@@ -112,7 +112,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoAnnotsAsking1() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample2empty.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("4f0b8033da18e6cf6e9b8d5d36c21ba2"));
+                Arrays.asList("7e755bb09169699b76850e76b71a5f5a"));
         executeTest("test file doesn't have annotations, asking for annotations, #1", spec);
     }
 
@@ -120,7 +120,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoAnnotsAsking2() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,050,000", 1,
-                Arrays.asList("64ca176d587dfa2b3b9dec9f7999305c"));
+                Arrays.asList("d8089c5874ff35a7fd7e35ebd7d3b137"));
         executeTest("test file doesn't have annotations, asking for annotations, #2", spec);
     }
 
@@ -128,7 +128,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testExcludeAnnotations() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard -XA FisherStrand -XA ReadPosRankSumTest --variant " + privateTestDir + "vcfexample2empty.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("f33f417fad98c05d9cd08ffa22943b0f"));
+                Arrays.asList("e17596007d0db7673d138a9ae4890e82"));
         executeTest("test exclude annotations", spec);
     }
 
@@ -136,7 +136,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testOverwritingHeader() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample4.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,001,292", 1,
-                Arrays.asList("0c810f6c4abef9d9dc5513ca872d3d22"));
+                Arrays.asList("0ed4c7760f6e7a158b6d743d257300f3"));
         executeTest("test overwriting header", spec);
     }
 
@@ -226,15 +226,29 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testSnpEffAnnotationsUnsupportedVersion() {
+    public void testSnpEffAnnotationsUnsupportedVersionGATKMode() {
         WalkerTestSpec spec = new WalkerTestSpec(
-            "-T VariantAnnotator -R " + hg19Reference + " --no_cmdline_in_header -o %s -A SnpEff --variant " +
-            validationDataLocation + "1kg_exomes_unfiltered.AFR.unfiltered.vcf --snpEffFile  " + validationDataLocation +
-            "snpEff.AFR.unfiltered.unsupported.version.vcf -L 1:1-1,500,000",
+            "-T VariantAnnotator -R " + b37KGReference + " --no_cmdline_in_header -o %s -A SnpEff " +
+            "--variant " + privateTestDir + "vcf4.1.example.vcf " +
+            "--snpEffFile  " + privateTestDir + "snpEff_unsupported_version_gatk_mode.vcf " +
+            "-L 1:10001292-10012424",
+            1,
+            Arrays.asList("7352cf23a4d45d3d2bb34ab44a4100ae")
+        );
+        executeTest("Testing SnpEff annotations (unsupported version, GATK mode)", spec);
+    }
+
+    @Test
+    public void testSnpEffAnnotationsUnsupportedVersionNoGATKMode() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+            "-T VariantAnnotator -R " + b37KGReference + " --no_cmdline_in_header -o %s -A SnpEff " +
+            "--variant " + privateTestDir + "vcf4.1.example.vcf " +
+            "--snpEffFile  " + privateTestDir + "snpEff_unsupported_version_no_gatk_mode.vcf " +
+            "-L 1:10001292-10012424",
             1,
             UserException.class
         );
-        executeTest("Testing SnpEff annotations (unsupported version)", spec);
+        executeTest("Testing SnpEff annotations (unsupported version, no GATK mode)", spec);
     }
 
     @Test

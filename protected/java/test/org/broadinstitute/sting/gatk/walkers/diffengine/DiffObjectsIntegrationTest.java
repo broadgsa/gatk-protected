@@ -74,10 +74,10 @@ public class DiffObjectsIntegrationTest extends WalkerTest {
 
     @DataProvider(name = "data")
     public Object[][] createData() {
-        new TestParams(privateTestDir + "diffTestMaster.vcf", privateTestDir + "diffTestTest.vcf", true, "aea3d5df32a2acd400da48d06b4dbc60");
-        new TestParams(publicTestDir + "exampleBAM.bam", publicTestDir + "exampleBAM.simple.bam", true, "3f46f5a964f7c34015d972256fe49a35");
-        new TestParams(privateTestDir + "diffTestMaster.vcf", privateTestDir + "diffTestTest.vcf", false, "e71e23e7ebfbe768e59527bc62f8918d");
-        new TestParams(publicTestDir + "exampleBAM.bam", publicTestDir + "exampleBAM.simple.bam", false, "47bf16c27c9e2c657a7e1d13f20880c9");
+        new TestParams(privateTestDir + "diffTestMaster.vcf", privateTestDir + "diffTestTest.vcf", true, "71869ddf9665773a842a9def4cc5f3c8");
+        new TestParams(publicTestDir + "exampleBAM.bam", publicTestDir + "exampleBAM.simple.bam", true, "cec7c644c84ef9c96aacaed604d9ec9b");
+        new TestParams(privateTestDir + "diffTestMaster.vcf", privateTestDir + "diffTestTest.vcf", false, "47546e03344103020e49d8037a7e0727");
+        new TestParams(publicTestDir + "exampleBAM.bam", publicTestDir + "exampleBAM.simple.bam", false, "d27b37f7a366c8dacca5cd2590d3c6ce");
         return TestParams.getTests(TestParams.class);
     }
 

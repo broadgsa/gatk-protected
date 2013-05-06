@@ -50,6 +50,7 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.GenomeLoc;
@@ -63,9 +64,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Largest contiguous homopolymer run of the variant allele in either direction on the reference.  Computed only for bi-allelic sites.
+ * Largest contiguous homopolymer run of the variant allele
+ *
+ * <p>Calculates the length of the largest contiguous homopolymer run of the variant allele in either direction on the reference.</p>
+ *
+ * <h3>Caveats</h3>
+ * <p>This can only be computed for bi-allelic sites.</p>
+ * <h4>This is an experimental annotation. As such, it is unsupported; we do not make any guarantees that it will work properly, and you use it at your own risk.</h4>
+ * <p>This needs to be computed in a more accurate manner. We currently look only at direct runs of the alternate allele adjacent to this position.</p>
  */
-public class HomopolymerRun extends InfoFieldAnnotation {
+public class HomopolymerRun extends InfoFieldAnnotation implements ExperimentalAnnotation {
 
     private boolean ANNOTATE_INDELS = true;
 

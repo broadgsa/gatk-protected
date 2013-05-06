@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -118,28 +119,27 @@ public class HeaderElementUnitTest extends BaseTest {
         Assert.assertFalse(headerElement.hasFilteredData());
         Assert.assertFalse(headerElement.hasInsertionToTheRight());
         Assert.assertTrue(headerElement.isEmpty());
-        Assert.assertEquals(headerElement.getRMS(), 0.0);
     }
 
     private void testHeaderData(final HeaderElement headerElement, final HETest test) {
-        Assert.assertEquals(headerElement.getRMS(), (double)test.MQ);
         Assert.assertEquals(headerElement.isVariantFromSoftClips(), test.isClip);
         Assert.assertFalse(headerElement.isEmpty());
         Assert.assertFalse(headerElement.hasInsertionToTheRight());
-        Assert.assertEquals(headerElement.hasConsensusData(), headerElement.basePassesFilters(test.baseQual, minBaseQual, test.MQ, minMappingQual));
-        Assert.assertEquals(headerElement.hasFilteredData(), !headerElement.basePassesFilters(test.baseQual, minBaseQual, test.MQ, minMappingQual));
-        Assert.assertFalse(headerElement.isVariantFromMismatches(0.05));
-        Assert.assertEquals(headerElement.isVariant(0.05, 0.05), test.isClip);
+        Assert.assertEquals(headerElement.hasConsensusData(), test.MQ >= minMappingQual);
+        Assert.assertEquals(headerElement.hasFilteredData(), test.MQ < minMappingQual);
+        Assert.assertEquals(headerElement.hasConsensusData() ? headerElement.getConsensusBaseCounts().getRMS() :  headerElement.getFilteredBaseCounts().getRMS(), (double)test.MQ);
+        Assert.assertFalse(headerElement.isVariantFromMismatches(0.05, 0.05));
+        Assert.assertEquals(headerElement.isVariant(0.05, 0.05, 0.05), test.isClip);
     }
 
 
     private class AllelesTest {
         public final int[] counts;
-        public final double proportion;
+        public final double pvalue;
 
-        private AllelesTest(final int[] counts, final double proportion) {
+        private AllelesTest(final int[] counts, final double pvalue) {
             this.counts = counts;
-            this.proportion = proportion;
+            this.pvalue = pvalue;
         }
     }
 
@@ -148,14 +148,16 @@ public class HeaderElementUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         final int[] counts = new int[]{ 0, 5, 10, 15, 20 };
-        final double [] proportions = new double[]{ 0.0, 0.05, 0.10, 0.50, 1.0 };
+        final double [] pvalues = new double[]{ 0.0, 0.01, 0.05, 0.20, 1.0 };
 
-        for ( final int count1 : counts ) {
-            for ( final int count2 : counts ) {
-                for ( final int count3 : counts ) {
-                    for ( final int count4 : counts ) {
-                        for ( final double proportion : proportions ) {
-                            tests.add(new Object[]{new AllelesTest(new int[]{count1, count2, count3, count4}, proportion)});
+        for ( final int countA : counts ) {
+            for ( final int countC : counts ) {
+                for ( final int countG : counts ) {
+                    for ( final int countT : counts ) {
+                        for ( final int countD : counts ) {
+                            for ( final double pvalue : pvalues ) {
+                                tests.add(new Object[]{new AllelesTest(new int[]{countA, countC, countG, countT, countD}, pvalue)});
+                            }
                         }
                     }
                 }
@@ -170,30 +172,43 @@ public class HeaderElementUnitTest extends BaseTest {
 
         HeaderElement headerElement = new HeaderElement(1000, 0);
         for ( int i = 0; i < test.counts.length; i++ ) {
-            BaseIndex base = BaseIndex.values()[i];
+            final BaseIndex base = BaseIndex.values()[i];
             for ( int j = 0; j < test.counts[i]; j++ )
                 headerElement.addBase(base.b, byte20, byte10, byte10, byte20, minBaseQual, minMappingQual, false);
         }
 
-        final int nAllelesSeen = headerElement.getNumberOfAlleles(test.proportion);
-        final int nAllelesExpected = calculateExpectedAlleles(test.counts, test.proportion);
+        final int nAllelesSeen = headerElement.getNumberOfBaseAlleles(test.pvalue, test.pvalue);
+        final int nAllelesExpected = calculateExpectedAlleles(test.counts, test.pvalue);
 
         Assert.assertEquals(nAllelesSeen, nAllelesExpected);
     }
 
-    private static int calculateExpectedAlleles(final int[] counts, final double proportion) {
-        double total = 0.0;
+    private static int calculateExpectedAlleles(final int[] counts, final double targetPvalue) {
+        int total = 0;
         for ( final int count : counts ) {
             total += count;
         }
 
-        final int minCount = (int)(proportion * total);
-
         int result = 0;
-        for ( final int count : counts ) {
-            if ( count > 0 && count >= minCount )
+        for ( int index = 0; index < counts.length; index++ ) {
+            final int count = counts[index];
+            if ( count == 0 )
+                continue;
+
+            final boolean isSignificant;
+            if ( count <= HeaderElement.MIN_COUNT_FOR_USING_PVALUE ) {
+                isSignificant = MathUtils.binomialCumulativeProbability(total, 0, count) > targetPvalue;
+            } else {
+                isSignificant = (count >= targetPvalue * total);
+            }
+
+            if ( isSignificant ) {
+                if ( index == BaseIndex.D.index )
+                    return -1;
                 result++;
+            }
         }
+
         return result;
     }
 }

@@ -50,7 +50,6 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.IndelUtils;
@@ -62,8 +61,11 @@ import java.util.*;
 
 /**
  * Assigns a roughly correct category of the variant type (SNP, MNP, insertion, deletion, etc.)
+ *
+ * <p>This tool assigns a roughly correct category of the variant type (SNP, MNP, insertion, deletion, etc.).
+ * It also specifies whether the variant is multiallelic (>2 alleles).</p>
  */
-public class VariantType extends InfoFieldAnnotation implements ExperimentalAnnotation {
+public class VariantType extends InfoFieldAnnotation {
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,

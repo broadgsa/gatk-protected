@@ -48,7 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.indels;
 
 import com.google.java.contract.Ensures;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.utils.Haplotype;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.UserException;
@@ -61,7 +61,6 @@ import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -213,13 +212,12 @@ public class PairHMMIndelErrorModel {
                                                                         final ReferenceContext ref,
                                                                         final int eventLength,
                                                                         final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap,
-                                                                        final double downsamplingFraction,
-                                                                        final PrintStream downsamplingLog) {
+                                                                        final double downsamplingFraction) {
         final int numHaplotypes = haplotypeMap.size();
 
         final int readCounts[] = new int[pileup.getNumberOfElements()];
         final double[][] readLikelihoods = computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, ref, eventLength, perReadAlleleLikelihoodMap, readCounts);
-        perReadAlleleLikelihoodMap.performPerAlleleDownsampling(downsamplingFraction, downsamplingLog);
+        perReadAlleleLikelihoodMap.performPerAlleleDownsampling(downsamplingFraction);
         return getDiploidHaplotypeLikelihoods(numHaplotypes, readCounts, readLikelihoods);
         
     }
@@ -247,8 +245,13 @@ public class PairHMMIndelErrorModel {
                 }
             }
             else {
-                final int refWindowStart = ref.getWindow().getStart();
-                final int refWindowStop  = ref.getWindow().getStop();
+                // extra padding on candidate haplotypes to make sure reads are always strictly contained
+                // in them - a value of 1 will in theory do but we use a slightly higher one just for safety sake, mostly
+                // in case bases at edge of reads have lower quality.
+                final int trailingBases = 3;
+                final int extraOffset = Math.abs(eventLength);
+                final int refWindowStart = ref.getWindow().getStart()+(trailingBases+extraOffset);
+                final int refWindowStop  = ref.getWindow().getStop()-(trailingBases+extraOffset);
 
                 if (DEBUG) {
                     System.out.format("Read Name:%s, aln start:%d aln stop:%d orig cigar:%s\n",p.getRead().getReadName(), p.getRead().getAlignmentStart(), p.getRead().getAlignmentEnd(), p.getRead().getCigarString());
@@ -257,10 +260,10 @@ public class PairHMMIndelErrorModel {
                 GATKSAMRecord read = ReadClipper.hardClipAdaptorSequence(p.getRead());
 
                 if (!read.isEmpty() && (read.getSoftEnd() > refWindowStop && read.getSoftStart() < refWindowStop))
-                    read = ReadClipper.hardClipByReferenceCoordinatesRightTail(read, ref.getWindow().getStop());
+                    read = ReadClipper.hardClipByReferenceCoordinatesRightTail(read, refWindowStop);
 
                 if (!read.isEmpty() && (read.getSoftStart() < refWindowStart && read.getSoftEnd() > refWindowStart))
-                    read = ReadClipper.hardClipByReferenceCoordinatesLeftTail (read, ref.getWindow().getStart());
+                    read = ReadClipper.hardClipByReferenceCoordinatesLeftTail (read, refWindowStart);
 
                 if (read.isEmpty())
                     continue;
@@ -272,7 +275,6 @@ public class PairHMMIndelErrorModel {
                     continue;
 
                 // get bases of candidate haplotypes that overlap with reads
-                final int trailingBases = 3;
                 final long readStart = read.getSoftStart();
                 final long readEnd = read.getSoftEnd();
 
@@ -288,7 +290,6 @@ public class PairHMMIndelErrorModel {
                 final int numEndSoftClippedBases = softClips ? read.getSoftEnd()- read.getAlignmentEnd() : 0 ;
                 final byte [] unclippedReadBases = read.getReadBases();
                 final byte [] unclippedReadQuals = read.getBaseQualities();
-                final int extraOffset = Math.abs(eventLength);
 
                 /**
                  * Compute genomic locations that candidate haplotypes will span.
@@ -315,6 +316,7 @@ public class PairHMMIndelErrorModel {
                     startLocationInRefForHaplotypes = ref.getWindow().getStop();                                        // read starts after haplotype: read will have to be clipped completely;
                 }
 
+                // candidate haplotype cannot go beyond reference context
                 if (stopLocationInRefForHaplotypes > ref.getWindow().getStop()) {
                     stopLocationInRefForHaplotypes = ref.getWindow().getStop();                                         // check also if end of read will go beyond reference context
                 }
@@ -349,7 +351,6 @@ public class PairHMMIndelErrorModel {
 
                     int j=0;
 
-                    byte[] previousHaplotypeSeen = null;
                     final byte[] contextLogGapOpenProbabilities = new byte[readBases.length];
                     final byte[] contextLogGapContinuationProbabilities  = new byte[readBases.length];
 
@@ -389,37 +390,30 @@ public class PairHMMIndelErrorModel {
                             System.out.format("indStart: %d indStop: %d WinStart:%d WinStop:%d start: %d stop: %d readLength: %d C:%s\n",
                                     indStart, indStop, ref.getWindow().getStart(), ref.getWindow().getStop(), startLocationInRefForHaplotypes, stopLocationInRefForHaplotypes, read.getReadLength(), read.getCigar().toString());
 
-                        final byte[] haplotypeBases = Arrays.copyOfRange(haplotype.getBases(),
-                                (int)indStart, (int)indStop);
+                        final byte[] haplotypeBases = Arrays.copyOfRange(haplotype.getBases(), (int)indStart, (int)indStop);
 
-                        final int X_METRIC_LENGTH = readBases.length+2;
-                        final int Y_METRIC_LENGTH = haplotypeBases.length+2;
+                        // it's possible that the indel starts at the last base of the haplotypes
+                        if ( haplotypeBases.length == 0 ) {
+                            readLikelihood = -Double.MAX_VALUE;
+                        } else {
+                            if (firstHap) {
+                                //no need to reallocate arrays for each new haplotype, as length won't change
+                                pairHMM.initialize(readBases.length, haplotypeBases.length);
+                                firstHap = false;
+                            }
 
-                        if (previousHaplotypeSeen == null) {
-                            //no need to reallocate arrays for each new haplotype, as length won't change
-                            pairHMM.initialize(Y_METRIC_LENGTH, X_METRIC_LENGTH);
+                            readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotypeBases, readBases, readQuals,
+                                    baseInsertionQualities, baseDeletionQualities, contextLogGapContinuationProbabilities, firstHap);
                         }
-
-                        int startIndexInHaplotype = 0;
-                        if (previousHaplotypeSeen != null)
-                            startIndexInHaplotype = computeFirstDifferingPosition(haplotypeBases, previousHaplotypeSeen);
-                        previousHaplotypeSeen = haplotypeBases.clone();
-
-                        readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotypeBases, readBases, readQuals,
-                                baseInsertionQualities, baseDeletionQualities,
-                                contextLogGapContinuationProbabilities, startIndexInHaplotype, firstHap);
-
 
                         if (DEBUG) {
                             System.out.println("H:"+new String(haplotypeBases));
                             System.out.println("R:"+new String(readBases));
                             System.out.format("L:%4.2f\n",readLikelihood);
-                            System.out.format("StPos:%d\n", startIndexInHaplotype);
                         }
 
                         perReadAlleleLikelihoodMap.add(p, a, readLikelihood);
                         readLikelihoods[readIdx][j++] = readLikelihood;
-                        firstHap = false;
                     }
                 }
             }

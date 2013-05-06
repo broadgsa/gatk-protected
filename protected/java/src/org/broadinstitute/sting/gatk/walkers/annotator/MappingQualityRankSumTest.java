@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
@@ -59,8 +60,12 @@ import java.util.*;
 
 
 /**
- * The u-based z-approximation from the Mann-Whitney Rank Sum Test for mapping qualities (reads with ref bases vs. those with the alternate allele)
- * Note that the mapping quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.
+ * U-based z-approximation from the Mann-Whitney Rank Sum Test for mapping qualities
+ *
+ * <p>This tool calculates the u-based z-approximation from the Mann-Whitney Rank Sum Test for mapping qualities (reads with ref bases vs. those with the alternate allele).</p>
+ *
+ * <h3>Caveat</h3>
+ * <p>The mapping quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
  */
 public class MappingQualityRankSumTest extends RankSumTest implements StandardAnnotation {
 
@@ -88,13 +93,13 @@ public class MappingQualityRankSumTest extends RankSumTest implements StandardAn
             return;
         }
         for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : likelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final Allele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
             // BUGBUG: There needs to be a comparable isUsableBase check here
-            if (a.isNoCall())
+            if (! a.isInformative())
                 continue; // read is non-informative
-            if (a.isReference())
+            if (a.getMostLikelyAllele().isReference())
                 refQuals.add((double)el.getKey().getMappingQuality());
-            else if (allAlleles.contains(a))
+            else if (allAlleles.contains(a.getMostLikelyAllele()))
                 altQuals.add((double)el.getKey().getMappingQuality());
         }
     }

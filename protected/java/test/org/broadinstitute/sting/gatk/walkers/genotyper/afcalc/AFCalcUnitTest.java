@@ -176,7 +176,7 @@ public class AFCalcUnitTest extends BaseTest {
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
             final double[] humanPriors = new double[nPriorValues];
-            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001);
+            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
 
             for ( final double[] priors : Arrays.asList(flatPriors, humanPriors) ) { // , humanPriors) ) {
                 for ( AFCalc model : calcs ) {
@@ -573,6 +573,39 @@ public class AFCalcUnitTest extends BaseTest {
         }
 
         return tests.toArray(new Object[][]{});
+    }
+
+
+    @Test(enabled = true, dataProvider =  "Models")
+    public void testNoPrior(final AFCalc model) {
+        for ( int REF_PL = 10; REF_PL <= 20; REF_PL += 10 ) {
+            final Genotype AB = makePL(Arrays.asList(A,C), REF_PL, 0, 10000);
+
+            final double[] flatPriors = new double[]{0.0,0.0,0.0};
+            final double[] noPriors = new double[3];
+            // test that function computeAlleleFrequency correctly operates when the flat prior option is set
+            // computeAlleleFrequencyPriors takes linear priors
+            final ArrayList<Double> inputPrior = new ArrayList<Double>();
+            inputPrior.add(1.0/3);
+            inputPrior.add(1.0/3);
+            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(2, noPriors, 0.0,inputPrior);
+
+            GetGLsTest cfgFlatPrior = new GetGLsTest(model, 1, Arrays.asList(AB), flatPriors, "flatPrior");
+            GetGLsTest cfgNoPrior = new GetGLsTest(model, 1, Arrays.asList(AB), flatPriors, "noPrior");
+            final AFCalcResult resultTrackerFlat = cfgFlatPrior.execute();
+            final AFCalcResult resultTrackerNoPrior = cfgNoPrior.execute();
+
+            final double pRefWithNoPrior = AB.getLikelihoods().getAsVector()[0];
+            final double pHetWithNoPrior = AB.getLikelihoods().getAsVector()[1]  - Math.log10(0.5);
+            final double nonRefPost = Math.pow(10, pHetWithNoPrior) / (Math.pow(10, pRefWithNoPrior) + Math.pow(10, pHetWithNoPrior));
+            final double log10NonRefPost = Math.log10(nonRefPost);
+
+            if ( ! Double.isInfinite(log10NonRefPost) ) {
+                // check that the no-prior and flat-prior constructions yield same result
+                Assert.assertEquals(resultTrackerFlat.getLog10PosteriorOfAFGT0(), resultTrackerNoPrior.getLog10PosteriorOfAFGT0());
+            }
+
+        }
     }
 
     @Test(enabled = true && !DEBUG_ONLY, dataProvider = "Models")

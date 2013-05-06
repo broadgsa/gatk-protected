@@ -50,10 +50,16 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 // the imports for unit testing.
 
 
+import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.arguments.GATKArgumentCollection;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.GenotypeLikelihoods;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -102,4 +108,23 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
         Assert.assertTrue(MathUtils.goodLog10Probability(ref), "Reference calculation wasn't a well formed log10 prob " + ref);
         Assert.assertEquals(ref, expected, TOLERANCE, "Failed reference confidence for single sample");
     }
+
+    @Test(enabled=true)
+    public void testTooManyAlleles() {
+
+        for ( Integer numAltAlleles = 0; numAltAlleles < 100; numAltAlleles++ )  {
+
+            Set<Allele> alleles = new HashSet<Allele>();
+            alleles.add(Allele.create("A", true));        // ref allele
+
+            for (int len = 1; len <=numAltAlleles; len++) {
+                // add alt allele of length len+1
+                alleles.add(Allele.create(Utils.dupString('A', len + 1), false));
+            }
+            final VariantContext vc = new VariantContextBuilder("test", "chr1", 1000, 1000, alleles).make();
+            final boolean result = ugEngine.canVCbeGenotyped(vc);
+            Assert.assertTrue(result == (vc.getNAlleles()<= GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED));
+        }
+    }
+
 }

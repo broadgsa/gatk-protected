@@ -95,14 +95,14 @@ import java.util.List;
  *
  * <p>
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * The input read data whose base quality scores need to be assessed.
  * <p>
  * A database of known polymorphic sites to skip over.
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A GATK Report file with many tables:
  * <ol>
@@ -116,7 +116,7 @@ import java.util.List;
  * The GATK Report is intended to be easy to read by humans or computers. Check out the documentation of the GATKReport to learn how to manipulate this table.
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
  *   -T BaseRecalibrator \

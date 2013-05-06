@@ -49,25 +49,26 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.*;
-
 import java.util.Arrays;
+
+import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
+import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
 
 public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
 
     private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
+        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
         final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
     }
 
     @Test
-    public void testHaplotypeCallerMultiSampleComplex() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "a960722c1ae2b6f774d3443a7e5ac27d");
+    public void testHaplotypeCallerMultiSampleComplex1() {
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "0bf5ae740bf9bd14c8d60d7849c45eb3");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
+        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
         final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
     }
@@ -75,11 +76,11 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     // TODO -- need a better symbolic allele test
     @Test
     public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "56f2ef9acc6c0d267cf2b7a447d87fb7");
+        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
     }
 
     private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
+        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
     }
@@ -87,12 +88,12 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleGGAComplex() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "417174e043dbb8b86cc3871da9b50536");
+                "7d2cc5c4ece386beedf6b07dfbe5bf26");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "f2df7a8f53ce449e4a8e8f8496e7c745");
+                "a17856f709b546eaed486841d78248d2");
     }
 }

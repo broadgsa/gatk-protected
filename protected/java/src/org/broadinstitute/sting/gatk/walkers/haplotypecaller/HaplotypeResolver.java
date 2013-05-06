@@ -58,8 +58,8 @@ import org.broadinstitute.sting.gatk.walkers.Reference;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
 import org.broadinstitute.sting.gatk.walkers.Window;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.Haplotype;
-import org.broadinstitute.sting.utils.SWPairwiseAlignment;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.variant.vcf.VCFHeader;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
@@ -84,17 +84,17 @@ import java.util.*;
  * From that, it can resolve potential differences in variant calls that are inherently the same (or similar) variants.
  * Records are annotated with the set and status attributes.
  *
- * <h2>Input</h2>
+ * <h3>Input</h3>
  * <p>
  * 2 variant files to resolve.
  * </p>
  *
- * <h2>Output</h2>
+ * <h3>Output</h3>
  * <p>
  * A single consensus VCF.
  * </p>
  *
- * <h2>Examples</h2>
+ * <h3>Examples</h3>
  * <pre>
  * java -Xmx1g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \
@@ -125,7 +125,7 @@ public class HaplotypeResolver extends RodWalker<Integer, Integer> {
     @Input(fullName="variant", shortName = "V", doc="Input VCF file", required=true)
     public List<RodBinding<VariantContext>> variants;
 
-    @Output(doc="File to which variants should be written", required=true)
+    @Output(doc="File to which variants should be written")
     protected VariantContextWriter baseWriter = null;
     private VariantContextWriter writer;
 
@@ -360,8 +360,8 @@ public class HaplotypeResolver extends RodWalker<Integer, Integer> {
         }
 
         // order results by start position
-        final TreeMap<Integer, VariantContext> source1Map = new TreeMap<Integer, VariantContext>(GenotypingEngine.generateVCsFromAlignment(new Haplotype(source1Haplotype), 0, swConsensus1.getCigar(), refContext.getBases(), source1Haplotype, refContext.getWindow(), source1));
-        final TreeMap<Integer, VariantContext> source2Map = new TreeMap<Integer, VariantContext>(GenotypingEngine.generateVCsFromAlignment(new Haplotype(source2Haplotype), 0, swConsensus2.getCigar(), refContext.getBases(), source2Haplotype, refContext.getWindow(), source2));
+        final TreeMap<Integer, VariantContext> source1Map = new TreeMap<Integer, VariantContext>(GenotypingEngine.generateVCsFromAlignment(new Haplotype(source1Haplotype, false, 0, swConsensus1.getCigar()), refContext.getBases(), refContext.getWindow(), source1));
+        final TreeMap<Integer, VariantContext> source2Map = new TreeMap<Integer, VariantContext>(GenotypingEngine.generateVCsFromAlignment(new Haplotype(source2Haplotype, false, 0, swConsensus2.getCigar()), refContext.getBases(), refContext.getWindow(), source2));
         if ( source1Map.size() == 0 || source2Map.size() == 0 ) {
             // TODO -- handle errors appropriately
             logger.debug("No source alleles; aborting at " + refContext.getLocus());

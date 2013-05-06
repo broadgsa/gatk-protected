@@ -159,8 +159,8 @@ public class UnifiedGenotyperEngine {
         this.N = samples.size() * ploidy;
         log10AlleleFrequencyPriorsSNPs = new double[N+1];
         log10AlleleFrequencyPriorsIndels = new double[N+1];
-        computeAlleleFrequencyPriors(N, log10AlleleFrequencyPriorsSNPs, UAC.heterozygosity);
-        computeAlleleFrequencyPriors(N, log10AlleleFrequencyPriorsIndels, UAC.INDEL_HETEROZYGOSITY);
+        computeAlleleFrequencyPriors(N, log10AlleleFrequencyPriorsSNPs, UAC.heterozygosity,UAC.inputPrior);
+        computeAlleleFrequencyPriors(N, log10AlleleFrequencyPriorsIndels, UAC.INDEL_HETEROZYGOSITY, UAC.inputPrior);
 
         filter.add(LOW_QUAL_FILTER_NAME);
 
@@ -385,9 +385,21 @@ public class UnifiedGenotyperEngine {
 
         boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
 
+        // TODO TODO TODO TODO
+        // REFACTOR THIS FUNCTION, TOO UNWIELDY!!
+
         // initialize the data for this thread if that hasn't been done yet
         if ( afcm.get() == null ) {
             afcm.set(AFCalcFactory.createAFCalc(UAC, N, logger));
+        }
+
+        // if input VC can't be genotyped, exit with either null VCC or, in case where we need to emit all sites, an empty call
+        if (!canVCbeGenotyped(vc))   {
+            if (UAC.OutputMode == OUTPUT_MODE.EMIT_ALL_SITES && !limitedContext)
+                return generateEmptyContext(tracker, refContext, stratifiedContexts, rawContext);
+            else
+                return null;
+
         }
 
         // estimate our confidence in a reference call and return
@@ -544,6 +556,23 @@ public class UnifiedGenotyperEngine {
         return new VariantCallContext(vcCall, confidentlyCalled(phredScaledConfidence, PoFGT0));
     }
 
+    /**
+     * Determine whether input VC to calculateGenotypes() can be genotyped and AF can be computed.
+     * @param vc                                    Input VC
+     * @return                                      Status check
+     */
+    @Requires("vc != null")
+    protected boolean canVCbeGenotyped(final VariantContext vc) {
+        // protect against too many alternate alleles that we can't even run AF on:
+        if (vc.getNAlleles()> GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED) {
+            logger.warn("Attempting to genotype more than "+GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED +
+                    " alleles. Site will be skipped at location "+vc.getChr()+":"+vc.getStart());
+            return false;
+        }
+        else return true;
+
+    }
+
     private Map<String, AlignmentContext> getFilteredAndStratifiedContexts(UnifiedArgumentCollection UAC, ReferenceContext refContext, AlignmentContext rawContext, final GenotypeLikelihoodsCalculationModel.Model model) {
 
         if ( !BaseUtils.isRegularBase(refContext.getBase()) )
@@ -570,9 +599,9 @@ public class UnifiedGenotyperEngine {
                 int numDeletions = 0;
                 for ( final PileupElement p : rawContext.getBasePileup() ) {
                     if ( p.isDeletion() )
-                        numDeletions++;
+                        numDeletions += p.getRepresentativeCount();
                 }
-                if ( ((double) numDeletions) / ((double) rawContext.getBasePileup().getNumberOfElements()) > UAC.MAX_DELETION_FRACTION ) {
+                if ( ((double) numDeletions) / ((double) rawContext.getBasePileup().depthOfCoverage()) > UAC.MAX_DELETION_FRACTION ) {
                     return null;
                 }
             }
@@ -581,20 +610,8 @@ public class UnifiedGenotyperEngine {
         return stratifiedContexts;
     }
 
-    private final static double[] binomialProbabilityDepthCache = new double[10000];
-    private final static double REF_BINOMIAL_PROB_LOG10_0_5 = Math.log10(0.5);
-
-    static {
-        for ( int i = 1; i < binomialProbabilityDepthCache.length; i++ ) {
-            binomialProbabilityDepthCache[i] = MathUtils.log10BinomialProbability(i, 0, REF_BINOMIAL_PROB_LOG10_0_5);
-        }
-    }
-
     private final double getRefBinomialProbLog10(final int depth) {
-        if ( depth < binomialProbabilityDepthCache.length )
-            return binomialProbabilityDepthCache[depth];
-        else
-            return MathUtils.log10BinomialProbability(depth, 0, REF_BINOMIAL_PROB_LOG10_0_5);
+        return MathUtils.log10BinomialProbability(depth, 0);
     }
 
     private VariantCallContext estimateReferenceConfidence(VariantContext vc, Map<String, AlignmentContext> contexts, double theta, boolean ignoreCoveredSamples, double initialPofRef) {
@@ -722,17 +739,45 @@ public class UnifiedGenotyperEngine {
         return GGAmodel;
     }
 
-    public static void computeAlleleFrequencyPriors(final int N, final double[] priors, final double theta) {
+    /**
+     * Function that fills vector with allele frequency priors. By default, infinite-sites, neutral variation prior is used,
+     * where Pr(AC=i) = theta/i where theta is heterozygosity
+     * @param N                                Number of chromosomes
+     * @param priors                           (output) array to be filled with priors
+     * @param heterozygosity                   default heterozygosity to use, if inputPriors is empty
+     * @param inputPriors                      Input priors to use (in which case heterozygosity is ignored)
+     */
+    public static void computeAlleleFrequencyPriors(final int N, final double[] priors, final double heterozygosity, final List<Double> inputPriors) {
+
 
         double sum = 0.0;
 
-        // for each i
-        for (int i = 1; i <= N; i++) {
-            final double value = theta / (double)i;
-            priors[i] = Math.log10(value);
-            sum += value;
+        if (!inputPriors.isEmpty()) {
+            // user-specified priors
+            if (inputPriors.size() != N)
+                throw new UserException.BadArgumentValue("inputPrior","Invalid length of inputPrior vector: vector length must be equal to # samples +1 ");
+
+            int idx = 1;
+            for (final double prior: inputPriors) {
+                if (prior < 0.0)
+                    throw new UserException.BadArgumentValue("Bad argument: negative values not allowed","inputPrior");
+                priors[idx++] = Math.log10(prior);
+                sum += prior;
+            }
+        }
+        else {
+            // for each i
+            for (int i = 1; i <= N; i++) {
+                final double value = heterozygosity / (double)i;
+                priors[i] = Math.log10(value);
+                sum += value;
+            }
         }
 
+        // protection against the case of heterozygosity too high or an excessive number of samples (which break population genetics assumptions)
+        if (sum > 1.0) {
+            throw new UserException.BadArgumentValue("heterozygosity","The heterozygosity value is set too high relative to the number of samples to be processed, or invalid values specified if input priors were provided - try reducing heterozygosity value or correct input priors.");
+        }
         // null frequency for AF=0 is (1 - sum(all other frequencies))
         priors[0] = Math.log10(1.0 - sum);
     }

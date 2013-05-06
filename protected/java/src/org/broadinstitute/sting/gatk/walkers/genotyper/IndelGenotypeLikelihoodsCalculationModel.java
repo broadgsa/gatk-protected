@@ -55,7 +55,7 @@ import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.Haplotype;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -145,7 +145,7 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
             final ReadBackedPileup pileup = context.getBasePileup();
             if (pileup != null) {
                 final GenotypeBuilder b = new GenotypeBuilder(sample.getKey());
-                final double[] genotypeLikelihoods = pairModel.computeDiploidReadHaplotypeLikelihoods(pileup, haplotypeMap, ref, eventLength, perReadAlleleLikelihoodMap.get(sample.getKey()), UAC.getSampleContamination().get(sample.getKey()), UAC.contaminationLog);
+                final double[] genotypeLikelihoods = pairModel.computeDiploidReadHaplotypeLikelihoods(pileup, haplotypeMap, ref, eventLength, perReadAlleleLikelihoodMap.get(sample.getKey()), UAC.getSampleContamination().get(sample.getKey()));
                 b.PL(genotypeLikelihoods);
                 b.DP(getFilteredDepth(pileup));
                 genotypes.add(b.make());

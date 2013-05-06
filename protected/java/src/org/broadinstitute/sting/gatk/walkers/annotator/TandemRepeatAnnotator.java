@@ -65,7 +65,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+/**
+ * Annotates variants that are composed of tandem repeats
+ *
+ * <p>This tool outputs the number of times the tandem repeat unit is repeated, for each allele (including reference).</p>
+ *
+ * <h2>Caveat</h2>
+ * <p>This annotation is currently not compatible with HaplotypeCaller.</p>
+ */
 public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardAnnotation {
     private static final String STR_PRESENT = "STR";
     private static final String REPEAT_UNIT_KEY = "RU";

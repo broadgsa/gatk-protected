@@ -62,25 +62,25 @@ public class UnifiedGenotyperReducedReadsIntegrationTest extends WalkerTest {
     @Test
     public void testReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("8b9a9fc2e7150acbe2dac91b4620f304"));
+                "-T UnifiedGenotyper --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
+                Arrays.asList("e6565060b44a7804935973efcd56e596"));
         executeTest("test calling on a ReducedRead BAM", spec);
     }
 
     @Test
     public void testReducedBamSNPs() {
-        testReducedCalling("SNP", "b5991dddbfb59366614ff8819062649f");
+        testReducedCalling("SNP", "ab776d74c41ce2b859e2b2466a76204a");
     }
 
     @Test
     public void testReducedBamINDELs() {
-        testReducedCalling("INDEL", "acde5694a74f867256a54a26cbebbf21");
+        testReducedCalling("INDEL", "19bc6a74250ec19efc4e1b4ee6515ac0");
     }
 
 
     private void testReducedCalling(final String model, final String md5) {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.reduced.bam -o %s -L 20:10,000,000-11,000,000 -glm " + model, 1,
+                "-T UnifiedGenotyper --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.reduced.bam -o %s -L 20:10,000,000-10,500,000 -glm " + model, 1,
                 Arrays.asList(md5));
         executeTest("test calling on a ReducedRead BAM with " + model, spec);
     }
