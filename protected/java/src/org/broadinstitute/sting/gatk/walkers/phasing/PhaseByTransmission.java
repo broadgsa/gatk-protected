@@ -450,9 +450,9 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
         Set<String> vcfSamples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
 
         //Get the trios from the families passed as ped
-        setTrios();
+        setTrios(vcfSamples);
         if(trios.size()<1)
-            throw new UserException.BadInput("No PED file passed or no trios found in PED file. Aborted.");
+            throw new UserException.BadInput("No PED file passed or no *non-skipped* trios found in PED file. Aborted.");
 
 
         Set<VCFHeaderLine> headerLines = new HashSet<VCFHeaderLine>();
@@ -471,9 +471,9 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
     /**
      * Select trios and parent/child pairs only
      */
-    private void setTrios(){
+    private void setTrios(Set<String> vcfSamples){
 
-        Map<String,Set<Sample>> families = this.getSampleDB().getFamilies();
+        Map<String,Set<Sample>> families = this.getSampleDB().getFamilies(vcfSamples);
         Set<Sample> family;
         ArrayList<Sample> parents;
         for(Map.Entry<String,Set<Sample>> familyEntry : families.entrySet()){
