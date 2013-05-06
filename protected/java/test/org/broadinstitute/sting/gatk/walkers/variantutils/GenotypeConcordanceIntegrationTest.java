@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
 import org.broadinstitute.sting.WalkerTest;
-import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -87,7 +86,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("GenotypeConcordanceNonOverlapTest_Eval.vcf", "GenotypeConcordanceNonOverlapTest_Comp.vcf") + " -moltenize",
                 0,
-                Arrays.asList("370141088362d0ab7054be5249c49c11")
+                Arrays.asList("3993709e38b033e89017dfbb63226e94")
         );
 
         executeTest("Test moltenized output",spec);
