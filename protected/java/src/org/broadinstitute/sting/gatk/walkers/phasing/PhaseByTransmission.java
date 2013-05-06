@@ -478,6 +478,16 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
         ArrayList<Sample> parents;
         for(Map.Entry<String,Set<Sample>> familyEntry : families.entrySet()){
             family = familyEntry.getValue();
+
+            // Since getFamilies(vcfSamples) above still returns parents of samples in the VCF even if those parents are not in the VCF, need to subset down here:
+            Set<Sample> familyMembersInVCF = new TreeSet<Sample>();
+            for(Sample familyMember : family){
+                if (vcfSamples.contains(familyMember.getID())) {
+                    familyMembersInVCF.add(familyMember);
+                }
+            }
+            family = familyMembersInVCF;
+
             if(family.size()<2 || family.size()>3){
                 logger.info(String.format("Caution: Family %s has %d members; At the moment Phase By Transmission only supports trios and parent/child pairs. Family skipped.",familyEntry.getKey(),family.size()));
             }
@@ -488,8 +498,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
                         if(family.containsAll(parents))
                             this.trios.add(familyMember);
                         else
-                            logger.info(String.format("Caution: Family %s skipped as it is not a trio nor a parent/child pair; At the moment Phase By Transmission only supports trios and parent/child pairs. Family skipped.",familyEntry.getKey()));
-                        break;
+                            logger.info(String.format("Caution: Child %s of family %s skipped as info is not provided as a complete trio nor a parent/child pair; At the moment Phase By Transmission only supports trios and parent/child pairs. Child skipped.", familyMember.getID(), familyEntry.getKey()));
                     }
                 }
             }
