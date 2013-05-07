@@ -212,6 +212,15 @@ public class ConstrainedMateFixingManager {
 
     public int getNReadsInQueue() { return waitingReads.size(); }
 
+    /**
+     * For testing purposes only
+     *
+     * @return the list of reads currently in the queue
+     */
+    protected List<SAMRecord> getReadsInQueueForTesting() {
+        return new ArrayList<SAMRecord>(waitingReads);
+    }
+
     public boolean canMoveReads(GenomeLoc earliestPosition) {
         if ( DEBUG ) logger.info("Refusing to realign? " + earliestPosition + " vs. " + lastLocFlushed);
 
@@ -233,7 +242,7 @@ public class ConstrainedMateFixingManager {
             addRead(newRead, modifiedReads.contains(newRead), false);
     }
 
-    private void addRead(SAMRecord newRead, boolean readWasModified, boolean canFlush) {
+    protected void addRead(SAMRecord newRead, boolean readWasModified, boolean canFlush) {
         if ( DEBUG ) logger.info("New read pos " + newRead.getAlignmentStart() + " OP = " + newRead.getAttribute("OP") + " " + readWasModified);
 
         //final long curTime = timer.currentTime();
@@ -265,7 +274,7 @@ public class ConstrainedMateFixingManager {
         // fix mates, as needed
         // Since setMateInfo can move reads, we potentially need to remove the mate, and requeue
         // it to ensure proper sorting
-        if ( newRead.getReadPairedFlag() ) {
+        if ( newRead.getReadPairedFlag() && !newRead.getNotPrimaryAlignmentFlag() ) {
             SAMRecordHashObject mate = forMateMatching.get(newRead.getReadName());
             if ( mate != null ) {
                 // 1. Frustratingly, Picard's setMateInfo() method unaligns (by setting the reference contig

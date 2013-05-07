@@ -220,6 +220,10 @@ public class RecalibrationArgumentCollection {
     public String FORCE_PLATFORM = null;
 
     @Hidden
+    @Argument(fullName = "force_readgroup", shortName = "fRG", required = false, doc = "If provided, the read group of EVERY read will be forced to be the provided String.")
+    public String FORCE_READGROUP = null;
+
+    @Hidden
     @Output(fullName = "recal_table_update_log", shortName = "recal_table_update_log", required = false, doc = "If provided, log all updates to the recalibration tables to the given file. For debugging/testing purposes only", defaultToStdout = false)
     public PrintStream RECAL_TABLE_UPDATE_LOG = null;
 

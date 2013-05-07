@@ -44,71 +44,64 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.recalibration;
+package org.broadinstitute.sting.gatk.walkers.indels;
 
-import org.broadinstitute.sting.gatk.walkers.bqsr.RecalibrationArgumentCollection;
-import org.broadinstitute.sting.utils.recalibration.covariates.ReadGroupCovariate;
-import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
+import net.sf.samtools.SAMFileHeader;
+import net.sf.samtools.SAMRecord;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * @author Mauricio Carneiro
- * @since 3/1/12
- */
-public class ReadGroupCovariateUnitTest {
-    ReadGroupCovariate covariate;
-    RecalibrationArgumentCollection RAC;
+import java.util.List;
+
+
+public class ConstrainedMateFixingManagerUnitTest extends BaseTest {
+
+    private static SAMFileHeader header;
+    private static GenomeLocParser genomeLocParser;
 
     @BeforeClass
-    public void init() {
-        RAC = new RecalibrationArgumentCollection();
-        covariate = new ReadGroupCovariate();
-        covariate.initialize(RAC);
+    public void beforeClass() {
+        header = ArtificialSAMUtils.createArtificialSamHeader(3, 1, 100);
+        genomeLocParser = new GenomeLocParser(header.getSequenceDictionary());
     }
+    @Test
+    public void testSecondaryAlignmentsDoNotInterfere() {
+        final List<GATKSAMRecord> properReads = ArtificialSAMUtils.createPair(header, "foo", 1, 10, 30, true, false);
+        final GATKSAMRecord read1 = properReads.get(0);
+        read1.setAlignmentStart(8); // move the read
+        read1.setFlags(99);   // first in proper pair, mate negative strand
 
-    @Test(enabled = true)
-    public void testSingleRecord() {
-        final String expected = "SAMPLE.1";
-        GATKSAMReadGroupRecord rg = new GATKSAMReadGroupRecord("MY.ID");
-        rg.setPlatformUnit(expected);
-        runTest(rg, expected, covariate);
-    }
+        final GATKSAMRecord read2Primary = properReads.get(1);
+        read2Primary.setFlags(147);   // second in pair, mate unmapped, not primary alignment
 
-    @Test(enabled = true)
-    public void testMissingPlatformUnit() {
-        final String expected = "MY.7";
-        GATKSAMReadGroupRecord rg = new GATKSAMReadGroupRecord(expected);
-        runTest(rg, expected, covariate);
-    }
+        Assert.assertEquals(read1.getInferredInsertSize(), 21);
 
-    @Test(enabled = true)
-    public void testForceReadgroup() {
-        final RecalibrationArgumentCollection forcedRAC = new RecalibrationArgumentCollection();
-        forcedRAC.FORCE_READGROUP = "FOO";
-        final ReadGroupCovariate forcedCovariate = new ReadGroupCovariate();
-        forcedCovariate.initialize(forcedRAC);
+        final GATKSAMRecord read2NonPrimary = new GATKSAMRecord(read2Primary);
+        read2NonPrimary.setFlags(393);   // second in proper pair, on reverse strand
 
-        final GATKSAMReadGroupRecord rg = new GATKSAMReadGroupRecord("NOT_FOO");
-        runTest(rg, "FOO", forcedCovariate);
-    }
+        final ConstrainedMateFixingManager manager = new ConstrainedMateFixingManager(null, genomeLocParser, 1000, 1000, 1000);
+        manager.addRead(read1, true, false);
+        manager.addRead(read2NonPrimary, false, false);
+        manager.addRead(read2Primary, false, false);
 
-    private static void runTest(final GATKSAMReadGroupRecord rg, final String expected, final ReadGroupCovariate covariate) {
-        GATKSAMRecord read = ReadUtils.createRandomRead(10);
-        read.setReadGroup(rg);
-        ReadCovariates readCovariates = new ReadCovariates(read.getReadLength(), 1);
-        covariate.recordValues(read, readCovariates);
-        verifyCovariateArray(readCovariates.getMismatchesKeySet(), expected, covariate);
+        Assert.assertEquals(manager.getNReadsInQueue(), 3);
 
-    }
-
-    private static void verifyCovariateArray(final int[][] values, final String expected, final ReadGroupCovariate covariate) {
-        for (int[] value : values) {
-            String actual = covariate.formatKey(value[0]);
-            Assert.assertEquals(actual, expected);
+        for ( final SAMRecord read : manager.getReadsInQueueForTesting() ) {
+            if ( read.getFirstOfPairFlag() ) {
+                Assert.assertEquals(read.getFlags(), 99);
+                Assert.assertEquals(read.getInferredInsertSize(), 23);
+            } else if ( read.getNotPrimaryAlignmentFlag() ) {
+                Assert.assertEquals(read.getFlags(), 393);
+                Assert.assertEquals(read.getInferredInsertSize(), -21);
+            } else {
+                Assert.assertEquals(read.getFlags(), 147);
+                Assert.assertEquals(read.getInferredInsertSize(), -23);
+            }
         }
     }
 
