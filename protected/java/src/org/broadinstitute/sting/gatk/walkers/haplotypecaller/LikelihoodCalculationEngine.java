@@ -90,7 +90,10 @@ public class LikelihoodCalculationEngine {
                 pairHMM = new Log10PairHMM(false);
                 break;
             case LOGLESS_CACHING:
-                pairHMM = new LoglessPairHMM();
+		if (CnyPairHMM.isAvailable())
+		    pairHMM = new CnyPairHMM();
+		else
+		    pairHMM = new LoglessPairHMM();
                 break;
             default:
                 throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");
@@ -151,6 +154,8 @@ public class LikelihoodCalculationEngine {
 
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final List<Haplotype> haplotypes, final List<GATKSAMRecord> reads) {
         // first, a little set up to get copies of the Haplotypes that are Alleles (more efficient than creating them each time)
+	final BatchPairHMM batchPairHMM = (pairHMM instanceof BatchPairHMM) ? (BatchPairHMM)pairHMM : null;
+	final Vector<GATKSAMRecord> batchedReads = new Vector<GATKSAMRecord>(reads.size());
         final int numHaplotypes = haplotypes.size();
         final Map<Haplotype, Allele> alleleVersions = new HashMap<Haplotype, Allele>(numHaplotypes);
         for ( final Haplotype haplotype : haplotypes ) {
@@ -177,16 +182,29 @@ public class LikelihoodCalculationEngine {
                 readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
             }
 
-            for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
-                final Haplotype haplotype = haplotypes.get(jjj);
-                final boolean isFirstHaplotype = jjj == 0;
-                final double log10l = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
-                        read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
-
-                perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
-            }
+	    if ( batchPairHMM != null ) {
+		batchPairHMM.batchAdd(haplotypes, read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP);
+		batchedReads.add(read);
+	    } else {
+		for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
+		    final Haplotype haplotype = haplotypes.get(jjj);
+		    final boolean isFirstHaplotype = jjj == 0;
+		    final double log10l = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
+											   read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
+		    
+		    perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
+		}
+	    }
         }
-
+	if ( batchPairHMM != null ) {
+	    for( final GATKSAMRecord read : batchedReads ) {
+		final double[] likelihoods = batchPairHMM.batchResult();
+		for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
+		    final Haplotype haplotype = haplotypes.get(jjj);
+		    perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), likelihoods[jjj]);
+		}
+	    }
+	}
         return perReadAlleleLikelihoodMap;
     }
 
