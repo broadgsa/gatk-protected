@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import org.broadinstitute.sting.utils.collections.PrimitivePair;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -60,7 +61,7 @@ import java.util.List;
  * Date: 3/25/13
  * Time: 9:42 PM
  */
-final class GraphUtils {
+final public class GraphUtils {
     private GraphUtils() {}
 
     /**
@@ -135,4 +136,49 @@ final class GraphUtils {
         return min;
     }
 
+    /**
+     * Find the ending position of the longest uniquely matching
+     * run of bases of kmer in seq.
+     *
+     * for example, if seq = ACGT and kmer is NAC, this function returns 1,2 as we have the following
+     * match:
+     *
+     *  0123
+     * .ACGT
+     * NAC..
+     *
+     * @param seq a non-null sequence of bytes
+     * @param kmer a non-null kmer
+     * @return the ending position and length where kmer matches uniquely in sequence, or null if no
+     *         unique longest match can be found
+     */
+    public static PrimitivePair.Int findLongestUniqueSuffixMatch(final byte[] seq, final byte[] kmer) {
+        int longestPos = -1;
+        int length = 0;
+        boolean foundDup = false;
+
+        for ( int i = 0; i < seq.length; i++ ) {
+            final int matchSize = longestSuffixMatch(seq, kmer, i);
+            if ( matchSize > length ) {
+                longestPos = i;
+                length = matchSize;
+                foundDup = false;
+            } else if ( matchSize == length ) {
+                foundDup = true;
+            }
+        }
+
+        return foundDup ? null : new PrimitivePair.Int(longestPos, length);
+    }
+
+    private static int longestSuffixMatch(final byte[] seq, final byte[] kmer, final int seqStart) {
+        for ( int len = 1; len <= kmer.length; len++ ) {
+            final int seqI = seqStart - len + 1;
+            final int kmerI = kmer.length - len;
+            if ( seqI < 0 || seq[seqI] != kmer[kmerI] ) {
+                return len - 1;
+            }
+        }
+        return kmer.length;
+    }
 }

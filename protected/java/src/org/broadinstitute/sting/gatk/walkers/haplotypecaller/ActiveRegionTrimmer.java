@@ -44,107 +44,99 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
+import org.apache.log4j.Logger;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
+import org.broadinstitute.variant.variantcontext.VariantContext;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.TreeSet;
 
 /**
- * A DeBruijn kmer graph
+ * Trim down an active region based on a set of variants found across the haplotypes within the region
  *
- * User: rpoplin
- * Date: 2/6/13
+ * User: depristo
+ * Date: 4/27/13
+ * Time: 2:10 PM
  */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
-        }
-    }
+class ActiveRegionTrimmer {
+    private final static Logger logger = Logger.getLogger(ActiveRegionTrimmer.class);
+    private final boolean logTrimming;
+    private final int snpPadding, nonSnpPadding, maxDistanceInExtensionForGenotyping;
+    private final GenomeLocParser parser;
 
     /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
-    }
-
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
-
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
+     * Create a new ActiveRegionTrimmer
      *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
+     * @param logTrimming should we log our trimming events?
+     * @param snpPadding how much bp context should we ensure around snps?
+     * @param nonSnpPadding how much bp context should we ensure around anything not a snp?
+     * @param maxDistanceInExtensionForGenotyping the max extent we are will to go into the extended region of the
+     *                                            origin active region in order to properly genotype events in the
+     *                                            non-extended active region?
+     * @param parser a genome loc parser so we can create genome locs
      */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+    ActiveRegionTrimmer(boolean logTrimming, int snpPadding, int nonSnpPadding, int maxDistanceInExtensionForGenotyping, GenomeLocParser parser) {
+        if ( snpPadding < 0 ) throw new IllegalArgumentException("snpPadding must be >= 0 but got " + snpPadding);
+        if ( nonSnpPadding < 0 ) throw new IllegalArgumentException("nonSnpPadding must be >= 0 but got " + nonSnpPadding);
+        if ( maxDistanceInExtensionForGenotyping < 0 ) throw new IllegalArgumentException("maxDistanceInExtensionForGenotyping must be >= 0 but got " + maxDistanceInExtensionForGenotyping);
+        if ( parser == null ) throw new IllegalArgumentException("parser cannot be null");
 
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+        this.logTrimming = logTrimming;
+        this.snpPadding = snpPadding;
+        this.nonSnpPadding = nonSnpPadding;
+        this.maxDistanceInExtensionForGenotyping = maxDistanceInExtensionForGenotyping;
+        this.parser = parser;
+    }
+
+    /**
+     * Trim down the active region to a region large enough to properly genotype the events found within the active
+     * region span, excluding all variants that only occur within its extended span.
+     *
+     * This function merely creates the region, but it doesn't populate the reads back into the region.
+     *
+     * @param region our full active region
+     * @param allVariantsWithinExtendedRegion all of the variants found in the entire region, sorted by their start position
+     * @return a new ActiveRegion trimmed down to just what's needed for genotyping, or null if we couldn't do this successfully
+     */
+    public ActiveRegion trimRegion(final ActiveRegion region, final TreeSet<VariantContext> allVariantsWithinExtendedRegion) {
+        if ( allVariantsWithinExtendedRegion.isEmpty() ) // no variants, so just return the current region
+            return null;
+
+        final List<VariantContext> withinActiveRegion = new LinkedList<VariantContext>();
+        int pad = snpPadding;
+        GenomeLoc trimLoc = null;
+        for ( final VariantContext vc : allVariantsWithinExtendedRegion ) {
+            final GenomeLoc vcLoc = parser.createGenomeLoc(vc);
+            if ( region.getLocation().overlapsP(vcLoc) ) {
+                if ( ! vc.isSNP() ) // if anything isn't a SNP use the bigger padding
+                    pad = nonSnpPadding;
+                trimLoc = trimLoc == null ? vcLoc : trimLoc.endpointSpan(vcLoc);
+                withinActiveRegion.add(vc);
+            }
         }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
+        // we don't actually have anything in the region after removing variants that don't overlap the region's full location
+        if ( trimLoc == null ) return null;
 
-        return seqGraph;
+        final GenomeLoc maxSpan = parser.createPaddedGenomeLoc(region.getLocation(), maxDistanceInExtensionForGenotyping);
+        final GenomeLoc idealSpan = parser.createPaddedGenomeLoc(trimLoc, pad);
+        final GenomeLoc finalSpan = maxSpan.intersect(idealSpan);
+
+        final ActiveRegion trimmedRegion = region.trim(finalSpan);
+        if ( logTrimming ) {
+            logger.info("events     : " + withinActiveRegion);
+            logger.info("trimLoc    : " + trimLoc);
+            logger.info("pad        : " + pad);
+            logger.info("idealSpan  : " + idealSpan);
+            logger.info("maxSpan    : " + maxSpan);
+            logger.info("finalSpan  : " + finalSpan);
+            logger.info("regionSpan : " + trimmedRegion.getExtendedLoc() + " size is " + trimmedRegion.getExtendedLoc().size());
+        }
+        return trimmedRegion;
     }
 }

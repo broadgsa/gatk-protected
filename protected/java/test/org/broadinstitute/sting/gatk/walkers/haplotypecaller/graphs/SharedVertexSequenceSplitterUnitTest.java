@@ -227,8 +227,8 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
         }
 
         final Set<String> haplotypes = new HashSet<String>();
-        final List<Path<SeqVertex>> originalPaths = new KBestPaths<SeqVertex>().getKBestPaths((SeqGraph)graph.clone());
-        for ( final Path<SeqVertex> path : originalPaths )
+        final List<Path<SeqVertex,BaseEdge>> originalPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths((SeqGraph)graph.clone());
+        for ( final Path<SeqVertex,BaseEdge> path : originalPaths )
             haplotypes.add(new String(path.getBases()));
 
         final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(graph, v);
@@ -238,8 +238,8 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
         splitter.updateGraph(top, bot);
         if ( PRINT_GRAPHS ) graph.printGraph(new File(Utils.join("_", strings) + ".updated.dot"), 0);
 
-        final List<Path<SeqVertex>> splitPaths = new KBestPaths<SeqVertex>().getKBestPaths(graph);
-        for ( final Path<SeqVertex> path : splitPaths ) {
+        final List<Path<SeqVertex,BaseEdge>> splitPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(graph);
+        for ( final Path<SeqVertex,BaseEdge> path : splitPaths ) {
             final String h = new String(path.getBases());
             Assert.assertTrue(haplotypes.contains(h), "Failed to find haplotype " + h);
         }

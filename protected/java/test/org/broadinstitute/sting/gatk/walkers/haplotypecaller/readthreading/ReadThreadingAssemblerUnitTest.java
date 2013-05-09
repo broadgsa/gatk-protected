@@ -44,107 +44,170 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.File;
+import java.util.*;
 
-/**
- * A DeBruijn kmer graph
- *
- * User: rpoplin
- * Date: 2/6/13
- */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
+public class ReadThreadingAssemblerUnitTest extends BaseTest {
+    private final static boolean DEBUG = false;
+
+    private static class TestAssembler {
+        final ReadThreadingAssembler assembler;
+
+        Haplotype refHaplotype;
+        final List<GATKSAMRecord> reads = new LinkedList<GATKSAMRecord>();
+
+        private TestAssembler(final int kmerSize) {
+            this.assembler = new ReadThreadingAssembler(100000, Arrays.asList(kmerSize));
+            assembler.setJustReturnRawGraph(true);
+            assembler.setPruneFactor(0);
+        }
+
+        public void addSequence(final byte[] bases, final boolean isRef) {
+            if ( isRef ) {
+                refHaplotype = new Haplotype(bases, true);
+            } else {
+                final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, Utils.dupBytes((byte)30,bases.length), bases.length + "M");
+                reads.add(read);
+            }
+        }
+
+        public SeqGraph assemble() {
+            assembler.removePathsNotConnectedToRef = false; // need to pass some of the tests
+            assembler.setDebugGraphTransformations(true);
+            final SeqGraph graph = assembler.assemble(reads, refHaplotype).get(0);
+            if ( DEBUG ) graph.printGraph(new File("test.dot"), 0);
+            return graph;
         }
     }
 
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
+    private void assertLinearGraph(final TestAssembler assembler, final String seq) {
+        final SeqGraph graph = assembler.assemble();
+        graph.simplifyGraph();
+        Assert.assertEquals(graph.vertexSet().size(), 1);
+        Assert.assertEquals(graph.vertexSet().iterator().next().getSequenceString(), seq);
     }
 
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
+    private void assertSingleBubble(final TestAssembler assembler, final String one, final String two) {
+        final SeqGraph graph = assembler.assemble();
+        graph.simplifyGraph();
+        List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(graph);
+        Assert.assertEquals(paths.size(), 2);
+        final Set<String> expected = new HashSet<String>(Arrays.asList(one, two));
+        for ( final Path<SeqVertex,BaseEdge> path : paths ) {
+            final String seq = new String(path.getBases());
+            Assert.assertTrue(expected.contains(seq));
+            expected.remove(seq);
         }
     }
 
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
+    @Test(enabled = ! DEBUG)
+    public void testRefCreation() {
+        final String ref = "ACGTAACCGGTT";
+        final TestAssembler assembler = new TestAssembler(3);
+        assembler.addSequence(ref.getBytes(), true);
+        assertLinearGraph(assembler, ref);
     }
 
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+    @Test(enabled = ! DEBUG)
+    public void testRefNonUniqueCreation() {
+        final String ref = "GAAAAT";
+        final TestAssembler assembler = new TestAssembler(3);
+        assembler.addSequence(ref.getBytes(), true);
+        assertLinearGraph(assembler, ref);
+    }
 
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
-        }
+    @Test(enabled = ! DEBUG)
+    public void testRefAltCreation() {
+        final TestAssembler assembler = new TestAssembler(3);
+        final String ref = "ACAACTGA";
+        final String alt = "ACAGCTGA";
+        assembler.addSequence(ref.getBytes(), true);
+        assembler.addSequence(alt.getBytes(), false);
+        assertSingleBubble(assembler, ref, alt);
+    }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
-        }
+    @Test(enabled = ! DEBUG)
+    public void testPartialReadsCreation() {
+        final TestAssembler assembler = new TestAssembler(3);
+        final String ref  = "ACAACTGA";
+        final String alt1 = "ACAGCT";
+        final String alt2 =    "GCTGA";
+        assembler.addSequence(ref.getBytes(), true);
+        assembler.addSequence(alt1.getBytes(), false);
+        assembler.addSequence(alt2.getBytes(), false);
+        assertSingleBubble(assembler, ref, "ACAGCTGA");
+    }
 
-        return seqGraph;
+    @Test(enabled = ! DEBUG)
+    public void testStartInMiddle() {
+        final TestAssembler assembler = new TestAssembler(3);
+        final String ref  = "CAAAATG";
+        final String read =   "AAATG";
+        assembler.addSequence(ref.getBytes(), true);
+        assembler.addSequence(read.getBytes(), false);
+        assertLinearGraph(assembler, ref);
+    }
+
+    @Test(enabled = ! DEBUG)
+    public void testStartInMiddleWithBubble() {
+        final TestAssembler assembler = new TestAssembler(3);
+        final String ref  = "CAAAATGGGG";
+        final String read =   "AAATCGGG";
+        assembler.addSequence(ref.getBytes(), true);
+        assembler.addSequence(read.getBytes(), false);
+        assertSingleBubble(assembler, ref, "CAAAATCGGG");
+    }
+
+    @Test(enabled = ! DEBUG)
+    public void testNoGoodStarts() {
+        final TestAssembler assembler = new TestAssembler(3);
+        final String ref  = "CAAAATGGGG";
+        final String read =   "AAATCGGG";
+        assembler.addSequence(ref.getBytes(), true);
+        assembler.addSequence(read.getBytes(), false);
+        assertSingleBubble(assembler, ref, "CAAAATCGGG");
+    }
+
+
+    @Test(enabled = !DEBUG)
+    public void testCreateWithBasesBeforeRefSource() {
+        final TestAssembler assembler = new TestAssembler(3);
+        final String ref  =  "ACTG";
+        final String read =   "CTGGGACT";
+        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(ref), true);
+        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(read), false);
+        assertLinearGraph(assembler, "ACTGGGACT");
+    }
+
+    @Test(enabled = !DEBUG)
+    public void testSingleIndelAsDoubleIndel3Reads() {
+        final TestAssembler assembler = new TestAssembler(25);
+        // The single indel spans two repetitive structures
+        final String ref   = "GTTTTTCCTAGGCAAATGGTTTCTATAAAATTATGTGTGTGTGTCTCTCTCTGTGTGTGTGTGTGTGTGTGTGTGTATACCTAATCTCACACTCTTTTTTCTGG";
+        final String read1 = "GTTTTTCCTAGGCAAATGGTTTCTATAAAATTATGTGTGTGTGTCTCT----------GTGTGTGTGTGTGTGTGTATACCTAATCTCACACTCTTTTTTCTGG";
+        final String read2 = "GTTTTTCCTAGGCAAATGGTTTCTATAAAATTATGTGTGTGTGTCTCT----------GTGTGTGTGTGTGTGTGTATACCTAATCTCACACTCTTTTTTCTGG";
+        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(ref), true);
+        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(read1), false);
+        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(read2), false);
+
+        final SeqGraph graph = assembler.assemble();
+        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<SeqVertex,BaseEdge>();
+        final List<Path<SeqVertex,BaseEdge>> paths = pathFinder.getKBestPaths(graph);
+        Assert.assertEquals(paths.size(), 2);
+        final byte[] refPath = paths.get(0).getBases().length == ref.length() ? paths.get(0).getBases() : paths.get(1).getBases();
+        final byte[] altPath = paths.get(0).getBases().length == ref.length() ? paths.get(1).getBases() : paths.get(0).getBases();
+        Assert.assertEquals(refPath, ReadThreadingGraphUnitTest.getBytes(ref));
+        Assert.assertEquals(altPath, ReadThreadingGraphUnitTest.getBytes(read1));
     }
 }

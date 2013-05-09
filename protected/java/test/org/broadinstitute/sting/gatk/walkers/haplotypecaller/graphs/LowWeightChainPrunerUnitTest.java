@@ -46,105 +46,118 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
+import org.broadinstitute.sting.BaseTest;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.File;
+import java.util.*;
 
-/**
- * A DeBruijn kmer graph
- *
- * User: rpoplin
- * Date: 2/6/13
- */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
-        }
-    }
+public class LowWeightChainPrunerUnitTest extends BaseTest {
+    @DataProvider(name = "pruneChainsData")
+    public Object[][] makePruneChainsData() {
+        List<Object[]> tests = new ArrayList<>();
 
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
-    }
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("C");
+        final SeqVertex v3 = new SeqVertex("G");
+        final SeqVertex v4 = new SeqVertex("T");
+        final SeqVertex v5 = new SeqVertex("AA");
+        final SeqVertex v6 = new SeqVertex("CC");
 
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
-
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+        for ( final int edgeWeight : Arrays.asList(1, 2, 3) ) {
+            for ( final int pruneFactor : Arrays.asList(1, 2, 3, 4) ) {
+                for ( final boolean isRef : Arrays.asList(true, false)) {
+                    { // just an isolated chain
+                        final int nExpected = edgeWeight < pruneFactor && ! isRef ? 3 : 0;
+                        SeqGraph graph = new SeqGraph();
+                        graph.addVertices(v1, v2, v3);
+                        graph.addEdges(new BaseEdge(isRef, edgeWeight), v1, v2, v3);
+                        tests.add(new Object[]{"combinatorial", graph, pruneFactor, nExpected > 0 ? Collections.emptySet() : graph.vertexSet()});
+                    }
+                }
+            }
         }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
+        { // connects to ref chain
+            SeqGraph graph = new SeqGraph();
+            graph.addVertices(v1, v2, v3);
+            graph.addVertices(v4, v5);
+            graph.addEdges(new BaseEdge(true, 1), v4, v5);
+            graph.addEdges(new BaseEdge(false, 1), v4, v1, v2, v3, v5);
+            tests.add(new Object[]{"bad internal branch", graph, 2, new HashSet<>(Arrays.asList(v4, v5))});
         }
 
-        return seqGraph;
+        { // has bad cycle
+            SeqGraph graph = new SeqGraph();
+            graph.addVertices(v1, v2, v3, v4);
+            graph.addEdges(new BaseEdge(false, 1), v4, v1, v2, v3, v1);
+            // note that we'll remove v4 because it's low weight
+            tests.add(new Object[]{"has bad cycle", graph, 2, Collections.emptySet()});
+        }
+
+        { // has good cycle
+            SeqGraph graph = new SeqGraph();
+            graph.addVertices(v1, v2, v3, v4);
+            graph.addEdges(new BaseEdge(false, 3), v4, v1, v2, v3, v1);
+            // note that we'll remove v4 because it's low weight
+            tests.add(new Object[]{"has good cycle", graph, 2, graph.vertexSet()});
+        }
+
+        { // has branch
+            SeqGraph graph = new SeqGraph();
+            graph.addVertices(v1, v2, v3, v4, v5, v6);
+            graph.addEdges(new BaseEdge(false, 1), v1, v2, v3, v4, v6);
+            graph.addEdges(new BaseEdge(false, 1), v1, v2, v3, v5, v6);
+            tests.add(new Object[]{"has two bad branches", graph, 2, Collections.emptySet()});
+        }
+
+        { // middle vertex above threshold => no one can be removed
+            SeqGraph graph = new SeqGraph();
+            graph.addVertices(v1, v2, v3, v4, v5);
+            graph.addEdges(new BaseEdge(false, 1), v1, v2);
+            graph.addEdges(new BaseEdge(false, 3), v2, v3);
+            graph.addEdges(new BaseEdge(false, 1), v3, v4, v5);
+            tests.add(new Object[]{"middle vertex above factor", graph, 2, graph.vertexSet()});
+        }
+
+        { // the branching node has value > pruneFactor
+            SeqGraph graph = new SeqGraph();
+            graph.addVertices(v1, v2, v3, v4, v5, v6);
+            graph.addEdges(new BaseEdge(false, 3), v1, v2);
+            graph.addEdges(new BaseEdge(false, 3), v2, v3);
+            graph.addEdges(new BaseEdge(false, 1), v3, v4, v6);
+            graph.addEdges(new BaseEdge(false, 3), v2, v5, v6);
+            tests.add(new Object[]{"branch node greater than pruneFactor", graph, 2, graph.vertexSet()});
+        }
+
+        { // A single isolated chain with weights all below pruning should be pruned
+            SeqGraph graph = new SeqGraph();
+            graph.addVertices(v1, v2, v3, v4, v5);
+            graph.addEdges(new BaseEdge(false, 1), v1, v2, v3);
+            graph.addEdges(new BaseEdge(false, 5), v4, v5);
+            tests.add(new Object[]{"isolated chain", graph, 2, new LinkedHashSet<>(Arrays.asList(v4, v5))});
+        }
+
+        { // A chain with weights all below pruning should be pruned, even if it connects to another good chain
+            SeqGraph graph = new SeqGraph();
+            graph.addVertices(v1, v2, v3, v4, v5, v6);
+            graph.addEdges(new BaseEdge(false, 1), v1, v2, v3, v5);
+            graph.addEdges(new BaseEdge(false, 5), v4, v5, v6);
+            tests.add(new Object[]{"bad chain branching into good one", graph, 2, new HashSet<>(Arrays.asList(v4, v5, v6))});
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "pruneChainsData", enabled = true)
+    public void testPruneChains(final String name, final SeqGraph graph, final int pruneFactor, final Set<SeqVertex> remainingVertices) {
+        final Set<SeqVertex> copy = new HashSet<>(remainingVertices);
+//        graph.printGraph(new File("in.dot"), 0);
+        final LowWeightChainPruner<SeqVertex, BaseEdge> pruner = new LowWeightChainPruner<>(pruneFactor);
+        pruner.pruneLowWeightChains(graph);
+//        graph.printGraph(new File("out.dot"), 0);
+        Assert.assertEquals(graph.vertexSet(), copy);
     }
 }

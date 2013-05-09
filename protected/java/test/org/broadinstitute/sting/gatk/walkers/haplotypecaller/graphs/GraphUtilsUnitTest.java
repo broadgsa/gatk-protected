@@ -46,105 +46,75 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.collections.PrimitivePair;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
-/**
- * A DeBruijn kmer graph
- *
- * User: rpoplin
- * Date: 2/6/13
- */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
-        }
-    }
+public class GraphUtilsUnitTest extends BaseTest {
+    @DataProvider(name = "findLongestUniqueMatchData")
+    public Object[][] makefindLongestUniqueMatchData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
 
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
-    }
-
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
-
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+        { // test all edge conditions
+            final String ref = "ACGT";
+            for ( int start = 0; start < ref.length(); start++ ) {
+                for ( int end = start + 1; end <= ref.length(); end++ ) {
+                    final String kmer = ref.substring(start, end);
+                    tests.add(new Object[]{ref, kmer, end - 1, end - start});
+                    tests.add(new Object[]{ref, "N" + kmer, end - 1, end - start});
+                    tests.add(new Object[]{ref, "NN" + kmer, end - 1, end - start});
+                    tests.add(new Object[]{ref, kmer + "N", -1, 0});
+                    tests.add(new Object[]{ref, kmer + "NN", -1, 0});
+                }
+            }
         }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
+        { // multiple matches
+            final String ref = "AACCGGTT";
+            for ( final String alt : Arrays.asList("A", "C", "G", "T") )
+                tests.add(new Object[]{ref, alt, -1, 0});
+            tests.add(new Object[]{ref, "AA", 1, 2});
+            tests.add(new Object[]{ref, "CC", 3, 2});
+            tests.add(new Object[]{ref, "GG", 5, 2});
+            tests.add(new Object[]{ref, "TT", 7, 2});
         }
 
-        return seqGraph;
+        { // complex matches that have unique substrings of lots of parts of kmer in the ref
+            final String ref = "ACGTACGTACGT";
+            tests.add(new Object[]{ref, "ACGT", -1, 0});
+            tests.add(new Object[]{ref, "TACGT", -1, 0});
+            tests.add(new Object[]{ref, "GTACGT", -1, 0});
+            tests.add(new Object[]{ref, "CGTACGT", -1, 0});
+            tests.add(new Object[]{ref, "ACGTACGT", -1, 0});
+            tests.add(new Object[]{ref, "TACGTACGT", 11, 9});
+            tests.add(new Object[]{ref, "NTACGTACGT", 11, 9});
+            tests.add(new Object[]{ref, "GTACGTACGT", 11, 10});
+            tests.add(new Object[]{ref, "NGTACGTACGT", 11, 10});
+            tests.add(new Object[]{ref, "CGTACGTACGT", 11, 11});
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    /**
+     * Example testng test using MyDataProvider
+     */
+    @Test(dataProvider = "findLongestUniqueMatchData")
+    public void testfindLongestUniqueMatch(final String seq, final String kmer, final int start, final int length) {
+        // adaptor this code to do whatever testing you want given the arguments start and size
+        final PrimitivePair.Int actual = GraphUtils.findLongestUniqueSuffixMatch(seq.getBytes(), kmer.getBytes());
+        if ( start == -1 )
+            Assert.assertNull(actual);
+        else {
+            Assert.assertNotNull(actual);
+            Assert.assertEquals(actual.first, start);
+            Assert.assertEquals(actual.second, length);
+        }
     }
 }
