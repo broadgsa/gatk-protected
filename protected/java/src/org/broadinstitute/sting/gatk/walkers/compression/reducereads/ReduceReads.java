@@ -64,6 +64,7 @@ import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -236,6 +237,15 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
     public int downsampleCoverage = 250;
 
+    /**
+     * Generally, this tool is not meant to be run for more than 1 sample at a time.  The one valid exception
+     * brought to our attention by colleagues is the specific case of tumor/normal pairs in cancer analysis.
+     * To prevent users from unintentionally running the tool in a less than ideal manner, we require them
+     * to explicitly enable multi-sample analysis with this argument.
+     */
+    @Argument(fullName = "cancer_mode", shortName = "cancer_mode", doc = "enable multi-samples reduction for cancer analysis", required = false)
+    public boolean ALLOW_MULTIPLE_SAMPLES = false;
+
     @Hidden
     @Argument(fullName = "nwayout", shortName = "nw", doc = "", required = false)
     public boolean nwayout = false;
@@ -293,6 +303,9 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
 
         if ( minAltProportionToTriggerVariant < 0.0 || minAltProportionToTriggerVariant > 1.0 )
             throw new UserException.BadArgumentValue("--minimum_alt_proportion_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
+
+        if ( SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader()).size() > 1 && !ALLOW_MULTIPLE_SAMPLES )
+            throw new UserException.BadInput("Reduce Reads is not meant to be run for more than 1 sample at a time except for the specific case of tumor/normal pairs in cancer analysis");
 
         if ( known.isEmpty() )
             knownSnpPositions = null;

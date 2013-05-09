@@ -53,6 +53,7 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class ReduceReadsIntegrationTest extends WalkerTest {
@@ -221,13 +222,13 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testCoReduction() {
-        String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
+        String base = String.format("-T ReduceReads %s --cancer_mode -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
         executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("5f4d2c1d9c010dfd6865aeba7d0336fe")), COREDUCTION_QUALS_TEST_MD5);
     }
 
     @Test(enabled = true)
     public void testCoReductionWithKnowns() {
-        String base = String.format("-T ReduceReads %s -npt -R %s -I %s -I %s -known %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B, DBSNP) + " -o %s ";
+        String base = String.format("-T ReduceReads %s --cancer_mode -npt -R %s -I %s -I %s -known %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B, DBSNP) + " -o %s ";
         executeTest("testCoReductionWithKnowns", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("ca48dd972bf57595c691972c0f887cb4")), COREDUCTION_QUALS_TEST_MD5);
     }
 
@@ -280,6 +281,25 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
         String base = String.format("-T ReduceReads -npt -R %s -I %s ", hg19Reference, BOTH_ENDS_OF_PAIR_IN_VARIANT_REGION_BAM) +
                 " -o %s  --downsample_coverage 250 -dcov 50  ";
         executeTest("testPairedReadsInVariantRegion", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("7e7b358443827ca239db3b98f299aec6")), "2af063d1bd3c322b03405dbb3ecf59a9");
+    }
+
+    /**
+     * Confirm that this bam does not fail when multi-sample mode is enabled.  The provided example is tricky and used to cause
+     * us to exception out in the code.
+     */
+    @Test(enabled = true)
+    public void testMultiSampleDoesNotFailWithFlag() {
+        String cmd = "-T ReduceReads --cancer_mode -npt -R " + b37KGReference + " -I " + privateTestDir + "rr_multisample.bam -o /dev/null";
+        executeTestWithoutAdditionalRRTests("testMultiSampleDoesNotFailWithFlag", new WalkerTestSpec(cmd, 0, Collections.<String>emptyList()));
+    }
+
+    /**
+     * Confirm that this bam fails when multi-sample mode is not enabled
+     */
+    @Test(enabled = true)
+    public void testMultiSampleFailsWithoutFlag() {
+        String cmd = "-T ReduceReads -npt -R " + b37KGReference + " -I " + privateTestDir + "rr_multisample.bam -o /dev/null";
+        executeTestWithoutAdditionalRRTests("testMultiSampleDoesNotFailWithFlag", new WalkerTestSpec(cmd, 0, UserException.BadInput.class));
     }
 }
 
