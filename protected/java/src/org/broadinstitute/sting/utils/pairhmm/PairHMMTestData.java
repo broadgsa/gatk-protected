@@ -46,153 +46,117 @@
 
 package org.broadinstitute.sting.utils.pairhmm;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.QualityUtils;
+import net.sf.samtools.SAMUtils;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.text.XReadLines;
+
+import java.io.*;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 /**
- * Created with IntelliJ IDEA.
- * User: rpoplin, carneiro
- * Date: 10/16/12
+ * Useful single class carrying test data for PairHMMs (for use in benchmarking and unit tests)
+ *
+ * User: depristo
+ * Date: 5/12/13
+ * Time: 3:52 PM
+ * To change this template use File | Settings | File Templates.
  */
-public final class LoglessPairHMM extends N2MemoryPairHMM {
-    protected static final double INITIAL_CONDITION = Math.pow(2, 1020);
-    protected static final double INITIAL_CONDITION_LOG10 = Math.log10(INITIAL_CONDITION);
+public class PairHMMTestData {
+    public final String ref;
+    private final String read;
+    public final byte[] baseQuals, insQuals, delQuals, gcp;
+    public final double log10l;
 
-    private static final int matchToMatch = 0;
-    private static final int indelToMatch = 1;
-    private static final int matchToInsertion = 2;
-    private static final int insertionToInsertion = 3;
-    private static final int matchToDeletion = 4;
-    private static final int deletionToDeletion = 5;
+    PairHMMTestData(String ref, String read, byte[] baseQuals, byte[] insQuals, byte[] delQuals, byte[] gcp, double log10l) {
+        this.ref = ref;
+        this.read = read;
+        this.baseQuals = baseQuals;
+        this.insQuals = insQuals;
+        this.delQuals = delQuals;
+        this.gcp = gcp;
+        this.log10l = log10l;
+    }
 
+    PairHMMTestData(String ref, String read, final byte qual) {
+        this.ref = ref;
+        this.read = read;
+        this.baseQuals = this.insQuals = this.delQuals =  Utils.dupBytes(qual, read.length());
+        this.gcp =  Utils.dupBytes((byte)10, read.length());
+        this.log10l = -1;
+    }
 
-    /**
-     * {@inheritDoc}
-     */
+    public double runHMM(final PairHMM hmm) {
+        hmm.initialize(getRead().length(), ref.length());
+        return hmm.computeReadLikelihoodGivenHaplotypeLog10(ref.getBytes(), getRead().getBytes(),
+                baseQuals, insQuals, delQuals, gcp, true);
+    }
+
     @Override
-    public void initialize(final int readMaxLength, final int haplotypeMaxLength ) {
-        super.initialize(readMaxLength, haplotypeMaxLength);
-
-        transition = new double[paddedMaxReadLength][6];
-        prior = new double[paddedMaxReadLength][paddedMaxHaplotypeLength];
+    public String toString() {
+        return "Info{" +
+                "ref='" + ref + '\'' +
+                ", read='" + getRead() + '\'' +
+                ", log10l=" + log10l +
+                '}';
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public double subComputeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
-                                                               final byte[] readBases,
-                                                               final byte[] readQuals,
-                                                               final byte[] insertionGOP,
-                                                               final byte[] deletionGOP,
-                                                               final byte[] overallGCP,
-                                                               final int hapStartIndex,
-                                                               final boolean recacheReadValues ) {
+    public static void runHMMs(final PairHMM hmm, final List<PairHMMTestData> data, final boolean runSingly) {
+        if ( runSingly ) {
+            for ( final PairHMMTestData datum : data )
+                datum.runHMM(hmm);
+        } else {
+            // running in batch mode
+            final PairHMMTestData first = data.get(0);
+            int maxHaplotypeLen = calcMaxHaplotypeLen(data);
+            hmm.initialize(first.getRead().length(), maxHaplotypeLen);
+            for ( final PairHMMTestData datum : data ) {
+                hmm.computeReadLikelihoodGivenHaplotypeLog10(datum.ref.getBytes(), datum.getRead().getBytes(),
+                        datum.baseQuals, datum.insQuals, datum.delQuals, datum.gcp, false);
 
-        if (previousHaplotypeBases == null || previousHaplotypeBases.length != haplotypeBases.length) {
-            final double initialValue = INITIAL_CONDITION / haplotypeBases.length;
-            // set the initial value (free deletions in the beginning) for the first row in the deletion matrix
-            for( int j = 0; j < paddedHaplotypeLength; j++ ) {
-                deletionMatrix[0][j] = initialValue;
-            }
-        }
-
-        if ( ! constantsAreInitialized || recacheReadValues ) {
-            initializeProbabilities(transition, insertionGOP, deletionGOP, overallGCP);
-
-            // note that we initialized the constants
-            constantsAreInitialized = true;
-        }
-
-        initializePriors(haplotypeBases, readBases, readQuals, hapStartIndex);
-
-        for (int i = 1; i < paddedReadLength; i++) {
-            // +1 here is because hapStartIndex is 0-based, but our matrices are 1 based
-            for (int j = hapStartIndex+1; j < paddedHaplotypeLength; j++) {
-                updateCell(i, j, prior[i][j], transition[i]);
-            }
-        }
-
-        // final probability is the log10 sum of the last element in the Match and Insertion state arrays
-        // this way we ignore all paths that ended in deletions! (huge)
-        // but we have to sum all the paths ending in the M and I matrices, because they're no longer extended.
-        final int endI = paddedReadLength - 1;
-        double finalSumProbabilities = 0.0;
-        for (int j = 1; j < paddedHaplotypeLength; j++) {
-            finalSumProbabilities += matchMatrix[endI][j] + insertionMatrix[endI][j];
-        }
-        return Math.log10(finalSumProbabilities) - INITIAL_CONDITION_LOG10;
-    }
-
-    /**
-     * Initializes the matrix that holds all the constants related to the editing
-     * distance between the read and the haplotype.
-     *
-     * @param haplotypeBases the bases of the haplotype
-     * @param readBases      the bases of the read
-     * @param readQuals      the base quality scores of the read
-     * @param startIndex     where to start updating the distanceMatrix (in case this read is similar to the previous read)
-     */
-    public void initializePriors(final byte[] haplotypeBases, final byte[] readBases, final byte[] readQuals, final int startIndex) {
-
-        // initialize the pBaseReadLog10 matrix for all combinations of read x haplotype bases
-        // Abusing the fact that java initializes arrays with 0.0, so no need to fill in rows and columns below 2.
-
-        for (int i = 0; i < readBases.length; i++) {
-            final byte x = readBases[i];
-            final byte qual = readQuals[i];
-            for (int j = startIndex; j < haplotypeBases.length; j++) {
-                final byte y = haplotypeBases[j];
-                prior[i+1][j+1] = ( x == y || x == (byte) 'N' || y == (byte) 'N' ?
-                        QualityUtils.qualToProb(qual) : QualityUtils.qualToErrorProb(qual) );
             }
         }
     }
 
-    /**
-     * Initializes the matrix that holds all the constants related to quality scores.
-     *
-     * @param insertionGOP   insertion quality scores of the read
-     * @param deletionGOP    deletion quality scores of the read
-     * @param overallGCP     overall gap continuation penalty
-     */
-    @Requires({
-            "insertionGOP != null",
-            "deletionGOP != null",
-            "overallGCP != null"
-    })
-    @Ensures("constantsAreInitialized")
-    protected static void initializeProbabilities(final double[][] transition, final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP) {
-        for (int i = 0; i < insertionGOP.length; i++) {
-            final int qualIndexGOP = Math.min(insertionGOP[i] + deletionGOP[i], Byte.MAX_VALUE);
-            transition[i+1][matchToMatch] = QualityUtils.qualToProb((byte) qualIndexGOP);
-            transition[i+1][indelToMatch] = QualityUtils.qualToProb(overallGCP[i]);
-            transition[i+1][matchToInsertion] = QualityUtils.qualToErrorProb(insertionGOP[i]);
-            transition[i+1][insertionToInsertion] = QualityUtils.qualToErrorProb(overallGCP[i]);
-            transition[i+1][matchToDeletion] = QualityUtils.qualToErrorProb(deletionGOP[i]);
-            transition[i+1][deletionToDeletion] = QualityUtils.qualToErrorProb(overallGCP[i]);
-        }
+    public static int calcMaxHaplotypeLen(final List<PairHMMTestData> data) {
+        int maxHaplotypeLen = 0;
+        for ( final PairHMMTestData datum : data )
+            maxHaplotypeLen = Math.max(maxHaplotypeLen, datum.ref.length());
+        return maxHaplotypeLen;
     }
 
-    /**
-     * Updates a cell in the HMM matrix
-     *
-     * The read and haplotype indices are offset by one because the state arrays have an extra column to hold the
-     * initial conditions
+    public static Map<String, List<PairHMMTestData>> readLikelihoods(final File file) throws IOException {
+        final Map<String, List<PairHMMTestData>> results = new LinkedHashMap<>();
 
-     * @param indI             row index in the matrices to update
-     * @param indJ             column index in the matrices to update
-     * @param prior            the likelihood editing distance matrix for the read x haplotype
-     * @param transition        an array with the six transition relevant to this location
-     */
-    private void updateCell( final int indI, final int indJ, final double prior, final double[] transition) {
+        InputStream in = new FileInputStream(file);
+        if ( file.getName().endsWith(".gz") ) {
+            in = new GZIPInputStream(in);
+        }
 
-        matchMatrix[indI][indJ] = prior * ( matchMatrix[indI - 1][indJ - 1] * transition[matchToMatch] +
-                                                 insertionMatrix[indI - 1][indJ - 1] * transition[indelToMatch] +
-                                                 deletionMatrix[indI - 1][indJ - 1] * transition[indelToMatch] );
-        insertionMatrix[indI][indJ] = matchMatrix[indI - 1][indJ] * transition[matchToInsertion] + insertionMatrix[indI - 1][indJ] * transition[insertionToInsertion];
-        deletionMatrix[indI][indJ] = matchMatrix[indI][indJ - 1] * transition[matchToDeletion] + deletionMatrix[indI][indJ - 1] * transition[deletionToDeletion];
+        for ( final String line : new XReadLines(in) ) {
+            final String[] parts = line.split(" ");
+            final PairHMMTestData info = new PairHMMTestData(
+                    parts[0], parts[1],
+                    SAMUtils.fastqToPhred(parts[2]),
+                    SAMUtils.fastqToPhred(parts[3]),
+                    SAMUtils.fastqToPhred(parts[4]),
+                    SAMUtils.fastqToPhred(parts[5]),
+                    Double.parseDouble(parts[6]));
+
+            if ( ! results.containsKey(info.read) )  {
+                results.put(info.read, new LinkedList<PairHMMTestData>());
+            }
+            final List<PairHMMTestData> byHap = results.get(info.read);
+            byHap.add(info);
+        }
+
+        return results;
+    }
+
+    public String getRead() {
+        return read;
     }
 }
