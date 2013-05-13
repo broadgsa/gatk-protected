@@ -44,124 +44,36 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
 
-/**
- * A graph vertex containing a sequence of bases and a unique ID that
- * allows multiple distinct nodes in the graph to have the same sequence.
- *
- * This is essential when thinking about representing the actual sequence of a haplotype
- * in a graph.  There can be many parts of the sequence that have the same sequence, but
- * are distinct elements in the graph because they have a different position in the graph.  For example:
- *
- * A -> C -> G -> A -> T
- *
- * The two As are not the same, because they occur with different connections.  In a kmer graph equals()
- * is based on the sequence itself, as each distinct kmer can only be represented once.  But the transformation
- * of the kmer graph into a graph of base sequences, without their kmer prefixes, means that nodes that
- * where once unique including their prefix can become equal after shedding the prefix.  So we need to
- * use some mechanism -- here a unique ID per node -- to separate nodes that have the same sequence
- * but are distinct elements of the graph.
- *
- * @author: depristo
- * @since 03/2013
- */
-public final class SeqVertex extends BaseVertex {
-    // Note that using an AtomicInteger is critical to allow multi-threaded HaplotypeCaller
-    private static final AtomicInteger idCounter = new AtomicInteger(0);
-    private int id = idCounter.getAndIncrement();
+public class HaplotypeCallerParallelIntegrationTest extends WalkerTest {
+    @DataProvider(name = "NCTDataProvider")
+    public Object[][] makeNCTDataProvider() {
+        List<Object[]> tests = new ArrayList<Object[]>();
 
-    /**
-     * Create a new SeqVertex with sequence and the next available id
-     * @param sequence our base sequence
-     */
-    public SeqVertex(final byte[] sequence) {
-        super(sequence);
+        for ( final int nct : Arrays.asList(1, 2, 4) ) {
+            tests.add(new Object[]{nct, "c277fd65365d59b734260dd8423313bb"});
+        }
+
+        return tests.toArray(new Object[][]{});
     }
 
-    /**
-     * Create a new SeqVertex having bases of sequence.getBytes()
-     * @param sequence the string representation of our bases
-     */
-    public SeqVertex(final String sequence) {
-        super(sequence);
-    }
-
-    /**
-     * Create a copy of toCopy
-     * @param toCopy a SeqVertex to copy into this newly allocated one
-     */
-    public SeqVertex(final SeqVertex toCopy) {
-        super(toCopy.sequence);
-        this.id = toCopy.id;
-    }
-
-    /**
-     * Get the unique ID for this SeqVertex
-     * @return a positive integer >= 0
-     */
-    public int getId() {
-        return id;
-    }
-
-    @Override
-    public String toString() {
-        return "SeqVertex_id_" + id + "_seq_" + getSequenceString();
-    }
-
-    /**
-     * Two SeqVertex are equal only if their ids are equal
-     * @param o
-     * @return
-     */
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        SeqVertex seqVertex = (SeqVertex) o;
-        if (id != seqVertex.id) return false;
-
-        // note that we don't test for super equality here because the ids are unique
-        //if (!super.equals(o)) return false;
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        return id;
-    }
-
-    /**
-     * Return a new SeqVertex derived from this one but not including the suffix bases
-     *
-     * @param suffix the suffix bases to remove from this vertex
-     * @return a newly allocated SeqVertex with appropriate prefix, or null if suffix removes all bases from this node
-     */
-    @Requires("Utils.endsWith(sequence, suffix)")
-    public SeqVertex withoutSuffix(final byte[] suffix) {
-        final int prefixSize = sequence.length - suffix.length;
-        return prefixSize > 0 ? new SeqVertex(Arrays.copyOf(sequence, prefixSize)) : null;
-    }
-
-    /**
-     * Return a new SeqVertex derived from this one but not including prefix or suffix bases
-     *
-     * @param prefix the previx bases to remove
-     * @param suffix the suffix bases to remove from this vertex
-     * @return a newly allocated SeqVertex
-     */
-    @Requires("Utils.endsWith(sequence, suffix)")
-    public SeqVertex withoutPrefixAndSuffix(final byte[] prefix, final byte[] suffix) {
-        final int start = prefix.length;
-        final int length = sequence.length - suffix.length - prefix.length;
-        final int stop = start + length;
-        return length > 0 ? new SeqVertex(Arrays.copyOfRange(sequence, start, stop)) : null;
+    @Test(dataProvider = "NCTDataProvider")
+    public void testHCNCT(final int nct, final String md5) {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I "
+                        + privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam -o %s " +
+                        " -L 20:10,000,000-10,100,000 -G none -A -contamination 0.0 -nct " + nct, 1,
+                Arrays.asList(md5));
+        executeTest("HC test parallel HC with NCT with nct " + nct, spec);
     }
 }

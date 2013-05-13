@@ -71,7 +71,20 @@ public class LikelihoodCalculationEngine {
     private final byte constantGCP;
     private final double log10globalReadMismappingRate;
     private final boolean DEBUG;
-    private final PairHMM pairHMM;
+    private final PairHMM.HMM_IMPLEMENTATION hmmType;
+
+    private final ThreadLocal<PairHMM> pairHMM = new ThreadLocal<PairHMM>() {
+        @Override
+        protected PairHMM initialValue() {
+            switch (hmmType) {
+                case EXACT: return new Log10PairHMM(true);
+                case ORIGINAL: return new Log10PairHMM(false);
+                case LOGLESS_CACHING: return new LoglessPairHMM();
+                default:
+                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");
+            }
+        }
+    };
 
     /**
      * The expected rate of random sequencing errors for a read originating from its true haplotype.
@@ -96,22 +109,9 @@ public class LikelihoodCalculationEngine {
      *                                      assigned a likelihood of -13.
      */
     public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType, final double log10globalReadMismappingRate ) {
-        switch (hmmType) {
-            case EXACT:
-                pairHMM = new Log10PairHMM(true);
-                break;
-            case ORIGINAL:
-                pairHMM = new Log10PairHMM(false);
-                break;
-            case LOGLESS_CACHING:
-                pairHMM = new LoglessPairHMM();
-                break;
-            default:
-                throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");
-        }
-
+        this.hmmType = hmmType;
         this.constantGCP = constantGCP;
-        DEBUG = debug;
+        this.DEBUG = debug;
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
     }
 
@@ -143,7 +143,7 @@ public class LikelihoodCalculationEngine {
         }
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+        pairHMM.get().initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
     }
 
     public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
@@ -151,7 +151,7 @@ public class LikelihoodCalculationEngine {
         initializePairHMM(haplotypes, perSampleReadList);
 
         // Add likelihoods for each sample's reads to our stratifiedReadMap
-        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
+        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new LinkedHashMap<>();
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
             // evaluate the likelihood of the reads given those haplotypes
             final PerReadAlleleLikelihoodMap map = computeReadLikelihoods(haplotypes, sampleEntry.getValue());
@@ -170,7 +170,7 @@ public class LikelihoodCalculationEngine {
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final List<Haplotype> haplotypes, final List<GATKSAMRecord> reads) {
         // first, a little set up to get copies of the Haplotypes that are Alleles (more efficient than creating them each time)
         final int numHaplotypes = haplotypes.size();
-        final Map<Haplotype, Allele> alleleVersions = new HashMap<>(numHaplotypes);
+        final Map<Haplotype, Allele> alleleVersions = new LinkedHashMap<>(numHaplotypes);
         Allele refAllele = null;
         for ( final Haplotype haplotype : haplotypes ) {
             final Allele allele = Allele.create(haplotype, true);
@@ -202,7 +202,7 @@ public class LikelihoodCalculationEngine {
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
                 final Haplotype haplotype = haplotypes.get(jjj);
                 final boolean isFirstHaplotype = jjj == 0;
-                final double log10l = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
+                final double log10l = pairHMM.get().computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
                         read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
 
                 if ( haplotype.isNonReference() )

@@ -139,7 +139,7 @@ import java.util.*;
 @ActiveRegionTraversalParameters(extension=100, maxRegion=300)
 @ReadFilters({HCMappingQualityFilter.class})
 @Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=250)
-public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implements AnnotatorCompatible {
+public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, Integer> implements AnnotatorCompatible, NanoSchedulable {
     // -----------------------------------------------------------------------------------------------
     // general haplotype caller arguments
     // -----------------------------------------------------------------------------------------------
@@ -645,15 +645,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     //
     //---------------------------------------------------------------------------------------------------------------
 
+    private final static List<VariantContext> NO_CALLS = Collections.emptyList();
     @Override
-    public Integer map( final ActiveRegion originalActiveRegion, final RefMetaDataTracker metaDataTracker ) {
+    public List<VariantContext> map( final ActiveRegion originalActiveRegion, final RefMetaDataTracker metaDataTracker ) {
         if ( justDetermineActiveRegions )
             // we're benchmarking ART and/or the active region determination code in the HC, just leave without doing any work
-            return 1;
+            return NO_CALLS;
 
-        if( !originalActiveRegion.isActive() ) { return 0; } // Not active so nothing to do!
+        if( !originalActiveRegion.isActive() ) { return NO_CALLS; } // Not active so nothing to do!
 
-        final List<VariantContext> activeAllelesToGenotype = new ArrayList<VariantContext>();
+        final List<VariantContext> activeAllelesToGenotype = new ArrayList<>();
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
             for( final VariantContext vc : allelesToGenotype ) {
                 if( originalActiveRegion.getLocation().overlapsP( getToolkit().getGenomeLocParser().createGenomeLoc(vc) ) ) {
@@ -662,23 +663,23 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
             }
             allelesToGenotype.removeAll( activeAllelesToGenotype );
             // No alleles found in this region so nothing to do!
-            if ( activeAllelesToGenotype.isEmpty() ) { return 0; }
+            if ( activeAllelesToGenotype.isEmpty() ) { return NO_CALLS; }
         } else {
-            if( originalActiveRegion.size() == 0 ) { return 0; } // No reads here so nothing to do!
+            if( originalActiveRegion.size() == 0 ) { return NO_CALLS; } // No reads here so nothing to do!
         }
 
         // run the local assembler, getting back a collection of information on how we should proceed
         final AssemblyResult assemblyResult = assembleReads(originalActiveRegion, activeAllelesToGenotype);
 
         // abort early if something is out of the acceptable range
-        if( ! assemblyResult.isVariationPresent() ) { return 1; } // only the reference haplotype remains so nothing else to do!
-        if (dontGenotype) return 1; // user requested we not proceed
+        if( ! assemblyResult.isVariationPresent() ) { return NO_CALLS; } // only the reference haplotype remains so nothing else to do!
+        if (dontGenotype) return NO_CALLS; // user requested we not proceed
 
         // filter out reads from genotyping which fail mapping quality based criteria
         final List<GATKSAMRecord> filteredReads = filterNonPassingReads( assemblyResult.regionForGenotyping );
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
-        if( assemblyResult.regionForGenotyping.size() == 0 ) { return 1; } // no reads remain after filtering so nothing else to do!
+        if( assemblyResult.regionForGenotyping.size() == 0 ) { return NO_CALLS; } // no reads remain after filtering so nothing else to do!
 
         // evaluate each sample's reads against all haplotypes
         //logger.info("Computing read likelihoods with " + assemblyResult.regionForGenotyping.size() + " reads");
@@ -697,12 +698,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
                 getToolkit().getGenomeLocParser(),
                 activeAllelesToGenotype );
 
-        for( final VariantContext call : calledHaplotypes.getCalls() ) {
-            // TODO -- uncomment this line once ART-based walkers have a proper RefMetaDataTracker.
-            // annotationEngine.annotateDBs(metaDataTracker, getToolkit().getGenomeLocParser().createGenomeLoc(call),  call);
-            vcfWriter.add( call );
-        }
-
+        // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
         if ( bamWriter != null ) {
             haplotypeBAMWriter.writeReadsAlignedToHaplotypes(assemblyResult.haplotypes, assemblyResult.paddedReferenceLoc,
                     bestHaplotypes,
@@ -712,7 +708,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
         if( DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
 
-        return 1; // One active region was processed during this map call
+        return calledHaplotypes.getCalls();
     }
 
     private final static class AssemblyResult {
@@ -855,8 +851,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     }
 
     @Override
-    public Integer reduce(Integer cur, Integer sum) {
-        return cur + sum;
+    public Integer reduce(List<VariantContext> callsInRegion, Integer numCalledRegions) {
+        for( final VariantContext call : callsInRegion ) {
+            // TODO -- uncomment this line once ART-based walkers have a proper RefMetaDataTracker.
+            // annotationEngine.annotateDBs(metaDataTracker, getToolkit().getGenomeLocParser().createGenomeLoc(call),  call);
+            vcfWriter.add( call );
+        }
+        return (callsInRegion.isEmpty() ? 0 : 1) + numCalledRegions;
     }
 
     @Override
@@ -872,7 +873,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
 
     private void finalizeActiveRegion( final ActiveRegion activeRegion ) {
         if( DEBUG ) { logger.info("Assembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
-        final List<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>();
+        final List<GATKSAMRecord> finalizedReadList = new ArrayList<>();
         final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( activeRegion.getReads() );
         activeRegion.clearReads();
 
@@ -883,7 +884,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         }
 
         // Loop through the reads hard clipping the adaptor and low quality tails
-        final List<GATKSAMRecord> readsToUse = new ArrayList<GATKSAMRecord>(finalizedReadList.size());
+        final List<GATKSAMRecord> readsToUse = new ArrayList<>(finalizedReadList.size());
         for( final GATKSAMRecord myRead : finalizedReadList ) {
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
@@ -937,7 +938,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         for( final String sample : samplesList) {
             List<GATKSAMRecord> readList = returnMap.get( sample );
             if( readList == null ) {
-                readList = new ArrayList<GATKSAMRecord>();
+                readList = new ArrayList<>();
                 returnMap.put(sample, readList);
             }
         }

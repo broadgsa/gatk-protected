@@ -51,6 +51,7 @@ import org.broadinstitute.sting.utils.Utils;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A DeBruijnVertex that supports multiple copies of the same kmer
@@ -65,10 +66,12 @@ import java.util.List;
  */
 final class MultiDeBruijnVertex extends DeBruijnVertex {
     private final static boolean KEEP_TRACK_OF_READS = false;
-    private static int idCounter = 0;
+
+    // Note that using an AtomicInteger is critical to allow multi-threaded HaplotypeCaller
+    private static final AtomicInteger idCounter = new AtomicInteger(0);
+    private int id = idCounter.getAndIncrement();
 
     private final List<String> reads = new LinkedList<String>();
-    private int id = idCounter++; // TODO -- potential race condition problem here
 
     /**
      * Create a new MultiDeBruijnVertex with kmer sequence
