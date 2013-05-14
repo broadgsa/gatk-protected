@@ -64,7 +64,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("NA12878.Jan2013.haplotypeCaller.subset.indels.vcf", "NA12878.Jan2013.bestPractices.subset.indels.vcf"),
                 0,
-                Arrays.asList("0f29a0c6dc44066228c8cb204fd53ec0")
+                Arrays.asList("6fe03c63a76cb61a76e550137ebf8c5e")
         );
 
         executeTest("test indel concordance", spec);
@@ -75,7 +75,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("GenotypeConcordanceNonOverlapTest_Eval.vcf", "GenotypeConcordanceNonOverlapTest_Comp.vcf"),
                 0,
-                Arrays.asList("fc725022d47b4b5f8a6ef87f0f1ffe89")
+                Arrays.asList("6246d81b25a9a96e379c47056177a65d")
         );
 
         executeTest("test non-overlapping samples", spec);
@@ -86,7 +86,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("GenotypeConcordanceNonOverlapTest_Eval.vcf", "GenotypeConcordanceNonOverlapTest_Comp.vcf") + " -moltenize",
                 0,
-                Arrays.asList("3993709e38b033e89017dfbb63226e94")
+                Arrays.asList("ee1da9b0119ce7869b2d05d81cef255e")
         );
 
         executeTest("Test moltenized output",spec);
@@ -97,7 +97,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("GenotypeConcordance.multipleRecordsTest1.eval.vcf","GenotypeConcordance.multipleRecordsTest1.comp.vcf"),
                 0,
-                Arrays.asList("352d59c4ac0cee5eb8ddbc9404b19ce9")
+                Arrays.asList("a1c48b041b0f0b8bf9387d5db337e5a1")
         );
 
         executeTest("test multiple records per site",spec);
@@ -108,7 +108,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfe 'GQ<30'",
                 0,
-                Arrays.asList("b7b495ccfa6d50a6be3e095d3f6d3c52")
+                Arrays.asList("7f52e70482c30031bedf2fcc6bd359b2")
         );
 
         executeTest("Test filtering on the EVAL rod",spec);
@@ -119,7 +119,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfc 'LX<0.50'",
                 0,
-                Arrays.asList("6406b16cde7960b8943edf594303afd6")
+                Arrays.asList("1402712d1ab18bafa5bac130af2f974c")
         );
 
         executeTest("Test filtering on the COMP rod", spec);
@@ -130,7 +130,7 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("genotypeConcordanceFilterTest.vcf","genotypeConcordanceFilterTest.vcf") + " -gfc 'LX<0.52' -gfe 'DP<5' -gfe 'GQ<37'",
                 0,
-                Arrays.asList("26ffd06215b6177acce0ea9f35d73d31")
+                Arrays.asList("6b83695122481d2dcbe3c792caf743a1")
         );
 
         executeTest("Test filtering on both rods",spec);
