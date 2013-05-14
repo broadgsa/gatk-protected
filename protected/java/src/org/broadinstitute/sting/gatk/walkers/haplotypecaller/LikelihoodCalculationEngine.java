@@ -69,35 +69,54 @@ public class LikelihoodCalculationEngine {
 
     private static final double LOG_ONE_HALF = -Math.log10(2.0);
     private final byte constantGCP;
+    private final double log10globalReadMismappingRate;
     private final boolean DEBUG;
-    private final PairHMM pairHMM;
-    private final int minReadLength = 20;
+    private final PairHMM.HMM_IMPLEMENTATION hmmType;
+
+    private final ThreadLocal<PairHMM> pairHMM = new ThreadLocal<PairHMM>() {
+        @Override
+        protected PairHMM initialValue() {
+            switch (hmmType) {
+                case EXACT: return new Log10PairHMM(true);
+                case ORIGINAL: return new Log10PairHMM(false);
+                case LOGLESS_CACHING: return new LoglessPairHMM();
+                default:
+                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");
+            }
+        }
+    };
 
     /**
      * The expected rate of random sequencing errors for a read originating from its true haplotype.
      *
      * For example, if this is 0.01, then we'd expect 1 error per 100 bp.
      */
-    private final double EXPECTED_ERROR_RATE_PER_BASE = 0.02;
+    private final static double EXPECTED_ERROR_RATE_PER_BASE = 0.02;
 
-    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType ) {
-
-        switch (hmmType) {
-            case EXACT:
-                pairHMM = new Log10PairHMM(true);
-                break;
-            case ORIGINAL:
-                pairHMM = new Log10PairHMM(false);
-                break;
-            case LOGLESS_CACHING:
-                pairHMM = new LoglessPairHMM();
-                break;
-            default:
-                throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");
-        }
-
+    /**
+     * Create a new LikelihoodCalculationEngine using provided parameters and hmm to do its calculations
+     *
+     * @param constantGCP the gap continuation penalty to use with the PairHMM
+     * @param debug should we emit debugging information during the calculation?
+     * @param hmmType the type of the HMM to use
+     * @param log10globalReadMismappingRate the global mismapping probability, in log10(prob) units.  A value of
+     *                                      -3 means that the chance that a read doesn't actually belong at this
+     *                                      location in the genome is 1 in 1000.  The effect of this parameter is
+     *                                      to cap the maximum likelihood difference between the reference haplotype
+     *                                      and the best alternative haplotype by -3 log units.  So if the best
+     *                                      haplotype is at -10 and this parameter has a value of -3 then even if the
+     *                                      reference haplotype gets a score of -100 from the pairhmm it will be
+     *                                      assigned a likelihood of -13.
+     */
+    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType, final double log10globalReadMismappingRate ) {
+        this.hmmType = hmmType;
         this.constantGCP = constantGCP;
-        DEBUG = debug;
+        this.DEBUG = debug;
+        this.log10globalReadMismappingRate = log10globalReadMismappingRate;
+    }
+
+    public LikelihoodCalculationEngine() {
+        this((byte)10, false, PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3);
     }
 
     /**
@@ -124,7 +143,7 @@ public class LikelihoodCalculationEngine {
         }
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMM.initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+        pairHMM.get().initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
     }
 
     public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
@@ -132,9 +151,8 @@ public class LikelihoodCalculationEngine {
         initializePairHMM(haplotypes, perSampleReadList);
 
         // Add likelihoods for each sample's reads to our stratifiedReadMap
-        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new HashMap<String, PerReadAlleleLikelihoodMap>();
+        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new LinkedHashMap<>();
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
-            //if( DEBUG ) { System.out.println("Evaluating sample " + sample + " with " + perSampleReadList.get( sample ).size() + " passing reads"); }
             // evaluate the likelihood of the reads given those haplotypes
             final PerReadAlleleLikelihoodMap map = computeReadLikelihoods(haplotypes, sampleEntry.getValue());
 
@@ -152,17 +170,16 @@ public class LikelihoodCalculationEngine {
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final List<Haplotype> haplotypes, final List<GATKSAMRecord> reads) {
         // first, a little set up to get copies of the Haplotypes that are Alleles (more efficient than creating them each time)
         final int numHaplotypes = haplotypes.size();
-        final Map<Haplotype, Allele> alleleVersions = new HashMap<Haplotype, Allele>(numHaplotypes);
+        final Map<Haplotype, Allele> alleleVersions = new LinkedHashMap<>(numHaplotypes);
+        Allele refAllele = null;
         for ( final Haplotype haplotype : haplotypes ) {
-            alleleVersions.put(haplotype, Allele.create(haplotype, true));
+            final Allele allele = Allele.create(haplotype, true);
+            alleleVersions.put(haplotype, allele);
+            if ( haplotype.isReference() ) refAllele = allele;
         }
 
         final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
         for( final GATKSAMRecord read : reads ) {
-            if ( read.getReadLength() < minReadLength )
-                // don't consider any reads that have a read length < the minimum
-                continue;
-
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
             // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
@@ -177,13 +194,33 @@ public class LikelihoodCalculationEngine {
                 readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
             }
 
+            // keep track of the reference likelihood and the best non-ref likelihood
+            double refLog10l = Double.NEGATIVE_INFINITY;
+            double bestNonReflog10L = Double.NEGATIVE_INFINITY;
+
+            // iterate over all haplotypes, calculating the likelihood of the read for each haplotype
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
                 final Haplotype haplotype = haplotypes.get(jjj);
                 final boolean isFirstHaplotype = jjj == 0;
-                final double log10l = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
+                final double log10l = pairHMM.get().computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
                         read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
 
+                if ( haplotype.isNonReference() )
+                    bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
+                else
+                    refLog10l = log10l;
+
                 perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
+            }
+
+            // ensure that the reference haplotype is no worse than the best non-ref haplotype minus the global
+            // mismapping rate.  This protects us from the case where the assembly has produced haplotypes
+            // that are very divergent from reference, but are supported by only one read.  In effect
+            // we capping how badly scoring the reference can be for any read by the chance that the read
+            // itself just doesn't belong here
+            final double worstRefLog10Allowed = bestNonReflog10L + log10globalReadMismappingRate;
+            if ( refLog10l < (worstRefLog10Allowed) ) {
+                perReadAlleleLikelihoodMap.add(read, refAllele, worstRefLog10Allowed);
             }
         }
 

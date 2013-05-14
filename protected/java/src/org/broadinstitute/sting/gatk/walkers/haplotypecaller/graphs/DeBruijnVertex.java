@@ -54,7 +54,7 @@ import com.google.java.contract.Ensures;
  * User: ebanks, mdepristo
  * Date: Mar 23, 2011
  */
-public final class DeBruijnVertex extends BaseVertex {
+public class DeBruijnVertex extends BaseVertex {
     private final static byte[][] sufficesAsByteArray = new byte[256][];
     static {
         for ( int i = 0; i < sufficesAsByteArray.length; i++ )

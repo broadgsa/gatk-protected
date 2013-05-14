@@ -93,10 +93,13 @@ public class ReadGroupCovariate implements RequiredCovariate {
     private final HashMap<String, Integer> readGroupLookupTable = new HashMap<String, Integer>();
     private final HashMap<Integer, String> readGroupReverseLookupTable = new HashMap<Integer, String>();
     private int nextId = 0;
+    private String forceReadGroup;
 
     // Initialize any member variables using the command-line arguments passed to the walkers
     @Override
-    public void initialize(final RecalibrationArgumentCollection RAC) {}
+    public void initialize(final RecalibrationArgumentCollection RAC) {
+        forceReadGroup = RAC.FORCE_READGROUP;
+    }
 
     @Override
     public void recordValues(final GATKSAMRecord read, final ReadCovariates values) {
@@ -170,6 +173,9 @@ public class ReadGroupCovariate implements RequiredCovariate {
      * @return platform unit or readgroup id
      */
     private String readGroupValueFromRG(final GATKSAMReadGroupRecord rg) {
+        if ( forceReadGroup != null )
+            return forceReadGroup;
+
         final String platformUnit = rg.getPlatformUnit();
         return platformUnit == null ? rg.getId() : platformUnit;
     }

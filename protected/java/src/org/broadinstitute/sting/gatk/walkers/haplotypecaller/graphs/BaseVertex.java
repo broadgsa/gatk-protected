@@ -57,6 +57,8 @@ import java.util.Arrays;
  * @since 03/2013
  */
 public class BaseVertex {
+    /** placeholder to store additional information for debugging purposes */
+    String additionalInfo = "";
     final byte[] sequence;
     private final static int UNASSIGNED_HASHCODE = -1;
     int cachedHashCode = UNASSIGNED_HASHCODE;
@@ -176,4 +178,18 @@ public class BaseVertex {
     public byte[] getAdditionalSequence(final boolean source) {
         return getSequence();
     }
+
+    /**
+     * Set additional debugging information for this vertex
+     * @param info
+     */
+    public void setAdditionalInfo(final String info) {
+        if ( info == null ) throw new IllegalArgumentException("info cannot be null");
+        additionalInfo = info;
+    }
+
+    /**
+     * @return the additional information for display about this vertex
+     */
+    public String additionalInfo() { return additionalInfo; }
 }

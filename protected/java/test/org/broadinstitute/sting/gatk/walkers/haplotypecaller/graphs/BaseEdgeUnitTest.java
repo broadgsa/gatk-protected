@@ -83,7 +83,10 @@ public class BaseEdgeUnitTest extends BaseTest {
         e.setMultiplicity(mult + 1);
         Assert.assertEquals(e.getMultiplicity(), mult + 1);
 
-        final BaseEdge copy = new BaseEdge(e);
+        e.incMultiplicity(2);
+        Assert.assertEquals(e.getMultiplicity(), mult + 3);
+
+        final BaseEdge copy = e.copy();
         Assert.assertEquals(copy.isRef(), e.isRef());
         Assert.assertEquals(copy.getMultiplicity(), e.getMultiplicity());
     }

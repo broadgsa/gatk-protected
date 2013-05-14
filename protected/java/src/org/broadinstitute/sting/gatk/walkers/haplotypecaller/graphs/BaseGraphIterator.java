@@ -60,10 +60,10 @@ import java.util.LinkedList;
  * Date: 3/24/13
  * Time: 4:41 PM
  */
-public class BaseGraphIterator<T extends BaseVertex> implements Iterator<T>, Iterable<T> {
+public class BaseGraphIterator<T extends BaseVertex, E extends BaseEdge> implements Iterator<T>, Iterable<T> {
     final HashSet<T> visited = new HashSet<T>();
     final LinkedList<T> toVisit = new LinkedList<T>();
-    final BaseGraph<T> graph;
+    final BaseGraph<T,E> graph;
     final boolean followIncomingEdges, followOutgoingEdges;
 
     /**
@@ -78,7 +78,7 @@ public class BaseGraphIterator<T extends BaseVertex> implements Iterator<T>, Ite
      *                            traversal? (goes backward through the graph)
      * @param followOutgoingEdges should we follow outgoing edges during out traversal?
      */
-    public BaseGraphIterator(final BaseGraph<T> graph, final T start,
+    public BaseGraphIterator(final BaseGraph<T,E> graph, final T start,
                              final boolean followIncomingEdges, final boolean followOutgoingEdges) {
         if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
         if ( start == null ) throw new IllegalArgumentException("start cannot be null");

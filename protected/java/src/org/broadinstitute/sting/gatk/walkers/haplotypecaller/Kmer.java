@@ -150,6 +150,14 @@ public class Kmer {
     }
 
     /**
+     * Get a string representation of the bases of this kmer
+     * @return a non-null string
+     */
+    public String baseString() {
+        return new String(bases());
+    }
+
+    /**
      * The length of this kmer
      * @return an integer >= 0
      */

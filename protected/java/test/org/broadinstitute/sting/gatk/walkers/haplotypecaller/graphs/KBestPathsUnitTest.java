@@ -114,7 +114,7 @@ public class KBestPathsUnitTest extends BaseTest {
         if ( addCycle ) graph.addEdge(middleBottom, middleBottom);
 
         // enumerate all possible paths
-        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>(allowCycles).getKBestPaths(graph, starts, ends);
+        final List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>(allowCycles).getKBestPaths(graph, starts, ends);
 
         final int expectedNumOfPaths = nStartNodes * nBranchesPerBubble * (addCycle && allowCycles ? 2 : 1) * nEndNodes;
         Assert.assertEquals(paths.size(), expectedNumOfPaths, "Didn't find the expected number of paths");
@@ -127,7 +127,7 @@ public class KBestPathsUnitTest extends BaseTest {
 
         // get the best path, and make sure it's the same as our optimal path overall
         final Path best = paths.get(0);
-        final List<Path<SeqVertex>> justOne = new KBestPaths<SeqVertex>(allowCycles).getKBestPaths(graph, 1, starts, ends);
+        final List<Path<SeqVertex,BaseEdge>> justOne = new KBestPaths<SeqVertex,BaseEdge>(allowCycles).getKBestPaths(graph, 1, starts, ends);
         Assert.assertEquals(justOne.size(), 1);
         Assert.assertTrue(justOne.get(0).pathsAreTheSame(best), "Best path from complete enumerate " + best + " not the same as from k = 1 search " + justOne.get(0));
     }
@@ -147,7 +147,7 @@ public class KBestPathsUnitTest extends BaseTest {
         graph.addEdges(v4, v2);
 
         // enumerate all possible paths
-        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>(false).getKBestPaths(graph, v1, v5);
+        final List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>(false).getKBestPaths(graph, v1, v5);
 
         Assert.assertEquals(paths.size(), 1, "Didn't find the expected number of paths");
     }
@@ -163,7 +163,7 @@ public class KBestPathsUnitTest extends BaseTest {
         graph.addEdges(v1, v2, v3, v3);
 
         // enumerate all possible paths
-        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>(false).getKBestPaths(graph, v1, v3);
+        final List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>(false).getKBestPaths(graph, v1, v3);
 
         Assert.assertEquals(paths.size(), 1, "Didn't find the expected number of paths");
     }
@@ -201,9 +201,9 @@ public class KBestPathsUnitTest extends BaseTest {
         graph.addEdge(v2Alt, v3, new BaseEdge(false, 5));
 
         // Construct the test path
-        Path<SeqVertex> path = new Path<SeqVertex>(v, graph);
-        path = new Path<SeqVertex>(path, graph.getEdge(v, v2Alt));
-        path = new Path<SeqVertex>(path, graph.getEdge(v2Alt, v3));
+        Path<SeqVertex,BaseEdge> path = new Path<SeqVertex,BaseEdge>(v, graph);
+        path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v, v2Alt));
+        path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v2Alt, v3));
 
         // Construct the actual cigar string implied by the test path
         Cigar expectedCigar = new Cigar();
@@ -219,7 +219,8 @@ public class KBestPathsUnitTest extends BaseTest {
         }
         expectedCigar.add(new CigarElement(postRef.length(), CigarOperator.M));
 
-        Assert.assertEquals(path.calculateCigar().toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar string mismatch");
+        final String ref = preRef + v2Ref.getSequenceString() + postRef;
+        Assert.assertEquals(path.calculateCigar(ref.getBytes()).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar string mismatch");
     }
 
     @DataProvider(name = "GetBasesData")
@@ -251,9 +252,9 @@ public class KBestPathsUnitTest extends BaseTest {
         }
 
         // enumerate all possible paths
-        final List<Path<SeqVertex>> paths = new KBestPaths<SeqVertex>().getKBestPaths(graph);
+        final List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(graph);
         Assert.assertEquals(paths.size(), 1);
-        final Path<SeqVertex> path = paths.get(0);
+        final Path<SeqVertex,BaseEdge> path = paths.get(0);
         Assert.assertEquals(new String(path.getBases()), Utils.join("", frags), "Path doesn't have the expected sequence");
     }
 
@@ -296,6 +297,8 @@ public class KBestPathsUnitTest extends BaseTest {
         SeqVertex v7 = new SeqVertex(postRef);
         SeqVertex postV = new SeqVertex(postAltOption);
 
+        final String ref = preRef + v2Ref.getSequenceString() + midRef1 + v4Ref.getSequenceString() + midRef2 + v6Ref.getSequenceString() + postRef;
+
         graph.addVertex(preV);
         graph.addVertex(v);
         graph.addVertex(v2Ref);
@@ -324,18 +327,18 @@ public class KBestPathsUnitTest extends BaseTest {
         graph.addEdge(v7, postV, new BaseEdge(false, 1));
 
         // Construct the test path
-        Path<SeqVertex> path = new Path<SeqVertex>( (offRefBeginning ? preV : v), graph);
+        Path<SeqVertex,BaseEdge> path = new Path<SeqVertex,BaseEdge>( (offRefBeginning ? preV : v), graph);
         if( offRefBeginning ) {
-            path = new Path<SeqVertex>(path, graph.getEdge(preV, v));
+            path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(preV, v));
         }
-        path = new Path<SeqVertex>(path, graph.getEdge(v, v2Alt));
-        path = new Path<SeqVertex>(path, graph.getEdge(v2Alt, v3));
-        path = new Path<SeqVertex>(path, graph.getEdge(v3, v4Ref));
-        path = new Path<SeqVertex>(path, graph.getEdge(v4Ref, v5));
-        path = new Path<SeqVertex>(path, graph.getEdge(v5, v6Alt));
-        path = new Path<SeqVertex>(path, graph.getEdge(v6Alt, v7));
+        path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v, v2Alt));
+        path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v2Alt, v3));
+        path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v3, v4Ref));
+        path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v4Ref, v5));
+        path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v5, v6Alt));
+        path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v6Alt, v7));
         if( offRefEnding ) {
-            path = new Path<SeqVertex>(path, graph.getEdge(v7,postV));
+            path = new Path<SeqVertex,BaseEdge>(path, graph.getEdge(v7,postV));
         }
 
         // Construct the actual cigar string implied by the test path
@@ -373,7 +376,9 @@ public class KBestPathsUnitTest extends BaseTest {
             expectedCigar.add(new CigarElement(postAltOption.length(), CigarOperator.I));
         }
 
-        Assert.assertEquals(path.calculateCigar().toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar string mismatch");
+        Assert.assertEquals(path.calculateCigar(ref.getBytes()).toString(),
+                AlignmentUtils.consolidateCigar(expectedCigar).toString(),
+                "Cigar string mismatch: ref = " + ref + " alt " + new String(path.getBases()));
     }
 
     @Test(enabled = !DEBUG)
@@ -389,43 +394,46 @@ public class KBestPathsUnitTest extends BaseTest {
         graph.addEdges(new BaseEdge(true, 1), top, ref, bot);
         graph.addEdges(new BaseEdge(false, 1), top, alt, bot);
 
-        final KBestPaths<SeqVertex> pathFinder = new KBestPaths<SeqVertex>();
-        final List<Path<SeqVertex>> paths = pathFinder.getKBestPaths(graph, top, bot);
+        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<SeqVertex,BaseEdge>();
+        final List<Path<SeqVertex,BaseEdge>> paths = pathFinder.getKBestPaths(graph, top, bot);
 
         Assert.assertEquals(paths.size(), 2);
 
-        final Path<SeqVertex> refPath = paths.get(0);
-        final Path<SeqVertex> altPath = paths.get(1);
+        final Path<SeqVertex,BaseEdge> refPath = paths.get(0);
+        final Path<SeqVertex,BaseEdge> altPath = paths.get(1);
 
-        Assert.assertEquals(refPath.calculateCigar().toString(), "10M");
-        Assert.assertEquals(altPath.calculateCigar().toString(), "1M3I5M3D1M");
+        final String refString = top.getSequenceString() + ref.getSequenceString() + bot.getSequenceString();
+        Assert.assertEquals(refPath.calculateCigar(refString.getBytes()).toString(), "10M");
+        Assert.assertEquals(altPath.calculateCigar(refString.getBytes()).toString(), "1M3I5M3D1M");
     }
 
     @Test(enabled = !DEBUG)
     public void testHardSWPath() {
         // Construct the assembly graph
         SeqGraph graph = new SeqGraph();
-        final SeqVertex top = new SeqVertex( "NNN");
-        final SeqVertex bot = new SeqVertex( "NNN");
+        final SeqVertex top = new SeqVertex( "NNN" );
+        final SeqVertex bot = new SeqVertex( "NNN" );
         final SeqVertex alt = new SeqVertex(               "ACAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGA" );
         final SeqVertex ref = new SeqVertex( "TGTGTGTGTGTGTGACAGAGAGAGAGAGAGAGAGAGAGAGAGAGA" );
         graph.addVertices(top, bot, alt, ref);
         graph.addEdges(new BaseEdge(true, 1), top, ref, bot);
         graph.addEdges(new BaseEdge(false, 1), top, alt, bot);
 
-        final KBestPaths<SeqVertex> pathFinder = new KBestPaths<SeqVertex>();
-        final List<Path<SeqVertex>> paths = pathFinder.getKBestPaths(graph, top, bot);
+        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<SeqVertex,BaseEdge>();
+        final List<Path<SeqVertex,BaseEdge>> paths = pathFinder.getKBestPaths(graph, top, bot);
 
         Assert.assertEquals(paths.size(), 2);
 
-        final Path<SeqVertex> refPath = paths.get(0);
-        final Path<SeqVertex> altPath = paths.get(1);
+        final Path<SeqVertex,BaseEdge> refPath = paths.get(0);
+        final Path<SeqVertex,BaseEdge> altPath = paths.get(1);
 
-        logger.warn("RefPath : " + refPath + " cigar " + refPath.calculateCigar());
-        logger.warn("AltPath : " + altPath + " cigar " + altPath.calculateCigar());
+        final String refString = top.getSequenceString() + ref.getSequenceString() + bot.getSequenceString();
 
-        Assert.assertEquals(refPath.calculateCigar().toString(), "51M");
-        Assert.assertEquals(altPath.calculateCigar().toString(), "3M6I48M");
+        logger.warn("RefPath : " + refPath + " cigar " + refPath.calculateCigar(refString.getBytes()));
+        logger.warn("AltPath : " + altPath + " cigar " + altPath.calculateCigar(refString.getBytes()));
+
+        Assert.assertEquals(refPath.calculateCigar(refString.getBytes()).toString(), "51M");
+        Assert.assertEquals(altPath.calculateCigar(refString.getBytes()).toString(), "3M6I48M");
     }
 
     // -----------------------------------------------------------------
@@ -466,30 +474,87 @@ public class KBestPathsUnitTest extends BaseTest {
         // Construct the assembly graph
         SeqGraph graph = new SeqGraph();
 
-        SeqVertex top = new SeqVertex("");
+        final int padSize = 0;
+        SeqVertex top = new SeqVertex(Utils.dupString("N", padSize));
         SeqVertex ref = new SeqVertex(prefix + refMid + end);
         SeqVertex alt = new SeqVertex(prefix + altMid + end);
-        SeqVertex bot = new SeqVertex("");
+        SeqVertex bot = new SeqVertex(Utils.dupString("N", padSize));
 
         graph.addVertices(top, ref, alt, bot);
         graph.addEdges(new BaseEdge(true, 1), top, ref, bot);
         graph.addEdges(new BaseEdge(false, 1), top, alt, bot);
 
         // Construct the test path
-        Path<SeqVertex> path = Path.makePath(Arrays.asList(top, alt, bot), graph);
+        Path<SeqVertex,BaseEdge> path = Path.makePath(Arrays.asList(top, alt, bot), graph);
 
         Cigar expected = new Cigar();
+        expected.add(new CigarElement(padSize, CigarOperator.M));
         if ( ! prefix.equals("") ) expected.add(new CigarElement(prefix.length(), CigarOperator.M));
         for ( final CigarElement elt : TextCigarCodec.getSingleton().decode(midCigar).getCigarElements() ) expected.add(elt);
         if ( ! end.equals("") ) expected.add(new CigarElement(end.length(), CigarOperator.M));
+        expected.add(new CigarElement(padSize, CigarOperator.M));
         expected = AlignmentUtils.consolidateCigar(expected);
 
-        final Cigar pathCigar = path.calculateCigar();
+        final String refString = top.getSequenceString() + ref.getSequenceString() + bot.getSequenceString();
+        final Cigar pathCigar = path.calculateCigar(refString.getBytes());
 
         logger.warn("diffs: " + ref + " vs. " + alt + " cigar " + midCigar);
         logger.warn("Path " + path + " with cigar " + pathCigar);
         logger.warn("Expected cigar " + expected);
 
-        Assert.assertEquals(pathCigar, expected, "Cigar mismatch");
+        Assert.assertEquals(pathCigar, expected, "Cigar mismatch: ref = " + refString + " vs alt = " + new String(path.getBases()));
+    }
+
+    @Test(enabled = !DEBUG)
+    public void testLeftAlignCigarSequentially() {
+        String preRefString = "GATCGATCGATC";
+        String postRefString = "TTT";
+        String refString = "ATCGAGGAGAGCGCCCCG";
+        String indelString1 = "X";
+        String indelString2 = "YZ";
+        int refIndel1 = 10;
+        int refIndel2 = 12;
+
+        for ( final int indelSize1 : Arrays.asList(1, 2, 3, 4) ) {
+            for ( final int indelOp1 : Arrays.asList(1, -1) ) {
+                for ( final int indelSize2 : Arrays.asList(1, 2, 3, 4) ) {
+                    for ( final int indelOp2 : Arrays.asList(1, -1) ) {
+
+                        Cigar expectedCigar = new Cigar();
+                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
+                        expectedCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
+                        expectedCigar.add(new CigarElement((indelOp1 < 0 ? refIndel1 - indelSize1 : refIndel1), CigarOperator.M));
+                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
+                        expectedCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
+                        expectedCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2 - indelSize2) * 2 : refIndel2 * 2), CigarOperator.M));
+                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
+
+                        Cigar givenCigar = new Cigar();
+                        givenCigar.add(new CigarElement(refString.length() + refIndel1/2, CigarOperator.M));
+                        givenCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
+                        givenCigar.add(new CigarElement((indelOp1 < 0 ? (refIndel1/2 - indelSize1) : refIndel1/2) + refString.length() + refIndel2/2 * 2, CigarOperator.M));
+                        givenCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
+                        givenCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2/2 - indelSize2) * 2 : refIndel2/2 * 2) + refString.length(), CigarOperator.M));
+
+                        String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
+                        String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
+
+                        Cigar calculatedCigar = Path.leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
+                        Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
+                    }
+                }
+            }
+        }
+    }
+
+    @Test(enabled = true)
+    public void testLeftAlignCigarSequentiallyAdjacentID() {
+        final String ref = "GTCTCTCTCTCTCTCTCTATATATATATATATATTT";
+        final String hap = "GTCTCTCTCTCTCTCTCTCTCTATATATATATATTT";
+        final Cigar originalCigar = TextCigarCodec.getSingleton().decode("18M4I12M4D2M");
+
+        final Cigar result = Path.leftAlignCigarSequentially(originalCigar, ref.getBytes(), hap.getBytes(), 0, 0);
+        logger.warn("Result is " + result);
+        Assert.assertEquals(originalCigar.getReferenceLength(), result.getReferenceLength(), "Reference lengths are different");
     }
 }

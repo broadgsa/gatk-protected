@@ -75,26 +75,37 @@ public class ReadGroupCovariateUnitTest {
         final String expected = "SAMPLE.1";
         GATKSAMReadGroupRecord rg = new GATKSAMReadGroupRecord("MY.ID");
         rg.setPlatformUnit(expected);
-        runTest(rg, expected);
+        runTest(rg, expected, covariate);
     }
 
     @Test(enabled = true)
     public void testMissingPlatformUnit() {
         final String expected = "MY.7";
         GATKSAMReadGroupRecord rg = new GATKSAMReadGroupRecord(expected);
-        runTest(rg, expected);
+        runTest(rg, expected, covariate);
     }
 
-    private void runTest(GATKSAMReadGroupRecord rg, String expected) {
+    @Test(enabled = true)
+    public void testForceReadgroup() {
+        final RecalibrationArgumentCollection forcedRAC = new RecalibrationArgumentCollection();
+        forcedRAC.FORCE_READGROUP = "FOO";
+        final ReadGroupCovariate forcedCovariate = new ReadGroupCovariate();
+        forcedCovariate.initialize(forcedRAC);
+
+        final GATKSAMReadGroupRecord rg = new GATKSAMReadGroupRecord("NOT_FOO");
+        runTest(rg, "FOO", forcedCovariate);
+    }
+
+    private static void runTest(final GATKSAMReadGroupRecord rg, final String expected, final ReadGroupCovariate covariate) {
         GATKSAMRecord read = ReadUtils.createRandomRead(10);
         read.setReadGroup(rg);
         ReadCovariates readCovariates = new ReadCovariates(read.getReadLength(), 1);
         covariate.recordValues(read, readCovariates);
-        verifyCovariateArray(readCovariates.getMismatchesKeySet(), expected);
+        verifyCovariateArray(readCovariates.getMismatchesKeySet(), expected, covariate);
 
     }
 
-    private void verifyCovariateArray(int[][] values, String expected) {
+    private static void verifyCovariateArray(final int[][] values, final String expected, final ReadGroupCovariate covariate) {
         for (int[] value : values) {
             String actual = covariate.formatKey(value[0]);
             Assert.assertEquals(actual, expected);

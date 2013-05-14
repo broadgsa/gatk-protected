@@ -88,13 +88,13 @@ public class SharedSequenceMerger {
 
             for ( final SeqVertex prev : prevs ) {
                 for ( final BaseEdge prevIn : graph.incomingEdgesOf(prev) ) {
-                    graph.addEdge(graph.getEdgeSource(prevIn), newV, new BaseEdge(prevIn));
+                    graph.addEdge(graph.getEdgeSource(prevIn), newV, prevIn.copy());
                     edgesToRemove.add(prevIn);
                 }
             }
 
             for ( final BaseEdge e : graph.outgoingEdgesOf(v) ) {
-                graph.addEdge(newV, graph.getEdgeTarget(e), new BaseEdge(e));
+                graph.addEdge(newV, graph.getEdgeTarget(e), e.copy());
             }
 
             graph.removeAllVertices(prevs);
