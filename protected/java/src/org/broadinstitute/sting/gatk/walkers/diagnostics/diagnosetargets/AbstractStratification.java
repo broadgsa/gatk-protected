@@ -63,6 +63,10 @@ abstract class AbstractStratification {
     private Map<CallableStatus, Integer> statusTally = null;
     protected ThresHolder thresholds;
 
+    public AbstractStratification(ThresHolder thresholds) {
+        this.thresholds = thresholds;
+    }
+
     /**
      * Calculates the average "good" coverage of this sample. Good means "passes the base and
      * mapping quality requirements.
@@ -116,11 +120,11 @@ abstract class AbstractStratification {
      *
      * @return the callable status(es) for the whole object
      */
-    public abstract Iterable<CallableStatus> callableStatuses();
+    public abstract List<CallableStatus> callableStatuses();
 
 
     /**
-     * Tally up all the callable status of all the loci in this sample.
+     * Tally up all the callable status of all elements of the stratification.
      *
      * @return a map of callable status and counts
      */
@@ -136,10 +140,10 @@ abstract class AbstractStratification {
         return statusTally;
     }
 
-    public static List<CallableStatus> queryStatus(List<Metric> statList, AbstractStratification stratification) {
+    public List<CallableStatus> queryStatus(List<Metric> statList) {
         List<CallableStatus> output = new LinkedList<CallableStatus>();
         for (Metric stat : statList) {
-            final CallableStatus status = stat.status(stratification);
+            final CallableStatus status = stat.status(this);
             if (status != null) {
                 output.add(status);
             }
