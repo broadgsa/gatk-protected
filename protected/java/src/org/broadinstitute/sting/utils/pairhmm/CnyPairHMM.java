@@ -18,7 +18,16 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
     private List<HmmInput> pending = new LinkedList<HmmInput>();
 
     static public boolean isAvailable() {
-	return true;
+	return false;
+    }
+
+    public void initialize( final int READ_MAX_LENGTH, final int HAPLOTYPE_MAX_LENGTH ) {
+	if (!loaded) {
+	    //	    System.loadLibrary("gmvhdl_gatk_hmm");
+	    //	    initFpga();
+	    loaded = true;
+	}
+	System.out.println("FPGA HMM Initialized");
     }
 
     public void batchAdd(final List<Haplotype> haplotypes, 
