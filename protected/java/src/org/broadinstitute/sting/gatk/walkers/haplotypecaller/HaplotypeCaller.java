@@ -418,7 +418,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private final static int PADDING_AROUND_OTHERS_FOR_CALLING = 150;
 
     // the maximum extent into the full active region extension that we're willing to go in genotyping our events
-    private final static int MAX_GENOTYPING_ACTIVE_REGION_EXTENSION = 25;
+    private final static int MAX_DISCOVERY_ACTIVE_REGION_EXTENSION = 25;
+    private final static int MAX_GGA_ACTIVE_REGION_EXTENSION = 100;
 
     private ActiveRegionTrimmer trimmer = null;
 
@@ -549,7 +550,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             haplotypeBAMWriter = HaplotypeBAMWriter.create(bamWriterType, bamWriter, getToolkit().getSAMFileHeader());
 
         trimmer = new ActiveRegionTrimmer(DEBUG, PADDING_AROUND_SNPS_FOR_CALLING, PADDING_AROUND_OTHERS_FOR_CALLING,
-                MAX_GENOTYPING_ACTIVE_REGION_EXTENSION, getToolkit().getGenomeLocParser());
+                UAC.GenotypingMode.equals(GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES) ? MAX_GGA_ACTIVE_REGION_EXTENSION : MAX_DISCOVERY_ACTIVE_REGION_EXTENSION,
+                getToolkit().getGenomeLocParser());
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -751,7 +753,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype );
 
         if ( ! dontTrimActiveRegions ) {
-            return trimActiveRegion(activeRegion, haplotypes, fullReferenceWithPadding, paddedReferenceLoc);
+            return trimActiveRegion(activeRegion, haplotypes, activeAllelesToGenotype, fullReferenceWithPadding, paddedReferenceLoc);
         } else {
             // we don't want to trim active regions, so go ahead and use the old one
             return new AssemblyResult(haplotypes, activeRegion, fullReferenceWithPadding, paddedReferenceLoc, true);
@@ -763,6 +765,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      *
      * @param originalActiveRegion our full active region
      * @param haplotypes the list of haplotypes we've created from assembly
+     * @param activeAllelesToGenotype additional alleles we might need to genotype (can be empty)
      * @param fullReferenceWithPadding the reference bases over the full padded location
      * @param paddedReferenceLoc the span of the reference bases
      * @return an AssemblyResult containing the trimmed active region with all of the reads we should use
@@ -771,12 +774,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     private AssemblyResult trimActiveRegion(final ActiveRegion originalActiveRegion,
                                             final List<Haplotype> haplotypes,
+                                            final List<VariantContext> activeAllelesToGenotype,
                                             final byte[] fullReferenceWithPadding,
                                             final GenomeLoc paddedReferenceLoc) {
         if ( DEBUG ) logger.info("Trimming active region " + originalActiveRegion + " with " + haplotypes.size() + " haplotypes");
 
         EventMap.buildEventMapsForHaplotypes(haplotypes, fullReferenceWithPadding, paddedReferenceLoc, DEBUG);
         final TreeSet<VariantContext> allVariantsWithinFullActiveRegion = EventMap.getAllVariantContexts(haplotypes);
+        allVariantsWithinFullActiveRegion.addAll(activeAllelesToGenotype);
         final ActiveRegion trimmedActiveRegion = trimmer.trimRegion(originalActiveRegion, allVariantsWithinFullActiveRegion);
 
         if ( trimmedActiveRegion == null ) {

@@ -88,12 +88,12 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleGGAComplex() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "90cbcc7e959eb591fb7c5e12d65e0e40");
+                "008029ee34e1becd8312e3c4d608033c");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "50894abb9d156bf480881cb5cb2a8a7d");
+                "ae8d95ffe77515cc74a55c2afd142826");
     }
 }
