@@ -519,7 +519,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
             generatePlots();
         }
 
-        logger.info("Processed: " + result + " reads");
+        logger.info("BaseRecalibrator was able to recalibrate " + result + " reads");
     }
 
     private RecalibrationTables getRecalibrationTable() {
