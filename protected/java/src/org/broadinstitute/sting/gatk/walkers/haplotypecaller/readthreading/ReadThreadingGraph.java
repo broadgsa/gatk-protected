@@ -590,11 +590,9 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     }
 
     /**
-     * Get the start and stop positions (exclusive) of the longest stretch of high quality bases
-     * in read
+     * Get the longest stretch of high quality bases in read and pass that sequence to the graph
      *
      * @param read a non-null read
-     * @return the start and stop for high quality bases in read, or null if none exist
      */
     protected void addRead(final GATKSAMRecord read) {
         final byte[] sequence = read.getReadBases();

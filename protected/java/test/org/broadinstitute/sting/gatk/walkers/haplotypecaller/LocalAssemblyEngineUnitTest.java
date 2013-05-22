@@ -47,6 +47,9 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import net.sf.picard.reference.IndexedFastaSequenceFile;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
@@ -216,6 +219,10 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
 
     private List<Haplotype> assemble(final Assembler assembler, final byte[] refBases, final GenomeLoc loc, final List<GATKSAMRecord> reads) {
         final Haplotype refHaplotype = new Haplotype(refBases, true);
+        final Cigar c = new Cigar();
+        c.add(new CigarElement(refHaplotype.getBases().length, CigarOperator.M));
+        refHaplotype.setCigar(c);
+
         final ActiveRegion activeRegion = new ActiveRegion(loc, null, true, genomeLocParser, 0);
         activeRegion.addAll(reads);
         final LocalAssemblyEngine engine = createAssembler(assembler);

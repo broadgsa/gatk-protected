@@ -74,7 +74,6 @@ import java.util.*;
 public class LikelihoodCalculationEngine {
     private final static Logger logger = Logger.getLogger(LikelihoodCalculationEngine.class);
 
-    private static final double LOG_ONE_HALF = -Math.log10(2.0);
     private final byte constantGCP;
     private final double log10globalReadMismappingRate;
     private final boolean DEBUG;
@@ -299,7 +298,7 @@ public class LikelihoodCalculationEngine {
                         // Compute log10(10^x1/2 + 10^x2/2) = log10(10^x1+10^x2)-log10(2)
                         // First term is approximated by Jacobian log with table lookup.
                         haplotypeLikelihood += ReadUtils.getMeanRepresentativeReadCount( entry.getKey() ) *
-                                ( MathUtils.approximateLog10SumLog10(entry.getValue().get(iii_allele), entry.getValue().get(jjj_allele)) + LOG_ONE_HALF );
+                                ( MathUtils.approximateLog10SumLog10(entry.getValue().get(iii_allele), entry.getValue().get(jjj_allele)) + MathUtils.LOG_ONE_HALF );
                     }
                 }
                 haplotypeLikelihoodMatrix[iii][jjj] = haplotypeLikelihood;
@@ -397,11 +396,11 @@ public class LikelihoodCalculationEngine {
         if ( haplotypes.size() == 2 ) return haplotypes; // fast path -- we'll always want to use 2 haplotypes
 
         // all of the haplotypes that at least one sample called as one of the most likely
-        final Set<Haplotype> selectedHaplotypes = new HashSet<Haplotype>();
+        final Set<Haplotype> selectedHaplotypes = new HashSet<>();
         selectedHaplotypes.add(findReferenceHaplotype(haplotypes)); // ref is always one of the selected
 
         // our annoying map from allele -> haplotype
-        final Map<Allele, Haplotype> allele2Haplotype = new HashMap<Allele, Haplotype>();
+        final Map<Allele, Haplotype> allele2Haplotype = new HashMap<>();
         for ( final Haplotype h : haplotypes ) {
             h.setScore(h.isReference() ? Double.MAX_VALUE : 0.0); // set all of the scores to 0 (lowest value) for all non-ref haplotypes
             allele2Haplotype.put(Allele.create(h, h.isReference()), h);

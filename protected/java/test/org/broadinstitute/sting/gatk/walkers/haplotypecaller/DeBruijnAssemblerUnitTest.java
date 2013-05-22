@@ -73,8 +73,8 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
     public void testReferenceCycleGraph() {
         String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
         String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true));
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true));
+        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), Collections.<Haplotype>emptyList());
+        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), Collections.<Haplotype>emptyList());
 
         Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
         Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
@@ -147,7 +147,7 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
             }
         }
 
-        assembler.addReadKmersToGraph(builder, Arrays.asList(read));
+        assembler.addReadKmersToGraph(builder, Arrays.asList(read), Collections.<Haplotype>emptyList());
         Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
         for ( final Kmer addedKmer : builder.addedPairs ) {
             Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);
