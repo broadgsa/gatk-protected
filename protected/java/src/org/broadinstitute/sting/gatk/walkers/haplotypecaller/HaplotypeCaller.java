@@ -678,7 +678,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if (dontGenotype) return NO_CALLS; // user requested we not proceed
 
         // filter out reads from genotyping which fail mapping quality based criteria
-        final List<GATKSAMRecord> filteredReads = filterNonPassingReads( assemblyResult.regionForGenotyping );
+        final Collection<GATKSAMRecord> filteredReads = filterNonPassingReads( assemblyResult.regionForGenotyping );
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
         if( assemblyResult.regionForGenotyping.size() == 0 ) { return NO_CALLS; } // no reads remain after filtering so nothing else to do!
@@ -918,17 +918,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         activeRegion.addAll(DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart));
     }
 
-    private List<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
-        final List<GATKSAMRecord> readsToRemove = new ArrayList<>();
-//        logger.info("Filtering non-passing regions: n incoming " + activeRegion.getReads().size());
+    private Set<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
+        final Set<GATKSAMRecord> readsToRemove = new LinkedHashSet<>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
             if( rec.getReadLength() < MIN_READ_LENGTH || rec.getMappingQuality() < 20 || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
                 readsToRemove.add(rec);
-//                logger.info("\tremoving read " + rec + " len " + rec.getReadLength());
             }
         }
         activeRegion.removeAll( readsToRemove );
-//        logger.info("Filtered non-passing regions: n remaining " + activeRegion.getReads().size());
         return readsToRemove;
     }
 
@@ -938,7 +935,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         return getToolkit().getGenomeLocParser().createGenomeLoc(activeRegion.getExtendedLoc().getContig(), padLeft, padRight);
     }
 
-    private Map<String, List<GATKSAMRecord>> splitReadsBySample( final List<GATKSAMRecord> reads ) {
+    private Map<String, List<GATKSAMRecord>> splitReadsBySample( final Collection<GATKSAMRecord> reads ) {
         final Map<String, List<GATKSAMRecord>> returnMap = new HashMap<String, List<GATKSAMRecord>>();
         for( final String sample : samplesList) {
             List<GATKSAMRecord> readList = returnMap.get( sample );
