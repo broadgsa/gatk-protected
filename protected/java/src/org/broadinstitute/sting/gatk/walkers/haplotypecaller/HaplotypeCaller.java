@@ -867,6 +867,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     @Override
     public void onTraversalDone(Integer result) {
+        likelihoodCalculationEngine.close();
         logger.info("Ran local assembly on " + result + " active regions");
     }
 

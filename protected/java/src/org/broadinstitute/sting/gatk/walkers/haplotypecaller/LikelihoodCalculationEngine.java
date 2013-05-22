@@ -48,20 +48,27 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.haplotype.HaplotypeScoreComparator;
-import org.broadinstitute.sting.utils.pairhmm.*;
+import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
+import org.broadinstitute.sting.utils.pairhmm.LoglessPairHMM;
+import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.*;
 
 public class LikelihoodCalculationEngine {
@@ -71,6 +78,7 @@ public class LikelihoodCalculationEngine {
     private final byte constantGCP;
     private final double log10globalReadMismappingRate;
     private final boolean DEBUG;
+
     private final PairHMM.HMM_IMPLEMENTATION hmmType;
 
     private final ThreadLocal<PairHMM> pairHMM = new ThreadLocal<PairHMM>() {
@@ -85,6 +93,10 @@ public class LikelihoodCalculationEngine {
             }
         }
     };
+
+    private final static boolean WRITE_LIKELIHOODS_TO_FILE = false;
+    private final static String LIKELIHOODS_FILENAME = "likelihoods.txt";
+    private final PrintStream likelihoodsStream;
 
     /**
      * The expected rate of random sequencing errors for a read originating from its true haplotype.
@@ -113,11 +125,27 @@ public class LikelihoodCalculationEngine {
         this.constantGCP = constantGCP;
         this.DEBUG = debug;
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
+
+        if ( WRITE_LIKELIHOODS_TO_FILE ) {
+            try {
+                likelihoodsStream = new PrintStream(new FileOutputStream(new File(LIKELIHOODS_FILENAME)));
+            } catch ( FileNotFoundException e ) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            likelihoodsStream = null;
+        }
     }
 
     public LikelihoodCalculationEngine() {
         this((byte)10, false, PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3);
     }
+
+    public void close() {
+        if ( likelihoodsStream != null ) likelihoodsStream.close();
+    }
+
+
 
     /**
      * Initialize our pairHMM with parameters appropriate to the haplotypes and reads we're going to evaluate
@@ -204,6 +232,17 @@ public class LikelihoodCalculationEngine {
                 final boolean isFirstHaplotype = jjj == 0;
                 final double log10l = pairHMM.get().computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
                         read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
+
+                if ( WRITE_LIKELIHOODS_TO_FILE ) {
+                    likelihoodsStream.printf("%s %s %s %s %s %s %f%n",
+                            haplotype.getBaseString(),
+                            new String(read.getReadBases()),
+                            SAMUtils.phredToFastq(readQuals),
+                            SAMUtils.phredToFastq(readInsQuals),
+                            SAMUtils.phredToFastq(readDelQuals),
+                            SAMUtils.phredToFastq(overallGCP),
+                            log10l);
+                }
 
                 if ( haplotype.isNonReference() )
                     bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
