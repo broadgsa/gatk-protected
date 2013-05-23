@@ -49,6 +49,11 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Kmer;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.MultiSampleEdge;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -143,6 +148,36 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
             final int expected = oneCountVertices.contains(target.getSequenceString()) ? 1 : (threeCountVertices.contains(target.getSequenceString()) ? 3 : 2);
             Assert.assertEquals(edge.getMultiplicity(), expected, "Bases at edge " + edge + " from " + source + " to " + target + " has bad multiplicity");
         }
+    }
+
+    @Test(enabled = !DEBUG)
+    public void testCyclesInGraph() {
+
+        // b37 20:12655200-12655850
+        final String ref = "CAATTGTCATAGAGAGTGACAAATGTTTCAAAAGCTTATTGACCCCAAGGTGCAGCGGTGCACATTAGAGGGCACCTAAGACAGCCTACAGGGGTCAGAAAAGATGTCTCAGAGGGACTCACACCTGAGCTGAGTTGTGAAGGAAGAGCAGGATAGAATGAGCCAAAGATAAAGACTCCAGGCAAAAGCAAATGAGCCTGAGGGAAACTGGAGCCAAGGCAAGAGCAGCAGAAAAGAGCAAAGCCAGCCGGTGGTCAAGGTGGGCTACTGTGTATGCAGAATGAGGAAGCTGGCCAAGTAGACATGTTTCAGATGATGAACATCCTGTATACTAGATGCATTGGAACTTTTTTCATCCCCTCAACTCCACCAAGCCTCTGTCCACTCTTGGTACCTCTCTCCAAGTAGACATATTTCAGATCATGAACATCCTGTGTACTAGATGCATTGGAAATTTTTTCATCCCCTCAACTCCACCCAGCCTCTGTCCACACTTGGTACCTCTCTCTATTCATATCTCTGGCCTCAAGGAGGGTATTTGGCATTAGTAAATAAATTCCAGAGATACTAAAGTCAGATTTTCTAAGACTGGGTGAATGACTCCATGGAAGAAGTGAAAAAGAGGAAGTTGTAATAGGGAGACCTCTTCGG";
+
+        // SNP at 20:12655528 creates a cycle for small kmers
+        final String alt = "CAATTGTCATAGAGAGTGACAAATGTTTCAAAAGCTTATTGACCCCAAGGTGCAGCGGTGCACATTAGAGGGCACCTAAGACAGCCTACAGGGGTCAGAAAAGATGTCTCAGAGGGACTCACACCTGAGCTGAGTTGTGAAGGAAGAGCAGGATAGAATGAGCCAAAGATAAAGACTCCAGGCAAAAGCAAATGAGCCTGAGGGAAACTGGAGCCAAGGCAAGAGCAGCAGAAAAGAGCAAAGCCAGCCGGTGGTCAAGGTGGGCTACTGTGTATGCAGAATGAGGAAGCTGGCCAAGTAGACATGTTTCAGATGATGAACATCCTGTGTACTAGATGCATTGGAACTTTTTTCATCCCCTCAACTCCACCAAGCCTCTGTCCACTCTTGGTACCTCTCTCCAAGTAGACATATTTCAGATCATGAACATCCTGTGTACTAGATGCATTGGAAATTTTTTCATCCCCTCAACTCCACCCAGCCTCTGTCCACACTTGGTACCTCTCTCTATTCATATCTCTGGCCTCAAGGAGGGTATTTGGCATTAGTAAATAAATTCCAGAGATACTAAAGTCAGATTTTCTAAGACTGGGTGAATGACTCCATGGAAGAAGTGAAAAAGAGGAAGTTGTAATAGGGAGACCTCTTCGG";
+
+        final List<GATKSAMRecord> reads = new ArrayList<>();
+        for ( int index = 0; index < alt.length() - 100; index += 20 )
+            reads.add(ArtificialSAMUtils.createArtificialRead(Arrays.copyOfRange(alt.getBytes(), index, index + 100), Utils.dupBytes((byte) 30, 100), 100 + "M"));
+
+        // test that there are cycles detected for small kmer
+        final ReadThreadingGraph rtgraph25 = new ReadThreadingGraph(25);
+        rtgraph25.addSequence("ref", ref.getBytes(), null, true);
+        for ( final GATKSAMRecord read : reads )
+            rtgraph25.addRead(read);
+        rtgraph25.buildGraphIfNecessary();
+        Assert.assertTrue(rtgraph25.hasCycles());
+
+        // test that there are no cycles detected for large kmer
+        final ReadThreadingGraph rtgraph75 = new ReadThreadingGraph(75);
+        rtgraph75.addSequence("ref", ref.getBytes(), null, true);
+        for ( final GATKSAMRecord read : reads )
+            rtgraph75.addRead(read);
+        rtgraph75.buildGraphIfNecessary();
+        Assert.assertFalse(rtgraph75.hasCycles());
     }
 
     // TODO -- update to use determineKmerSizeAndNonUniques directly

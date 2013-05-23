@@ -266,6 +266,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="kmerSize", shortName="kmerSize", doc="Kmer size to use in the read threading assembler", required = false)
     protected List<Integer> kmerSizes = Arrays.asList(10, 25);
 
+    @Advanced
+    @Argument(fullName="dontIncreaseKmerSizesForCycles", shortName="dontIncreaseKmerSizesForCycles", doc="Should we disable the iterating over kmer sizes when graph cycles are detected?", required = false)
+    protected boolean dontIncreaseKmerSizesForCycles = false;
+
     /**
      * Assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
      * considered requires N PairHMM evaluations if there are N reads across all samples.  In order to control the
@@ -520,7 +524,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final int maxAllowedPathsForReadThreadingAssembler = Math.max(maxPathsPerSample * nSamples, MIN_PATHS_PER_GRAPH);
         assemblyEngine = useDebruijnAssembler
                 ? new DeBruijnAssembler(minKmerForDebruijnAssembler, onlyUseKmerSizeForDebruijnAssembler)
-                : new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes);
+                : new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes, dontIncreaseKmerSizesForCycles);
 
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
         assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);

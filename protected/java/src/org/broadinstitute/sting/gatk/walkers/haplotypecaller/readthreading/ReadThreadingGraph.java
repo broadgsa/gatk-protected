@@ -54,6 +54,7 @@ import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.collections.PrimitivePair;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.jgrapht.EdgeFactory;
+import org.jgrapht.alg.CycleDetector;
 
 import java.io.File;
 import java.util.*;
@@ -297,7 +298,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     public void buildGraphIfNecessary() {
         if ( alreadyBuilt ) return;
 
-        // determine the kmer size we'll uses, and capture the set of nonUniques for that kmer size
+        // determine the kmer size we'll use, and capture the set of nonUniques for that kmer size
         final NonUniqueResult result = determineKmerSizeAndNonUniques(kmerSize, kmerSize);
         nonUniqueKmers = result.nonUniques;
 
@@ -319,6 +320,13 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         // clear
         pending.clear();
         alreadyBuilt = true;
+    }
+
+    /**
+     * @return true if the graph has cycles, false otherwise
+     */
+    public boolean hasCycles() {
+        return new CycleDetector<>(this).detectCycles();
     }
 
     public void recoverDanglingTails() {
@@ -409,7 +417,8 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     private Collection<Kmer> determineNonUniqueKmers(final SequenceForKmers seqForKmers, final int kmerSize) {
         // count up occurrences of kmers within each read
         final KMerCounter counter = new KMerCounter(kmerSize);
-        for ( int i = 0; i <= seqForKmers.stop - kmerSize; i++ ) {
+        final int stopPosition = seqForKmers.stop - kmerSize;
+        for ( int i = 0; i <= stopPosition; i++ ) {
             final Kmer kmer = new Kmer(seqForKmers.sequence, i, kmerSize);
             counter.addKmer(kmer, 1);
         }
@@ -578,7 +587,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
         // none of our outgoing edges had our unique suffix base, so we check for an opportunity to merge back in
         final Kmer kmer = new Kmer(sequence, kmerStart, kmerSize);
-        MultiDeBruijnVertex uniqueMergeVertex = getUniqueKmerVertex(kmer, false);
+        final MultiDeBruijnVertex uniqueMergeVertex = getUniqueKmerVertex(kmer, false);
 
         if ( isRef && uniqueMergeVertex != null )
             throw new IllegalStateException("Found a unique vertex to merge into the reference graph " + prevVertex + " -> " + uniqueMergeVertex);
@@ -590,7 +599,8 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     }
 
     /**
-     * Get the longest stretch of high quality bases in read and pass that sequence to the graph
+     * Add the given read to the sequence graph.  Ultimately the read will get sent through addSequence(), but first
+     * this method ensures we only use high quality bases and accounts for reduced reads, etc.
      *
      * @param read a non-null read
      */
