@@ -83,6 +83,9 @@ public class UnifiedGenotyperEngine {
     public static final double HUMAN_SNP_HETEROZYGOSITY = 1e-3;
     public static final double HUMAN_INDEL_HETEROZYGOSITY = 1e-4;
 
+    private static final int SNP_MODEL = 0;
+    private static final int INDEL_MODEL = 1;
+
     public enum OUTPUT_MODE {
         /** produces calls only at variant sites */
         EMIT_VARIANTS_ONLY,
@@ -693,13 +696,13 @@ public class UnifiedGenotyperEngine {
     }
 
     private void determineGLModelsToUse() {
-
         String modelPrefix = "";
         if ( !UAC.GLmodel.name().contains(GPSTRING) && UAC.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY )
             modelPrefix = GPSTRING;
 
-        if ( UAC.GLmodel.name().toUpperCase().contains("BOTH") ) {
-            modelPrefix += UAC.GLmodel.name().toUpperCase().replaceAll("BOTH","");
+        // GGA mode => must initialize both the SNP and indel models
+        if ( UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ||
+                UAC.GLmodel.name().toUpperCase().contains("BOTH") ) {
             modelsToUse.add(GenotypeLikelihoodsCalculationModel.Model.valueOf(modelPrefix+"SNP"));
             modelsToUse.add(GenotypeLikelihoodsCalculationModel.Model.valueOf(modelPrefix+"INDEL"));
         }
@@ -712,31 +715,24 @@ public class UnifiedGenotyperEngine {
     private List<GenotypeLikelihoodsCalculationModel.Model> getGLModelsToUse(final RefMetaDataTracker tracker,
                                                                              final ReferenceContext refContext,
                                                                              final AlignmentContext rawContext) {
-
         if ( UAC.GenotypingMode != GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES )
             return modelsToUse;
 
+        if ( modelsToUse.size() != 2 )
+            throw new IllegalStateException("GGA mode assumes that we have initialized both the SNP and indel models but found " + modelsToUse);
+
         // if we're genotyping given alleles then we need to choose the model corresponding to the variant type requested
-        final List<GenotypeLikelihoodsCalculationModel.Model> GGAmodel = new ArrayList<GenotypeLikelihoodsCalculationModel.Model>(1);
         final VariantContext vcInput = getVCFromAllelesRod(tracker, refContext, rawContext.getLocation(), false, logger, UAC.alleles);
-        if ( vcInput == null )
-            return GGAmodel; // no work to be done
 
-        if ( vcInput.isSNP() )  {
-            // use the SNP model unless the user chose INDEL mode only
-            if ( modelsToUse.size() == 2 || modelsToUse.get(0).name().endsWith("SNP") )
-                GGAmodel.add(modelsToUse.get(0));
+        if ( vcInput == null ) {
+            return Collections.emptyList(); // no work to be done
+        } else if ( vcInput.isSNP() )  {
+            return Collections.singletonList(modelsToUse.get(SNP_MODEL));
+        } else if ( vcInput.isIndel() || vcInput.isMixed() ) {
+            return Collections.singletonList(modelsToUse.get(INDEL_MODEL));
+        } else {
+            return Collections.emptyList(); // No support for other types yet
         }
-        else if ( vcInput.isIndel() || vcInput.isMixed() ) {
-            // use the INDEL model unless the user chose SNP mode only
-            if ( modelsToUse.size() == 2 )
-                GGAmodel.add(modelsToUse.get(1));
-            else if ( modelsToUse.get(0).name().endsWith("INDEL") )
-                GGAmodel.add(modelsToUse.get(0));
-        }
-        // No support for other types yet
-
-        return GGAmodel;
     }
 
     /**
