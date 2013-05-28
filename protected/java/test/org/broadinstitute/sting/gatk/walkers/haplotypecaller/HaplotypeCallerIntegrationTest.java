@@ -101,7 +101,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerInsertionOnEdgeOfContig() {
-        HCTest(CEUTRIO_MT_TEST_BAM, "-dcov 90 -L MT:1-10", "7f1fb8f9587f64643f6612ef1dd6d4ae");
+        HCTest(CEUTRIO_MT_TEST_BAM, "-L MT:1-10", "7f1fb8f9587f64643f6612ef1dd6d4ae");
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
