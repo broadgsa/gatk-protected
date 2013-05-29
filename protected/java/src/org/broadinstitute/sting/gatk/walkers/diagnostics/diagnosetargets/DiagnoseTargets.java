@@ -52,6 +52,7 @@ import org.broadinstitute.sting.commandline.Output;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.downsampling.DownsampleType;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
@@ -110,6 +111,7 @@ import java.util.*;
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 @By(value = DataSource.READS)
 @PartitionBy(PartitionType.INTERVAL)
+@Downsample(by = DownsampleType.NONE)
 public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
     private static final String AVG_INTERVAL_DP_KEY = "IDP";
