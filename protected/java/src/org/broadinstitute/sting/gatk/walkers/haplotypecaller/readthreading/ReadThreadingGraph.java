@@ -50,6 +50,7 @@ import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.KMerCounter;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Kmer;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.collections.PrimitivePair;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -611,7 +612,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
         int lastGood = -1; // the index of the last good base we've seen
         for( int end = 0; end <= sequence.length; end++ ) {
-            if ( end == sequence.length || qualities[end] < minBaseQualityToUseInAssembly ) {
+            if ( end == sequence.length || ! baseIsUsableForAssembly(sequence[end], qualities[end]) ) {
                 // the first good base is at lastGood, can be -1 if last base was bad
                 final int start = lastGood;
                 // the stop base is end - 1 (if we're not at the end of the sequence)
@@ -629,6 +630,18 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
                 lastGood = end; // we're at a good base, the last good one is us
             }
         }
+    }
+
+    /**
+     * Determines whether a base can safely be used for assembly.
+     * Currently disallows Ns and/or those with low quality
+     *
+     * @param base  the base under consideration
+     * @param qual  the quality of that base
+     * @return true if the base can be used for assembly, false otherwise
+     */
+    protected boolean baseIsUsableForAssembly(final byte base, final byte qual) {
+        return base != BaseUtils.Base.N.base && qual >= minBaseQualityToUseInAssembly;
     }
 
     /**

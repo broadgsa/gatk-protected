@@ -251,7 +251,7 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
             for ( int snpPos = 0; snpPos < windowSize; snpPos++) {
                 if ( snpPos > excludeVariantsWithXbp && (windowSize - snpPos) >= excludeVariantsWithXbp ) {
                     final byte[] altBases = ref.getBytes();
-                    altBases[snpPos] = 'N';
+                    altBases[snpPos] = altBases[snpPos] == 'A' ? (byte)'C' : (byte)'A';
                     final String alt = new String(altBases);
                     tests.add(new Object[]{"SNP at " + snpPos, assembler, refLoc, ref, alt});
                 }

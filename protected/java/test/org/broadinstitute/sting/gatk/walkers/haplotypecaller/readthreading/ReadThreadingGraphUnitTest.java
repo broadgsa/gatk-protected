@@ -48,10 +48,8 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Kmer;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.MultiSampleEdge;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
@@ -180,7 +178,31 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
         Assert.assertFalse(rtgraph75.hasCycles());
     }
 
-    // TODO -- update to use determineKmerSizeAndNonUniques directly
+    @Test(enabled = !DEBUG)
+    public void testNsInReadsAreNotUsedForGraph() {
+
+        final int length = 100;
+        final byte[] ref = Utils.dupBytes((byte)'A', length);
+
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(25);
+        rtgraph.addSequence("ref", ref, null, true);
+
+        // add reads with Ns at any position
+        for ( int i = 0; i < length; i++ ) {
+            final byte[] bases = ref.clone();
+            bases[i] = 'N';
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, Utils.dupBytes((byte) 30, length), length + "M");
+            rtgraph.addRead(read);
+        }
+        rtgraph.buildGraphIfNecessary();
+
+        final SeqGraph graph = rtgraph.convertToSequenceGraph();
+        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<>(false);
+        Assert.assertEquals(pathFinder.getKBestPaths(graph, length, graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex()).size(), 1);
+    }
+
+
+// TODO -- update to use determineKmerSizeAndNonUniques directly
 //    @DataProvider(name = "KmerSizeData")
 //    public Object[][] makeKmerSizeDataProvider() {
 //        List<Object[]> tests = new ArrayList<Object[]>();
