@@ -78,8 +78,6 @@ public class PairHMMIndelErrorModel {
     private static final double baseMatchArray[];
     private static final double baseMismatchArray[];
 
-    private final static double LOG_ONE_HALF;
-
     private static final int START_HRUN_GAP_IDX = 4;
     private static final int MAX_HRUN_GAP_IDX = 20;
 
@@ -97,8 +95,6 @@ public class PairHMMIndelErrorModel {
     /////////////////////////////
 
     static {
-        LOG_ONE_HALF= -Math.log10(2.0);
-
         baseMatchArray = new double[MAX_CACHED_QUAL+1];
         baseMismatchArray = new double[MAX_CACHED_QUAL+1];
         for (int k=1; k <= MAX_CACHED_QUAL; k++) {
@@ -466,7 +462,7 @@ public class PairHMMIndelErrorModel {
                     final double li = readLikelihoods[readIdx][i];
                     final double lj = readLikelihoods[readIdx][j];
                     final int readCount = readCounts[readIdx];
-                    haplotypeLikehoodMatrix[i][j] += readCount * (MathUtils.approximateLog10SumLog10(li, lj) + LOG_ONE_HALF);
+                    haplotypeLikehoodMatrix[i][j] += readCount * (MathUtils.approximateLog10SumLog10(li, lj) + MathUtils.LOG_ONE_HALF);
                 }
             }
         }

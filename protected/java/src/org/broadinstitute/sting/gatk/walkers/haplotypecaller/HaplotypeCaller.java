@@ -47,6 +47,9 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
@@ -433,8 +436,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private final static int MIN_READ_LENGTH = 10;
 
     private List<String> samplesList = new ArrayList<String>();
-    private final static double LOG_ONE_HALF = -Math.log10(2.0);
-    private final static double LOG_ONE_THIRD = -Math.log10(3.0);
     private final List<VariantContext> allelesToGenotype = new ArrayList<VariantContext>();
 
     private final static Allele FAKE_REF_ALLELE = Allele.create("N", true); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
@@ -603,7 +604,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // if we don't have any data, just abort early
             return new ActivityProfileState(ref.getLocus(), 0.0);
 
-        final List<Allele> noCall = new ArrayList<Allele>(); // used to noCall all genotypes until the exact model is applied
+        final List<Allele> noCall = new ArrayList<>(); // used to noCall all genotypes until the exact model is applied
         noCall.add(Allele.NO_CALL);
 
         final Map<String, AlignmentContext> splitContexts = AlignmentContextUtils.splitContextBySampleName(context);
@@ -625,14 +626,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                         }
                     }
                     genotypeLikelihoods[AA] += p.getRepresentativeCount() * QualityUtils.qualToProbLog10(qual);
-                    genotypeLikelihoods[AB] += p.getRepresentativeCount() * MathUtils.approximateLog10SumLog10( QualityUtils.qualToProbLog10(qual) + LOG_ONE_HALF, QualityUtils.qualToErrorProbLog10(qual) + LOG_ONE_THIRD + LOG_ONE_HALF );
-                    genotypeLikelihoods[BB] += p.getRepresentativeCount() * QualityUtils.qualToErrorProbLog10(qual) + LOG_ONE_THIRD;
+                    genotypeLikelihoods[AB] += p.getRepresentativeCount() * MathUtils.approximateLog10SumLog10( QualityUtils.qualToProbLog10(qual) + MathUtils.LOG_ONE_HALF, QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD + MathUtils.LOG_ONE_HALF );
+                    genotypeLikelihoods[BB] += p.getRepresentativeCount() * QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD;
                 }
             }
             genotypes.add( new GenotypeBuilder(sample.getKey()).alleles(noCall).PL(genotypeLikelihoods).make() );
         }
 
-        final List<Allele> alleles = new ArrayList<Allele>();
+        final List<Allele> alleles = new ArrayList<>();
         alleles.add( FAKE_REF_ALLELE );
         alleles.add( FAKE_ALT_ALLELE );
         final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.INDEL);
@@ -746,9 +747,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // Create the reference haplotype which is the bases from the reference that make up the active region
         finalizeActiveRegion(activeRegion); // merge overlapping fragments, clip adapter and low qual tails
 
-        final Haplotype referenceHaplotype = new Haplotype(activeRegion.getActiveRegionReference(referenceReader), true);
         final byte[] fullReferenceWithPadding = activeRegion.getActiveRegionReference(referenceReader, REFERENCE_PADDING);
         final GenomeLoc paddedReferenceLoc = getPaddedLoc(activeRegion);
+        final Haplotype referenceHaplotype = createReferenceHaplotype(activeRegion, paddedReferenceLoc);
 
         final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype );
 
@@ -758,6 +759,21 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // we don't want to trim active regions, so go ahead and use the old one
             return new AssemblyResult(haplotypes, activeRegion, fullReferenceWithPadding, paddedReferenceLoc, true);
         }
+    }
+
+    /**
+     * Helper function to create the reference haplotype out of the active region and a padded loc
+     * @param activeRegion the active region from which to generate the reference haplotype
+     * @param paddedReferenceLoc the GenomeLoc which includes padding and shows how big the reference haplotype should be
+     * @return a non-null haplotype
+     */
+    private Haplotype createReferenceHaplotype(final ActiveRegion activeRegion, final GenomeLoc paddedReferenceLoc) {
+        final Haplotype refHaplotype = new Haplotype(activeRegion.getActiveRegionReference(referenceReader), true);
+        refHaplotype.setAlignmentStartHapwrtRef(activeRegion.getExtendedLoc().getStart() - paddedReferenceLoc.getStart());
+        final Cigar c = new Cigar();
+        c.add(new CigarElement(refHaplotype.getBases().length, CigarOperator.M));
+        refHaplotype.setCigar(c);
+        return refHaplotype;
     }
 
     /**
@@ -791,7 +807,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         // trim down the haplotypes
-        final Set<Haplotype> haplotypeSet = new HashSet<Haplotype>(haplotypes.size());
+        final Set<Haplotype> haplotypeSet = new HashSet<>(haplotypes.size());
         for ( final Haplotype h : haplotypes ) {
             final Haplotype trimmed = h.trim(trimmedActiveRegion.getExtendedLoc());
             if ( trimmed != null ) {
@@ -802,7 +818,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         // create the final list of trimmed haplotypes
-        final List<Haplotype> trimmedHaplotypes = new ArrayList<Haplotype>(haplotypeSet);
+        final List<Haplotype> trimmedHaplotypes = new ArrayList<>(haplotypeSet);
 
         // sort haplotypes to take full advantage of haplotype start offset optimizations in PairHMM
         Collections.sort( trimmedHaplotypes, new HaplotypeBaseComparator() );
@@ -816,7 +832,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
 
         // trim down the reads and add them to the trimmed active region
-        final List<GATKSAMRecord> trimmedReads = new ArrayList<GATKSAMRecord>(originalActiveRegion.getReads().size());
+        final List<GATKSAMRecord> trimmedReads = new ArrayList<>(originalActiveRegion.getReads().size());
         for( final GATKSAMRecord read : originalActiveRegion.getReads() ) {
             final GATKSAMRecord clippedRead = ReadClipper.hardClipToRegion( read, trimmedActiveRegion.getExtendedLoc().getStart(), trimmedActiveRegion.getExtendedLoc().getStop() );
             if( trimmedActiveRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 ) {
@@ -937,7 +953,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     }
 
     private Map<String, List<GATKSAMRecord>> splitReadsBySample( final Collection<GATKSAMRecord> reads ) {
-        final Map<String, List<GATKSAMRecord>> returnMap = new HashMap<String, List<GATKSAMRecord>>();
+        final Map<String, List<GATKSAMRecord>> returnMap = new HashMap<>();
         for( final String sample : samplesList) {
             List<GATKSAMRecord> readList = returnMap.get( sample );
             if( readList == null ) {

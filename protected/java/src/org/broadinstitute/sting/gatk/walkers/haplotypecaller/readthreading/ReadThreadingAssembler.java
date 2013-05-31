@@ -62,6 +62,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     private final static Logger logger = Logger.getLogger(ReadThreadingAssembler.class);
 
     private final static int DEFAULT_NUM_PATHS_PER_GRAPH = 128;
+    private final static int GGA_MODE_ARTIFICIAL_COUNTS = 1000;
 
     /** The min and max kmer sizes to try when building the graph. */
     private final List<Integer> kmerSizes;
@@ -88,7 +89,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     }
 
     @Override
-    public List<SeqGraph> assemble( final List<GATKSAMRecord> reads, final Haplotype refHaplotype) {
+    public List<SeqGraph> assemble( final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes ) {
         final List<SeqGraph> graphs = new LinkedList<>();
 
         for ( final int kmerSize : kmerSizes ) {
@@ -96,6 +97,12 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
             // add the reference sequence to the graph
             rtgraph.addSequence("ref", refHaplotype.getBases(), null, true);
+            int hapCount = 0;
+            for( final Haplotype h : activeAlleleHaplotypes ) {
+                final int[] counts = new int[h.length()];
+                Arrays.fill(counts, GGA_MODE_ARTIFICIAL_COUNTS);
+                rtgraph.addSequence("activeAllele" + hapCount++, h.getBases(), counts, false);
+            }
 
             // Next pull kmers out of every read and throw them on the graph
             for( final GATKSAMRecord read : reads ) {
