@@ -366,9 +366,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
     }
 
     protected static int[] calculateIsIndel( final GATKSAMRecord read, final EventType mode ) {
-        final byte[] readBases = read.getReadBases();
-        final int[] indel = new int[readBases.length];
-        Arrays.fill(indel, 0);
+        final int[] indel = new int[read.getReadBases().length];
         int readPos = 0;
         for ( final CigarElement ce : read.getCigar().getCigarElements() ) {
             final int elementLength = ce.getLength();
@@ -383,21 +381,19 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
                 }
                 case D:
                 {
-                    final int index = ( read.getReadNegativeStrandFlag() ? readPos : ( readPos > 0 ? readPos - 1 : readPos ) );
-                    indel[index] = ( mode.equals(EventType.BASE_DELETION) ? 1 : 0 );
+                    final int index = ( read.getReadNegativeStrandFlag() ? readPos : readPos - 1 );
+                    updateIndel(indel, index, mode, EventType.BASE_DELETION);
                     break;
                 }
                 case I:
                 {
                     final boolean forwardStrandRead = !read.getReadNegativeStrandFlag();
                     if( forwardStrandRead ) {
-                        indel[(readPos > 0 ? readPos - 1 : readPos)] = ( mode.equals(EventType.BASE_INSERTION) ? 1 : 0 );
+                        updateIndel(indel, readPos - 1, mode, EventType.BASE_INSERTION);
                     }
-                    for (int iii = 0; iii < elementLength; iii++) {
-                        readPos++;
-                    }
+                    readPos += elementLength;
                     if( !forwardStrandRead ) {
-                        indel[(readPos < indel.length ? readPos : readPos - 1)] = ( mode.equals(EventType.BASE_INSERTION) ? 1 : 0 );
+                        updateIndel(indel, readPos, mode, EventType.BASE_INSERTION);
                     }
                     break;
                 }
@@ -410,6 +406,12 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
             }
         }
         return indel;
+    }
+
+    private static void updateIndel(final int[] indel, final int index, final EventType mode, final EventType requiredMode) {
+        if ( mode == requiredMode && index >= 0 && index < indel.length )
+            // protect ourselves from events at the start or end of the read (1D3M or 3M1D)
+            indel[index] = 1;
     }
 
     protected static double[] calculateFractionalErrorArray( final int[] errorArray, final byte[] baqArray ) {
