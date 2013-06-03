@@ -147,7 +147,50 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
             }
         }
 
-        assembler.addReadKmersToGraph(builder, Arrays.asList(read), Collections.<Haplotype>emptyList());
+        assembler.addReadKmersToGraph(builder, Arrays.asList(read));
+        Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
+        for ( final Kmer addedKmer : builder.addedPairs ) {
+            Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);
+        }
+    }
+
+    @DataProvider(name = "AddGGAKmersToGraph")
+    public Object[][] makeAddGGAKmersToGraphData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
+        final int readLen = bases.length();
+        final List<Integer> allBadStarts = new ArrayList<Integer>(readLen);
+        for ( int i = 0; i < readLen; i++ ) allBadStarts.add(i);
+
+        for ( final int kmerSize : Arrays.asList(3, 4, 5) ) {
+            tests.add(new Object[]{bases, kmerSize});
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "AddGGAKmersToGraph", enabled = ! DEBUG)
+    public void testAddGGAKmersToGraph(final String bases, final int kmerSize) {
+        final int readLen = bases.length();
+        final DeBruijnAssembler assembler = new DeBruijnAssembler();
+        final MockBuilder builder = new MockBuilder(kmerSize);
+
+        final Set<String> expectedBases = new HashSet<String>();
+        final Set<Integer> expectedStarts = new LinkedHashSet<Integer>();
+        for ( int i = 0; i < readLen; i++) {
+            boolean good = true;
+            for ( int j = 0; j < kmerSize + 1; j++ ) { // +1 is for pairing
+                good &= i + j < readLen;
+            }
+            if ( good ) {
+                expectedStarts.add(i);
+                expectedBases.add(bases.substring(i, i + kmerSize + 1));
+            }
+        }
+
+        assembler.addGGAKmersToGraph(builder, Arrays.asList(new Haplotype(bases.getBytes())));
         Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
         for ( final Kmer addedKmer : builder.addedPairs ) {
             Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);

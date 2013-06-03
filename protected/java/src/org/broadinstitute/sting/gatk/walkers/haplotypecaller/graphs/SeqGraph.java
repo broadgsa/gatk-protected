@@ -352,7 +352,7 @@ public final class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
          * Merge until the graph has no vertices that are candidates for merging
          */
         public boolean transformUntilComplete() {
-            boolean didAtLeastOneTranform = false;
+            boolean didAtLeastOneTransform = false;
             boolean foundNodesToMerge = true;
             while( foundNodesToMerge ) {
                 foundNodesToMerge = false;
@@ -360,13 +360,13 @@ public final class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
                 for( final SeqVertex v : vertexSet() ) {
                     foundNodesToMerge = tryToTransform(v);
                     if ( foundNodesToMerge ) {
-                        didAtLeastOneTranform = true;
+                        didAtLeastOneTransform = true;
                         break;
                     }
                 }
             }
 
-            return didAtLeastOneTranform;
+            return didAtLeastOneTransform;
         }
 
         /**
