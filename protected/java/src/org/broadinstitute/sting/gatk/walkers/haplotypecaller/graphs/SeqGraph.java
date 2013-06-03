@@ -155,18 +155,27 @@ public final class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
         //logger.info("simplifyGraph iteration " + i);
         // iterate until we haven't don't anything useful
         boolean didSomeWork = false;
-        if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".1.dot"), 0);
+        printGraphSimplification(new File("simplifyGraph." + iteration + ".1.dot"));
         didSomeWork |= new MergeDiamonds().transformUntilComplete();
         didSomeWork |= new MergeTails().transformUntilComplete();
-        if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".2.diamonds_and_tails.dot"), 0);
+        printGraphSimplification(new File("simplifyGraph." + iteration + ".2.diamonds_and_tails.dot"));
 
         didSomeWork |= new SplitCommonSuffices().transformUntilComplete();
-        if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".3.split_suffix.dot"), 0);
+        printGraphSimplification(new File("simplifyGraph." + iteration + ".3.split_suffix.dot"));
         didSomeWork |= new MergeCommonSuffices().transformUntilComplete();
-        if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".4.merge_suffix.dot"), 0);
+        printGraphSimplification(new File("simplifyGraph." + iteration + ".4.merge_suffix.dot"));
 
         didSomeWork |= zipLinearChains();
         return didSomeWork;
+    }
+
+    /**
+     * Print simplication step of this graph, if PRINT_SIMPLIFY_GRAPHS is enabled
+     * @param file the destination for the graph DOT file
+     */
+    private void printGraphSimplification(final File file) {
+        if ( PRINT_SIMPLIFY_GRAPHS )
+            subsetToNeighbors(getReferenceSourceVertex(), 5).printGraph(file, 0);
     }
 
     /**

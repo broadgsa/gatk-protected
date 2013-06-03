@@ -389,6 +389,17 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
     }
 
     /**
+     * Get the set of vertices connected to v by incoming or outgoing edges
+     * @param v a non-null vertex
+     * @return a set of vertices {X} connected X -> v or v -> Y
+     */
+    public Set<V> neighboringVerticesOf(final V v) {
+        final Set<V> s = incomingVerticesOf(v);
+        s.addAll(outgoingVerticesOf(v));
+        return s;
+    }
+
+    /**
      * Print out the graph in the dot language for visualization
      * @param destination File to write to
      */
@@ -663,5 +674,55 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         return "BaseGraph{" +
                 "kmerSize=" + kmerSize +
                 '}';
+    }
+
+    /**
+     * Get the set of vertices within distance edges of source, regardless of edge direction
+     *
+     * @param source the source vertex to consider
+     * @param distance the distance
+     * @return a set of vertices within distance of source
+     */
+    protected Set<V> verticesWithinDistance(final V source, final int distance) {
+        if ( distance == 0 )
+            return Collections.singleton(source);
+
+        final Set<V> found = new HashSet<>();
+        found.add(source);
+        for ( final V v : neighboringVerticesOf(source) ) {
+            found.addAll(verticesWithinDistance(v, distance - 1));
+        }
+
+        return found;
+    }
+
+    /**
+     * Get a graph containing only the vertices within distance edges of target
+     * @param target a vertex in graph
+     * @param distance the max distance
+     * @return a non-null graph
+     */
+    public BaseGraph<V,E> subsetToNeighbors(final V target, final int distance) {
+        if ( target == null ) throw new IllegalArgumentException("Target cannot be null");
+        if ( ! containsVertex(target) ) throw new IllegalArgumentException("Graph doesn't contain vertex " + target);
+        if ( distance < 0 ) throw new IllegalArgumentException("Distance must be >= 0 but got " + distance);
+
+
+        final Set<V> toKeep = verticesWithinDistance(target, distance);
+        final Set<V> toRemove = new HashSet<>(vertexSet());
+        toRemove.removeAll(toKeep);
+
+        final BaseGraph<V,E> result = (BaseGraph<V,E>)clone();
+        result.removeAllVertices(toRemove);
+
+        return result;
+    }
+
+    /**
+     * Get a subgraph of graph that contains only vertices within 10 edges of the ref source vertex
+     * @return a non-null subgraph of this graph
+     */
+    public BaseGraph<V,E> subsetToRefSource() {
+        return subsetToNeighbors(getReferenceSourceVertex(), 10);
     }
 }

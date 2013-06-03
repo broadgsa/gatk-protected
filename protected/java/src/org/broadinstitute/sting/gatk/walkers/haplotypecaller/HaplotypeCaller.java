@@ -50,6 +50,7 @@ import com.google.java.contract.Ensures;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
+import net.sf.samtools.SAMFileWriter;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
@@ -386,6 +387,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Hidden
     @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="If specified, we will not analyze soft clipped bases in the reads", required = false)
     protected boolean dontUseSoftClippedBases = false;
+
+    @Hidden
+    @Argument(fullName="captureAssemblyFailureBAM", shortName="captureAssemblyFailureBAM", doc="If specified, we will write a BAM called assemblyFailure.bam capturing all of the reads that were in the active region when the assembler failed for any reason", required = false)
+    protected boolean captureAssemblyFailureBAM = false;
 
     @Hidden
     @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="If specified, we will allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
@@ -751,13 +756,24 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final GenomeLoc paddedReferenceLoc = getPaddedLoc(activeRegion);
         final Haplotype referenceHaplotype = createReferenceHaplotype(activeRegion, paddedReferenceLoc);
 
-        final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype );
-
-        if ( ! dontTrimActiveRegions ) {
-            return trimActiveRegion(activeRegion, haplotypes, activeAllelesToGenotype, fullReferenceWithPadding, paddedReferenceLoc);
-        } else {
-            // we don't want to trim active regions, so go ahead and use the old one
-            return new AssemblyResult(haplotypes, activeRegion, fullReferenceWithPadding, paddedReferenceLoc, true);
+        try {
+            final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype );
+            if ( ! dontTrimActiveRegions ) {
+                return trimActiveRegion(activeRegion, haplotypes, activeAllelesToGenotype, fullReferenceWithPadding, paddedReferenceLoc);
+            } else {
+                // we don't want to trim active regions, so go ahead and use the old one
+                return new AssemblyResult(haplotypes, activeRegion, fullReferenceWithPadding, paddedReferenceLoc, true);
+            }
+        } catch ( Exception e ) {
+            // Capture any exception that might be thrown, and write out the assembly failure BAM if requested
+            if ( captureAssemblyFailureBAM ) {
+                final SAMFileWriter writer = ReadUtils.createSAMFileWriterWithCompression(getToolkit().getSAMFileHeader(), true, "assemblyFailure.bam", 5);
+                for ( final GATKSAMRecord read : activeRegion.getReads() ) {
+                    writer.addAlignment(read);
+                }
+                writer.close();
+            }
+            throw e;
         }
     }
 
