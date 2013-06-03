@@ -315,6 +315,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
     @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="If specified, we will allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
     protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
 
+    @Hidden
+    @Argument(fullName="noFpga", shortName="noFpga", doc="If provided, disables the use of the FPGA HMM implementation", required = false)
+    protected boolean noFpga = false;
+
 
     // the UG engines
     private UnifiedGenotyperEngine UG_engine = null;
@@ -435,7 +439,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<Integer, Integer> implem
         if ( graphWriter != null ) assemblyEngine.setGraphWriter(graphWriter);
         if ( useLowQualityBasesForAssembly ) assemblyEngine.setMinBaseQualityToUseInAssembly((byte)1);
 
-        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM );
+        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM, noFpga );
 
         final MergeVariantsAcrossHaplotypes variantMerger = mergeVariantsViaLD ? new LDMerger(DEBUG, 10, 1) : new MergeVariantsAcrossHaplotypes();
 

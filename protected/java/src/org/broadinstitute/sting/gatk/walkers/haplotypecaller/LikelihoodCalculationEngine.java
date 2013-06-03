@@ -80,7 +80,11 @@ public class LikelihoodCalculationEngine {
      */
     private final double EXPECTED_ERROR_RATE_PER_BASE = 0.02;
 
-    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType ) {
+    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType) {
+	this(constantGCP, debug, hmmType, false);
+    }
+
+    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType, final boolean noFpga) {
 
         switch (hmmType) {
             case EXACT:
@@ -90,7 +94,7 @@ public class LikelihoodCalculationEngine {
                 pairHMM = new Log10PairHMM(false);
                 break;
             case LOGLESS_CACHING:
-		if (CnyPairHMM.isAvailable())
+		if (!noFpga && CnyPairHMM.isAvailable())
 		    pairHMM = new CnyPairHMM();
 		else
 		    pairHMM = new LoglessPairHMM();
@@ -191,16 +195,17 @@ public class LikelihoodCalculationEngine {
 		    final boolean isFirstHaplotype = jjj == 0;
 		    final double log10l = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
 											   read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
-		    
+		    System.err.println(Integer.toString(jjj) + ": " + Double.toString(log10l));
 		    perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
 		}
 	    }
         }
 	if ( batchPairHMM != null ) {
 	    for( final GATKSAMRecord read : batchedReads ) {
-		final double[] likelihoods = batchPairHMM.batchResult();
+		final double[] likelihoods = batchPairHMM.batchGetResult();
 		for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
 		    final Haplotype haplotype = haplotypes.get(jjj);
+		    System.err.println(Integer.toString(jjj) + ": " + Double.toString(likelihoods[jjj]));
 		    perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), likelihoods[jjj]);
 		}
 	    }
