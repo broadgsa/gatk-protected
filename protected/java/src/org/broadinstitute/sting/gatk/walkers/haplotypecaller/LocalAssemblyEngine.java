@@ -78,6 +78,10 @@ import java.util.*;
 public abstract class LocalAssemblyEngine {
     private final static Logger logger = Logger.getLogger(LocalAssemblyEngine.class);
 
+    /**
+     * If false, we will only write out a region around the reference source
+     */
+    private final static boolean PRINT_FULL_GRAPH_FOR_DEBUGGING = true;
     public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 8;
     private static final int MIN_HAPLOTYPE_REFERENCE_LENGTH = 30;
 
@@ -252,20 +256,26 @@ public abstract class LocalAssemblyEngine {
         return false;
     }
 
-    protected SeqGraph cleanupSeqGraph(final SeqGraph seqGraph) {
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.1.dot"), pruneFactor);
+    /**
+     * Print graph to file if debugGraphTransformations is enabled
+     * @param graph the graph to print
+     * @param file the destination file
+     */
+    protected void printDebugGraphTransform(final BaseGraph graph, final File file) {
+        if ( debugGraphTransformations ) {
+            if ( PRINT_FULL_GRAPH_FOR_DEBUGGING )
+                graph.printGraph(file, pruneFactor);
+            else
+                graph.subsetToRefSource().printGraph(file, pruneFactor);
+        }
+    }
 
-        // TODO -- we need to come up with a consistent pruning algorithm.  The current pruning algorithm
-        // TODO -- works well but it doesn't differentiate between an isolated chain that doesn't connect
-        // TODO -- to anything from one that's actually has good support along the chain but just happens
-        // TODO -- to have a connection in the middle that has weight of < pruneFactor.  Ultimately
-        // TODO -- the pruning algorithm really should be an error correction algorithm that knows more
-        // TODO -- about the structure of the data and can differentiate between an infrequent path but
-        // TODO -- without evidence against it (such as occurs when a region is hard to get any reads through)
-        // TODO -- from a error with lots of weight going along another similar path
+    protected SeqGraph cleanupSeqGraph(final SeqGraph seqGraph) {
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.1.dot"));
+
         // the very first thing we need to do is zip up the graph, or pruneGraph will be too aggressive
         seqGraph.zipLinearChains();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.2.zipped.dot"), pruneFactor);
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.2.zipped.dot"));
 
         // now go through and prune the graph, removing vertices no longer connected to the reference chain
         // IMPORTANT: pruning must occur before we call simplifyGraph, as simplifyGraph adds 0 weight
@@ -273,9 +283,9 @@ public abstract class LocalAssemblyEngine {
         seqGraph.pruneGraph(pruneFactor);
         seqGraph.removeVerticesNotConnectedToRefRegardlessOfEdgeDirection();
 
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.3.pruned.dot"), pruneFactor);
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.3.pruned.dot"));
         seqGraph.simplifyGraph();
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.4.merged.dot"), pruneFactor);
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.4.merged.dot"));
 
         // The graph has degenerated in some way, so the reference source and/or sink cannot be id'd.  Can
         // happen in cases where for example the reference somehow manages to acquire a cycle, or
@@ -294,7 +304,7 @@ public abstract class LocalAssemblyEngine {
             seqGraph.addVertex(dummy);
             seqGraph.addEdge(complete, dummy, new BaseEdge(true, 0));
         }
-        if ( debugGraphTransformations ) seqGraph.printGraph(new File("sequenceGraph.5.final.dot"), pruneFactor);
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.5.final.dot"));
 
         return seqGraph;
     }

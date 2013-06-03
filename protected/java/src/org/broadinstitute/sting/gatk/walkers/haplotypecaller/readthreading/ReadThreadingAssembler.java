@@ -113,7 +113,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
             // actually build the read threading graph
             rtgraph.buildGraphIfNecessary();
-            if ( debugGraphTransformations ) rtgraph.printGraph(new File("sequenceGraph.0.0.raw_readthreading_graph.dot"), pruneFactor);
+            printDebugGraphTransform(rtgraph, new File("sequenceGraph.0.0.raw_readthreading_graph.dot"));
 
             // go through and prune all of the chains where all edges have <= pruneFactor.  This must occur
             // before recoverDanglingTails in the graph, so that we don't spend a ton of time recovering
@@ -128,7 +128,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
             // remove all heading and trailing paths
             if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();
 
-            if ( debugGraphTransformations ) rtgraph.printGraph(new File("sequenceGraph.0.1.cleaned_readthreading_graph.dot"), pruneFactor);
+            printDebugGraphTransform(rtgraph, new File("sequenceGraph.0.1.cleaned_readthreading_graph.dot"));
 
             final SeqGraph initialSeqGraph = rtgraph.convertToSequenceGraph();
 
@@ -136,7 +136,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
             if ( justReturnRawGraph ) return Collections.singletonList(initialSeqGraph);
 
             if ( debug ) logger.info("Using kmer size of " + rtgraph.getKmerSize() + " in read threading assembler");
-            if ( debugGraphTransformations ) initialSeqGraph.printGraph(new File("sequenceGraph.0.2.initial_seqgraph.dot"), pruneFactor);
+            printDebugGraphTransform(initialSeqGraph, new File("sequenceGraph.0.2.initial_seqgraph.dot"));
             initialSeqGraph.cleanNonRefPaths(); // TODO -- I don't this is possible by construction
 
             final SeqGraph seqGraph = cleanupSeqGraph(initialSeqGraph);
