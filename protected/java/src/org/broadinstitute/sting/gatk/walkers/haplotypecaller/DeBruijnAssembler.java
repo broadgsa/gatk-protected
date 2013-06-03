@@ -143,8 +143,13 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
             // something went wrong, so abort right now with a null graph
             return null;
 
-        // now go through the graph already seeded with the reference sequence and add the read kmers to it as well as the artificial GGA haplotypes
-        if ( ! addReadKmersToGraph(builder, reads, activeAlleleHaplotypes) )
+        // add the artificial GGA haplotypes to the graph
+        if ( ! addGGAKmersToGraph(builder, activeAlleleHaplotypes) )
+            // something went wrong, so abort right now with a null graph
+            return null;
+
+        // now go through the graph already seeded with the reference sequence and add the read kmers to it
+        if ( ! addReadKmersToGraph(builder, reads) )
             // some problem was detected adding the reads to the graph, return null to indicate we failed
             return null;
 
@@ -153,23 +158,36 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     /**
-     * Add the high-quality kmers from the reads to the graph
+     * Add the high-quality kmers from the artificial GGA haplotypes to the graph
      *
      * @param builder a debruijn graph builder to add the read kmers to
-     * @param reads a non-null list of reads whose kmers we want to add to the graph
      * @param activeAlleleHaplotypes a list of haplotypes to add to the graph for GGA mode
      * @return true if we successfully added the read kmers to the graph without corrupting it in some way
      */
-    protected boolean addReadKmersToGraph(final DeBruijnGraphBuilder builder, final List<GATKSAMRecord> reads, final List<Haplotype> activeAlleleHaplotypes) {
+    protected boolean addGGAKmersToGraph(final DeBruijnGraphBuilder builder, final List<Haplotype> activeAlleleHaplotypes) {
+
         final int kmerLength = builder.getKmerSize();
 
-        // First pull kmers out of the artificial GGA haplotypes and throw them on the graph
         for( final Haplotype haplotype : activeAlleleHaplotypes ) {
             final int end = haplotype.length() - kmerLength;
             for( int start = 0; start < end; start++ ) {
                 builder.addKmerPairFromSeqToGraph( haplotype.getBases(), start, GGA_MODE_ARTIFICIAL_COUNTS );
             }
         }
+
+        // always returns true now, but it's possible that we'd add kmers and decide we don't like the graph in some way
+        return true;
+    }
+
+    /**
+     * Add the high-quality kmers from the reads to the graph
+     *
+     * @param builder a debruijn graph builder to add the read kmers to
+     * @param reads a non-null list of reads whose kmers we want to add to the graph
+     * @return true if we successfully added the read kmers to the graph without corrupting it in some way
+     */
+    protected boolean addReadKmersToGraph(final DeBruijnGraphBuilder builder, final List<GATKSAMRecord> reads) {
+        final int kmerLength = builder.getKmerSize();
 
         // Next pull kmers out of every read and throw them on the graph
         for( final GATKSAMRecord read : reads ) {

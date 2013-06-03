@@ -97,6 +97,8 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
             // add the reference sequence to the graph
             rtgraph.addSequence("ref", refHaplotype.getBases(), null, true);
+
+            // add the artificial GGA haplotypes to the graph
             int hapCount = 0;
             for( final Haplotype h : activeAlleleHaplotypes ) {
                 final int[] counts = new int[h.length()];
