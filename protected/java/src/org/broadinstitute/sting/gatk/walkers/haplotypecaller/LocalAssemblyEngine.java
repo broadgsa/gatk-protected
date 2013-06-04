@@ -128,9 +128,15 @@ public abstract class LocalAssemblyEngine {
      * @param fullReferenceWithPadding  byte array holding the reference sequence with padding
      * @param refLoc                    GenomeLoc object corresponding to the reference sequence with padding
      * @param activeAllelesToGenotype   the alleles to inject into the haplotypes during GGA mode
+     * @param readErrorCorrector        a ReadErrorCorrector object, if read are to be corrected before assembly. Can be null if no error corrector is to be used.
      * @return                          a non-empty list of all the haplotypes that are produced during assembly
      */
-    public List<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, List<VariantContext> activeAllelesToGenotype) {
+    public List<Haplotype> runLocalAssembly(final ActiveRegion activeRegion,
+                                            final Haplotype refHaplotype,
+                                            final byte[] fullReferenceWithPadding,
+                                            final GenomeLoc refLoc,
+                                            final List<VariantContext> activeAllelesToGenotype,
+                                            final ReadErrorCorrector readErrorCorrector) {
         if( activeRegion == null ) { throw new IllegalArgumentException("Assembly engine cannot be used with a null ActiveRegion."); }
         if( refHaplotype == null ) { throw new IllegalArgumentException("Reference haplotype cannot be null."); }
         if( fullReferenceWithPadding.length != refLoc.size() ) { throw new IllegalArgumentException("Reference bases and reference loc must be the same size."); }
@@ -139,8 +145,20 @@ public abstract class LocalAssemblyEngine {
         // create the list of artificial haplotypes that should be added to the graph for GGA mode
         final List<Haplotype> activeAlleleHaplotypes = createActiveAlleleHaplotypes(refHaplotype, activeAllelesToGenotype, activeRegion.getExtendedLoc());
 
+
+        // error-correct reads before clipping low-quality tails: some low quality bases might be good and we want to recover them
+        final List<GATKSAMRecord> correctedReads;
+        if (readErrorCorrector != null) {
+            // now correct all reads in active region after filtering/downsampling
+            // Note that original reads in active region are NOT modified by default, since they will be used later for GL computation,
+            // and we only want the read-error corrected reads for graph building.
+            readErrorCorrector.addReadsToKmers(activeRegion.getReads());
+            correctedReads = new ArrayList<>(readErrorCorrector.correctReads(activeRegion.getReads()));
+        }
+        else correctedReads = activeRegion.getReads();
+
         // create the graphs by calling our subclass assemble method
-        final List<SeqGraph> graphs = assemble(activeRegion.getReads(), refHaplotype, activeAlleleHaplotypes);
+        final List<SeqGraph> graphs = assemble(correctedReads, refHaplotype, activeAlleleHaplotypes);
 
         // do some QC on the graphs
         for ( final SeqGraph graph : graphs ) { sanityCheckGraph(graph, refHaplotype); }

@@ -396,6 +396,20 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="If specified, we will allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
     protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
 
+    // Parameters to control read error correction
+    @Hidden
+    @Argument(fullName="errorCorrectReads", shortName="errorCorrectReads", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    protected boolean errorCorrectReads = false;
+
+    @Hidden
+    @Argument(fullName="kmerLengthForReadErrorCorrection", shortName="kmerLengthForReadErrorCorrection", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    protected int kmerLengthForReadErrorCorrection = 25;
+
+    @Hidden
+    @Argument(fullName="minObservationsForKmerToBeSolid", shortName="minObservationsForKmerToBeSolid", doc = "A k-mer must be seen at least these times for it considered to be solid", required=false)
+    protected int minObservationsForKmerToBeSolid = 20;
+
+
     // -----------------------------------------------------------------------------------------------
     // done with Haplotype caller parameters
     // -----------------------------------------------------------------------------------------------
@@ -437,6 +451,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // bases with quality less than or equal to this value are trimmed off the tails of the reads
     private static final byte MIN_TAIL_QUALITY = 20;
 
+    private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
     // the minimum length of a read we'd consider using for genotyping
     private final static int MIN_READ_LENGTH = 10;
 
@@ -754,8 +769,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final GenomeLoc paddedReferenceLoc = getPaddedLoc(activeRegion);
         final Haplotype referenceHaplotype = createReferenceHaplotype(activeRegion, paddedReferenceLoc);
 
+        // Create ReadErrorCorrector object if requested - will be used within assembly engine.
+        ReadErrorCorrector readErrorCorrector = null;
+        if (errorCorrectReads)
+            readErrorCorrector = new ReadErrorCorrector(kmerLengthForReadErrorCorrection, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION, minObservationsForKmerToBeSolid, DEBUG,fullReferenceWithPadding);
+
         try {
-            final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype );
+            final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype,readErrorCorrector );
             if ( ! dontTrimActiveRegions ) {
                 return trimActiveRegion(activeRegion, haplotypes, activeAllelesToGenotype, fullReferenceWithPadding, paddedReferenceLoc);
             } else {
@@ -922,7 +942,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         for( final GATKSAMRecord myRead : finalizedReadList ) {
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
-                GATKSAMRecord clippedRead = useLowQualityBasesForAssembly ? postAdapterRead : ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
+                GATKSAMRecord clippedRead;
+                if (errorCorrectReads)
+                    clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION );
+                else if (useLowQualityBasesForAssembly)
+                    clippedRead = postAdapterRead;
+                else  // default case: clip low qual ends of reads
+                    clippedRead= ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
 
                 if ( dontUseSoftClippedBases ) {
                     // uncomment to remove hard clips from consideration at all
