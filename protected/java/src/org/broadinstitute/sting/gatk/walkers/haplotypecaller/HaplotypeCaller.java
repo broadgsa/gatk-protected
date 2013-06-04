@@ -694,11 +694,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         //logger.info("Computing read likelihoods with " + assemblyResult.regionForGenotyping.size() + " reads");
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods( assemblyResult.haplotypes, splitReadsBySample( assemblyResult.regionForGenotyping.getReads() ) );
 
-        // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
-        final List<Haplotype> bestHaplotypes = selectBestHaplotypesForGenotyping(assemblyResult.haplotypes, stratifiedReadMap);
+        // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
+        //  was a bad interaction between that selection and the marginalization that happens over each event when computing
+        //  GLs.  In particular, for samples that are heterozygous non-reference (B/C) the marginalization for B treats the
+        //  haplotype containing C as reference (and vice versa).  Now this is fine if all possible haplotypes are included
+        //  in the genotyping, but we lose information if we select down to a few haplotypes.  [EB]
 
         final GenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods( UG_engine,
-                bestHaplotypes,
+                assemblyResult.haplotypes,
                 stratifiedReadMap,
                 perSampleFilteredReadList,
                 assemblyResult.fullReferenceWithPadding,
@@ -711,7 +714,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
         if ( bamWriter != null ) {
             haplotypeBAMWriter.writeReadsAlignedToHaplotypes(assemblyResult.haplotypes, assemblyResult.paddedReferenceLoc,
-                    bestHaplotypes,
+                    assemblyResult.haplotypes,
                     calledHaplotypes.getCalledHaplotypes(),
                     stratifiedReadMap);
         }
@@ -861,21 +864,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         trimmedActiveRegion.addAll(ReadUtils.sortReadsByCoordinate(trimmedReads));
 
         return new AssemblyResult(trimmedHaplotypes, trimmedActiveRegion, fullReferenceWithPadding, paddedReferenceLoc, true);
-    }
-
-    /**
-     * Select the best N haplotypes according to their likelihoods, if appropriate
-     *
-     * @param haplotypes a list of haplotypes to consider
-     * @param stratifiedReadMap a map from samples -> read likelihoods
-     * @return the list of haplotypes to genotype
-     */
-    protected List<Haplotype> selectBestHaplotypesForGenotyping(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        if ( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
-            return haplotypes;
-        } else {
-            return likelihoodCalculationEngine.selectBestHaplotypesFromEachSample(haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation);
-        }
     }
 
     //---------------------------------------------------------------------------------------------------------------
