@@ -44,56 +44,83 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.testng.annotations.Test;
+import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFConstants;
+import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
+import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
 
-import java.util.Arrays;
+import java.util.*;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
 
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
+/**
+ * The depth of coverage of each allele per sample
+ *
+ * the depth for the HC is the sum of the informative alleles at this site.  It's not perfect (as we cannot
+ * differentiate between reads that align over the event but aren't informative vs. those that aren't even
+ * close) but it's a pretty good proxy and it matches with the AD field (i.e., sum(AD) = DP).
+ */
+public class DepthPerSampleHC extends GenotypeAnnotation {
+    public void annotate(final RefMetaDataTracker tracker,
+                         final AnnotatorCompatible walker,
+                         final ReferenceContext ref,
+                         final AlignmentContext stratifiedContext,
+                         final VariantContext vc,
+                         final Genotype g,
+                         final GenotypeBuilder gb,
+                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
+        if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
+            return;
 
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
+        if (alleleLikelihoodMap == null )
+            throw new IllegalStateException("DepthPerSampleHC can only be used with likelihood based annotations in the HaplotypeCaller");
+
+        // the depth for the HC is the sum of the informative alleles at this site.  It's not perfect (as we cannot
+        // differentiate between reads that align over the event but aren't informative vs. those that aren't even
+        // close) but it's a pretty good proxy and it matches with the AD field (i.e., sum(AD) = DP).
+        int dp = 0;
+
+        if ( alleleLikelihoodMap.isEmpty() ) {
+            // there are no reads
+        } else {
+            final Set<Allele> alleles = new HashSet<>(vc.getAlleles());
+
+            // make sure that there's a meaningful relationship between the alleles in the perReadAlleleLikelihoodMap and our VariantContext
+            if ( ! alleleLikelihoodMap.getAllelesSet().containsAll(alleles) )
+                throw new IllegalStateException("VC alleles " + alleles + " not a strict subset of per read allele map alleles " + alleleLikelihoodMap.getAllelesSet());
+
+            for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : alleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
+                final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue(), alleles);
+                if ( a.isInformative() ) {
+                    final GATKSAMRecord read = el.getKey();
+                    final int incCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
+                    dp += incCount;
+                }
+            }
+
+            gb.DP(dp);
+        }
     }
 
-    @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "8d7728909b1b8eb3f30f2f1583f054a8");
+    public List<String> getKeyNames() {
+        return Collections.singletonList(VCFConstants.DEPTH_KEY);
     }
 
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
-    }
-
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
-    }
-
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "db71826dc798ff1cdf0c5d05b0ede976");
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "42831d5463552911b7da9de0b4a27289");
+    public List<VCFFormatHeaderLine> getDescriptions() {
+        return Collections.singletonList(VCFStandardHeaderLines.getFormatLine(getKeyNames().get(0)));
     }
 }
