@@ -312,4 +312,19 @@ public class BaseGraphUnitTest extends BaseTest {
 
         Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
     }
+
+    @Test(enabled = true)
+    public void testGetBases() {
+
+        final int kmerSize = 4;
+        final String testString = "AATGGGGGCAATACTA";
+
+        final List<DeBruijnVertex> vertexes = new ArrayList<>();
+        for ( int i = 0; i <= testString.length() - kmerSize; i++ ) {
+            vertexes.add(new DeBruijnVertex(testString.substring(i, i + kmerSize)));
+        }
+
+        final String result = new String(new DeBruijnGraph().getBasesForPath(vertexes));
+        Assert.assertEquals(result, testString.substring(kmerSize - 1));
+    }
 }

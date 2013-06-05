@@ -83,7 +83,8 @@ public class ReadThreadingAssemblerUnitTest extends BaseTest {
         }
 
         public SeqGraph assemble() {
-            assembler.removePathsNotConnectedToRef = false; // need to pass some of the tests
+            assembler.removePathsNotConnectedToRef = false; // needed to pass some of the tests
+            assembler.setRecoverDanglingTails(false); // needed to pass some of the tests
             assembler.setDebugGraphTransformations(true);
             final SeqGraph graph = assembler.assemble(reads, refHaplotype, Collections.<Haplotype>emptyList()).get(0);
             if ( DEBUG ) graph.printGraph(new File("test.dot"), 0);

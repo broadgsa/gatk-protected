@@ -55,7 +55,6 @@ import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -89,7 +88,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     }
 
     public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes) {
-        this(maxAllowedPathsForReadThreadingAssembler, kmerSizes, false);
+        this(maxAllowedPathsForReadThreadingAssembler, kmerSizes, true);
     }
 
     /** for testing purposes */
@@ -103,7 +102,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
         // first, try using the requested kmer sizes
         for ( final int kmerSize : kmerSizes ) {
-            final SeqGraph graph = createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes);
+            final SeqGraph graph = createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, dontIncreaseKmerSizesForCycles);
             if ( graph != null )
                 graphs.add(graph);
         }
@@ -113,7 +112,8 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
             int kmerSize = MathUtils.arrayMaxInt(kmerSizes) + KMER_SIZE_ITERATION_INCREASE;
             int numIterations = 1;
             while ( graphs.isEmpty() && numIterations <= MAX_KMER_ITERATIONS_TO_ATTEMPT ) {
-                final SeqGraph graph = createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes);
+                // on the last attempt we will allow low complexity graphs
+                final SeqGraph graph = createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT);
                 if ( graph != null )
                     graphs.add(graph);
                 kmerSize += KMER_SIZE_ITERATION_INCREASE;
@@ -131,9 +131,14 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
      * @param refHaplotype     reference haplotype
      * @param kmerSize         kmer size
      * @param activeAlleleHaplotypes the GGA haplotypes to inject into the graph
-     * @return sequence graph or null if one could not be created (e.g. because it contains cycles or too many paths)
+     * @param allowLowComplexityGraphs if true, do not check for low-complexity graphs
+     * @return sequence graph or null if one could not be created (e.g. because it contains cycles or too many paths or is low complexity)
      */
-    protected SeqGraph createGraph(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final int kmerSize, final List<Haplotype> activeAlleleHaplotypes) {
+    protected SeqGraph createGraph(final List<GATKSAMRecord> reads,
+                                   final Haplotype refHaplotype,
+                                   final int kmerSize,
+                                   final List<Haplotype> activeAlleleHaplotypes,
+                                   final boolean allowLowComplexityGraphs) {
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly);
 
         // add the reference sequence to the graph
@@ -157,7 +162,13 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
         // sanity check: make sure there are no cycles in the graph
         if ( rtgraph.hasCycles() ) {
-            if ( debug ) logger.info("Not using kmer size of " + rtgraph.getKmerSize() + " in read threading assembler because it contains a cycle");
+            if ( debug ) logger.info("Not using kmer size of " + kmerSize + " in read threading assembler because it contains a cycle");
+            return null;
+        }
+
+        // sanity check: make sure the graph had enough complexity with the given kmer
+        if ( ! allowLowComplexityGraphs && rtgraph.isLowComplexity() ) {
+            if ( debug ) logger.info("Not using kmer size of " + kmerSize + " in read threading assembler because it does not produce a graph with enough complexity");
             return null;
         }
 
@@ -169,8 +180,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         rtgraph.pruneLowWeightChains(pruneFactor);
 
         // look at all chains in the graph that terminate in a non-ref node (dangling sinks) and see if
-        // we can recover them by merging some N bases from the chain back into the reference uniquely, for
-        // N < kmerSize
+        // we can recover them by merging some N bases from the chain back into the reference
         if ( recoverDanglingTails ) rtgraph.recoverDanglingTails();
 
         // remove all heading and trailing paths
