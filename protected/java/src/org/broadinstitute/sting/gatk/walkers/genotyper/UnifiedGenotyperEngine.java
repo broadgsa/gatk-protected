@@ -543,11 +543,6 @@ public class UnifiedGenotyperEngine {
         builder.attributes(attributes);
         VariantContext vcCall = builder.make();
 
-        // if we are subsetting alleles (either because there were too many or because some were not polymorphic)
-        // then we may need to trim the alleles (because the original VariantContext may have had to pad at the end).
-        if ( myAlleles.size() != vc.getAlleles().size() && !limitedContext ) // limitedContext callers need to handle allele trimming on their own to keep their perReadAlleleLikelihoodMap alleles in sync
-            vcCall = GATKVariantContextUtils.reverseTrimAlleles(vcCall);
-
         if ( annotationEngine != null && !limitedContext ) { // limitedContext callers need to handle annotations on their own by calling their own annotationEngine
             // Note: we want to use the *unfiltered* and *unBAQed* context for the annotations
             final ReadBackedPileup pileup = rawContext.getBasePileup();
@@ -555,6 +550,11 @@ public class UnifiedGenotyperEngine {
 
             vcCall = annotationEngine.annotateContext(tracker, refContext, stratifiedContexts, vcCall, perReadAlleleLikelihoodMap);
         }
+
+        // if we are subsetting alleles (either because there were too many or because some were not polymorphic)
+        // then we may need to trim the alleles (because the original VariantContext may have had to pad at the end).
+        if ( myAlleles.size() != vc.getAlleles().size() && !limitedContext ) // limitedContext callers need to handle allele trimming on their own to keep their perReadAlleleLikelihoodMap alleles in sync
+            vcCall = GATKVariantContextUtils.reverseTrimAlleles(vcCall);
 
         return new VariantCallContext(vcCall, confidentlyCalled(phredScaledConfidence, PoFGT0));
     }
