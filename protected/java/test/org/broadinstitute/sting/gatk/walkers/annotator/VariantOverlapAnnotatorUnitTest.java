@@ -44,165 +44,121 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import org.broadinstitute.sting.WalkerTest;
+import net.sf.picard.reference.IndexedFastaSequenceFile;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.commandline.RodBinding;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.variant.vcf.VCFConstants;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.io.FileNotFoundException;
+import java.util.*;
 
-public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
+public class VariantOverlapAnnotatorUnitTest extends BaseTest {
+    private GenomeLocParser genomeLocParser;
+    private IndexedFastaSequenceFile seq;
 
-    private final static String baseCommandIndels = "-T UnifiedGenotyper --disableDithering -R " + b36KGReference + " --no_cmdline_in_header -glm INDEL -mbq 20 -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
-    private final static String baseCommandIndelsb37 = "-T UnifiedGenotyper --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -mbq 20 --dbsnp " + b37dbSNP132;
-
-    // --------------------------------------------------------------------------------------------------------------
-    //
-    // testing indel caller
-    //
-    // --------------------------------------------------------------------------------------------------------------
-    // Basic indel testing with SLX data
-    @Test
-    public void testSimpleIndels() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommandIndels +
-                        " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam" +
-                        " -o %s" +
-                        " -L 1:10,000,000-10,500,000",
-                1,
-                Arrays.asList("14ad6eeed46e9b6f4757370267b1a1cc"));
-
-        executeTest(String.format("test indel caller in SLX"), spec);
+    @BeforeClass
+    public void setup() throws FileNotFoundException {
+        // sequence
+        seq = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
+        genomeLocParser = new GenomeLocParser(seq);
     }
 
-    // Basic indel testing with SLX data
-    @Test
-    public void testIndelsWithLowMinAlleleCnt() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommandIndels +
-                        " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam" +
-                        " -o %s" +
-                        " -minIndelCnt 1" +
-                        " -L 1:10,000,000-10,100,000",
-                1,
-                Arrays.asList("d9572a227ccb13a6baa6dc4fb65bc1e5"));
+    private VariantContext makeVC(final String source, final String id, final List<String> alleles) {
+        final VariantContext vc = GATKVariantContextUtils.makeFromAlleles(source, "20", 10, alleles);
+        return new VariantContextBuilder(vc).id(id).make();
+    }
 
-        executeTest(String.format("test indel caller in SLX with low min allele count"), spec);
+    private VariantOverlapAnnotator makeAnnotator(final String dbSNP, final String ... overlaps) {
+        final RodBinding<VariantContext> dbSNPBinding = dbSNP == null ? null : new RodBinding<>(VariantContext.class, dbSNP);
+        final Map<RodBinding<VariantContext>, String> overlapBinding = new LinkedHashMap<>();
+        for ( final String overlap : overlaps ) overlapBinding.put(new RodBinding<>(VariantContext.class, overlap), overlap);
+        return new VariantOverlapAnnotator(dbSNPBinding, overlapBinding, genomeLocParser);
     }
 
     @Test
-    public void testMultiTechnologyIndels() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommandIndels +
-                        " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.allTechs.bam" +
-                        " -o %s" +
-                        " -L 1:10,000,000-10,500,000",
-                1,
-                Arrays.asList("cd184a2a5a1932dcf3e8f0424652176b"));
-
-        executeTest(String.format("test indel calling, multiple technologies"), spec);
+    public void testCreateWithSpecialNames() {
+        final List<String> names = Arrays.asList("X", "Y", "Z");
+        final Map<RodBinding<VariantContext>, String> overlapBinding = new LinkedHashMap<>();
+        for ( final String overlap : names ) overlapBinding.put(new RodBinding<>(VariantContext.class, overlap + "Binding"), overlap);
+        final VariantOverlapAnnotator annotator = new VariantOverlapAnnotator(null, overlapBinding, genomeLocParser);
+        Assert.assertEquals(annotator.getOverlapNames(), names);
     }
 
-    @Test
-    public void testWithIndelAllelesPassedIn1() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "indelAllelesForUG.vcf -I " + validationDataLocation +
-                        "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,100,000", 1,
-                Arrays.asList("e8d98996eb81ece8cfb52437920ae2e0"));
-        executeTest("test MultiSample Pilot2 indels with alleles passed in", spec);
+    @DataProvider(name = "AnnotateRsIDData")
+    public Object[][] makeAnnotateRsIDData() {
+        List<Object[]> tests = new ArrayList<>();
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        final VariantContext callNoIDAC = makeVC("call", VCFConstants.EMPTY_ID_FIELD, Arrays.asList("A", "C"));
+        final VariantContext callNoIDAT = makeVC("call", VCFConstants.EMPTY_ID_FIELD, Arrays.asList("A", "T"));
+        final VariantContext callIDAC = makeVC("call", "foo", Arrays.asList("A", "C"));
+        final VariantContext callExistingIDAC = makeVC("call", "rsID1", Arrays.asList("A", "C"));
+
+        final VariantContext dbSNP_AC = makeVC("DBSNP", "rsID1", Arrays.asList("A", "C"));
+        final VariantContext dbSNP_AT = makeVC("DBSNP", "rsID2", Arrays.asList("A", "T"));
+        final VariantContext dbSNP_AG = makeVC("DBSNP", "rsID3", Arrays.asList("A", "G"));
+        final VariantContext dbSNP_AC_AT = makeVC("DBSNP", "rsID1;rsID2", Arrays.asList("A", "C", "T"));
+        final VariantContext dbSNP_AC_AG = makeVC("DBSNP", "rsID1;rsID3", Arrays.asList("A", "C", "G"));
+
+        tests.add(new Object[]{callNoIDAC, Arrays.asList(dbSNP_AC), dbSNP_AC.getID(), true});
+        tests.add(new Object[]{callNoIDAC, Arrays.asList(dbSNP_AT), VCFConstants.EMPTY_ID_FIELD, false});
+        tests.add(new Object[]{callIDAC, Arrays.asList(dbSNP_AC), "foo" + ";" + dbSNP_AC.getID(), true});
+        tests.add(new Object[]{callIDAC, Arrays.asList(dbSNP_AT), "foo", false});
+        tests.add(new Object[]{callExistingIDAC, Arrays.asList(dbSNP_AC), "rsID1", true});
+        tests.add(new Object[]{callExistingIDAC, Arrays.asList(dbSNP_AT), "rsID1", false});
+
+        final VariantContext callNoIDACT = makeVC("call", VCFConstants.EMPTY_ID_FIELD, Arrays.asList("A", "C", "T"));
+        tests.add(new Object[]{callNoIDACT, Arrays.asList(dbSNP_AC), dbSNP_AC.getID(), true});
+        tests.add(new Object[]{callNoIDACT, Arrays.asList(dbSNP_AT), dbSNP_AT.getID(), true});
+        tests.add(new Object[]{callNoIDACT, Arrays.asList(dbSNP_AG), VCFConstants.EMPTY_ID_FIELD, false});
+        tests.add(new Object[]{callNoIDACT, Arrays.asList(dbSNP_AC_AT), dbSNP_AC_AT.getID(), true});
+        tests.add(new Object[]{callNoIDACT, Arrays.asList(dbSNP_AC_AG), dbSNP_AC_AG.getID(), true});
+
+        // multiple options
+        tests.add(new Object[]{callNoIDAC, Arrays.asList(dbSNP_AC, dbSNP_AT), "rsID1", true});
+        tests.add(new Object[]{callNoIDAC, Arrays.asList(dbSNP_AT, dbSNP_AC), "rsID1", true});
+        tests.add(new Object[]{callNoIDAC, Arrays.asList(dbSNP_AC_AT), "rsID1;rsID2", true});
+        tests.add(new Object[]{callNoIDAT, Arrays.asList(dbSNP_AC_AT), "rsID1;rsID2", true});
+        tests.add(new Object[]{callNoIDAC, Arrays.asList(dbSNP_AC_AG), "rsID1;rsID3", true});
+        tests.add(new Object[]{callNoIDAT, Arrays.asList(dbSNP_AC_AG), VCFConstants.EMPTY_ID_FIELD, false});
+
+        final VariantContext dbSNP_AC_FAIL = new VariantContextBuilder(makeVC("DBSNP", "rsID1", Arrays.asList("A", "C"))).filter("FAIL").make();
+        tests.add(new Object[]{callNoIDAC, Arrays.asList(dbSNP_AC_FAIL), VCFConstants.EMPTY_ID_FIELD, false});
+
+
+        return tests.toArray(new Object[][]{});
     }
 
-    @Test
-    public void testWithIndelAllelesPassedIn2() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommandIndels + " --output_mode EMIT_ALL_SITES --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles "
-                        + privateTestDir + "indelAllelesForUG.vcf -I " + validationDataLocation +
-                        "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,100,000", 1,
-                Arrays.asList("23a78c16f64bffe1dea3a5587fcabdad"));
-        executeTest("test MultiSample Pilot2 indels with alleles passed in and emitting all sites", spec);
+    @Test(dataProvider = "AnnotateRsIDData")
+    public void testAnnotateRsID(final VariantContext toAnnotate, final List<VariantContext> dbSNPRecords, final String expectedID, final boolean expectOverlap) throws Exception {
+        final VariantOverlapAnnotator annotator = makeAnnotator("dbnsp");
+        final VariantContext annotated = annotator.annotateRsID(dbSNPRecords, toAnnotate);
+        Assert.assertNotNull(annotated);
+        Assert.assertEquals(annotated.getID(), expectedID);
     }
 
-    @Test(timeOut = 20*1000*60) // this guy can take a long time because it's two steps, so give it 12 minutes
-    public void testMultiSampleIndels1() {
-        // since we're going to test the MD5s with GGA only do one here
-        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
-                baseCommandIndels + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10450700-10551000", 1,
-                Arrays.asList(""));
-        List<File> result = executeTest("test MultiSample Pilot1 CEU indels", spec1).getFirst();
-
-        WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
-                baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + result.get(0).getAbsolutePath() + " -I " + validationDataLocation +
-                        "low_coverage_CEU.chr1.10k-11k.bam -o %s -L " + result.get(0).getAbsolutePath(), 1,
-                Arrays.asList("294183823d678d3668f4fa98b4de6e06"));
-        executeTest("test MultiSample Pilot1 CEU indels using GENOTYPE_GIVEN_ALLELES", spec2);
-    }
-
-    @Test
-    public void testGGAwithNoEvidenceInReads() {
-        final String vcf = "small.indel.test.vcf";
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommandIndelsb37 + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + privateTestDir + vcf + " -I " + validationDataLocation +
-                        "NA12878.HiSeq.WGS.bwa.cleaned.recal.hg19.20.bam -o %s -L " + validationDataLocation + vcf, 1,
-                Arrays.asList("d76eacc4021b78ccc0a9026162e814a7"));
-        executeTest("test GENOTYPE_GIVEN_ALLELES with no evidence in reads", spec);
-    }
-
-    @Test
-    public void testBaseIndelQualityScores() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommandIndelsb37 +
-                        " -I " + privateTestDir + "NA12878.100kb.BQSRv2.example.bam" +
-                        " -o %s" +
-                        " -L 20:10,000,000-10,100,000",
-                1,
-                Arrays.asList("8a7966e4b67334bca6083670c5a16b67"));
-
-        executeTest(String.format("test UG with base indel quality scores"), spec);
-    }
-
-    // --------------------------------------------------------------------------------------------------------------
-    //
-    // testing MinIndelFraction
-    //
-    // --------------------------------------------------------------------------------------------------------------
-
-    final static String assessMinIndelFraction = baseCommandIndelsb37 + " -I " + validationDataLocation
-            + "978604.bam -L 1:978,586-978,626 -o %s --sites_only -rf Sample -goodSM 7377 -goodSM 22-0022 -goodSM 134 -goodSM 344029-53 -goodSM 14030";
-
-    @Test
-    public void testMinIndelFraction0() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                assessMinIndelFraction + " -minIndelFrac 0.0", 1,
-                Arrays.asList("e90256acfc360fc4bf377094732a673a"));
-        executeTest("test minIndelFraction 0.0", spec);
-    }
-
-    @Test
-    public void testMinIndelFraction25() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                assessMinIndelFraction + " -minIndelFrac 0.25", 1,
-                Arrays.asList("98abcfb0a008050eba8b9c285a25b2a0"));
-        executeTest("test minIndelFraction 0.25", spec);
-    }
-
-    @Test
-    public void testMinIndelFraction100() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                assessMinIndelFraction + " -minIndelFrac 1", 1,
-                Arrays.asList("3f07efb768e08650a7ce333edd4f9a52"));
-        executeTest("test minIndelFraction 1.0", spec);
-    }
-
-    // No testing of MD5 here, we previously blew up due to a 0 length haplotypes, so we just need to pass
-    @Test
-    public void testHaplotype0Length() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --disableDithering -I " + privateTestDir + "haplotype0.bam -L 20:47507681 -R " + b37KGReference + " -baq CALCULATE_AS_NECESSARY -glm BOTH -o /dev/null",
-                0,
-                Collections.<String>emptyList());
-        executeTest("testHaplotype0Length", spec);
+    @Test(dataProvider = "AnnotateRsIDData")
+    public void testAnnotateOverlaps(final VariantContext toAnnotate, final List<VariantContext> records, final String expectedID, final boolean expectOverlap) throws Exception {
+        final String name = "binding";
+        final VariantOverlapAnnotator annotator = makeAnnotator(null, name);
+        final VariantContext annotated = annotator.annotateOverlap(records, name, toAnnotate);
+        Assert.assertNotNull(annotated);
+        Assert.assertEquals(annotated.getID(), toAnnotate.getID(), "Shouldn't modify annotation");
+        Assert.assertEquals(annotated.hasAttribute(name), expectOverlap);
+        if ( expectOverlap ) {
+            Assert.assertEquals(annotated.getAttribute(name), true);
+        }
     }
 }
