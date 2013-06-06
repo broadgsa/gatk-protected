@@ -204,12 +204,11 @@ public class GenotypingEngine {
                             convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, 0.0 ) );
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
 
-                    VariantContext annotatedCall = call;
-                    if( annotatedCall.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
+                    VariantContext annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, call);
+
+                    if( call.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
                         annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
-
-                    annotatedCall = annotationEngine.annotateContext(stratifiedReadMap, annotatedCall);
 
                     // maintain the set of all called haplotypes
                     for ( final Allele calledAllele : call.getAlleles() )

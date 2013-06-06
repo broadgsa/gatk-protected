@@ -44,30 +44,83 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.testng.annotations.Test;
+import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
+import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFConstants;
+import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
+import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
 
-import static org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperGeneralPloidyTestExecutor.CEUTRIO_BAM;
-import static org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperGeneralPloidyTestExecutor.NA12891_CALLS;
+import java.util.*;
 
-public class UnifiedGenotyperGeneralPloidySuite2IntegrationTest extends WalkerTest {
 
-    private final UnifiedGenotyperGeneralPloidyTestExecutor executor = new UnifiedGenotyperGeneralPloidyTestExecutor();
+/**
+ * The depth of coverage of each allele per sample
+ *
+ * the depth for the HC is the sum of the informative alleles at this site.  It's not perfect (as we cannot
+ * differentiate between reads that align over the event but aren't informative vs. those that aren't even
+ * close) but it's a pretty good proxy and it matches with the AD field (i.e., sum(AD) = DP).
+ */
+public class DepthPerSampleHC extends GenotypeAnnotation {
+    public void annotate(final RefMetaDataTracker tracker,
+                         final AnnotatorCompatible walker,
+                         final ReferenceContext ref,
+                         final AlignmentContext stratifiedContext,
+                         final VariantContext vc,
+                         final Genotype g,
+                         final GenotypeBuilder gb,
+                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
+        if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
+            return;
 
-    @Test(enabled = true)
-    public void testINDEL_maxAltAlleles2_ploidy3_Pools_noRef() {
-        executor.PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","7e4e1397d5cff68aeba3595e671574fc");
+        if (alleleLikelihoodMap == null )
+            throw new IllegalStateException("DepthPerSampleHC can only be used with likelihood based annotations in the HaplotypeCaller");
+
+        // the depth for the HC is the sum of the informative alleles at this site.  It's not perfect (as we cannot
+        // differentiate between reads that align over the event but aren't informative vs. those that aren't even
+        // close) but it's a pretty good proxy and it matches with the AD field (i.e., sum(AD) = DP).
+        int dp = 0;
+
+        if ( alleleLikelihoodMap.isEmpty() ) {
+            // there are no reads
+        } else {
+            final Set<Allele> alleles = new HashSet<>(vc.getAlleles());
+
+            // make sure that there's a meaningful relationship between the alleles in the perReadAlleleLikelihoodMap and our VariantContext
+            if ( ! alleleLikelihoodMap.getAllelesSet().containsAll(alleles) )
+                throw new IllegalStateException("VC alleles " + alleles + " not a strict subset of per read allele map alleles " + alleleLikelihoodMap.getAllelesSet());
+
+            for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : alleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
+                final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue(), alleles);
+                if ( a.isInformative() ) {
+                    final GATKSAMRecord read = el.getKey();
+                    final int incCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
+                    dp += incCount;
+                }
+            }
+
+            gb.DP(dp);
+        }
     }
 
-    @Test(enabled = true)
-    public void testMT_SNP_DISCOVERY_sp4() {
-        executor.PC_MT_Test(CEUTRIO_BAM, " -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","5d55b71688a0777a7c0247c376401368");
+    public List<String> getKeyNames() {
+        return Collections.singletonList(VCFConstants.DEPTH_KEY);
     }
 
-    @Test(enabled = true)
-    public void testMT_SNP_GGA_sp10() {
-        executor.PC_MT_Test(CEUTRIO_BAM, String.format(" -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "cf336d66a109c55f90e9ed2b3bc196c8");
+    public List<VCFFormatHeaderLine> getDescriptions() {
+        return Collections.singletonList(VCFStandardHeaderLines.getFormatLine(getKeyNames().get(0)));
     }
 }
