@@ -117,7 +117,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
     public File targetsFile;
 
     @Argument(shortName = "cds", required = false)
-    public File cdsFile;
+    public File cdsFile = null;
 
     GATKReport simpleReport;
     GenomeLocSortedSet target;
@@ -133,7 +133,8 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         target = new GenomeLocSortedSet(parser);
         cds = new GenomeLocSortedSet(parser);
         parseFile(targetsFile, target, parser);
-        parseFile(cdsFile, cds, parser);
+        if (cdsFile != null)
+            parseFile(cdsFile, cds, parser);
     }
 
     public Metrics reduceInit() {
