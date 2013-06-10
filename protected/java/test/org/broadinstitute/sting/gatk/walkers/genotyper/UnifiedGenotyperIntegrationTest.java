@@ -288,9 +288,10 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testNsInCigar() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "testWithNs.bam -o %s -L 8:141813600-141813700 -out_mode EMIT_ALL_SITES", 1,
-                Arrays.asList("2ae3fd39c53a6954d32faed8703adfe8"));
+                UserException.UnsupportedCigarOperatorException.class);
+
         executeTest("test calling on reads with Ns in CIGAR", spec);
     }
 }
