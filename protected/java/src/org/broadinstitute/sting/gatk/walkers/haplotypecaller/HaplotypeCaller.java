@@ -441,7 +441,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private final static int MIN_READ_LENGTH = 10;
 
     private List<String> samplesList = new ArrayList<String>();
-    private final List<VariantContext> allelesToGenotype = new ArrayList<VariantContext>();
 
     private final static Allele FAKE_REF_ALLELE = Allele.create("N", true); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
     private final static Allele FAKE_ALT_ALLELE = Allele.create("<FAKE_ALT>", false); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
@@ -596,7 +595,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
             final VariantContext vcFromAllelesRod = UnifiedGenotyperEngine.getVCFromAllelesRod(tracker, ref, ref.getLocus(), false, logger, UG_engine.getUAC().alleles);
             if( vcFromAllelesRod != null ) {
-                allelesToGenotype.add(vcFromAllelesRod); // save for later for processing during the ActiveRegion's map call. Should be folded into a RefMetaDataTracker object
                 return new ActivityProfileState(ref.getLocus(), 1.0);
             }
         }
@@ -664,12 +662,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final List<VariantContext> activeAllelesToGenotype = new ArrayList<>();
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
-            for( final VariantContext vc : allelesToGenotype ) {
-                if( originalActiveRegion.getLocation().overlapsP( getToolkit().getGenomeLocParser().createGenomeLoc(vc) ) ) {
+            for ( final VariantContext vc : metaDataTracker.getValues(UG_engine.getUAC().alleles) ) {
+                if ( vc.isNotFiltered() ) {
                     activeAllelesToGenotype.add(vc); // do something with these VCs during GGA mode
                 }
             }
-            allelesToGenotype.removeAll( activeAllelesToGenotype );
             // No alleles found in this region so nothing to do!
             if ( activeAllelesToGenotype.isEmpty() ) { return NO_CALLS; }
         } else {
@@ -704,6 +701,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 assemblyResult.paddedReferenceLoc,
                 assemblyResult.regionForGenotyping.getLocation(),
                 getToolkit().getGenomeLocParser(),
+                metaDataTracker,
                 activeAllelesToGenotype );
 
         // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
@@ -890,8 +888,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Override
     public Integer reduce(List<VariantContext> callsInRegion, Integer numCalledRegions) {
         for( final VariantContext call : callsInRegion ) {
-            // TODO -- uncomment this line once ART-based walkers have a proper RefMetaDataTracker.
-            // annotationEngine.annotateDBs(metaDataTracker, getToolkit().getGenomeLocParser().createGenomeLoc(call),  call);
             vcfWriter.add( call );
         }
         return (callsInRegion.isEmpty() ? 0 : 1) + numCalledRegions;
