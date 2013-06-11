@@ -227,7 +227,7 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
         activeRegion.addAll(reads);
         final LocalAssemblyEngine engine = createAssembler(assembler);
 //        logger.warn("Assembling " + activeRegion + " with " + engine);
-        return engine.runLocalAssembly(activeRegion, refHaplotype, refBases, loc, Collections.<VariantContext>emptyList());
+        return engine.runLocalAssembly(activeRegion, refHaplotype, refBases, loc, Collections.<VariantContext>emptyList(), null);
     }
 
     @DataProvider(name = "SimpleAssemblyTestData")

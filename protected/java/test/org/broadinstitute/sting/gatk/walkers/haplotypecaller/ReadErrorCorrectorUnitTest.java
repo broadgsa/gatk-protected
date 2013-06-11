@@ -46,123 +46,145 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-public class KmerUnitTest extends BaseTest {
-    @DataProvider(name = "KMerCreationData")
-    public Object[][] makeKMerCreationData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
-
-        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
-        for ( int start = 0; start < bases.length(); start++ ) {
-            for ( int length = 1; start + length < bases.length(); length++ ) {
-                final String myBases = bases.substring(start, start+length);
-                tests.add(new Object[]{bases.getBytes(), start, length, myBases});
-            }
-        }
-
-        return tests.toArray(new Object[][]{});
-    }
-
-    @Test(dataProvider = "KMerCreationData")
-    public void testFullConstructor(final byte[] allBases, final int start, final int length, final String expected) {
-        testKmerCreation(new Kmer(allBases, start, length), start, length, expected);
-    }
-
-    @Test(dataProvider = "KMerCreationData")
-    public void testCopyConstructor(final byte[] allBases, final int start, final int length, final String expected) {
-        testKmerCreation(new Kmer(new Kmer(allBases, start, length)), start, length, expected);
-    }
-
-    @Test(dataProvider = "KMerCreationData")
-    public void testByteConstructor(final byte[] allBases, final int start, final int length, final String expected) {
-        testKmerCreation(new Kmer(Arrays.copyOfRange(allBases, start, start + length)), 0, length, expected);
-    }
-
-    @Test(dataProvider = "KMerCreationData")
-    public void testStringConstructor(final byte[] allBases, final int start, final int length, final String expected) {
-        testKmerCreation(new Kmer(new String(Arrays.copyOfRange(allBases, start, start + length))), 0, length, expected);
-    }
-
-    private void testKmerCreation(final Kmer kmer, final int start, final int length, final String expected) {
-        Assert.assertEquals(kmer.start, start);
-        Assert.assertEquals(kmer.length(), length);
-        Assert.assertEquals(new String(kmer.bases()), expected);
-
-        // check that the caching is working by calling again
-        Assert.assertEquals(kmer.start, 0);
-        Assert.assertEquals(kmer.length(), length);
-        Assert.assertEquals(new String(kmer.bases()), expected);
-    }
+public class ReadErrorCorrectorUnitTest {
+    private static final boolean debug = true;
+    final String refChunk = "GCATAAACATGGCTCACTGC";
+    final String refChunkHard = "AGCCTTGAACTCCTGGGCTCAAGTGATCCTCCTGCCTCAGTTTCCCATGTAGCTGGGACCACAGGTGGGGGCTCCACCCCTGGCTGATTTTTTTTTTTTTTTTTTTTTGAGATAGGGT";
 
     @Test
-    public void testEquals() {
-        final byte[] bases = "ACGTACGT".getBytes();
-        final Kmer eq1 = new Kmer(bases, 0, 3);
-        final Kmer eq2 = new Kmer(bases, 4, 3);
-        final Kmer eq3 = new Kmer(new Kmer(bases, 4, 3));
-        final Kmer eq4 = new Kmer(new Kmer(bases, 4, 3).bases());
-        final Kmer neq = new Kmer(bases, 1, 3);
+    public void TestBasicCorrectionSet() {
 
-//        for ( final Kmer eq : Arrays.asList(eq1, eq2) ) { // TODO -- deal with me
-        for ( final Kmer eq : Arrays.asList(eq1, eq2, eq3, eq4) ) {
-            Assert.assertEquals(eq1, eq, "Should have been equal but wasn't: " + eq1.hash + " vs " + eq.hash); // , "should be equals " + eq1 + " with " + eq);
-            Assert.assertEquals(eq1.hashCode(), eq.hashCode());
-            Assert.assertNotEquals(eq, neq, "incorrectly equals " + eq + " with " + neq);
+        final byte[] trueBases = refChunk.getBytes();
+        final int numCorrections = 50;
+        final ReadErrorCorrector.CorrectionSet correctionSet = new ReadErrorCorrector.CorrectionSet(trueBases.length);
+
+        int offset = 2;
+        for (int k=0; k < numCorrections; k++) {
+            // introduce one correction at a random offset in array. To make testing easier, we will replicate corrrection
+            final byte base = trueBases[offset];
+            correctionSet.add(offset, base);
+            // skip to some other offset
+            offset += 7;
+            if (offset >= trueBases.length)
+                offset -= trueBases.length;
+        }
+
+        for (int k=0; k < trueBases.length; k++) {
+            final byte corr =  correctionSet.getConsensusCorrection(k);
+            Assert.assertEquals(corr, trueBases[k]);
         }
     }
 
     @Test
-    public void testSubkmer() {
-        final String bases = "ACGT";
-        final Kmer one = new Kmer(bases.getBytes());
+    public void TestExtendedCorrectionSet() {
 
-        for ( int start = 0; start < bases.length(); start++ ) {
-            for ( int length = 0; start + length < bases.length(); length++ ) {
-                Assert.assertEquals(new String(one.subKmer(start,length).bases()), bases.substring(start, start+length));
-            }
+        final byte[] trueBases = refChunk.getBytes();
+        final int numCorrections = 50;
+        final ReadErrorCorrector.CorrectionSet correctionSet = new ReadErrorCorrector.CorrectionSet(trueBases.length);
+
+        for (int offset=0; offset < trueBases.length; offset++) {
+            // insert k corrections at offset k and make sure we get exactly k bases back
+            for (int k=0; k < offset; k++)
+                correctionSet.add(offset,trueBases[offset]);
+
+        }
+
+        for (int offset=0; offset < trueBases.length; offset++) {
+            Assert.assertEquals(correctionSet.get(offset).size(),offset);
         }
     }
 
     @Test
-    public void testDifferingPositions() {
-        final String bases = "ACGTCAGACGTACGTTTGACGTCAGACGTACGT";
-        final Kmer baseKmer = new Kmer(bases.getBytes());
+    public void TestAddReadsToKmers() {
+        final int NUM_GOOD_READS = 500;
 
+        final String bases = "AAAAAAAAAAAAAAA";
+        final int READ_LENGTH = bases.length();
+        final int kmerLengthForReadErrorCorrection = READ_LENGTH;
+        final List<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>(NUM_GOOD_READS);
+        int offset = 0;
+        final byte[] quals = new byte[READ_LENGTH];
 
-        final int NUM_TEST_CASES = 30;
+        Arrays.fill(quals,(byte)30);
 
-        for (int test = 0; test < NUM_TEST_CASES; test++) {
+        for (int k=0; k < NUM_GOOD_READS; k++) {
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases.getBytes(), quals,READ_LENGTH+"M");
+            finalizedReadList.add(read);
+        }
 
-            final int numBasesToChange =  test % bases.length();
+        ReadErrorCorrector readErrorCorrector = new ReadErrorCorrector(kmerLengthForReadErrorCorrection,(byte)6,10, debug,refChunkHard.getBytes());
+        readErrorCorrector.addReadsToKmers(finalizedReadList);
 
-            // changes numBasesToChange bases - spread regularly through read string
-            final int step = (numBasesToChange > 0?Math.min(bases.length() / numBasesToChange,1) : 1);
+        // special trivial case: kmer length is equal to read length.
+        // K-mer counter should hold then exactly one kmer
+        Assert.assertEquals(readErrorCorrector.countsByKMer.getCountedKmers().size(), 1);
+        for (final KMerCounter.CountedKmer kmer : readErrorCorrector.countsByKMer.getCountedKmers()) {
+            Assert.assertTrue(Arrays.equals( kmer.getKmer().bases(),bases.getBytes()));
+            Assert.assertEquals(kmer.getCount(),NUM_GOOD_READS);
+        }
 
-            final byte[] newBases = bases.getBytes().clone();
-            int actualChangedBases =0; // could be different from numBasesToChange due to roundoff
-            for (int idx=0; idx < numBasesToChange; idx+=step) {
-                // now change given positions
-                newBases[idx] = (newBases[idx] == (byte)'A'? (byte)'T':(byte)'A');
-                actualChangedBases++;
-            }
+        // special case 2: kmers are all the same but length < read length.
+        // Each kmer is added then readLength-kmerLength+1 times
+        final int KMER_LENGTH = 10;
+        readErrorCorrector = new ReadErrorCorrector(KMER_LENGTH,(byte)6,10, debug,refChunkHard.getBytes());
+        readErrorCorrector.addReadsToKmers(finalizedReadList);
+        Assert.assertEquals(readErrorCorrector.countsByKMer.getCountedKmers().size(), 1);
+        for (final KMerCounter.CountedKmer kmer : readErrorCorrector.countsByKMer.getCountedKmers()) {
+            Assert.assertEquals(kmer.getCount(),NUM_GOOD_READS*(READ_LENGTH-KMER_LENGTH+1));
+        }
 
-            // compute changed positions
-            final int[] differingIndices = new int[newBases.length];
-            final byte[] differingBases = new byte[newBases.length];
-            final int numDiffs = baseKmer.getDifferingPositions(new Kmer(newBases),newBases.length,differingIndices,differingBases);
-            Assert.assertEquals(numDiffs,actualChangedBases);
-            for (int k=0; k < numDiffs; k++) {
-                final int idx = differingIndices[k];
-                Assert.assertTrue(newBases[idx] != bases.getBytes()[idx]);
-                Assert.assertEquals(differingBases[idx],newBases[idx]);
-            }
+    }
+    @Test
+    public void TestBasicErrorCorrection() {
+        final int NUM_GOOD_READS = 500;
+        final int NUM_BAD_READS = 10;
+        final int READ_LENGTH = 15;
+        final int kmerLengthForReadErrorCorrection = 10;
+        final List<GATKSAMRecord> finalizedReadList = new ArrayList<GATKSAMRecord>(NUM_GOOD_READS);
+        int offset = 0;
+        final byte[] quals = new byte[READ_LENGTH];
+
+        Arrays.fill(quals,(byte)30);
+
+        for (int k=0; k < NUM_GOOD_READS; k++) {
+            final byte[] bases = Arrays.copyOfRange(refChunk.getBytes(),offset,offset+READ_LENGTH);
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, quals,READ_LENGTH+"M");
+            finalizedReadList.add(read);
+            offset++;
+            if (offset >= refChunk.length()-READ_LENGTH)
+                offset = 0;
+        }
+        offset = 2;
+        // coverage profile is now perfectly triangular with "good" bases. Inject now bad bases with errors in them.
+        for (int k=0; k < NUM_BAD_READS; k++) {
+            final byte[] bases = finalizedReadList.get(k).getReadBases().clone();
+            bases[offset] = 'N';
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, quals, READ_LENGTH + "M");
+            finalizedReadList.add(read);
+            offset += 7;
+            if (offset >= READ_LENGTH)
+                offset = 4; // just some randomly circulating offset for error position
+        }
+
+        // now correct all reads
+        final ReadErrorCorrector readErrorCorrector = new ReadErrorCorrector(kmerLengthForReadErrorCorrection,(byte)6,10, debug,refChunkHard.getBytes());
+        readErrorCorrector.addReadsToKmers(finalizedReadList);
+        readErrorCorrector.correctReads(finalizedReadList);
+
+        // check that corrected reads have exactly same content as original reads
+        for (int k=0; k < NUM_BAD_READS; k++) {
+            final byte[] badBases = finalizedReadList.get(k).getReadBases();
+            final byte[] originalBases = finalizedReadList.get(k).getReadBases();
+            Assert.assertTrue(Arrays.equals(badBases,originalBases));
         }
     }
 }
