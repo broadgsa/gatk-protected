@@ -80,7 +80,7 @@ public class LowWeightChainPruner<V extends BaseVertex, E extends BaseEdge> {
             final Set<E> edgesToKeep = new LinkedHashSet<>();
 
             for ( final Path<V,E> linearChain : getLinearChains(graph) ) {
-                if( mustBeKeep(linearChain, pruneFactor) ) {
+                if( mustBeKept(linearChain, pruneFactor) ) {
                     // we must keep edges in any path that contains a reference edge or an edge with weight > pruneFactor
                     edgesToKeep.addAll(linearChain.getEdges());
                 }
@@ -96,10 +96,14 @@ public class LowWeightChainPruner<V extends BaseVertex, E extends BaseEdge> {
     }
 
     /**
-     * Get the maximum pruning multiplicity seen on any edge in this graph
-     * @return an integer > 0
+     * Traverse the edges in the path and determine if any are either ref edges or have weight above
+     * the pruning factor and should therefore not be pruned away.
+     *
+     * @param path the path in question
+     * @param pruneFactor the integer pruning factor
+     * @return true if any edge in the path must be kept
      */
-    private boolean mustBeKeep(final Path<V,E> path, final int pruneFactor) {
+    private boolean mustBeKept(final Path<V, E> path, final int pruneFactor) {
         for ( final E edge : path.getEdges() ) {
             if ( edge.getPruningMultiplicity() >= pruneFactor || edge.isRef() )
                 return true;
