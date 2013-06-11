@@ -58,6 +58,7 @@ import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.haplotype.HaplotypeScoreComparator;
+import org.broadinstitute.sting.utils.pairhmm.ArrayLoglessPairHMM;
 import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
 import org.broadinstitute.sting.utils.pairhmm.LoglessPairHMM;
 import org.broadinstitute.sting.utils.pairhmm.CnyPairHMM;
@@ -98,8 +99,13 @@ public class LikelihoodCalculationEngine {
                         return new LoglessPairHMM();
                     else
                         return new CnyPairHMM();
+                case ARRAY_LOGLESS:
+                    if (noFpga || !CnyPairHMM.isAvailable())
+                        return new ArrayLoglessPairHMM();
+                    else
+                        return new CnyPairHMM();
                 default:
-                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");
+                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
             }
         }
     };
@@ -258,9 +264,10 @@ public class LikelihoodCalculationEngine {
             // iterate over all haplotypes, calculating the likelihood of the read for each haplotype
             for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
                 final Haplotype haplotype = haplotypes.get(jjj);
+                final byte[] nextHaplotypeBases = (jjj == numHaplotypes - 1) ? null : haplotypes.get(jjj+1).getBases();
                 final boolean isFirstHaplotype = jjj == 0;
                 final double log10l = pairHMM.get().computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
-                        readBases, readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
+                        readBases, readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype, nextHaplotypeBases);
 
                 if ( WRITE_LIKELIHOODS_TO_FILE ) {
                     likelihoodsStream.printf("%s %s %s %s %s %s %f%n",

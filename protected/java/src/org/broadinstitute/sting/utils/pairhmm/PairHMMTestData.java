@@ -67,12 +67,14 @@ import java.util.zip.GZIPInputStream;
  */
 public class PairHMMTestData {
     public final String ref;
+    public final String nextRef;
     private final String read;
     public final byte[] baseQuals, insQuals, delQuals, gcp;
     public final double log10l;
 
-    PairHMMTestData(String ref, String read, byte[] baseQuals, byte[] insQuals, byte[] delQuals, byte[] gcp, double log10l) {
+    PairHMMTestData(String ref, String nextRef, String read, byte[] baseQuals, byte[] insQuals, byte[] delQuals, byte[] gcp, double log10l) {
         this.ref = ref;
+        this.nextRef = nextRef;
         this.read = read;
         this.baseQuals = baseQuals;
         this.insQuals = insQuals;
@@ -81,8 +83,9 @@ public class PairHMMTestData {
         this.log10l = log10l;
     }
 
-    PairHMMTestData(String ref, String read, final byte qual) {
+    PairHMMTestData(String ref, String nextRef, String read, final byte qual) {
         this.ref = ref;
+        this.nextRef = nextRef;
         this.read = read;
         this.baseQuals = this.insQuals = this.delQuals =  Utils.dupBytes(qual, read.length());
         this.gcp =  Utils.dupBytes((byte)10, read.length());
@@ -92,13 +95,14 @@ public class PairHMMTestData {
     public double runHMM(final PairHMM hmm) {
         hmm.initialize(getRead().length(), ref.length());
         return hmm.computeReadLikelihoodGivenHaplotypeLog10(ref.getBytes(), getRead().getBytes(),
-                baseQuals, insQuals, delQuals, gcp, true);
+                baseQuals, insQuals, delQuals, gcp, true, null);
     }
 
     @Override
     public String toString() {
         return "Info{" +
                 "ref='" + ref + '\'' +
+                ", nextRef=" + nextRef + '\'' +
                 ", read='" + getRead() + '\'' +
                 ", log10l=" + log10l +
                 '}';
@@ -115,7 +119,7 @@ public class PairHMMTestData {
             hmm.initialize(first.getRead().length(), maxHaplotypeLen);
             for ( final PairHMMTestData datum : data ) {
                 hmm.computeReadLikelihoodGivenHaplotypeLog10(datum.ref.getBytes(), datum.getRead().getBytes(),
-                        datum.baseQuals, datum.insQuals, datum.delQuals, datum.gcp, false);
+                        datum.baseQuals, datum.insQuals, datum.delQuals, datum.gcp, false, datum.nextRef.getBytes());
 
             }
         }
@@ -136,22 +140,44 @@ public class PairHMMTestData {
             in = new GZIPInputStream(in);
         }
 
+        String[] nextEntry;
+        String[] thisEntry = null;
         for ( final String line : new XReadLines(in) ) {
-            final String[] parts = line.split(" ");
-            final PairHMMTestData info = new PairHMMTestData(
-                    parts[0], parts[1],
-                    SAMUtils.fastqToPhred(parts[2]),
-                    SAMUtils.fastqToPhred(parts[3]),
-                    SAMUtils.fastqToPhred(parts[4]),
-                    SAMUtils.fastqToPhred(parts[5]),
-                    Double.parseDouble(parts[6]));
+            // peak at the next entry (to get the haplotype bases)
+            nextEntry = line.split(" ");
+            // process the current entry
+            if (thisEntry != null) {
+                final PairHMMTestData info = new PairHMMTestData(
+                        thisEntry[0], nextEntry[0], thisEntry[1],
+                        SAMUtils.fastqToPhred(thisEntry[2]),
+                        SAMUtils.fastqToPhred(thisEntry[3]),
+                        SAMUtils.fastqToPhred(thisEntry[4]),
+                        SAMUtils.fastqToPhred(thisEntry[5]),
+                        Double.parseDouble(thisEntry[6]));
 
-            if ( ! results.containsKey(info.read) )  {
-                results.put(info.read, new LinkedList<PairHMMTestData>());
+                if ( ! results.containsKey(info.read) )  {
+                    results.put(info.read, new LinkedList<PairHMMTestData>());
+                }
+                final List<PairHMMTestData> byHap = results.get(info.read);
+                byHap.add(info);
             }
-            final List<PairHMMTestData> byHap = results.get(info.read);
-            byHap.add(info);
+            // update the current entry
+            thisEntry = nextEntry;
         }
+        // process the final entry
+        final PairHMMTestData info = new PairHMMTestData(
+                thisEntry[0], null, thisEntry[1],
+                SAMUtils.fastqToPhred(thisEntry[2]),
+                SAMUtils.fastqToPhred(thisEntry[3]),
+                SAMUtils.fastqToPhred(thisEntry[4]),
+                SAMUtils.fastqToPhred(thisEntry[5]),
+                Double.parseDouble(thisEntry[6]));
+
+        if ( ! results.containsKey(info.read) )  {
+            results.put(info.read, new LinkedList<PairHMMTestData>());
+        }
+        final List<PairHMMTestData> byHap = results.get(info.read);
+        byHap.add(info);
 
         return results;
     }

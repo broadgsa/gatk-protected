@@ -191,7 +191,8 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
                                                                   final byte[] deletionGOP,
                                                                   final byte[] overallGCP,
                                                                   final int hapStartIndex,
-                                                                  final boolean recacheReadValues ) {
+                                                                  final boolean recacheReadValues,
+                                                                  final int nextHapStartIndex) {
         return 0.0;
     }
 
