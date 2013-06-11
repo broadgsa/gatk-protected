@@ -46,14 +46,21 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.KMerCounter;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Kmer;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.collections.PrimitivePair;
+import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
+import org.broadinstitute.sting.utils.smithwaterman.SmithWaterman;
 import org.jgrapht.EdgeFactory;
+import org.jgrapht.alg.CycleDetector;
 
 import java.io.File;
 import java.util.*;
@@ -78,9 +85,6 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     /** for debugging info printing */
     private static int counter = 0;
 
-    /** we require at least this many bases to be uniquely matching to merge a dangling tail */
-    private final static int MIN_MATCH_LENGTH_TO_RECOVER_DANGLING_TAIL = 5;
-
     /**
      * Sequences added for read threading before we've actually built the graph
      */
@@ -94,7 +98,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     /**
      * A map from kmers -> their corresponding vertex in the graph
      */
-    private Map<Kmer, MultiDeBruijnVertex> uniqueKmers = new LinkedHashMap<Kmer, MultiDeBruijnVertex>();
+    private Map<Kmer, MultiDeBruijnVertex> uniqueKmers = new LinkedHashMap<>();
 
     /**
      *
@@ -111,8 +115,6 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     // --------------------------------------------------------------------------------
     private Kmer refSource;
     private boolean alreadyBuilt;
-    byte[] refSeq;
-    MultiDeBruijnVertex[] refKmers;
 
     public ReadThreadingGraph() {
         this(25, false, (byte)6);
@@ -146,8 +148,6 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         uniqueKmers.clear();
         refSource = null;
         alreadyBuilt = false;
-        refSeq = null;
-        refKmers = null;
     }
 
     /**
@@ -224,13 +224,10 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
         if ( debugGraphTransformations ) startingVertex.addRead(seqForKmers.name);
 
-        // keep track of information about the reference kmers for merging dangling tails
+        // keep track of information about the reference source
         if ( seqForKmers.isRef ) {
-            if ( refSource != null ) throw new IllegalStateException("Found two refSources! prev " + refSource + " new is " + startingVertex);
+            if ( refSource != null ) throw new IllegalStateException("Found two refSources! prev: " + refSource + ", new: " + startingVertex);
             refSource = new Kmer(seqForKmers.sequence, seqForKmers.start, kmerSize);
-            refSeq = seqForKmers.sequence;
-            refKmers = new MultiDeBruijnVertex[refSeq.length];
-            for ( int i = 0; i < kmerSize; i++ ) refKmers[i] = null;
         }
 
         // loop over all of the bases in sequence, extending the graph by one base at each point, as appropriate
@@ -240,54 +237,161 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
             vertex = extendChainByOne(vertex, seqForKmers.sequence, i, count, seqForKmers.isRef);
             if ( debugGraphTransformations ) vertex.addRead(seqForKmers.name);
-
-            // keep track of the reference kmers for merging dangling tails
-            if ( seqForKmers.isRef ) refKmers[i + kmerSize - 1] = vertex;
         }
     }
 
     /**
-     * Attempt to attach vertex with out-degree == 0 to the graph by finding a unique matching kmer to the reference
+     * Class to keep track of the important dangling tail merging data
+     */
+    protected final class DanglingTailMergeResult {
+        final List<MultiDeBruijnVertex> danglingPath, referencePath;
+        final byte[] danglingPathString, referencePathString;
+        final Cigar cigar;
+
+        public DanglingTailMergeResult(final List<MultiDeBruijnVertex> danglingPath,
+                                       final List<MultiDeBruijnVertex> referencePath,
+                                       final byte[] danglingPathString,
+                                       final byte[] referencePathString,
+                                       final Cigar cigar) {
+            this.danglingPath = danglingPath;
+            this.referencePath = referencePath;
+            this.danglingPathString = danglingPathString;
+            this.referencePathString = referencePathString;
+            this.cigar = cigar;
+        }
+    }
+
+    /**
+     * Attempt to attach vertex with out-degree == 0 to the graph
+     *
      * @param vertex the vertex to recover
+     * @return 1 if we successfully recovered the vertex and 0 otherwise
      */
     protected int recoverDanglingChain(final MultiDeBruijnVertex vertex) {
         if ( outDegreeOf(vertex) != 0 ) throw new IllegalStateException("Attempting to recover a dangling tail for " + vertex + " but it has out-degree > 0");
 
-        final byte[] kmer = vertex.getSequence();
-        if ( ! nonUniqueKmers.contains(new Kmer(kmer)) ) {
-            // don't attempt to fix non-unique kmers!
-            final MultiDeBruijnVertex uniqueMergePoint = danglingTailMergePoint(kmer);
-            if ( uniqueMergePoint != null ) {
-                addEdge(vertex, uniqueMergePoint, new MultiSampleEdge(false, 1));
-                return 1;
-            }
-        }
+        // generate the CIGAR string from Smith-Waterman between the dangling tail and reference paths
+        final DanglingTailMergeResult danglingTailMergeResult = generateCigarAgainstReferencePath(vertex);
 
-        return 0;
+        // if the CIGAR is too complex (or couldn't be computed) then we do not allow the merge into the reference path
+        if ( danglingTailMergeResult == null || ! cigarIsOkayToMerge(danglingTailMergeResult.cigar) )
+            return 0;
+
+        // merge
+        return mergeDanglingTail(danglingTailMergeResult);
     }
 
     /**
-     * Find a unique merge point for kmer in the reference sequence
-     * @param kmer the full kmer of the dangling tail
-     * @return a vertex appropriate to merge kmer into, or null if none could be found
+     * Determine whether the provided cigar is okay to merge into the reference path
+     *
+     * @param cigar    the cigar to analyze
+     * @return true if it's okay to merge, false otherwise
      */
-    private MultiDeBruijnVertex danglingTailMergePoint(final byte[] kmer) {
-        final PrimitivePair.Int endAndLength = GraphUtils.findLongestUniqueSuffixMatch(refSeq, kmer);
-        if ( endAndLength != null && endAndLength.second >= MIN_MATCH_LENGTH_TO_RECOVER_DANGLING_TAIL && endAndLength.first + 1 < refKmers.length) {
-            final int len = endAndLength.second;
-            final MultiDeBruijnVertex mergePoint = refKmers[endAndLength.first + 1];
-//            logger.info("recoverDanglingChain of kmer " + new String(kmer) + " merged to " + mergePoint + " with match size " + len);
-            final Set<Kmer> nonUniquesAtLength = determineKmerSizeAndNonUniques(len, len).nonUniques;
-            final Kmer matchedKmer = new Kmer(kmer, kmer.length - len, len);
-            if ( nonUniquesAtLength.contains(matchedKmer) ) {
-//                logger.info("Rejecting merge " + new String(kmer) + " because match kmer " + matchedKmer + " isn't unique across all reads");
-                return null;
-            } else {
-                return mergePoint;
-            }
+    protected boolean cigarIsOkayToMerge(final Cigar cigar) {
+
+        final List<CigarElement> elements = cigar.getCigarElements();
+
+        // don't allow more than a couple of different ops
+        if ( elements.size() > 3 )
+            return false;
+
+        // the last element must be an M
+        if ( elements.get(elements.size() - 1).getOperator() != CigarOperator.M )
+            return false;
+
+        // TODO -- do we want to check whether the Ms mismatch too much also?
+
+        return true;
+    }
+
+    /**
+     * Actually merge the dangling tail if possible
+     *
+     * @param danglingTailMergeResult   the result from generating a Cigar for the dangling tail against the reference
+     * @return 1 if merge was successful, 0 otherwise
+     */
+    protected int mergeDanglingTail(final DanglingTailMergeResult danglingTailMergeResult) {
+
+        final List<CigarElement> elements = danglingTailMergeResult.cigar.getCigarElements();
+        final CigarElement lastElement = elements.get(elements.size() - 1);
+        if ( lastElement.getOperator() != CigarOperator.M )
+            throw new IllegalArgumentException("The last Cigar element must be an M");
+
+        final int lastRefIndex = danglingTailMergeResult.cigar.getReferenceLength() - 1;
+        final int matchingSuffix = Math.min(GraphUtils.longestSuffixMatch(danglingTailMergeResult.referencePathString, danglingTailMergeResult.danglingPathString, lastRefIndex), lastElement.getLength());
+        if ( matchingSuffix == 0 )
+            return 0;
+
+        final int altIndexToMerge = Math.max(danglingTailMergeResult.cigar.getReadLength() - matchingSuffix - 1, 0);
+        final int refIndexToMerge = lastRefIndex - matchingSuffix + 1;
+        addEdge(danglingTailMergeResult.danglingPath.get(altIndexToMerge), danglingTailMergeResult.referencePath.get(refIndexToMerge), new MultiSampleEdge(false, 1));
+        return 1;
+    }
+
+    /**
+     * Generates the CIGAR string from the Smith-Waterman alignment of the dangling path (where the
+     * provided vertex is the sink) and the reference path.
+     *
+     * @param vertex   the sink of the dangling tail
+     * @return a SmithWaterman object which can be null if no proper alignment could be generated
+     */
+    protected DanglingTailMergeResult generateCigarAgainstReferencePath(final MultiDeBruijnVertex vertex) {
+
+        // find the lowest common ancestor path between vertex and the reference sink if available
+        final List<MultiDeBruijnVertex> altPath = findPathToLowestCommonAncestorOfReference(vertex);
+        if ( altPath == null )
+            return null;
+
+        // now get the reference path from the LCA
+        final List<MultiDeBruijnVertex> refPath = getReferencePath(altPath.get(0));
+
+        // create the Smith-Waterman strings to use
+        final byte[] refBases = getBasesForPath(refPath);
+        final byte[] altBases = getBasesForPath(altPath);
+
+        // run Smith-Waterman to determine the best alignment (and remove trailing deletions since they aren't interesting)
+        final SmithWaterman alignment = new SWPairwiseAlignment(refBases, altBases, SWPairwiseAlignment.OVERHANG_STRATEGY.INDEL);
+        return new DanglingTailMergeResult(altPath, refPath, altBases, refBases, AlignmentUtils.removeTrailingDeletions(alignment.getCigar()));
+    }
+
+    /**
+     * Finds the path upwards in the graph from this vertex to the reference sequence, including the lowest common ancestor vertex
+     *
+     * @param vertex   the original vertex
+     * @return the path if it can be determined or null if this vertex either doesn't merge onto the reference path or
+     *  has an ancestor with multiple incoming edges before hitting the reference path
+     */
+    protected List<MultiDeBruijnVertex> findPathToLowestCommonAncestorOfReference(final MultiDeBruijnVertex vertex) {
+        final LinkedList<MultiDeBruijnVertex> path = new LinkedList<>();
+
+        MultiDeBruijnVertex v = vertex;
+        while ( ! isReferenceNode(v) && inDegreeOf(v) == 1 ) {
+            path.addFirst(v);
+            v = getEdgeSource(incomingEdgeOf(v));
+        }
+        path.addFirst(v);
+
+        return isReferenceNode(v) ? path : null;
+    }
+
+    /**
+     * Finds the path downwards in the graph from this vertex to the reference sink, including this vertex
+     *
+     * @param start   the reference vertex to start from
+     * @return the path (non-null, non-empty)
+     */
+    protected List<MultiDeBruijnVertex> getReferencePath(final MultiDeBruijnVertex start) {
+        if ( ! isReferenceNode(start) ) throw new IllegalArgumentException("Cannot construct the reference path from a vertex that is not on that path");
+
+        final List<MultiDeBruijnVertex> path = new ArrayList<>();
+
+        MultiDeBruijnVertex v = start;
+        while ( v != null ) {
+            path.add(v);
+            v = getNextReferenceVertex(v);
         }
 
-        return null;
+        return path;
     }
 
     /**
@@ -297,7 +401,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     public void buildGraphIfNecessary() {
         if ( alreadyBuilt ) return;
 
-        // determine the kmer size we'll uses, and capture the set of nonUniques for that kmer size
+        // determine the kmer size we'll use, and capture the set of nonUniques for that kmer size
         final NonUniqueResult result = determineKmerSizeAndNonUniques(kmerSize, kmerSize);
         nonUniqueKmers = result.nonUniques;
 
@@ -321,6 +425,23 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         alreadyBuilt = true;
     }
 
+    /**
+     * @return true if the graph has cycles, false otherwise
+     */
+    public boolean hasCycles() {
+        return new CycleDetector<>(this).detectCycles();
+    }
+
+    /**
+     * Does the graph not have enough complexity?  We define low complexity as a situation where the number
+     * of non-unique kmers is more than 20% of the total number of kmers.
+     *
+     * @return true if the graph has low complexity, false otherwise
+     */
+    public boolean isLowComplexity() {
+        return nonUniqueKmers.size() * 4 > uniqueKmers.size();
+    }
+
     public void recoverDanglingTails() {
         if ( ! alreadyBuilt )  throw new IllegalStateException("recoverDanglingTails requires the graph be already built");
 
@@ -332,7 +453,8 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
                 nRecovered += recoverDanglingChain(v);
             }
         }
-        //logger.info("Recovered " + nRecovered + " of " + attempted + " dangling tails");
+
+        if ( debugGraphTransformations ) logger.info("Recovered " + nRecovered + " of " + attempted + " dangling tails");
     }
 
     /** structure that keeps track of the non-unique kmers for a given kmer size */
@@ -409,7 +531,8 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     private Collection<Kmer> determineNonUniqueKmers(final SequenceForKmers seqForKmers, final int kmerSize) {
         // count up occurrences of kmers within each read
         final KMerCounter counter = new KMerCounter(kmerSize);
-        for ( int i = 0; i <= seqForKmers.stop - kmerSize; i++ ) {
+        final int stopPosition = seqForKmers.stop - kmerSize;
+        for ( int i = 0; i <= stopPosition; i++ ) {
             final Kmer kmer = new Kmer(seqForKmers.sequence, i, kmerSize);
             counter.addKmer(kmer, 1);
         }
@@ -578,7 +701,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
         // none of our outgoing edges had our unique suffix base, so we check for an opportunity to merge back in
         final Kmer kmer = new Kmer(sequence, kmerStart, kmerSize);
-        MultiDeBruijnVertex uniqueMergeVertex = getUniqueKmerVertex(kmer, false);
+        final MultiDeBruijnVertex uniqueMergeVertex = getUniqueKmerVertex(kmer, false);
 
         if ( isRef && uniqueMergeVertex != null )
             throw new IllegalStateException("Found a unique vertex to merge into the reference graph " + prevVertex + " -> " + uniqueMergeVertex);
@@ -590,7 +713,8 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     }
 
     /**
-     * Get the longest stretch of high quality bases in read and pass that sequence to the graph
+     * Add the given read to the sequence graph.  Ultimately the read will get sent through addSequence(), but first
+     * this method ensures we only use high quality bases and accounts for reduced reads, etc.
      *
      * @param read a non-null read
      */
@@ -601,7 +725,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
         int lastGood = -1; // the index of the last good base we've seen
         for( int end = 0; end <= sequence.length; end++ ) {
-            if ( end == sequence.length || qualities[end] < minBaseQualityToUseInAssembly ) {
+            if ( end == sequence.length || ! baseIsUsableForAssembly(sequence[end], qualities[end]) ) {
                 // the first good base is at lastGood, can be -1 if last base was bad
                 final int start = lastGood;
                 // the stop base is end - 1 (if we're not at the end of the sequence)
@@ -619,6 +743,18 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
                 lastGood = end; // we're at a good base, the last good one is us
             }
         }
+    }
+
+    /**
+     * Determines whether a base can safely be used for assembly.
+     * Currently disallows Ns and/or those with low quality
+     *
+     * @param base  the base under consideration
+     * @param qual  the quality of that base
+     * @return true if the base can be used for assembly, false otherwise
+     */
+    protected boolean baseIsUsableForAssembly(final byte base, final byte qual) {
+        return base != BaseUtils.Base.N.base && qual >= minBaseQualityToUseInAssembly;
     }
 
     /**

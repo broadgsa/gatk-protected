@@ -266,6 +266,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="kmerSize", shortName="kmerSize", doc="Kmer size to use in the read threading assembler", required = false)
     protected List<Integer> kmerSizes = Arrays.asList(10, 25);
 
+    @Advanced
+    @Argument(fullName="dontIncreaseKmerSizesForCycles", shortName="dontIncreaseKmerSizesForCycles", doc="Should we disable the iterating over kmer sizes when graph cycles are detected?", required = false)
+    protected boolean dontIncreaseKmerSizesForCycles = false;
+
     /**
      * Assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
      * considered requires N PairHMM evaluations if there are N reads across all samples.  In order to control the
@@ -332,7 +336,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="phredScaledGlobalReadMismappingRate", shortName="globalMAPQ", doc="The global assumed mismapping rate for reads", required = false)
-    protected int phredScaledGlobalReadMismappingRate = 60;
+    protected int phredScaledGlobalReadMismappingRate = 45;
 
     @Advanced
     @Argument(fullName="maxNumHaplotypesInPopulation", shortName="maxNumHaplotypesInPopulation", doc="Maximum number of haplotypes to consider for your population. This number will probably need to be increased when calling organisms with high heterozygosity.", required = false)
@@ -535,7 +539,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final int maxAllowedPathsForReadThreadingAssembler = Math.max(maxPathsPerSample * nSamples, MIN_PATHS_PER_GRAPH);
         assemblyEngine = useDebruijnAssembler
                 ? new DeBruijnAssembler(minKmerForDebruijnAssembler, onlyUseKmerSizeForDebruijnAssembler)
-                : new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes);
+                : new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes, dontIncreaseKmerSizesForCycles);
 
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
         assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);
@@ -705,11 +709,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         //logger.info("Computing read likelihoods with " + assemblyResult.regionForGenotyping.size() + " reads");
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods( assemblyResult.haplotypes, splitReadsBySample( assemblyResult.regionForGenotyping.getReads() ) );
 
-        // subset down to only the best haplotypes to be genotyped in all samples ( in GGA mode use all discovered haplotypes )
-        final List<Haplotype> bestHaplotypes = selectBestHaplotypesForGenotyping(assemblyResult.haplotypes, stratifiedReadMap);
+        // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
+        //  was a bad interaction between that selection and the marginalization that happens over each event when computing
+        //  GLs.  In particular, for samples that are heterozygous non-reference (B/C) the marginalization for B treats the
+        //  haplotype containing C as reference (and vice versa).  Now this is fine if all possible haplotypes are included
+        //  in the genotyping, but we lose information if we select down to a few haplotypes.  [EB]
 
         final GenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods( UG_engine,
-                bestHaplotypes,
+                assemblyResult.haplotypes,
                 stratifiedReadMap,
                 perSampleFilteredReadList,
                 assemblyResult.fullReferenceWithPadding,
@@ -722,7 +729,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
         if ( bamWriter != null ) {
             haplotypeBAMWriter.writeReadsAlignedToHaplotypes(assemblyResult.haplotypes, assemblyResult.paddedReferenceLoc,
-                    bestHaplotypes,
+                    assemblyResult.haplotypes,
                     calledHaplotypes.getCalledHaplotypes(),
                     stratifiedReadMap);
         }
@@ -877,21 +884,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         trimmedActiveRegion.addAll(ReadUtils.sortReadsByCoordinate(trimmedReads));
 
         return new AssemblyResult(trimmedHaplotypes, trimmedActiveRegion, fullReferenceWithPadding, paddedReferenceLoc, true);
-    }
-
-    /**
-     * Select the best N haplotypes according to their likelihoods, if appropriate
-     *
-     * @param haplotypes a list of haplotypes to consider
-     * @param stratifiedReadMap a map from samples -> read likelihoods
-     * @return the list of haplotypes to genotype
-     */
-    protected List<Haplotype> selectBestHaplotypesForGenotyping(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        if ( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
-            return haplotypes;
-        } else {
-            return likelihoodCalculationEngine.selectBestHaplotypesFromEachSample(haplotypes, stratifiedReadMap, maxNumHaplotypesInPopulation);
-        }
     }
 
     //---------------------------------------------------------------------------------------------------------------

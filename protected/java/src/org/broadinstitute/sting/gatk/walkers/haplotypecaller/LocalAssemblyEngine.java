@@ -233,7 +233,7 @@ public abstract class LocalAssemblyEngine {
                     returnHaplotypes.add(h);
 
                     if ( debug )
-                        logger.info("Adding haplotype " + h.getCigar() + " from debruijn graph with kmer " + graph.getKmerSize());
+                        logger.info("Adding haplotype " + h.getCigar() + " from graph with kmer " + graph.getKmerSize());
                 }
             }
         }

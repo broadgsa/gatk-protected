@@ -677,6 +677,24 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
     }
 
     /**
+     * The base sequence for the given path.
+     * Note, this assumes that the path does not start with a source node.
+     *
+     * @param path the list of vertexes that make up the path
+     * @return  non-null sequence of bases corresponding to the given path
+     */
+    @Ensures({"result != null"})
+    public byte[] getBasesForPath(final List<? extends DeBruijnVertex> path) {
+        if ( path == null ) throw new IllegalArgumentException("Path cannot be null");
+
+        final StringBuffer sb = new StringBuffer();
+        for ( final DeBruijnVertex v : path )
+            sb.append((char)v.getSuffix());
+
+        return sb.toString().getBytes();
+    }
+
+    /**
      * Get the set of vertices within distance edges of source, regardless of edge direction
      *
      * @param source the source vertex to consider
