@@ -309,7 +309,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         }
         v = getNextReferenceVertex(v); // advance along the reference path
         while( v != null && !v.equals(toVertex) ) {
-            bytes = ArrayUtils.addAll( bytes, getAdditionalSequence(v) );
+            bytes = ArrayUtils.addAll(bytes, getAdditionalSequence(v));
             v = getNextReferenceVertex(v); // advance along the reference path
         }
         if( includeStop && v != null && v.equals(toVertex)) {
@@ -561,7 +561,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         verticesToRemove.removeAll(onPathFromRefSource);
         removeAllVertices(verticesToRemove);
 
-        // simple santity checks that this algorithm is working.
+        // simple sanity checks that this algorithm is working.
         if ( getSinks().size() > 1 ) {
             throw new IllegalStateException("Should have eliminated all but the reference sink, but found " + getSinks());
         }

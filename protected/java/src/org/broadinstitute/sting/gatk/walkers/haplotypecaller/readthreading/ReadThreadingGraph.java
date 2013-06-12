@@ -339,7 +339,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
         // find the lowest common ancestor path between vertex and the reference sink if available
         final List<MultiDeBruijnVertex> altPath = findPathToLowestCommonAncestorOfReference(vertex);
-        if ( altPath == null )
+        if ( altPath == null || isRefSource(altPath.get(0)) )
             return null;
 
         // now get the reference path from the LCA

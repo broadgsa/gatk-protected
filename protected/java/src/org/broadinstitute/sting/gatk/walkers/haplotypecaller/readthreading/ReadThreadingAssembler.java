@@ -207,7 +207,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
      * @return
      */
     private boolean reasonableNumberOfPaths(final SeqGraph graph) {
-        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<SeqVertex,BaseEdge>(false);
+        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<>(false);
         final List<Path<SeqVertex,BaseEdge>> allPaths = pathFinder.getKBestPaths(graph, 100000);
         logger.info("Found " + allPaths.size() + " paths through " + graph + " with maximum " + maxAllowedPathsForReadThreadingAssembler);
         return allPaths.size() <= maxAllowedPathsForReadThreadingAssembler;
