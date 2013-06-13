@@ -185,11 +185,13 @@ public abstract class HaplotypeBAMWriter {
      * @param originalRead the read we want to write aligned to the reference genome
      * @param haplotype the haplotype that the read should be aligned to, before aligning to the reference
      * @param referenceStart the start of the reference that haplotype is aligned to.  Provides global coordinate frame.
+     * @param isInformative true if the read is differentially informative for one of the haplotypes
      */
     protected void writeReadAgainstHaplotype(final GATKSAMRecord originalRead,
                                              final Haplotype haplotype,
-                                             final int referenceStart) {
-        final GATKSAMRecord alignedToRef = createReadAlignedToRef(originalRead, haplotype, referenceStart);
+                                             final int referenceStart,
+                                             final boolean isInformative) {
+        final GATKSAMRecord alignedToRef = createReadAlignedToRef(originalRead, haplotype, referenceStart, isInformative);
         if ( alignedToRef != null )
             bamWriter.addAlignment(alignedToRef);
     }
@@ -201,11 +203,13 @@ public abstract class HaplotypeBAMWriter {
      * @param originalRead the read we want to write aligned to the reference genome
      * @param haplotype the haplotype that the read should be aligned to, before aligning to the reference
      * @param referenceStart the start of the reference that haplotype is aligned to.  Provides global coordinate frame.
+     * @param isInformative true if the read is differentially informative for one of the haplotypes
      * @return a GATKSAMRecord aligned to reference, or null if no meaningful alignment is possible
      */
     protected GATKSAMRecord createReadAlignedToRef(final GATKSAMRecord originalRead,
                                                    final Haplotype haplotype,
-                                                   final int referenceStart) {
+                                                   final int referenceStart,
+                                                   final boolean isInformative) {
         if ( originalRead == null ) throw new IllegalArgumentException("originalRead cannot be null");
         if ( haplotype == null ) throw new IllegalArgumentException("haplotype cannot be null");
         if ( haplotype.getCigar() == null ) throw new IllegalArgumentException("Haplotype cigar not set " + haplotype);
@@ -224,6 +228,10 @@ public abstract class HaplotypeBAMWriter {
             final GATKSAMRecord read = (GATKSAMRecord)originalRead.clone();
 
             addHaplotypeTag(read, haplotype);
+
+            // uninformative reads are set to zero mapping quality to enhance visualization
+            if ( !isInformative )
+                read.setMappingQuality(0);
 
             // compute here the read starts w.r.t. the reference from the SW result and the hap -> ref cigar
             final Cigar extendedHaplotypeCigar = haplotype.getConsolidatedPaddedCigar(1000);
