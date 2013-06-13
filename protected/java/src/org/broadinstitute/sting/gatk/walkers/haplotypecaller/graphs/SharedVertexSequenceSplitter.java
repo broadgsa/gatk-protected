@@ -209,7 +209,7 @@ public class SharedVertexSequenceSplitter {
                 splitGraph.addEdge(remaining, suffixV, fromMid);
             } else {
                 // prefix + suffix completely explain this node
-                splitGraph.addOrUpdateEdge(prefixV, suffixV, new BaseEdge(toMid).add(fromMid));
+                splitGraph.addOrUpdateEdge(prefixV, suffixV, toMid.copy().add(fromMid));
             }
         }
     }
@@ -323,7 +323,7 @@ public class SharedVertexSequenceSplitter {
         } else {
             // schedule edge for removal, and return a freshly allocated one for our graph to use
             edgesToRemove.add(e);
-            return new BaseEdge(e);
+            return e.copy();
         }
     }
 }

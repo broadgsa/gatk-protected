@@ -280,16 +280,15 @@ public class SeqGraphUnitTest extends BaseTest {
             all.addEdges(pre2, top, middle2, bottom, tail2);
 
             final SeqGraph expected = new SeqGraph();
+            SeqVertex newPre1 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "C");
+            SeqVertex newPre2 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "G");
+            final SeqVertex newTop = new SeqVertex("TA");
             final SeqVertex newMiddle1 = new SeqVertex("G");
             final SeqVertex newMiddle2 = new SeqVertex("T");
             final SeqVertex newBottom = new SeqVertex("C" + bottom.getSequenceString());
-            final SeqVertex newTop = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES));
-            final SeqVertex newTopDown1 = new SeqVertex("G");
-            final SeqVertex newTopDown2 = new SeqVertex("C");
-            final SeqVertex newTopBottomMerged = new SeqVertex("TA");
-            expected.addVertices(newTop, newTopDown1, newTopDown2, newTopBottomMerged, newMiddle1, newMiddle2, newBottom, tail1, tail2);
-            expected.addEdges(newTop, newTopDown1, newTopBottomMerged, newMiddle1, newBottom, tail1);
-            expected.addEdges(newTop, newTopDown2, newTopBottomMerged, newMiddle2, newBottom, tail2);
+            expected.addVertices(newPre1, newPre2, newTop, newMiddle1, newMiddle2, newBottom, tail1, tail2);
+            expected.addEdges(newPre1, newTop, newMiddle1, newBottom, tail1);
+            expected.addEdges(newPre2, newTop, newMiddle2, newBottom, tail2);
             tests.add(new Object[]{all.clone(), expected.clone()});
         }
 

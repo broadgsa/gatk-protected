@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
+import org.jgrapht.EdgeFactory;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -58,12 +59,22 @@ import java.util.Map;
  * User: rpoplin
  * Date: 2/6/13
  */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
+public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
+    /**
+     * Edge factory that creates non-reference multiplicity 1 edges
+     */
+    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
+        @Override
+        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
+            return new BaseEdge(false, 1);
+        }
+    }
+
     /**
      * Create an empty DeBruijnGraph with default kmer size
      */
     public DeBruijnGraph() {
-        super();
+        this(11);
     }
 
     /**
@@ -71,7 +82,7 @@ public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex> {
      * @param kmerSize kmer size, must be >= 1
      */
     public DeBruijnGraph(int kmerSize) {
-        super(kmerSize);
+        super(kmerSize, new MyEdgeFactory());
     }
 
     /**

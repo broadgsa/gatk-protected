@@ -76,12 +76,10 @@ public class BaseEdge {
     }
 
     /**
-     * Copy constructor
-     *
-     * @param toCopy
+     * Create a new copy of this BaseEdge
      */
-    public BaseEdge(final BaseEdge toCopy) {
-        this(toCopy.isRef(), toCopy.getMultiplicity());
+    public BaseEdge copy() {
+        return new BaseEdge(isRef(), getMultiplicity());
     }
 
     /**
@@ -90,6 +88,34 @@ public class BaseEdge {
      */
     public int getMultiplicity() {
         return multiplicity;
+    }
+
+    /**
+     * Get the DOT format label for this edge, to be displayed when printing this edge to a DOT file
+     * @return a non-null string
+     */
+    public String getDotLabel() {
+        return Integer.toString(getMultiplicity());
+    }
+
+    /**
+     * Increase the multiplicity of this edge by incr
+     * @param incr the change in this multiplicity, must be >= 0
+     */
+    public void incMultiplicity(final int incr) {
+        if ( incr < 0 ) throw new IllegalArgumentException("incr must be >= 0 but got " + incr);
+        multiplicity += incr;
+    }
+
+    /**
+     * A special assessor that returns the multiplicity that should be used by pruning algorithm
+     *
+     * Can be overloaded by subclasses
+     *
+     * @return the multiplicity value that should be used for pruning
+     */
+    public int getPruningMultiplicity() {
+        return getMultiplicity();
     }
 
     /**
@@ -115,23 +141,6 @@ public class BaseEdge {
      */
     public void setIsRef( final boolean isRef ) {
         this.isRef = isRef;
-    }
-
-    /**
-     * Does this and edge have the same source and target vertices in graph?
-     *
-     * @param graph the graph containing both this and edge
-     * @param edge our comparator edge
-     * @param <T>
-     * @return true if we have the same source and target vertices
-     */
-    public <T extends BaseVertex> boolean hasSameSourceAndTarget(final BaseGraph<T> graph, final BaseEdge edge) {
-        return (graph.getEdgeSource(this).equals(graph.getEdgeSource(edge))) && (graph.getEdgeTarget(this).equals(graph.getEdgeTarget(edge)));
-    }
-
-    // For use when comparing edges across graphs!
-    public <T extends BaseVertex> boolean seqEquals( final BaseGraph<T> graph, final BaseEdge edge, final BaseGraph<T> graph2 ) {
-        return (graph.getEdgeSource(this).seqEquals(graph2.getEdgeSource(edge))) && (graph.getEdgeTarget(this).seqEquals(graph2.getEdgeTarget(edge)));
     }
 
     /**
@@ -186,5 +195,13 @@ public class BaseEdge {
     public BaseEdge max(final BaseEdge edge) {
         if ( edge == null ) throw new IllegalArgumentException("edge cannot be null");
         return new BaseEdge(isRef() || edge.isRef(), Math.max(getMultiplicity(), edge.getMultiplicity()));
+    }
+
+    @Override
+    public String toString() {
+        return "BaseEdge{" +
+                "multiplicity=" + multiplicity +
+                ", isRef=" + isRef +
+                '}';
     }
 }

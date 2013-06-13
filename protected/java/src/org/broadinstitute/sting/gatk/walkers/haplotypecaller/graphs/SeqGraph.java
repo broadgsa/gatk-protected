@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import org.jgrapht.EdgeFactory;
 
 import java.io.File;
 import java.util.HashSet;
@@ -61,7 +62,17 @@ import java.util.Set;
  * @author: depristo
  * @since 03/2013
  */
-public final class SeqGraph extends BaseGraph<SeqVertex> {
+public final class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
+    /**
+     * Edge factory that creates non-reference multiplicity 1 edges
+     */
+    private static class MyEdgeFactory implements EdgeFactory<SeqVertex, BaseEdge> {
+        @Override
+        public BaseEdge createEdge(SeqVertex sourceVertex, SeqVertex targetVertex) {
+            return new BaseEdge(false, 1);
+        }
+    }
+
     private final static boolean PRINT_SIMPLIFY_GRAPHS = false;
 
     /**
@@ -82,7 +93,7 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
      * Construct an empty SeqGraph
      */
     public SeqGraph() {
-        super();
+        this(11);
     }
 
     /**
@@ -94,7 +105,7 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
      * @param kmer kmer
      */
     public SeqGraph(final int kmer) {
-        super(kmer);
+        super(kmer, new MyEdgeFactory());
     }
 
     /**
@@ -154,7 +165,6 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
         didSomeWork |= new MergeCommonSuffices().transformUntilComplete();
         if ( PRINT_SIMPLIFY_GRAPHS ) printGraph(new File("simplifyGraph." + iteration + ".4.merge_suffix.dot"), 0);
 
-        didSomeWork |= new MergeHeadlessIncomingSources().transformUntilComplete();
         didSomeWork |= zipLinearChains();
         return didSomeWork;
     }
@@ -289,8 +299,8 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
         final BaseEdge inc = new BaseEdge(false, sharedWeightAmongEdges); // template to make .add function call easy
 
         // update the incoming and outgoing edges to point to the new vertex
-        for( final BaseEdge edge : outEdges ) { addEdge(addedVertex, getEdgeTarget(edge), new BaseEdge(edge).add(inc)); }
-        for( final BaseEdge edge : inEdges )  { addEdge(getEdgeSource(edge), addedVertex, new BaseEdge(edge).add(inc)); }
+        for( final BaseEdge edge : outEdges ) { addEdge(addedVertex, getEdgeTarget(edge), edge.copy().add(inc)); }
+        for( final BaseEdge edge : inEdges )  { addEdge(getEdgeSource(edge), addedVertex, edge.copy().add(inc)); }
 
         removeAllVertices(linearChain);
         return true;
@@ -503,42 +513,6 @@ public final class SeqGraph extends BaseGraph<SeqVertex> {
                 alreadySplit.add(bottom);
                 return new CommonSuffixSplitter().split(SeqGraph.this, bottom);
             }
-        }
-    }
-
-    /**
-     * Merge headless configurations:
-     *
-     * Performs the transformation:
-     *
-     * { x + S_i + y -> Z }
-     *
-     * goes to:
-     *
-     * { x -> S_i -> y -> Z }
-     *
-     * for all nodes that match this configuration.
-     *
-     * Differs from the diamond transform in that no top node is required
-     */
-    protected class MergeHeadlessIncomingSources extends VertexBasedTransformer {
-        @Override
-        boolean tryToTransform(final SeqVertex bottom) {
-            final Set<SeqVertex> incoming = incomingVerticesOf(bottom);
-            if ( incoming.size() <= 1 )
-                return false;
-
-            for ( final SeqVertex inc : incoming )
-                if ( ! isSource(inc) || outDegreeOf(inc) > 1 )
-                    return false;
-
-            if ( dontModifyGraphEvenIfPossible() ) return true;
-
-            final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(SeqGraph.this, incoming);
-            if (splitter.meetsMinMergableSequenceForPrefix(MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES))
-                return splitter.splitAndUpdate(null, bottom);
-            else
-                return false;
         }
     }
 }

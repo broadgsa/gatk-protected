@@ -567,8 +567,10 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         table[5] = new int[] {12, 0, 34, 20, 10, 0};
         double EXPEC_NRS = 0.8969957;
         double EXPEC_NRD = 0.1071429;
+        double EXPEC_OGC = 0.92592592; // (100+150+50)/(100+5+1+150+7+3+50+2+6)
         Assert.assertEquals(EXPEC_NRS,metrics.getOverallNRS(),1e-7);
         Assert.assertEquals(EXPEC_NRD,metrics.getOverallNRD(),1e-7);
+        Assert.assertEquals(EXPEC_OGC,metrics.getOverallOGC(),1e-7);
         int EXPEC_EVAL_REF = 124;
         int EXPEC_EVAL_HET = 169;
         int EXPEC_EVAL_VAR = 62;
