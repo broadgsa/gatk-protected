@@ -54,6 +54,7 @@ import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
+import org.broadinstitute.sting.utils.pairhmm.LoglessPairHMM;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -116,12 +117,11 @@ public class PairHMMIndelErrorModel {
             case ORIGINAL:
                 pairHMM = new Log10PairHMM(false);
                 break;
-            case LOGLESS_CACHING:                //TODO: still not tested so please do not use yet
-                //pairHMM = new LoglessCachingPairHMM(); //TODO - add it back when the figure out how to use the protected LoglessCachingPairHMM class
-                throw new UserException.BadArgumentValue("pairHMM"," this option (LOGLESS_CACHING in UG) is still under development");
-                //break;
+            case LOGLESS_CACHING:
+                pairHMM = new LoglessPairHMM();
+                break;
             default:
-                throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the UnifiedGenotyper. Acceptable options are ORIGINAL, EXACT or LOGLESS_CACHING (the third option is still under development).");
+                throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the UnifiedGenotyper. Acceptable options are ORIGINAL, EXACT or LOGLESS_CACHING.");
         }
 
         // fill gap penalty table, affine naive model:
