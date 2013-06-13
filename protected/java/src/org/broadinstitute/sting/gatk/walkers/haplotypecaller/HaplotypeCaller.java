@@ -459,7 +459,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // the minimum length of a read we'd consider using for genotyping
     private final static int MIN_READ_LENGTH = 10;
 
-    private List<String> samplesList = new ArrayList<String>();
+    private List<String> samplesList = new ArrayList<>();
 
     private final static Allele FAKE_REF_ALLELE = Allele.create("N", true); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
     private final static Allele FAKE_ALT_ALLELE = Allele.create("<FAKE_ALT>", false); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
