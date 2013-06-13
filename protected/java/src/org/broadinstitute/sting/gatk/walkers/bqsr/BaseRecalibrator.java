@@ -61,6 +61,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.BaseUtils;
+import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.collections.Pair;
@@ -124,7 +125,7 @@ import java.util.List;
  *   -R resources/Homo_sapiens_assembly18.fasta \
  *   -knownSites bundle/hg18/dbsnp_132.hg18.vcf \
  *   -knownSites another/optional/setOfSitesToMask.vcf \
- *   -o recal_data.grp
+ *   -o recal_data.table
  * </pre>
  */
 
@@ -178,6 +179,11 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
      */
     public void initialize() {
         baq = new BAQ(BAQGOP); // setup the BAQ object with the provided gap open penalty
+
+        if (RAC.RECAL_PDF_FILE != null) {
+            Utils.warnUser("This is not the recommended way to generate recalibration plots any longer and will be"
+                    + " discontinued soon in future releases. Please use the 'AnalyzeCovariates' tool instead from now one");
+        }
 
         if (RAC.FORCE_PLATFORM != null)
             RAC.DEFAULT_PLATFORM = RAC.FORCE_PLATFORM;

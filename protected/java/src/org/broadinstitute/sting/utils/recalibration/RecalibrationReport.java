@@ -369,6 +369,11 @@ public class RecalibrationReport {
         return RAC;
     }
 
+    /**
+     *
+     * @deprecated use {@link #getRequestedCovariates()} instead.
+     */
+    @Deprecated
     public Covariate[] getCovariates() {
         return requestedCovariates;
     }

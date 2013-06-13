@@ -97,10 +97,10 @@ public class BQSRGatherer extends Gatherer  {
             RAC.RECAL_TABLE_FILE = output;
             if ( RAC.existingRecalibrationReport != null ) {
                 final RecalibrationReport originalReport = new RecalibrationReport(RAC.existingRecalibrationReport);
-                RecalUtils.generateRecalibrationPlot(RAC, originalReport.getRecalibrationTables(), generalReport.getRecalibrationTables(), generalReport.getCovariates());
+                RecalUtils.generateRecalibrationPlot(RAC, originalReport.getRecalibrationTables(), generalReport.getRecalibrationTables(), generalReport.getRequestedCovariates());
             }
             else {
-                RecalUtils.generateRecalibrationPlot(RAC, generalReport.getRecalibrationTables(), generalReport.getCovariates());
+                RecalUtils.generateRecalibrationPlot(RAC, generalReport.getRecalibrationTables(), generalReport.getRequestedCovariates());
             }
         }
 
