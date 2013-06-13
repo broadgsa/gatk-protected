@@ -58,7 +58,7 @@ public class UnifiedGenotyperGeneralPloidySuite2IntegrationTest extends WalkerTe
 
     @Test(enabled = true)
     public void testINDEL_maxAltAlleles2_ploidy3_Pools_noRef() {
-        executor.PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","7e4e1397d5cff68aeba3595e671574fc");
+        executor.PC_LSV_Test_NoRef(" -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","369ad0ff28bb9ce7974dc2c7343c8737");
     }
 
     @Test(enabled = true)

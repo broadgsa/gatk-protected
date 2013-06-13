@@ -78,12 +78,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "09d84bc1aef2dd9c185934752172b794");
+        HCTest(CEUTRIO_BAM, "", "baa5a2eedc8f06ce9f8f98411ee09f8a");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "5c074930b27d1f5c942fe755c2a8be27");
+        HCTest(NA12878_BAM, "", "f09e03d41238697b23f95716a12667cb");
     }
 
     @Test(enabled = false) // can't annotate the rsID's yet
@@ -94,7 +94,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "005a6d1933913a5d96fc56d01303fa95");
+                "130d36448faeb7b8d4bce4be12dacd3a");
     }
 
     @Test
@@ -110,7 +110,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "9b6f667ad87e19c38d16fefe63c37484");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "7c20aa62633f4ce8ebf12950fbf05ec0");
     }
 
     private void HCTestNearbySmallIntervals(String bam, String args, String md5) {
@@ -147,7 +147,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerNearbySmallIntervals() {
-        HCTestNearbySmallIntervals(NA12878_BAM, "", "6e170d03047caefc2fba3f1c1f8de132");
+        HCTestNearbySmallIntervals(NA12878_BAM, "", "0ddc56f0a0fbcfefda79aa20b2ecf603");
     }
 
     // This problem bam came from a user on the forum and it spotted a problem where the ReadClipper
@@ -186,7 +186,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("a47ef09a8701128cfb301a83b7bb0728"));
+                Arrays.asList("5fe9310addf881bed4fde2354e59ce34"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
 
@@ -194,7 +194,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testReducedBamWithReadsNotFullySpanningDeletion() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
-                Arrays.asList("0cb99f6bb3e630add4b3486c496fa508"));
+                Arrays.asList("26a9917f6707536636451266de0116c3"));
         executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
     }
 
@@ -208,7 +208,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("92f947cc89e4f50cf2ef3121d2fe308d"));
+                Arrays.asList("cc6f2a76ee97ecc14a5f956ffbb21d88"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -217,7 +217,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-11,000,000 -D " + b37dbSNP132
                         + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
-                Arrays.asList("91877c8ea3eb0e0316d9ad11fdcc1a87"));
+                Arrays.asList("51e91c8af61a6b47807165906baefb00"));
         executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
     }
 }
