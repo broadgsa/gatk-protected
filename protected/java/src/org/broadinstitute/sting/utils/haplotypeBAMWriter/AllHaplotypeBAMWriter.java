@@ -80,18 +80,18 @@ class AllHaplotypeBAMWriter extends HaplotypeBAMWriter {
                                               final List<Haplotype> bestHaplotypes,
                                               final Set<Haplotype> calledHaplotypes,
                                               final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        writeHaplotypesAsReads(haplotypes, new HashSet<Haplotype>(bestHaplotypes), paddedReferenceLoc);
+        writeHaplotypesAsReads(haplotypes, new HashSet<>(bestHaplotypes), paddedReferenceLoc);
 
         // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
-        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<Allele, Haplotype>(haplotypes.size());
+        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<>(haplotypes.size());
         for ( final Haplotype haplotype : haplotypes )
             alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
 
         // next, output the interesting reads for each sample aligned against the appropriate haplotype
         for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-            for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
+            for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
                 final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
-                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart());
+                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
             }
         }
     }
