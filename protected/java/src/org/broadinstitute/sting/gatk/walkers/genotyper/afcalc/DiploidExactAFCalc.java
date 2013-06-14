@@ -106,7 +106,7 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
             alleles.add(vc.getReference());
             alleles.addAll(chooseMostLikelyAlternateAlleles(vc, getMaxAltAlleles()));
             builder.alleles(alleles);
-            builder.genotypes(GATKVariantContextUtils.subsetDiploidAlleles(vc, alleles, false));
+            builder.genotypes(GATKVariantContextUtils.subsetDiploidAlleles(vc, alleles, GATKVariantContextUtils.GenotypeAssignmentMethod.SET_TO_NO_CALL));
             return builder.make();
         } else {
             return vc;
@@ -352,6 +352,9 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
                                           final List<Allele> allelesToUse,
                                           final boolean assignGenotypes,
                                           final int ploidy) {
-        return GATKVariantContextUtils.subsetDiploidAlleles(vc, allelesToUse, assignGenotypes);
+        return allelesToUse.size() == 1
+                ? GATKVariantContextUtils.subsetToRefOnly(vc, ploidy)
+                : GATKVariantContextUtils.subsetDiploidAlleles(vc, allelesToUse,
+                     assignGenotypes ? GATKVariantContextUtils.GenotypeAssignmentMethod.USE_PLS_TO_ASSIGN : GATKVariantContextUtils.GenotypeAssignmentMethod.SET_TO_NO_CALL);
     }
 }

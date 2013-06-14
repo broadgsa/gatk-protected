@@ -919,19 +919,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     private void finalizeActiveRegion( final ActiveRegion activeRegion ) {
         if( DEBUG ) { logger.info("Assembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
-        final List<GATKSAMRecord> finalizedReadList = new ArrayList<>();
-        final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create( activeRegion.getReads() );
-        activeRegion.clearReads();
-
-        // Join overlapping paired reads to create a single longer read
-        finalizedReadList.addAll( fragmentCollection.getSingletonReads() );
-        for( final List<GATKSAMRecord> overlappingPair : fragmentCollection.getOverlappingPairs() ) {
-            finalizedReadList.addAll( FragmentUtils.mergeOverlappingPairedFragments(overlappingPair) );
-        }
 
         // Loop through the reads hard clipping the adaptor and low quality tails
-        final List<GATKSAMRecord> readsToUse = new ArrayList<>(finalizedReadList.size());
-        for( final GATKSAMRecord myRead : finalizedReadList ) {
+        final List<GATKSAMRecord> readsToUse = new ArrayList<>(activeRegion.getReads().size());
+        for( final GATKSAMRecord myRead : activeRegion.getReads() ) {
             final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
             if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
                 GATKSAMRecord clippedRead;
@@ -962,6 +953,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             }
         }
 
+        activeRegion.clearReads();
         activeRegion.addAll(DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart));
     }
 
