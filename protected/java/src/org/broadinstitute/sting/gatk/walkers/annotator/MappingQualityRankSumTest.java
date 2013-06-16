@@ -47,14 +47,10 @@
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
 
 import java.util.*;
 
@@ -73,35 +69,11 @@ public class MappingQualityRankSumTest extends RankSumTest implements StandardAn
 
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("MQRankSum", 1, VCFHeaderLineType.Float, "Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities")); }
 
-    protected void fillQualsFromPileup(final List<Allele> allAlleles,
-                                       final int refLoc,
-                                       final ReadBackedPileup pileup,
-                                       final PerReadAlleleLikelihoodMap likelihoodMap,
-                                       final List<Double> refQuals, final List<Double> altQuals) {
-
-        if (pileup != null && likelihoodMap == null) {
-            // old UG snp-only path through the annotations
-            for ( final PileupElement p : pileup ) {
-                if ( isUsableBase(p) ) {
-                    if ( allAlleles.get(0).equals(Allele.create(p.getBase(), true)) ) {
-                        refQuals.add((double)p.getMappingQual());
-                    } else if ( allAlleles.contains(Allele.create(p.getBase()))) {
-                        altQuals.add((double)p.getMappingQual());
-                    }
-                }
-            }
-            return;
-        }
-        for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : likelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            // BUGBUG: There needs to be a comparable isUsableBase check here
-            if (! a.isInformative())
-                continue; // read is non-informative
-            if (a.getMostLikelyAllele().isReference())
-                refQuals.add((double)el.getKey().getMappingQuality());
-            else if (allAlleles.contains(a.getMostLikelyAllele()))
-                altQuals.add((double)el.getKey().getMappingQuality());
-        }
+    protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
+        return (double)read.getMappingQuality();
     }
 
- }
+    protected Double getElementForPileupElement(final PileupElement p) {
+        return (double)p.getRead().getMappingQuality();
+    }
+}

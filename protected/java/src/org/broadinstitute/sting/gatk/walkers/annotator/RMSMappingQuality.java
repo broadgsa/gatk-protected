@@ -56,6 +56,7 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnota
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
+import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
@@ -77,55 +78,41 @@ public class RMSMappingQuality extends InfoFieldAnnotation implements StandardAn
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
-        int totalSize = 0, index = 0;
-        int qualities[];
-        if (stratifiedContexts != null) {
+
+        final List<Integer> qualities = new ArrayList<>();
+        if ( stratifiedContexts != null ) {
             if ( stratifiedContexts.size() == 0 )
                 return null;
 
-            for ( AlignmentContext context : stratifiedContexts.values() )
-                totalSize += context.size();
-
-            qualities = new int[totalSize];
-
-            for ( Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
-                AlignmentContext context = sample.getValue();
-                for (PileupElement p : context.getBasePileup() )
-                    index = fillMappingQualitiesFromPileupAndUpdateIndex(p.getRead(), index, qualities);
+            for ( final Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
+                final AlignmentContext context = sample.getValue();
+                for ( final PileupElement p : context.getBasePileup() )
+                    fillMappingQualitiesFromPileup(p.getRead().getMappingQuality(), p.getRepresentativeCount(), qualities);
             }
         }
         else if (perReadAlleleLikelihoodMap != null) {
             if ( perReadAlleleLikelihoodMap.size() == 0 )
                 return null;
 
-            for ( PerReadAlleleLikelihoodMap perReadLikelihoods : perReadAlleleLikelihoodMap.values() )
-                totalSize += perReadLikelihoods.size();
-
-            qualities = new int[totalSize];
-            for ( PerReadAlleleLikelihoodMap perReadLikelihoods : perReadAlleleLikelihoodMap.values() ) {
-                for (GATKSAMRecord read : perReadLikelihoods.getStoredElements())
-                    index = fillMappingQualitiesFromPileupAndUpdateIndex(read, index, qualities);
-
-
-        }
+            for ( final PerReadAlleleLikelihoodMap perReadLikelihoods : perReadAlleleLikelihoodMap.values() ) {
+                for ( final GATKSAMRecord read : perReadLikelihoods.getStoredElements() )
+                    fillMappingQualitiesFromPileup(read.getMappingQuality(), (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1), qualities);
+            }
         }
         else
             return null;
 
-
-
-        double rms = MathUtils.rms(qualities);
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put(getKeyNames().get(0), String.format("%.2f", rms));
-        return map;
+        final double rms = MathUtils.rms(qualities);
+        return Collections.singletonMap(getKeyNames().get(0), (Object)String.format("%.2f", rms));
     }
 
-    private static int fillMappingQualitiesFromPileupAndUpdateIndex(final GATKSAMRecord read, final int inputIdx, final int[] qualities) {
-        int outputIdx = inputIdx;
-        if ( read.getMappingQuality() != QualityUtils.MAPPING_QUALITY_UNAVAILABLE )
-            qualities[outputIdx++] = read.getMappingQuality();
-
-        return outputIdx;
+    private static void fillMappingQualitiesFromPileup(final int mq, final int representativeCount, final List<Integer> qualities) {
+        if ( mq != QualityUtils.MAPPING_QUALITY_UNAVAILABLE ) {
+            if ( representativeCount == 1 )
+                qualities.add(mq);
+            else
+                qualities.addAll(Collections.nCopies(representativeCount, mq));
+        }
     }
 
     public List<String> getKeyNames() { return Arrays.asList(VCFConstants.RMS_MAPPING_QUALITY_KEY); }

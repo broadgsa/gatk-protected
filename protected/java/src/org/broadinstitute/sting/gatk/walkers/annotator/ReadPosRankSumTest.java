@@ -51,17 +51,13 @@ import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import net.sf.samtools.SAMRecord;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
 
 import java.util.*;
 
@@ -83,55 +79,34 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         return Arrays.asList(new VCFInfoHeaderLine("ReadPosRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias"));
     }
 
-    protected void fillQualsFromPileup(final List<Allele> allAlleles,
-                                       final int refLoc,
-                                       final ReadBackedPileup pileup,
-                                       final PerReadAlleleLikelihoodMap alleleLikelihoodMap,
-                                       final List<Double> refQuals, final List<Double> altQuals) {
+    protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
+        final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate( read.getSoftStart(), read.getCigar(), refLoc, ReadUtils.ClippingTail.RIGHT_TAIL, true );
+        if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED )
+            return null;
 
-        if (alleleLikelihoodMap == null) {
-            // use old UG SNP-based version if we don't have per-read allele likelihoods
-            for ( final PileupElement p : pileup ) {
-                if ( isUsableBase(p) && p.getRead().getCigar() != null ) {
-                    int readPos = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, 0, 0);
-
-                    readPos = getFinalReadPosition(p.getRead(),readPos);
-
-                    if ( allAlleles.get(0).equals(Allele.create(p.getBase(), true)) ) {
-                        refQuals.add((double)readPos);
-                    } else if ( allAlleles.contains(Allele.create(p.getBase()))) {
-                        altQuals.add((double)readPos);
-                    }
-                }
-            }
-            return;
-        }
-
-        for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : alleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (! a.isInformative() )
-                continue; // read is non-informative
-
-            final GATKSAMRecord read = el.getKey();
-            if ( read.getSoftStart() + read.getCigar().getReadLength() <= refLoc ) { // make sure the read actually covers the requested ref loc
-                continue;
-            }
-            final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate( read.getSoftStart(), read.getCigar(), refLoc, ReadUtils.ClippingTail.RIGHT_TAIL, true );
-            if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED || read.getCigar() == null )
-                continue;
-            int readPos = AlignmentUtils.calcAlignmentByteArrayOffset( read.getCigar(), offset, false, 0, 0 );
-            final int numAlignedBases = AlignmentUtils.getNumAlignedBasesCountingSoftClips( read );
-            if (readPos > numAlignedBases / 2)
-                readPos = numAlignedBases - (readPos + 1);
-
-            if (a.getMostLikelyAllele().isReference())
-                refQuals.add((double)readPos);
-            else if (allAlleles.contains(a.getMostLikelyAllele()))
-                altQuals.add((double)readPos);
-        }
+        int readPos = AlignmentUtils.calcAlignmentByteArrayOffset( read.getCigar(), offset, false, 0, 0 );
+        final int numAlignedBases = AlignmentUtils.getNumAlignedBasesCountingSoftClips( read );
+        if (readPos > numAlignedBases / 2)
+            readPos = numAlignedBases - (readPos + 1);
+        return (double)readPos;
     }
 
-    int getFinalReadPosition(GATKSAMRecord read, int initialReadPosition) {
+    protected Double getElementForPileupElement(final PileupElement p) {
+        final int offset = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, 0, 0);
+        return (double)getFinalReadPosition(p.getRead(), offset);
+    }
+
+    @Override
+    protected boolean isUsableBase(final PileupElement p) {
+        return super.isUsableBase(p) && p.getRead().getCigar() != null;
+    }
+
+    @Override
+    protected boolean isUsableRead(final GATKSAMRecord read, final int refLoc) {
+        return super.isUsableRead(read, refLoc) && read.getSoftStart() + read.getCigar().getReadLength() > refLoc;
+    }
+
+    private int getFinalReadPosition(final GATKSAMRecord read, final int initialReadPosition) {
         final int numAlignedBases = getNumAlignedBases(read);
 
         int readPos = initialReadPosition;
@@ -141,7 +116,8 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         return readPos;
 
     }
-    int getNumClippedBasesAtStart(SAMRecord read) {
+
+    private int getNumClippedBasesAtStart(final SAMRecord read) {
         // compute total number of clipped bases (soft or hard clipped)
         // check for hard clips (never consider these bases):
         final Cigar c = read.getCigar();
@@ -151,8 +127,8 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         if (first.getOperator() == CigarOperator.H) {
             numStartClippedBases = first.getLength();
         }
-        byte[] unclippedReadBases = read.getReadBases();
-        byte[] unclippedReadQuals = read.getBaseQualities();
+        final byte[] unclippedReadBases = read.getReadBases();
+        final byte[] unclippedReadQuals = read.getBaseQualities();
 
         // Do a stricter base clipping than provided by CIGAR string, since this one may be too conservative,
         // and may leave a string of Q2 bases still hanging off the reads.
@@ -167,11 +143,11 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         return numStartClippedBases;
     }
 
-    int getNumAlignedBases(SAMRecord read) {
+    private int getNumAlignedBases(final GATKSAMRecord read) {
         return read.getReadLength() - getNumClippedBasesAtStart(read) - getNumClippedBasesAtEnd(read);
     }
 
-    int getNumClippedBasesAtEnd(SAMRecord read) {
+    private int getNumClippedBasesAtEnd(final GATKSAMRecord read) {
         // compute total number of clipped bases (soft or hard clipped)
         // check for hard clips (never consider these bases):
         final Cigar c = read.getCigar();
@@ -181,8 +157,8 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         if (last.getOperator() == CigarOperator.H) {
             numEndClippedBases = last.getLength();
         }
-        byte[] unclippedReadBases = read.getReadBases();
-        byte[] unclippedReadQuals = read.getBaseQualities();
+        final byte[] unclippedReadBases = read.getReadBases();
+        final byte[] unclippedReadQuals = read.getBaseQualities();
 
         // Do a stricter base clipping than provided by CIGAR string, since this one may be too conservative,
         // and may leave a string of Q2 bases still hanging off the reads.
@@ -193,11 +169,6 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
                 break;
         }
 
-
         return numEndClippedBases;
-    }
-
-    int getOffsetFromClippedReadStart(SAMRecord read, int offset) {
-        return offset - getNumClippedBasesAtStart(read);
     }
 }

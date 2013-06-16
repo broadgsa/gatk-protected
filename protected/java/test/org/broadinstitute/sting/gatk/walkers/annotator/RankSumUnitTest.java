@@ -44,56 +44,108 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.gatk.walkers.compression.reducereads.*;
+import org.broadinstitute.sting.gatk.walkers.compression.reducereads.BaseCounts;
+import org.broadinstitute.sting.utils.MannWhitneyU;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
+public class RankSumUnitTest {
 
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
+    List<Integer> distribution20, distribution30, distribution20_40;
+    static final int observations = 100;
 
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
+    @BeforeClass
+    public void init() {
+        distribution20 = new ArrayList<>(observations);
+        distribution30 = new ArrayList<>(observations);
+        distribution20_40 = new ArrayList<>(observations);
+
+        final int skew = 3;
+        makeDistribution(distribution20, 20, skew, observations);
+        makeDistribution(distribution30, 30, skew, observations);
+        makeDistribution(distribution20_40, 20, skew, observations/2);
+        makeDistribution(distribution20_40, 40, skew, observations/2);
+
+        // shuffle the observations
+        Collections.shuffle(distribution20);
+        Collections.shuffle(distribution30);
+        Collections.shuffle(distribution20_40);
     }
 
-    @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "4a3479fc4ad387d381593b328f737a1b");
+    private static void makeDistribution(final List<Integer> result, final int target, final int skew, final int numObservations) {
+        final int rangeStart = target - skew;
+        final int rangeEnd = target + skew;
+
+        int current = rangeStart;
+        for ( int i = 0; i < numObservations; i++ ) {
+            result.add(current++);
+            if ( current > rangeEnd )
+                current = rangeStart;
+        }
     }
 
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
+    @DataProvider(name = "DistributionData")
+    public Object[][] makeDistributionData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final int numToReduce : Arrays.asList(0, 10, 50, 100) ) {
+            tests.add(new Object[]{distribution20, distribution20, numToReduce, true, "20-20"});
+            tests.add(new Object[]{distribution30, distribution30, numToReduce, true, "30-30"});
+            tests.add(new Object[]{distribution20_40, distribution20_40, numToReduce, true, "20/40-20/40"});
+
+            tests.add(new Object[]{distribution20, distribution30, numToReduce, false, "20-30"});
+            tests.add(new Object[]{distribution30, distribution20, numToReduce, false, "30-20"});
+
+            tests.add(new Object[]{distribution20, distribution20_40, numToReduce, false, "20-20/40"});
+            tests.add(new Object[]{distribution30, distribution20_40, numToReduce, true, "30-20/40"});
+        }
+
+        return tests.toArray(new Object[][]{});
     }
 
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
-    }
+    @Test(enabled = true, dataProvider = "DistributionData")
+    public void testDistribution(final List<Integer> distribution1, final List<Integer> distribution2, final int numToReduceIn2, final boolean distributionsShouldBeEqual, final String debugString) {
+        final MannWhitneyU mannWhitneyU = new MannWhitneyU(true);
 
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
-    }
+        for ( final Integer num : distribution1 )
+            mannWhitneyU.add(num, MannWhitneyU.USet.SET1);
 
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "b7a01525c00d02b3373513a668a43c6a");
-    }
+        final List<Integer> dist2 = new ArrayList<>(distribution2);
+        if ( numToReduceIn2 > 0 ) {
+            final org.broadinstitute.sting.gatk.walkers.compression.reducereads.BaseCounts counts = new BaseCounts();
+            for ( int i = 0; i < numToReduceIn2; i++ ) {
+                final int value = dist2.remove(0);
+                counts.incr(BaseIndex.A, (byte)value, 0, false);
+            }
 
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "a2a42055b068334f415efb07d6bb9acd");
+            final int qual = (int)counts.averageQualsOfBase(BaseIndex.A);
+            for ( int i = 0; i < numToReduceIn2; i++ )
+                dist2.add(qual);
+        }
+
+        for ( final Integer num : dist2 )
+            mannWhitneyU.add(num, MannWhitneyU.USet.SET2);
+
+        final Double result = mannWhitneyU.runTwoSidedTest().second;
+        Assert.assertFalse(Double.isNaN(result));
+
+        if ( distributionsShouldBeEqual ) {
+            // TODO -- THIS IS THE FAILURE POINT OF USING REDUCED READS WITH RANK SUM TESTS
+            if ( numToReduceIn2 >= observations / 2 )
+                return;
+            Assert.assertTrue(result > 0.1, String.format("%f %d %d", result, numToReduceIn2, dist2.get(0)));
+        } else {
+            Assert.assertTrue(result < 0.01, String.format("%f %d %d", result, numToReduceIn2, dist2.get(0)));
+        }
     }
 }
