@@ -62,7 +62,7 @@ public class BeagleIntegrationTest extends WalkerTest {
                         "--beagleR2:BEAGLE " + beagleValidationDataLocation + "inttestbgl.r2 " +
                         "--beagleProbs:BEAGLE " + beagleValidationDataLocation + "inttestbgl.gprobs " +
                         "--beaglePhased:BEAGLE " + beagleValidationDataLocation + "inttestbgl.phased " +
-                        "-o %s --no_cmdline_in_header -U LENIENT_VCF_PROCESSING", 1, Arrays.asList("c5522304abf0633041c7772dd7dafcea"));
+                        "-o %s --no_cmdline_in_header -U LENIENT_VCF_PROCESSING", 1, Arrays.asList("989449fa3e262b88ba126867fa3ad9fb"));
         spec.disableShadowBCF();
         executeTest("test BeagleOutputToVCF", spec);
     }
@@ -96,7 +96,7 @@ public class BeagleIntegrationTest extends WalkerTest {
                 "--beagleR2:beagle /humgen/gsa-hpprojects/GATK/data/Validation_Data/EUR_beagle_in_test.r2 "+
                 "--beagleProbs:beagle /humgen/gsa-hpprojects/GATK/data/Validation_Data/EUR_beagle_in_test.gprobs.bgl "+
                 "--beaglePhased:beagle /humgen/gsa-hpprojects/GATK/data/Validation_Data/EUR_beagle_in_test.phased.bgl "+
-                "-L 20:1-70000 -o %s --no_cmdline_in_header -U LENIENT_VCF_PROCESSING",1,Arrays.asList("d8906b67c7f9fdb5b37b8e9e050982d3"));
+                "-L 20:1-70000 -o %s --no_cmdline_in_header -U LENIENT_VCF_PROCESSING",1,Arrays.asList("e036636fcd6a748ede4a70ea47941d47"));
         spec.disableShadowBCF();
         executeTest("testBeagleChangesSitesToRef",spec);
     }
