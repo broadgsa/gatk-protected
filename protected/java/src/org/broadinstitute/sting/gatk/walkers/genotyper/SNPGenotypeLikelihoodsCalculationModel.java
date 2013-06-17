@@ -147,9 +147,17 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
                 // if we only want variants, then we don't need to calculate genotype likelihoods
                 if ( UAC.OutputMode == UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY )
                     return builder.make();
+                // if user requires all PLs at all sites, add all possible alt alleles
+                else if (UAC.annotateAllSitesWithPLs) {
+                    for ( final byte base : BaseUtils.BASES ) {
+                        if ( base != refBase )
+                            alleles.add(Allele.create(base));
+                    }
+                }
 
-                // otherwise, choose any alternate allele (it doesn't really matter)
-                alleles.add(Allele.create(BaseUtils.baseIndexToSimpleBase(indexOfRefBase == 0 ? 1 : 0)));
+                else
+                    // otherwise, choose any alternate allele (it doesn't really matter)
+                    alleles.add(Allele.create(BaseUtils.baseIndexToSimpleBase(indexOfRefBase == 0 ? 1 : 0)));
              }
         }
 

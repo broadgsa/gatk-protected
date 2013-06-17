@@ -156,6 +156,14 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     }
 
+    @Test
+    public void emitPLsAtAllSites() {
+        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
+                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 --output_mode EMIT_ALL_SITES -allSitePLs", 1,
+                Arrays.asList("7cc55db8693759e059a05bc4398f6f69"));
+        executeTest("test all site PLs 1", spec1);
+
+    }
     // --------------------------------------------------------------------------------------------------------------
     //
     // testing heterozygosity

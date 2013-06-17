@@ -168,6 +168,13 @@ public class UnifiedGenotyperEngine {
         filter.add(LOW_QUAL_FILTER_NAME);
 
         determineGLModelsToUse();
+
+        // do argument checking
+        if (UAC.annotateAllSitesWithPLs) {
+            if (!modelsToUse.contains(GenotypeLikelihoodsCalculationModel.Model.SNP))
+                throw new IllegalArgumentException("Invalid genotype likelihood model specification: Only diploid SNP model can be used in conjunction with option allSitePLs");
+
+        }
     }
 
     /**
@@ -439,7 +446,8 @@ public class UnifiedGenotyperEngine {
                 bestGuessIsRef = false;
             }
             // if in GENOTYPE_GIVEN_ALLELES mode, we still want to allow the use of a poor allele
-            else if ( UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
+            else if ( UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ||
+                    UAC.annotateAllSitesWithPLs) {
                 myAlleles.add(alternateAllele);
                 alleleCountsofMLE.add(AFresult.getAlleleCountAtMLE(alternateAllele));
             }
@@ -449,7 +457,7 @@ public class UnifiedGenotyperEngine {
 
         // note the math.abs is necessary because -10 * 0.0 => -0.0 which isn't nice
         final double phredScaledConfidence =
-                Math.abs(! bestGuessIsRef || UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
+                Math.abs(! bestGuessIsRef || UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES || UAC.annotateAllSitesWithPLs
                         ? -10 * AFresult.getLog10PosteriorOfAFEq0()
                         : -10 * AFresult.getLog10PosteriorOfAFGT0());
 
