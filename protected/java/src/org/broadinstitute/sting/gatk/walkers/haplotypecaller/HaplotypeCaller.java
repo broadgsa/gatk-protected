@@ -80,8 +80,6 @@ import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
-import org.broadinstitute.sting.utils.fragments.FragmentCollection;
-import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.*;
 import org.broadinstitute.sting.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
@@ -269,6 +267,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Advanced
     @Argument(fullName="dontIncreaseKmerSizesForCycles", shortName="dontIncreaseKmerSizesForCycles", doc="Should we disable the iterating over kmer sizes when graph cycles are detected?", required = false)
     protected boolean dontIncreaseKmerSizesForCycles = false;
+
+    @Advanced
+    @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="The number of samples that must pass the minPuning factor in order for the path to be kept", required = false)
+    protected int numPruningSamples = 1;
 
     /**
      * Assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
@@ -539,7 +541,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final int maxAllowedPathsForReadThreadingAssembler = Math.max(maxPathsPerSample * nSamples, MIN_PATHS_PER_GRAPH);
         assemblyEngine = useDebruijnAssembler
                 ? new DeBruijnAssembler(minKmerForDebruijnAssembler, onlyUseKmerSizeForDebruijnAssembler)
-                : new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes, dontIncreaseKmerSizesForCycles);
+                : new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes, dontIncreaseKmerSizesForCycles, numPruningSamples);
 
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
         assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);

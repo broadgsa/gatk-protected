@@ -67,13 +67,24 @@ import java.util.*;
 
 public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSampleEdge> {
     /**
-     * Edge factory that creates non-reference multiplicity 1 edges
+     * Edge factory that encapsulates the numPruningSamples assembly parameter
      */
     private static class MyEdgeFactory implements EdgeFactory<MultiDeBruijnVertex, MultiSampleEdge> {
-        @Override
-        public MultiSampleEdge createEdge(MultiDeBruijnVertex sourceVertex, MultiDeBruijnVertex targetVertex) {
-            return new MultiSampleEdge(false, 1);
+        final int numPruningSamples;
+
+        public MyEdgeFactory(int numPruningSamples) {
+            this.numPruningSamples = numPruningSamples;
         }
+
+        @Override
+        public MultiSampleEdge createEdge(final MultiDeBruijnVertex sourceVertex, final MultiDeBruijnVertex targetVertex) {
+            return new MultiSampleEdge(false, 1, numPruningSamples);
+        }
+
+        public MultiSampleEdge createEdge(final boolean isRef, final int multiplicity) {
+            return new MultiSampleEdge(isRef, multiplicity, numPruningSamples);
+        }
+
     }
 
     private final static Logger logger = Logger.getLogger(ReadThreadingGraph.class);
@@ -88,7 +99,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     /**
      * Sequences added for read threading before we've actually built the graph
      */
-    private final Map<String, List<SequenceForKmers>> pending = new LinkedHashMap<String, List<SequenceForKmers>>();
+    private final Map<String, List<SequenceForKmers>> pending = new LinkedHashMap<>();
 
     /**
      * A set of non-unique kmers that cannot be used as merge points in the graph
@@ -117,19 +128,19 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     private boolean alreadyBuilt;
 
     public ReadThreadingGraph() {
-        this(25, false, (byte)6);
+        this(25, false, (byte)6, 1);
     }
 
     public ReadThreadingGraph(final int kmerSize) {
-        this(kmerSize, false, (byte)6);
+        this(kmerSize, false, (byte)6, 1);
     }
 
     /**
      * Create a new ReadThreadingAssembler using kmerSize for matching
      * @param kmerSize must be >= 1
      */
-    protected ReadThreadingGraph(final int kmerSize, final boolean debugGraphTransformations, final byte minBaseQualityToUseInAssembly) {
-        super(kmerSize, new MyEdgeFactory());
+    protected ReadThreadingGraph(final int kmerSize, final boolean debugGraphTransformations, final byte minBaseQualityToUseInAssembly, final int numPruningSamples) {
+        super(kmerSize, new MyEdgeFactory(numPruningSamples));
 
         if ( kmerSize < 1 ) throw new IllegalArgumentException("bad minkKmerSize " + kmerSize);
         this.kmerSize = kmerSize;
@@ -324,7 +335,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
         final int altIndexToMerge = Math.max(danglingTailMergeResult.cigar.getReadLength() - matchingSuffix - 1, 0);
         final int refIndexToMerge = lastRefIndex - matchingSuffix + 1;
-        addEdge(danglingTailMergeResult.danglingPath.get(altIndexToMerge), danglingTailMergeResult.referencePath.get(refIndexToMerge), new MultiSampleEdge(false, 1));
+        addEdge(danglingTailMergeResult.danglingPath.get(altIndexToMerge), danglingTailMergeResult.referencePath.get(refIndexToMerge), ((MyEdgeFactory)getEdgeFactory()).createEdge(false, 1));
         return 1;
     }
 
@@ -708,7 +719,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
         // either use our unique merge vertex, or create a new one in the chain
         final MultiDeBruijnVertex nextVertex = uniqueMergeVertex == null ? createVertex(kmer) : uniqueMergeVertex;
-        addEdge(prevVertex, nextVertex, new MultiSampleEdge(isRef, count));
+        addEdge(prevVertex, nextVertex, ((MyEdgeFactory)getEdgeFactory()).createEdge(isRef, count));
         return nextVertex;
     }
 

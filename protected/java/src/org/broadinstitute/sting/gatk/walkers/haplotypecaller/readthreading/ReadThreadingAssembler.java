@@ -71,6 +71,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     private final int maxAllowedPathsForReadThreadingAssembler;
 
     private final boolean dontIncreaseKmerSizesForCycles;
+    private final int numPruningSamples;
     private boolean requireReasonableNumberOfPaths = false;
     protected boolean removePathsNotConnectedToRef = true;
     private boolean justReturnRawGraph = false;
@@ -80,15 +81,16 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         this(DEFAULT_NUM_PATHS_PER_GRAPH, Arrays.asList(25));
     }
 
-    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes, final boolean dontIncreaseKmerSizesForCycles) {
+    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes, final boolean dontIncreaseKmerSizesForCycles, final int numPruningSamples) {
         super(maxAllowedPathsForReadThreadingAssembler);
         this.kmerSizes = kmerSizes;
         this.maxAllowedPathsForReadThreadingAssembler = maxAllowedPathsForReadThreadingAssembler;
         this.dontIncreaseKmerSizesForCycles = dontIncreaseKmerSizesForCycles;
+        this.numPruningSamples = numPruningSamples;
     }
 
     public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes) {
-        this(maxAllowedPathsForReadThreadingAssembler, kmerSizes, true);
+        this(maxAllowedPathsForReadThreadingAssembler, kmerSizes, true, 1);
     }
 
     /** for testing purposes */
@@ -139,7 +141,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
                                    final int kmerSize,
                                    final List<Haplotype> activeAlleleHaplotypes,
                                    final boolean allowLowComplexityGraphs) {
-        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly);
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly, numPruningSamples);
 
         // add the reference sequence to the graph
         rtgraph.addSequence("ref", refHaplotype.getBases(), null, true);
