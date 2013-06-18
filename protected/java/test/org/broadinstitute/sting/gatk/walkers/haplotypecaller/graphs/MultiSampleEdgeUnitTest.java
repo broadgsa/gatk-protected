@@ -54,19 +54,29 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class MultiSampleEdgeUnitTest extends BaseTest {
+
+    private class MultiplicityTestProvider {
+        final List<Integer> countsPerSample;
+        final int numSamplesPruning;
+        public MultiplicityTestProvider(final List<Integer> countsPerSample, final int numSamplesPruning) {
+            this.countsPerSample = countsPerSample;
+            this.numSamplesPruning = numSamplesPruning;
+        }
+    }
+
     @DataProvider(name = "MultiplicityData")
     public Object[][] makeMultiplicityData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         final List<Integer> countsPerSample = Arrays.asList(0, 1, 2, 3, 4, 5);
-        for ( final int nSamples : Arrays.asList(1, 2, 3, 4, 5)) {
-            for ( final List<Integer> perm : Utils.makePermutations(countsPerSample, nSamples, false) ) {
-                tests.add(new Object[]{perm});
+        for ( final int numSamplesPruning : Arrays.asList(1, 2, 3) ) {
+            for ( final int nSamples : Arrays.asList(1, 2, 3, 4, 5)) {
+                for ( final List<Integer> perm : Utils.makePermutations(countsPerSample, nSamples, false) ) {
+                    tests.add(new Object[]{new MultiplicityTestProvider(perm, numSamplesPruning)});
+                }
             }
         }
 
@@ -77,15 +87,15 @@ public class MultiSampleEdgeUnitTest extends BaseTest {
      * Example testng test using MyDataProvider
      */
     @Test(dataProvider = "MultiplicityData")
-    public void testMultiplicity(final List<Integer> countsPerSample) {
-        final MultiSampleEdge edge = new MultiSampleEdge(false, 0);
+    public void testMultiplicity(final MultiplicityTestProvider cfg) {
+        final MultiSampleEdge edge = new MultiSampleEdge(false, 0, cfg.numSamplesPruning);
         Assert.assertEquals(edge.getMultiplicity(), 0);
         Assert.assertEquals(edge.getPruningMultiplicity(), 0);
 
         int total = 0;
-        for ( int i = 0; i < countsPerSample.size(); i++ ) {
+        for ( int i = 0; i < cfg.countsPerSample.size(); i++ ) {
             int countForSample = 0;
-            for ( int count = 0; count < countsPerSample.get(i); count++ ) {
+            for ( int count = 0; count < cfg.countsPerSample.get(i); count++ ) {
                 edge.incMultiplicity(1);
                 total++;
                 countForSample++;
@@ -95,9 +105,11 @@ public class MultiSampleEdgeUnitTest extends BaseTest {
             edge.flushSingleSampleMultiplicity();
         }
 
-        final int max = MathUtils.arrayMax(ArrayUtils.toPrimitive(countsPerSample.toArray(new Integer[countsPerSample.size()])));
+        ArrayList<Integer> counts = new ArrayList<>(cfg.countsPerSample);
+        counts.add(0);
+        Collections.sort(counts);
+        final int prune = counts.get(Math.max(counts.size() - cfg.numSamplesPruning, 0));
         Assert.assertEquals(edge.getMultiplicity(), total);
-        Assert.assertEquals(edge.getPruningMultiplicity(), max);
-        Assert.assertEquals(edge.getMaxSingleSampleMultiplicity(), max);
+        Assert.assertEquals(edge.getPruningMultiplicity(), prune);
     }
 }
