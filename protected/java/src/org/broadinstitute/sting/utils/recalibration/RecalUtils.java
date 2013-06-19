@@ -550,36 +550,48 @@ public class RecalUtils {
         executor.exec();
     }
 
-    private static void outputRecalibrationPlot(final RecalibrationArgumentCollection RAC) {
+    private static void outputRecalibrationPlot(final File csvFile, final RecalibrationArgumentCollection RAC) {
 
         final RScriptExecutor executor = new RScriptExecutor();
         executor.addScript(new Resource(SCRIPT_FILE, RecalUtils.class));
-        executor.addArgs(RAC.RECAL_CSV_FILE.getAbsolutePath());
+        executor.addArgs(csvFile.getAbsolutePath());
         executor.addArgs(RAC.RECAL_TABLE_FILE.getAbsolutePath());
-        executor.addArgs(RAC.RECAL_PDF_FILE.getAbsolutePath());
         executor.exec();
     }
 
+    /**
+     * Please use {@link #generateCsv(java.io.File, java.util.Map)} and {@link #generatePlots(java.io.File, java.io.File, java.io.File)} instead.
+     *
+     * @deprecated
+     */
+    @Deprecated
     public static void generateRecalibrationPlot(final RecalibrationArgumentCollection RAC, final RecalibrationTables original, final Covariate[] requestedCovariates) {
         generateRecalibrationPlot(RAC, original, null, requestedCovariates);
     }
 
+    /**
+     * Please use {@link #generateCsv(java.io.File, java.util.Map)} and {@link #generatePlots(java.io.File, java.io.File, java.io.File)} instead.
+     *
+     * @deprecated
+     */
+    @Deprecated
     public static void generateRecalibrationPlot(final RecalibrationArgumentCollection RAC, final RecalibrationTables original, final RecalibrationTables recalibrated, final Covariate[] requestedCovariates) {
-        final PrintStream csvFile;
+        final PrintStream csvStream;
+        final File csvTempFile = null;
         try {
-            if ( RAC.RECAL_CSV_FILE == null ) {
-                RAC.RECAL_CSV_FILE = File.createTempFile("BQSR", ".csv");
-                RAC.RECAL_CSV_FILE.deleteOnExit();
-            }
-            csvFile = new PrintStream(RAC.RECAL_CSV_FILE);
+            File csvTmpFile = File.createTempFile("BQSR",".csv");
+            csvTmpFile.deleteOnExit();
+            csvStream = new PrintStream(csvTmpFile);
         } catch (IOException e) {
-            throw new UserException.CouldNotCreateOutputFile(RAC.RECAL_CSV_FILE, e);
+            throw new UserException("Could not create temporary csv file", e);
         }
 
         if ( recalibrated != null )
-            writeCSV(csvFile, recalibrated, "RECALIBRATED", requestedCovariates, true);
-        writeCSV(csvFile, original, "ORIGINAL", requestedCovariates, recalibrated == null);
-        outputRecalibrationPlot(RAC);
+            writeCSV(csvStream, recalibrated, "RECALIBRATED", requestedCovariates, true);
+        writeCSV(csvStream, original, "ORIGINAL", requestedCovariates, recalibrated == null);
+        csvStream.close();
+        outputRecalibrationPlot(csvTempFile, RAC);
+        csvTempFile.delete();
     }
 
     private static void writeCSV(final PrintStream deltaTableFile, final RecalibrationTables recalibrationTables, final String recalibrationMode, final Covariate[] requestedCovariates, final boolean printHeader) {

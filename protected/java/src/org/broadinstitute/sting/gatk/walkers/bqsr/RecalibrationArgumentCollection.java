@@ -90,21 +90,6 @@ public class RecalibrationArgumentCollection implements Cloneable {
     public PrintStream RECAL_TABLE;
 
     /**
-     * If not provided, then no plots will be generated (useful for queue scatter/gathering).
-     * However, we *highly* recommend that users generate these plots whenever possible for QC checking.
-     */
-    @Output(fullName = "plot_pdf_file", shortName = "plots", doc = "The output recalibration pdf file to create", required = false, defaultToStdout = false)
-    public File RECAL_PDF_FILE = null;
-
-    /**
-     * If not provided, then a temporary file is created and then deleted upon completion.
-     * For advanced users only.
-     */
-    @Advanced
-    @Argument(fullName = "intermediate_csv_file", shortName = "intermediate", doc = "The intermediate csv file to create", required = false)
-    public File RECAL_CSV_FILE = null;
-
-    /**
      * Note that the --list argument requires a fully resolved and correct command-line to work.
      */
     @Argument(fullName = "list", shortName = "ls", doc = "List the available covariates and exit", required = false)
@@ -284,8 +269,6 @@ public class RecalibrationArgumentCollection implements Cloneable {
         argumentsTable.set("quantizing_levels", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, QUANTIZING_LEVELS);
         argumentsTable.addRowID("recalibration_report", true);
         argumentsTable.set("recalibration_report", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, existingRecalibrationReport == null ? "null" : existingRecalibrationReport.getAbsolutePath());
-        argumentsTable.addRowID("plot_pdf_file", true);
-        argumentsTable.set("plot_pdf_file", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, RECAL_PDF_FILE == null ? "null" : RECAL_PDF_FILE.getAbsolutePath());
         argumentsTable.addRowID("binary_tag_name", true);
         argumentsTable.set("binary_tag_name", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, BINARY_TAG_NAME == null ? "null" : BINARY_TAG_NAME);
         return argumentsTable;

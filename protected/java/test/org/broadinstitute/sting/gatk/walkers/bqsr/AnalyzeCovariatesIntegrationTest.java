@@ -77,18 +77,18 @@ public class AnalyzeCovariatesIntegrationTest extends WalkerTest {
     /**
      * File containing the before report for normal testing.
      */
-    private static final File BEFORE_FILE = new File(TEST_DATA_DIR,"before.grp");
+    private static final File BEFORE_FILE = new File(TEST_DATA_DIR,"before.table");
 
     /**
      * File containing the after report for normal testing.
      */
-    private static final File AFTER_FILE = new File(TEST_DATA_DIR,"after.grp");
+    private static final File AFTER_FILE = new File(TEST_DATA_DIR,"after.table");
 
 
     /**
      * File containing the bqsr report for normal testing.
      */
-    private static final File BQSR_FILE = new File(TEST_DATA_DIR,"bqsr.grp");
+    private static final File BQSR_FILE = new File(TEST_DATA_DIR,"bqsr.table");
 
     /**
      * Test the content of the generated csv file.
@@ -150,7 +150,7 @@ public class AnalyzeCovariatesIntegrationTest extends WalkerTest {
         final File afterFile = new File(TEST_DATA_DIR,afterFileName);
         final WalkerTestSpec spec = new WalkerTestSpec(
                 buildCommandLine(null,"%s",true,true,afterFile),
-                1,UserException.class);
+                1,UserException.IncompatibleRecalibrationTableParameters.class);
         executeTest("testParameterChangeException - " + description, spec);
     }
 
@@ -237,10 +237,10 @@ public class AnalyzeCovariatesIntegrationTest extends WalkerTest {
      * Triplets &lt; alfter-grp-file, whether it should fail, what is different &gt;
      */
     private final Object[][] DIFFERENT_PARAMETERS_AFTER_FILES = {
-            {"after-cov.grp", true, "Adds additional covaraite: repeat-length"},
-            {"after-dpSOLID.grp", true, "Change the default platform to SOLID"},
-            {"after-noDp.grp",true, "Unset the default platform"},
-            {"after-mcs4grp", true, "Changed -mcs parameter from 2 to 4"}
+            {"after-cov.table", true, "Adds additional covariate: repeat-length" },
+            {"after-dpSOLID.table", true, "Change the default platform to SOLID" },
+            {"after-noDp.table",true, "Unset the default platform" },
+            {"after-mcs4.table", true, "Changed -mcs parameter from 2 to 4" }
     };
 
     /**

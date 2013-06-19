@@ -180,11 +180,6 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
     public void initialize() {
         baq = new BAQ(BAQGOP); // setup the BAQ object with the provided gap open penalty
 
-        if (RAC.RECAL_PDF_FILE != null) {
-            Utils.warnUser("This is not the recommended way to generate recalibration plots any longer and will be"
-                    + " discontinued soon in future releases. Please use the 'AnalyzeCovariates' tool instead from now one");
-        }
-
         if (RAC.FORCE_PLATFORM != null)
             RAC.DEFAULT_PLATFORM = RAC.FORCE_PLATFORM;
 
@@ -522,26 +517,11 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
         generateReport();
         logger.info("...done!");
 
-        if ( RAC.RECAL_PDF_FILE != null ) {
-            logger.info("Generating recalibration plots...");
-            generatePlots();
-        }
-
         logger.info("BaseRecalibrator was able to recalibrate " + result + " reads");
     }
 
     private RecalibrationTables getRecalibrationTable() {
         return recalibrationEngine.getFinalRecalibrationTables();
-    }
-
-    private void generatePlots() {
-        File recalFile = getToolkit().getArguments().BQSR_RECAL_FILE;
-        if (recalFile != null) {
-            RecalibrationReport report = new RecalibrationReport(recalFile);
-            RecalUtils.generateRecalibrationPlot(RAC, report.getRecalibrationTables(), getRecalibrationTable(), requestedCovariates);
-        }
-        else
-            RecalUtils.generateRecalibrationPlot(RAC, getRecalibrationTable(), requestedCovariates);
     }
 
     /**

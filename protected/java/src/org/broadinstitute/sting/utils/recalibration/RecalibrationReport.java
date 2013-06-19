@@ -340,9 +340,6 @@ public class RecalibrationReport {
             else if (argument.equals("recalibration_report"))
                 RAC.existingRecalibrationReport = (value == null) ? null : new File((String) value);
 
-            else if (argument.equals("plot_pdf_file"))
-                RAC.RECAL_PDF_FILE = (value == null) ? null : new File((String) value);
-
             else if (argument.equals("binary_tag_name"))
                 RAC.BINARY_TAG_NAME = (value == null) ? null : (String) value;
 
