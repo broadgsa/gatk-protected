@@ -61,6 +61,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.BaseUtils;
+import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.collections.Pair;
@@ -124,7 +125,7 @@ import java.util.List;
  *   -R resources/Homo_sapiens_assembly18.fasta \
  *   -knownSites bundle/hg18/dbsnp_132.hg18.vcf \
  *   -knownSites another/optional/setOfSitesToMask.vcf \
- *   -o recal_data.grp
+ *   -o recal_data.table
  * </pre>
  */
 
@@ -516,26 +517,11 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
         generateReport();
         logger.info("...done!");
 
-        if ( RAC.RECAL_PDF_FILE != null ) {
-            logger.info("Generating recalibration plots...");
-            generatePlots();
-        }
-
         logger.info("BaseRecalibrator was able to recalibrate " + result + " reads");
     }
 
     private RecalibrationTables getRecalibrationTable() {
         return recalibrationEngine.getFinalRecalibrationTables();
-    }
-
-    private void generatePlots() {
-        File recalFile = getToolkit().getArguments().BQSR_RECAL_FILE;
-        if (recalFile != null) {
-            RecalibrationReport report = new RecalibrationReport(recalFile);
-            RecalUtils.generateRecalibrationPlot(RAC, report.getRecalibrationTables(), getRecalibrationTable(), requestedCovariates);
-        }
-        else
-            RecalUtils.generateRecalibrationPlot(RAC, getRecalibrationTable(), requestedCovariates);
     }
 
     /**
