@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
 import org.apache.log4j.Logger;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResult;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.LocalAssemblyEngine;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.MathUtils;
@@ -99,31 +100,27 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     }
 
     @Override
-    public List<SeqGraph> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes) {
-        final List<SeqGraph> graphs = new LinkedList<>();
+    public List<AssemblyResult> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes) {
+        final List<AssemblyResult> results = new LinkedList<>();
 
         // first, try using the requested kmer sizes
         for ( final int kmerSize : kmerSizes ) {
-            final SeqGraph graph = createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, dontIncreaseKmerSizesForCycles);
-            if ( graph != null )
-                graphs.add(graph);
+            results.add(createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, dontIncreaseKmerSizesForCycles));
         }
 
         // if none of those worked, iterate over larger sizes if allowed to do so
-        if ( graphs.isEmpty() && !dontIncreaseKmerSizesForCycles ) {
+        if ( results.isEmpty() && !dontIncreaseKmerSizesForCycles ) {
             int kmerSize = MathUtils.arrayMaxInt(kmerSizes) + KMER_SIZE_ITERATION_INCREASE;
             int numIterations = 1;
-            while ( graphs.isEmpty() && numIterations <= MAX_KMER_ITERATIONS_TO_ATTEMPT ) {
+            while ( results.isEmpty() && numIterations <= MAX_KMER_ITERATIONS_TO_ATTEMPT ) {
                 // on the last attempt we will allow low complexity graphs
-                final SeqGraph graph = createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT);
-                if ( graph != null )
-                    graphs.add(graph);
+                results.add(createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT));
                 kmerSize += KMER_SIZE_ITERATION_INCREASE;
                 numIterations++;
             }
         }
 
-        return graphs;
+        return results;
     }
 
     /**
@@ -136,11 +133,16 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
      * @param allowLowComplexityGraphs if true, do not check for low-complexity graphs
      * @return sequence graph or null if one could not be created (e.g. because it contains cycles or too many paths or is low complexity)
      */
-    protected SeqGraph createGraph(final List<GATKSAMRecord> reads,
-                                   final Haplotype refHaplotype,
-                                   final int kmerSize,
-                                   final List<Haplotype> activeAlleleHaplotypes,
-                                   final boolean allowLowComplexityGraphs) {
+    protected AssemblyResult createGraph(final List<GATKSAMRecord> reads,
+                                         final Haplotype refHaplotype,
+                                         final int kmerSize,
+                                         final List<Haplotype> activeAlleleHaplotypes,
+                                         final boolean allowLowComplexityGraphs) {
+        if ( refHaplotype.length() < kmerSize ) {
+            // happens in cases where the assembled region is just too small
+            return new AssemblyResult(AssemblyResult.Status.FAILED, null);
+        }
+
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly, numPruningSamples);
 
         // add the reference sequence to the graph
@@ -193,14 +195,15 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         final SeqGraph initialSeqGraph = rtgraph.convertToSequenceGraph();
 
         // if the unit tests don't want us to cleanup the graph, just return the raw sequence graph
-        if ( justReturnRawGraph ) return initialSeqGraph;
+        if ( justReturnRawGraph ) return new AssemblyResult(AssemblyResult.Status.ASSEMBLED_SOME_VARIATION, initialSeqGraph);
 
         if ( debug ) logger.info("Using kmer size of " + rtgraph.getKmerSize() + " in read threading assembler");
         printDebugGraphTransform(initialSeqGraph, new File("sequenceGraph.0.2.initial_seqgraph.dot"));
         initialSeqGraph.cleanNonRefPaths(); // TODO -- I don't this is possible by construction
 
-        final SeqGraph seqGraph = cleanupSeqGraph(initialSeqGraph);
-        return ( seqGraph != null && requireReasonableNumberOfPaths && !reasonableNumberOfPaths(seqGraph) ) ? null : seqGraph;
+        final AssemblyResult cleaned = cleanupSeqGraph(initialSeqGraph);
+        final AssemblyResult.Status status = cleaned.getStatus() == AssemblyResult.Status.ASSEMBLED_SOME_VARIATION && requireReasonableNumberOfPaths && !reasonableNumberOfPaths(cleaned.getGraph()) ? AssemblyResult.Status.FAILED : cleaned.getStatus();
+        return new AssemblyResult(status, cleaned.getGraph());
     }
 
     /**

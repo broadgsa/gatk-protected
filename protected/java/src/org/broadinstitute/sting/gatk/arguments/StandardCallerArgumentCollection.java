@@ -85,9 +85,6 @@ public class StandardCallerArgumentCollection {
     @Argument(fullName = "genotyping_mode", shortName = "gt_mode", doc = "Specifies how to determine the alternate alleles to use for genotyping", required = false)
     public GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY;
 
-    @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Specifies which type of calls we should output", required = false)
-    public UnifiedGenotyperEngine.OUTPUT_MODE OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
-
     /**
      * The minimum phred-scaled Qscore threshold to separate high confidence from low confidence calls. Only genotypes with
      * confidence >= this threshold are emitted as called sites. A reasonable threshold is 30 for high-pass calling (this
@@ -199,7 +196,6 @@ public class StandardCallerArgumentCollection {
         this.heterozygosity = SCAC.heterozygosity;
         this.INDEL_HETEROZYGOSITY = SCAC.INDEL_HETEROZYGOSITY;
         this.MAX_ALTERNATE_ALLELES = SCAC.MAX_ALTERNATE_ALLELES;
-        this.OutputMode = SCAC.OutputMode;
         this.STANDARD_CONFIDENCE_FOR_CALLING = SCAC.STANDARD_CONFIDENCE_FOR_CALLING;
         this.STANDARD_CONFIDENCE_FOR_EMITTING = SCAC.STANDARD_CONFIDENCE_FOR_EMITTING;
         this.CONTAMINATION_FRACTION = SCAC.CONTAMINATION_FRACTION;

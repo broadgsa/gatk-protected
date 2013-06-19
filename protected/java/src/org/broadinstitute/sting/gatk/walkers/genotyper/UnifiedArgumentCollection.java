@@ -214,6 +214,9 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
     @Argument(shortName="ef", fullName="exclude_filtered_reference_sites", doc="Don't include in the analysis sites where the reference sample VCF is filtered. Default: false.", required=false)
     boolean EXCLUDE_FILTERED_REFERENCE_SITES = false;
 
+    @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Specifies which type of calls we should output", required = false)
+    public UnifiedGenotyperEngine.OUTPUT_MODE OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
+
     /**
      * Create a new UAC with defaults for all UAC arguments
      */
@@ -262,6 +265,8 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
         this.EXCLUDE_FILTERED_REFERENCE_SITES = uac.EXCLUDE_FILTERED_REFERENCE_SITES;
         this.IGNORE_LANE_INFO = uac.IGNORE_LANE_INFO;
         this.pairHMM = uac.pairHMM;
+        this.OutputMode = uac.OutputMode;
+
         this.annotateAllSitesWithPLs = uac.annotateAllSitesWithPLs;
         // todo- arguments to remove
         this.IGNORE_SNP_ALLELES = uac.IGNORE_SNP_ALLELES;

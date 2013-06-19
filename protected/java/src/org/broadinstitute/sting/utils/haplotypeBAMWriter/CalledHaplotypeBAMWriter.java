@@ -68,17 +68,17 @@ import java.util.*;
  * Time: 1:50 PM
  */
 class CalledHaplotypeBAMWriter extends HaplotypeBAMWriter {
-    public CalledHaplotypeBAMWriter(final SAMFileWriter bamWriter) {
-        super(bamWriter);
+    public CalledHaplotypeBAMWriter(final ReadDestination destination) {
+        super(destination);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void writeReadsAlignedToHaplotypes(final List<Haplotype> haplotypes,
+    public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
                                               final GenomeLoc paddedReferenceLoc,
-                                              final List<Haplotype> bestHaplotypes,
+                                              final Collection<Haplotype> bestHaplotypes,
                                               final Set<Haplotype> calledHaplotypes,
                                               final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
         if ( calledHaplotypes.isEmpty() ) // only write out called haplotypes
