@@ -46,38 +46,34 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
 
-import java.util.*;
-
+import java.util.Arrays;
+import java.util.List;
 
 /**
- * U-based z-approximation from the Mann-Whitney Rank Sum Test for base qualities
- *
- * <p>This tool calculates the u-based z-approximation from the Mann-Whitney Rank Sum Test for base qualities(ref bases vs. bases of the alternate allele).</p>
- *
- * <h3>Caveat</h3>
- * <p>The base quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
+ * U-based z-approximation from the Mann-Whitney Rank Sum Test contrasting the likelihoods of reads to their
+ * most likely haplotypes.  This is effectively testing for a differentiate quality in the modeling of the alt
+ * allele than the reference allele.
  */
-public class BaseQualityRankSumTest extends RankSumTest implements StandardAnnotation {
+public class LikelihoodRankSumTest extends RankSumTest {
     @Override
-    public List<String> getKeyNames() { return Arrays.asList("BaseQRankSum"); }
+    public List<String> getKeyNames() { return Arrays.asList("LikelihoodRankSum"); }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("BaseQRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("LikelihoodRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt Vs. Ref haplotype likelihoods")); }
 
     @Override
-    protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
-        return (double)read.getBaseQualities()[ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, refLoc, ReadUtils.ClippingTail.RIGHT_TAIL)];
+    protected Double getElementForRead(final GATKSAMRecord read, final int refLoc, final MostLikelyAllele mostLikelyAllele) {
+        if ( ! mostLikelyAllele.isInformative() ) throw new IllegalStateException("Should never have seen non-informative read " + read + " MostLikelyAllele " + mostLikelyAllele);
+        return mostLikelyAllele.getLog10LikelihoodOfMostLikely();
     }
 
     @Override
-    protected Double getElementForPileupElement(final PileupElement p) {
-        return (double)p.getQual();
+    protected Double getElementForRead(GATKSAMRecord read, int refLoc) {
+        throw new IllegalStateException("This method should never have been called as getElementForRead(read,refloc,mostLikelyAllele) was overloaded");
     }
 }

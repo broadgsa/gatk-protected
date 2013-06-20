@@ -71,14 +71,15 @@ import java.util.*;
  */
 public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotation {
 
-    public List<String> getKeyNames() {
-        return Arrays.asList("ReadPosRankSum");
-    }
+    @Override
+    public List<String> getKeyNames() { return Arrays.asList("ReadPosRankSum"); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
         return Arrays.asList(new VCFInfoHeaderLine("ReadPosRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias"));
     }
 
+    @Override
     protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
         final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate( read.getSoftStart(), read.getCigar(), refLoc, ReadUtils.ClippingTail.RIGHT_TAIL, true );
         if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED )
@@ -91,6 +92,7 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         return (double)readPos;
     }
 
+    @Override
     protected Double getElementForPileupElement(final PileupElement p) {
         final int offset = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, 0, 0);
         return (double)getFinalReadPosition(p.getRead(), offset);

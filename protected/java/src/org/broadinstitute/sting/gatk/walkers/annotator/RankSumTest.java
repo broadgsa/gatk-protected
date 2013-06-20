@@ -176,7 +176,7 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
 
             final GATKSAMRecord read = el.getKey();
             if ( isUsableRead(read, refLoc) ) {
-                final Double value = getElementForRead(read, refLoc);
+                final Double value = getElementForRead(read, refLoc, a);
                 if ( value == null )
                     continue;
 
@@ -193,6 +193,18 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
      *
      * @param read     the read
      * @param refLoc   the reference position
+     * @param mostLikelyAllele the most likely allele for this read
+     * @return a Double representing the element to be used in the rank sum test, or null if it should not be used
+     */
+    protected Double getElementForRead(final GATKSAMRecord read, final int refLoc, final MostLikelyAllele mostLikelyAllele) {
+        return getElementForRead(read, refLoc);
+    }
+
+    /**
+     * Get the element for the given read at the given reference position
+     *
+     * @param read     the read
+     * @param refLoc   the reference position
      * @return a Double representing the element to be used in the rank sum test, or null if it should not be used
      */
     protected abstract Double getElementForRead(final GATKSAMRecord read, final int refLoc);
@@ -202,10 +214,15 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
     /**
      * Get the element for the given read at the given reference position
      *
+     * By default this function returns null, indicating that the test doesn't support the old style of pileup calculations
+     *
      * @param p        the pileup element
      * @return a Double representing the element to be used in the rank sum test, or null if it should not be used
      */
-    protected abstract Double getElementForPileupElement(final PileupElement p);
+    protected Double getElementForPileupElement(final PileupElement p) {
+        // does not work in pileup mode
+        return null;
+    }
 
     /**
      * Can the base in this pileup element be used in comparative tests between ref / alt bases?

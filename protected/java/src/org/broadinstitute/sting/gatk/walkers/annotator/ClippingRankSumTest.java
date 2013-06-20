@@ -66,17 +66,14 @@ import java.util.*;
  * @since 6/28/12
  */
 public class ClippingRankSumTest extends RankSumTest {
-
+    @Override
     public List<String> getKeyNames() { return Arrays.asList("ClippingRankSum"); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("ClippingRankSum", 1, VCFHeaderLineType.Float, "Z-score From Wilcoxon rank sum test of Alt vs. Ref number of hard clipped bases")); }
 
+    @Override
     protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
         return (double)AlignmentUtils.getNumHardClippedBases(read);
-    }
-
-    protected Double getElementForPileupElement(final PileupElement p) {
-        // TODO - we only support the non-pileup case for now, e.g. an active-region based version
-        return null;
     }
  }
