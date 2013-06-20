@@ -46,28 +46,345 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
+import com.google.java.contract.Ensures;
+import com.google.java.contract.Requires;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.log4j.Logger;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
+import org.broadinstitute.sting.utils.sam.AlignmentUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
+import org.broadinstitute.sting.utils.smithwaterman.SWParameterSet;
+import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
+import java.io.File;
 import java.io.PrintStream;
-import java.util.List;
+import java.util.*;
 
 /**
- * Created by IntelliJ IDEA.
+ * Abstract base class for all HaplotypeCaller assemblers
+ *
  * User: ebanks
  * Date: Mar 14, 2011
  */
 public abstract class LocalAssemblyEngine {
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 8;
+    private final static Logger logger = Logger.getLogger(LocalAssemblyEngine.class);
 
-    protected PrintStream graphWriter = null;
+    /**
+     * If false, we will only write out a region around the reference source
+     */
+    private final static boolean PRINT_FULL_GRAPH_FOR_DEBUGGING = true;
+    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 8;
+    private static final int MIN_HAPLOTYPE_REFERENCE_LENGTH = 30;
+
+    protected final int numBestHaplotypesPerGraph;
+
+    protected boolean debug = false;
+    protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
+    protected boolean debugGraphTransformations = false;
+    protected boolean recoverDanglingTails = true;
+
     protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
     protected int pruneFactor = 2;
     protected boolean errorCorrectKmers = false;
 
-    protected LocalAssemblyEngine() { }
+    private PrintStream graphWriter = null;
+
+    /**
+     * Create a new LocalAssemblyEngine with all default parameters, ready for use
+     * @param numBestHaplotypesPerGraph the number of haplotypes to generate for each assembled graph
+     */
+    protected LocalAssemblyEngine(final int numBestHaplotypesPerGraph) {
+        if ( numBestHaplotypesPerGraph < 1 ) throw new IllegalArgumentException("numBestHaplotypesPerGraph should be >= 1 but got " + numBestHaplotypesPerGraph);
+        this.numBestHaplotypesPerGraph = numBestHaplotypesPerGraph;
+    }
+
+    /**
+     * Main subclass function: given reads and a reference haplotype give us graphs to use for constructing
+     * non-reference haplotypes.
+     *
+     * @param reads the reads we're going to assemble
+     * @param refHaplotype the reference haplotype
+     * @return a non-null list of reads
+     */
+    protected abstract List<SeqGraph> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype, List<Haplotype> activeAlleleHaplotypes);
+
+    protected List<SeqGraph> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype) {
+        return assemble(reads, refHaplotype, Collections.<Haplotype>emptyList());
+    }
+
+    /**
+     * Main entry point into the assembly engine. Build a set of deBruijn graphs out of the provided reference sequence and list of reads
+     * @param activeRegion              ActiveRegion object holding the reads which are to be used during assembly
+     * @param refHaplotype              reference haplotype object
+     * @param fullReferenceWithPadding  byte array holding the reference sequence with padding
+     * @param refLoc                    GenomeLoc object corresponding to the reference sequence with padding
+     * @param activeAllelesToGenotype   the alleles to inject into the haplotypes during GGA mode
+     * @param readErrorCorrector        a ReadErrorCorrector object, if read are to be corrected before assembly. Can be null if no error corrector is to be used.
+     * @return                          a non-empty list of all the haplotypes that are produced during assembly
+     */
+    public List<Haplotype> runLocalAssembly(final ActiveRegion activeRegion,
+                                            final Haplotype refHaplotype,
+                                            final byte[] fullReferenceWithPadding,
+                                            final GenomeLoc refLoc,
+                                            final List<VariantContext> activeAllelesToGenotype,
+                                            final ReadErrorCorrector readErrorCorrector) {
+        if( activeRegion == null ) { throw new IllegalArgumentException("Assembly engine cannot be used with a null ActiveRegion."); }
+        if( refHaplotype == null ) { throw new IllegalArgumentException("Reference haplotype cannot be null."); }
+        if( fullReferenceWithPadding.length != refLoc.size() ) { throw new IllegalArgumentException("Reference bases and reference loc must be the same size."); }
+        if( pruneFactor < 0 ) { throw new IllegalArgumentException("Pruning factor cannot be negative"); }
+
+        // create the list of artificial haplotypes that should be added to the graph for GGA mode
+        final List<Haplotype> activeAlleleHaplotypes = createActiveAlleleHaplotypes(refHaplotype, activeAllelesToGenotype, activeRegion.getExtendedLoc());
+
+
+        // error-correct reads before clipping low-quality tails: some low quality bases might be good and we want to recover them
+        final List<GATKSAMRecord> correctedReads;
+        if (readErrorCorrector != null) {
+            // now correct all reads in active region after filtering/downsampling
+            // Note that original reads in active region are NOT modified by default, since they will be used later for GL computation,
+            // and we only want the read-error corrected reads for graph building.
+            readErrorCorrector.addReadsToKmers(activeRegion.getReads());
+            correctedReads = new ArrayList<>(readErrorCorrector.correctReads(activeRegion.getReads()));
+        }
+        else correctedReads = activeRegion.getReads();
+
+        // create the graphs by calling our subclass assemble method
+        final List<SeqGraph> graphs = assemble(correctedReads, refHaplotype, activeAlleleHaplotypes);
+
+        // do some QC on the graphs
+        for ( final SeqGraph graph : graphs ) { sanityCheckGraph(graph, refHaplotype); }
+
+        // print the graphs if the appropriate debug option has been turned on
+        if ( graphWriter != null ) { printGraphs(graphs); }
+
+        // find the best paths in the graphs and return them as haplotypes
+        return findBestPaths( graphs, refHaplotype, refLoc, activeRegion.getExtendedLoc() );
+    }
+
+    /**
+     * Create the list of artificial GGA-mode haplotypes by injecting each of the provided alternate alleles into the reference haplotype
+     * @param refHaplotype the reference haplotype
+     * @param activeAllelesToGenotype the list of alternate alleles in VariantContexts
+     * @param activeRegionWindow the window containing the reference haplotype
+     * @return a non-null list of haplotypes
+     */
+    private List<Haplotype> createActiveAlleleHaplotypes(final Haplotype refHaplotype, final List<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow) {
+        final Set<Haplotype> returnHaplotypes = new LinkedHashSet<>();
+        final int activeRegionStart = refHaplotype.getAlignmentStartHapwrtRef();
+
+        for( final VariantContext compVC : activeAllelesToGenotype ) {
+            for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
+                final Haplotype insertedRefHaplotype = refHaplotype.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart());
+                if( insertedRefHaplotype != null ) { // can be null if the requested allele can't be inserted into the haplotype
+                    returnHaplotypes.add(insertedRefHaplotype);
+                }
+            }
+        }
+
+        return new ArrayList<>(returnHaplotypes);
+    }
+
+    @Ensures({"result.contains(refHaplotype)"})
+    protected List<Haplotype> findBestPaths(final List<SeqGraph> graphs, final Haplotype refHaplotype, final GenomeLoc refLoc, final GenomeLoc activeRegionWindow) {
+        // add the reference haplotype separately from all the others to ensure that it is present in the list of haplotypes
+        final Set<Haplotype> returnHaplotypes = new LinkedHashSet<>();
+        returnHaplotypes.add( refHaplotype );
+
+        final int activeRegionStart = refHaplotype.getAlignmentStartHapwrtRef();
+
+        for( final SeqGraph graph : graphs ) {
+            final SeqVertex source = graph.getReferenceSourceVertex();
+            final SeqVertex sink = graph.getReferenceSinkVertex();
+            if ( source == null || sink == null ) throw new IllegalArgumentException("Both source and sink cannot be null but got " + source + " and sink " + sink + " for graph "+ graph);
+
+            final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<>(allowCyclesInKmerGraphToGeneratePaths);
+            for ( final Path<SeqVertex,BaseEdge> path : pathFinder.getKBestPaths(graph, numBestHaplotypesPerGraph, source, sink) ) {
+                Haplotype h = new Haplotype( path.getBases() );
+                if( !returnHaplotypes.contains(h) ) {
+                    final Cigar cigar = path.calculateCigar(refHaplotype.getBases());
+
+                    if ( cigar == null ) {
+                        // couldn't produce a meaningful alignment of haplotype to reference, fail quietly
+                        continue;
+                    } else if( cigar.isEmpty() ) {
+                        throw new IllegalStateException("Smith-Waterman alignment failure. Cigar = " + cigar + " with reference length " + cigar.getReferenceLength() +
+                                " but expecting reference length of " + refHaplotype.getCigar().getReferenceLength());
+                    } else if ( pathIsTooDivergentFromReference(cigar) || cigar.getReferenceLength() < MIN_HAPLOTYPE_REFERENCE_LENGTH ) {
+                        // N cigar elements means that a bubble was too divergent from the reference so skip over this path
+                        continue;
+                    } else if( cigar.getReferenceLength() != refHaplotype.getCigar().getReferenceLength() ) { // SW failure
+                        throw new IllegalStateException("Smith-Waterman alignment failure. Cigar = " + cigar + " with reference length "
+                                + cigar.getReferenceLength() + " but expecting reference length of " + refHaplotype.getCigar().getReferenceLength()
+                                + " ref = " + refHaplotype + " path " + new String(path.getBases()));
+                    }
+
+                    h.setCigar(cigar);
+                    h.setAlignmentStartHapwrtRef(activeRegionStart);
+                    h.setScore(path.getScore());
+                    returnHaplotypes.add(h);
+
+                    if ( debug )
+                        logger.info("Adding haplotype " + h.getCigar() + " from graph with kmer " + graph.getKmerSize());
+                }
+            }
+        }
+
+        // add genome locs to the haplotypes
+        for ( final Haplotype h : returnHaplotypes ) h.setGenomeLocation(activeRegionWindow);
+
+        if ( returnHaplotypes.size() < returnHaplotypes.size() )
+            logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);
+
+        if( debug ) {
+            if( returnHaplotypes.size() > 1 ) {
+                logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against.");
+            } else {
+                logger.info("Found only the reference haplotype in the assembly graph.");
+            }
+            for( final Haplotype h : returnHaplotypes ) {
+                logger.info( h.toString() );
+                logger.info( "> Cigar = " + h.getCigar() + " : " + h.getCigar().getReferenceLength() + " score " + h.getScore() + " ref " + h.isReference());
+            }
+        }
+
+        return new ArrayList<>(returnHaplotypes);
+    }
+
+    /**
+     * We use CigarOperator.N as the signal that an incomplete or too divergent bubble was found during bubble traversal
+     * @param c the cigar to test
+     * @return  true if we should skip over this path
+     */
+    @Requires("c != null")
+    private boolean pathIsTooDivergentFromReference( final Cigar c ) {
+        for( final CigarElement ce : c.getCigarElements() ) {
+            if( ce.getOperator().equals(CigarOperator.N) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Print graph to file if debugGraphTransformations is enabled
+     * @param graph the graph to print
+     * @param file the destination file
+     */
+    protected void printDebugGraphTransform(final BaseGraph graph, final File file) {
+        if ( debugGraphTransformations ) {
+            if ( PRINT_FULL_GRAPH_FOR_DEBUGGING )
+                graph.printGraph(file, pruneFactor);
+            else
+                graph.subsetToRefSource().printGraph(file, pruneFactor);
+        }
+    }
+
+    protected SeqGraph cleanupSeqGraph(final SeqGraph seqGraph) {
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.1.dot"));
+
+        // the very first thing we need to do is zip up the graph, or pruneGraph will be too aggressive
+        seqGraph.zipLinearChains();
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.2.zipped.dot"));
+
+        // now go through and prune the graph, removing vertices no longer connected to the reference chain
+        // IMPORTANT: pruning must occur before we call simplifyGraph, as simplifyGraph adds 0 weight
+        // edges to maintain graph connectivity.
+        seqGraph.pruneGraph(pruneFactor);
+        seqGraph.removeVerticesNotConnectedToRefRegardlessOfEdgeDirection();
+
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.3.pruned.dot"));
+        seqGraph.simplifyGraph();
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.4.merged.dot"));
+
+        // The graph has degenerated in some way, so the reference source and/or sink cannot be id'd.  Can
+        // happen in cases where for example the reference somehow manages to acquire a cycle, or
+        // where the entire assembly collapses back into the reference sequence.
+        if ( seqGraph.getReferenceSourceVertex() == null || seqGraph.getReferenceSinkVertex() == null )
+            return null;
+
+        seqGraph.removePathsNotConnectedToRef();
+        seqGraph.simplifyGraph();
+        if ( seqGraph.vertexSet().size() == 1 ) {
+            // we've perfectly assembled into a single reference haplotype, add a empty seq vertex to stop
+            // the code from blowing up.
+            // TODO -- ref properties should really be on the vertices, not the graph itself
+            final SeqVertex complete = seqGraph.vertexSet().iterator().next();
+            final SeqVertex dummy = new SeqVertex("");
+            seqGraph.addVertex(dummy);
+            seqGraph.addEdge(complete, dummy, new BaseEdge(true, 0));
+        }
+        printDebugGraphTransform(seqGraph, new File("sequenceGraph.5.final.dot"));
+
+        return seqGraph;
+    }
+
+    /**
+     * Perform general QC on the graph to make sure something hasn't gone wrong during assembly
+     * @param graph the graph to check
+     * @param refHaplotype the reference haplotype
+     */
+    private <T extends BaseVertex, E extends BaseEdge> void sanityCheckGraph(final BaseGraph<T,E> graph, final Haplotype refHaplotype) {
+        sanityCheckReferenceGraph(graph, refHaplotype);
+    }
+
+    /**
+     * Make sure the reference sequence is properly represented in the provided graph
+     *
+     * @param graph the graph to check
+     * @param refHaplotype the reference haplotype
+     */
+    private <T extends BaseVertex, E extends BaseEdge> void sanityCheckReferenceGraph(final BaseGraph<T,E> graph, final Haplotype refHaplotype) {
+        if( graph.getReferenceSourceVertex() == null ) {
+            throw new IllegalStateException("All reference graphs must have a reference source vertex.");
+        }
+        if( graph.getReferenceSinkVertex() == null ) {
+            throw new IllegalStateException("All reference graphs must have a reference sink vertex.");
+        }
+        if( !Arrays.equals(graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true), refHaplotype.getBases()) ) {
+            throw new IllegalStateException("Mismatch between the reference haplotype and the reference assembly graph path. for graph " + graph +
+                    " graph = " + new String(graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true)) +
+                    " haplotype = " + new String(refHaplotype.getBases())
+            );
+        }
+    }
+
+    /**
+     * Print the generated graphs to the graphWriter
+     * @param graphs a non-null list of graphs to print out
+     */
+    private void printGraphs(final List<SeqGraph> graphs) {
+        final int writeFirstGraphWithSizeSmallerThan = 50;
+
+        graphWriter.println("digraph assemblyGraphs {");
+        for( final SeqGraph graph : graphs ) {
+            if ( debugGraphTransformations && graph.getKmerSize() >= writeFirstGraphWithSizeSmallerThan ) {
+                logger.info("Skipping writing of graph with kmersize " + graph.getKmerSize());
+                continue;
+            }
+
+            graph.printGraph(graphWriter, false, pruneFactor);
+
+            if ( debugGraphTransformations )
+                break;
+        }
+
+        graphWriter.println("}");
+    }
+
+    // -----------------------------------------------------------------------------------------------
+    //
+    // getter / setter routines for generic assembler properties
+    //
+    // -----------------------------------------------------------------------------------------------
 
     public int getPruneFactor() {
         return pruneFactor;
@@ -85,10 +402,6 @@ public abstract class LocalAssemblyEngine {
         this.errorCorrectKmers = errorCorrectKmers;
     }
 
-    public PrintStream getGraphWriter() {
-        return graphWriter;
-    }
-
     public void setGraphWriter(PrintStream graphWriter) {
         this.graphWriter = graphWriter;
     }
@@ -101,5 +414,35 @@ public abstract class LocalAssemblyEngine {
         this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
     }
 
-    public abstract List<Haplotype> runLocalAssembly(ActiveRegion activeRegion, Haplotype refHaplotype, byte[] fullReferenceWithPadding, GenomeLoc refLoc, List<VariantContext> activeAllelesToGenotype);
+    public boolean isDebug() {
+        return debug;
+    }
+
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+    }
+
+    public boolean isAllowCyclesInKmerGraphToGeneratePaths() {
+        return allowCyclesInKmerGraphToGeneratePaths;
+    }
+
+    public void setAllowCyclesInKmerGraphToGeneratePaths(boolean allowCyclesInKmerGraphToGeneratePaths) {
+        this.allowCyclesInKmerGraphToGeneratePaths = allowCyclesInKmerGraphToGeneratePaths;
+    }
+
+    public boolean isDebugGraphTransformations() {
+        return debugGraphTransformations;
+    }
+
+    public void setDebugGraphTransformations(boolean debugGraphTransformations) {
+        this.debugGraphTransformations = debugGraphTransformations;
+    }
+
+    public boolean isRecoverDanglingTails() {
+        return recoverDanglingTails;
+    }
+
+    public void setRecoverDanglingTails(boolean recoverDanglingTails) {
+        this.recoverDanglingTails = recoverDanglingTails;
+    }
 }

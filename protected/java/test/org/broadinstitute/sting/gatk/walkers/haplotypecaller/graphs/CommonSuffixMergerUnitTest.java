@@ -137,12 +137,12 @@ public class CommonSuffixMergerUnitTest extends BaseTest {
     public static void assertSameHaplotypes(final String name, final SeqGraph actual, final SeqGraph original) {
         try {
             final Set<String> haplotypes = new HashSet<String>();
-            final List<Path<SeqVertex>> originalPaths = new KBestPaths<SeqVertex>().getKBestPaths(original);
-            for ( final Path<SeqVertex> path : originalPaths )
+            final List<Path<SeqVertex,BaseEdge>> originalPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(original);
+            for ( final Path<SeqVertex,BaseEdge> path : originalPaths )
                 haplotypes.add(new String(path.getBases()));
 
-            final List<Path<SeqVertex>> splitPaths = new KBestPaths<SeqVertex>().getKBestPaths(actual);
-            for ( final Path<SeqVertex> path : splitPaths ) {
+            final List<Path<SeqVertex,BaseEdge>> splitPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(actual);
+            for ( final Path<SeqVertex,BaseEdge> path : splitPaths ) {
                 final String h = new String(path.getBases());
                 Assert.assertTrue(haplotypes.contains(h), "Failed to find haplotype " + h);
             }
@@ -165,5 +165,21 @@ public class CommonSuffixMergerUnitTest extends BaseTest {
         final SharedSequenceMerger splitter = new SharedSequenceMerger();
         splitter.merge(data.graph, data.v);
         assertSameHaplotypes(String.format("suffixMerge.%s.%d", data.commonSuffix, data.graph.vertexSet().size()), data.graph, original);
+    }
+
+    @Test
+    public void testDoesntMergeSourceNodes() {
+        final SeqGraph g = new SeqGraph();
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("A");
+        final SeqVertex v3 = new SeqVertex("A");
+        final SeqVertex top = new SeqVertex("T");
+        final SeqVertex b = new SeqVertex("C");
+        g.addVertices(top, v1, v2, v3, top, b);
+        g.addEdges(top, v1, b);
+        g.addEdges(v2, b); // v2 doesn't have previous node, cannot be merged
+        g.addEdges(top, v3, b);
+        final SharedSequenceMerger merger = new SharedSequenceMerger();
+        Assert.assertFalse(merger.merge(g, b), "Shouldn't be able to merge shared vertices, when one is a source");
     }
 }

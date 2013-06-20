@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -90,5 +91,14 @@ public class LiftoverVariantsIntegrationTest extends WalkerTest {
                 1,
                 Arrays.asList("0909a953291a5e701194668c9b8833ab"));
         executeTest("test liftover filtering of indels", spec);
+    }
+
+    @Test
+    public void testLiftoverFailsWithNoOutput() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LiftoverVariants -R " + hg18Reference + " --variant:vcf " + privateTestDir + "liftover_test.vcf -chain " + validationDataLocation + "hg18ToHg19.broad.over.chain -dict /seq/references/Homo_sapiens_assembly19/v0/Homo_sapiens_assembly19.dict",
+                0,
+                UserException.class);
+        executeTest("test liftover fails with no output", spec);
     }
 }

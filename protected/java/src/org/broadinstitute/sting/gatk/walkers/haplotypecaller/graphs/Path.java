@@ -47,13 +47,12 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
 import org.apache.commons.lang.ArrayUtils;
-import org.broadinstitute.sting.utils.smithwaterman.Parameters;
-import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
+import org.apache.log4j.Logger;
+import org.broadinstitute.sting.utils.smithwaterman.*;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 
 import java.util.*;
@@ -68,40 +67,39 @@ import java.util.*;
  * Time: 2:34 PM
  *
  */
-public class Path<T extends BaseVertex> {
-    private final static int MAX_CIGAR_ELEMENTS_BEFORE_FAILING_SW = 20;
+public class Path<T extends BaseVertex, E extends BaseEdge> {
+    private final static String SW_PAD = "NNNNNNNNNN";
+    private final static Logger logger = Logger.getLogger(Path.class);
 
     // the last vertex seen in the path
     private final T lastVertex;
 
     // the list of edges comprising the path
-    private Set<BaseEdge> edgesAsSet = null;
-    private final LinkedList<BaseEdge> edgesInOrder;
+    private Set<E> edgesAsSet = null;
+    private final LinkedList<E> edgesInOrder;
 
     // the scores for the path
     private final int totalScore;
 
     // the graph from which this path originated
-    private final BaseGraph<T> graph;
+    private final BaseGraph<T, E> graph;
 
     // used in the bubble state machine to apply Smith-Waterman to the bubble sequence
     // these values were chosen via optimization against the NA12878 knowledge base
     public static final Parameters NEW_SW_PARAMETERS = new Parameters(20.0, -15.0, -26.0, -1.1);
 
-    private static final byte[] STARTING_SW_ANCHOR_BYTES = "XXXXXXXXX".getBytes();
-
     /**
      * Create a new Path containing no edges and starting at initialVertex
      * @param initialVertex the starting vertex of the path
-     * @param graph the graph this path with follow through
+     * @param graph the graph this path will follow through
      */
-    public Path(final T initialVertex, final BaseGraph<T> graph) {
+    public Path(final T initialVertex, final BaseGraph<T, E> graph) {
         if ( initialVertex == null ) throw new IllegalArgumentException("initialVertex cannot be null");
         if ( graph == null ) throw new IllegalArgumentException("graph cannot be null");
         if ( ! graph.containsVertex(initialVertex) ) throw new IllegalArgumentException("Vertex " + initialVertex + " must be part of graph " + graph);
 
         lastVertex = initialVertex;
-        edgesInOrder = new LinkedList<BaseEdge>();
+        edgesInOrder = new LinkedList<E>();
         totalScore = 0;
         this.graph = graph;
     }
@@ -109,10 +107,10 @@ public class Path<T extends BaseVertex> {
     /**
      * Convenience constructor for testing that creates a path through vertices in graph
      */
-    protected static <T extends BaseVertex> Path<T> makePath(final List<T> vertices, final BaseGraph<T> graph) {
-        Path<T> path = new Path<T>(vertices.get(0), graph);
+    protected static <T extends BaseVertex, E extends BaseEdge> Path<T,E> makePath(final List<T> vertices, final BaseGraph<T, E> graph) {
+        Path<T,E> path = new Path<T,E>(vertices.get(0), graph);
         for ( int i = 1; i < vertices.size(); i++ )
-            path = new Path<T>(path, graph.getEdge(path.lastVertex, vertices.get(i)));
+            path = new Path<T,E>(path, graph.getEdge(path.lastVertex, vertices.get(i)));
         return path;
     }
 
@@ -122,7 +120,7 @@ public class Path<T extends BaseVertex> {
      * @param p the path to extend
      * @param edge the edge to extend path by
      */
-    public Path(final Path<T> p, final BaseEdge edge) {
+    public Path(final Path<T,E> p, final E edge) {
         if ( p == null ) throw new IllegalArgumentException("Path cannot be null");
         if ( edge == null ) throw new IllegalArgumentException("Edge cannot be null");
         if ( ! p.graph.containsEdge(edge) ) throw new IllegalArgumentException("Graph must contain edge " + edge + " but it doesn't");
@@ -130,7 +128,7 @@ public class Path<T extends BaseVertex> {
 
         graph = p.graph;
         lastVertex = p.graph.getEdgeTarget(edge);
-        edgesInOrder = new LinkedList<BaseEdge>(p.getEdges());
+        edgesInOrder = new LinkedList<E>(p.getEdges());
         edgesInOrder.add(edge);
         totalScore = p.totalScore + edge.getMultiplicity();
     }
@@ -139,7 +137,7 @@ public class Path<T extends BaseVertex> {
      * Get the collection of edges leaving the last vertex of this path
      * @return a non-null collection
      */
-    public Collection<BaseEdge> getOutgoingEdgesOfLastVertex() {
+    public Collection<E> getOutgoingEdgesOfLastVertex() {
         return getGraph().outgoingEdgesOf(getLastVertex());
     }
 
@@ -148,12 +146,12 @@ public class Path<T extends BaseVertex> {
      * @param edge  the given edge to test
      * @return      true if the edge is found in this path
      */
-    public boolean containsEdge( final BaseEdge edge ) {
+    public boolean containsEdge( final E edge ) {
         if( edge == null ) { throw new IllegalArgumentException("Attempting to test null edge."); }
         if ( edgesInOrder.isEmpty() ) return false;
 
         // initialize contains cache if necessary
-        if ( edgesAsSet == null ) edgesAsSet = new HashSet<BaseEdge>(edgesInOrder);
+        if ( edgesAsSet == null ) edgesAsSet = new HashSet<E>(edgesInOrder);
         return edgesAsSet.contains(edge);
     }
 
@@ -175,7 +173,7 @@ public class Path<T extends BaseVertex> {
      * @param path the other path we might be the same as
      * @return true if this and path are the same
      */
-    protected boolean pathsAreTheSame(Path<T> path) {
+    protected boolean pathsAreTheSame(Path<T,E> path) {
         return totalScore == path.totalScore && edgesInOrder.equals(path.edgesInOrder);
     }
 
@@ -199,7 +197,7 @@ public class Path<T extends BaseVertex> {
      * @return a non-null graph
      */
     @Ensures("result != null")
-    public BaseGraph<T> getGraph() {
+    public BaseGraph<T, E> getGraph() {
         return graph;
     }
 
@@ -208,7 +206,7 @@ public class Path<T extends BaseVertex> {
      * @return a non-null list of edges
      */
     @Ensures("result != null")
-    public List<BaseEdge> getEdges() { return edgesInOrder; }
+    public List<E> getEdges() { return edgesInOrder; }
 
     /**
      * Get the list of vertices in this path in order defined by the edges of the path
@@ -221,7 +219,7 @@ public class Path<T extends BaseVertex> {
         else {
             final LinkedList<T> vertices = new LinkedList<T>();
             boolean first = true;
-            for ( final BaseEdge e : getEdges() ) {
+            for ( final E e : getEdges() ) {
                 if ( first ) {
                     vertices.add(graph.getEdgeSource(e));
                     first = false;
@@ -247,6 +245,14 @@ public class Path<T extends BaseVertex> {
     public T getLastVertex() { return lastVertex; }
 
     /**
+     * Get the first vertex in this path
+     * @return a non-null vertex
+     */
+    public T getFirstVertex() {
+        return getGraph().getEdgeSource(edgesInOrder.pollFirst());
+    }
+
+    /**
      * The base sequence for this path. Pull the full sequence for source nodes and then the suffix for all subsequent nodes
      * @return  non-null sequence of bases corresponding to this path
      */
@@ -255,174 +261,114 @@ public class Path<T extends BaseVertex> {
         if( getEdges().isEmpty() ) { return graph.getAdditionalSequence(lastVertex); }
 
         byte[] bases = graph.getAdditionalSequence(graph.getEdgeSource(edgesInOrder.getFirst()));
-        for( final BaseEdge e : edgesInOrder ) {
+        for( final E e : edgesInOrder ) {
             bases = ArrayUtils.addAll(bases, graph.getAdditionalSequence(graph.getEdgeTarget(e)));
         }
         return bases;
     }
 
     /**
-     * Calculate the cigar string for this path using a bubble traversal of the assembly graph and running a Smith-Waterman alignment on each bubble
-     * @return  non-null Cigar string with reference length equal to the refHaplotype's reference length
+     * Calculate the cigar elements for this path against the reference sequence
+     *
+     * @param refSeq the reference sequence that all of the bases in this path should align to
+     * @return a Cigar mapping this path to refSeq, or null if no reasonable alignment could be found
      */
-    @Ensures("result != null")
-    public Cigar calculateCigar() {
-        final Cigar cigar = new Cigar();
-        // special case for paths that start on reference but not at the reference source node
-        if( edgesInOrder.getFirst().isRef() && !graph.isRefSource(edgesInOrder.getFirst()) ) {
-            for( final CigarElement ce : calculateCigarForCompleteBubble(null, null, graph.getEdgeSource(edgesInOrder.getFirst())).getCigarElements() ) {
-                cigar.add(ce);
-            }
+    public Cigar calculateCigar(final byte[] refSeq) {
+        if ( getBases().length == 0 ) {
+            // horrible edge case from the unit tests, where this path has no bases
+            return new Cigar(Arrays.asList(new CigarElement(refSeq.length, CigarOperator.D)));
         }
 
-        // reset the bubble state machine
-        final BubbleStateMachine<T> bsm = new BubbleStateMachine<T>(cigar);
+        final byte[] bases = getBases();
+        final Cigar nonStandard;
 
-        for( final BaseEdge e : getEdges() ) {
-            if ( e.hasSameSourceAndTarget(graph, edgesInOrder.getFirst()) ) {
-                advanceBubbleStateMachine( bsm, graph.getEdgeSource(e), null );
-            }
-            advanceBubbleStateMachine( bsm, graph.getEdgeTarget(e), e );
+        final String paddedRef = SW_PAD + new String(refSeq) + SW_PAD;
+        final String paddedPath = SW_PAD + new String(bases) + SW_PAD;
+        final SmithWaterman alignment = new SWPairwiseAlignment( paddedRef.getBytes(), paddedPath.getBytes(), NEW_SW_PARAMETERS );
+
+        if ( isSWFailure(alignment) )
+            return null;
+
+        // cut off the padding bases
+        final int baseStart = SW_PAD.length();
+        final int baseEnd = paddedPath.length() - SW_PAD.length() - 1; // -1 because it's inclusive
+        nonStandard = AlignmentUtils.trimCigarByBases(alignment.getCigar(), baseStart, baseEnd);
+
+        if ( nonStandard.getReferenceLength() != refSeq.length ) {
+            nonStandard.add(new CigarElement(refSeq.length - nonStandard.getReferenceLength(), CigarOperator.D));
         }
 
-        // special case for paths that don't end on reference
-        if( bsm.inBubble ) {
-            for( final CigarElement ce : calculateCigarForCompleteBubble(bsm.bubbleBytes, bsm.lastSeenReferenceNode, null).getCigarElements() ) {
-                bsm.cigar.add(ce);
-            }
-        } else if( edgesInOrder.getLast().isRef() && !graph.isRefSink(edgesInOrder.getLast()) ) { // special case for paths that end of the reference but haven't completed the entire reference circuit
-            for( final CigarElement ce : calculateCigarForCompleteBubble(bsm.bubbleBytes, graph.getEdgeTarget(edgesInOrder.getLast()), null).getCigarElements() ) {
-                bsm.cigar.add(ce);
-            }
-        }
-
-        return AlignmentUtils.consolidateCigar(bsm.cigar);
+        // finally, return the cigar with all indels left aligned
+        return leftAlignCigarSequentially(nonStandard, refSeq, getBases(), 0, 0);
     }
 
     /**
-     * Advance the bubble state machine by incorporating the next node in the path.
-     * @param bsm   the current bubble state machine
-     * @param node  the node to be incorporated
-     * @param e     the edge which generated this node in the path
+     * Make sure that the SW didn't fail in some terrible way, and throw exception if it did
      */
-    @Requires({"bsm != null", "graph != null", "node != null"})
-    private void advanceBubbleStateMachine( final BubbleStateMachine<T> bsm, final T node, final BaseEdge e ) {
-        if( graph.isReferenceNode( node ) ) {
-            if( !bsm.inBubble ) { // just add the ref bases as M's in the Cigar string, and don't do anything else
-                if( e !=null && !e.isRef() ) {
-                    if( graph.referencePathExists( graph.getEdgeSource(e), node) ) {
-                        for( final CigarElement ce : calculateCigarForCompleteBubble(null, graph.getEdgeSource(e), node).getCigarElements() ) {
-                            bsm.cigar.add(ce);
-                        }
-                        bsm.cigar.add( new CigarElement( graph.getAdditionalSequence(node).length, CigarOperator.M) );
-                    } else if ( graph.getEdgeSource(e).equals(graph.getEdgeTarget(e)) ) { // alt edge at ref node points to itself
-                        bsm.cigar.add( new CigarElement( graph.getAdditionalSequence(node).length, CigarOperator.I) );
-                    } else {
-                        bsm.inBubble = true;
-                        bsm.bubbleBytes = null;
-                        bsm.lastSeenReferenceNode = graph.getEdgeSource(e);
-                        bsm.bubbleBytes = ArrayUtils.addAll( bsm.bubbleBytes, graph.getAdditionalSequence(node) );
-                    }
-                } else {
-                    bsm.cigar.add( new CigarElement( graph.getAdditionalSequence(node).length, CigarOperator.M) );
-                }
-            } else if( bsm.lastSeenReferenceNode != null && !graph.referencePathExists( bsm.lastSeenReferenceNode, node ) ) { // add bases to the bubble string until we get back to the reference path
-                bsm.bubbleBytes = ArrayUtils.addAll( bsm.bubbleBytes, graph.getAdditionalSequence(node) );
-            } else { // close the bubble and use a local SW to determine the Cigar string
-                for( final CigarElement ce : calculateCigarForCompleteBubble(bsm.bubbleBytes, bsm.lastSeenReferenceNode, node).getCigarElements() ) {
-                    bsm.cigar.add(ce);
-                }
-                bsm.inBubble = false;
-                bsm.bubbleBytes = null;
-                bsm.lastSeenReferenceNode = null;
-                bsm.cigar.add( new CigarElement( graph.getAdditionalSequence(node).length, CigarOperator.M) );
-            }
-        } else { // non-ref vertex
-            if( bsm.inBubble ) { // just keep accumulating until we get back to the reference path
-                bsm.bubbleBytes = ArrayUtils.addAll( bsm.bubbleBytes, graph.getAdditionalSequence(node) );
-            } else { // open up a bubble
-                bsm.inBubble = true;
-                bsm.bubbleBytes = null;
-                bsm.lastSeenReferenceNode = (e != null ? graph.getEdgeSource(e) : null );
-                bsm.bubbleBytes = ArrayUtils.addAll( bsm.bubbleBytes, graph.getAdditionalSequence(node) );
-            }
+    private boolean isSWFailure(final SmithWaterman alignment) {
+        // check that the alignment starts at the first base, which it should given the padding
+        if ( alignment.getAlignmentStart2wrt1() > 0 ) {
+            return true;
+//            throw new IllegalStateException("SW failure ref " + paddedRef + " vs. " + paddedPath + " should always start at 0, but got " + alignment.getAlignmentStart2wrt1() + " with cigar " + alignment.getCigar());
         }
+
+        // check that we aren't getting any S operators (which would be very bad downstream)
+        for ( final CigarElement ce : alignment.getCigar().getCigarElements() ) {
+            if ( ce.getOperator() == CigarOperator.S )
+                return true;
+                // soft clips at the end of the alignment are really insertions
+//                throw new IllegalStateException("SW failure ref " + paddedRef + " vs. " + paddedPath + " should never contain S operators but got cigar " + alignment.getCigar());
+        }
+
+        return false;
     }
 
     /**
-     * Now that we have a completed bubble run a Smith-Waterman alignment to determine the cigar string for this bubble
-     * @param bubbleBytes   the bytes that comprise the alternate allele path in this bubble
-     * @param fromVertex    the vertex that marks the beginning of the reference path in this bubble (null indicates ref source vertex)
-     * @param toVertex      the vertex that marks the end of the reference path in this bubble (null indicates ref sink vertex)
-     * @return              the cigar string generated by running a SW alignment between the reference and alternate paths in this bubble
+     * Left align the given cigar sequentially. This is needed because AlignmentUtils doesn't accept cigars with more than one indel in them.
+     * This is a target of future work to incorporate and generalize into AlignmentUtils for use by others.
+     * @param cigar     the cigar to left align
+     * @param refSeq    the reference byte array
+     * @param readSeq   the read byte array
+     * @param refIndex  0-based alignment start position on ref
+     * @param readIndex 0-based alignment start position on read
+     * @return          the left-aligned cigar
      */
-    @Requires({"graph != null"})
-    @Ensures({"result != null"})
-    private Cigar calculateCigarForCompleteBubble( final byte[] bubbleBytes, final T fromVertex, final T toVertex ) {
-        final byte[] refBytes = graph.getReferenceBytes(fromVertex == null ? graph.getReferenceSourceVertex() : fromVertex, toVertex == null ? graph.getReferenceSinkVertex() : toVertex, fromVertex == null, toVertex == null);
-
-        final Cigar returnCigar = new Cigar();
-
-        // add padding to anchor ref/alt bases in the SW matrix
-        byte[] padding = STARTING_SW_ANCHOR_BYTES;
-        boolean goodAlignment = false;
-        SWPairwiseAlignment swConsensus = null;
-        while( !goodAlignment && padding.length < 1000 ) {
-            padding = ArrayUtils.addAll(padding, padding); // double the size of the padding each time
-            final byte[] reference = ArrayUtils.addAll( ArrayUtils.addAll(padding, refBytes), padding );
-            final byte[] alternate = ArrayUtils.addAll( ArrayUtils.addAll(padding, bubbleBytes), padding );
-            swConsensus = new SWPairwiseAlignment( reference, alternate, NEW_SW_PARAMETERS );
-            if( swConsensus.getAlignmentStart2wrt1() == 0 && !swConsensus.getCigar().toString().contains("S") && swConsensus.getCigar().getReferenceLength() == reference.length ) {
-                goodAlignment = true;
+    @Ensures({"cigar != null", "refSeq != null", "readSeq != null", "refIndex >= 0", "readIndex >= 0"})
+    protected static Cigar leftAlignCigarSequentially(final Cigar cigar, final byte[] refSeq, final byte[] readSeq, int refIndex, int readIndex) {
+        final Cigar cigarToReturn = new Cigar();
+        Cigar cigarToAlign = new Cigar();
+        for (int i = 0; i < cigar.numCigarElements(); i++) {
+            final CigarElement ce = cigar.getCigarElement(i);
+            if (ce.getOperator() == CigarOperator.D || ce.getOperator() == CigarOperator.I) {
+                cigarToAlign.add(ce);
+                final Cigar leftAligned = AlignmentUtils.leftAlignSingleIndel(cigarToAlign, refSeq, readSeq, refIndex, readIndex, false);
+                for ( final CigarElement toAdd : leftAligned.getCigarElements() ) { cigarToReturn.add(toAdd); }
+                refIndex += cigarToAlign.getReferenceLength();
+                readIndex += cigarToAlign.getReadLength();
+                cigarToAlign = new Cigar();
+            } else {
+                cigarToAlign.add(ce);
             }
         }
-        if( !goodAlignment ) {
-            returnCigar.add(new CigarElement(1, CigarOperator.N));
-            return returnCigar;
-        }
-
-        final Cigar swCigar = swConsensus.getCigar();
-        if( swCigar.numCigarElements() > MAX_CIGAR_ELEMENTS_BEFORE_FAILING_SW ) { // this bubble is too divergent from the reference
-            returnCigar.add(new CigarElement(1, CigarOperator.N));
-        } else {
-            for( int iii = 0; iii < swCigar.numCigarElements(); iii++ ) {
-                // now we need to remove the padding from the cigar string
-                int length = swCigar.getCigarElement(iii).getLength();
-                if( iii == 0 ) { length -= padding.length; }
-                if( iii == swCigar.numCigarElements() - 1 ) { length -= padding.length; }
-                if( length > 0 ) {
-                    returnCigar.add(new CigarElement(length, swCigar.getCigarElement(iii).getOperator()));
-                }
-            }
-            if( (refBytes == null && returnCigar.getReferenceLength() != 0) || ( refBytes != null && returnCigar.getReferenceLength() != refBytes.length ) ) {
-                throw new IllegalStateException("SmithWaterman cigar failure: " + (refBytes == null ? "-" : new String(refBytes)) + " against " + new String(bubbleBytes) + " = " + swConsensus.getCigar());
+        if( !cigarToAlign.isEmpty() ) {
+            for( final CigarElement toAdd : cigarToAlign.getCigarElements() ) {
+                cigarToReturn.add(toAdd);
             }
         }
 
-        return returnCigar;
+        final Cigar result = AlignmentUtils.consolidateCigar(cigarToReturn);
+        if( result.getReferenceLength() != cigar.getReferenceLength() )
+            throw new IllegalStateException("leftAlignCigarSequentially failed to produce a valid CIGAR.  Reference lengths differ.  Initial cigar " + cigar + " left aligned into " + result);
+        return result;
     }
 
-    // class to keep track of the bubble state machine
-    private static class BubbleStateMachine<T extends BaseVertex> {
-        public boolean inBubble = false;
-        public byte[] bubbleBytes = null;
-        public T lastSeenReferenceNode = null;
-        public Cigar cigar = null;
-
-        public BubbleStateMachine( final Cigar initialCigar ) {
-            inBubble = false;
-            bubbleBytes = null;
-            lastSeenReferenceNode = null;
-            cigar = initialCigar;
-        }
-    }
 
     /**
      * Tests that this and other have the same score and vertices in the same order with the same seq
      * @param other the other path to consider.  Cannot be null
      * @return true if this and path are equal, false otherwise
      */
-    public boolean equalScoreAndSequence(final Path<T> other) {
+    public boolean equalScoreAndSequence(final Path<T,E> other) {
         if ( other == null ) throw new IllegalArgumentException("other cannot be null");
         return getScore() == other.getScore() && equalSequence(other);
     }
@@ -432,7 +378,7 @@ public class Path<T extends BaseVertex> {
      * @param other the other path to consider.  Cannot be null
      * @return true if this and path are equal, false otherwise
      */
-    public boolean equalSequence(final Path<T> other) {
+    public boolean equalSequence(final Path<T,E> other) {
         final List<T> mine = getVertices();
         final List<T> yours = other.getVertices();
         if ( mine.size() == yours.size() ) { // hehehe

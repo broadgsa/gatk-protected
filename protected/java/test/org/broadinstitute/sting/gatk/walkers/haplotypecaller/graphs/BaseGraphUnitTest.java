@@ -49,8 +49,8 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import scala.actors.threadpool.Arrays;
 
 import java.io.File;
 import java.util.*;
@@ -311,5 +311,20 @@ public class BaseGraphUnitTest extends BaseTest {
         graph.pruneGraph(2);
 
         Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
+    }
+
+    @Test(enabled = true)
+    public void testGetBases() {
+
+        final int kmerSize = 4;
+        final String testString = "AATGGGGGCAATACTA";
+
+        final List<DeBruijnVertex> vertexes = new ArrayList<>();
+        for ( int i = 0; i <= testString.length() - kmerSize; i++ ) {
+            vertexes.add(new DeBruijnVertex(testString.substring(i, i + kmerSize)));
+        }
+
+        final String result = new String(new DeBruijnGraph().getBasesForPath(vertexes));
+        Assert.assertEquals(result, testString.substring(kmerSize - 1));
     }
 }

@@ -64,6 +64,7 @@ import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -236,6 +237,15 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
     public int downsampleCoverage = 250;
 
+    /**
+     * Generally, this tool is not meant to be run for more than 1 sample at a time.  The one valid exception
+     * brought to our attention by colleagues is the specific case of tumor/normal pairs in cancer analysis.
+     * To prevent users from unintentionally running the tool in a less than ideal manner, we require them
+     * to explicitly enable multi-sample analysis with this argument.
+     */
+    @Argument(fullName = "cancer_mode", shortName = "cancer_mode", doc = "enable multi-samples reduction for cancer analysis", required = false)
+    public boolean ALLOW_MULTIPLE_SAMPLES = false;
+
     @Hidden
     @Argument(fullName = "nwayout", shortName = "nw", doc = "", required = false)
     public boolean nwayout = false;
@@ -263,8 +273,9 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     
     int nCompressedReads = 0;
 
-    Object2LongOpenHashMap<String> readNameHash;                         // This hash will keep the name of the original read the new compressed name (a number).
+    private static int READ_NAME_HASH_DEFAULT_SIZE = 1000;
     Long nextReadNumber = 1L;                                               // The next number to use for the compressed read name.
+    Object2LongOpenHashMap<String> readNameHash;                         // This hash will keep the name of the original read the new compressed name (a number).
 
     ObjectSortedSet<GenomeLoc> intervalList;
 
@@ -294,13 +305,16 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
         if ( minAltProportionToTriggerVariant < 0.0 || minAltProportionToTriggerVariant > 1.0 )
             throw new UserException.BadArgumentValue("--minimum_alt_proportion_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
 
+        if ( SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader()).size() > 1 && !ALLOW_MULTIPLE_SAMPLES )
+            throw new UserException.BadInput("Reduce Reads is not meant to be run for more than 1 sample at a time except for the specific case of tumor/normal pairs in cancer analysis");
+
         if ( known.isEmpty() )
             knownSnpPositions = null;
         else
             knownSnpPositions = new ObjectAVLTreeSet<GenomeLoc>();
 
         GenomeAnalysisEngine toolkit = getToolkit();
-        readNameHash = new Object2LongOpenHashMap<String>(100000);     // prepare the read name hash to keep track of what reads have had their read names compressed
+        this.resetReadNameHash();     // prepare the read name hash to keep track of what reads have had their read names compressed
         intervalList = new ObjectAVLTreeSet<GenomeLoc>();                          // get the interval list from the engine. If no interval list was provided, the walker will work in WGS mode
 
         if (toolkit.getIntervals() != null)
@@ -322,6 +336,16 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
         }
     }
 
+    /** Initializer for {@link #readNameHash}. */
+    private void resetReadNameHash() {
+        // If the hash grows large, subsequent clear operations can be very expensive, so trim the hash down if it grows beyond its default.
+        if (readNameHash == null || readNameHash.size() > READ_NAME_HASH_DEFAULT_SIZE) {
+            readNameHash = new Object2LongOpenHashMap<String>(READ_NAME_HASH_DEFAULT_SIZE);
+        } else {
+            readNameHash.clear();
+        }
+    }
+    
     /**
      * Takes in a read and prepares it for the SlidingWindow machinery by performing the
      * following optional clipping operations:
@@ -458,7 +482,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
                     // stash.compress(), the readNameHash can be cleared after the for() loop above.
                     // The advantage of clearing the hash is that otherwise it holds all reads that have been encountered,
                     // which can use a lot of memory and cause RR to slow to a crawl and/or run out of memory.
-                    readNameHash.clear();
+                    this.resetReadNameHash();
 
                 }
             } else

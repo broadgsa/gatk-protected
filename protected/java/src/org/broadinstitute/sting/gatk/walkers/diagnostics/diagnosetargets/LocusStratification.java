@@ -46,22 +46,20 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
-import java.util.LinkedList;
 import java.util.List;
 
 final class LocusStratification extends AbstractStratification {
     private long coverage;
     private long rawCoverage;
-    private final List<Metric> locusStatisticsList;
 
     public LocusStratification(ThresHolder thresholds) {
         this(0,0,thresholds);
     }
 
     protected LocusStratification(int coverage, int rawCoverage, ThresHolder thresholds) {
+        super(thresholds);
         this.coverage = coverage;
         this.rawCoverage = rawCoverage;
-        this.locusStatisticsList = thresholds.locusMetricList;
     }
 
     @Override
@@ -79,14 +77,7 @@ final class LocusStratification extends AbstractStratification {
      * @return a set of all statuses that apply
      */
     public List<CallableStatus> callableStatuses() {
-        List<CallableStatus> output = new LinkedList<CallableStatus>();
-        for (Metric stats : locusStatisticsList) {
-            CallableStatus status = stats.status(this);
-            if (status != null) {
-                output.add(status);
-            }
-        }
-        return output;
+        return queryStatus(thresholds.locusMetricList);
     }
 
     @Override

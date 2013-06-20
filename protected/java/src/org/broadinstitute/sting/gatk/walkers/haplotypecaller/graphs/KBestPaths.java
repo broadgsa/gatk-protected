@@ -59,7 +59,7 @@ import java.util.*;
  * User: ebanks, rpoplin, mdepristo
  * Date: Mar 23, 2011
  */
-public class KBestPaths<T extends BaseVertex> {
+public class KBestPaths<T extends BaseVertex, E extends BaseEdge> {
     private final boolean allowCycles;
 
     /**
@@ -93,7 +93,7 @@ public class KBestPaths<T extends BaseVertex> {
     /**
      * @see #getKBestPaths(BaseGraph, int) retriving the best 1000 paths
      */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph ) {
+    public List<Path<T,E>> getKBestPaths( final BaseGraph<T, E> graph ) {
         return getKBestPaths(graph, 1000);
     }
 
@@ -101,28 +101,28 @@ public class KBestPaths<T extends BaseVertex> {
      * @see #getKBestPaths(BaseGraph, int, java.util.Set, java.util.Set) retriving the first 1000 paths
      * starting from all source vertices and ending with all sink vertices
      */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k ) {
+    public List<Path<T,E>> getKBestPaths( final BaseGraph<T,E> graph, final int k ) {
         return getKBestPaths(graph, k, graph.getSources(), graph.getSinks());
     }
 
     /**
      * @see #getKBestPaths(BaseGraph, int, java.util.Set, java.util.Set) with k=1000
      */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final Set<T> sources, final Set<T> sinks ) {
+    public List<Path<T,E>> getKBestPaths( final BaseGraph<T,E> graph, final Set<T> sources, final Set<T> sinks ) {
         return getKBestPaths(graph, 1000, sources, sinks);
     }
 
     /**
      * @see #getKBestPaths(BaseGraph, int, java.util.Set, java.util.Set) with k=1000
      */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final T source, final T sink ) {
+    public List<Path<T,E>> getKBestPaths( final BaseGraph<T,E> graph, final T source, final T sink ) {
         return getKBestPaths(graph, 1000, source, sink);
     }
 
     /**
      * @see #getKBestPaths(BaseGraph, int, java.util.Set, java.util.Set) with singleton source and sink sets
      */
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k, final T source, final T sink ) {
+    public List<Path<T,E>> getKBestPaths( final BaseGraph<T,E> graph, final int k, final T source, final T sink ) {
         return getKBestPaths(graph, k, Collections.singleton(source), Collections.singleton(sink));
     }
 
@@ -136,20 +136,20 @@ public class KBestPaths<T extends BaseVertex> {
          * @return      a list with at most k top-scoring paths from the graph
          */
     @Ensures({"result != null", "result.size() <= k"})
-    public List<Path<T>> getKBestPaths( final BaseGraph<T> graph, final int k, final Set<T> sources, final Set<T> sinks ) {
+    public List<Path<T,E>> getKBestPaths( final BaseGraph<T,E> graph, final int k, final Set<T> sources, final Set<T> sinks ) {
         if( graph == null ) { throw  new IllegalArgumentException("Attempting to traverse a null graph."); }
 
         // a min max queue that will collect the best k paths
-        final MinMaxPriorityQueue<Path<T>> bestPaths = MinMaxPriorityQueue.orderedBy(new PathComparatorTotalScore()).maximumSize(k).create();
+        final MinMaxPriorityQueue<Path<T,E>> bestPaths = MinMaxPriorityQueue.orderedBy(new PathComparatorTotalScore()).maximumSize(k).create();
 
         // run a DFS for best paths
         for ( final T source : sources ) {
-            final Path<T> startingPath = new Path<T>(source, graph);
+            final Path<T,E> startingPath = new Path<T,E>(source, graph);
             findBestPaths(startingPath, sinks, bestPaths, new MyInt());
         }
 
         // the MinMaxPriorityQueue iterator returns items in an arbitrary order, so we need to sort the final result
-        final List<Path<T>> toReturn = new ArrayList<Path<T>>(bestPaths);
+        final List<Path<T,E>> toReturn = new ArrayList<Path<T,E>>(bestPaths);
         Collections.sort(toReturn, new PathComparatorTotalScore());
         return toReturn;
     }
@@ -161,21 +161,21 @@ public class KBestPaths<T extends BaseVertex> {
      * @param bestPaths a path to collect completed paths.
      * @param n used to limit the search by tracking the number of vertices visited across all paths
      */
-    private void findBestPaths( final Path<T> path, final Set<T> sinks, final Collection<Path<T>> bestPaths, final MyInt n ) {
+    private void findBestPaths( final Path<T,E> path, final Set<T> sinks, final Collection<Path<T,E>> bestPaths, final MyInt n ) {
         if ( sinks.contains(path.getLastVertex())) {
             bestPaths.add(path);
         } else if( n.val > 10000 ) {
             // do nothing, just return, as we've done too much work already
         } else {
             // recursively run DFS
-            final ArrayList<BaseEdge> edgeArrayList = new ArrayList<BaseEdge>(path.getOutgoingEdgesOfLastVertex());
+            final ArrayList<E> edgeArrayList = new ArrayList<E>(path.getOutgoingEdgesOfLastVertex());
             Collections.sort(edgeArrayList, new BaseEdge.EdgeWeightComparator());
-            for ( final BaseEdge edge : edgeArrayList ) {
+            for ( final E edge : edgeArrayList ) {
                 final T target = path.getGraph().getEdgeTarget(edge);
                 // make sure the edge is not already in the path
                 final boolean alreadyVisited = allowCycles ? path.containsEdge(edge) : path.containsVertex(target);
                 if ( ! alreadyVisited ) {
-                    final Path<T> newPath = new Path<T>(path, edge);
+                    final Path<T,E> newPath = new Path<T,E>(path, edge);
                     n.val++;
                     findBestPaths(newPath, sinks, bestPaths, n);
                 }

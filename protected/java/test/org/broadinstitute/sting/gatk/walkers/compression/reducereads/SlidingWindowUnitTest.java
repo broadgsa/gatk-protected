@@ -90,6 +90,25 @@ public class SlidingWindowUnitTest extends BaseTest {
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
+    //// Test for leading softclips immediately followed by an insertion in the CIGAR ////
+    //////////////////////////////////////////////////////////////////////////////////////
+
+    @Test(enabled = true)
+    public void testLeadingClipThenInsertion() {
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "foo", 0, 1, 10);
+        read.setReadBases(Utils.dupBytes((byte) 'A', 10));
+        read.setBaseQualities(Utils.dupBytes((byte)30, 10));
+        read.setMappingQuality(30);
+        read.setCigarString("2S2I6M");
+
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 1);
+        slidingWindow.addRead(read);
+        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close(null);
+
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////
     //// This section tests the findVariantRegions() method and related functionality ////
     //////////////////////////////////////////////////////////////////////////////////////
 

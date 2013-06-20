@@ -66,34 +66,16 @@ import java.util.*;
  * Date: 2/6/13
  */
 @Invariant("!this.isAllowingMultipleEdges()")
-public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, BaseEdge> {
+public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends DefaultDirectedGraph<V, E> {
     protected final static Logger logger = Logger.getLogger(BaseGraph.class);
     private final int kmerSize;
-
-    /**
-     * Construct an empty BaseGraph
-     */
-    public BaseGraph() {
-        this(11);
-    }
-
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     * @param <T> the new of our vertices
-     */
-    private static class MyEdgeFactory<T extends BaseVertex> implements EdgeFactory<T, BaseEdge> {
-        @Override
-        public BaseEdge createEdge(T sourceVertex, T targetVertex) {
-            return new BaseEdge(false, 1);
-        }
-    }
 
     /**
      * Construct a DeBruijnGraph with kmerSize
      * @param kmerSize
      */
-    public BaseGraph(final int kmerSize) {
-        super(new MyEdgeFactory<T>());
+    public BaseGraph(final int kmerSize, final EdgeFactory<V,E> edgeFactory) {
+        super(edgeFactory);
 
         if ( kmerSize < 1 ) throw new IllegalArgumentException("kmerSize must be >= 1 but got " + kmerSize);
         this.kmerSize = kmerSize;
@@ -111,7 +93,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v the vertex to test
      * @return  true if this vertex is a reference node (meaning that it appears on the reference path in the graph)
      */
-    public boolean isReferenceNode( final T v ) {
+    public boolean isReferenceNode( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
         for( final BaseEdge e : edgesOf(v) ) {
             if( e.isRef() ) { return true; }
@@ -123,7 +105,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v the vertex to test
      * @return  true if this vertex is a source node (in degree == 0)
      */
-    public boolean isSource( final T v ) {
+    public boolean isSource( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
         return inDegreeOf(v) == 0;
     }
@@ -132,7 +114,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v the vertex to test
      * @return  true if this vertex is a sink node (out degree == 0)
      */
-    public boolean isSink( final T v ) {
+    public boolean isSink( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
         return outDegreeOf(v) == 0;
     }
@@ -141,9 +123,9 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * Get the set of source vertices of this graph
      * @return a non-null set
      */
-    public Set<T> getSources() {
-        final Set<T> set = new LinkedHashSet<T>();
-        for ( final T v : vertexSet() )
+    public Set<V> getSources() {
+        final Set<V> set = new LinkedHashSet<V>();
+        for ( final V v : vertexSet() )
             if ( isSource(v) )
                 set.add(v);
         return set;
@@ -153,9 +135,9 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * Get the set of sink vertices of this graph
      * @return a non-null set
      */
-    public Set<T> getSinks() {
-        final Set<T> set = new LinkedHashSet<T>();
-        for ( final T v : vertexSet() )
+    public Set<V> getSinks() {
+        final Set<V> set = new LinkedHashSet<V>();
+        for ( final V v : vertexSet() )
             if ( isSink(v) )
                 set.add(v);
         return set;
@@ -167,7 +149,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @return  non-null byte array
      */
     @Ensures({"result != null"})
-    public byte[] getAdditionalSequence( final T v ) {
+    public byte[] getAdditionalSequence( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to pull sequence from a null vertex."); }
         return v.getAdditionalSequence(isSource(v));
     }
@@ -176,9 +158,9 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param e the edge to test
      * @return  true if this edge is a reference source edge
      */
-    public boolean isRefSource( final BaseEdge e ) {
+    public boolean isRefSource( final E e ) {
         if( e == null ) { throw new IllegalArgumentException("Attempting to test a null edge."); }
-        for( final BaseEdge edgeToTest : incomingEdgesOf(getEdgeSource(e)) ) {
+        for( final E edgeToTest : incomingEdgesOf(getEdgeSource(e)) ) {
             if( edgeToTest.isRef() ) { return false; }
         }
         return true;
@@ -188,9 +170,9 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v the vertex to test
      * @return  true if this vertex is a reference source
      */
-    public boolean isRefSource( final T v ) {
+    public boolean isRefSource( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
-        for( final BaseEdge edgeToTest : incomingEdgesOf(v) ) {
+        for( final E edgeToTest : incomingEdgesOf(v) ) {
             if( edgeToTest.isRef() ) { return false; }
         }
         return true;
@@ -200,31 +182,41 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param e the edge to test
      * @return  true if this edge is a reference sink edge
      */
-    public boolean isRefSink( final BaseEdge e ) {
+    public boolean isRefSink( final E e ) {
         if( e == null ) { throw new IllegalArgumentException("Attempting to test a null edge."); }
-        for( final BaseEdge edgeToTest : outgoingEdgesOf(getEdgeTarget(e)) ) {
+        for( final E edgeToTest : outgoingEdgesOf(getEdgeTarget(e)) ) {
             if( edgeToTest.isRef() ) { return false; }
         }
         return true;
     }
 
     /**
+     * // TODO -- the logic of this test is just wrong
      * @param v the vertex to test
      * @return  true if this vertex is a reference sink
      */
-    public boolean isRefSink( final T v ) {
+    public boolean isRefSink( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
-        for( final BaseEdge edgeToTest : outgoingEdgesOf(v) ) {
+        for( final E edgeToTest : outgoingEdgesOf(v) ) {
             if( edgeToTest.isRef() ) { return false; }
         }
         return true;
+    }
+
+    /**
+     * Is this both a refsink node and a reference node
+     * @param v a non-null vertex
+     * @return true if v is both a sink and a reference node
+     */
+    public boolean isRefNodeAndRefSink(final V v) {
+        return isRefSink(v) && isReferenceNode(v);
     }
 
     /**
      * @return the reference source vertex pulled from the graph, can be null if it doesn't exist in the graph
      */
-    public T getReferenceSourceVertex( ) {
-        for( final T v : vertexSet() ) {
+    public V getReferenceSourceVertex( ) {
+        for( final V v : vertexSet() ) {
             if( isReferenceNode(v) && isRefSource(v) ) {
                 return v;
             }
@@ -235,8 +227,8 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
     /**
      * @return the reference sink vertex pulled from the graph, can be null if it doesn't exist in the graph
      */
-    public T getReferenceSinkVertex( ) {
-        for( final T v : vertexSet() ) {
+    public V getReferenceSinkVertex( ) {
+        for( final V v : vertexSet() ) {
             if( isReferenceNode(v) && isRefSink(v) ) {
                 return v;
             }
@@ -249,9 +241,9 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v the current vertex, can be null
      * @return  the next reference vertex if it exists
      */
-    public T getNextReferenceVertex( final T v ) {
+    public V getNextReferenceVertex( final V v ) {
         if( v == null ) { return null; }
-        for( final BaseEdge edgeToTest : outgoingEdgesOf(v) ) {
+        for( final E edgeToTest : outgoingEdgesOf(v) ) {
             if( edgeToTest.isRef() ) {
                 return getEdgeTarget(edgeToTest);
             }
@@ -264,9 +256,9 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v the current vertex, can be null
      * @return  the previous reference vertex if it exists
      */
-    public T getPrevReferenceVertex( final T v ) {
+    public V getPrevReferenceVertex( final V v ) {
         if( v == null ) { return null; }
-        for( final BaseEdge edgeToTest : incomingEdgesOf(v) ) {
+        for( final E edgeToTest : incomingEdgesOf(v) ) {
             if( isReferenceNode(getEdgeSource(edgeToTest)) ) {
                 return getEdgeSource(edgeToTest);
             }
@@ -280,8 +272,8 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param toVertex      to this vertex, can be null
      * @return              true if a reference path exists in the graph between the two vertices
      */
-    public boolean referencePathExists(final T fromVertex, final T toVertex) {
-        T v = fromVertex;
+    public boolean referencePathExists(final V fromVertex, final V toVertex) {
+        V v = fromVertex;
         if( v == null ) {
             return false;
         }
@@ -306,18 +298,18 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param includeStop   should the ending vertex be included in the path
      * @return              byte[] array holding the reference bases, this can be null if there are no nodes between the starting and ending vertex (insertions for example)
      */
-    public byte[] getReferenceBytes( final T fromVertex, final T toVertex, final boolean includeStart, final boolean includeStop ) {
+    public byte[] getReferenceBytes( final V fromVertex, final V toVertex, final boolean includeStart, final boolean includeStop ) {
         if( fromVertex == null ) { throw new IllegalArgumentException("Starting vertex in requested path cannot be null."); }
         if( toVertex == null ) { throw  new IllegalArgumentException("From vertex in requested path cannot be null."); }
 
         byte[] bytes = null;
-        T v = fromVertex;
+        V v = fromVertex;
         if( includeStart ) {
             bytes = ArrayUtils.addAll(bytes, getAdditionalSequence(v));
         }
         v = getNextReferenceVertex(v); // advance along the reference path
         while( v != null && !v.equals(toVertex) ) {
-            bytes = ArrayUtils.addAll( bytes, getAdditionalSequence(v) );
+            bytes = ArrayUtils.addAll(bytes, getAdditionalSequence(v));
             v = getNextReferenceVertex(v); // advance along the reference path
         }
         if( includeStop && v != null && v.equals(toVertex)) {
@@ -330,8 +322,8 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * Convenience function to add multiple vertices to the graph at once
      * @param vertices one or more vertices to add
      */
-    public void addVertices(final T ... vertices) {
-        for ( final T v : vertices )
+    public void addVertices(final V... vertices) {
+        for ( final V v : vertices )
             addVertex(v);
     }
 
@@ -339,8 +331,8 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * Convenience function to add multiple vertices to the graph at once
      * @param vertices one or more vertices to add
      */
-    public void addVertices(final Collection<T> vertices) {
-        for ( final T v : vertices )
+    public void addVertices(final Collection<V> vertices) {
+        for ( final V v : vertices )
             addVertex(v);
     }
 
@@ -349,8 +341,12 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param start the first vertex to connect
      * @param remaining all additional vertices to connect
      */
-    public void addEdges(final T start, final T ... remaining) {
-        addEdges(new BaseEdge(false, 1), start, remaining);
+    public void addEdges(final V start, final V... remaining) {
+        V prev = start;
+        for ( final V next : remaining ) {
+            addEdge(prev, next);
+            prev = next;
+        }
     }
 
     /**
@@ -358,10 +354,10 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param start the first vertex to connect
      * @param remaining all additional vertices to connect
      */
-    public void addEdges(final BaseEdge template, final T start, final T ... remaining) {
-        T prev = start;
-        for ( final T next : remaining ) {
-            addEdge(prev, next, new BaseEdge(template));
+    public void addEdges(final E template, final V start, final V... remaining) {
+        V prev = start;
+        for ( final V next : remaining ) {
+            addEdge(prev, next, (E)(template.copy())); // TODO -- is there a better way to do this?
             prev = next;
         }
     }
@@ -371,9 +367,9 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v a non-null vertex
      * @return a set of vertices connected by outgoing edges from v
      */
-    public Set<T> outgoingVerticesOf(final T v) {
-        final Set<T> s = new LinkedHashSet<T>();
-        for ( final BaseEdge e : outgoingEdgesOf(v) ) {
+    public Set<V> outgoingVerticesOf(final V v) {
+        final Set<V> s = new LinkedHashSet<V>();
+        for ( final E e : outgoingEdgesOf(v) ) {
             s.add(getEdgeTarget(e));
         }
         return s;
@@ -384,11 +380,22 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v a non-null vertex
      * @return a set of vertices {X} connected X -> v
      */
-    public Set<T> incomingVerticesOf(final T v) {
-        final Set<T> s = new LinkedHashSet<T>();
-        for ( final BaseEdge e : incomingEdgesOf(v) ) {
+    public Set<V> incomingVerticesOf(final V v) {
+        final Set<V> s = new LinkedHashSet<V>();
+        for ( final E e : incomingEdgesOf(v) ) {
             s.add(getEdgeSource(e));
         }
+        return s;
+    }
+
+    /**
+     * Get the set of vertices connected to v by incoming or outgoing edges
+     * @param v a non-null vertex
+     * @return a set of vertices {X} connected X -> v or v -> Y
+     */
+    public Set<V> neighboringVerticesOf(final V v) {
+        final Set<V> s = incomingVerticesOf(v);
+        s.addAll(outgoingVerticesOf(v));
         return s;
     }
 
@@ -413,15 +420,16 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         if ( writeHeader )
             graphWriter.println("digraph assemblyGraphs {");
 
-        for( final BaseEdge edge : edgeSet() ) {
-            graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() > 0 && edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getMultiplicity() + "\"];");
+        for( final E edge : edgeSet() ) {
+            graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [" + (edge.getMultiplicity() > 0 && edge.getMultiplicity() <= pruneFactor ? "style=dotted,color=grey," : "") + "label=\"" + edge.getDotLabel() + "\"];");
             if( edge.isRef() ) {
                 graphWriter.println("\t" + getEdgeSource(edge).toString() + " -> " + getEdgeTarget(edge).toString() + " [color=red];");
             }
         }
 
-        for( final T v : vertexSet() ) {
-            graphWriter.println("\t" + v.toString() + " [label=\"" + new String(getAdditionalSequence(v)) + "\",shape=box]");
+        for( final V v : vertexSet() ) {
+//            graphWriter.println("\t" + v.toString() + " [label=\"" + v + "\",shape=box]");
+            graphWriter.println("\t" + v.toString() + " [label=\"" + new String(getAdditionalSequence(v)) + v.additionalInfo() + "\",shape=box]");
         }
 
         if ( writeHeader )
@@ -439,10 +447,10 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         }
 
         // Remove non-ref edges connected before and after the reference path
-        final Set<BaseEdge> edgesToCheck = new HashSet<BaseEdge>();
+        final Set<E> edgesToCheck = new HashSet<E>();
         edgesToCheck.addAll(incomingEdgesOf(getReferenceSourceVertex()));
         while( !edgesToCheck.isEmpty() ) {
-            final BaseEdge e = edgesToCheck.iterator().next();
+            final E e = edgesToCheck.iterator().next();
             if( !e.isRef() ) {
                 edgesToCheck.addAll( incomingEdgesOf(getEdgeSource(e)) );
                 removeEdge(e);
@@ -452,7 +460,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
 
         edgesToCheck.addAll(outgoingEdgesOf(getReferenceSinkVertex()));
         while( !edgesToCheck.isEmpty() ) {
-            final BaseEdge e = edgesToCheck.iterator().next();
+            final E e = edgesToCheck.iterator().next();
             if( !e.isRef() ) {
                 edgesToCheck.addAll( outgoingEdgesOf(getEdgeTarget(e)) );
                 removeEdge(e);
@@ -469,9 +477,9 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param pruneFactor all edges with multiplicity <= this factor that aren't ref edges will be removed
      */
     public void pruneGraph( final int pruneFactor ) {
-        final List<BaseEdge> edgesToRemove = new ArrayList<BaseEdge>();
-        for( final BaseEdge e : edgeSet() ) {
-            if( e.getMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
+        final List<E> edgesToRemove = new ArrayList<>();
+        for( final E e : edgeSet() ) {
+            if( e.getPruningMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
                 edgesToRemove.add(e);
             }
         }
@@ -481,12 +489,24 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
     }
 
     /**
+     * Prune all chains from this graph where all edges in the path have multiplicity <= pruneFactor
+     *
+     * @see LowWeightChainPruner for more information
+     *
+     * @param pruneFactor all edges with multiplicity <= this factor that aren't ref edges will be removed
+     */
+    public void pruneLowWeightChains( final int pruneFactor ) {
+        final LowWeightChainPruner<V,E> pruner = new LowWeightChainPruner<>(pruneFactor);
+        pruner.pruneLowWeightChains(this);
+    }
+
+    /**
      * Remove all vertices in the graph that have in and out degree of 0
      */
     protected void removeSingletonOrphanVertices() {
         // Run through the graph and clean up singular orphaned nodes
-        final List<T> verticesToRemove = new LinkedList<T>();
-        for( final T v : vertexSet() ) {
+        final List<V> verticesToRemove = new LinkedList<>();
+        for( final V v : vertexSet() ) {
             if( inDegreeOf(v) == 0 && outDegreeOf(v) == 0 ) {
                 verticesToRemove.add(v);
             }
@@ -499,11 +519,11 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * regardless of its direction, from the reference source vertex
      */
     public void removeVerticesNotConnectedToRefRegardlessOfEdgeDirection() {
-        final HashSet<T> toRemove = new HashSet<T>(vertexSet());
+        final HashSet<V> toRemove = new HashSet<>(vertexSet());
 
-        final T refV = getReferenceSourceVertex();
+        final V refV = getReferenceSourceVertex();
         if ( refV != null ) {
-            for ( final T v : new BaseGraphIterator<T>(this, refV, true, true) ) {
+            for ( final V v : new BaseGraphIterator<>(this, refV, true, true) ) {
                 toRemove.remove(v);
             }
         }
@@ -524,22 +544,31 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
         }
 
         // get the set of vertices we can reach by going forward from the ref source
-        final Set<T> onPathFromRefSource = new HashSet<T>(vertexSet().size());
-        for ( final T v : new BaseGraphIterator<T>(this, getReferenceSourceVertex(), false, true) ) {
+        final Set<V> onPathFromRefSource = new HashSet<>(vertexSet().size());
+        for ( final V v : new BaseGraphIterator<>(this, getReferenceSourceVertex(), false, true) ) {
             onPathFromRefSource.add(v);
         }
 
         // get the set of vertices we can reach by going backward from the ref sink
-        final Set<T> onPathFromRefSink = new HashSet<T>(vertexSet().size());
-        for ( final T v : new BaseGraphIterator<T>(this, getReferenceSinkVertex(), true, false) ) {
+        final Set<V> onPathFromRefSink = new HashSet<>(vertexSet().size());
+        for ( final V v : new BaseGraphIterator<>(this, getReferenceSinkVertex(), true, false) ) {
             onPathFromRefSink.add(v);
         }
 
         // we want to remove anything that's not in both the sink and source sets
-        final Set<T> verticesToRemove = new HashSet<T>(vertexSet());
+        final Set<V> verticesToRemove = new HashSet<>(vertexSet());
         onPathFromRefSource.retainAll(onPathFromRefSink);
         verticesToRemove.removeAll(onPathFromRefSource);
         removeAllVertices(verticesToRemove);
+
+        // simple sanity checks that this algorithm is working.
+        if ( getSinks().size() > 1 ) {
+            throw new IllegalStateException("Should have eliminated all but the reference sink, but found " + getSinks());
+        }
+
+        if ( getSources().size() > 1 ) {
+            throw new IllegalStateException("Should have eliminated all but the reference source, but found " + getSources());
+        }
     }
 
     /**
@@ -555,11 +584,11 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param <T> the type of the nodes in those graphs
      * @return true if g1 and g2 are equals
      */
-    public static <T extends BaseVertex> boolean graphEquals(final BaseGraph<T> g1, BaseGraph<T> g2) {
+    public static <T extends BaseVertex, E extends BaseEdge> boolean graphEquals(final BaseGraph<T,E> g1, BaseGraph<T,E> g2) {
         final Set<T> vertices1 = g1.vertexSet();
         final Set<T> vertices2 = g2.vertexSet();
-        final Set<BaseEdge> edges1 = g1.edgeSet();
-        final Set<BaseEdge> edges2 = g2.edgeSet();
+        final Set<E> edges1 = g1.edgeSet();
+        final Set<E> edges2 = g2.edgeSet();
 
         if ( vertices1.size() != vertices2.size() || edges1.size() != edges2.size() )
             return false;
@@ -571,29 +600,35 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
             if ( ! found ) return false;
         }
 
-        for( final BaseEdge e1 : g1.edgeSet() ) {
+        for( final E e1 : g1.edgeSet() ) {
             boolean found = false;
-            for( BaseEdge e2 : g2.edgeSet() ) {
-                if( e1.seqEquals(g1, e2, g2) ) { found = true; break; }
+            for( E e2 : g2.edgeSet() ) {
+                if( g1.seqEquals(e1, e2, g2) ) { found = true; break; }
             }
             if( !found ) { return false; }
         }
-        for( final BaseEdge e2 : g2.edgeSet() ) {
+        for( final E e2 : g2.edgeSet() ) {
             boolean found = false;
-            for( BaseEdge e1 : g1.edgeSet() ) {
-                if( e2.seqEquals(g2, e1, g1) ) { found = true; break; }
+            for( E e1 : g1.edgeSet() ) {
+                if( g2.seqEquals(e2, e1, g1) ) { found = true; break; }
             }
             if( !found ) { return false; }
         }
         return true;
     }
 
+    // For use when comparing edges across graphs!
+    private boolean seqEquals( final E edge1, final E edge2, final BaseGraph<V,E> graph2 ) {
+        return (this.getEdgeSource(edge1).seqEquals(graph2.getEdgeSource(edge2))) && (this.getEdgeTarget(edge1).seqEquals(graph2.getEdgeTarget(edge2)));
+    }
+
+
     /**
      * Get the incoming edge of v.  Requires that there be only one such edge or throws an error
      * @param v our vertex
      * @return the single incoming edge to v, or null if none exists
      */
-    public BaseEdge incomingEdgeOf(final T v) {
+    public E incomingEdgeOf(final V v) {
         return getSingletonEdge(incomingEdgesOf(v));
     }
 
@@ -602,7 +637,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param v our vertex
      * @return the single outgoing edge from v, or null if none exists
      */
-    public BaseEdge outgoingEdgeOf(final T v) {
+    public E outgoingEdgeOf(final V v) {
         return getSingletonEdge(outgoingEdgesOf(v));
     }
 
@@ -613,7 +648,7 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @return a edge
      */
     @Requires("edges != null")
-    private BaseEdge getSingletonEdge(final Collection<BaseEdge> edges) {
+    private E getSingletonEdge(final Collection<E> edges) {
         if ( edges.size() > 1 ) throw new IllegalArgumentException("Cannot get a single incoming edge for a vertex with multiple incoming edges " + edges);
         return edges.isEmpty() ? null : edges.iterator().next();
     }
@@ -625,12 +660,87 @@ public class BaseGraph<T extends BaseVertex> extends DefaultDirectedGraph<T, Bas
      * @param target vertex
      * @param e edge to add
      */
-    public void addOrUpdateEdge(final T source, final T target, final BaseEdge e) {
-        final BaseEdge prev = getEdge(source, target);
+    public void addOrUpdateEdge(final V source, final V target, final E e) {
+        final E prev = getEdge(source, target);
         if ( prev != null ) {
             prev.add(e);
         } else {
             addEdge(source, target, e);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "BaseGraph{" +
+                "kmerSize=" + kmerSize +
+                '}';
+    }
+
+    /**
+     * The base sequence for the given path.
+     * Note, this assumes that the path does not start with a source node.
+     *
+     * @param path the list of vertexes that make up the path
+     * @return  non-null sequence of bases corresponding to the given path
+     */
+    @Ensures({"result != null"})
+    public byte[] getBasesForPath(final List<? extends DeBruijnVertex> path) {
+        if ( path == null ) throw new IllegalArgumentException("Path cannot be null");
+
+        final StringBuffer sb = new StringBuffer();
+        for ( final DeBruijnVertex v : path )
+            sb.append((char)v.getSuffix());
+
+        return sb.toString().getBytes();
+    }
+
+    /**
+     * Get the set of vertices within distance edges of source, regardless of edge direction
+     *
+     * @param source the source vertex to consider
+     * @param distance the distance
+     * @return a set of vertices within distance of source
+     */
+    protected Set<V> verticesWithinDistance(final V source, final int distance) {
+        if ( distance == 0 )
+            return Collections.singleton(source);
+
+        final Set<V> found = new HashSet<>();
+        found.add(source);
+        for ( final V v : neighboringVerticesOf(source) ) {
+            found.addAll(verticesWithinDistance(v, distance - 1));
+        }
+
+        return found;
+    }
+
+    /**
+     * Get a graph containing only the vertices within distance edges of target
+     * @param target a vertex in graph
+     * @param distance the max distance
+     * @return a non-null graph
+     */
+    public BaseGraph<V,E> subsetToNeighbors(final V target, final int distance) {
+        if ( target == null ) throw new IllegalArgumentException("Target cannot be null");
+        if ( ! containsVertex(target) ) throw new IllegalArgumentException("Graph doesn't contain vertex " + target);
+        if ( distance < 0 ) throw new IllegalArgumentException("Distance must be >= 0 but got " + distance);
+
+
+        final Set<V> toKeep = verticesWithinDistance(target, distance);
+        final Set<V> toRemove = new HashSet<>(vertexSet());
+        toRemove.removeAll(toKeep);
+
+        final BaseGraph<V,E> result = (BaseGraph<V,E>)clone();
+        result.removeAllVertices(toRemove);
+
+        return result;
+    }
+
+    /**
+     * Get a subgraph of graph that contains only vertices within 10 edges of the ref source vertex
+     * @return a non-null subgraph of this graph
+     */
+    public BaseGraph<V,E> subsetToRefSource() {
+        return subsetToNeighbors(getReferenceSourceVertex(), 10);
     }
 }

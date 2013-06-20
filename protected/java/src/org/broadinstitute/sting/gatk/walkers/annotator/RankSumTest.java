@@ -53,9 +53,11 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.MannWhitneyU;
 import org.broadinstitute.sting.utils.QualityUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
@@ -87,31 +89,33 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
         if (genotypes == null || genotypes.size() == 0)
             return null;
 
-        final ArrayList<Double> refQuals = new ArrayList<Double>();
-        final ArrayList<Double> altQuals = new ArrayList<Double>();
+        final ArrayList<Double> refQuals = new ArrayList<>();
+        final ArrayList<Double> altQuals = new ArrayList<>();
 
         for ( final Genotype genotype : genotypes.iterateInSampleNameOrder() ) {
-            PerReadAlleleLikelihoodMap indelLikelihoodMap = null;
-            ReadBackedPileup pileup = null;
 
+            boolean usePileup = true;
 
-            if (stratifiedContexts != null) { // the old UG SNP-only path through the annotations
-                final AlignmentContext context = stratifiedContexts.get(genotype.getSampleName());
-                if ( context != null )
-                    pileup = context.getBasePileup();
+            if ( stratifiedPerReadAlleleLikelihoodMap != null ) {
+                final PerReadAlleleLikelihoodMap likelihoodMap = stratifiedPerReadAlleleLikelihoodMap.get(genotype.getSampleName());
+                if ( likelihoodMap != null && !likelihoodMap.isEmpty() ) {
+                    fillQualsFromLikelihoodMap(vc.getAlleles(), vc.getStart(), likelihoodMap, refQuals, altQuals);
+                    usePileup = false;
+                }
             }
-            if (stratifiedPerReadAlleleLikelihoodMap != null )
-                indelLikelihoodMap = stratifiedPerReadAlleleLikelihoodMap.get(genotype.getSampleName());
 
-            if (indelLikelihoodMap != null && indelLikelihoodMap.isEmpty())
-                indelLikelihoodMap = null;
-            // treat an empty likelihood map as a null reference - will simplify contract with fillQualsFromPileup
-            if (indelLikelihoodMap == null && pileup == null)
-                continue;
-
-            fillQualsFromPileup(vc.getAlleles(), vc.getStart(), pileup, indelLikelihoodMap, refQuals, altQuals );
+            // the old UG SNP-only path through the annotations
+            if ( usePileup && stratifiedContexts != null ) {
+                final AlignmentContext context = stratifiedContexts.get(genotype.getSampleName());
+                if ( context != null ) {
+                    final ReadBackedPileup pileup = context.getBasePileup();
+                    if ( pileup != null )
+                        fillQualsFromPileup(vc.getAlleles(), pileup, refQuals, altQuals);
+                }
+            }
         }
-        if (refQuals.isEmpty() && altQuals.isEmpty())
+
+        if ( refQuals.isEmpty() && altQuals.isEmpty() )
             return null;
 
         final MannWhitneyU mannWhitneyU = new MannWhitneyU(useDithering);
@@ -136,18 +140,72 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
         // we are testing that set1 (the alt bases) have lower quality scores than set2 (the ref bases)
         final Pair<Double, Double> testResults = mannWhitneyU.runOneSidedTest(MannWhitneyU.USet.SET1);
 
-        final Map<String, Object> map = new HashMap<String, Object>();
+        final Map<String, Object> map = new HashMap<>();
         if (!Double.isNaN(testResults.first))
             map.put(getKeyNames().get(0), String.format("%.3f", testResults.first));
         return map;
     }
 
-     protected abstract void fillQualsFromPileup(final List<Allele> alleles,
-                                                final int refLoc,
-                                                final ReadBackedPileup readBackedPileup,
-                                                final PerReadAlleleLikelihoodMap alleleLikelihoodMap,
-                                                final List<Double> refQuals,
-                                                final List<Double> altQuals);
+    private void fillQualsFromPileup(final List<Allele> alleles,
+                                     final ReadBackedPileup pileup,
+                                     final List<Double> refQuals,
+                                     final List<Double> altQuals) {
+        for ( final PileupElement p : pileup ) {
+            if ( isUsableBase(p) ) {
+                final Double value = getElementForPileupElement(p);
+                if ( value == null )
+                    continue;
+
+                if ( alleles.get(0).equals(Allele.create(p.getBase(), true)) )
+                    refQuals.add(value);
+                else if ( alleles.contains(Allele.create(p.getBase())) )
+                    altQuals.add(value);
+            }
+        }
+     }
+
+    private void fillQualsFromLikelihoodMap(final List<Allele> alleles,
+                                            final int refLoc,
+                                            final PerReadAlleleLikelihoodMap likelihoodMap,
+                                            final List<Double> refQuals,
+                                            final List<Double> altQuals) {
+        for ( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> el : likelihoodMap.getLikelihoodReadMap().entrySet() ) {
+            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+            if ( ! a.isInformative() )
+                continue; // read is non-informative
+
+            final GATKSAMRecord read = el.getKey();
+            if ( isUsableRead(read, refLoc) ) {
+                final Double value = getElementForRead(read, refLoc);
+                if ( value == null )
+                    continue;
+
+                if ( a.getMostLikelyAllele().isReference() )
+                    refQuals.add(value);
+                else if ( alleles.contains(a.getMostLikelyAllele()) )
+                    altQuals.add(value);
+            }
+        }
+    }
+
+    /**
+     * Get the element for the given read at the given reference position
+     *
+     * @param read     the read
+     * @param refLoc   the reference position
+     * @return a Double representing the element to be used in the rank sum test, or null if it should not be used
+     */
+    protected abstract Double getElementForRead(final GATKSAMRecord read, final int refLoc);
+
+    // TODO -- until the ReadPosRankSumTest stops treating these differently, we need to have separate methods for GATKSAMRecords and PileupElements.  Yuck.
+
+    /**
+     * Get the element for the given read at the given reference position
+     *
+     * @param p        the pileup element
+     * @return a Double representing the element to be used in the rank sum test, or null if it should not be used
+     */
+    protected abstract Double getElementForPileupElement(final PileupElement p);
 
     /**
      * Can the base in this pileup element be used in comparative tests between ref / alt bases?
@@ -157,30 +215,33 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
      * @param p the pileup element to consider
      * @return true if this base is part of a meaningful read for comparison, false otherwise
      */
-    public static boolean isUsableBase(final PileupElement p) {
-        return isUsableBase(p, false);
+    protected boolean isUsableBase(final PileupElement p) {
+        return !(p.isDeletion() ||
+                 p.getMappingQual() == 0 ||
+                 p.getMappingQual() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE ||
+                 ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE || // need the unBAQed quality score here
+                 p.getRead().isReducedRead() );
     }
 
     /**
-     * Can the base in this pileup element be used in comparative tests between ref / alt bases?
+     * Can the read be used in comparative tests between ref / alt bases?
      *
-     * @param p the pileup element to consider
-     * @param allowDeletions if true, allow p to be a deletion base
-     * @return true if this base is part of a meaningful read for comparison, false otherwise
+     * @param read   the read to consider
+     * @param refLoc the reference location
+     * @return true if this read is meaningful for comparison, false otherwise
      */
-    public static boolean isUsableBase(final PileupElement p, final boolean allowDeletions) {
-        return !((! allowDeletions && p.isDeletion()) ||
-                 p.getMappingQual() == 0 ||
-                 p.getMappingQual() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE ||
-                 ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE); // need the unBAQed quality score here
+    protected boolean isUsableRead(final GATKSAMRecord read, final int refLoc) {
+        return !( read.getMappingQuality() == 0 ||
+                read.getMappingQuality() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE ||
+                read.isReducedRead() );
     }
 
     /**
      * Initialize the rank sum test annotation using walker and engine information. Right now this checks to see if
      * engine randomization is turned off, and if so does not dither.
-     * @param walker
-     * @param toolkit
-     * @param headerLines
+     * @param walker            the walker
+     * @param toolkit           the GATK engine
+     * @param headerLines       the header lines
      */
     public void initialize ( AnnotatorCompatible walker, GenomeAnalysisEngine toolkit, Set<VCFHeaderLine> headerLines ) {
         useDithering = ! toolkit.getArguments().disableDithering;

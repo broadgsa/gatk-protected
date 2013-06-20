@@ -189,4 +189,15 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                  Arrays.asList("aa926eae333208dc1f41fe69dc95d7a6"));
          cvExecuteTest("combineDBSNPDuplicateSites:", spec, true);
     }
+
+    @Test
+    public void combineLeavesUnfilteredRecordsUnfiltered() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CombineVariants --no_cmdline_in_header -o %s "
+                        + " -R " + b37KGReference
+                        + " -V " + privateTestDir + "combineVariantsLeavesRecordsUnfiltered.vcf",
+                1,
+                Arrays.asList("f8c014d0af7e014475a2a448dc1f9cef"));
+        cvExecuteTest("combineLeavesUnfilteredRecordsUnfiltered: ", spec, false);
+    }
 }

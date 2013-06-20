@@ -49,6 +49,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 import com.google.java.contract.Requires;
 import org.broadinstitute.sting.utils.Utils;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A graph vertex containing a sequence of bases and a unique ID that
@@ -71,8 +72,9 @@ import java.util.Arrays;
  * @since 03/2013
  */
 public final class SeqVertex extends BaseVertex {
-    private static int idCounter = 0;
-    public final int id;
+    // Note that using an AtomicInteger is critical to allow multi-threaded HaplotypeCaller
+    private static final AtomicInteger idCounter = new AtomicInteger(0);
+    private int id = idCounter.getAndIncrement();
 
     /**
      * Create a new SeqVertex with sequence and the next available id
@@ -80,7 +82,6 @@ public final class SeqVertex extends BaseVertex {
      */
     public SeqVertex(final byte[] sequence) {
         super(sequence);
-        this.id = idCounter++;
     }
 
     /**
@@ -89,7 +90,6 @@ public final class SeqVertex extends BaseVertex {
      */
     public SeqVertex(final String sequence) {
         super(sequence);
-        this.id = idCounter++;
     }
 
     /**

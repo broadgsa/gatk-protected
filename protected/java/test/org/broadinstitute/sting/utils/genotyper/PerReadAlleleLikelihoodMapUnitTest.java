@@ -233,7 +233,7 @@ public class PerReadAlleleLikelihoodMapUnitTest extends BaseTest {
         tests.add(new Object[]{100, 0.01, true, Arrays.asList(-5.0, -10.0)});
         tests.add(new Object[]{100, 0.01, false, Arrays.asList(-5.0, -10.0, -3.0)});
         tests.add(new Object[]{100, 0.01, false, Arrays.asList(-5.0, -10.0, -2.0)});
-        tests.add(new Object[]{100, 0.01, true, Arrays.asList(-5.0, -10.0, -4.0)});
+        tests.add(new Object[]{100, 0.01, true, Arrays.asList(-5.0, -10.0, -4.2)});
         tests.add(new Object[]{100, 0.001, true, Arrays.asList(-5.0, -10.0)});
         tests.add(new Object[]{100, 0.001, false, Arrays.asList(-5.0, -10.0, 0.0)});
 
@@ -243,7 +243,7 @@ public class PerReadAlleleLikelihoodMapUnitTest extends BaseTest {
     @Test(dataProvider = "PoorlyModelledReadData")
     public void testPoorlyModelledRead(final int readLen, final double maxErrorRatePerBase, final boolean expected, final List<Double> log10likelihoods) {
         final byte[] bases = Utils.dupBytes((byte)'A', readLen);
-        final byte[] quals = Utils.dupBytes((byte) 30, readLen);
+        final byte[] quals = Utils.dupBytes((byte) 40, readLen);
 
         final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, quals, readLen + "M");
 
@@ -279,7 +279,7 @@ public class PerReadAlleleLikelihoodMapUnitTest extends BaseTest {
             final double likelihood = bad ? -100.0 : 0.0;
 
             final byte[] bases = Utils.dupBytes((byte)'A', readLen);
-            final byte[] quals = Utils.dupBytes((byte) 30, readLen);
+            final byte[] quals = Utils.dupBytes((byte) 40, readLen);
 
             final Allele allele = Allele.create(Utils.dupString("A", readI+1));
 

@@ -52,10 +52,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
  * Date: 3/27/12
  */
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.SAMFileHeader;
+import net.sf.samtools.*;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
@@ -76,53 +73,11 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
     public void testReferenceCycleGraph() {
         String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
         String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true));
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true));
+        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), Collections.<Haplotype>emptyList());
+        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), Collections.<Haplotype>emptyList());
 
         Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
         Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
-    }
-
-    @Test(enabled = !DEBUG)
-    public void testLeftAlignCigarSequentially() {
-        String preRefString = "GATCGATCGATC";
-        String postRefString = "TTT";
-        String refString = "ATCGAGGAGAGCGCCCCG";
-        String indelString1 = "X";
-        String indelString2 = "YZ";
-        int refIndel1 = 10;
-        int refIndel2 = 12;
-
-        for ( final int indelSize1 : Arrays.asList(1, 2, 3, 4) ) {
-            for ( final int indelOp1 : Arrays.asList(1, -1) ) {
-                for ( final int indelSize2 : Arrays.asList(1, 2, 3, 4) ) {
-                    for ( final int indelOp2 : Arrays.asList(1, -1) ) {
-
-                        Cigar expectedCigar = new Cigar();
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp1 < 0 ? refIndel1 - indelSize1 : refIndel1), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        expectedCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2 - indelSize2) * 2 : refIndel2 * 2), CigarOperator.M));
-                        expectedCigar.add(new CigarElement(refString.length(), CigarOperator.M));
-
-                        Cigar givenCigar = new Cigar();
-                        givenCigar.add(new CigarElement(refString.length() + refIndel1/2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize1, (indelOp1 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp1 < 0 ? (refIndel1/2 - indelSize1) : refIndel1/2) + refString.length() + refIndel2/2 * 2, CigarOperator.M));
-                        givenCigar.add(new CigarElement(indelSize2 * 2, (indelOp2 > 0 ? CigarOperator.I : CigarOperator.D)));
-                        givenCigar.add(new CigarElement((indelOp2 < 0 ? (refIndel2/2 - indelSize2) * 2 : refIndel2/2 * 2) + refString.length(), CigarOperator.M));
-
-                        String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
-                        String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
-
-                        Cigar calculatedCigar = new DeBruijnAssembler().leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
-                        Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
-                    }
-                }
-            }
-        }
     }
 
     private static class MockBuilder extends DeBruijnGraphBuilder {
@@ -165,7 +120,7 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    @Test(dataProvider = "AddReadKmersToGraph")
+    @Test(dataProvider = "AddReadKmersToGraph", enabled = ! DEBUG)
     public void testAddReadKmersToGraph(final String bases, final int kmerSize, final List<Integer> badQualsSites) {
         final int readLen = bases.length();
         final DeBruijnAssembler assembler = new DeBruijnAssembler();
@@ -193,6 +148,49 @@ public class DeBruijnAssemblerUnitTest extends BaseTest {
         }
 
         assembler.addReadKmersToGraph(builder, Arrays.asList(read));
+        Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
+        for ( final Kmer addedKmer : builder.addedPairs ) {
+            Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);
+        }
+    }
+
+    @DataProvider(name = "AddGGAKmersToGraph")
+    public Object[][] makeAddGGAKmersToGraphData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
+        final int readLen = bases.length();
+        final List<Integer> allBadStarts = new ArrayList<Integer>(readLen);
+        for ( int i = 0; i < readLen; i++ ) allBadStarts.add(i);
+
+        for ( final int kmerSize : Arrays.asList(3, 4, 5) ) {
+            tests.add(new Object[]{bases, kmerSize});
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "AddGGAKmersToGraph", enabled = ! DEBUG)
+    public void testAddGGAKmersToGraph(final String bases, final int kmerSize) {
+        final int readLen = bases.length();
+        final DeBruijnAssembler assembler = new DeBruijnAssembler();
+        final MockBuilder builder = new MockBuilder(kmerSize);
+
+        final Set<String> expectedBases = new HashSet<String>();
+        final Set<Integer> expectedStarts = new LinkedHashSet<Integer>();
+        for ( int i = 0; i < readLen; i++) {
+            boolean good = true;
+            for ( int j = 0; j < kmerSize + 1; j++ ) { // +1 is for pairing
+                good &= i + j < readLen;
+            }
+            if ( good ) {
+                expectedStarts.add(i);
+                expectedBases.add(bases.substring(i, i + kmerSize + 1));
+            }
+        }
+
+        assembler.addGGAKmersToGraph(builder, Arrays.asList(new Haplotype(bases.getBytes())));
         Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
         for ( final Kmer addedKmer : builder.addedPairs ) {
             Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);

@@ -877,6 +877,10 @@ public class SlidingWindow {
                     final int start = region.getStart() - windowHeaderStart;
                     int stop = region.getStop() - windowHeaderStart;
 
+                    // make sure the bitset is complete given the region (it might not be in multi-sample mode)
+                    if ( region.getStop() > markedSites.getStartLocation() + markedSites.getVariantSiteBitSet().length )
+                        markSites(region.getStop());
+
                     CloseVariantRegionResult closeVariantRegionResult = closeVariantRegion(start, stop, knownSnpPositions);
                     allReads.addAll(closeVariantRegionResult.reads);
 
@@ -1195,7 +1199,7 @@ public class SlidingWindow {
         }
 
         // Special case for leading insertions before the beginning of the sliding read
-        if ( ReadUtils.readStartsWithInsertion(read).getFirst() && (readStart == headerStart || headerStart < 0) ) {
+        if ( (readStart == headerStart || headerStart < 0) && ReadUtils.readStartsWithInsertion(read.getCigar(), false) != null ) {
             // create a new first element to the window header with no bases added
             header.addFirst(new HeaderElement(readStart - 1));
             // this allows the first element (I) to look at locationIndex - 1 when we update the header and do the right thing

@@ -47,13 +47,12 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class KmerUnitTest extends BaseTest {
     @DataProvider(name = "KMerCreationData")
@@ -127,6 +126,42 @@ public class KmerUnitTest extends BaseTest {
         for ( int start = 0; start < bases.length(); start++ ) {
             for ( int length = 0; start + length < bases.length(); length++ ) {
                 Assert.assertEquals(new String(one.subKmer(start,length).bases()), bases.substring(start, start+length));
+            }
+        }
+    }
+
+    @Test
+    public void testDifferingPositions() {
+        final String bases = "ACGTCAGACGTACGTTTGACGTCAGACGTACGT";
+        final Kmer baseKmer = new Kmer(bases.getBytes());
+
+
+        final int NUM_TEST_CASES = 30;
+
+        for (int test = 0; test < NUM_TEST_CASES; test++) {
+
+            final int numBasesToChange =  test % bases.length();
+
+            // changes numBasesToChange bases - spread regularly through read string
+            final int step = (numBasesToChange > 0?Math.min(bases.length() / numBasesToChange,1) : 1);
+
+            final byte[] newBases = bases.getBytes().clone();
+            int actualChangedBases =0; // could be different from numBasesToChange due to roundoff
+            for (int idx=0; idx < numBasesToChange; idx+=step) {
+                // now change given positions
+                newBases[idx] = (newBases[idx] == (byte)'A'? (byte)'T':(byte)'A');
+                actualChangedBases++;
+            }
+
+            // compute changed positions
+            final int[] differingIndices = new int[newBases.length];
+            final byte[] differingBases = new byte[newBases.length];
+            final int numDiffs = baseKmer.getDifferingPositions(new Kmer(newBases),newBases.length,differingIndices,differingBases);
+            Assert.assertEquals(numDiffs,actualChangedBases);
+            for (int k=0; k < numDiffs; k++) {
+                final int idx = differingIndices[k];
+                Assert.assertTrue(newBases[idx] != bases.getBytes()[idx]);
+                Assert.assertEquals(differingBases[idx],newBases[idx]);
             }
         }
     }

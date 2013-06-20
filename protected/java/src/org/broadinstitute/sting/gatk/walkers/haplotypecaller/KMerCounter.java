@@ -46,9 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * generic utility class that counts kmers
@@ -95,6 +93,20 @@ public class KMerCounter {
      */
     public Collection<CountedKmer> getCountedKmers() {
         return countsByKMer.values();
+    }
+
+    /**
+     * Get kmers that have minCount or greater in this counter
+     * @param minCount only return kmers with count >= this value
+     * @return a non-null collection of kmers
+     */
+    public Collection<Kmer> getKmersWithCountsAtLeast(final int minCount) {
+        final List<Kmer> result = new LinkedList<Kmer>();
+        for ( final CountedKmer countedKmer : getCountedKmers() ) {
+            if ( countedKmer.count >= minCount )
+                result.add(countedKmer.kmer);
+        }
+        return result;
     }
 
     /**

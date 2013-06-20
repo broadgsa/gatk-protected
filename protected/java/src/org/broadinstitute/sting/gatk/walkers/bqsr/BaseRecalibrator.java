@@ -61,6 +61,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.BaseUtils;
+import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.collections.Pair;
@@ -124,7 +125,7 @@ import java.util.List;
  *   -R resources/Homo_sapiens_assembly18.fasta \
  *   -knownSites bundle/hg18/dbsnp_132.hg18.vcf \
  *   -knownSites another/optional/setOfSitesToMask.vcf \
- *   -o recal_data.grp
+ *   -o recal_data.table
  * </pre>
  */
 
@@ -366,9 +367,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
     }
 
     protected static int[] calculateIsIndel( final GATKSAMRecord read, final EventType mode ) {
-        final byte[] readBases = read.getReadBases();
-        final int[] indel = new int[readBases.length];
-        Arrays.fill(indel, 0);
+        final int[] indel = new int[read.getReadBases().length];
         int readPos = 0;
         for ( final CigarElement ce : read.getCigar().getCigarElements() ) {
             final int elementLength = ce.getLength();
@@ -383,21 +382,19 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
                 }
                 case D:
                 {
-                    final int index = ( read.getReadNegativeStrandFlag() ? readPos : ( readPos > 0 ? readPos - 1 : readPos ) );
-                    indel[index] = ( mode.equals(EventType.BASE_DELETION) ? 1 : 0 );
+                    final int index = ( read.getReadNegativeStrandFlag() ? readPos : readPos - 1 );
+                    updateIndel(indel, index, mode, EventType.BASE_DELETION);
                     break;
                 }
                 case I:
                 {
                     final boolean forwardStrandRead = !read.getReadNegativeStrandFlag();
                     if( forwardStrandRead ) {
-                        indel[(readPos > 0 ? readPos - 1 : readPos)] = ( mode.equals(EventType.BASE_INSERTION) ? 1 : 0 );
+                        updateIndel(indel, readPos - 1, mode, EventType.BASE_INSERTION);
                     }
-                    for (int iii = 0; iii < elementLength; iii++) {
-                        readPos++;
-                    }
+                    readPos += elementLength;
                     if( !forwardStrandRead ) {
-                        indel[(readPos < indel.length ? readPos : readPos - 1)] = ( mode.equals(EventType.BASE_INSERTION) ? 1 : 0 );
+                        updateIndel(indel, readPos, mode, EventType.BASE_INSERTION);
                     }
                     break;
                 }
@@ -410,6 +407,12 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
             }
         }
         return indel;
+    }
+
+    private static void updateIndel(final int[] indel, final int index, final EventType mode, final EventType requiredMode) {
+        if ( mode == requiredMode && index >= 0 && index < indel.length )
+            // protect ourselves from events at the start or end of the read (1D3M or 3M1D)
+            indel[index] = 1;
     }
 
     protected static double[] calculateFractionalErrorArray( final int[] errorArray, final byte[] baqArray ) {
@@ -514,26 +517,11 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
         generateReport();
         logger.info("...done!");
 
-        if ( RAC.RECAL_PDF_FILE != null ) {
-            logger.info("Generating recalibration plots...");
-            generatePlots();
-        }
-
-        logger.info("Processed: " + result + " reads");
+        logger.info("BaseRecalibrator was able to recalibrate " + result + " reads");
     }
 
     private RecalibrationTables getRecalibrationTable() {
         return recalibrationEngine.getFinalRecalibrationTables();
-    }
-
-    private void generatePlots() {
-        File recalFile = getToolkit().getArguments().BQSR_RECAL_FILE;
-        if (recalFile != null) {
-            RecalibrationReport report = new RecalibrationReport(recalFile);
-            RecalUtils.generateRecalibrationPlot(RAC, report.getRecalibrationTables(), getRecalibrationTable(), requestedCovariates);
-        }
-        else
-            RecalUtils.generateRecalibrationPlot(RAC, getRecalibrationTable(), requestedCovariates);
     }
 
     /**
