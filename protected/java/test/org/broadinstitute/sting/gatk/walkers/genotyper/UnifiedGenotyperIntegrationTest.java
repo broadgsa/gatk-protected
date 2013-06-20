@@ -46,11 +46,15 @@
 
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
+import net.sf.samtools.util.BlockCompressedInputStream;
+import org.broad.tribble.readers.AsciiLineReader;
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -301,5 +305,19 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                 UserException.UnsupportedCigarOperatorException.class);
 
         executeTest("test calling on reads with Ns in CIGAR", spec);
+    }
+
+    @Test(enabled = true)
+    public void testCompressedVCFOutputWithNT() throws Exception {
+        WalkerTestSpec spec = new WalkerTestSpec("-T UnifiedGenotyper -R " + b37KGReference + " -I "
+                + privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam"
+                + " -o %s -L 20:10,000,000-10,100,000 -nt 4",
+                1, Arrays.asList("vcf.gz"), Arrays.asList(""));
+        final File vcf = executeTest("testCompressedVCFOutputWithNT", spec).first.get(0);
+        final AsciiLineReader reader = new AsciiLineReader(new BlockCompressedInputStream(vcf));
+        int nLines = 0;
+        while ( reader.readLine() != null )
+            nLines++;
+        Assert.assertTrue(nLines > 0);
     }
 }
