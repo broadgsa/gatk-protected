@@ -250,7 +250,6 @@ public class LikelihoodCalculationEngine {
 		final double[] likelihoods = batchPairHMM.batchGetResult();
 		for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
 		    final Haplotype haplotype = haplotypes.get(jjj);
-		    System.err.println(Integer.toString(jjj) + ": " + Double.toString(likelihoods[jjj]));
 		    if ( haplotype.isNonReference() )
 			bestNonReflog10L = Math.max(bestNonReflog10L, likelihoods[jjj]);
 		    else
