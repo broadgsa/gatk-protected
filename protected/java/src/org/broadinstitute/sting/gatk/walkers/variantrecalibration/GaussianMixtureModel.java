@@ -225,6 +225,20 @@ public class GaussianMixtureModel {
         isModelReadyForEvaluation = true;
     }
 
+    /**
+     * A version of Log10SumLog10 that tolerates NaN values in the array
+     *
+     * In the case where one or more of the values are NaN, this function returns NaN
+     *
+     * @param values a non-null vector of doubles
+     * @return log10 of the sum of the log10 values, or NaN
+     */
+    private double nanTolerantLog10SumLog10(final double[] values) {
+        for ( final double value : values )
+            if ( Double.isNaN(value) ) return Double.NaN;
+        return MathUtils.log10sumLog10(values);
+    }
+
     public double evaluateDatum( final VariantDatum datum ) {
         for( final boolean isNull : datum.isNull ) {
             if( isNull ) { return evaluateDatumMarginalized( datum ); }
@@ -235,7 +249,7 @@ public class GaussianMixtureModel {
         for( final MultivariateGaussian gaussian : gaussians ) {
             pVarInGaussianLog10[gaussianIndex++] = gaussian.pMixtureLog10 + gaussian.evaluateDatumLog10( datum );
         }
-        return MathUtils.log10sumLog10(pVarInGaussianLog10); // Sum(pi_k * p(v|n,k))
+        return nanTolerantLog10SumLog10(pVarInGaussianLog10); // Sum(pi_k * p(v|n,k))
     }
 
     // Used only to decide which covariate dimension is most divergent in order to report in the culprit info field annotation
@@ -247,7 +261,7 @@ public class GaussianMixtureModel {
         for( final MultivariateGaussian gaussian : gaussians ) {
             pVarInGaussianLog10[gaussianIndex++] = gaussian.pMixtureLog10 + MathUtils.normalDistributionLog10(gaussian.mu[iii], gaussian.sigma.get(iii, iii), datum.annotations[iii]);
         }
-        return MathUtils.log10sumLog10(pVarInGaussianLog10); // Sum(pi_k * p(v|n,k))
+        return nanTolerantLog10SumLog10(pVarInGaussianLog10); // Sum(pi_k * p(v|n,k))
     }
 
     public double evaluateDatumMarginalized( final VariantDatum datum ) {
