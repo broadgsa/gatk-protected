@@ -572,8 +572,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS, variantMerger );
 
-        if ( bamWriter != null )
+        if ( bamWriter != null ) {
+            // we currently do not support multi-threaded BAM writing, so exception out
+            if ( getToolkit().getTotalNumberOfThreads() > 1 )
+                throw new UserException.BadArgumentValue("bamout", "Currently cannot emit a BAM file from the HaplotypeCaller in multi-threaded mode.");
             haplotypeBAMWriter = HaplotypeBAMWriter.create(bamWriterType, bamWriter, getToolkit().getSAMFileHeader());
+        }
 
         trimmer = new ActiveRegionTrimmer(DEBUG, PADDING_AROUND_SNPS_FOR_CALLING, PADDING_AROUND_OTHERS_FOR_CALLING,
                 UAC.GenotypingMode.equals(GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES) ? MAX_GGA_ACTIVE_REGION_EXTENSION : MAX_DISCOVERY_ACTIVE_REGION_EXTENSION,
