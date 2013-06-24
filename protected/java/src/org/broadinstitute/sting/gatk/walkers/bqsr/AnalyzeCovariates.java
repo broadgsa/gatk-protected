@@ -49,12 +49,15 @@ import com.google.java.contract.Requires;
 import org.broadinstitute.sting.commandline.Argument;
 import org.broadinstitute.sting.commandline.Input;
 import org.broadinstitute.sting.commandline.Output;
+import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.recalibration.RecalUtils;
 import org.broadinstitute.sting.utils.recalibration.RecalibrationReport;
 import org.broadinstitute.sting.utils.recalibration.BaseRecalibration;
@@ -199,6 +202,7 @@ import java.util.Map;
  * @version 6/16/2013
  * @since 2.6
  */
+@DocumentedGATKFeature(groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class})
 public final class AnalyzeCovariates extends RodWalker<AnalyzeCovariates.None,AnalyzeCovariates.None> {
 
 
