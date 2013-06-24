@@ -94,7 +94,7 @@ public class SlidingWindowUnitTest extends BaseTest {
     //////////////////////////////////////////////////////////////////////////////////////
 
     @Test(enabled = true)
-    public void testLeadingClipThenInsertion() {
+    public void testLeadingSoftClipThenInsertion() {
 
         final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "foo", 0, 1, 10);
         read.setReadBases(Utils.dupBytes((byte) 'A', 10));
@@ -104,8 +104,21 @@ public class SlidingWindowUnitTest extends BaseTest {
 
         final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 1);
         slidingWindow.addRead(read);
-        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close(null);
+        slidingWindow.close(null);
+    }
 
+    @Test(enabled = true)
+    public void testLeadingHardClipThenInsertion() {
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "foo", 0, 1, 8);
+        read.setReadBases(Utils.dupBytes((byte) 'A', 8));
+        read.setBaseQualities(Utils.dupBytes((byte)30, 8));
+        read.setMappingQuality(30);
+        read.setCigarString("2H2I6M");
+
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
+        slidingWindow.addRead(read);
+        slidingWindow.close(null);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
