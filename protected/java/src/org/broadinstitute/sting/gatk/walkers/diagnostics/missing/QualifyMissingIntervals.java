@@ -87,7 +87,7 @@ import java.util.List;
  *
  * <h3>Input</h3>
  * <p>
- *  A reference file
+ *  A reference file (for GC content), the input bam file (for base and mapping quality calculation), the missing intervals (in the -L), the baits/targets used to sequence (in the -targets) and a bed file with the coding sequence intervals of the genome (in the -cds)
  * </p>
  *
  * <h3>Output</h3>
@@ -100,6 +100,7 @@ import java.util.List;
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
  *   -T QualifyMissingIntervals \
  *   -R ref.fasta \
+ *   -I input.bam \
  *   -o output.grp \
  *   -L input.intervals \
  *   -cds cds.intervals \
@@ -117,7 +118,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
     public File targetsFile;
 
     @Argument(shortName = "cds", required = false)
-    public File cdsFile;
+    public File cdsFile = null;
 
     GATKReport simpleReport;
     GenomeLocSortedSet target;
@@ -133,7 +134,8 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         target = new GenomeLocSortedSet(parser);
         cds = new GenomeLocSortedSet(parser);
         parseFile(targetsFile, target, parser);
-        parseFile(cdsFile, cds, parser);
+        if (cdsFile != null)
+            parseFile(cdsFile, cds, parser);
     }
 
     public Metrics reduceInit() {
