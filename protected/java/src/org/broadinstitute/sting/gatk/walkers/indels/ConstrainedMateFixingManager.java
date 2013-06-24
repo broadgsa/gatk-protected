@@ -130,7 +130,7 @@ public class ConstrainedMateFixingManager {
     private static final boolean DEBUG = false;
 
     /** How often do we check whether we want to emit reads? */
-    private final static int EMIT_FREQUENCY = 1000;
+    protected final static int EMIT_FREQUENCY = 1000;
 
     /**
      * How much could a single read move in position from its original position?
@@ -324,7 +324,8 @@ public class ConstrainedMateFixingManager {
                            || noReadCanMoveBefore(read.getMateAlignmentStart(), newRead ) ) ) { // we're already past where the mate started
 
                     // remove reads from the map that we have emitted -- useful for case where the mate never showed up
-                    forMateMatching.remove(read.getReadName());
+                    if ( !read.getNotPrimaryAlignmentFlag() )
+                        forMateMatching.remove(read.getReadName());
 
                     if ( DEBUG )
                         logger.warn(String.format("EMIT!  At %d: read %s at %d with isize %d, mate start %d, op = %s",
@@ -346,7 +347,8 @@ public class ConstrainedMateFixingManager {
 
     private void writeRead(SAMRecord read) {
         try {
-            writer.addAlignment(read);
+            if ( writer != null )
+                writer.addAlignment(read);
         } catch (IllegalArgumentException e) {
             throw new UserException("If the maximum allowable reads in memory is too small, it may cause reads to be written out of order when trying to write the BAM; please see the --maxReadsInMemory argument for details.  " + e.getMessage(), e);
         }
