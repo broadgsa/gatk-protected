@@ -878,7 +878,7 @@ public class SlidingWindow {
                     int stop = region.getStop() - windowHeaderStart;
 
                     // make sure the bitset is complete given the region (it might not be in multi-sample mode)
-                    if ( region.getStop() > markedSites.getStartLocation() + markedSites.getVariantSiteBitSet().length )
+                    if ( region.getStop() > markedSites.getStartLocation() + markedSites.getVariantSiteBitSet().length - 1 )
                         markSites(region.getStop());
 
                     CloseVariantRegionResult closeVariantRegionResult = closeVariantRegion(start, stop, knownSnpPositions);

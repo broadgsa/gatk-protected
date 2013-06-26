@@ -253,6 +253,33 @@ public class SlidingWindowUnitTest extends BaseTest {
         return count;
     }
 
+    @Test(enabled = true)
+    public void testMarkingRegionInCancerMode() {
+
+        final int contextSize = 10;
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, contextSize, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
+        slidingWindow.addRead(createSimpleRead("1", 0, 34, 75));
+        slidingWindow.addRead(createSimpleRead("2", 0, 97, 73));
+        slidingWindow.addRead(createSimpleRead("3", 0, 98, 75));
+        slidingWindow.addRead(createSimpleRead("4", 0, 98, 75));
+        slidingWindow.addRead(createSimpleRead("5", 0, 98, 75));
+
+        final CompressionStash regions = new CompressionStash();
+        regions.add(new FinishedGenomeLoc("1", 0, 89, 109, true));
+
+        slidingWindow.closeVariantRegions(regions, null, false);
+        Assert.assertEquals(slidingWindow.getMarkedSitesForTesting().getVariantSiteBitSet().length, 76 + contextSize);
+    }
+
+    private GATKSAMRecord createSimpleRead(final String name, final int refIndex, final int alignmentStart, final int length) {
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, name, refIndex, alignmentStart, length);
+        read.setReadBases(Utils.dupBytes((byte) 'A', length));
+        read.setBaseQualities(Utils.dupBytes((byte) 30, length));
+        read.setMappingQuality(60);
+        return read;
+    }
+
 
     /////////////////////////////////////////////////////////////////
     //// This section tests the consensus creation functionality ////
