@@ -64,15 +64,18 @@ import java.util.*;
  * <p>The mapping quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
  */
 public class MappingQualityRankSumTest extends RankSumTest implements StandardAnnotation {
-
+    @Override
     public List<String> getKeyNames() { return Arrays.asList("MQRankSum"); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("MQRankSum", 1, VCFHeaderLineType.Float, "Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities")); }
 
+    @Override
     protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
         return (double)read.getMappingQuality();
     }
 
+    @Override
     protected Double getElementForPileupElement(final PileupElement p) {
         return (double)p.getRead().getMappingQuality();
     }
