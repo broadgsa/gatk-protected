@@ -929,28 +929,28 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // Loop through the reads hard clipping the adaptor and low quality tails
         final List<GATKSAMRecord> readsToUse = new ArrayList<>(activeRegion.getReads().size());
         for( final GATKSAMRecord myRead : activeRegion.getReads() ) {
-            final GATKSAMRecord postAdapterRead = ( myRead.getReadUnmappedFlag() ? myRead : ReadClipper.hardClipAdaptorSequence( myRead ) );
-            if( postAdapterRead != null && !postAdapterRead.isEmpty() && postAdapterRead.getCigar().getReadLength() > 0 ) {
-                GATKSAMRecord clippedRead;
-                if (errorCorrectReads)
-                    clippedRead = ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION );
-                else if (useLowQualityBasesForAssembly)
-                    clippedRead = postAdapterRead;
-                else  // default case: clip low qual ends of reads
-                    clippedRead= ReadClipper.hardClipLowQualEnds( postAdapterRead, MIN_TAIL_QUALITY );
+            GATKSAMRecord clippedRead;
+            if (errorCorrectReads)
+                clippedRead = ReadClipper.hardClipLowQualEnds( myRead, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION );
+            else if (useLowQualityBasesForAssembly)
+                clippedRead = myRead;
+            else  // default case: clip low qual ends of reads
+                clippedRead= ReadClipper.hardClipLowQualEnds( myRead, MIN_TAIL_QUALITY );
 
-                if ( dontUseSoftClippedBases ) {
-                    // uncomment to remove hard clips from consideration at all
-                    clippedRead = ReadClipper.hardClipSoftClippedBases(clippedRead);
-                } else {
-                    // revert soft clips so that we see the alignment start and end assuming the soft clips are all matches
-                    // TODO -- WARNING -- still possibility that unclipping the soft clips will introduce bases that aren't
-                    // TODO -- truly in the extended region, as the unclipped bases might actually include a deletion
-                    // TODO -- w.r.t. the reference.  What really needs to happen is that kmers that occur before the
-                    // TODO -- reference haplotype start must be removed
-                    clippedRead = ReadClipper.revertSoftClippedBases(clippedRead);
-                }
+            if ( dontUseSoftClippedBases || ! ReadUtils.hasWellDefinedFragmentSize(clippedRead) ) {
+                // remove soft clips if we cannot reliably clip off adapter sequence or if the user doesn't want to use soft clips at all
+                clippedRead = ReadClipper.hardClipSoftClippedBases(clippedRead);
+            } else {
+                // revert soft clips so that we see the alignment start and end assuming the soft clips are all matches
+                // TODO -- WARNING -- still possibility that unclipping the soft clips will introduce bases that aren't
+                // TODO -- truly in the extended region, as the unclipped bases might actually include a deletion
+                // TODO -- w.r.t. the reference.  What really needs to happen is that kmers that occur before the
+                // TODO -- reference haplotype start must be removed
+                clippedRead = ReadClipper.revertSoftClippedBases(clippedRead);
+            }
 
+            clippedRead = ( clippedRead.getReadUnmappedFlag() ? clippedRead : ReadClipper.hardClipAdaptorSequence( clippedRead ) );
+            if( clippedRead != null && !clippedRead.isEmpty() && clippedRead.getCigar().getReadLength() > 0 ) {
                 clippedRead = ReadClipper.hardClipToRegion( clippedRead, activeRegion.getExtendedLoc().getStart(), activeRegion.getExtendedLoc().getStop() );
                 if( activeRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 ) {
                     //logger.info("Keeping read " + clippedRead + " start " + clippedRead.getAlignmentStart() + " end " + clippedRead.getAlignmentEnd());
