@@ -180,7 +180,7 @@ public class LikelihoodCalculationEngine {
 
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final List<Haplotype> haplotypes, final List<GATKSAMRecord> reads) {
         // first, a little set up to get copies of the Haplotypes that are Alleles (more efficient than creating them each time)
-	final BatchPairHMM batchPairHMM = (pairHMM instanceof BatchPairHMM) ? (BatchPairHMM)pairHMM : null;
+	final BatchPairHMM batchPairHMM = (pairHMM.get() instanceof BatchPairHMM) ? (BatchPairHMM)pairHMM.get() : null;
 	final Vector<GATKSAMRecord> batchedReads = new Vector<GATKSAMRecord>(reads.size());
         final int numHaplotypes = haplotypes.size();
         final Map<Haplotype, Allele> alleleVersions = new LinkedHashMap<>(numHaplotypes);
