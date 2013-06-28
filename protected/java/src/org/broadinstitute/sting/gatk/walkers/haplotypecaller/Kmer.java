@@ -46,7 +46,11 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
+import com.google.java.contract.Requires;
+
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Fast wrapper for byte[] kmers
@@ -150,6 +154,15 @@ public class Kmer {
     }
 
     /**
+     * Backdoor method for fast base peeking: avoids copying like bases() and doesn't modify internal state.
+     * Intended to be used for fast computation of neighboring kmers
+     * @return                        Reference to complete bases stores in this kmer
+     * WARNING: UNSAFE, caller should NEVER modify bases. Speed/safety tradeoff!!
+     */
+    private byte[] unsafePeekAtBases() {
+        return bases;
+    }
+    /**
      * Get a string representation of the bases of this kmer
      * @return a non-null string
      */
@@ -163,6 +176,45 @@ public class Kmer {
      */
     public int length() {
         return length;
+    }
+
+    /**
+     * Gets a set of differing positions and bases from another k-mer, limiting up to a max distance.
+     * For example, if this = "ACATT" and other = "ACGGT":
+     * - if maxDistance < 2 then -1 will be returned, since distance between kmers is 2.
+     * - If maxDistance >=2, then 2 will be returned, and arrays will be filled as follows:
+     * differingIndeces = {2,3}
+     * differingBases = {'G','G'}
+     * @param other                 Other k-mer to test
+     * @param maxDistance           Maximum distance to search. If this and other k-mers are beyond this Hamming distance,
+     *                              search is aborted and a null is returned
+     * @param differingIndeces      Array with indices of differing bytes in array
+     * @param differingBases        Actual differing bases
+     * @return                      Set of mappings of form (int->byte), where each elements represents index
+     *                              of k-mer array where bases mismatch, and the byte is the base from other kmer.
+     *                              If both k-mers differ by more than maxDistance, returns null
+     */
+    @Requires({"other != null","differingIndeces != null","differingBases != null",
+            "differingIndeces.size>=maxDistance","differingBases.size>=maxDistance"})
+    public int getDifferingPositions(final Kmer other,
+                                                   final int maxDistance,
+                                                   final int[] differingIndeces,
+                                                   final byte[] differingBases) {
+
+
+        int dist = 0;
+        if (length == other.length()) {
+            final byte[] f2 = other.unsafePeekAtBases();
+            for (int i=0; i < length; i++)
+                if(bases[start+i] != f2[i]) {
+                    differingIndeces[dist] = i;
+                    differingBases[dist++] = f2[i];
+                    if (dist > maxDistance)
+                        return -1;
+                }
+
+        }
+        return dist;
     }
 
     @Override

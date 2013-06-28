@@ -66,9 +66,10 @@ public class ConstrainedMateFixingManagerUnitTest extends BaseTest {
 
     @BeforeClass
     public void beforeClass() {
-        header = ArtificialSAMUtils.createArtificialSamHeader(3, 1, 100);
+        header = ArtificialSAMUtils.createArtificialSamHeader(3, 1, 10000);
         genomeLocParser = new GenomeLocParser(header.getSequenceDictionary());
     }
+
     @Test
     public void testSecondaryAlignmentsDoNotInterfere() {
         final List<GATKSAMRecord> properReads = ArtificialSAMUtils.createPair(header, "foo", 1, 10, 30, true, false);
@@ -105,4 +106,29 @@ public class ConstrainedMateFixingManagerUnitTest extends BaseTest {
         }
     }
 
+    @Test
+    public void testSecondaryAlignmentsDoNotCauseAccidentalRemovalOfMate() {
+        final List<GATKSAMRecord> properReads = ArtificialSAMUtils.createPair(header, "foo", 1, 530, 1594, true, false);
+        final GATKSAMRecord read1 = properReads.get(0);
+        read1.setFlags(99);   // first in proper pair, mate negative strand
+
+        final GATKSAMRecord read2Primary = properReads.get(1);
+        read2Primary.setFlags(147);   // second in pair, mate unmapped, not primary alignment
+        read2Primary.setAlignmentStart(1596); // move the read
+
+        final GATKSAMRecord read2NonPrimary = new GATKSAMRecord(read2Primary);
+        read2NonPrimary.setReadName("foo");
+        read2NonPrimary.setFlags(393);   // second in proper pair, on reverse strand
+        read2NonPrimary.setAlignmentStart(451);
+        read2NonPrimary.setMateAlignmentStart(451);
+
+        final ConstrainedMateFixingManager manager = new ConstrainedMateFixingManager(null, genomeLocParser, 10000, 200, 10000);
+        manager.addRead(read2NonPrimary, false, false);
+        manager.addRead(read1, false, false);
+
+        for ( int i = 0; i < ConstrainedMateFixingManager.EMIT_FREQUENCY; i++ )
+            manager.addRead(ArtificialSAMUtils.createArtificialRead(header, "foo" + i, 0, 1500, 10), false, false);
+
+        Assert.assertTrue(manager.forMateMatching.containsKey("foo"));
+    }
 }

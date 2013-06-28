@@ -46,15 +46,17 @@
 
 package org.broadinstitute.sting.gatk.walkers.bqsr;
 
+import com.google.java.contract.Requires;
 import org.broad.tribble.Feature;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.report.GATKReportTable;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.exceptions.StingException;
 import org.broadinstitute.sting.utils.recalibration.RecalUtils;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -65,7 +67,7 @@ import java.util.List;
  * This set of arguments will also be passed to the constructor of every Covariate when it is instantiated.
  */
 
-public class RecalibrationArgumentCollection {
+public class RecalibrationArgumentCollection implements Cloneable {
 
     /**
      * This algorithm treats every reference mismatch as an indication of error. However, real genetic variation is expected to mismatch the reference,
@@ -86,21 +88,6 @@ public class RecalibrationArgumentCollection {
     @Output(doc = "The output recalibration table file to create", required = true)
     public File RECAL_TABLE_FILE = null;
     public PrintStream RECAL_TABLE;
-
-    /**
-     * If not provided, then no plots will be generated (useful for queue scatter/gathering).
-     * However, we *highly* recommend that users generate these plots whenever possible for QC checking.
-     */
-    @Output(fullName = "plot_pdf_file", shortName = "plots", doc = "The output recalibration pdf file to create", required = false, defaultToStdout = false)
-    public File RECAL_PDF_FILE = null;
-
-    /**
-     * If not provided, then a temporary file is created and then deleted upon completion.
-     * For advanced users only.
-     */
-    @Advanced
-    @Argument(fullName = "intermediate_csv_file", shortName = "intermediate", doc = "The intermediate csv file to create", required = false)
-    public File RECAL_CSV_FILE = null;
 
     /**
      * Note that the --list argument requires a fully resolved and correct command-line to work.
@@ -282,11 +269,147 @@ public class RecalibrationArgumentCollection {
         argumentsTable.set("quantizing_levels", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, QUANTIZING_LEVELS);
         argumentsTable.addRowID("recalibration_report", true);
         argumentsTable.set("recalibration_report", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, existingRecalibrationReport == null ? "null" : existingRecalibrationReport.getAbsolutePath());
-        argumentsTable.addRowID("plot_pdf_file", true);
-        argumentsTable.set("plot_pdf_file", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, RECAL_PDF_FILE == null ? "null" : RECAL_PDF_FILE.getAbsolutePath());
         argumentsTable.addRowID("binary_tag_name", true);
         argumentsTable.set("binary_tag_name", RecalUtils.ARGUMENT_VALUE_COLUMN_NAME, BINARY_TAG_NAME == null ? "null" : BINARY_TAG_NAME);
         return argumentsTable;
+    }
+
+    /**
+     * Returns a map with the arguments that differ between this an
+     * another {@link RecalibrationArgumentCollection} instance.
+     * <p/>
+     * The key is the name of that argument in the report file. The value is a message
+     * that explains the difference to the end user.
+     * <p/>
+     * Thus, a empty map indicates that there is no differences between both argument collection that
+     * is relevant to report comparison.
+     * <p/>
+     * This method should not throw any exception.
+     *
+     * @param other the argument-collection to compare against.
+     * @param thisRole the name used to refer to this RAC report that makes sense to the end user.
+     * @param otherRole the name used to refer to the other RAC report that makes sense to the end user.
+     *
+     * @return never <code>null</code>, but a zero-size collection if there are no differences.
+     */
+    @Requires("other != null && thisRole != null && otherRole != null && !thisRole.equalsIgnoreCase(otherRole)")
+    Map<String,? extends CharSequence> compareReportArguments(final RecalibrationArgumentCollection other,final String thisRole, final String otherRole) {
+        final Map<String,String> result = new LinkedHashMap<>(15);
+        compareRequestedCovariates(result, other, thisRole, otherRole);
+        compareSimpleReportArgument(result,"no_standard_covs", DO_NOT_USE_STANDARD_COVARIATES, other.DO_NOT_USE_STANDARD_COVARIATES, thisRole, otherRole);
+        compareSimpleReportArgument(result,"run_without_dbsnp",RUN_WITHOUT_DBSNP,other.RUN_WITHOUT_DBSNP,thisRole,otherRole);
+        compareSimpleReportArgument(result,"solid_recal_mode", SOLID_RECAL_MODE, other.SOLID_RECAL_MODE,thisRole,otherRole);
+        compareSimpleReportArgument(result,"solid_nocall_strategy", SOLID_NOCALL_STRATEGY, other.SOLID_NOCALL_STRATEGY,thisRole,otherRole);
+        compareSimpleReportArgument(result,"mismatches_context_size", MISMATCHES_CONTEXT_SIZE,other.MISMATCHES_CONTEXT_SIZE,thisRole,otherRole);
+        compareSimpleReportArgument(result,"mismatches_default_quality", MISMATCHES_DEFAULT_QUALITY, other.MISMATCHES_DEFAULT_QUALITY,thisRole,otherRole);
+        compareSimpleReportArgument(result,"deletions_default_quality", DELETIONS_DEFAULT_QUALITY, other.DELETIONS_DEFAULT_QUALITY,thisRole,otherRole);
+        compareSimpleReportArgument(result,"insertions_default_quality", INSERTIONS_DEFAULT_QUALITY, other.INSERTIONS_DEFAULT_QUALITY,thisRole,otherRole);
+        compareSimpleReportArgument(result,"maximum_cycle_value", MAXIMUM_CYCLE_VALUE, other.MAXIMUM_CYCLE_VALUE,thisRole,otherRole);
+        compareSimpleReportArgument(result,"low_quality_tail", LOW_QUAL_TAIL, other.LOW_QUAL_TAIL,thisRole,otherRole);
+        compareSimpleReportArgument(result,"default_platform", DEFAULT_PLATFORM, other.DEFAULT_PLATFORM,thisRole,otherRole);
+        compareSimpleReportArgument(result,"force_platform", FORCE_PLATFORM, other.FORCE_PLATFORM,thisRole,otherRole);
+        compareSimpleReportArgument(result,"quantizing_levels", QUANTIZING_LEVELS, other.QUANTIZING_LEVELS,thisRole,otherRole);
+        compareSimpleReportArgument(result,"binary_tag_name", BINARY_TAG_NAME, other.BINARY_TAG_NAME,thisRole,otherRole);
+        return result;
+    }
+
+
+    /**
+     * Compares the covariate report lists.
+     *
+     * @param diffs map where to annotate the difference.
+     * @param other the argument collection to compare against.
+     * @param thisRole the name for this argument collection that makes sense to the user.
+     * @param otherRole  the name for the other argument collection that makes sense to the end user.
+     *
+     * @return <code>true</code> if a difference was found.
+     */
+    @Requires("diffs != null && other != null && thisRole != null && otherRole != null")
+    private boolean compareRequestedCovariates(final Map<String,String> diffs,
+            final RecalibrationArgumentCollection other, final String thisRole, final String otherRole) {
+
+        final Set<String> beforeNames = new HashSet<>(this.COVARIATES.length);
+        final Set<String> afterNames = new HashSet<>(other.COVARIATES.length);
+        Utils.addAll(beforeNames, this.COVARIATES);
+        Utils.addAll(afterNames,other.COVARIATES);
+        final Set<String> intersect = new HashSet<>(Math.min(beforeNames.size(),afterNames.size()));
+        intersect.addAll(beforeNames);
+        intersect.retainAll(afterNames);
+
+        String diffMessage = null;
+        if (intersect.size() == 0) { // In practice this is not possible due to required covariates but...
+            diffMessage = String.format("There are no common covariates between '%s' and '%s'"
+                    + " recalibrator reports. Covariates in '%s': {%s}. Covariates in '%s': {%s}.",thisRole,otherRole,
+                    thisRole,Utils.join(", ",this.COVARIATES),
+                    otherRole,Utils.join(",",other.COVARIATES));
+        } else if (intersect.size() != beforeNames.size() || intersect.size() != afterNames.size()) {
+            beforeNames.removeAll(intersect);
+            afterNames.removeAll(intersect);
+            diffMessage = String.format("There are differences in the set of covariates requested in the"
+                    + " '%s' and '%s' recalibrator reports. "
+                    + " Exclusive to '%s': {%s}. Exclusive to '%s': {%s}.",thisRole,otherRole,
+                    thisRole,Utils.join(", ",beforeNames),
+                    otherRole,Utils.join(", ",afterNames));
+        }
+        if (diffMessage != null) {
+            diffs.put("covariate",diffMessage);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Annotates a map with any difference encountered in a simple value report argument that differs between this an
+     * another {@link RecalibrationArgumentCollection} instance.
+     * <p/>
+     * The key of the new entry would be the name of that argument in the report file. The value is a message
+     * that explains the difference to the end user.
+     * <p/>
+     *
+     * <p/>
+     * This method should not return any exception.
+     *
+     * @param diffs where to annotate the differences.
+     * @param name the name of the report argument to compare.
+     * @param thisValue this argument collection value for that argument.
+     * @param otherValue the other collection value for that argument.
+     * @param thisRole the name used to refer to this RAC report that makes sense to the end user.
+     * @param otherRole the name used to refer to the other RAC report that makes sense to the end user.
+     *
+     * @type T the argument Object value type.
+     *
+     * @return <code>true</code> if a difference has been spotted, thus <code>diff</code> has been modified.
+     */
+    private <T> boolean compareSimpleReportArgument(final Map<String,String> diffs,
+            final String name, final T thisValue, final T otherValue, final String thisRole, final String otherRole) {
+        if (thisValue == null && otherValue == null) {
+            return false;
+        } else if (thisValue != null && thisValue.equals(otherValue)) {
+            return false;
+        } else {
+            diffs.put(name,
+                    String.format("differences between '%s' {%s} and '%s' {%s}.",
+                            thisRole,thisValue == null ? "" : thisValue,
+                            otherRole,otherValue == null ? "" : otherValue));
+            return true;
+        }
+
+    }
+
+    /**
+     * Create a shallow copy of this argument collection.
+     *
+     * @return never <code>null</code>.
+     */
+    @Override
+    public RecalibrationArgumentCollection clone() {
+        try {
+            return (RecalibrationArgumentCollection) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new StingException("Unreachable code clone not supported thrown when the class "
+                    + this.getClass().getName() + " is cloneable ",e);
+        }
     }
 
 }

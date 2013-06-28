@@ -52,6 +52,9 @@ import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
+import java.util.Collections;
+import java.util.List;
+
 public class UnifiedArgumentCollection extends StandardCallerArgumentCollection {
 
     @Argument(fullName = "genotype_likelihoods_model", shortName = "glm", doc = "Genotype likelihoods calculation model to employ -- SNP is the default option, while INDEL is also available for calling indels and BOTH is available for calling both together", required = false)
@@ -82,7 +85,7 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
      * The PairHMM implementation to use for -glm INDEL genotype likelihood calculations. The various implementations balance a tradeoff of accuracy and runtime.
      */
     @Argument(fullName = "pair_hmm_implementation", shortName = "pairHMM", doc = "The PairHMM implementation to use for -glm INDEL genotype likelihood calculations", required = false)
-    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.ORIGINAL;
+    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING;
 
     /**
      * The minimum confidence needed in a given base for it to be used in variant calling.  Note that the base quality of a base
@@ -94,6 +97,18 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
 
     @Argument(fullName = "max_deletion_fraction", shortName = "deletions", doc = "Maximum fraction of reads with deletions spanning this locus for it to be callable [to disable, set to < 0 or > 1; default:0.05]", required = false)
     public Double MAX_DELETION_FRACTION = 0.05;
+
+    /**
+     * Advanced, experimental argument: if SNP likelihood model is specified, and if EMIT_ALL_SITES output mode is set, when we set this argument then we will also emit PLs at all sites.
+     * This will give a measure of reference confidence and a measure of which alt alleles are more plausible (if any).
+     * WARNINGS:
+     * - This feature will inflate VCF file size considerably.
+     * - All SNP ALT alleles will be emitted with corresponding 10 PL values.
+     * - An error will be emitted if EMIT_ALL_SITES is not set, or if anything other than diploid SNP model is used
+     */
+    @Advanced
+    @Argument(fullName = "allSitePLs", shortName = "allSitePLs", doc = "Annotate all sites with PLs", required = false)
+    public boolean annotateAllSitesWithPLs = false;
 
     // indel-related arguments
     /**
@@ -247,7 +262,7 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
         this.EXCLUDE_FILTERED_REFERENCE_SITES = uac.EXCLUDE_FILTERED_REFERENCE_SITES;
         this.IGNORE_LANE_INFO = uac.IGNORE_LANE_INFO;
         this.pairHMM = uac.pairHMM;
-
+        this.annotateAllSitesWithPLs = uac.annotateAllSitesWithPLs;
         // todo- arguments to remove
         this.IGNORE_SNP_ALLELES = uac.IGNORE_SNP_ALLELES;
     }

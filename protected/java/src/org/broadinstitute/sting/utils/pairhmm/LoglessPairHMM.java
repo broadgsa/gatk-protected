@@ -55,7 +55,7 @@ import org.broadinstitute.sting.utils.QualityUtils;
  * User: rpoplin, carneiro
  * Date: 10/16/12
  */
-public final class LoglessPairHMM extends PairHMM {
+public final class LoglessPairHMM extends N2MemoryPairHMM {
     protected static final double INITIAL_CONDITION = Math.pow(2, 1020);
     protected static final double INITIAL_CONDITION_LOG10 = Math.log10(INITIAL_CONDITION);
 
@@ -99,8 +99,13 @@ public final class LoglessPairHMM extends PairHMM {
             }
         }
 
-        if ( ! constantsAreInitialized || recacheReadValues )
-            initializeProbabilities(insertionGOP, deletionGOP, overallGCP);
+        if ( ! constantsAreInitialized || recacheReadValues ) {
+            initializeProbabilities(transition, insertionGOP, deletionGOP, overallGCP);
+
+            // note that we initialized the constants
+            constantsAreInitialized = true;
+        }
+
         initializePriors(haplotypeBases, readBases, readQuals, hapStartIndex);
 
         for (int i = 1; i < paddedReadLength; i++) {
@@ -159,7 +164,7 @@ public final class LoglessPairHMM extends PairHMM {
             "overallGCP != null"
     })
     @Ensures("constantsAreInitialized")
-    private void initializeProbabilities(final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP) {
+    protected static void initializeProbabilities(final double[][] transition, final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP) {
         for (int i = 0; i < insertionGOP.length; i++) {
             final int qualIndexGOP = Math.min(insertionGOP[i] + deletionGOP[i], Byte.MAX_VALUE);
             transition[i+1][matchToMatch] = QualityUtils.qualToProb((byte) qualIndexGOP);
@@ -169,9 +174,6 @@ public final class LoglessPairHMM extends PairHMM {
             transition[i+1][matchToDeletion] = QualityUtils.qualToErrorProb(deletionGOP[i]);
             transition[i+1][deletionToDeletion] = QualityUtils.qualToErrorProb(overallGCP[i]);
         }
-
-        // note that we initialized the constants
-        constantsAreInitialized = true;
     }
 
     /**

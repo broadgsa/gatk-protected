@@ -77,6 +77,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     private final static int NUM_PATHS_PER_GRAPH = 25;
     private static final int KMER_OVERLAP = 5; // the additional size of a valid chunk of sequence, used to string together k-mers
     private static final int GRAPH_KMER_STEP = 6;
+    private static final int GGA_MODE_ARTIFICIAL_COUNTS = 1000;
 
     private final int minKmer;
     private final int onlyBuildKmersOfThisSizeWhenDebuggingGraphAlgorithms;
@@ -92,8 +93,8 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     @Override
-    protected List<SeqGraph> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype) {
-        final List<SeqGraph> graphs = new LinkedList<SeqGraph>();
+    protected List<SeqGraph> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes ) {
+        final List<SeqGraph> graphs = new LinkedList<>();
 
         final int maxKmer = ReadUtils.getMaxReadLength(reads) - KMER_OVERLAP - 1;
         if( maxKmer < minKmer) {
@@ -106,7 +107,7 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                 continue;
 
             if ( debug ) logger.info("Creating de Bruijn graph for " + kmer + " kmer using " + reads.size() + " reads");
-            DeBruijnGraph graph = createGraphFromSequences( reads, kmer, refHaplotype);
+            DeBruijnGraph graph = createGraphFromSequences(reads, kmer, refHaplotype, activeAlleleHaplotypes);
             if( graph != null ) { // graphs that fail during creation ( for example, because there are cycles in the reference graph ) will show up here as a null graph object
                 // do a series of steps to clean up the raw assembly graph to make it analysis-ready
                 if ( debugGraphTransformations ) graph.printGraph(new File("unpruned.dot"), pruneFactor);
@@ -133,12 +134,17 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     @Requires({"reads != null", "kmerLength > 0", "refHaplotype != null"})
-    protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int kmerLength, final Haplotype refHaplotype ) {
+    protected DeBruijnGraph createGraphFromSequences( final List<GATKSAMRecord> reads, final int kmerLength, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes ) {
         final DeBruijnGraph graph = new DeBruijnGraph(kmerLength);
         final DeBruijnGraphBuilder builder = new DeBruijnGraphBuilder(graph);
 
         // First pull kmers from the reference haplotype and add them to the graph
         if ( ! addReferenceKmersToGraph(builder, refHaplotype.getBases()) )
+            // something went wrong, so abort right now with a null graph
+            return null;
+
+        // add the artificial GGA haplotypes to the graph
+        if ( ! addGGAKmersToGraph(builder, activeAlleleHaplotypes) )
             // something went wrong, so abort right now with a null graph
             return null;
 
@@ -149,6 +155,28 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
 
         graph.cleanNonRefPaths();
         return graph;
+    }
+
+    /**
+     * Add the high-quality kmers from the artificial GGA haplotypes to the graph
+     *
+     * @param builder a debruijn graph builder to add the read kmers to
+     * @param activeAlleleHaplotypes a list of haplotypes to add to the graph for GGA mode
+     * @return true if we successfully added the read kmers to the graph without corrupting it in some way
+     */
+    protected boolean addGGAKmersToGraph(final DeBruijnGraphBuilder builder, final List<Haplotype> activeAlleleHaplotypes) {
+
+        final int kmerLength = builder.getKmerSize();
+
+        for( final Haplotype haplotype : activeAlleleHaplotypes ) {
+            final int end = haplotype.length() - kmerLength;
+            for( int start = 0; start < end; start++ ) {
+                builder.addKmerPairFromSeqToGraph( haplotype.getBases(), start, GGA_MODE_ARTIFICIAL_COUNTS );
+            }
+        }
+
+        // always returns true now, but it's possible that we'd add kmers and decide we don't like the graph in some way
+        return true;
     }
 
     /**

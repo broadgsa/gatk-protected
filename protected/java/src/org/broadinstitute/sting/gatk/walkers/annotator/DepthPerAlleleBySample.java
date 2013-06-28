@@ -66,10 +66,7 @@ import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 /**
@@ -135,20 +132,24 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
     }
 
     private void annotateWithLikelihoods(final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap, final VariantContext vc, final GenotypeBuilder gb) {
-        final HashMap<Allele, Integer> alleleCounts = new HashMap<Allele, Integer>();
+        final Set<Allele> alleles = new HashSet<>(vc.getAlleles());
 
-        for ( final Allele allele : vc.getAlleles() ) {
-            alleleCounts.put(allele, 0);
-        }
+        // make sure that there's a meaningful relationship between the alleles in the perReadAlleleLikelihoodMap and our VariantContext
+        if ( ! perReadAlleleLikelihoodMap.getAllelesSet().containsAll(alleles) )
+            throw new IllegalStateException("VC alleles " + alleles + " not a strict subset of per read allele map alleles " + perReadAlleleLikelihoodMap.getAllelesSet());
+
+        final HashMap<Allele, Integer> alleleCounts = new HashMap<>();
+        for ( final Allele allele : vc.getAlleles() ) { alleleCounts.put(allele, 0); }
+
         for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
+            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue(), alleles);
+            if (! a.isInformative() ) continue; // read is non-informative
             final GATKSAMRecord read = el.getKey();
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (! a.isInformative() )
-                continue; // read is non-informative
-            if (!vc.getAlleles().contains(a.getMostLikelyAllele()))
-                continue; // sanity check - shouldn't be needed
-            alleleCounts.put(a.getMostLikelyAllele(), alleleCounts.get(a.getMostLikelyAllele()) + (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1));
+            final int prevCount = alleleCounts.get(a.getMostLikelyAllele());
+            final int incCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
+            alleleCounts.put(a.getMostLikelyAllele(), prevCount + incCount);
         }
+
         final int[] counts = new int[alleleCounts.size()];
         counts[0] = alleleCounts.get(vc.getReference());
         for (int i = 0; i < vc.getAlternateAlleles().size(); i++)

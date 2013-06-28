@@ -171,7 +171,15 @@ final public class GraphUtils {
         return foundDup ? null : new PrimitivePair.Int(longestPos, length);
     }
 
-    private static int longestSuffixMatch(final byte[] seq, final byte[] kmer, final int seqStart) {
+    /**
+     * calculates the longest suffix match between a sequence and a smaller kmer
+     *
+     * @param seq         the (reference) sequence
+     * @param kmer        the smaller kmer sequence
+     * @param seqStart    the index (inclusive) on seq to start looking backwards from
+     * @return the longest matching suffix
+     */
+    public static int longestSuffixMatch(final byte[] seq, final byte[] kmer, final int seqStart) {
         for ( int len = 1; len <= kmer.length; len++ ) {
             final int seqI = seqStart - len + 1;
             final int kmerI = kmer.length - len;

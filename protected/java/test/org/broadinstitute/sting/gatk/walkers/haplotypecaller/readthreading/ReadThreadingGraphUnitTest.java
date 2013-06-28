@@ -48,8 +48,12 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Kmer;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.MultiSampleEdge;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -145,7 +149,136 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
         }
     }
 
-    // TODO -- update to use determineKmerSizeAndNonUniques directly
+    @Test(enabled = !DEBUG)
+    public void testCyclesInGraph() {
+
+        // b37 20:12655200-12655850
+        final String ref = "CAATTGTCATAGAGAGTGACAAATGTTTCAAAAGCTTATTGACCCCAAGGTGCAGCGGTGCACATTAGAGGGCACCTAAGACAGCCTACAGGGGTCAGAAAAGATGTCTCAGAGGGACTCACACCTGAGCTGAGTTGTGAAGGAAGAGCAGGATAGAATGAGCCAAAGATAAAGACTCCAGGCAAAAGCAAATGAGCCTGAGGGAAACTGGAGCCAAGGCAAGAGCAGCAGAAAAGAGCAAAGCCAGCCGGTGGTCAAGGTGGGCTACTGTGTATGCAGAATGAGGAAGCTGGCCAAGTAGACATGTTTCAGATGATGAACATCCTGTATACTAGATGCATTGGAACTTTTTTCATCCCCTCAACTCCACCAAGCCTCTGTCCACTCTTGGTACCTCTCTCCAAGTAGACATATTTCAGATCATGAACATCCTGTGTACTAGATGCATTGGAAATTTTTTCATCCCCTCAACTCCACCCAGCCTCTGTCCACACTTGGTACCTCTCTCTATTCATATCTCTGGCCTCAAGGAGGGTATTTGGCATTAGTAAATAAATTCCAGAGATACTAAAGTCAGATTTTCTAAGACTGGGTGAATGACTCCATGGAAGAAGTGAAAAAGAGGAAGTTGTAATAGGGAGACCTCTTCGG";
+
+        // SNP at 20:12655528 creates a cycle for small kmers
+        final String alt = "CAATTGTCATAGAGAGTGACAAATGTTTCAAAAGCTTATTGACCCCAAGGTGCAGCGGTGCACATTAGAGGGCACCTAAGACAGCCTACAGGGGTCAGAAAAGATGTCTCAGAGGGACTCACACCTGAGCTGAGTTGTGAAGGAAGAGCAGGATAGAATGAGCCAAAGATAAAGACTCCAGGCAAAAGCAAATGAGCCTGAGGGAAACTGGAGCCAAGGCAAGAGCAGCAGAAAAGAGCAAAGCCAGCCGGTGGTCAAGGTGGGCTACTGTGTATGCAGAATGAGGAAGCTGGCCAAGTAGACATGTTTCAGATGATGAACATCCTGTGTACTAGATGCATTGGAACTTTTTTCATCCCCTCAACTCCACCAAGCCTCTGTCCACTCTTGGTACCTCTCTCCAAGTAGACATATTTCAGATCATGAACATCCTGTGTACTAGATGCATTGGAAATTTTTTCATCCCCTCAACTCCACCCAGCCTCTGTCCACACTTGGTACCTCTCTCTATTCATATCTCTGGCCTCAAGGAGGGTATTTGGCATTAGTAAATAAATTCCAGAGATACTAAAGTCAGATTTTCTAAGACTGGGTGAATGACTCCATGGAAGAAGTGAAAAAGAGGAAGTTGTAATAGGGAGACCTCTTCGG";
+
+        final List<GATKSAMRecord> reads = new ArrayList<>();
+        for ( int index = 0; index < alt.length() - 100; index += 20 )
+            reads.add(ArtificialSAMUtils.createArtificialRead(Arrays.copyOfRange(alt.getBytes(), index, index + 100), Utils.dupBytes((byte) 30, 100), 100 + "M"));
+
+        // test that there are cycles detected for small kmer
+        final ReadThreadingGraph rtgraph25 = new ReadThreadingGraph(25);
+        rtgraph25.addSequence("ref", ref.getBytes(), null, true);
+        for ( final GATKSAMRecord read : reads )
+            rtgraph25.addRead(read);
+        rtgraph25.buildGraphIfNecessary();
+        Assert.assertTrue(rtgraph25.hasCycles());
+
+        // test that there are no cycles detected for large kmer
+        final ReadThreadingGraph rtgraph75 = new ReadThreadingGraph(75);
+        rtgraph75.addSequence("ref", ref.getBytes(), null, true);
+        for ( final GATKSAMRecord read : reads )
+            rtgraph75.addRead(read);
+        rtgraph75.buildGraphIfNecessary();
+        Assert.assertFalse(rtgraph75.hasCycles());
+    }
+
+    @Test(enabled = !DEBUG)
+    public void testNsInReadsAreNotUsedForGraph() {
+
+        final int length = 100;
+        final byte[] ref = Utils.dupBytes((byte)'A', length);
+
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(25);
+        rtgraph.addSequence("ref", ref, null, true);
+
+        // add reads with Ns at any position
+        for ( int i = 0; i < length; i++ ) {
+            final byte[] bases = ref.clone();
+            bases[i] = 'N';
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, Utils.dupBytes((byte) 30, length), length + "M");
+            rtgraph.addRead(read);
+        }
+        rtgraph.buildGraphIfNecessary();
+
+        final SeqGraph graph = rtgraph.convertToSequenceGraph();
+        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<>(false);
+        Assert.assertEquals(pathFinder.getKBestPaths(graph, length, graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex()).size(), 1);
+    }
+
+    @DataProvider(name = "DanglingTails")
+    public Object[][] makeDanglingTailsData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        // add 1M to the expected CIGAR because it includes the previous (common) base too
+        tests.add(new Object[]{"AAAAAAAAAA", "CAAA", "5M", true, 3});                  // incomplete haplotype
+        tests.add(new Object[]{"AAAAAAAAAA", "CAAAAAAAAAA", "1M1I10M", true, 10});     // insertion
+        tests.add(new Object[]{"CCAAAAAAAAAA", "AAAAAAAAAA", "1M2D10M", true, 10});    // deletion
+        tests.add(new Object[]{"AAAAAAAA", "CAAAAAAA", "9M", true, 7});                // 1 snp
+        tests.add(new Object[]{"AAAAAAAA", "CAAGATAA", "9M", true, 2});                // several snps
+        tests.add(new Object[]{"AAAAA", "C", "1M4D1M", true, -1});                     // funky SW alignment
+        tests.add(new Object[]{"AAAAA", "CA", "1M3D2M", true, 1});                     // very little data
+        tests.add(new Object[]{"AAAAAAA", "CAAAAAC", "8M", true, -1});                 // ends in mismatch
+        tests.add(new Object[]{"AAAAAA", "CGAAAACGAA", "1M2I4M2I2M", false, 0});       // alignment is too complex
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "DanglingTails", enabled = !DEBUG)
+    public void testDanglingTails(final String refEnd,
+                                  final String altEnd,
+                                  final String cigar,
+                                  final boolean cigarIsGood,
+                                  final int mergePointDistanceFromSink) {
+
+        final int kmerSize = 15;
+
+        // construct the haplotypes
+        final String commonPrefix = "AAAAAAAAAACCCCCCCCCCGGGGGGGGGGTTTTTTTTTT";
+        final String ref = commonPrefix + refEnd;
+        final String alt = commonPrefix + altEnd;
+
+        // create the graph and populate it
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize);
+        rtgraph.addSequence("ref", ref.getBytes(), null, true);
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(alt.getBytes(), Utils.dupBytes((byte) 30, alt.length()), alt.length() + "M");
+        rtgraph.addRead(read);
+        rtgraph.buildGraphIfNecessary();
+
+        // confirm that we have just a single dangling tail
+        MultiDeBruijnVertex altSink = null;
+        for ( final MultiDeBruijnVertex v : rtgraph.vertexSet() ) {
+            if ( rtgraph.isSink(v) && !rtgraph.isReferenceNode(v) ) {
+                Assert.assertTrue(altSink == null, "We found more than one non-reference sink");
+                altSink = v;
+            }
+        }
+
+        Assert.assertTrue(altSink != null, "We did not find a non-reference sink");
+
+        // confirm that the SW alignment agrees with our expectations
+        final ReadThreadingGraph.DanglingTailMergeResult result = rtgraph.generateCigarAgainstReferencePath(altSink);
+        Assert.assertTrue(cigar.equals(result.cigar.toString()), "SW generated cigar = " + result.cigar.toString());
+
+        // confirm that the goodness of the cigar agrees with our expectations
+        Assert.assertEquals(rtgraph.cigarIsOkayToMerge(result.cigar), cigarIsGood);
+
+        // confirm that the tail merging works as expected
+        if ( cigarIsGood ) {
+            final int mergeResult = rtgraph.mergeDanglingTail(result);
+            Assert.assertTrue(mergeResult == 1 || mergePointDistanceFromSink == -1);
+
+            // confirm that we created the appropriate edge
+            if ( mergePointDistanceFromSink >= 0 ) {
+                MultiDeBruijnVertex v = altSink;
+                for ( int i = 0; i < mergePointDistanceFromSink; i++ ) {
+                    if ( rtgraph.inDegreeOf(v) != 1 )
+                        Assert.fail("Encountered vertex with multiple sources");
+                    v = rtgraph.getEdgeSource(rtgraph.incomingEdgeOf(v));
+                }
+                Assert.assertTrue(rtgraph.outDegreeOf(v) > 1);
+            }
+        }
+    }
+
+
+// TODO -- update to use determineKmerSizeAndNonUniques directly
 //    @DataProvider(name = "KmerSizeData")
 //    public Object[][] makeKmerSizeDataProvider() {
 //        List<Object[]> tests = new ArrayList<Object[]>();

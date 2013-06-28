@@ -76,7 +76,8 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
     private List<Allele> alleleList = new ArrayList<Allele>();
 
 
-    protected IndelGenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
+    protected IndelGenotypeLikelihoodsCalculationModel(final UnifiedArgumentCollection UAC,
+                                                       final Logger logger) {
         super(UAC, logger);
         pairModel = new PairHMMIndelErrorModel(UAC.INDEL_GAP_OPEN_PENALTY, UAC.INDEL_GAP_CONTINUATION_PENALTY,
                 UAC.OUTPUT_DEBUG_INDEL_INFO, UAC.pairHMM);
@@ -85,10 +86,11 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
         ignoreSNPAllelesWhenGenotypingIndels = UAC.IGNORE_SNP_ALLELES;
     }
 
-    protected static List<Allele> computeConsensusAlleles(ReferenceContext ref,
-                                                 Map<String, AlignmentContext> contexts,
-                                                 AlignmentContextUtils.ReadOrientation contextType,
-                                                 GenomeLocParser locParser, UnifiedArgumentCollection UAC) {
+    protected static List<Allele> computeConsensusAlleles(final ReferenceContext ref,
+                                                 final Map<String, AlignmentContext> contexts,
+                                                 final AlignmentContextUtils.ReadOrientation contextType,
+                                                 final GenomeLocParser locParser,
+                                                 final UnifiedArgumentCollection UAC) {
         ConsensusAlleleCounter counter = new ConsensusAlleleCounter(locParser, true, UAC.MIN_INDEL_COUNT_FOR_GENOTYPING, UAC.MIN_INDEL_FRACTION_PER_SAMPLE);
         return counter.computeConsensusAlleles(ref, contexts, contextType);
     }

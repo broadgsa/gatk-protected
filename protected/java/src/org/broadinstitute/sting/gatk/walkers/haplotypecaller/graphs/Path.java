@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
@@ -92,7 +91,7 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
     /**
      * Create a new Path containing no edges and starting at initialVertex
      * @param initialVertex the starting vertex of the path
-     * @param graph the graph this path with follow through
+     * @param graph the graph this path will follow through
      */
     public Path(final T initialVertex, final BaseGraph<T, E> graph) {
         if ( initialVertex == null ) throw new IllegalArgumentException("initialVertex cannot be null");

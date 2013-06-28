@@ -309,7 +309,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         }
         v = getNextReferenceVertex(v); // advance along the reference path
         while( v != null && !v.equals(toVertex) ) {
-            bytes = ArrayUtils.addAll( bytes, getAdditionalSequence(v) );
+            bytes = ArrayUtils.addAll(bytes, getAdditionalSequence(v));
             v = getNextReferenceVertex(v); // advance along the reference path
         }
         if( includeStop && v != null && v.equals(toVertex)) {
@@ -385,6 +385,17 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         for ( final E e : incomingEdgesOf(v) ) {
             s.add(getEdgeSource(e));
         }
+        return s;
+    }
+
+    /**
+     * Get the set of vertices connected to v by incoming or outgoing edges
+     * @param v a non-null vertex
+     * @return a set of vertices {X} connected X -> v or v -> Y
+     */
+    public Set<V> neighboringVerticesOf(final V v) {
+        final Set<V> s = incomingVerticesOf(v);
+        s.addAll(outgoingVerticesOf(v));
         return s;
     }
 
@@ -550,7 +561,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         verticesToRemove.removeAll(onPathFromRefSource);
         removeAllVertices(verticesToRemove);
 
-        // simple santity checks that this algorithm is working.
+        // simple sanity checks that this algorithm is working.
         if ( getSinks().size() > 1 ) {
             throw new IllegalStateException("Should have eliminated all but the reference sink, but found " + getSinks());
         }
@@ -663,5 +674,73 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         return "BaseGraph{" +
                 "kmerSize=" + kmerSize +
                 '}';
+    }
+
+    /**
+     * The base sequence for the given path.
+     * Note, this assumes that the path does not start with a source node.
+     *
+     * @param path the list of vertexes that make up the path
+     * @return  non-null sequence of bases corresponding to the given path
+     */
+    @Ensures({"result != null"})
+    public byte[] getBasesForPath(final List<? extends DeBruijnVertex> path) {
+        if ( path == null ) throw new IllegalArgumentException("Path cannot be null");
+
+        final StringBuffer sb = new StringBuffer();
+        for ( final DeBruijnVertex v : path )
+            sb.append((char)v.getSuffix());
+
+        return sb.toString().getBytes();
+    }
+
+    /**
+     * Get the set of vertices within distance edges of source, regardless of edge direction
+     *
+     * @param source the source vertex to consider
+     * @param distance the distance
+     * @return a set of vertices within distance of source
+     */
+    protected Set<V> verticesWithinDistance(final V source, final int distance) {
+        if ( distance == 0 )
+            return Collections.singleton(source);
+
+        final Set<V> found = new HashSet<>();
+        found.add(source);
+        for ( final V v : neighboringVerticesOf(source) ) {
+            found.addAll(verticesWithinDistance(v, distance - 1));
+        }
+
+        return found;
+    }
+
+    /**
+     * Get a graph containing only the vertices within distance edges of target
+     * @param target a vertex in graph
+     * @param distance the max distance
+     * @return a non-null graph
+     */
+    public BaseGraph<V,E> subsetToNeighbors(final V target, final int distance) {
+        if ( target == null ) throw new IllegalArgumentException("Target cannot be null");
+        if ( ! containsVertex(target) ) throw new IllegalArgumentException("Graph doesn't contain vertex " + target);
+        if ( distance < 0 ) throw new IllegalArgumentException("Distance must be >= 0 but got " + distance);
+
+
+        final Set<V> toKeep = verticesWithinDistance(target, distance);
+        final Set<V> toRemove = new HashSet<>(vertexSet());
+        toRemove.removeAll(toKeep);
+
+        final BaseGraph<V,E> result = (BaseGraph<V,E>)clone();
+        result.removeAllVertices(toRemove);
+
+        return result;
+    }
+
+    /**
+     * Get a subgraph of graph that contains only vertices within 10 edges of the ref source vertex
+     * @return a non-null subgraph of this graph
+     */
+    public BaseGraph<V,E> subsetToRefSource() {
+        return subsetToNeighbors(getReferenceSourceVertex(), 10);
     }
 }

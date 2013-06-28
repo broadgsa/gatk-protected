@@ -46,11 +46,15 @@
 
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
+import net.sf.samtools.util.BlockCompressedInputStream;
+import org.broad.tribble.readers.AsciiLineReader;
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -156,6 +160,14 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     }
 
+    @Test
+    public void emitPLsAtAllSites() {
+        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
+                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 --output_mode EMIT_ALL_SITES -allSitePLs", 1,
+                Arrays.asList("7cc55db8693759e059a05bc4398f6f69"));
+        executeTest("test all site PLs 1", spec1);
+
+    }
     // --------------------------------------------------------------------------------------------------------------
     //
     // testing heterozygosity
@@ -288,9 +300,24 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testNsInCigar() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "testWithNs.bam -o %s -L 8:141813600-141813700 -out_mode EMIT_ALL_SITES", 1,
-                Arrays.asList("2ae3fd39c53a6954d32faed8703adfe8"));
+                UserException.UnsupportedCigarOperatorException.class);
+
         executeTest("test calling on reads with Ns in CIGAR", spec);
+    }
+
+    @Test(enabled = true)
+    public void testCompressedVCFOutputWithNT() throws Exception {
+        WalkerTestSpec spec = new WalkerTestSpec("-T UnifiedGenotyper -R " + b37KGReference + " -I "
+                + privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam"
+                + " -o %s -L 20:10,000,000-10,100,000 -nt 4",
+                1, Arrays.asList("vcf.gz"), Arrays.asList(""));
+        final File vcf = executeTest("testCompressedVCFOutputWithNT", spec).first.get(0);
+        final AsciiLineReader reader = new AsciiLineReader(new BlockCompressedInputStream(vcf));
+        int nLines = 0;
+        while ( reader.readLine() != null )
+            nLines++;
+        Assert.assertTrue(nLines > 0);
     }
 }

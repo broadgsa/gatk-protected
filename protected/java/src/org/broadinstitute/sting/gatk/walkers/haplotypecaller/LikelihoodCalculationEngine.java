@@ -48,29 +48,38 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.haplotype.HaplotypeScoreComparator;
-import org.broadinstitute.sting.utils.pairhmm.*;
+import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
+import org.broadinstitute.sting.utils.pairhmm.LoglessPairHMM;
+import org.broadinstitute.sting.utils.pairhmm.CnyPairHMM;
+import org.broadinstitute.sting.utils.pairhmm.BatchPairHMM;
+import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.*;
 
 public class LikelihoodCalculationEngine {
     private final static Logger logger = Logger.getLogger(LikelihoodCalculationEngine.class);
 
-    private static final double LOG_ONE_HALF = -Math.log10(2.0);
     private final byte constantGCP;
     private final double log10globalReadMismappingRate;
     private final boolean DEBUG;
+
     private final PairHMM.HMM_IMPLEMENTATION hmmType;
     private final boolean noFpga;
 
@@ -90,6 +99,10 @@ public class LikelihoodCalculationEngine {
             }
         }
     };
+
+    private final static boolean WRITE_LIKELIHOODS_TO_FILE = false;
+    private final static String LIKELIHOODS_FILENAME = "likelihoods.txt";
+    private final PrintStream likelihoodsStream;
 
     /**
      * The expected rate of random sequencing errors for a read originating from its true haplotype.
@@ -120,6 +133,16 @@ public class LikelihoodCalculationEngine {
         this.DEBUG = debug;
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
 	this.noFpga = noFpga;
+
+        if ( WRITE_LIKELIHOODS_TO_FILE ) {
+            try {
+                likelihoodsStream = new PrintStream(new FileOutputStream(new File(LIKELIHOODS_FILENAME)));
+            } catch ( FileNotFoundException e ) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            likelihoodsStream = null;
+        }
     }
 
     public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType, final double log10globalReadMismappingRate ) {
@@ -129,6 +152,12 @@ public class LikelihoodCalculationEngine {
     public LikelihoodCalculationEngine() {
         this((byte)10, false, PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, false);
     }
+
+    public void close() {
+        if ( likelihoodsStream != null ) likelihoodsStream.close();
+    }
+
+
 
     /**
      * Initialize our pairHMM with parameters appropriate to the haplotypes and reads we're going to evaluate
@@ -224,6 +253,17 @@ public class LikelihoodCalculationEngine {
                 final double log10l = pairHMM.get().computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
                         read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
 
+                if ( WRITE_LIKELIHOODS_TO_FILE ) {
+                    likelihoodsStream.printf("%s %s %s %s %s %s %f%n",
+                            haplotype.getBaseString(),
+                            new String(read.getReadBases()),
+                            SAMUtils.phredToFastq(readQuals),
+                            SAMUtils.phredToFastq(readInsQuals),
+                            SAMUtils.phredToFastq(readDelQuals),
+                            SAMUtils.phredToFastq(overallGCP),
+                            log10l);
+                }
+
                 if ( haplotype.isNonReference() )
                     bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
                 else
@@ -300,7 +340,7 @@ public class LikelihoodCalculationEngine {
                         // Compute log10(10^x1/2 + 10^x2/2) = log10(10^x1+10^x2)-log10(2)
                         // First term is approximated by Jacobian log with table lookup.
                         haplotypeLikelihood += ReadUtils.getMeanRepresentativeReadCount( entry.getKey() ) *
-                                ( MathUtils.approximateLog10SumLog10(entry.getValue().get(iii_allele), entry.getValue().get(jjj_allele)) + LOG_ONE_HALF );
+                                ( MathUtils.approximateLog10SumLog10(entry.getValue().get(iii_allele), entry.getValue().get(jjj_allele)) + MathUtils.LOG_ONE_HALF );
                     }
                 }
                 haplotypeLikelihoodMatrix[iii][jjj] = haplotypeLikelihood;
@@ -398,11 +438,11 @@ public class LikelihoodCalculationEngine {
         if ( haplotypes.size() == 2 ) return haplotypes; // fast path -- we'll always want to use 2 haplotypes
 
         // all of the haplotypes that at least one sample called as one of the most likely
-        final Set<Haplotype> selectedHaplotypes = new HashSet<Haplotype>();
+        final Set<Haplotype> selectedHaplotypes = new HashSet<>();
         selectedHaplotypes.add(findReferenceHaplotype(haplotypes)); // ref is always one of the selected
 
         // our annoying map from allele -> haplotype
-        final Map<Allele, Haplotype> allele2Haplotype = new HashMap<Allele, Haplotype>();
+        final Map<Allele, Haplotype> allele2Haplotype = new HashMap<>();
         for ( final Haplotype h : haplotypes ) {
             h.setScore(h.isReference() ? Double.MAX_VALUE : 0.0); // set all of the scores to 0 (lowest value) for all non-ref haplotypes
             allele2Haplotype.put(Allele.create(h, h.isReference()), h);
