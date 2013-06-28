@@ -49,17 +49,16 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 import com.google.java.contract.Ensures;
 import org.jgrapht.EdgeFactory;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A DeBruijn kmer graph
+ * A Test kmer graph
  *
  * User: rpoplin
  * Date: 2/6/13
  */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
+public final class TestGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
     /**
      * Edge factory that creates non-reference multiplicity 1 edges
      */
@@ -71,33 +70,20 @@ public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
     }
 
     /**
-     * Create an empty DeBruijnGraph with default kmer size
+     * Create an empty TestGraph with default kmer size
      */
-    public DeBruijnGraph() {
+    public TestGraph() {
         this(11);
     }
 
     /**
-     * Create an empty DeBruijnGraph with kmer size
+     * Create an empty TestGraph with kmer size
      * @param kmerSize kmer size, must be >= 1
      */
-    public DeBruijnGraph(int kmerSize) {
+    public TestGraph(int kmerSize) {
         super(kmerSize, new MyEdgeFactory());
     }
 
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
 
     /**
      * Add edge to assembly graph connecting the two kmers
@@ -129,7 +115,7 @@ public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
     @Ensures({"result != null"})
     public SeqGraph convertToSequenceGraph() {
         final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
+        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<>();
 
         // create all of the equivalent seq graph vertices
         for ( final DeBruijnVertex dv : vertexSet() ) {

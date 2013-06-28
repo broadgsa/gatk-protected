@@ -71,7 +71,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
     private final int kmerSize;
 
     /**
-     * Construct a DeBruijnGraph with kmerSize
+     * Construct a TestGraph with kmerSize
      * @param kmerSize
      */
     public BaseGraph(final int kmerSize, final EdgeFactory<V,E> edgeFactory) {
@@ -472,28 +472,11 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
     }
 
     /**
-     * Prune all edges from this graph that have multiplicity <= pruneFactor and remove all orphaned singleton vertices as well
-     *
-     * @param pruneFactor all edges with multiplicity <= this factor that aren't ref edges will be removed
-     */
-    public void pruneGraph( final int pruneFactor ) {
-        final List<E> edgesToRemove = new ArrayList<>();
-        for( final E e : edgeSet() ) {
-            if( e.getPruningMultiplicity() <= pruneFactor && !e.isRef() ) { // remove non-reference edges with weight less than or equal to the pruning factor
-                edgesToRemove.add(e);
-            }
-        }
-        removeAllEdges(edgesToRemove);
-
-        removeSingletonOrphanVertices();
-    }
-
-    /**
-     * Prune all chains from this graph where all edges in the path have multiplicity <= pruneFactor
+     * Prune all chains from this graph where any edge in the path has multiplicity < pruneFactor
      *
      * @see LowWeightChainPruner for more information
      *
-     * @param pruneFactor all edges with multiplicity <= this factor that aren't ref edges will be removed
+     * @param pruneFactor all edges with multiplicity < this factor that aren't ref edges will be removed
      */
     public void pruneLowWeightChains( final int pruneFactor ) {
         final LowWeightChainPruner<V,E> pruner = new LowWeightChainPruner<>(pruneFactor);
@@ -503,7 +486,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
     /**
      * Remove all vertices in the graph that have in and out degree of 0
      */
-    protected void removeSingletonOrphanVertices() {
+    public void removeSingletonOrphanVertices() {
         // Run through the graph and clean up singular orphaned nodes
         final List<V> verticesToRemove = new LinkedList<>();
         for( final V v : vertexSet() ) {

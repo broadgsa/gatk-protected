@@ -77,6 +77,8 @@ import org.broadinstitute.sting.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.sting.utils.fragments.FragmentCollection;
+import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.gvcf.GVCFWriter;
 import org.broadinstitute.sting.utils.haplotype.*;
@@ -237,22 +239,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private StandardCallerArgumentCollection SCAC = new StandardCallerArgumentCollection();
 
     // -----------------------------------------------------------------------------------------------
-    // arguments to control internal behavior of the debruijn assembler
-    // -----------------------------------------------------------------------------------------------
-
-    @Advanced
-    @Argument(fullName="useDebruijnAssembler", shortName="useDebruijnAssembler", doc="If specified, we will use the old DeBruijn assembler.  Depreciated as of 2.6", required = false)
-    protected boolean useDebruijnAssembler = false;
-
-    @Advanced
-    @Argument(fullName="minKmerForDebruijnAssembler", shortName="minKmerForDebruijnAssembler", doc="Minimum kmer length to use in the debruijn assembly graph", required = false)
-    protected int minKmerForDebruijnAssembler = 11;
-
-    @Advanced
-    @Argument(fullName="onlyUseKmerSizeForDebruijnAssembler", shortName="onlyUseKmerSizeForDebruijnAssembler", doc="If specified, we will only build kmer graphs with this kmer size in the debruijn", required = false)
-    protected int onlyUseKmerSizeForDebruijnAssembler = -1;
-
-    // -----------------------------------------------------------------------------------------------
     // arguments to control internal behavior of the read threading assembler
     // -----------------------------------------------------------------------------------------------
 
@@ -349,7 +335,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // -----------------------------------------------------------------------------------------------
 
     @Advanced
-    @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with <= X supporting kmers are pruned from the graph", required = false)
+    @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with < X supporting kmers are pruned from the graph", required = false)
     protected int MIN_PRUNE_FACTOR = 2;
 
     @Advanced
@@ -621,9 +607,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         // create and setup the assembler
         final int maxAllowedPathsForReadThreadingAssembler = Math.max(maxPathsPerSample * nSamples, MIN_PATHS_PER_GRAPH);
-        assemblyEngine = useDebruijnAssembler
-                ? new DeBruijnAssembler(minKmerForDebruijnAssembler, onlyUseKmerSizeForDebruijnAssembler)
-                : new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes, dontIncreaseKmerSizesForCycles, numPruningSamples);
+        assemblyEngine = new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes, dontIncreaseKmerSizesForCycles, numPruningSamples);
 
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
         assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);
@@ -870,7 +854,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     protected AssemblyResult assembleReads(final ActiveRegion activeRegion, final List<VariantContext> activeAllelesToGenotype) {
         // Create the reference haplotype which is the bases from the reference that make up the active region
-        finalizeActiveRegion(activeRegion); // merge overlapping fragments, clip adapter and low qual tails
+        finalizeActiveRegion(activeRegion); // handle overlapping fragments, clip adapter and low qual tails
 
         final byte[] fullReferenceWithPadding = activeRegion.getActiveRegionReference(referenceReader, REFERENCE_PADDING);
         final GenomeLoc paddedReferenceLoc = getPaddedLoc(activeRegion);
@@ -1097,8 +1081,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             }
         }
 
+        // TODO -- Performance optimization: we partition the reads by sample 4 times right now; let's unify that code.
+
+        final List<GATKSAMRecord> downsampledReads = DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart);
+
+        // handle overlapping read pairs from the same fragment
+        cleanOverlappingReadPairs(downsampledReads);
+
         activeRegion.clearReads();
-        activeRegion.addAll(DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart));
+        activeRegion.addAll(downsampledReads);
     }
 
     private Set<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
@@ -1138,12 +1129,24 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         return returnMap;
     }
 
-
     /**
      * Are we emitting a reference confidence in some form, or not?
      * @return true if we are
      */
     private boolean emitReferenceConfidence(){
         return emitReferenceConfidence != ReferenceConfidenceMode.NONE;
+    }
+
+    /**
+     * Clean up reads/bases that overlap within read pairs
+     *
+     * @param reads the list of reads to consider
+     */
+    private void cleanOverlappingReadPairs(final List<GATKSAMRecord> reads) {
+        for ( final List<GATKSAMRecord> perSampleReadList : splitReadsBySample(reads).values() ) {
+            final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create(perSampleReadList);
+            for ( final List<GATKSAMRecord> overlappingPair : fragmentCollection.getOverlappingPairs() )
+                FragmentUtils.adjustQualsOfOverlappingPairedFragments(overlappingPair);
+        }
     }
 }
