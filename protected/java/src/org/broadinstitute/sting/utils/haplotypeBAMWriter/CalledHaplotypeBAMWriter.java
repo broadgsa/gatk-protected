@@ -98,10 +98,8 @@ class CalledHaplotypeBAMWriter extends HaplotypeBAMWriter {
         // next, output the interesting reads for each sample aligned against one of the called haplotypes
         for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
             for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
-                if ( entry.getKey().getMappingQuality() > 0 ) {
-                    final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue(), allelesOfCalledHaplotypes);
-                    writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
-                }
+                final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue(), allelesOfCalledHaplotypes);
+                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
             }
         }
     }
