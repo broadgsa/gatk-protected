@@ -49,7 +49,6 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 import com.google.java.contract.Requires;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
@@ -93,8 +92,8 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
     }
 
     @Override
-    protected List<SeqGraph> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes ) {
-        final List<SeqGraph> graphs = new LinkedList<>();
+    protected List<AssemblyResult> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes ) {
+        final List<AssemblyResult> results = new LinkedList<>();
 
         final int maxKmer = ReadUtils.getMaxReadLength(reads) - KMER_OVERLAP - 1;
         if( maxKmer < minKmer) {
@@ -118,19 +117,14 @@ public class DeBruijnAssembler extends LocalAssemblyEngine {
                             " future subsystem will actually go and error correct the reads");
                 }
 
-                final SeqGraph seqGraph = cleanupSeqGraph(graph.convertToSequenceGraph());
+                results.add(cleanupSeqGraph(graph.convertToSequenceGraph()));
 
-                if ( seqGraph != null ) { // if the graph contains interesting variation from the reference
-                    graphs.add(seqGraph);
-
-                    if ( debugGraphTransformations ) // we only want to use one graph size
-                        break;
-                }
+                if ( debugGraphTransformations ) // we only want to use one graph size
+                    break;
             }
-
         }
 
-        return graphs;
+        return results;
     }
 
     @Requires({"reads != null", "kmerLength > 0", "refHaplotype != null"})

@@ -44,56 +44,118 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.gvcf;
 
-import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
+public class HomRefBlockUnitTest extends BaseTest {
+    VariantContext vc;
 
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
-
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
+    @BeforeMethod
+    public void setUp() throws Exception {
+        vc = new VariantContextBuilder("foo", "20", 1, 1, Arrays.asList(Allele.create("A", true), Allele.create("C"))).make();
     }
 
     @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "12ed9d67139e7a94d67e9e6c06ac6e16");
-    }
-
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
-    }
-
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
-    }
-
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
+    public void testBasicConstruction() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        Assert.assertSame(band.getStartingVC(), vc);
+        Assert.assertEquals(band.getRef(), vc.getReference());
+        Assert.assertEquals(band.getGQLowerBound(), 10);
+        Assert.assertEquals(band.getGQUpperBound(), 20);
+        Assert.assertEquals(band.withinBounds(1), false);
+        Assert.assertEquals(band.withinBounds(10), true);
+        Assert.assertEquals(band.withinBounds(11), true);
+        Assert.assertEquals(band.withinBounds(20), false);
+        Assert.assertEquals(band.withinBounds(21), false);
     }
 
     @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "b7a01525c00d02b3373513a668a43c6a");
+    public void testMinMedian() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        int pos = vc.getStart();
+        band.add(pos++, gb.DP(10).GQ(11).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 10, 11, 11);
+
+        band.add(pos++, gb.DP(11).GQ(10).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 11, 10, 11);
+
+        band.add(pos++, gb.DP(12).GQ(12).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 11, 10, 11);
+
+        band.add(pos++, gb.DP(13).GQ(15).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(14).GQ(16).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(15).GQ(17).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(16).GQ(18).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 13, 10, 15);
+        Assert.assertEquals(band.getSize(), pos - vc.getStart());
     }
 
     @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "a2a42055b068334f415efb07d6bb9acd");
+    public void testBigGQIsCapped() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        band.add(vc.getStart(), gb.DP(1000).GQ(1000).make());
+        assertValues(band, 1000, 1000, 99, 99);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testBadAdd() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        band.add(vc.getStart() + 10, gb.DP(10).GQ(11).make());
+    }
+
+    private void assertValues(final HomRefBlock band, final int minDP, final int medianDP, final int minGQ, final int medianGQ) {
+        Assert.assertEquals(band.getMinDP(), minDP);
+        Assert.assertEquals(band.getMedianDP(), medianDP);
+        Assert.assertEquals(band.getMinGQ(), minGQ);
+        Assert.assertEquals(band.getMedianGQ(), medianGQ);
+    }
+
+
+    @DataProvider(name = "ContiguousData")
+    public Object[][] makeContiguousData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final String chrMod : Arrays.asList("", ".mismatch") ) {
+            for ( final int offset : Arrays.asList(-10, -1, 0, 1, 10) ) {
+                final boolean equals = chrMod.equals("") && offset == 0;
+                tests.add(new Object[]{vc.getChr() + chrMod, vc.getStart() + offset, equals});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "ContiguousData")
+    public void testIsContiguous(final String contig, final int pos, final boolean expected) {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final VariantContext testVC = new VariantContextBuilder(vc).chr(contig).start(pos).stop(pos).make();
+        Assert.assertEquals(band.isContiguous(testVC), expected);
     }
 }

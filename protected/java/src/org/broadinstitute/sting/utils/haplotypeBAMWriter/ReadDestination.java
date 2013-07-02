@@ -44,56 +44,92 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.haplotypeBAMWriter;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.testng.annotations.Test;
+import net.sf.samtools.SAMFileHeader;
+import net.sf.samtools.SAMFileWriter;
+import net.sf.samtools.SAMReadGroupRecord;
+import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
+/**
+ * Utility class that allows us to easily create destinations for the HaplotypeBAMWriters
+ *
+ * User: depristo
+ * Date: 6/19/13
+ * Time: 10:19 AM
+ */
+public abstract class ReadDestination {
+    public abstract void add(final GATKSAMRecord read);
 
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
+    private final SAMFileHeader bamHeader;
 
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
+    public SAMFileHeader getHeader() {
+        return bamHeader;
     }
 
-    @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "12ed9d67139e7a94d67e9e6c06ac6e16");
+    protected ReadDestination(final SAMFileHeader header, final String readGroupID) {
+        // prepare the bam header
+        if ( header == null ) throw new IllegalArgumentException("header cannot be null");
+        bamHeader = new SAMFileHeader();
+        bamHeader.setSequenceDictionary(header.getSequenceDictionary());
+        bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
+
+        // include the original read groups plus a new artificial one for the haplotypes
+        final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(header.getReadGroups());
+        final SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupID);
+        rg.setSample("HC");
+        rg.setSequencingCenter("BI");
+        readGroups.add(rg);
+        bamHeader.setReadGroups(readGroups);
     }
 
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
+    public static class ToBAM extends ReadDestination {
+        final SAMFileWriter bamWriter;
+
+        /**
+         * Create a ReadDestination that writes to a BAM file
+         */
+        public ToBAM(final StingSAMFileWriter stingSAMWriter, final SAMFileHeader header, final String readGroupID) {
+            super(header, readGroupID);
+            if ( stingSAMWriter == null ) throw new IllegalArgumentException("writer cannot be null");
+
+            bamWriter = stingSAMWriter;
+            stingSAMWriter.setPresorted(false);
+            stingSAMWriter.writeHeader(getHeader());
+        }
+
+        @Override
+        public void add(GATKSAMRecord read) {
+            bamWriter.addAlignment(read);
+        }
     }
 
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
-    }
+    public static class ToList extends ReadDestination {
+        final List<GATKSAMRecord> reads = new LinkedList<>();
 
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
-    }
+        /**
+         * Create a ReadDestination that captures the output reads in a list of reads
+         */
+        public ToList(SAMFileHeader header, String readGroupID) {
+            super(header, readGroupID);
+        }
 
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "b7a01525c00d02b3373513a668a43c6a");
-    }
+        @Override
+        public void add(GATKSAMRecord read) {
+            reads.add(read);
+        }
 
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "a2a42055b068334f415efb07d6bb9acd");
+        /**
+         * Get the reads that have been written to this destination
+         * @return a non-null list of reads
+         */
+        public List<GATKSAMRecord> getReads() {
+            return reads;
+        }
     }
 }

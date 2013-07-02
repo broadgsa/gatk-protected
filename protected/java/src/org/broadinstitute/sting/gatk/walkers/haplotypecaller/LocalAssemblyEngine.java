@@ -51,17 +51,12 @@ import com.google.java.contract.Requires;
 import net.sf.samtools.Cigar;
 import net.sf.samtools.CigarElement;
 import net.sf.samtools.CigarOperator;
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
-import org.broadinstitute.sting.utils.smithwaterman.SWParameterSet;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
@@ -115,9 +110,9 @@ public abstract class LocalAssemblyEngine {
      * @param refHaplotype the reference haplotype
      * @return a non-null list of reads
      */
-    protected abstract List<SeqGraph> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype, List<Haplotype> activeAlleleHaplotypes);
+    protected abstract List<AssemblyResult> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype, List<Haplotype> activeAlleleHaplotypes);
 
-    protected List<SeqGraph> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype) {
+    protected List<AssemblyResult> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype) {
         return assemble(reads, refHaplotype, Collections.<Haplotype>emptyList());
     }
 
@@ -145,7 +140,6 @@ public abstract class LocalAssemblyEngine {
         // create the list of artificial haplotypes that should be added to the graph for GGA mode
         final List<Haplotype> activeAlleleHaplotypes = createActiveAlleleHaplotypes(refHaplotype, activeAllelesToGenotype, activeRegion.getExtendedLoc());
 
-
         // error-correct reads before clipping low-quality tails: some low quality bases might be good and we want to recover them
         final List<GATKSAMRecord> correctedReads;
         if (readErrorCorrector != null) {
@@ -154,20 +148,31 @@ public abstract class LocalAssemblyEngine {
             // and we only want the read-error corrected reads for graph building.
             readErrorCorrector.addReadsToKmers(activeRegion.getReads());
             correctedReads = new ArrayList<>(readErrorCorrector.correctReads(activeRegion.getReads()));
+        } else {
+            correctedReads = activeRegion.getReads();
         }
-        else correctedReads = activeRegion.getReads();
 
+        final List<SeqGraph> nonRefGraphs = new LinkedList<>();
         // create the graphs by calling our subclass assemble method
-        final List<SeqGraph> graphs = assemble(correctedReads, refHaplotype, activeAlleleHaplotypes);
-
-        // do some QC on the graphs
-        for ( final SeqGraph graph : graphs ) { sanityCheckGraph(graph, refHaplotype); }
+        for ( final AssemblyResult result : assemble(correctedReads, refHaplotype, activeAlleleHaplotypes) ) {
+            if ( result.getStatus() == AssemblyResult.Status.ASSEMBLED_SOME_VARIATION ) {
+                // do some QC on the graph
+                sanityCheckGraph(result.getGraph(), refHaplotype);
+                // add it to graphs with meaningful non-reference features
+                nonRefGraphs.add(result.getGraph());
+            }
+        }
 
         // print the graphs if the appropriate debug option has been turned on
-        if ( graphWriter != null ) { printGraphs(graphs); }
+        if ( graphWriter != null ) { printGraphs(nonRefGraphs); }
 
-        // find the best paths in the graphs and return them as haplotypes
-        return findBestPaths( graphs, refHaplotype, refLoc, activeRegion.getExtendedLoc() );
+        if ( nonRefGraphs.isEmpty() ) {
+            // we couldn't assemble any meaningful graphs, so return just the reference haplotype
+            return Collections.singletonList(refHaplotype);
+        } else {
+            // find the best paths in the graphs and return them as haplotypes
+            return findBestPaths( nonRefGraphs, refHaplotype, refLoc, activeRegion.getExtendedLoc() );
+        }
     }
 
     /**
@@ -288,7 +293,7 @@ public abstract class LocalAssemblyEngine {
         }
     }
 
-    protected SeqGraph cleanupSeqGraph(final SeqGraph seqGraph) {
+    protected AssemblyResult cleanupSeqGraph(final SeqGraph seqGraph) {
         printDebugGraphTransform(seqGraph, new File("sequenceGraph.1.dot"));
 
         // the very first thing we need to do is zip up the graph, or pruneGraph will be too aggressive
@@ -309,7 +314,7 @@ public abstract class LocalAssemblyEngine {
         // happen in cases where for example the reference somehow manages to acquire a cycle, or
         // where the entire assembly collapses back into the reference sequence.
         if ( seqGraph.getReferenceSourceVertex() == null || seqGraph.getReferenceSinkVertex() == null )
-            return null;
+            return new AssemblyResult(AssemblyResult.Status.JUST_ASSEMBLED_REFERENCE, seqGraph);
 
         seqGraph.removePathsNotConnectedToRef();
         seqGraph.simplifyGraph();
@@ -324,7 +329,7 @@ public abstract class LocalAssemblyEngine {
         }
         printDebugGraphTransform(seqGraph, new File("sequenceGraph.5.final.dot"));
 
-        return seqGraph;
+        return new AssemblyResult(AssemblyResult.Status.ASSEMBLED_SOME_VARIATION, seqGraph);
     }
 
     /**

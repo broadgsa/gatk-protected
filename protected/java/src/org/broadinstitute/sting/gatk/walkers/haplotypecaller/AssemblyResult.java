@@ -46,54 +46,44 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.testng.annotations.Test;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
 
-import java.util.Arrays;
+/**
+ * Result of assembling, with the resulting graph and status
+ *
+ * User: depristo
+ * Date: 7/1/13
+ * Time: 5:35 PM
+ */
+public class AssemblyResult {
+    private final Status status;
+    private final SeqGraph graph;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
+    /**
+     * Create a new assembly result
+     * @param status the status, cannot be null
+     * @param graph the resulting graph of the assembly, can only be null if result is failed
+     */
+    public AssemblyResult(final Status status, final SeqGraph graph) {
+        if ( status == null ) throw new IllegalArgumentException("status cannot be null");
+        if ( status != Status.FAILED && graph == null ) throw new IllegalArgumentException("graph is null but status is " + status);
 
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
-
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
+        this.status = status;
+        this.graph = graph;
     }
 
-    @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "12ed9d67139e7a94d67e9e6c06ac6e16");
-    }
+    public Status getStatus() { return status; }
+    public SeqGraph getGraph() { return graph; }
 
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
-    }
-
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
-    }
-
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "b7a01525c00d02b3373513a668a43c6a");
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "a2a42055b068334f415efb07d6bb9acd");
+    /**
+     * Status of the assembly result
+     */
+    public enum Status {
+        /** Something went wrong, and we couldn't produce a meaningful graph */
+        FAILED,
+        /** Assembly succeeded, but graph degenerated into just the reference sequence */
+        JUST_ASSEMBLED_REFERENCE,
+        /** Assembly succeeded, and the graph has some meaningful structure */
+        ASSEMBLED_SOME_VARIATION
     }
 }

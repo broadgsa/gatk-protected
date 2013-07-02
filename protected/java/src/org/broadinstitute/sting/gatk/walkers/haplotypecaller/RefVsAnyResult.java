@@ -46,54 +46,27 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.testng.annotations.Test;
+/**
+ * Holds information about a genotype call of a single sample reference vs. any non-ref event
+ *
+ * User: depristo
+ * Date: 6/21/13
+ * Time: 12:58 PM
+ * To change this template use File | Settings | File Templates.
+ */
+final class RefVsAnyResult {
+    /**
+     * The genotype likelihoods for ref/ref ref/non-ref non-ref/non-ref
+     */
+    final double[] genotypeLikelihoods = new double[3];
 
-import java.util.Arrays;
+    /**
+     * AD field value for ref / non-ref
+     */
+    final int[] AD_Ref_Any = new int[2];
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
-
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
-
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "12ed9d67139e7a94d67e9e6c06ac6e16");
-    }
-
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
-    }
-
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
-    }
-
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "b7a01525c00d02b3373513a668a43c6a");
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "a2a42055b068334f415efb07d6bb9acd");
-    }
+    /**
+     * @return Get the DP (sum of AD values)
+     */
+    public int getDP() { return AD_Ref_Any[0] + AD_Ref_Any[1]; }
 }

@@ -93,7 +93,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
                 "130d36448faeb7b8d4bce4be12dacd3a");
     }
 
@@ -208,7 +208,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("cc6f2a76ee97ecc14a5f956ffbb21d88"));
+                Arrays.asList("c5c63d03e1c4bbe32f06902acd4a10f9"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -217,7 +217,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-11,000,000 -D " + b37dbSNP132
                         + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
-                Arrays.asList("51e91c8af61a6b47807165906baefb00"));
+                Arrays.asList("f0b2a96040429908cce17327442eec29"));
         executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
     }
 }

@@ -47,53 +47,42 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
+public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
+    @DataProvider(name = "MyDataProvider")
+    public Object[][] makeMyDataProvider() {
+        List<Object[]> tests = new ArrayList<Object[]>();
 
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
+        final String PCRFreeIntervals = "-L 20:10,000,000-10,010,000";
+        final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
 
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.NONE, PCRFreeIntervals, "2b54e4e948144030a829175bcd295e47"});
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "ba1bb72caa06c1962a202b2012c266cb"});
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "a841d9e94fb832066a04f13bdc62b101"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.NONE, WExIntervals, "6cc95c47368a568fb9e1eb8578f96b0b"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "2703f1c0c27b3c977689604b5f78b61f"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.GVCF, WExIntervals, "b54e36bbb4dc6c3b786349fa267d1f6c"});
+
+
+        return tests.toArray(new Object[][]{});
     }
 
-    @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "12ed9d67139e7a94d67e9e6c06ac6e16");
-    }
-
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
-    }
-
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
-    }
-
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "b7a01525c00d02b3373513a668a43c6a");
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "a2a42055b068334f415efb07d6bb9acd");
+    /**
+     * Example testng test using MyDataProvider
+     */
+    @Test(dataProvider = "MyDataProvider")
+    public void testHCWithGVCF(String bam, HaplotypeCaller.ReferenceConfidenceMode mode, String intervals, String md5) {
+        final String commandLine = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s %s -ERC %s --no_cmdline_in_header",
+                b37KGReference, bam, intervals, mode);
+        final String name = "testHCWithGVCF bam=" + bam + " intervals= " + intervals + " gvcf= " + mode;
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
+        executeTest(name, spec);
     }
 }
