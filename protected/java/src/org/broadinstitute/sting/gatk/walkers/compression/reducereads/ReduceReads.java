@@ -320,18 +320,17 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
         if (toolkit.getIntervals() != null)
             intervalList.addAll(toolkit.getIntervals());
 
-        final boolean preSorted = true;
         final boolean indexOnTheFly = true;
         final SAMFileHeader.SortOrder sortOrder = SAMFileHeader.SortOrder.coordinate;
         if (nwayout) {
             SAMProgramRecord programRecord = NO_PG_TAG ? null : Utils.createProgramRecord(toolkit, this, PROGRAM_RECORD_NAME);
-            writerToUse = new BySampleSAMFileWriter(toolkit, PROGRAM_FILENAME_EXTENSION, sortOrder, preSorted, indexOnTheFly, NO_PG_TAG, programRecord, true);
+            writerToUse = new BySampleSAMFileWriter(toolkit, PROGRAM_FILENAME_EXTENSION, sortOrder, false, indexOnTheFly, NO_PG_TAG, programRecord, true);
         }
         else {
             writerToUse = out;
             out.setPresorted(false);
             if (!NO_PG_TAG) {
-                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), !preSorted, this, PROGRAM_RECORD_NAME);
+                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), false, this, PROGRAM_RECORD_NAME);
             }
         }
     }
