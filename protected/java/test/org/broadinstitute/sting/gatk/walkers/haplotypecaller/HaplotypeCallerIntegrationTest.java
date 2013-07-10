@@ -47,15 +47,12 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import net.sf.picard.reference.IndexedFastaSequenceFile;
-import org.broad.tribble.TribbleIndexedFeatureReader;
 import org.broadinstitute.sting.WalkerTest;
-import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -69,6 +66,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     final static String NA12878_CHR20_BAM = validationDataLocation + "NA12878.HiSeq.WGS.bwa.cleaned.recal.hg19.20.bam";
     final static String CEUTRIO_BAM = validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam";
     final static String NA12878_RECALIBRATED_BAM = privateTestDir + "NA12878.100kb.BQSRv2.example.bam";
+    final static String NA12878_PCRFREE = privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam";
     final static String CEUTRIO_MT_TEST_BAM = privateTestDir + "CEUTrio.HiSeq.b37.MT.1_50.bam";
     final static String INTERVALS_FILE = validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals";
 
@@ -80,12 +78,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "37e462379de17bc6c8aeeed6e9735dd3");
+        HCTest(CEUTRIO_BAM, "", "baa5a2eedc8f06ce9f8f98411ee09f8a");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "983a0d122714d4aa0ff7af20cc686703");
+        HCTest(NA12878_BAM, "", "f09e03d41238697b23f95716a12667cb");
     }
 
     @Test(enabled = false) // can't annotate the rsID's yet
@@ -95,13 +93,13 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
-        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "dbbc884a975587d8e7255ce47b58f438");
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
+                "130d36448faeb7b8d4bce4be12dacd3a");
     }
 
     @Test
     public void testHaplotypeCallerInsertionOnEdgeOfContig() {
-        HCTest(CEUTRIO_MT_TEST_BAM, "-dcov 90 -L MT:1-10", "7f1fb8f9587f64643f6612ef1dd6d4ae");
+        HCTest(CEUTRIO_MT_TEST_BAM, "-L MT:1-10", "7f1fb8f9587f64643f6612ef1dd6d4ae");
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
@@ -112,7 +110,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "ce602282e80cca6d4272f940e20e90c3");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "7c20aa62633f4ce8ebf12950fbf05ec0");
     }
 
     private void HCTestNearbySmallIntervals(String bam, String args, String md5) {
@@ -149,7 +147,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerNearbySmallIntervals() {
-        HCTestNearbySmallIntervals(NA12878_BAM, "", "09335c01d2e90714af7f4c91156da0b1");
+        HCTestNearbySmallIntervals(NA12878_BAM, "", "0ddc56f0a0fbcfefda79aa20b2ecf603");
     }
 
     // This problem bam came from a user on the forum and it spotted a problem where the ReadClipper
@@ -159,14 +157,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("b34ddc93a7b9919e05da499508f44dd9"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("0689d2c202849fd05617648eaf429b9a"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
     @Test
     public void HCTestStructuralIndels() {
         final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("98a78b9f58ab197b827ef2ce3ab043d3"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("91717e5e271742c2c9b67223e58f1320"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
 
@@ -188,7 +186,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestReducedBam() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("6e6ef6e0326bee6d20d9fd37349fdb8c"));
+                Arrays.asList("5fe9310addf881bed4fde2354e59ce34"));
         executeTest("HC calling on a ReducedRead BAM", spec);
     }
 
@@ -196,7 +194,30 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testReducedBamWithReadsNotFullySpanningDeletion() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
-                Arrays.asList("5e535983b2f7e5fb6c84fecffa092324"));
+                Arrays.asList("26a9917f6707536636451266de0116c3"));
         executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
+    }
+
+    // --------------------------------------------------------------------------------------------------------------
+    //
+    // test dbSNP annotation
+    //
+    // --------------------------------------------------------------------------------------------------------------
+
+    @Test
+    public void HCTestDBSNPAnnotationWGS() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
+                Arrays.asList("c5c63d03e1c4bbe32f06902acd4a10f9"));
+        executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
+    }
+
+    @Test
+    public void HCTestDBSNPAnnotationWEx() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-11,000,000 -D " + b37dbSNP132
+                        + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
+                Arrays.asList("f0b2a96040429908cce17327442eec29"));
+        executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
     }
 }

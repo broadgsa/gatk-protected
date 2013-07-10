@@ -47,14 +47,15 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
 import org.apache.log4j.Logger;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResult;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.LocalAssemblyEngine;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -62,11 +63,16 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     private final static Logger logger = Logger.getLogger(ReadThreadingAssembler.class);
 
     private final static int DEFAULT_NUM_PATHS_PER_GRAPH = 128;
+    private final static int GGA_MODE_ARTIFICIAL_COUNTS = 1000;
+    private final static int KMER_SIZE_ITERATION_INCREASE = 10;
+    private final static int MAX_KMER_ITERATIONS_TO_ATTEMPT = 6;
 
     /** The min and max kmer sizes to try when building the graph. */
     private final List<Integer> kmerSizes;
     private final int maxAllowedPathsForReadThreadingAssembler;
 
+    private final boolean dontIncreaseKmerSizesForCycles;
+    private final int numPruningSamples;
     private boolean requireReasonableNumberOfPaths = false;
     protected boolean removePathsNotConnectedToRef = true;
     private boolean justReturnRawGraph = false;
@@ -76,10 +82,16 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         this(DEFAULT_NUM_PATHS_PER_GRAPH, Arrays.asList(25));
     }
 
-    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes) {
+    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes, final boolean dontIncreaseKmerSizesForCycles, final int numPruningSamples) {
         super(maxAllowedPathsForReadThreadingAssembler);
         this.kmerSizes = kmerSizes;
         this.maxAllowedPathsForReadThreadingAssembler = maxAllowedPathsForReadThreadingAssembler;
+        this.dontIncreaseKmerSizesForCycles = dontIncreaseKmerSizesForCycles;
+        this.numPruningSamples = numPruningSamples;
+    }
+
+    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes) {
+        this(maxAllowedPathsForReadThreadingAssembler, kmerSizes, true, 1);
     }
 
     /** for testing purposes */
@@ -87,58 +99,116 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         this.justReturnRawGraph = justReturnRawGraph;
     }
 
+    private void addResult(final List<AssemblyResult> results, final AssemblyResult maybeNullResult) {
+        if ( maybeNullResult != null )
+            results.add(maybeNullResult);
+    }
+
     @Override
-    public List<SeqGraph> assemble( final List<GATKSAMRecord> reads, final Haplotype refHaplotype) {
-        final List<SeqGraph> graphs = new LinkedList<>();
+    public List<AssemblyResult> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes) {
+        final List<AssemblyResult> results = new LinkedList<>();
 
+        // first, try using the requested kmer sizes
         for ( final int kmerSize : kmerSizes ) {
-            final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly);
+            addResult(results, createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, dontIncreaseKmerSizesForCycles));
+        }
 
-            // add the reference sequence to the graph
-            rtgraph.addSequence("ref", refHaplotype.getBases(), null, true);
-
-            // Next pull kmers out of every read and throw them on the graph
-            for( final GATKSAMRecord read : reads ) {
-                rtgraph.addRead(read);
-            }
-
-            // actually build the read threading graph
-            rtgraph.buildGraphIfNecessary();
-            if ( debugGraphTransformations ) rtgraph.printGraph(new File("sequenceGraph.0.0.raw_readthreading_graph.dot"), pruneFactor);
-
-            // go through and prune all of the chains where all edges have <= pruneFactor.  This must occur
-            // before recoverDanglingTails in the graph, so that we don't spend a ton of time recovering
-            // tails that we'll ultimately just trim away anyway, as the dangling tail edges have weight of 1
-            rtgraph.pruneLowWeightChains(pruneFactor);
-
-            // look at all chains in the graph that terminate in a non-ref node (dangling sinks) and see if
-            // we can recover them by merging some N bases from the chain back into the reference uniquely, for
-            // N < kmerSize
-            if ( recoverDanglingTails ) rtgraph.recoverDanglingTails();
-
-            // remove all heading and trailing paths
-            if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();
-
-            if ( debugGraphTransformations ) rtgraph.printGraph(new File("sequenceGraph.0.1.cleaned_readthreading_graph.dot"), pruneFactor);
-
-            final SeqGraph initialSeqGraph = rtgraph.convertToSequenceGraph();
-
-            // if the unit tests don't want us to cleanup the graph, just return the raw sequence graph
-            if ( justReturnRawGraph ) return Collections.singletonList(initialSeqGraph);
-
-            if ( debug ) logger.info("Using kmer size of " + rtgraph.getKmerSize() + " in read threading assembler");
-            if ( debugGraphTransformations ) initialSeqGraph.printGraph(new File("sequenceGraph.0.2.initial_seqgraph.dot"), pruneFactor);
-            initialSeqGraph.cleanNonRefPaths(); // TODO -- I don't this is possible by construction
-
-            final SeqGraph seqGraph = cleanupSeqGraph(initialSeqGraph);
-            if ( seqGraph != null ) {
-                if ( ! requireReasonableNumberOfPaths || reasonableNumberOfPaths(seqGraph) ) {
-                    graphs.add(seqGraph);
-                }
+        // if none of those worked, iterate over larger sizes if allowed to do so
+        if ( results.isEmpty() && !dontIncreaseKmerSizesForCycles ) {
+            int kmerSize = MathUtils.arrayMaxInt(kmerSizes) + KMER_SIZE_ITERATION_INCREASE;
+            int numIterations = 1;
+            while ( results.isEmpty() && numIterations <= MAX_KMER_ITERATIONS_TO_ATTEMPT ) {
+                // on the last attempt we will allow low complexity graphs
+                addResult(results, createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT));
+                kmerSize += KMER_SIZE_ITERATION_INCREASE;
+                numIterations++;
             }
         }
 
-        return graphs;
+        return results;
+    }
+
+    /**
+     * Creates the sequence graph for the given kmerSize
+     *
+     * @param reads            reads to use
+     * @param refHaplotype     reference haplotype
+     * @param kmerSize         kmer size
+     * @param activeAlleleHaplotypes the GGA haplotypes to inject into the graph
+     * @param allowLowComplexityGraphs if true, do not check for low-complexity graphs
+     * @return sequence graph or null if one could not be created (e.g. because it contains cycles or too many paths or is low complexity)
+     */
+    protected AssemblyResult createGraph(final List<GATKSAMRecord> reads,
+                                         final Haplotype refHaplotype,
+                                         final int kmerSize,
+                                         final List<Haplotype> activeAlleleHaplotypes,
+                                         final boolean allowLowComplexityGraphs) {
+        if ( refHaplotype.length() < kmerSize ) {
+            // happens in cases where the assembled region is just too small
+            return new AssemblyResult(AssemblyResult.Status.FAILED, null);
+        }
+
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly, numPruningSamples);
+
+        // add the reference sequence to the graph
+        rtgraph.addSequence("ref", refHaplotype.getBases(), null, true);
+
+        // add the artificial GGA haplotypes to the graph
+        int hapCount = 0;
+        for ( final Haplotype h : activeAlleleHaplotypes ) {
+            final int[] counts = new int[h.length()];
+            Arrays.fill(counts, GGA_MODE_ARTIFICIAL_COUNTS);
+            rtgraph.addSequence("activeAllele" + hapCount++, h.getBases(), counts, false);
+        }
+
+        // Next pull kmers out of every read and throw them on the graph
+        for( final GATKSAMRecord read : reads ) {
+            rtgraph.addRead(read);
+        }
+
+        // actually build the read threading graph
+        rtgraph.buildGraphIfNecessary();
+
+        // sanity check: make sure there are no cycles in the graph
+        if ( rtgraph.hasCycles() ) {
+            if ( debug ) logger.info("Not using kmer size of " + kmerSize + " in read threading assembler because it contains a cycle");
+            return null;
+        }
+
+        // sanity check: make sure the graph had enough complexity with the given kmer
+        if ( ! allowLowComplexityGraphs && rtgraph.isLowComplexity() ) {
+            if ( debug ) logger.info("Not using kmer size of " + kmerSize + " in read threading assembler because it does not produce a graph with enough complexity");
+            return null;
+        }
+
+        printDebugGraphTransform(rtgraph, new File("sequenceGraph.0.0.raw_readthreading_graph.dot"));
+
+        // go through and prune all of the chains where all edges have <= pruneFactor.  This must occur
+        // before recoverDanglingTails in the graph, so that we don't spend a ton of time recovering
+        // tails that we'll ultimately just trim away anyway, as the dangling tail edges have weight of 1
+        rtgraph.pruneLowWeightChains(pruneFactor);
+
+        // look at all chains in the graph that terminate in a non-ref node (dangling sinks) and see if
+        // we can recover them by merging some N bases from the chain back into the reference
+        if ( recoverDanglingTails ) rtgraph.recoverDanglingTails();
+
+        // remove all heading and trailing paths
+        if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();
+
+        printDebugGraphTransform(rtgraph, new File("sequenceGraph.0.1.cleaned_readthreading_graph.dot"));
+
+        final SeqGraph initialSeqGraph = rtgraph.convertToSequenceGraph();
+
+        // if the unit tests don't want us to cleanup the graph, just return the raw sequence graph
+        if ( justReturnRawGraph ) return new AssemblyResult(AssemblyResult.Status.ASSEMBLED_SOME_VARIATION, initialSeqGraph);
+
+        if ( debug ) logger.info("Using kmer size of " + rtgraph.getKmerSize() + " in read threading assembler");
+        printDebugGraphTransform(initialSeqGraph, new File("sequenceGraph.0.2.initial_seqgraph.dot"));
+        initialSeqGraph.cleanNonRefPaths(); // TODO -- I don't this is possible by construction
+
+        final AssemblyResult cleaned = cleanupSeqGraph(initialSeqGraph);
+        final AssemblyResult.Status status = cleaned.getStatus() == AssemblyResult.Status.ASSEMBLED_SOME_VARIATION && requireReasonableNumberOfPaths && !reasonableNumberOfPaths(cleaned.getGraph()) ? AssemblyResult.Status.FAILED : cleaned.getStatus();
+        return new AssemblyResult(status, cleaned.getGraph());
     }
 
     /**
@@ -147,7 +217,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
      * @return
      */
     private boolean reasonableNumberOfPaths(final SeqGraph graph) {
-        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<SeqVertex,BaseEdge>(false);
+        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<>(false);
         final List<Path<SeqVertex,BaseEdge>> allPaths = pathFinder.getKBestPaths(graph, 100000);
         logger.info("Found " + allPaths.size() + " paths through " + graph + " with maximum " + maxAllowedPathsForReadThreadingAssembler);
         return allPaths.size() <= maxAllowedPathsForReadThreadingAssembler;

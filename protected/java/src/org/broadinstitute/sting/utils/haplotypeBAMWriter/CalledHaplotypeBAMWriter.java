@@ -68,17 +68,17 @@ import java.util.*;
  * Time: 1:50 PM
  */
 class CalledHaplotypeBAMWriter extends HaplotypeBAMWriter {
-    public CalledHaplotypeBAMWriter(final SAMFileWriter bamWriter) {
-        super(bamWriter);
+    public CalledHaplotypeBAMWriter(final ReadDestination destination) {
+        super(destination);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void writeReadsAlignedToHaplotypes(final List<Haplotype> haplotypes,
+    public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
                                               final GenomeLoc paddedReferenceLoc,
-                                              final List<Haplotype> bestHaplotypes,
+                                              final Collection<Haplotype> bestHaplotypes,
                                               final Set<Haplotype> calledHaplotypes,
                                               final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
         if ( calledHaplotypes.isEmpty() ) // only write out called haplotypes
@@ -87,7 +87,7 @@ class CalledHaplotypeBAMWriter extends HaplotypeBAMWriter {
         writeHaplotypesAsReads(calledHaplotypes, calledHaplotypes, paddedReferenceLoc);
 
         // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
-        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<Allele, Haplotype>(haplotypes.size());
+        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<>(haplotypes.size());
         for ( final Haplotype haplotype : calledHaplotypes ) {
             alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
         }
@@ -97,11 +97,9 @@ class CalledHaplotypeBAMWriter extends HaplotypeBAMWriter {
 
         // next, output the interesting reads for each sample aligned against one of the called haplotypes
         for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-            for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
-                if ( entry.getKey().getMappingQuality() > 0 ) {
-                    final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue(), allelesOfCalledHaplotypes);
-                    writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart());
-                }
+            for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
+                final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue(), allelesOfCalledHaplotypes);
+                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
             }
         }
     }

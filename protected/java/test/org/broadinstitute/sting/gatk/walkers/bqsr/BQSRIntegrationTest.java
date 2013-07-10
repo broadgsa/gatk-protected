@@ -100,23 +100,23 @@ public class BQSRIntegrationTest extends WalkerTest {
     @DataProvider(name = "BQSRTest")
     public Object[][] createBQSRTestData() {
         return new Object[][]{
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "61fd466b5e94d2d67e116f6f67c9f939")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "e08b5bcdb64f4beea03730e5631a14ca")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "448a45dc154c95d1387cb5cdddb67071")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "c1e7999e445d51bbe2e775dac5325643")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "a57c16918cdfe12d55a89c21bf195279")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "836dccacf48ccda6b2843d07e8f1ef4d")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "0fb2aedc2f8d66b5821cb570f15a8c4d")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "c9953f020a65c1603a6d71aeeb1b95f3")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "85a120b7d86b61597b86b9e93decbdfc")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "5248dc49aec0323c74b496bb4928c73c")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "cb52f267e0010f849f50b0bf1de474a1")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "1425a5063ee757dbfc013df24e65a67a")},
-                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "c1c3cda8caceed619d3d439c3990cd26")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "c9953f020a65c1603a6d71aeeb1b95f3")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "5bfff0c699345cca12a9b33acf95588f")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "f805a0020eea987b79f314fa99913806")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "86075d3856eb06816a0dd81af55e421f")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "155802237e1fc7a001398b8f4bcf4b72")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "38c7916cc019fe8d134df67639422b42")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "b74e75f3c5aa90bd21af1e20f2ac8c40")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "e564505aea11464de8ed72890d9ea89a")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "380d8be121ffaddd3461ee0ac3d1a76f")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "281682124584ab384f23359934df0c3b")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "0a92fdff5fd26227c29d34eda5a32f49")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "90d8c24077e8ae9a0037a9aad5f09e31")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "c41ef02c640ef1fed4bfc03b9b33b616")},
+                {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "b577cd1d529425f66db49620db09fdca")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
+                {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:bed " + validationDataLocation + "bqsrKnownTest.bed", "9ad49269c0156f8ab1173261bf23e600")},
                 // make sure we work with ION torrent bam
-                {new BQSRTest(b37KGReference, privateTestDir + "iontorrent.bam", "20:10,000,000-10,200,000", "", "7375c7b692e76b651c278a9fb478fa1c")},
+                {new BQSRTest(b37KGReference, privateTestDir + "iontorrent.bam", "20:10,000,000-10,200,000", "", "04bfa4760767022e7f5252e6e4432cc1")},
         };
     }
 
@@ -139,22 +139,6 @@ public class BQSRIntegrationTest extends WalkerTest {
                 1, // just one output file
                 UserException.CommandLineException.class);
         executeTest("testBQSRFailWithoutDBSNP", spec);
-    }
-
-    @Test
-    public void testBQSRCSV() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                " -T BaseRecalibrator" +
-                        " -R " + b36KGReference +
-                        " -I " + validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.bam" +
-                        " -knownSites " + b36dbSNP129 +
-                        " -L 1:10,000,000-10,200,000" +
-                        " -o /dev/null" +
-                        " -sortAllCols" +
-                        " --plot_pdf_file /dev/null" +
-                        " --intermediate_csv_file %s",
-                Arrays.asList("90ad19143024684e3c4410dc8fd2bd9d"));
-        executeTest("testBQSR-CSVfile", spec);
     }
 
     @Test

@@ -260,7 +260,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     public void testDivideByZero() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", DIVIDEBYZERO_L, REF, DIVIDEBYZERO_BAM) + " -o %s ";
         // we expect to lose coverage due to the downsampling so don't run the systematic tests
-        executeTestWithoutAdditionalRRTests("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("c459a6153a17c2cbf8441e1918fda9c8")));
+        executeTestWithoutAdditionalRRTests("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("4f0ef477c0417d1eb602b323474ef377")));
     }
 
     /**

@@ -70,9 +70,7 @@ import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -221,6 +219,150 @@ public class RecalUtils {
         for (final Class<? extends Covariate> covClass : new PluginManager<Covariate>(Covariate.class).getPlugins()) {
             logger.info(String.format("\t%30s\t%s", covClass.getSimpleName(), JVMUtils.classInterfaces(covClass)));
         }
+    }
+
+    /**
+     * Component used to print out csv representation of the reports that can be use to perform analysis in
+     * external tools. E.g. generate plots using R scripts.
+     * <p/>
+     * A header is always printed into the output stream (or file) when the printer is created. Then you only need
+     * to call {@link #print(RecalibrationReport,String) print} for each report you want to include in the csv file.
+     * Once finished, you close the printer calling {@link #close() close}
+     *
+     */
+    private static class CsvPrinter {
+
+        private final PrintStream ps;
+        private final Covariate[] covariates;
+
+        /**
+         * Constructs a printer redirected to an output file.
+         * @param out the output file.
+         * @param c covariates to print out.
+         * @throws FileNotFoundException if the file could not be created anew.
+         */
+        protected CsvPrinter(final File out, final Covariate ... c)
+                throws FileNotFoundException {
+            this(new FileOutputStream(out), c);
+        }
+
+        /**
+         * Constructs a printer redirected to an output stream
+         * @param os the output.
+         * @param c  covariates to print out.
+         */
+        protected CsvPrinter(final OutputStream os, final Covariate ... c) {
+            covariates = c == null ? new Covariate[0] : c.clone();
+            ps = new PrintStream(os);
+            printHeader();
+        }
+
+        /**
+         * Prints the header out.
+         * <p/>
+         * Should only be invoked at creation.
+         */
+        protected void printHeader() {
+            RecalUtils.printHeader(ps);
+        }
+
+        /**
+         * Prints out a report into the csv file.
+         *
+         *
+         * @param report the report to print out.
+         * @param mode  the report associated mode. (typically ORIGINAL, RECALIBRATED
+         */
+        public void print(final RecalibrationReport report, final String mode) {
+            RecalUtils.writeCSV(ps,report.getRecalibrationTables(),mode,covariates,false);
+        }
+
+        /**
+         * Close the csv printer.
+         *
+         * No further output will be allowed or take place after calling this method.
+         */
+        public void close() {
+            ps.close();
+        }
+
+    }
+
+    /**
+     * Returns a csv output printer.
+     *
+     * @param out the output file. It will be overridden
+     * @param c list of covariates to print out.
+     *
+     * @throws FileNotFoundException if <code>out</code> could not be created anew.
+     *
+     * @return never <code>null</code>
+     */
+    protected static CsvPrinter csvPrinter(final File out, final Covariate ... c)
+        throws FileNotFoundException
+    {
+        if (c == null) {
+            throw new IllegalArgumentException("the input covariate array cannot be null");
+        }
+        return new CsvPrinter(out,c);
+    }
+
+    /**
+     * Prints out a collection of reports into a file in Csv format in a way
+     * that can be used by R scripts (such as the plot generator script).
+     * <p/>
+     * The set of covariates is take as the minimum common set from all reports.
+     *
+     * @param out the output file. It will be overridden.
+     * @param reports map where keys are the unique 'mode' (ORIGINAL, RECALIBRATED, ...)
+     *                of each report and the corresponding value the report itself.
+     * @throws FileNotFoundException if <code>out</code> could not be created anew.
+     */
+    public static void generateCsv(final File out, final Map<String, RecalibrationReport> reports)
+            throws FileNotFoundException {
+        if (reports.size() == 0) {
+            writeCsv(out, reports, new Covariate[0]);
+        } else {
+            final Iterator<RecalibrationReport> rit = reports.values().iterator();
+            final RecalibrationReport first = rit.next();
+            final Covariate[] firstCovariates = first.getRequestedCovariates();
+            final Set<Covariate> covariates = new LinkedHashSet<>();
+            Utils.addAll(covariates,firstCovariates);
+            while (rit.hasNext() && covariates.size() > 0) {
+                final Covariate[] nextCovariates = rit.next().getRequestedCovariates();
+                final Set<String> nextCovariateNames = new LinkedHashSet<String>(nextCovariates.length);
+                for (final Covariate nc : nextCovariates) {
+                    nextCovariateNames.add(nc.getClass().getSimpleName());
+                }
+                final Iterator<Covariate> cit = covariates.iterator();
+                while (cit.hasNext()) {
+                    if (!nextCovariateNames.contains(cit.next().getClass().getSimpleName())) {
+                        cit.remove();
+                    }
+                }
+            }
+            writeCsv(out, reports, covariates.toArray(new Covariate[covariates.size()]));
+        }
+    }
+
+    /**
+     * Print out a collection of reports into a file in Csv format in a way
+     * that can be used by R scripts (such as the plot generator script).
+     *
+     * @param out
+     * @param reports map where keys are the unique 'mode' (ORIGINAL, RECALIBRATED, ...)
+     *                of each report and the corresponding value the report itself.
+     * @param c the covariates to print out.
+     * @throws FileNotFoundException if <code>out</code> could not be created anew.
+     */
+    private static void writeCsv(final File out,
+            final Map<String, RecalibrationReport> reports, final Covariate[] c)
+        throws FileNotFoundException {
+        final CsvPrinter p = csvPrinter(out,c);
+        for (Map.Entry<String,RecalibrationReport> e : reports.entrySet()) {
+            p.print(e.getValue(),e.getKey());
+        }
+        p.close();
     }
 
     public enum SOLID_RECAL_MODE {
@@ -390,36 +532,66 @@ public class RecalUtils {
         report.print(outputFile);
     }
 
-    private static void outputRecalibrationPlot(final RecalibrationArgumentCollection RAC) {
-
+    /**                                                s
+     * Write recalibration plots into a file
+     *
+     * @param csvFile location of the intermediary file
+     * @param exampleReportFile where the report arguments are collected from.
+     * @param output result plot file name.
+     */
+    public static void generatePlots(final File csvFile, final File exampleReportFile, final File output) {
         final RScriptExecutor executor = new RScriptExecutor();
+        executor.setExceptOnError(true);
         executor.addScript(new Resource(SCRIPT_FILE, RecalUtils.class));
-        executor.addArgs(RAC.RECAL_CSV_FILE.getAbsolutePath());
-        executor.addArgs(RAC.RECAL_TABLE_FILE.getAbsolutePath());
-        executor.addArgs(RAC.RECAL_PDF_FILE.getAbsolutePath());
+        executor.addArgs(csvFile.getAbsolutePath());
+        executor.addArgs(exampleReportFile.getAbsolutePath());
+        executor.addArgs(output.getAbsolutePath());
+        Logger.getLogger(RecalUtils.class).debug("R command line: " + executor.getApproximateCommandLine());
         executor.exec();
     }
 
+    private static void outputRecalibrationPlot(final File csvFile, final RecalibrationArgumentCollection RAC) {
+
+        final RScriptExecutor executor = new RScriptExecutor();
+        executor.addScript(new Resource(SCRIPT_FILE, RecalUtils.class));
+        executor.addArgs(csvFile.getAbsolutePath());
+        executor.addArgs(RAC.RECAL_TABLE_FILE.getAbsolutePath());
+        executor.exec();
+    }
+
+    /**
+     * Please use {@link #generateCsv(java.io.File, java.util.Map)} and {@link #generatePlots(java.io.File, java.io.File, java.io.File)} instead.
+     *
+     * @deprecated
+     */
+    @Deprecated
     public static void generateRecalibrationPlot(final RecalibrationArgumentCollection RAC, final RecalibrationTables original, final Covariate[] requestedCovariates) {
         generateRecalibrationPlot(RAC, original, null, requestedCovariates);
     }
 
+    /**
+     * Please use {@link #generateCsv(java.io.File, java.util.Map)} and {@link #generatePlots(java.io.File, java.io.File, java.io.File)} instead.
+     *
+     * @deprecated
+     */
+    @Deprecated
     public static void generateRecalibrationPlot(final RecalibrationArgumentCollection RAC, final RecalibrationTables original, final RecalibrationTables recalibrated, final Covariate[] requestedCovariates) {
-        final PrintStream csvFile;
+        final PrintStream csvStream;
+        final File csvTempFile = null;
         try {
-            if ( RAC.RECAL_CSV_FILE == null ) {
-                RAC.RECAL_CSV_FILE = File.createTempFile("BQSR", ".csv");
-                RAC.RECAL_CSV_FILE.deleteOnExit();
-            }
-            csvFile = new PrintStream(RAC.RECAL_CSV_FILE);
+            File csvTmpFile = File.createTempFile("BQSR",".csv");
+            csvTmpFile.deleteOnExit();
+            csvStream = new PrintStream(csvTmpFile);
         } catch (IOException e) {
-            throw new UserException.CouldNotCreateOutputFile(RAC.RECAL_CSV_FILE, e);
+            throw new UserException("Could not create temporary csv file", e);
         }
 
         if ( recalibrated != null )
-            writeCSV(csvFile, recalibrated, "RECALIBRATED", requestedCovariates, true);
-        writeCSV(csvFile, original, "ORIGINAL", requestedCovariates, recalibrated == null);
-        outputRecalibrationPlot(RAC);
+            writeCSV(csvStream, recalibrated, "RECALIBRATED", requestedCovariates, true);
+        writeCSV(csvStream, original, "ORIGINAL", requestedCovariates, recalibrated == null);
+        csvStream.close();
+        outputRecalibrationPlot(csvTempFile, RAC);
+        csvTempFile.delete();
     }
 
     private static void writeCSV(final PrintStream deltaTableFile, final RecalibrationTables recalibrationTables, final String recalibrationMode, final Covariate[] requestedCovariates, final boolean printHeader) {
@@ -452,18 +624,7 @@ public class RecalUtils {
 
         // output the csv file
         if (printHeader) {
-            final List<String> header = new LinkedList<String>();
-            header.add("ReadGroup");
-            header.add("CovariateValue");
-            header.add("CovariateName");
-            header.add("EventType");
-            header.add("Observations");
-            header.add("Errors");
-            header.add("EmpiricalQuality");
-            header.add("AverageReportedQuality");
-            header.add("Accuracy");
-            header.add("Recalibration");
-            deltaTableFile.println(Utils.join(",", header));
+            printHeader(deltaTableFile);
         }
 
         final Map<Covariate, String> covariateNameMap = new HashMap<Covariate, String>(requestedCovariates.length);
@@ -478,6 +639,21 @@ public class RecalUtils {
             deltaTableFile.print("," + deltaDatum.stringForCSV());
             deltaTableFile.println("," + recalibrationMode);
         }
+    }
+
+    private static void printHeader(PrintStream out) {
+        final List<String> header = new LinkedList<String>();
+        header.add("ReadGroup");
+        header.add("CovariateValue");
+        header.add("CovariateName");
+        header.add("EventType");
+        header.add("Observations");
+        header.add("Errors");
+        header.add("EmpiricalQuality");
+        header.add("AverageReportedQuality");
+        header.add("Accuracy");
+        header.add("Recalibration");
+        out.println(Utils.join(",", header));
     }
 
     /*

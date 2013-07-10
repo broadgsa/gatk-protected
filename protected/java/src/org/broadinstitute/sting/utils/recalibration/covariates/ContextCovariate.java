@@ -67,6 +67,8 @@ import java.util.ArrayList;
 public class ContextCovariate implements StandardCovariate {
     private final static Logger logger = Logger.getLogger(ContextCovariate.class);
 
+
+
     private int mismatchesContextSize;
     private int indelsContextSize;
 

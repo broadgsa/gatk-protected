@@ -207,7 +207,7 @@ public class HeaderElement {
     public void removeInsertionToTheRight() {
         this.insertionsToTheRight--;
         if (insertionsToTheRight < 0)
-            throw new ReviewedStingException("Removed too many insertions, header is now negative!");
+            throw new ReviewedStingException("Removed too many insertions, header is now negative at position " + location);
     }
 
     public boolean hasInsertionToTheRight() {

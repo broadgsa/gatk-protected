@@ -46,11 +46,10 @@
 
 package org.broadinstitute.sting.utils.haplotypeBAMWriter;
 
-import net.sf.samtools.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.variant.variantcontext.Allele;
 
@@ -67,31 +66,31 @@ import java.util.*;
  * Time: 1:50 PM
  */
 class AllHaplotypeBAMWriter extends HaplotypeBAMWriter {
-    public AllHaplotypeBAMWriter(final SAMFileWriter bamWriter) {
-        super(bamWriter);
+    public AllHaplotypeBAMWriter(final ReadDestination destination) {
+        super(destination);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void writeReadsAlignedToHaplotypes(final List<Haplotype> haplotypes,
+    public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
                                               final GenomeLoc paddedReferenceLoc,
-                                              final List<Haplotype> bestHaplotypes,
+                                              final Collection<Haplotype> bestHaplotypes,
                                               final Set<Haplotype> calledHaplotypes,
                                               final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        writeHaplotypesAsReads(haplotypes, new HashSet<Haplotype>(bestHaplotypes), paddedReferenceLoc);
+        writeHaplotypesAsReads(haplotypes, new HashSet<>(bestHaplotypes), paddedReferenceLoc);
 
         // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
-        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<Allele, Haplotype>(haplotypes.size());
+        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<>(haplotypes.size());
         for ( final Haplotype haplotype : haplotypes )
             alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
 
         // next, output the interesting reads for each sample aligned against the appropriate haplotype
         for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-            for ( Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
+            for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
                 final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
-                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart());
+                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
             }
         }
     }

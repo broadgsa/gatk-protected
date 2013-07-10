@@ -273,8 +273,9 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     
     int nCompressedReads = 0;
 
-    Object2LongOpenHashMap<String> readNameHash;                         // This hash will keep the name of the original read the new compressed name (a number).
+    private static int READ_NAME_HASH_DEFAULT_SIZE = 1000;
     Long nextReadNumber = 1L;                                               // The next number to use for the compressed read name.
+    Object2LongOpenHashMap<String> readNameHash;                         // This hash will keep the name of the original read the new compressed name (a number).
 
     ObjectSortedSet<GenomeLoc> intervalList;
 
@@ -313,28 +314,37 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
             knownSnpPositions = new ObjectAVLTreeSet<GenomeLoc>();
 
         GenomeAnalysisEngine toolkit = getToolkit();
-        readNameHash = new Object2LongOpenHashMap<String>(100000);     // prepare the read name hash to keep track of what reads have had their read names compressed
+        this.resetReadNameHash();     // prepare the read name hash to keep track of what reads have had their read names compressed
         intervalList = new ObjectAVLTreeSet<GenomeLoc>();                          // get the interval list from the engine. If no interval list was provided, the walker will work in WGS mode
 
         if (toolkit.getIntervals() != null)
             intervalList.addAll(toolkit.getIntervals());
 
-        final boolean preSorted = true;
         final boolean indexOnTheFly = true;
         final SAMFileHeader.SortOrder sortOrder = SAMFileHeader.SortOrder.coordinate;
         if (nwayout) {
             SAMProgramRecord programRecord = NO_PG_TAG ? null : Utils.createProgramRecord(toolkit, this, PROGRAM_RECORD_NAME);
-            writerToUse = new BySampleSAMFileWriter(toolkit, PROGRAM_FILENAME_EXTENSION, sortOrder, preSorted, indexOnTheFly, NO_PG_TAG, programRecord, true);
+            writerToUse = new BySampleSAMFileWriter(toolkit, PROGRAM_FILENAME_EXTENSION, sortOrder, false, indexOnTheFly, NO_PG_TAG, programRecord, true);
         }
         else {
             writerToUse = out;
             out.setPresorted(false);
             if (!NO_PG_TAG) {
-                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), !preSorted, this, PROGRAM_RECORD_NAME);
+                Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), false, this, PROGRAM_RECORD_NAME);
             }
         }
     }
 
+    /** Initializer for {@link #readNameHash}. */
+    private void resetReadNameHash() {
+        // If the hash grows large, subsequent clear operations can be very expensive, so trim the hash down if it grows beyond its default.
+        if (readNameHash == null || readNameHash.size() > READ_NAME_HASH_DEFAULT_SIZE) {
+            readNameHash = new Object2LongOpenHashMap<String>(READ_NAME_HASH_DEFAULT_SIZE);
+        } else {
+            readNameHash.clear();
+        }
+    }
+    
     /**
      * Takes in a read and prepares it for the SlidingWindow machinery by performing the
      * following optional clipping operations:
@@ -471,7 +481,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
                     // stash.compress(), the readNameHash can be cleared after the for() loop above.
                     // The advantage of clearing the hash is that otherwise it holds all reads that have been encountered,
                     // which can use a lot of memory and cause RR to slow to a crawl and/or run out of memory.
-                    readNameHash.clear();
+                    this.resetReadNameHash();
 
                 }
             } else

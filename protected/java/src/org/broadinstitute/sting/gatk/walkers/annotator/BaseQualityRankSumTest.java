@@ -47,13 +47,11 @@
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.variant.variantcontext.Allele;
 
 import java.util.*;
 
@@ -67,41 +65,19 @@ import java.util.*;
  * <p>The base quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
  */
 public class BaseQualityRankSumTest extends RankSumTest implements StandardAnnotation {
+    @Override
     public List<String> getKeyNames() { return Arrays.asList("BaseQRankSum"); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("BaseQRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities")); }
 
-    protected void fillQualsFromPileup(final List<Allele> allAlleles, final int refLoc,
-                                       final ReadBackedPileup pileup,
-                                       final PerReadAlleleLikelihoodMap alleleLikelihoodMap,
-                                       final List<Double> refQuals, final List<Double> altQuals){
-
-        if (alleleLikelihoodMap == null) {
-            // use fast SNP-based version if we don't have per-read allele likelihoods
-            for ( final PileupElement p : pileup ) {
-                if ( isUsableBase(p) ) {
-                    if ( allAlleles.get(0).equals(Allele.create(p.getBase(),true)) ) {
-                        refQuals.add((double)p.getQual());
-                    } else if ( allAlleles.contains(Allele.create(p.getBase()))) {
-                        altQuals.add((double)p.getQual());
-                    }
-                }
-            }
-            return;
-        }
-
-        for (Map<Allele,Double> el : alleleLikelihoodMap.getLikelihoodMapValues()) {
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el);
-            if (! a.isInformative())
-                continue; // read is non-informative
-            if (a.getMostLikelyAllele().isReference())
-                refQuals.add(-10.0*(double)el.get(a.getMostLikelyAllele()));
-            else if (allAlleles.contains(a.getMostLikelyAllele()))
-                altQuals.add(-10.0*(double)el.get(a.getMostLikelyAllele()));
-
-
-        }
+    @Override
+    protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
+        return (double)read.getBaseQualities()[ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, refLoc, ReadUtils.ClippingTail.RIGHT_TAIL)];
     }
 
-
+    @Override
+    protected Double getElementForPileupElement(final PileupElement p) {
+        return (double)p.getQual();
+    }
 }

@@ -46,14 +46,11 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
 
 import java.util.*;
 
@@ -69,31 +66,14 @@ import java.util.*;
  * @since 6/28/12
  */
 public class ClippingRankSumTest extends RankSumTest {
-
+    @Override
     public List<String> getKeyNames() { return Arrays.asList("ClippingRankSum"); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("ClippingRankSum", 1, VCFHeaderLineType.Float, "Z-score From Wilcoxon rank sum test of Alt vs. Ref number of hard clipped bases")); }
 
-
-    protected void fillQualsFromPileup(final List<Allele> allAlleles,
-                                       final int refLoc,
-                                       final ReadBackedPileup pileup,
-                                       final PerReadAlleleLikelihoodMap likelihoodMap, final List<Double> refQuals, final List<Double> altQuals) {
-        // todo - only support non-pileup case for now, e.g. active-region based version
-        if (pileup != null || likelihoodMap == null)
-            return;
-
-        for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : likelihoodMap.getLikelihoodReadMap().entrySet()) {
-
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
-            if (! a.isInformative())
-                continue; // read is non-informative
-            if (a.getMostLikelyAllele().isReference())
-                refQuals.add((double)AlignmentUtils.getNumHardClippedBases(el.getKey()));
-            else if (allAlleles.contains(a.getMostLikelyAllele()))
-                altQuals.add((double)AlignmentUtils.getNumHardClippedBases(el.getKey()));
-
-        }
+    @Override
+    protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
+        return (double)AlignmentUtils.getNumHardClippedBases(read);
     }
-
  }

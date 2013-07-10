@@ -300,7 +300,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         for ( Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
             for (PileupElement p : sample.getValue().getBasePileup()) {
 
-                if ( ! RankSumTest.isUsableBase(p, false) ) // ignore deletions
+                if ( ! isUsableBase(p) ) // ignore deletions and bad MQ
                     continue;
 
                 if ( p.getQual() < minQScoreToConsider || p.getMappingQual() < minQScoreToConsider )
@@ -311,6 +311,20 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         }
 
         return table;
+    }
+
+    /**
+     * Can the base in this pileup element be used in comparative tests?
+     *
+     * @param p the pileup element to consider
+     *
+     * @return true if this base is part of a meaningful read for comparison, false otherwise
+     */
+    private static boolean isUsableBase(final PileupElement p) {
+        return !( p.isDeletion() ||
+                p.getMappingQual() == 0 ||
+                p.getMappingQual() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE ||
+                ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE);
     }
 
     private static void updateTable(final int[][] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt, final int representativeCount) {

@@ -90,6 +90,38 @@ public class SlidingWindowUnitTest extends BaseTest {
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
+    //// Test for leading softclips immediately followed by an insertion in the CIGAR ////
+    //////////////////////////////////////////////////////////////////////////////////////
+
+    @Test(enabled = true)
+    public void testLeadingSoftClipThenInsertion() {
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "foo", 0, 1, 10);
+        read.setReadBases(Utils.dupBytes((byte) 'A', 10));
+        read.setBaseQualities(Utils.dupBytes((byte)30, 10));
+        read.setMappingQuality(30);
+        read.setCigarString("2S2I6M");
+
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 1);
+        slidingWindow.addRead(read);
+        slidingWindow.close(null);
+    }
+
+    @Test(enabled = true)
+    public void testLeadingHardClipThenInsertion() {
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "foo", 0, 1, 8);
+        read.setReadBases(Utils.dupBytes((byte) 'A', 8));
+        read.setBaseQualities(Utils.dupBytes((byte)30, 8));
+        read.setMappingQuality(30);
+        read.setCigarString("2H2I6M");
+
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
+        slidingWindow.addRead(read);
+        slidingWindow.close(null);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////
     //// This section tests the findVariantRegions() method and related functionality ////
     //////////////////////////////////////////////////////////////////////////////////////
 
@@ -219,6 +251,33 @@ public class SlidingWindowUnitTest extends BaseTest {
                 count++;
         }
         return count;
+    }
+
+    @Test(enabled = true)
+    public void testMarkingRegionInCancerMode() {
+
+        final int contextSize = 10;
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, contextSize, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
+        slidingWindow.addRead(createSimpleRead("1", 0, 34, 75));
+        slidingWindow.addRead(createSimpleRead("2", 0, 97, 73));
+        slidingWindow.addRead(createSimpleRead("3", 0, 98, 75));
+        slidingWindow.addRead(createSimpleRead("4", 0, 98, 75));
+        slidingWindow.addRead(createSimpleRead("5", 0, 98, 75));
+
+        final CompressionStash regions = new CompressionStash();
+        regions.add(new FinishedGenomeLoc("1", 0, 89, 109, true));
+
+        slidingWindow.closeVariantRegions(regions, null, false);
+        Assert.assertEquals(slidingWindow.getMarkedSitesForTesting().getVariantSiteBitSet().length, 76 + contextSize);
+    }
+
+    private GATKSAMRecord createSimpleRead(final String name, final int refIndex, final int alignmentStart, final int length) {
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, name, refIndex, alignmentStart, length);
+        read.setReadBases(Utils.dupBytes((byte) 'A', length));
+        read.setBaseQualities(Utils.dupBytes((byte) 30, length));
+        read.setMappingQuality(60);
+        return read;
     }
 
 

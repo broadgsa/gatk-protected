@@ -166,4 +166,20 @@ public class CommonSuffixMergerUnitTest extends BaseTest {
         splitter.merge(data.graph, data.v);
         assertSameHaplotypes(String.format("suffixMerge.%s.%d", data.commonSuffix, data.graph.vertexSet().size()), data.graph, original);
     }
+
+    @Test
+    public void testDoesntMergeSourceNodes() {
+        final SeqGraph g = new SeqGraph();
+        final SeqVertex v1 = new SeqVertex("A");
+        final SeqVertex v2 = new SeqVertex("A");
+        final SeqVertex v3 = new SeqVertex("A");
+        final SeqVertex top = new SeqVertex("T");
+        final SeqVertex b = new SeqVertex("C");
+        g.addVertices(top, v1, v2, v3, top, b);
+        g.addEdges(top, v1, b);
+        g.addEdges(v2, b); // v2 doesn't have previous node, cannot be merged
+        g.addEdges(top, v3, b);
+        final SharedSequenceMerger merger = new SharedSequenceMerger();
+        Assert.assertFalse(merger.merge(g, b), "Shouldn't be able to merge shared vertices, when one is a source");
+    }
 }

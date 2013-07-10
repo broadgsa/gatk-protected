@@ -81,7 +81,7 @@ public class SharedSequenceMerger {
         else {
 //            graph.printGraph(new File("csm." + counter + "." + v.getSequenceString() + "_pre.dot"), 0);
 
-            final List<BaseEdge> edgesToRemove = new LinkedList<BaseEdge>();
+            final List<BaseEdge> edgesToRemove = new LinkedList<>();
             final byte[] prevSeq = prevs.iterator().next().getSequence();
             final SeqVertex newV = new SeqVertex(ArrayUtils.addAll(prevSeq, v.getSequence()));
             graph.addVertex(newV);
@@ -124,11 +124,17 @@ public class SharedSequenceMerger {
         final SeqVertex first = incomingVertices.iterator().next();
         for ( final SeqVertex prev : incomingVertices) {
             if ( ! prev.seqEquals(first) )
+                // cannot merge if our sequence isn't the same as the first sequence
                 return false;
             final Collection<SeqVertex> prevOuts = graph.outgoingVerticesOf(prev);
             if ( prevOuts.size() != 1 )
+                // prev -> v must be the only edge from prev
                 return false;
             if ( prevOuts.iterator().next() != v )
+                // don't allow cyles
+                return false;
+            if ( graph.inDegreeOf(prev) == 0 )
+                // cannot merge when any of the incoming nodes are sources
                 return false;
         }
 
