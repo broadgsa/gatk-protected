@@ -466,6 +466,27 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="minObservationsForKmerToBeSolid", shortName="minObservationsForKmerToBeSolid", doc = "A k-mer must be seen at least these times for it considered to be solid", required=false)
     protected int minObservationsForKmerToBeSolid = 20;
 
+    /**
+     * the maximum extent into the full active region extension that we're willing to go in genotyping our events
+     */
+    @Hidden
+    @Argument(fullName="maxDiscARExtension", shortName="maxDiscARExtension", doc = "the maximum extent into the full active region extension that we're willing to go in genotyping our events for discovery", required=false)
+    protected int MAX_DISCOVERY_ACTIVE_REGION_EXTENSION = 25;
+
+    @Hidden
+    @Argument(fullName="maxGGAARExtension", shortName="maxGGAARExtension", doc = "the maximum extent into the full active region extension that we're willing to go in genotyping our events for GGA mode", required=false)
+    protected int MAX_GGA_ACTIVE_REGION_EXTENSION = 300;
+
+    /**
+     * Include at least this many bases around an event for calling it
+     */
+    @Hidden
+    @Argument(fullName="paddingAroundIndels", shortName="paddingAroundIndels", doc = "Include at least this many bases around an event for calling indels", required=false)
+    protected int PADDING_AROUND_OTHERS_FOR_CALLING = 150;
+
+    @Hidden
+    @Argument(fullName="paddingAroundSNPs", shortName="paddingAroundSNPs", doc = "Include at least this many bases around an event for calling snps", required=false)
+    protected int PADDING_AROUND_SNPS_FOR_CALLING = 20;
 
     // -----------------------------------------------------------------------------------------------
     // done with Haplotype caller parameters
@@ -491,14 +512,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     // reference base padding size
     private static final int REFERENCE_PADDING = 500;
-
-    // include at least this many bases around an event for calling it
-    private final static int PADDING_AROUND_SNPS_FOR_CALLING = 20;
-    private final static int PADDING_AROUND_OTHERS_FOR_CALLING = 150;
-
-    // the maximum extent into the full active region extension that we're willing to go in genotyping our events
-    private final static int MAX_DISCOVERY_ACTIVE_REGION_EXTENSION = 25;
-    private final static int MAX_GGA_ACTIVE_REGION_EXTENSION = 100;
 
     private ActiveRegionTrimmer trimmer = null;
 
