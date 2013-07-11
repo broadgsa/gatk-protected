@@ -113,6 +113,7 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
     }
     
     public double[] batchGetResult() {
+	int iii, numHaplotypes;
 	double[] results;
 
 	int n = flushQueue();
@@ -123,16 +124,27 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
 	    resultQueue.push(results);
 	}
 
-	final HmmInput test = batchRequests.remove(0);
-        final int numHaplotypes = test.haplotypes.size();
+	numHaplotypes = 0;
+	for (Iterator<HmmInput> it=batchRequests.listIterator(); it.hasNext(); ) {
+	    HmmInput h = it.next();
+	    numHaplotypes += h.haplotypes.size();
+	}
+
 	results = new double[numHaplotypes];
-	for (int jjj = 0; jjj < numHaplotypes; jjj++) {
-	    results[jjj] = resultQueue.pop();
-	    if (results[jjj]<-60.0) {
-		final Haplotype haplotype = test.haplotypes.get(jjj);
-		results[jjj]=softHmm(haplotype.getBases(), test.readBases, test.readQuals, test.insertionGOP, test.deletionGOP, test.overallGCP, 0, true);
+	iii = 0;
+	while (!batchRequests.isEmpty()) {
+	    HmmInput test = batchRequests.remove(0);
+	    int testSize = test.haplotypes.size();
+	    for (int jjj = 0; jjj < testSize; jjj++) {
+		results[iii] = resultQueue.pop();
+		if (results[iii]<-60.0) {
+		    final Haplotype haplotype = test.haplotypes.get(jjj);
+		    results[iii] = softHmm(haplotype.getBases(), test.readBases, test.readQuals, test.insertionGOP, test.deletionGOP, test.overallGCP, 0, true);
+		}
+		iii++;
 	    }
 	}
+
 	return results;
     }
 
