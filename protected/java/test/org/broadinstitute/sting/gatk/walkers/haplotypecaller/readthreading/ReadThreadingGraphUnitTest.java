@@ -212,8 +212,8 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
         tests.add(new Object[]{"CCAAAAAAAAAA", "AAAAAAAAAA", "1M2D10M", true, 10});    // deletion
         tests.add(new Object[]{"AAAAAAAA", "CAAAAAAA", "9M", true, 7});                // 1 snp
         tests.add(new Object[]{"AAAAAAAA", "CAAGATAA", "9M", true, 2});                // several snps
-        tests.add(new Object[]{"AAAAA", "C", "1M4D1M", true, -1});                     // funky SW alignment
-        tests.add(new Object[]{"AAAAA", "CA", "1M3D2M", true, 1});                     // very little data
+        tests.add(new Object[]{"AAAAA", "C", "1M4D1M", false, -1});                    // funky SW alignment
+        tests.add(new Object[]{"AAAAA", "CA", "1M3D2M", false, 1});                    // very little data
         tests.add(new Object[]{"AAAAAAA", "CAAAAAC", "8M", true, -1});                 // ends in mismatch
         tests.add(new Object[]{"AAAAAA", "CGAAAACGAA", "1M2I4M2I2M", false, 0});       // alignment is too complex
 
@@ -253,7 +253,13 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
         Assert.assertTrue(altSink != null, "We did not find a non-reference sink");
 
         // confirm that the SW alignment agrees with our expectations
-        final ReadThreadingGraph.DanglingTailMergeResult result = rtgraph.generateCigarAgainstReferencePath(altSink);
+        final ReadThreadingGraph.DanglingTailMergeResult result = rtgraph.generateCigarAgainstReferencePath(altSink, 0);
+
+        if ( result == null ) {
+            Assert.assertFalse(cigarIsGood);
+            return;
+        }
+
         Assert.assertTrue(cigar.equals(result.cigar.toString()), "SW generated cigar = " + result.cigar.toString());
 
         // confirm that the goodness of the cigar agrees with our expectations

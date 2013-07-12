@@ -77,7 +77,7 @@ public abstract class LocalAssemblyEngine {
      * If false, we will only write out a region around the reference source
      */
     private final static boolean PRINT_FULL_GRAPH_FOR_DEBUGGING = true;
-    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 8;
+    public static final byte DEFAULT_MIN_BASE_QUALITY_TO_USE = (byte) 10;
     private static final int MIN_HAPLOTYPE_REFERENCE_LENGTH = 30;
 
     protected final int numBestHaplotypesPerGraph;
@@ -301,9 +301,7 @@ public abstract class LocalAssemblyEngine {
         printDebugGraphTransform(seqGraph, new File("sequenceGraph.2.zipped.dot"));
 
         // now go through and prune the graph, removing vertices no longer connected to the reference chain
-        // IMPORTANT: pruning must occur before we call simplifyGraph, as simplifyGraph adds 0 weight
-        // edges to maintain graph connectivity.
-        seqGraph.pruneGraph(pruneFactor);
+        seqGraph.removeSingletonOrphanVertices();
         seqGraph.removeVerticesNotConnectedToRefRegardlessOfEdgeDirection();
 
         printDebugGraphTransform(seqGraph, new File("sequenceGraph.3.pruned.dot"));

@@ -190,7 +190,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
         // look at all chains in the graph that terminate in a non-ref node (dangling sinks) and see if
         // we can recover them by merging some N bases from the chain back into the reference
-        if ( recoverDanglingTails ) rtgraph.recoverDanglingTails();
+        if ( recoverDanglingTails ) rtgraph.recoverDanglingTails(pruneFactor);
 
         // remove all heading and trailing paths
         if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();

@@ -72,7 +72,7 @@ public class SeqGraphUnitTest extends BaseTest {
         }
 
         public SeqGraph calcGraph() {
-            final DeBruijnGraph deBruijnGraph = new DeBruijnGraph();
+            final TestGraph deBruijnGraph = new TestGraph();
             final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
             for (int i = 0; i < kmersInSequence - 1; i++) {
                 // get the kmers

@@ -59,6 +59,9 @@ public final class LoglessPairHMM extends N2MemoryPairHMM {
     protected static final double INITIAL_CONDITION = Math.pow(2, 1020);
     protected static final double INITIAL_CONDITION_LOG10 = Math.log10(INITIAL_CONDITION);
 
+    // we divide e by 3 because the observed base could have come from any of the non-observed alleles
+    protected static final double TRISTATE_CORRECTION = 3.0;
+
     private static final int matchToMatch = 0;
     private static final int indelToMatch = 1;
     private static final int matchToInsertion = 2;
@@ -146,7 +149,7 @@ public final class LoglessPairHMM extends N2MemoryPairHMM {
             for (int j = startIndex; j < haplotypeBases.length; j++) {
                 final byte y = haplotypeBases[j];
                 prior[i+1][j+1] = ( x == y || x == (byte) 'N' || y == (byte) 'N' ?
-                        QualityUtils.qualToProb(qual) : QualityUtils.qualToErrorProb(qual) );
+                        QualityUtils.qualToProb(qual) : (QualityUtils.qualToErrorProb(qual) / (doNotUseTristateCorrection ? 1.0 : TRISTATE_CORRECTION)) );
             }
         }
     }

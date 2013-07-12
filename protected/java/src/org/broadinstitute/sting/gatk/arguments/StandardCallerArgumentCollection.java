@@ -54,8 +54,6 @@ import org.broadinstitute.sting.utils.collections.DefaultHashMap;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
-import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -147,7 +145,7 @@ public class StandardCallerArgumentCollection {
      */
     @Argument(fullName = "contamination_fraction_to_filter", shortName = "contamination", doc = "Fraction of contamination in sequencing data (for all samples) to aggressively remove", required = false)
     public double CONTAMINATION_FRACTION = DEFAULT_CONTAMINATION_FRACTION;
-    public static final double DEFAULT_CONTAMINATION_FRACTION = 0.05;
+    public static final double DEFAULT_CONTAMINATION_FRACTION = 0.0;
 
     /**
      *  This argument specifies a file with two columns "sample" and "contamination" specifying the contamination level for those samples.
