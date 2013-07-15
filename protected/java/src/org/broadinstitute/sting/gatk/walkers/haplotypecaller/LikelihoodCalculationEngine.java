@@ -290,12 +290,39 @@ public class LikelihoodCalculationEngine {
 		final double[] likelihoods = batchPairHMM.batchGetResult();
 		for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
 		    final Haplotype haplotype = haplotypes.get(jjj);
-		    if ( haplotype.isNonReference() )
-			bestNonReflog10L = Math.max(bestNonReflog10L, likelihoods[jjj]);
-		    else
-			refLog10l = likelihoods[jjj];
+		    final double log10l = likelihoods[jjj];
 
-		    perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), likelihoods[jjj]);
+		    if ( WRITE_LIKELIHOODS_TO_FILE ) {
+			final byte[] overallGCP = new byte[read.getReadLength()];
+			Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
+			// NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
+			final byte[] readQuals = read.getBaseQualities().clone();
+			final byte[] readInsQuals = read.getBaseInsertionQualities();
+			final byte[] readDelQuals = read.getBaseDeletionQualities();
+			for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
+			    readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
+			    //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
+			    //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
+			    // TODO -- why is Q18 hard-coded here???
+			    readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
+			}
+			likelihoodsStream.printf("%s %s %s %s %s %s %f%n",
+				haplotype.getBaseString(),
+			        new String(read.getReadBases()),
+				SAMUtils.phredToFastq(readQuals),
+				SAMUtils.phredToFastq(readInsQuals),
+                                SAMUtils.phredToFastq(readDelQuals),
+                                SAMUtils.phredToFastq(overallGCP),
+                                log10l);
+		    }
+
+		    if ( haplotype.isNonReference() )
+			bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
+		    else
+			refLog10l = log10l;
+
+
+		    perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
 		}
 
 		final double worstRefLog10Allowed = bestNonReflog10L + log10globalReadMismappingRate;
@@ -304,6 +331,7 @@ public class LikelihoodCalculationEngine {
 		}
 	    }
 	}
+
         return perReadAlleleLikelihoodMap;
     }
 
