@@ -44,107 +44,118 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.gvcf;
 
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-/**
- * Fast approach to building a DeBruijnGraph
- *
- * Follows the model:
- *
- * for each X that has bases for the final graph:
- *   addKmer pair (single kmer with kmer size + 1 spanning the pair)
- *
- * flushKmersToGraph
- *
- * User: depristo
- * Date: 4/7/13
- * Time: 4:14 PM
- */
-public class DeBruijnGraphBuilder {
-    /** The size of the kmer graph we want to build */
-    private final int kmerSize;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-    /** The graph we're going to add kmers to */
-    private final DeBruijnGraph graph;
+public class HomRefBlockUnitTest extends BaseTest {
+    VariantContext vc;
 
-    /** keeps counts of all kmer pairs added since the last flush */
-    private final KMerCounter counter;
-
-    /**
-     * Create a new builder that will write out kmers to graph
-     *
-     * @param graph a non-null graph that can contain already added kmers
-     */
-    public DeBruijnGraphBuilder(final DeBruijnGraph graph) {
-        if ( graph == null ) throw new IllegalArgumentException("Graph cannot be null");
-        this.kmerSize = graph.getKmerSize();
-        this.graph = graph;
-        this.counter = new KMerCounter(kmerSize + 1);
+    @BeforeMethod
+    public void setUp() throws Exception {
+        vc = new VariantContextBuilder("foo", "20", 1, 1, Arrays.asList(Allele.create("A", true), Allele.create("C"))).make();
     }
 
-    /**
-     * The graph we're building
-     * @return a non-null graph
-     */
-    public DeBruijnGraph getGraph() {
-        return graph;
+    @Test
+    public void testBasicConstruction() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        Assert.assertSame(band.getStartingVC(), vc);
+        Assert.assertEquals(band.getRef(), vc.getReference());
+        Assert.assertEquals(band.getGQLowerBound(), 10);
+        Assert.assertEquals(band.getGQUpperBound(), 20);
+        Assert.assertEquals(band.withinBounds(1), false);
+        Assert.assertEquals(band.withinBounds(10), true);
+        Assert.assertEquals(band.withinBounds(11), true);
+        Assert.assertEquals(band.withinBounds(20), false);
+        Assert.assertEquals(band.withinBounds(21), false);
     }
 
-    /**
-     * The kmer size of our graph
-     * @return positive integer
-     */
-    public int getKmerSize() {
-        return kmerSize;
+    @Test
+    public void testMinMedian() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        int pos = vc.getStart();
+        band.add(pos++, gb.DP(10).GQ(11).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 10, 11, 11);
+
+        band.add(pos++, gb.DP(11).GQ(10).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 11, 10, 11);
+
+        band.add(pos++, gb.DP(12).GQ(12).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 11, 10, 11);
+
+        band.add(pos++, gb.DP(13).GQ(15).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(14).GQ(16).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(15).GQ(17).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(16).GQ(18).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 13, 10, 15);
+        Assert.assertEquals(band.getSize(), pos - vc.getStart());
     }
 
-    /**
-     * Higher-level interface to #addKmersToGraph that adds a pair of kmers from a larger sequence of bytes to this
-     * graph.  The kmers start at start (first) and start + 1 (second) have have length getKmerSize().  The
-     * edge between them is added with isRef and multiplicity
-     *
-     * @param sequence a sequence of bases from which we want to extract a pair of kmers
-     * @param start the start of the first kmer in sequence, must be between 0 and sequence.length - 2 - getKmerSize()
-     * @param multiplicity what's the multiplicity of the edge between these two kmers
-     */
-    public void addKmerPairFromSeqToGraph( final byte[] sequence, final int start, final int multiplicity ) {
-        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
-        if ( start < 0 ) throw new IllegalArgumentException("start must be >= 0 but got " + start);
-        if ( start + 1 + getKmerSize() > sequence.length ) throw new IllegalArgumentException("start " + start + " is too big given kmerSize " + getKmerSize() + " and sequence length " + sequence.length);
-        final Kmer kmerPair = new Kmer(sequence, start, getKmerSize() + 1);
-        addKmerPair(kmerPair, multiplicity);
+    @Test
+    public void testBigGQIsCapped() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        band.add(vc.getStart(), gb.DP(1000).GQ(1000).make());
+        assertValues(band, 1000, 1000, 99, 99);
     }
 
-    /**
-     * Add a single kmer pair to this builder
-     * @param kmerPair a kmer pair is a single kmer that has kmerSize + 1 bp, where 0 -> kmersize and 1 -> kmersize + 1
-     *                 will have an edge added to this
-     * @param multiplicity the desired multiplicity of this edge
-     */
-    public void addKmerPair(final Kmer kmerPair, final int multiplicity) {
-        if ( kmerPair.length() != kmerSize + 1 )  throw new IllegalArgumentException("kmer pair must be of length kmerSize + 1 = " + kmerSize + 1 + " but got " + kmerPair.length());
-        counter.addKmer(kmerPair, multiplicity);
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testBadAdd() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        band.add(vc.getStart() + 10, gb.DP(10).GQ(11).make());
     }
 
-    /**
-     * Flushes the currently added kmers to the graph
-     *
-     * After this function is called the builder is reset to an empty state
-     *
-     * This flushing is expensive, so many kmers should be added to the builder before flushing.  The most
-     * efficient workflow is to add all of the kmers of a particular class (all ref bases, or all read bases)
-     * then and do one flush when completed
-     *
-     * @param addRefEdges should the kmers present in the builder be added to the graph with isRef = true for the edges?
-     */
-    public void flushKmersToGraph(final boolean addRefEdges) {
-        for ( final KMerCounter.CountedKmer countedKmer : counter.getCountedKmers() ) {
-            final byte[] first = countedKmer.getKmer().subKmer(0, kmerSize).bases();
-            final byte[] second = countedKmer.getKmer().subKmer(1, kmerSize).bases();
-            graph.addKmersToGraph(first, second, addRefEdges, countedKmer.getCount());
+    private void assertValues(final HomRefBlock band, final int minDP, final int medianDP, final int minGQ, final int medianGQ) {
+        Assert.assertEquals(band.getMinDP(), minDP);
+        Assert.assertEquals(band.getMedianDP(), medianDP);
+        Assert.assertEquals(band.getMinGQ(), minGQ);
+        Assert.assertEquals(band.getMedianGQ(), medianGQ);
+    }
+
+
+    @DataProvider(name = "ContiguousData")
+    public Object[][] makeContiguousData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final String chrMod : Arrays.asList("", ".mismatch") ) {
+            for ( final int offset : Arrays.asList(-10, -1, 0, 1, 10) ) {
+                final boolean equals = chrMod.equals("") && offset == 0;
+                tests.add(new Object[]{vc.getChr() + chrMod, vc.getStart() + offset, equals});
+            }
         }
-        counter.clear();
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "ContiguousData")
+    public void testIsContiguous(final String contig, final int pos, final boolean expected) {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final VariantContext testVC = new VariantContextBuilder(vc).chr(contig).start(pos).stop(pos).make();
+        Assert.assertEquals(band.isContiguous(testVC), expected);
     }
 }

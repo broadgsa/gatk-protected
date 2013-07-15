@@ -56,6 +56,7 @@ import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -68,11 +69,18 @@ public class PairHMMUnitTest extends BaseTest {
     private final static boolean ALLOW_READS_LONGER_THAN_HAPLOTYPE = true;
     private final static boolean DEBUG = false;
     final static boolean EXTENSIVE_TESTING = true;
-    final PairHMM exactHMM = new Log10PairHMM(true); // the log truth implementation
-    final PairHMM originalHMM = new Log10PairHMM(false); // the reference implementation
-    final PairHMM loglessHMM = new LoglessPairHMM();
+    final N2MemoryPairHMM exactHMM = new Log10PairHMM(true); // the log truth implementation
+    final N2MemoryPairHMM originalHMM = new Log10PairHMM(false); // the reference implementation
+    final N2MemoryPairHMM loglessHMM = new LoglessPairHMM();
 
-    private List<PairHMM> getHMMs() {
+    @BeforeClass
+    public void initialize() {
+        exactHMM.doNotUseTristateCorrection();
+        originalHMM.doNotUseTristateCorrection();
+        loglessHMM.doNotUseTristateCorrection();
+    }
+
+    private List<N2MemoryPairHMM> getHMMs() {
         return Arrays.asList(exactHMM, originalHMM, loglessHMM);
     }
 
@@ -592,8 +600,13 @@ public class PairHMMUnitTest extends BaseTest {
     public Object[][] makeUninitializedHMMs() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{new LoglessPairHMM()});
-        tests.add(new Object[]{new Log10PairHMM(true)});
+        final LoglessPairHMM myLoglessPairHMM = new LoglessPairHMM();
+        myLoglessPairHMM.doNotUseTristateCorrection();
+        tests.add(new Object[]{myLoglessPairHMM});
+
+        final Log10PairHMM myLog10PairHMM = new Log10PairHMM(true);
+        myLog10PairHMM.doNotUseTristateCorrection();
+        tests.add(new Object[]{myLog10PairHMM});
 
         return tests.toArray(new Object[][]{});
     }

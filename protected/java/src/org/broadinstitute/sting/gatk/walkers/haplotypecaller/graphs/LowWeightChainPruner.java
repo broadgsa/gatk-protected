@@ -96,7 +96,7 @@ public class LowWeightChainPruner<V extends BaseVertex, E extends BaseEdge> {
     }
 
     /**
-     * Traverse the edges in the path and determine if any are either ref edges or have weight above
+     * Traverse the edges in the path and determine if any are either ref edges or have weight above or equal to
      * the pruning factor and should therefore not be pruned away.
      *
      * @param path the path in question

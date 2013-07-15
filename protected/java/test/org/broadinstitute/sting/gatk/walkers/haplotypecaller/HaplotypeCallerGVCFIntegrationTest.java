@@ -44,54 +44,45 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.haplotypeBAMWriter;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.sting.WalkerTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * A haplotype bam writer that writes out all haplotypes as reads and then
- * the alignment of reach read to its best match among the best haplotypes.
- *
- * Primarily useful for people working on the HaplotypeCaller method itself
- *
- * User: depristo
- * Date: 2/22/13
- * Time: 1:50 PM
- */
-class AllHaplotypeBAMWriter extends HaplotypeBAMWriter {
-    public AllHaplotypeBAMWriter(final ReadDestination destination) {
-        super(destination);
+public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
+    @DataProvider(name = "MyDataProvider")
+    public Object[][] makeMyDataProvider() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        final String PCRFreeIntervals = "-L 20:10,000,000-10,010,000";
+        final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.NONE, PCRFreeIntervals, "55faaae5617857e2b29848367999aa3e"});
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "e32b7fc4de29ed141dcafc0d789d5ed6"});
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "ecac86e8ef4856e6dfa306c436e9b545"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.NONE, WExIntervals, "7cb1e431119df00ec243a6a115fa74b8"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "7828256b82df377cc3a26a55dbf68f91"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.GVCF, WExIntervals, "e41e0acf172a994e938a150390badd39"});
+
+
+        return tests.toArray(new Object[][]{});
     }
 
     /**
-     * {@inheritDoc}
+     * Example testng test using MyDataProvider
      */
-    @Override
-    public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
-                                              final GenomeLoc paddedReferenceLoc,
-                                              final Collection<Haplotype> bestHaplotypes,
-                                              final Set<Haplotype> calledHaplotypes,
-                                              final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        writeHaplotypesAsReads(haplotypes, new HashSet<>(bestHaplotypes), paddedReferenceLoc);
-
-        // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
-        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<>(haplotypes.size());
-        for ( final Haplotype haplotype : haplotypes )
-            alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
-
-        // next, output the interesting reads for each sample aligned against the appropriate haplotype
-        for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-            for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
-                final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
-                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
-            }
-        }
+    @Test(dataProvider = "MyDataProvider")
+    public void testHCWithGVCF(String bam, HaplotypeCaller.ReferenceConfidenceMode mode, String intervals, String md5) {
+        final String commandLine = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s %s -ERC %s --no_cmdline_in_header",
+                b37KGReference, bam, intervals, mode);
+        final String name = "testHCWithGVCF bam=" + bam + " intervals= " + intervals + " gvcf= " + mode;
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
+        executeTest(name, spec);
     }
 }

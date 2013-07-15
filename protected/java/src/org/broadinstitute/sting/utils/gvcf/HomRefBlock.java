@@ -44,156 +44,126 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.gvcf;
+
+import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFHeaderLine;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Created by IntelliJ IDEA.
- * User: rpoplin
- * Date: 3/27/12
+ * Helper class for calculating a GQ band in the GVCF writer
+ *
+ * A band contains GQ and DP values for a contiguous stretch of hom-ref genotypes,
+ * and provides summary information about the entire block of genotypes.
+ *
+ * Genotypes within the HomRefBlock are restricted to hom-ref genotypes within a band of GQ scores
+ *
+ * User: depristo
+ * Date: 6/25/13
+ * Time: 9:41 AM
  */
+final class HomRefBlock {
+    private final VariantContext startingVC;
+    int stop;
+    private final int minGQ, maxGQ;
+    private List<Integer> GQs = new ArrayList<>(100);
+    private List<Integer> DPs = new ArrayList<>(100);
+    private final Allele ref;
 
-import net.sf.samtools.*;
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+    /**
+     * Create a new HomRefBlock
+     *
+     * @param startingVC the VariantContext that starts this band (for starting position information)
+     * @param minGQ the minGQ (inclusive) to use in this band
+     * @param maxGQ the maxGQ (exclusive) to use in this band
+     */
+    public HomRefBlock(final VariantContext startingVC, int minGQ, int maxGQ) {
+        if ( startingVC == null ) throw new IllegalArgumentException("startingVC cannot be null");
+        if ( minGQ > maxGQ ) throw new IllegalArgumentException("bad minGQ " + minGQ + " as its > maxGQ " + maxGQ);
 
-import java.util.*;
-
-public class DeBruijnAssemblerUnitTest extends BaseTest {
-    private final static boolean DEBUG = false;
-
-    @Test(enabled = !DEBUG)
-    public void testReferenceCycleGraph() {
-        String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
-        String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), Collections.<Haplotype>emptyList());
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), Collections.<Haplotype>emptyList());
-
-        Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
-        Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
+        this.startingVC = startingVC;
+        this.stop = getStart() - 1;
+        this.ref = startingVC.getReference();
+        this.minGQ = minGQ;
+        this.maxGQ = maxGQ;
     }
 
-    private static class MockBuilder extends DeBruijnGraphBuilder {
-        public final List<Kmer> addedPairs = new LinkedList<Kmer>();
+    /**
+     * Create a new HomRefBlock only for doing bounds checking
+     *
+     * @param minGQ the minGQ (inclusive) to use in this band
+     * @param maxGQ the maxGQ (exclusive) to use in this band
+     */
+    public HomRefBlock(int minGQ, int maxGQ) {
+        if ( minGQ > maxGQ ) throw new IllegalArgumentException("bad minGQ " + minGQ + " as its > maxGQ " + maxGQ);
 
-        private MockBuilder(final int kmerSize) {
-            super(new DeBruijnGraph(kmerSize));
-        }
-
-        @Override
-        public void addKmerPair(Kmer kmerPair, int multiplicity) {
-            logger.info("addKmerPair" + kmerPair);
-            addedPairs.add(kmerPair);
-        }
-
-        @Override
-        public void flushKmersToGraph(boolean addRefEdges) {
-            // do nothing
-        }
+        this.startingVC = null;
+        this.stop = -1;
+        this.ref = null;
+        this.minGQ = minGQ;
+        this.maxGQ = maxGQ;
     }
 
-    @DataProvider(name = "AddReadKmersToGraph")
-    public Object[][] makeAddReadKmersToGraphData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+    /**
+     * Add information from this Genotype to this band
+     * @param g a non-null Genotype with GQ and DP attributes
+     */
+    public void add(final int pos, final Genotype g) {
+        if ( g == null ) throw new IllegalArgumentException("g cannot be null");
+        if ( ! g.hasGQ() ) throw new IllegalArgumentException("g must have GQ field");
+        if ( ! g.hasDP() ) throw new IllegalArgumentException("g must have DP field");
+        if ( pos != stop + 1 ) throw new IllegalArgumentException("adding genotype at pos " + pos + " isn't contiguous with previous stop " + stop);
 
-        // this functionality can be adapted to provide input data for whatever you might want in your data
-        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
-        final int readLen = bases.length();
-        final List<Integer> allBadStarts = new ArrayList<Integer>(readLen);
-        for ( int i = 0; i < readLen; i++ ) allBadStarts.add(i);
-
-        for ( final int kmerSize : Arrays.asList(3, 4, 5) ) {
-            for ( final int nBadQuals : Arrays.asList(0, 1, 2) ) {
-                for ( final List<Integer> badStarts : Utils.makePermutations(allBadStarts, nBadQuals, false) ) {
-                    tests.add(new Object[]{bases, kmerSize, badStarts});
-                }
-            }
-        }
-
-        return tests.toArray(new Object[][]{});
+        stop = pos;
+        GQs.add(Math.min(g.getGQ(), 99)); // cap the GQs by the max. of 99 emission
+        DPs.add(g.getDP());
     }
 
-    @Test(dataProvider = "AddReadKmersToGraph", enabled = ! DEBUG)
-    public void testAddReadKmersToGraph(final String bases, final int kmerSize, final List<Integer> badQualsSites) {
-        final int readLen = bases.length();
-        final DeBruijnAssembler assembler = new DeBruijnAssembler();
-        final MockBuilder builder = new MockBuilder(kmerSize);
-
-        final SAMFileHeader header = ArtificialSAMUtils.createArtificialSamHeader(1, 1, 1000);
-
-        final byte[] quals = Utils.dupBytes((byte)20, bases.length());
-        for ( final int badSite : badQualsSites ) quals[badSite] = 0;
-        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "myRead", 0, 1, readLen);
-        read.setReadBases(bases.getBytes());
-        read.setBaseQualities(quals);
-
-        final Set<String> expectedBases = new HashSet<String>();
-        final Set<Integer> expectedStarts = new LinkedHashSet<Integer>();
-        for ( int i = 0; i < readLen; i++) {
-            boolean good = true;
-            for ( int j = 0; j < kmerSize + 1; j++ ) { // +1 is for pairing
-                good &= i + j < readLen && quals[i+j] >= assembler.getMinBaseQualityToUseInAssembly();
-            }
-            if ( good ) {
-                expectedStarts.add(i);
-                expectedBases.add(bases.substring(i, i + kmerSize + 1));
-            }
-        }
-
-        assembler.addReadKmersToGraph(builder, Arrays.asList(read));
-        Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
-        for ( final Kmer addedKmer : builder.addedPairs ) {
-            Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);
-        }
+    /**
+     * Is the GQ value within the bounds of this GQ (GQ >= minGQ && GQ < maxGQ)
+     * @param GQ the GQ value to test
+     * @return true if within bounds, false otherwise
+     */
+    public boolean withinBounds(final int GQ) {
+        return GQ >= minGQ && GQ < maxGQ;
     }
 
-    @DataProvider(name = "AddGGAKmersToGraph")
-    public Object[][] makeAddGGAKmersToGraphData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+    /** Get the min GQ observed within this band */
+    public int getMinGQ() { return MathUtils.arrayMin(GQs); }
+    /** Get the median GQ observed within this band */
+    public int getMedianGQ() { return MathUtils.median(GQs); }
+    /** Get the min DP observed within this band */
+    public int getMinDP() { return MathUtils.arrayMin(DPs); }
+    /** Get the median DP observed within this band */
+    public int getMedianDP() { return MathUtils.median(DPs); }
 
-        // this functionality can be adapted to provide input data for whatever you might want in your data
-        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
-        final int readLen = bases.length();
-        final List<Integer> allBadStarts = new ArrayList<Integer>(readLen);
-        for ( int i = 0; i < readLen; i++ ) allBadStarts.add(i);
+    protected int getGQUpperBound() { return maxGQ; }
+    protected int getGQLowerBound() { return minGQ; }
 
-        for ( final int kmerSize : Arrays.asList(3, 4, 5) ) {
-            tests.add(new Object[]{bases, kmerSize});
-        }
-
-        return tests.toArray(new Object[][]{});
+    public boolean isContiguous(final VariantContext vc) {
+        return vc.getEnd() == getStop() + 1 && startingVC.getChr().equals(vc.getChr());
     }
 
-    @Test(dataProvider = "AddGGAKmersToGraph", enabled = ! DEBUG)
-    public void testAddGGAKmersToGraph(final String bases, final int kmerSize) {
-        final int readLen = bases.length();
-        final DeBruijnAssembler assembler = new DeBruijnAssembler();
-        final MockBuilder builder = new MockBuilder(kmerSize);
+    public VariantContext getStartingVC() { return startingVC; }
+    public int getStart() { return startingVC.getStart(); }
+    public int getStop() { return stop; }
+    public Allele getRef() { return ref; }
+    public int getSize() { return getStop() - getStart() + 1; }
 
-        final Set<String> expectedBases = new HashSet<String>();
-        final Set<Integer> expectedStarts = new LinkedHashSet<Integer>();
-        for ( int i = 0; i < readLen; i++) {
-            boolean good = true;
-            for ( int j = 0; j < kmerSize + 1; j++ ) { // +1 is for pairing
-                good &= i + j < readLen;
-            }
-            if ( good ) {
-                expectedStarts.add(i);
-                expectedBases.add(bases.substring(i, i + kmerSize + 1));
-            }
-        }
+    @Override
+    public String toString() {
+        return "HomRefBlock{" +
+                "minGQ=" + minGQ +
+                ", maxGQ=" + maxGQ +
+                '}';
+    }
 
-        assembler.addGGAKmersToGraph(builder, Arrays.asList(new Haplotype(bases.getBytes())));
-        Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
-        for ( final Kmer addedKmer : builder.addedPairs ) {
-            Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);
-        }
+    public VCFHeaderLine toVCFHeaderLine() {
+        return new VCFHeaderLine("GVCFBlock", "minGQ=" + getGQLowerBound() + "(inclusive),maxGQ=" + getGQUpperBound() + "(exclusive)");
     }
 }

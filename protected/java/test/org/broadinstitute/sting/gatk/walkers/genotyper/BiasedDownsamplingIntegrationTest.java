@@ -48,48 +48,23 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
-import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.collections.Pair;
+import org.junit.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 
 public class BiasedDownsamplingIntegrationTest extends WalkerTest {
 
-    private final static String baseCommand1 = "-T UnifiedGenotyper -R " + b36KGReference + " --no_cmdline_in_header -glm BOTH -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
-    private final static String baseCommand2 = "-T UnifiedGenotyper -R " + hg19Reference + " --no_cmdline_in_header -glm BOTH -L 20:1,000,000-5,000,000";
-    private final static String baseCommand3 = "-T UnifiedGenotyper -R " + hg19Reference + " --no_cmdline_in_header -glm BOTH -L 20:4,000,000-5,000,000";
+    private final static String baseCommandUG = "-T UnifiedGenotyper -R " + hg19Reference + " --no_cmdline_in_header -glm BOTH -L 20:4,000,000-5,000,000";
+    private final static String baseCommandHC = "-T HaplotypeCaller -R " + hg19Reference + " --no_cmdline_in_header -L 20:4,000,000-5,000,000" + " --useFilteredReadsForAnnotations";
+
     private final String ArtificalBAMLocation = privateTestDir + "ArtificallyContaminatedBams/";
-
-    // --------------------------------------------------------------------------------------------------------------
-    //
-    // testing UnifiedGenotyper contamination down-sampling
-    //
-    // --------------------------------------------------------------------------------------------------------------
-
-    @Test(enabled = false)
-    public void testContaminationDownsamplingFlat() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand1 + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -contamination 0.20", 1,
-                Arrays.asList("1f9071466fc40f4c6a0f58ac8e9135fb"));
-        executeTest("test contamination_percentage_to_filter 0.20", spec);
-    }
-
-    @Test(enabled = false)
-    public void testContaminationDownsamplingFlatAndPerSample() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand1 + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 --contamination_fraction_per_sample_file " + ArtificalBAMLocation + "NA12878.NA19240.contam.txt --contamination_fraction_to_filter 0.10", 1,
-                Arrays.asList("53395814dd6990448a01a294ccd69bd2"));
-        executeTest("test contamination_percentage_to_filter per-sample and .20 overall", spec);
-    }
-
-    @Test(enabled = false)
-    public void testContaminationDownsamplingPerSampleOnly() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand1 + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -contaminationFile " + ArtificalBAMLocation + "NA19240.contam.txt", 1,
-                Arrays.asList("4af83a883ecc03a23b0aa6dd4b8f1ceb"));
-        executeTest("test contamination_percentage_to_filter per-sample", spec);
-    }
 
 
     // --------------------------------------------------------------------------------------------------------------
@@ -98,150 +73,49 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
     //
     // --------------------------------------------------------------------------------------------------------------
 
-    @Test(enabled = false)
+    @Test
     private void testDefaultContamination() {
         final String bam1 = "NA11918.with.1.NA12842.reduced.bam";
         final String bam2 = "NA12842.with.1.NA11918.reduced.bam";
 
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand2 + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s ", 1,
-                Arrays.asList("e2e5a8dd313f8d7e382e7d49dfac59a2"));
-        executeTest("test contamination on Artificial Contamination (flat) on " + bam1 + " and " + bam2 + " with default downsampling.", spec);
+                baseCommandUG + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s -contamination .05 ", 1,
+                Arrays.asList("b13612312ff991cf40ddc44255e76ecd"));
+        executeTest("test contamination on Artificial Contamination (flat) on " + bam1 + " and " + bam2 + " with .05 downsampling.", spec);
     }
 
-    private void testFlatContamination(final String bam1, final String bam2, final Double downsampling, final String md5) {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand2 + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s -contamination " + downsampling.toString(), 1,
-                Arrays.asList(md5));
-        executeTest("test contamination on Artificial Contamination (flat) on " + bam1 + " and " + bam2 + " downsampling " + downsampling.toString(), spec);
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase1() {
-        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "e2e5a8dd313f8d7e382e7d49dfac59a2");
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase2() {
-        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "549737002f98775fea8f46e7ea174dde");
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase3() {
-        testFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "529d82c2a33fcc303a5dc55de2d56979");
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase4() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.1, "b5689972fbb7d230a372ee5f0da1c6d7");
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase5() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.2, "9dceee2e921b53fbc1ce137a7e0b7b74");
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase6() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.2.NA11918.reduced.bam", 0.3, "d6a74061033503af80dcaea065bfa075");
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase7() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "7d1b5efab58a1b8f9d99fcf5af82f15a");
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase8() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "a7f8d5c79626aff59d7f426f79d8816e");
-    }
-
-    @Test(enabled = false)
-    public void testFlatContaminationCase9() {
-        testFlatContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.3, "fcf482398b7c908e3e2d1e4d5da6377b");
-    }
-
-    private void testPerSampleContamination(String bam1, String bam2, String persampleFile, final String md5) {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand2 + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s  -contaminationFile " + persampleFile, 1,
-                Arrays.asList(md5));
-        executeTest("test contamination on Artificial Contamination (per-sample) on " + bam1 + " and " + bam2 + " with " + persampleFile, spec);
-    }
-
-    @Test(enabled = false)
-    public void testPerSampleContaminationCase1() {
-        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.1.txt", "e00278527a294833259e9e411728e395");
-    }
-
-    @Test(enabled = false)
-    public void testPerSampleContaminationCase2() {
-        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.2.txt", "a443e793f0b0e2ffce1b751634d706e2");
-    }
-
-    @Test(enabled = false)
-    public void testPerSampleContaminationCase3() {
-        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.3.txt", "e11d83a7815ce757afbcf7689568cb25");
-    }
-
-    @Test(enabled = false)
-    public void testPerSampleContaminationCase4() {
-        testPerSampleContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.4.txt", "615042eeeffe042bd1c86279d34f80b6");
-    }
-
-    @Test(enabled = false)
-    public void testPerSampleContaminationCase5() {
-        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.1.txt", "9bc99fc79ca34744bf26cb19ee4ef44d");
-    }
-
-    @Test(enabled = false)
-    public void testPerSampleContaminationCase6() {
-        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.2.txt", "143626fe5fce765d6c997a64f058a813");
-    }
-
-    @Test(enabled = false)
-    public void testPerSampleContaminationCase7() {
-        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.3.txt", "f2593674cef894eda4e0be9cf3158f57");
-    }
-
-    @Test(enabled = false)
-    public void testPerSampleContaminationCase8() {
-        testPerSampleContamination("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.4.txt", "fb7ce0740767ae3896b3e552026da1e4");
-    }
-
-
-    private void testPerSampleEqualsFlat(final String bam1, final String bam2, final String persampleFile, final Double downsampling, final String md5) {
-        final String command =  baseCommand3 + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s  ";
-
-        WalkerTestSpec spec = new WalkerTestSpec( command +" -contaminationFile " + persampleFile, 1, Arrays.asList(md5));
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
-
-        rnd.setSeed(123451); // so that the two test cases have a hope of giving the same result
-        executeTest("test contamination on Artificial Contamination, with per-sample file on " + bam1 + " and " + bam2 + " with " + persampleFile, spec);
-
-        spec = new WalkerTestSpec(command + "-contamination " + downsampling.toString(), 1, Arrays.asList(md5));
-
-        rnd.setSeed(123451); // so that the two test cases have a hope of giving the same result
-        executeTest("test contamination on Artificial Contamination, with flat contamination on " + bam1 + " and " + bam2 + " with " + downsampling.toString(), spec);
-
-    }
 
     // verify that inputing a file with an effectively flat contamination level is equivalent to handing in a flat contamination level
 
-    @Test(enabled = false)
-    public void testPerSampleEqualsFlatContaminationCase1() {
-        testPerSampleEqualsFlat("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.6.txt", 0.0, "");
+
+    @DataProvider(name="PerSampleEqualFlatContamBams")
+    public Object[][] makePerSampleEqualFlatContamBams() {
+        final List<Object[]> tests = new LinkedList<Object[]>();
+        tests.add(new Object[]{"NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.6.txt", 0.0}) ;
+        tests.add(new Object[]{"NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.7.txt", 0.15}) ;
+        tests.add(new Object[]{"NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.8.txt", 0.3}) ;
+
+        return tests.toArray(new Object[][]{});
     }
 
-    @Test(enabled = false)
-    public void testPerSampleEqualsFlatContaminationCase2() {
-        testPerSampleEqualsFlat("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.7.txt", 0.15, "");
-    }
+    @Test(dataProvider = "PerSampleEqualFlatContamBams")
+    private void testPerSampleEqualsFlat(final String bam1, final String bam2, final String persampleFile, final Double downsampling) {
+        final String command =  baseCommandUG + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s  ";
 
-    @Test(enabled = false)
-    public void testPerSampleEqualsFlatContaminationCase3() {
-        testPerSampleEqualsFlat("NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.8.txt", 0.3, "");
-    }
+        WalkerTestSpec spec = new WalkerTestSpec( command +" -contaminationFile " + persampleFile, 1, Arrays.asList(""));
+        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
 
+        rnd.setSeed(123451); // so that the two test cases have a hope of giving the same result
+        Pair<List<File>, List<String>> test1 = executeTest("test contamination on Artificial Contamination, with per-sample file on " + bam1 + " and " + bam2 + " with " + persampleFile, spec);
+
+        spec = new WalkerTestSpec(command + "-contamination " + downsampling.toString(), 1, Arrays.asList(""));
+
+        rnd.setSeed(123451); // so that the two test cases have a hope of giving the same result
+        Pair<List<File>, List<String>> test2 = executeTest("test contamination on Artificial Contamination, with flat contamination on " + bam1 + " and " + bam2 + " with " + downsampling.toString(), spec);
+
+        //verify that the md5s match up.
+        Assert.assertEquals(test1.getSecond().get(0),test2.getSecond().get(0));
+    }
 
     // --------------------------------------------------------------------------------------------------------------
     //
@@ -250,50 +124,39 @@ public class BiasedDownsamplingIntegrationTest extends WalkerTest {
     // --------------------------------------------------------------------------------------------------------------
 
 
-    @Test(enabled = false)
-    public void testHCContaminationDownsamplingFlat() {
-        final String baseCommand = "-T HaplotypeCaller -R " + b36KGReference + " --no_cmdline_in_header --dbsnp " + b36dbSNP129;
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -contamination 0.20", 1,
-                Arrays.asList("c3a253467ead7b1cfe9fd9dd310828b1"));
-        executeTest("HC calling with contamination_percentage_to_filter 0.20", spec);
-    }
 
-    //  HaplotypeCaller can only (currently) use flat contamination reduction, not per-sample. Until that is implemented, this test
-    @Test(enabled = false)
-    public void testHCCannotProcessPerSampleContamination() {
-        final String baseCommand = "-T HaplotypeCaller -R " + hg19Reference + " --no_cmdline_in_header  -L 20:3,000,000-5,000,000";
-        final String bam1 = "NA11918.with.1.NA12842.reduced.bam";
-        final String perSampleFile = ArtificalBAMLocation + "contamination.case.1.txt";
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand + " -I " + ArtificalBAMLocation + bam1 + " -o %s  -contaminationFile " + perSampleFile, 1,
-                UserException.class);
-        executeTest("HC should fail on per-Sample contamination removal.", spec);
+    @DataProvider(name="PerSampleEqualFlatContamBamsHC")
+    public Object[][] makePerSampleEqualFlatContamBamsHC() {
+        final List<Object[]> tests = new LinkedList<Object[]>();
+        tests.add(new Object[]{"NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.6.txt", 0.0 }) ;
+        tests.add(new Object[]{"NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.7.txt", 0.15}) ;
+        tests.add(new Object[]{"NA11918.with.2.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", ArtificalBAMLocation + "contamination.case.8.txt", 0.3}) ;
+
+        return tests.toArray(new Object[][]{});
     }
 
 
-    private void testHCFlatContamination(final String bam1, final String bam2, final Double downsampling, final String md5) {
-        final String baseCommand = "-T HaplotypeCaller -R " + hg19Reference + " --no_cmdline_in_header -L 20:3,000,000-5,000,000";
+    @Test(dataProvider = "PerSampleEqualFlatContamBamsHC")
+    private void testPerSampleEqualsFlatHC(final String bam1, final String bam2, final String persampleFile, final Double downsampling) {
+        final String command =  baseCommandHC + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s  ";
 
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseCommand + " -I " + ArtificalBAMLocation + bam1 + " -I " + ArtificalBAMLocation + bam2 + " -o %s -contamination " + downsampling.toString(), 1,
-                Arrays.asList(md5));
-        executeTest("HC test contamination on Artificial Contamination (flat) on " + bam1 + " and " + bam2 + " downsampling " + downsampling.toString(), spec);
+        WalkerTestSpec spec = new WalkerTestSpec( command +" -contaminationFile " + persampleFile, 1, Arrays.asList(""));
+        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+
+        rnd.setSeed(123451); // so that the two test cases have a hope of giving the same result
+
+        Pair<List<File>, List<String>> test1= executeTest("test contamination on Artificial Contamination, with per-sample file on " + bam1 + " and " + bam2 + " with " + persampleFile, spec);
+
+        WalkerTestSpec spec2 = new WalkerTestSpec(command + "-contamination " + downsampling.toString(), 1, Arrays.asList(""));
+
+        rnd.setSeed(123451); // so that the two test cases have a hope of giving the same result
+        Pair<List<File>, List<String>> test2=executeTest("test contamination on Artificial Contamination, with flat contamination on " + bam1 + " and " + bam2 + " with " + downsampling.toString(), spec);
+
+        //verify that the md5s match up.
+        Assert.assertEquals(test1.getSecond().get(0),test2.getSecond().get(0));
+
     }
 
-    @Test(enabled = false)
-    public void testHCFlatContaminationCase1() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.05, "c3e695381d8627e3922d8c642b66c3ce");
-    }
 
-    @Test(enabled = false)
-    public void testHCFlatContaminationCase2() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.1, "002d2b45336d88d7c04e19f9f26e29d9");
-    }
-
-    @Test(enabled = false)
-    public void testHCFlatContaminationCase3() {
-        testHCFlatContamination("NA11918.with.1.NA12842.reduced.bam", "NA12842.with.1.NA11918.reduced.bam", 0.2, "1809a33ac112d1a3bd7a071c566794dd");
-    }
 
 }

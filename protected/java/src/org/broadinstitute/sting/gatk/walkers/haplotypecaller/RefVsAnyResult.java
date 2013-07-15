@@ -44,54 +44,29 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.haplotypeBAMWriter;
-
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
-
-import java.util.*;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 /**
- * A haplotype bam writer that writes out all haplotypes as reads and then
- * the alignment of reach read to its best match among the best haplotypes.
- *
- * Primarily useful for people working on the HaplotypeCaller method itself
+ * Holds information about a genotype call of a single sample reference vs. any non-ref event
  *
  * User: depristo
- * Date: 2/22/13
- * Time: 1:50 PM
+ * Date: 6/21/13
+ * Time: 12:58 PM
+ * To change this template use File | Settings | File Templates.
  */
-class AllHaplotypeBAMWriter extends HaplotypeBAMWriter {
-    public AllHaplotypeBAMWriter(final ReadDestination destination) {
-        super(destination);
-    }
+final class RefVsAnyResult {
+    /**
+     * The genotype likelihoods for ref/ref ref/non-ref non-ref/non-ref
+     */
+    final double[] genotypeLikelihoods = new double[3];
 
     /**
-     * {@inheritDoc}
+     * AD field value for ref / non-ref
      */
-    @Override
-    public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
-                                              final GenomeLoc paddedReferenceLoc,
-                                              final Collection<Haplotype> bestHaplotypes,
-                                              final Set<Haplotype> calledHaplotypes,
-                                              final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        writeHaplotypesAsReads(haplotypes, new HashSet<>(bestHaplotypes), paddedReferenceLoc);
+    final int[] AD_Ref_Any = new int[2];
 
-        // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
-        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<>(haplotypes.size());
-        for ( final Haplotype haplotype : haplotypes )
-            alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
-
-        // next, output the interesting reads for each sample aligned against the appropriate haplotype
-        for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-            for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
-                final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
-                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
-            }
-        }
-    }
+    /**
+     * @return Get the DP (sum of AD values)
+     */
+    public int getDP() { return AD_Ref_Any[0] + AD_Ref_Any[1]; }
 }

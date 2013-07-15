@@ -52,6 +52,7 @@ import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.fragments.FragmentCollection;
+import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.genotyper.DiploidGenotype;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -94,7 +95,7 @@ import static java.lang.Math.pow;
  */
 public class DiploidSNPGenotypeLikelihoods implements Cloneable {
 
-    public final static double DEFAULT_PCR_ERROR_RATE = 1e-4;
+    public final static double DEFAULT_PCR_ERROR_RATE = FragmentUtils.DEFAULT_PCR_ERROR_RATE;
 
     protected final static int FIXED_PLOIDY = 2;
     protected final static int MAX_PLOIDY = FIXED_PLOIDY + 1;

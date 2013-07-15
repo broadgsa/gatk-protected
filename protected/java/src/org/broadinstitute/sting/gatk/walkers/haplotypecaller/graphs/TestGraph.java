@@ -44,81 +44,93 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
-import org.testng.Assert;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import com.google.java.contract.Ensures;
+import org.jgrapht.EdgeFactory;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Created with IntelliJ IDEA.
+ * A Test kmer graph
+ *
  * User: rpoplin
- * Date: 2/8/13
+ * Date: 2/6/13
  */
-
-public class DeBruijnAssemblyGraphUnitTest {
-    private class GetReferenceBytesTestProvider extends BaseTest.TestDataProvider {
-        public byte[] refSequence;
-        public byte[] altSequence;
-        public int KMER_LENGTH;
-
-        public GetReferenceBytesTestProvider(String ref, String alt, int kmer) {
-            super(GetReferenceBytesTestProvider.class, String.format("Testing reference bytes. kmer = %d, ref = %s, alt = %s", kmer, ref, alt));
-            refSequence = ref.getBytes();
-            altSequence = alt.getBytes();
-            KMER_LENGTH = kmer;
-        }
-
-        public byte[] expectedReferenceBytes() {
-            return refSequence;
-        }
-
-        public byte[] calculatedReferenceBytes() {
-            DeBruijnGraph graph = new DeBruijnGraph();
-            graph.addSequenceToGraph(refSequence, KMER_LENGTH, true);
-            if( altSequence.length > 0 ) {
-                graph.addSequenceToGraph(altSequence, KMER_LENGTH, false);
-            }
-            return graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true);
+public final class TestGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
+    /**
+     * Edge factory that creates non-reference multiplicity 1 edges
+     */
+    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
+        @Override
+        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
+            return new BaseEdge(false, 1);
         }
     }
 
-    @DataProvider(name = "GetReferenceBytesTestProvider")
-    public Object[][] GetReferenceBytesTests() {
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 76);
-
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 76);
-
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 76);
-
-        return GetReferenceBytesTestProvider.getTests(GetReferenceBytesTestProvider.class);
+    /**
+     * Create an empty TestGraph with default kmer size
+     */
+    public TestGraph() {
+        this(11);
     }
 
-    @Test(dataProvider = "GetReferenceBytesTestProvider", enabled = true)
-    public void testGetReferenceBytes(GetReferenceBytesTestProvider cfg) {
-        Assert.assertEquals(cfg.calculatedReferenceBytes(), cfg.expectedReferenceBytes(), "Reference sequences do not match");
+    /**
+     * Create an empty TestGraph with kmer size
+     * @param kmerSize kmer size, must be >= 1
+     */
+    public TestGraph(int kmerSize) {
+        super(kmerSize, new MyEdgeFactory());
+    }
+
+
+    /**
+     * Add edge to assembly graph connecting the two kmers
+     * @param kmer1 the source kmer for the edge
+     * @param kmer2 the target kmer for the edge
+     * @param isRef true if the added edge is a reference edge
+     */
+    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
+        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
+        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
+        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
+
+        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
+        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
+        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
+
+        addVertices(v1, v2);
+        addOrUpdateEdge(v1, v2, toAdd);
+    }
+
+    /**
+     * Convert this kmer graph to a simple sequence graph.
+     *
+     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
+     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
+     *
+     * @return a newly allocated SequenceGraph
+     */
+    @Ensures({"result != null"})
+    public SeqGraph convertToSequenceGraph() {
+        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
+        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<>();
+
+        // create all of the equivalent seq graph vertices
+        for ( final DeBruijnVertex dv : vertexSet() ) {
+            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
+            vertexMap.put(dv, sv);
+            seqGraph.addVertex(sv);
+        }
+
+        // walk through the nodes and connect them to their equivalent seq vertices
+        for( final BaseEdge e : edgeSet() ) {
+            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
+            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
+            seqGraph.addEdge(seqInV, seqOutV, e);
+        }
+
+        return seqGraph;
     }
 }

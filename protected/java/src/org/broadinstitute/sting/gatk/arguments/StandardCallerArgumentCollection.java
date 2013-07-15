@@ -54,8 +54,6 @@ import org.broadinstitute.sting.utils.collections.DefaultHashMap;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
-import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -84,9 +82,6 @@ public class StandardCallerArgumentCollection {
 
     @Argument(fullName = "genotyping_mode", shortName = "gt_mode", doc = "Specifies how to determine the alternate alleles to use for genotyping", required = false)
     public GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY;
-
-    @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Specifies which type of calls we should output", required = false)
-    public UnifiedGenotyperEngine.OUTPUT_MODE OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
 
     /**
      * The minimum phred-scaled Qscore threshold to separate high confidence from low confidence calls. Only genotypes with
@@ -150,7 +145,7 @@ public class StandardCallerArgumentCollection {
      */
     @Argument(fullName = "contamination_fraction_to_filter", shortName = "contamination", doc = "Fraction of contamination in sequencing data (for all samples) to aggressively remove", required = false)
     public double CONTAMINATION_FRACTION = DEFAULT_CONTAMINATION_FRACTION;
-    public static final double DEFAULT_CONTAMINATION_FRACTION = 0.05;
+    public static final double DEFAULT_CONTAMINATION_FRACTION = 0.0;
 
     /**
      *  This argument specifies a file with two columns "sample" and "contamination" specifying the contamination level for those samples.
@@ -199,7 +194,6 @@ public class StandardCallerArgumentCollection {
         this.heterozygosity = SCAC.heterozygosity;
         this.INDEL_HETEROZYGOSITY = SCAC.INDEL_HETEROZYGOSITY;
         this.MAX_ALTERNATE_ALLELES = SCAC.MAX_ALTERNATE_ALLELES;
-        this.OutputMode = SCAC.OutputMode;
         this.STANDARD_CONFIDENCE_FOR_CALLING = SCAC.STANDARD_CONFIDENCE_FOR_CALLING;
         this.STANDARD_CONFIDENCE_FOR_EMITTING = SCAC.STANDARD_CONFIDENCE_FOR_EMITTING;
         this.CONTAMINATION_FRACTION = SCAC.CONTAMINATION_FRACTION;

@@ -44,54 +44,46 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.haplotypeBAMWriter;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
-
-import java.util.*;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
 
 /**
- * A haplotype bam writer that writes out all haplotypes as reads and then
- * the alignment of reach read to its best match among the best haplotypes.
- *
- * Primarily useful for people working on the HaplotypeCaller method itself
+ * Result of assembling, with the resulting graph and status
  *
  * User: depristo
- * Date: 2/22/13
- * Time: 1:50 PM
+ * Date: 7/1/13
+ * Time: 5:35 PM
  */
-class AllHaplotypeBAMWriter extends HaplotypeBAMWriter {
-    public AllHaplotypeBAMWriter(final ReadDestination destination) {
-        super(destination);
-    }
+public class AssemblyResult {
+    private final Status status;
+    private final SeqGraph graph;
 
     /**
-     * {@inheritDoc}
+     * Create a new assembly result
+     * @param status the status, cannot be null
+     * @param graph the resulting graph of the assembly, can only be null if result is failed
      */
-    @Override
-    public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
-                                              final GenomeLoc paddedReferenceLoc,
-                                              final Collection<Haplotype> bestHaplotypes,
-                                              final Set<Haplotype> calledHaplotypes,
-                                              final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        writeHaplotypesAsReads(haplotypes, new HashSet<>(bestHaplotypes), paddedReferenceLoc);
+    public AssemblyResult(final Status status, final SeqGraph graph) {
+        if ( status == null ) throw new IllegalArgumentException("status cannot be null");
+        if ( status != Status.FAILED && graph == null ) throw new IllegalArgumentException("graph is null but status is " + status);
 
-        // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
-        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<>(haplotypes.size());
-        for ( final Haplotype haplotype : haplotypes )
-            alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
+        this.status = status;
+        this.graph = graph;
+    }
 
-        // next, output the interesting reads for each sample aligned against the appropriate haplotype
-        for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-            for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
-                final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue());
-                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
-            }
-        }
+    public Status getStatus() { return status; }
+    public SeqGraph getGraph() { return graph; }
+
+    /**
+     * Status of the assembly result
+     */
+    public enum Status {
+        /** Something went wrong, and we couldn't produce a meaningful graph */
+        FAILED,
+        /** Assembly succeeded, but graph degenerated into just the reference sequence */
+        JUST_ASSEMBLED_REFERENCE,
+        /** Assembly succeeded, and the graph has some meaningful structure */
+        ASSEMBLED_SOME_VARIATION
     }
 }

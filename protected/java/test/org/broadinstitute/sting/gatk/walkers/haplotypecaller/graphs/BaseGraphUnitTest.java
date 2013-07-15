@@ -49,7 +49,6 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -231,7 +230,7 @@ public class BaseGraphUnitTest extends BaseTest {
         final File tmp = File.createTempFile("tmp", "dot");
         tmp.deleteOnExit();
         new SeqGraph().printGraph(tmp, 10);
-        new DeBruijnGraph().printGraph(tmp, 10);
+        new TestGraph().printGraph(tmp, 10);
     }
 
     @Test
@@ -249,71 +248,6 @@ public class BaseGraphUnitTest extends BaseTest {
     }
 
     @Test(enabled = true)
-    public void testPruneGraph() {
-        DeBruijnGraph graph = new DeBruijnGraph();
-        DeBruijnGraph expectedGraph = new DeBruijnGraph();
-
-        DeBruijnVertex v = new DeBruijnVertex("ATGG");
-        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA");
-        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT");
-        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG");
-        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC");
-        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC");
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new BaseEdge(false, 1));
-        graph.addEdge(v2, v3, new BaseEdge(false, 3));
-        graph.addEdge(v3, v4, new BaseEdge(false, 5));
-        graph.addEdge(v4, v5, new BaseEdge(false, 3));
-        graph.addEdge(v5, v6, new BaseEdge(false, 2));
-
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        graph.pruneGraph(2);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
-
-        graph = new DeBruijnGraph();
-        expectedGraph = new DeBruijnGraph();
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new BaseEdge(true, 1));
-        graph.addEdge(v2, v3, new BaseEdge(false, 3));
-        graph.addEdge(v3, v4, new BaseEdge(false, 5));
-        graph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        expectedGraph.addVertex(v);
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v, v2, new BaseEdge(true, 1));
-        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        graph.pruneGraph(2);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
-    }
-
-    @Test(enabled = true)
     public void testGetBases() {
 
         final int kmerSize = 4;
@@ -324,7 +258,7 @@ public class BaseGraphUnitTest extends BaseTest {
             vertexes.add(new DeBruijnVertex(testString.substring(i, i + kmerSize)));
         }
 
-        final String result = new String(new DeBruijnGraph().getBasesForPath(vertexes));
+        final String result = new String(new TestGraph().getBasesForPath(vertexes));
         Assert.assertEquals(result, testString.substring(kmerSize - 1));
     }
 }
