@@ -318,6 +318,9 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             headerInfo.add(new VCFInfoHeaderLine(VCFConstants.REFSAMPLE_DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Total reference sample depth"));
         }
 
+        if (UAC.annotateAllSitesWithPLs) {
+            headerInfo.add(new VCFFormatHeaderLine(UnifiedGenotyperEngine.PL_FOR_ALL_SNP_ALLELES_KEY, 10, VCFHeaderLineType.Integer, "Phred-scaled genotype likelihoods for all 4 possible bases regardless of whether there is statistical evidence for them. Ordering is always PL for AA AC CC GA GC GG TA TC TG TT."));
+        }
         VCFStandardHeaderLines.addStandardInfoLines(headerInfo, true,
                 VCFConstants.DOWNSAMPLED_KEY,
                 VCFConstants.MLE_ALLELE_COUNT_KEY,
