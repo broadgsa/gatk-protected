@@ -449,12 +449,6 @@ public class DepthOfCoverage extends LocusWalker<Map<DoCOutputType.Partition,Map
         StringBuilder summaryHeader = new StringBuilder();
         summaryHeader.append("Target");
         summaryHeader.append(separator);
-        LocationAwareSeekableRODIterator refSeqRod = null;
-	if (refSeqGeneList != null) {
-	    summaryHeader.append("Gene");
-	    summaryHeader.append(separator);
-	    refSeqRod = initializeRefSeq();
-	}
         summaryHeader.append("total_coverage");
         summaryHeader.append(separator);
         summaryHeader.append("average_coverage");
@@ -491,7 +485,7 @@ public class DepthOfCoverage extends LocusWalker<Map<DoCOutputType.Partition,Map
 
             Pair<GenomeLoc,DepthOfCoverageStats> targetStats = new Pair<GenomeLoc,DepthOfCoverageStats>(
                     targetAggregator.first, targetAggregator.second.getCoverageByAggregationType(type));
-            printTargetSummary(summaryOut,targetStats,refSeqRod);
+            printTargetSummary(summaryOut,targetStats);
             updateTargetTable(nTargetsByAvgCvgBySample,targetStats.second);
         }
 
@@ -555,7 +549,7 @@ public class DepthOfCoverage extends LocusWalker<Map<DoCOutputType.Partition,Map
         geneSummaryOut.printf("%s%n",summaryHeader);
 
         for ( Pair<String,DepthOfCoverageStats> geneStats : statsByGene ) {
-            printTargetSummary(geneSummaryOut,geneStats,null);
+            printTargetSummary(geneSummaryOut,geneStats);
         }
     }
 
@@ -590,18 +584,13 @@ public class DepthOfCoverage extends LocusWalker<Map<DoCOutputType.Partition,Map
                 getToolkit().getGenomeLocParser(),refseq.getIterator());
     }
 
-    private void printTargetSummary(PrintStream output, Pair<?,DepthOfCoverageStats> intervalStats, LocationAwareSeekableRODIterator refSeqRod) {
+    private void printTargetSummary(PrintStream output, Pair<?,DepthOfCoverageStats> intervalStats) {
         DepthOfCoverageStats stats = intervalStats.second;
         int[] bins = stats.getEndpoints();
 
         StringBuilder targetSummary = new StringBuilder();
         targetSummary.append(intervalStats.first.toString());
         targetSummary.append(separator);
-        if (refSeqRod != null) {
-	    String gene = getGeneName((GenomeLoc) intervalStats.first, refSeqRod);
-	    targetSummary.append(gene);
-	    targetSummary.append(separator);
-	}
         targetSummary.append(stats.getTotalCoverage());
         targetSummary.append(separator);
         targetSummary.append(String.format("%.2f",stats.getTotalMeanCoverage()));
