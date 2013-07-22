@@ -318,7 +318,7 @@ public class SlidingWindowUnitTest extends BaseTest {
             this.expectedNumberOfReads = expectedNumberOfReads;
             this.expectedNumberOfReadsWithHetCompression = expectedNumberOfReadsWithHetCompression;
             this.expectedNumberOfReadsAtDeepCoverage = expectedNumberOfReadsAtDeepCoverage;
-            this.description = String.format("%d %d %d", expectedNumberOfReads, expectedNumberOfReadsWithHetCompression, expectedNumberOfReadsAtDeepCoverage);
+            this.description = String.format("%d %d %d %b %b", expectedNumberOfReads, expectedNumberOfReadsWithHetCompression, expectedNumberOfReadsAtDeepCoverage, readsShouldBeLowQuality, variantBaseShouldBeLowQuality);
 
             // first, add the basic reads to the collection
             myReads.addAll(basicReads);
@@ -390,40 +390,40 @@ public class SlidingWindowUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         // test high quality reads and bases
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, false, 1, 1, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, false, 9, 6, 5 + DEEP_COVERAGE_ITERATIONS)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, false, 10, 10, 2 + (8 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, false, 10, 10, 2 + (8 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, false, 11, 11, 2 + (9 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc320), false, false, 11, 10, 4 + (6 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, false, 2, 2, 2)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, false, 11, 8, 7 + DEEP_COVERAGE_ITERATIONS)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, false, 12, 12, 4 + (8 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, false, 12, 12, 4 + (8 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, false, 13, 13, 4 + (9 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc320), false, false, 13, 12, 6 + (6 * DEEP_COVERAGE_ITERATIONS))});
 
         // test low quality reads
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), true, false, 1, 1, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), true, false, 2, 2, 2)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), true, false, 2, 2, 2)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), true, false, 2, 2, 2)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), true, false, 2, 2, 2)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), true, false, 2, 2, 2)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), true, false, 3, 3, 3)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), true, false, 3, 3, 3)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), true, false, 3, 3, 3)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), true, false, 3, 3, 3)});
 
         // test low quality bases
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, true, 1, 1, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, true, 1, 1, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, true, 1, 1, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, true, 1, 1, 1)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, true, 1, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(), false, true, 2, 2, 2)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), false, true, 2, 2, 2)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), false, true, 2, 2, 2)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), false, true, 2, 2, 2)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), false, true, 2, 2, 2)});
 
         // test mixture
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), true, false, 2, 2, 2)});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), false, true, 1, 1, 1)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), true, false, 3, 3, 3)});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc1100), false, true, 2, 2, 2)});
 
         // test I/D operators
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.D, 9, 9, 2 + (7 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.D, 10, 10, 2 + (8 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.D, 10, 10, 2 + (8 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.D, 11, 11, 2 + (9 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.I, 9, 9, 2 + (7 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.I, 10, 10, 2 + (8 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.I, 10, 10, 2 + (8 * DEEP_COVERAGE_ITERATIONS))});
-        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.I, 11, 11, 2 + (9 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.D, 11, 11, 4 + (7 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.D, 12, 12, 4 + (8 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.D, 12, 12, 4 + (8 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.D, 13, 13, 4 + (9 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290), CigarOperator.I, 11, 11, 4 + (7 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc295), CigarOperator.I, 12, 12, 4 + (8 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc309), CigarOperator.I, 12, 12, 4 + (8 * DEEP_COVERAGE_ITERATIONS))});
+        tests.add(new Object[]{new ConsensusCreationTest(Arrays.<GenomeLoc>asList(loc290, loc310), CigarOperator.I, 13, 13, 4 + (9 * DEEP_COVERAGE_ITERATIONS))});
 
         return tests.toArray(new Object[][]{});
     }
@@ -515,6 +515,39 @@ public class SlidingWindowUnitTest extends BaseTest {
             slidingWindow.addRead(read);
         result = slidingWindow.close(knownSNPs);
         Assert.assertEquals(result.getFirst().size(), totalNumReads); // no compression at all
+    }
+
+    @Test
+    public void testConsensusCreationForInsertions() {
+
+        final int totalNumReads = 7;
+        final ObjectList<GATKSAMRecord> myReads = new ObjectArrayList<>(totalNumReads);
+
+        // add reads, one with a SNP and one with a SNP and insertion
+        for ( int i = 0; i < totalNumReads; i++ ) {
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead" + i, 0, globalStartPosition, readLength);
+            read.setBaseQualities(Utils.dupBytes((byte)30, readLength));
+            read.setMappingQuality(30);
+            read.setReadNegativeStrandFlag(false);
+
+            final byte[] bases = Utils.dupBytes((byte) 'A', readLength);
+            if ( i < 2 )
+                bases[20] = 'C';
+            if ( i == 0 )
+                bases[80] = 'C';
+            read.setReadBases(bases);
+
+            if ( i == 0 )
+                read.setCigarString("80M1I19M");
+
+            myReads.add(read);
+        }
+
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.1, 0.05, 0.05, 20, 20, 100, ReduceReads.DownsampleStrategy.Normal, false);
+        for ( final GATKSAMRecord read : myReads )
+            slidingWindow.addRead(read);
+        final Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close(null);
+        Assert.assertEquals(result.getFirst().size(), 3); // no compression at all for SNPs
     }
 
     @Test
@@ -739,21 +772,22 @@ public class SlidingWindowUnitTest extends BaseTest {
         read.setReadBases(Utils.dupBytes((byte) 'A', readLength));
         read.setBaseQualities(Utils.dupBytes((byte)30, readLength));
         read.setMappingQuality(30);
+        read.setReadNegativeStrandFlag(false);
 
         // add the read
         final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false);
         slidingWindow.actuallyUpdateHeaderForRead(windowHeader, read, false, start);
         for ( int i = 0; i < start; i++ )
-            Assert.assertEquals(windowHeader.get(i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 0);
+            Assert.assertEquals(windowHeader.get(i).getBaseCounts(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS).countOfBase(BaseUtils.Base.A.base), 0);
         for ( int i = 0; i < readLength; i++ )
-            Assert.assertEquals(windowHeader.get(start + i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 1);
+            Assert.assertEquals(windowHeader.get(start + i).getBaseCounts(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS).countOfBase(BaseUtils.Base.A.base), 1);
         for ( int i = start + readLength; i < currentHeaderLength; i++ )
-            Assert.assertEquals(windowHeader.get(i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 0);
+            Assert.assertEquals(windowHeader.get(i).getBaseCounts(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS).countOfBase(BaseUtils.Base.A.base), 0);
 
         // now remove the read
         slidingWindow.actuallyUpdateHeaderForRead(windowHeader, read, true, start);
         for ( int i = 0; i < currentHeaderLength; i++ )
-            Assert.assertEquals(windowHeader.get(i).getConsensusBaseCounts().countOfBase(BaseUtils.Base.A.base), 0);
+            Assert.assertEquals(windowHeader.get(i).getBaseCounts(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS).countOfBase(BaseUtils.Base.A.base), 0);
     }
 
     //////////////////////////////////////////////////////////////////////////////////
