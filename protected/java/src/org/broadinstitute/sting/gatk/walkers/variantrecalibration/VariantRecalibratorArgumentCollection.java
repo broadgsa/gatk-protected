@@ -70,9 +70,9 @@ public class VariantRecalibratorArgumentCollection {
         throw new ReviewedStingException("VariantRecalibrator mode string is unrecognized, input = " + input);
     }
 
-    @Argument(fullName = "mode", shortName = "mode", doc = "Recalibration mode to employ: 1.) SNP for recalibrating only snps (emitting indels untouched in the output VCF); 2.) INDEL for indels; and 3.) BOTH for recalibrating both snps and indels simultaneously.", required = false)
+    @Argument(fullName = "mode", shortName = "mode", doc = "Recalibration mode to employ: 1.) SNP for recalibrating only SNPs (emitting indels untouched in the output VCF); 2.) INDEL for indels (emitting SNPs untouched in the output VCF); and 3.) BOTH for recalibrating both SNPs and indels simultaneously (for testing purposes only, not recommended for general use).", required = false)
     public VariantRecalibratorArgumentCollection.Mode MODE = VariantRecalibratorArgumentCollection.Mode.SNP;
-    @Argument(fullName="maxGaussians", shortName="mG", doc="The maximum number of Gaussians to try during variational Bayes algorithm", required=false)
+    @Argument(fullName="maxGaussians", shortName="mG", doc="The maximum number of Gaussians to try during variational Bayes algorithm.", required=false)
     public int MAX_GAUSSIANS = 10;
     @Argument(fullName="maxIterations", shortName="mI", doc="The maximum number of VBEM iterations to be performed in variational Bayes algorithm. Procedure will normally end when convergence is detected.", required=false)
     public int MAX_ITERATIONS = 100;
