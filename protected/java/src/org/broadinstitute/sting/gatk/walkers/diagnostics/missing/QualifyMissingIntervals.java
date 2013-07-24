@@ -156,7 +156,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
             baseQual += qual;
         }
         double mapQual = 0.0;
-        for (byte qual : pileup.getMappingQuals()) {
+        for (int qual : pileup.getMappingQuals()) {
             mapQual += qual;
         }
 
