@@ -68,16 +68,40 @@ import java.util.Map;
 
 public class StandardCallerArgumentCollection {
     /**
-     * The expected heterozygosity value used to compute prior likelihoods for any locus. The default priors are:
-     * het = 1e-3, P(hom-ref genotype) = 1 - 3 * het / 2, P(het genotype) = het, P(hom-var genotype) = het / 2
+     * The expected heterozygosity value used to compute prior probability that a locus is non-reference.
+     *
+     * The default priors are for provided for humans:
+     *
+     * het = 1e-3
+     *
+     * which means that the probability of N samples being hom-ref at a site is:
+     *
+     * 1 - sum_i_2N (het / i)
+     *
+     * Note that heterozygosity as used here is the population genetics concept:
+     *
+     * http://en.wikipedia.org/wiki/Zygosity#Heterozygosity_in_population_genetics
+     *
+     * That is, a hets value of 0.01 implies that two randomly chosen chromosomes from the population of organisms
+     * would differ from each other (one being A and the other B) at a rate of 1 in 100 bp.
+     *
+     * Note that this quantity has nothing to do with the likelihood of any given sample having a heterozygous genotype,
+     * which in the GATK is purely determined by the probability of the observed data P(D | AB) under the model that there
+     * may be a AB het genotype.  The posterior probability of this AB genotype would use the het prior, but the GATK
+     * only uses this posterior probability in determining the prob. that a site is polymorphic.  So changing the
+     * het parameters only increases the chance that a site will be called non-reference across all samples, but
+     * doesn't actually change the output genotype likelihoods at all, as these aren't posterior probabilities at all.
+     *
+     * The quantity that changes whether the GATK considers the possibility of a het genotype at all is the ploidy,
+     * which determines how many chromosomes each individual in the species carries.
      */
-    @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus", required = false)
+    @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus.  See the GATKDocs for full details on the meaning of this population genetics concept", required = false)
     public Double heterozygosity = UnifiedGenotyperEngine.HUMAN_SNP_HETEROZYGOSITY;
 
     /**
      * This argument informs the prior probability of having an indel at a site.
      */
-    @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling", required = false)
+    @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling.  See the GATKDocs for heterozygosity for full details on the meaning of this population genetics concept", required = false)
     public double INDEL_HETEROZYGOSITY = 1.0/8000;
 
     @Argument(fullName = "genotyping_mode", shortName = "gt_mode", doc = "Specifies how to determine the alternate alleles to use for genotyping", required = false)
