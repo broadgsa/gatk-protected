@@ -340,8 +340,15 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
             return 0;
 
         final int altIndexToMerge = Math.max(danglingTailMergeResult.cigar.getReadLength() - matchingSuffix - 1, 0);
+
+        // there is an important edge condition that we need to handle here: Smith-Waterman correctly calculates that there is a
+        // deletion, that deletion is left-aligned such that the LCA node is part of that deletion, and the rest of the dangling
+        // tail is a perfect match to the suffix of the reference path.  In this case we need to push the reference index to merge
+        // down one position so that we don't incorrectly cut a base off of the deletion.
         final boolean firstElementIsDeletion = elements.get(0).getOperator() == CigarOperator.D;
-        final int refIndexToMerge = lastRefIndex - matchingSuffix + 1 + (firstElementIsDeletion ? 1 : 0); // need to push down if SW tells us to remove the LCA
+        final boolean mustHandleLeadingDeletionCase =  firstElementIsDeletion && (elements.get(0).getLength() + matchingSuffix == lastRefIndex + 1);
+        final int refIndexToMerge = lastRefIndex - matchingSuffix + 1 + (mustHandleLeadingDeletionCase ? 1 : 0);
+
         addEdge(danglingTailMergeResult.danglingPath.get(altIndexToMerge), danglingTailMergeResult.referencePath.get(refIndexToMerge), ((MyEdgeFactory)getEdgeFactory()).createEdge(false, 1));
         return 1;
     }
