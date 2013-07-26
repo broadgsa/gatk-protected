@@ -72,9 +72,9 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     }
 
     VRTest lowPass = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
-            "4d08c8eee61dd1bdea8c5765f34e41f0",  // tranches
-            "ca7de32b6143cce58aa4bc59b311feb7",  // recal file
-            "cc7f413ba50b3d12f11f95aaa31e67d1"); // cut VCF
+            "583e8f63475dfd09a26bf11579075c8e",  // tranches
+            "39a98f13b26c8c1f363f99ab8cead6ca",  // recal file
+            "d235aefef741a6b2c352ef20af1ca790"); // cut VCF
 
     @DataProvider(name = "VRTest")
     public Object[][] createData1() {
@@ -121,9 +121,9 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     }
 
     VRTest bcfTest = new VRTest(privateTestDir + "vqsr.bcf_test.snps.unfiltered.bcf",
-            "6a1eef4d02857dbb117a15420b5c0ce9",  // tranches
-            "db9faaee11ee5427a81ddee328245f8c",  // recal file
-            "42e0fcd8e048a5f6abc41a4d1c3e97a5"); // cut VCF
+            "d29356849670aabcc12643a2b68dcc82",  // tranches
+            "8abaf8142a6ee212b6dddc7053605512",  // recal file
+            "d6cd4f61875ae09a030fd9f2d7328246"); // cut VCF
 
     @DataProvider(name = "VRBCFTest")
     public Object[][] createVRBCFTest() {
@@ -173,15 +173,15 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
 
     VRTest indelUnfiltered = new VRTest(
             validationDataLocation + "combined.phase1.chr20.raw.indels.unfiltered.sites.vcf", // all FILTERs as .
-            "b7589cd098dc153ec64c02dcff2838e4",  // tranches
-            "5a9ba210a3c68109289a71039a04509d",  // recal file
-            "d816bd43c844069d65711a7975707437"); // cut VCF
+            "99c3736dab836ae8b41e344062e01b5a",  // tranches
+            "55d2f89980ea9c6c469314129dbac732",  // recal file
+            "482039de04961876890e125055732450"); // cut VCF
 
     VRTest indelFiltered = new VRTest(
             validationDataLocation + "combined.phase1.chr20.raw.indels.filtered.sites.vcf", // all FILTERs as PASS
-            "b7589cd098dc153ec64c02dcff2838e4",  // tranches
-            "5a9ba210a3c68109289a71039a04509d",  // recal file
-            "6bcb344511c727c28523825f73c7daee"); // cut VCF
+            "99c3736dab836ae8b41e344062e01b5a",  // tranches
+            "55d2f89980ea9c6c469314129dbac732",  // recal file
+            "e63e22ae05ad0bd32b943cde00b6e5a9"); // cut VCF
 
     @DataProvider(name = "VRIndelTest")
     public Object[][] createTestVariantRecalibratorIndel() {

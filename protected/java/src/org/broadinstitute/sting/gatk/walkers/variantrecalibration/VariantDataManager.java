@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
 
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
@@ -71,20 +72,20 @@ import java.util.*;
 
 public class VariantDataManager {
     private ExpandingArrayList<VariantDatum> data;
-    private final double[] meanVector;
-    private final double[] varianceVector; // this is really the standard deviation
-    public final List<String> annotationKeys;
+    private double[] meanVector;
+    private double[] varianceVector; // this is really the standard deviation
+    public List<String> annotationKeys;
     private final VariantRecalibratorArgumentCollection VRAC;
     protected final static Logger logger = Logger.getLogger(VariantDataManager.class);
     protected final List<TrainingSet> trainingSets;
 
     public VariantDataManager( final List<String> annotationKeys, final VariantRecalibratorArgumentCollection VRAC ) {
         this.data = null;
-        this.annotationKeys = new ArrayList<String>( annotationKeys );
+        this.annotationKeys = new ArrayList<>( annotationKeys );
         this.VRAC = VRAC;
         meanVector = new double[this.annotationKeys.size()];
         varianceVector = new double[this.annotationKeys.size()];
-        trainingSets = new ArrayList<TrainingSet>();
+        trainingSets = new ArrayList<>();
     }
 
     public void setData( final ExpandingArrayList<VariantDatum> data ) {
@@ -125,6 +126,73 @@ public class VariantDataManager {
             }
             datum.failingSTDThreshold = remove;
         }
+
+        // re-order the data by increasing standard deviation so that the results don't depend on the order things were specified on the command line
+        // standard deviation over the training points is used as a simple proxy for information content, perhaps there is a better thing to use here
+        final List<Integer> theOrder = calculateSortOrder(varianceVector);
+        annotationKeys = reorderList(annotationKeys, theOrder);
+        varianceVector = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(varianceVector), theOrder));
+        meanVector = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(meanVector), theOrder));
+        for( final VariantDatum datum : data ) {
+            datum.annotations = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(datum.annotations), theOrder));
+            datum.isNull = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(datum.isNull), theOrder));
+        }
+    }
+
+    /**
+     * Get a list of indices which give the ascending sort order of the data array
+     * @param data the data to consider
+     * @return a non-null list of integers with length matching the length of the input array
+     */
+    protected List<Integer> calculateSortOrder(final double[] data) {
+        final List<Integer> theOrder = new ArrayList<>(data.length);
+        final List<MyStandardDeviation> sortedData = new ArrayList<>(data.length);
+        int count = 0;
+        for( final double d : data ) {
+            sortedData.add(new MyStandardDeviation(d, count++));
+        }
+        Collections.sort(sortedData); // sort the data in ascending order
+        for( final MyStandardDeviation d : sortedData ) {
+            theOrder.add(d.originalIndex); // read off the sort order by looking at the index field
+        }
+        return theOrder;
+    }
+
+    // small private class to assist in reading off the new ordering of the standard deviation array
+    private class MyStandardDeviation implements Comparable<MyStandardDeviation> {
+        final Double standardDeviation;
+        final int originalIndex;
+
+        public MyStandardDeviation( final double standardDeviation, final int originalIndex ) {
+            this.standardDeviation = standardDeviation;
+            this.originalIndex = originalIndex;
+        }
+
+        @Override
+        public int compareTo(final MyStandardDeviation other) {
+            return standardDeviation.compareTo(other.standardDeviation);
+        }
+    }
+
+    /**
+     * Convenience connector method to work with arrays instead of lists. See ##reorderList##
+     */
+    private <T> T[] reorderArray(final T[] data, final List<Integer> order) {
+        return reorderList(Arrays.asList(data), order).toArray(data);
+    }
+
+    /**
+     * Reorder the given data list to be in the specified order
+     * @param data the data to reorder
+     * @param order the new order to use
+     * @return a reordered list of data
+     */
+    private <T> List<T> reorderList(final List<T> data, final List<Integer> order) {
+        final List<T> returnList = new ArrayList<>(data.size());
+        for( final int index : order ) {
+            returnList.add( data.get(index) );
+        }
+        return returnList;
     }
 
     /**
@@ -161,15 +229,8 @@ public class VariantDataManager {
         return false;
     }
 
-    public boolean checkHasKnownSet() {
-        for( final TrainingSet trainingSet : trainingSets ) {
-            if( trainingSet.isKnown ) { return true; }
-        }
-        return false;
-    }
-
     public ExpandingArrayList<VariantDatum> getTrainingData() {
-        final ExpandingArrayList<VariantDatum> trainingData = new ExpandingArrayList<VariantDatum>();
+        final ExpandingArrayList<VariantDatum> trainingData = new ExpandingArrayList<>();
         for( final VariantDatum datum : data ) {
             if( datum.atTrainingSite && !datum.failingSTDThreshold && datum.originalQual > VRAC.QUAL_THRESHOLD ) {
                 trainingData.add( datum );
@@ -184,7 +245,7 @@ public class VariantDataManager {
 
     public ExpandingArrayList<VariantDatum> selectWorstVariants( double bottomPercentage, final int minimumNumber ) {
         // The return value is the list of training variants
-        final ExpandingArrayList<VariantDatum> trainingData = new ExpandingArrayList<VariantDatum>();
+        final ExpandingArrayList<VariantDatum> trainingData = new ExpandingArrayList<>();
 
         // First add to the training list all sites overlapping any bad sites training tracks
         for( final VariantDatum datum : data ) {
@@ -219,7 +280,7 @@ public class VariantDataManager {
 
     public ExpandingArrayList<VariantDatum> getRandomDataForPlotting( int numToAdd ) {
         numToAdd = Math.min(numToAdd, data.size());
-        final ExpandingArrayList<VariantDatum> returnData = new ExpandingArrayList<VariantDatum>();
+        final ExpandingArrayList<VariantDatum> returnData = new ExpandingArrayList<>();
         for( int iii = 0; iii < numToAdd; iii++) {
             final VariantDatum datum = data.get(GenomeAnalysisEngine.getRandomGenerator().nextInt(data.size()));
             if( !datum.failingSTDThreshold ) {
