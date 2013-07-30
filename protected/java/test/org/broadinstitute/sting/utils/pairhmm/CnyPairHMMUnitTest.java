@@ -48,54 +48,45 @@ package org.broadinstitute.sting.utils.pairhmm;
 
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class CnyPairHMMUnitTest extends BaseTest {
-    private native void puts(String text);
 
     @Test(enabled = true)
     public void testResultQueue() {
-	final double[] row1 = new double[] { 4.5, 53.1, 6.4 };
-	final double[] row2 = new double[] { 1.0, 5.9, 6.9, 6.1, 19.8 };
-	final double[] row3 = new double[] { 10.4, 9.101, 89.5, 9.8};
-	final double[] row4 = new double[] { 7.3, 1.4, 5.67, 56.32 };
-	CnyPairHMM.ResultQueue queue = new CnyPairHMM.ResultQueue();
+        final double[] row1 = new double[] { 4.5, 53.1, 6.4 };
+        final double[] row2 = new double[] { 1.0, 5.9, 6.9, 6.1, 19.8 };
+        final double[] row3 = new double[] { 10.4, 9.101, 89.5, 9.8};
+        final double[] row4 = new double[] { 7.3, 1.4, 5.67, 56.32 };
+        CnyPairHMM.ResultQueue queue = new CnyPairHMM.ResultQueue();
 
-	// Test inter-mixed push/pop operations produce the correct output
-	queue.push(row1);
-	queue.push(row2);
+        // Test inter-mixed push/pop operations produce the correct output
+        queue.push(row1);
+        queue.push(row2);
 
- 	for (int i=0; i<row1.length; i++)
-	    Assert.assertEquals(row1[i], queue.pop());
+        for (double aRow1 : row1) Assert.assertEquals(aRow1, queue.pop());
 
- 	for (int i=0; i<2; i++)
-	    Assert.assertEquals(row2[i], queue.pop());
+        for (int i=0; i<2; i++)
+            Assert.assertEquals(row2[i], queue.pop());
 
-	queue.push(row3);
+        queue.push(row3);
 
- 	for (int i=2; i<row2.length; i++)
-	    Assert.assertEquals(row2[i], queue.pop());
+        for (int i=2; i<row2.length; i++)
+            Assert.assertEquals(row2[i], queue.pop());
 
- 	for (int i=0; i<row3.length; i++)
-	    Assert.assertEquals(row3[i], queue.pop());
+        for (double aRow3 : row3) Assert.assertEquals(aRow3, queue.pop());
 
-	// Test push/pop after return to empty state
-	queue.push(row4);
+        // Test push/pop after return to empty state
+        queue.push(row4);
 
- 	for (int i=0; i<row4.length; i++)
-	    Assert.assertEquals(row4[i], queue.pop());
+        for (double aRow4 : row4) Assert.assertEquals(aRow4, queue.pop());
     }
 
     @Test(enabled = true)
     public void testAddLibraryPath() {
-	final String testLibPath = privateTestDir + "testlib";
+        final String testLibPath = privateTestDir + "testlib";
 
-	CnyPairHMM.addLibraryPath(testLibPath);
-	System.loadLibrary("CnyPairHMMUnitTest");
-	puts("Shared library loaded.");
+        CnyPairHMM.addLibraryPath(testLibPath);
+        System.loadLibrary("CnyPairHMMUnitTest");
     }
 }
