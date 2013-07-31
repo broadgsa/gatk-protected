@@ -494,10 +494,10 @@ public class SlidingWindow {
      */
     private void genericAddBaseToConsensus(final SyntheticRead syntheticRead, final BaseAndQualsCounts baseCounts) {
         final BaseIndex base = baseCounts.baseIndexWithMostProbability();
-        byte count = (byte) Math.min(baseCounts.countOfBase(base), Byte.MAX_VALUE);
-        byte qual = baseCounts.averageQualsOfBase(base);
-        byte insQual = baseCounts.averageInsertionQualsOfBase(base);
-        byte delQual = baseCounts.averageDeletionQualsOfBase(base);
+        final int count = baseCounts.countOfBase(base);
+        final byte qual = baseCounts.averageQualsOfBase(base);
+        final byte insQual = baseCounts.averageInsertionQualsOfBase(base);
+        final byte delQual = baseCounts.averageDeletionQualsOfBase(base);
         syntheticRead.add(base, count, qual, insQual, delQual, baseCounts.getRMS());
     }
 
@@ -533,20 +533,24 @@ public class SlidingWindow {
             final int refStart = windowHeader.get(start).getLocation();
             final int refStop = windowHeader.get(stop).getLocation();
 
-            final ObjectList<GATKSAMRecord> toRemove = new ObjectArrayList<>();
+            final ObjectList<GATKSAMRecord> toRemoveFromWindow = new ObjectArrayList<>();
+            final ObjectList<GATKSAMRecord> toEmit = new ObjectArrayList<>();
             for ( final GATKSAMRecord read : readsInWindow ) {
                 if ( read.getSoftStart() <= refStop ) {
                     if ( read.getAlignmentEnd() >= refStart ) {
-                        allReads.reads.add(read);
+                        toEmit.add(read);
                         removeFromHeader(windowHeader, read);
                     }
-                    toRemove.add(read);
+                    toRemoveFromWindow.add(read);
                 }
             }
 
             // remove all used reads
-            for ( final GATKSAMRecord read : toRemove )
+            for ( final GATKSAMRecord read : toRemoveFromWindow )
                 readsInWindow.remove(read);
+
+            // down-sample the unreduced reads if needed
+            allReads.reads.addAll(downsampleCoverage > 0 ? downsampleVariantRegion(toEmit) : toEmit);
         }
 
         return allReads;
@@ -632,12 +636,8 @@ public class SlidingWindow {
     @Ensures("result != null")
     protected CloseVariantRegionResult closeVariantRegion(final int start, final int stop, final ObjectSortedSet<GenomeLoc> knownSnpPositions) {
         final CloseVariantRegionResult allReads = compressVariantRegion(start, stop, knownSnpPositions);
-
-        final CloseVariantRegionResult result = new CloseVariantRegionResult(allReads.stopPerformed);
-        result.reads.addAll(downsampleCoverage > 0 ? downsampleVariantRegion(allReads.reads) : allReads.reads);
-        result.reads.addAll(addAllSyntheticReadTypes(0, allReads.stopPerformed + 1));
-
-        return result; // finalized reads will be downsampled if necessary
+        allReads.reads.addAll(addAllSyntheticReadTypes(0, allReads.stopPerformed + 1));
+        return allReads;
     }
 
     /**

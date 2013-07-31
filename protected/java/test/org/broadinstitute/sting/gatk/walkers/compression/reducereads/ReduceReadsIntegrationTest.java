@@ -46,9 +46,14 @@
 
 package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
 
+import net.sf.samtools.SAMFileReader;
+import net.sf.samtools.SAMRecord;
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.sam.GATKSamRecordFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -70,6 +75,8 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     final String COREDUCTION_BAM_B = validationDataLocation + "coreduction.test.B.bam";
     final String COREDUCTION_L = " -L 1:1,853,860-1,854,354 -L 1:1,884,131-1,892,057";
     final String OFFCONTIG_BAM = privateTestDir + "readOffb37contigMT.bam";
+    final String HIGH_COVERAGE_BAM = privateTestDir + "NA20313.highCoverageRegion.bam";
+    final String HIGH_COVERAGE_L = " -L 1:1650830-1650870";
     final String BOTH_ENDS_OF_PAIR_IN_VARIANT_REGION_BAM = privateTestDir + "bothEndsOfPairInVariantRegion.bam";
     final String INSERTIONS_AT_EDGE_OF_CONSENSUS_BAM = privateTestDir + "rr-too-many-insertions.bam";
 
@@ -221,13 +228,13 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testCoReduction() {
         String base = String.format("-T ReduceReads %s --cancer_mode -npt -R %s -I %s -I %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B) + " -o %s ";
-        executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("2fdc77ff5139f62db9697427b559f866")));
+        executeTest("testCoReduction", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("58c2bae5a339af2ea3c22a46ce8faa68")));
     }
 
     @Test(enabled = true)
     public void testCoReductionWithKnowns() {
         String base = String.format("-T ReduceReads %s --cancer_mode -npt -R %s -I %s -I %s -known %s", COREDUCTION_L, REF, COREDUCTION_BAM_A, COREDUCTION_BAM_B, DBSNP) + " -o %s ";
-        executeTest("testCoReductionWithKnowns", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("6db7fca364ba64f7db9510b412d731f0")));
+        executeTest("testCoReductionWithKnowns", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("5c251932b49d99a810581e3a6f762878")));
     }
 
     @Test(enabled = true)
@@ -258,7 +265,7 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     public void testDivideByZero() {
         String base = String.format("-T ReduceReads %s -npt -R %s -I %s", DIVIDEBYZERO_L, REF, DIVIDEBYZERO_BAM) + " -o %s ";
         // we expect to lose coverage due to the downsampling so don't run the systematic tests
-        executeTestWithoutAdditionalRRTests("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("82758efda419011642cb468809a50bf9")));
+        executeTestWithoutAdditionalRRTests("testDivideByZero", new WalkerTestSpec(base, Arrays.asList("bam"), Arrays.asList("7dfe2647992ce1154db340fc742d523a")));
     }
 
     /**
@@ -298,6 +305,43 @@ public class ReduceReadsIntegrationTest extends WalkerTest {
     public void testMultiSampleFailsWithoutFlag() {
         String cmd = "-T ReduceReads -npt -R " + b37KGReference + " -I " + privateTestDir + "rr_multisample.bam -o /dev/null";
         executeTestWithoutAdditionalRRTests("testMultiSampleDoesNotFailWithFlag", new WalkerTestSpec(cmd, 0, UserException.BadInput.class));
+    }
+
+    /**
+     * Confirm that compression is not capping coverage counts to max byte
+     */
+    @Test(enabled = true)
+    public void testCompressionWorksForHighDepth() {
+        final String base = String.format("-T ReduceReads -npt -R %s -I %s %s", b37KGReference, HIGH_COVERAGE_BAM, HIGH_COVERAGE_L) + " -o %s";
+        final File outputBam = executeTestWithoutAdditionalRRTests("testCompressionWorksForHighDepth",
+                new WalkerTestSpec(base, 1, Arrays.asList(""))).first.get(0);   // No MD5s; we only want to check the coverage
+
+        boolean sawHighCoveragePosition = false;
+        final SAMFileReader reader = new SAMFileReader(outputBam);
+        reader.setSAMRecordFactory(new GATKSamRecordFactory());
+
+        for ( final SAMRecord rawRead : reader ) {
+            final GATKSAMRecord read = (GATKSAMRecord)rawRead;
+            read.setAttribute(GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG, rawRead.getByteArrayAttribute(GATKSAMRecord.REDUCED_READ_CONSENSUS_TAG));
+
+            if ( ! read.isReducedRead() )
+                continue;
+
+            final int[] decodedCounts = read.getReducedReadCounts();
+            for ( final int count : decodedCounts ) {
+                if ( count > Byte.MAX_VALUE ) {
+                    sawHighCoveragePosition = true;
+                    break;
+                }
+            }
+
+            if ( sawHighCoveragePosition )
+                break;
+        }
+
+        reader.close();
+
+        Assert.assertTrue(sawHighCoveragePosition, "No positions were found with coverage over max byte (127); the coverage is incorrectly being capped somewhere!");
     }
 }
 
