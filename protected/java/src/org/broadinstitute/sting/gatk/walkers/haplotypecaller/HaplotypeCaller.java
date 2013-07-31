@@ -231,7 +231,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
-    protected List<String> annotationsToExclude = new ArrayList<String>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator"}));
+    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator"}));
 
     /**
      * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
@@ -257,23 +257,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Advanced
     @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="The number of samples that must pass the minPuning factor in order for the path to be kept", required = false)
     protected int numPruningSamples = 1;
-
-    /**
-     * Assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
-     * considered requires N PairHMM evaluations if there are N reads across all samples.  In order to control the
-     * run of the haplotype caller we only take maxPathsPerSample * nSample paths from the graph, in order of their
-     * weights, no matter how many paths are possible to generate from the graph.  Putting this number too low
-     * will result in dropping true variation because paths that include the real variant are not even considered.
-     */
-    @Advanced
-    @Argument(fullName="maxPathsPerSample", shortName="maxPathsPerSample", doc="Max number of paths to consider for the read threading assembler per sample.", required = false)
-    protected int maxPathsPerSample = 10;
-
-    /**
-     * The minimum number of paths to advance forward for genotyping, regardless of the
-     * number of samples
-     */
-    private final static int MIN_PATHS_PER_GRAPH = 128;
 
     @Hidden
     @Argument(fullName="dontRecoverDanglingTails", shortName="dontRecoverDanglingTails", doc="Should we disable dangling tail recovery in the read threading assembler?", required = false)
@@ -381,9 +364,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="phredScaledGlobalReadMismappingRate", shortName="globalMAPQ", doc="The global assumed mismapping rate for reads", required = false)
     protected int phredScaledGlobalReadMismappingRate = 45;
 
+    /**
+     * Assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
+     * considered requires N PairHMM evaluations if there are N reads across all samples.  In order to control the
+     * run of the haplotype caller we only take maxNumHaplotypesInPopulation paths from the graph, in order of their
+     * weights, no matter how many paths are possible to generate from the graph.  Putting this number too low
+     * will result in dropping true variation because paths that include the real variant are not even considered.
+     */
     @Advanced
     @Argument(fullName="maxNumHaplotypesInPopulation", shortName="maxNumHaplotypesInPopulation", doc="Maximum number of haplotypes to consider for your population. This number will probably need to be increased when calling organisms with high heterozygosity.", required = false)
-    protected int maxNumHaplotypesInPopulation = 25;
+    protected int maxNumHaplotypesInPopulation = 128;
 
     @Advanced
     @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="If specified, we will merge variants together into block substitutions that are in strong local LD", required = false)
@@ -541,7 +531,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // get all of the unique sample names
         Set<String> samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
         samplesList.addAll( samples );
-        final int nSamples = samples.size();
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
         final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
         // HC GGA mode depends critically on EMIT_ALL_SITES being set for the UG engine // TODO -- why is this?
@@ -567,7 +556,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // initialize the output VCF header
         annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
-        Set<VCFHeaderLine> headerInfo = new HashSet<VCFHeaderLine>();
+        Set<VCFHeaderLine> headerInfo = new HashSet<>();
 
         // all annotation fields from VariantAnnotatorEngine
         headerInfo.addAll(annotationEngine.getVCFAnnotationDescriptions());
@@ -610,8 +599,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         // create and setup the assembler
-        final int maxAllowedPathsForReadThreadingAssembler = Math.max(maxPathsPerSample * nSamples, MIN_PATHS_PER_GRAPH);
-        assemblyEngine = new ReadThreadingAssembler(maxAllowedPathsForReadThreadingAssembler, kmerSizes, dontIncreaseKmerSizesForCycles, numPruningSamples);
+        assemblyEngine = new ReadThreadingAssembler(maxNumHaplotypesInPopulation, kmerSizes, dontIncreaseKmerSizesForCycles, numPruningSamples);
 
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
         assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);
