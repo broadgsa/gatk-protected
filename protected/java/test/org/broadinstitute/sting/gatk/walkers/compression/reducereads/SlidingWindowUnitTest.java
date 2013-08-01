@@ -619,6 +619,76 @@ public class SlidingWindowUnitTest extends BaseTest {
         Assert.assertEquals(result.size(), Math.min(dcov, basicReads.size()));
     }
 
+    @DataProvider(name = "DownsamplingFromClose")
+    public Object[][] createDownsamplingFromCloseTestData() {
+
+        final ObjectList<GATKSAMRecord> myReads = new ObjectArrayList<>(20);
+        for ( int i = 0; i < 21; i++ ) {
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "read" + i, 0, globalStartPosition, readLength);
+            final byte[] bases = Utils.dupBytes((byte) 'A', readLength);
+            if ( i < 5 )
+                bases[50] = 'C';
+            read.setReadBases(bases);
+            read.setBaseQualities(Utils.dupBytes((byte)30, readLength));
+            read.setMappingQuality(30);
+            read.setReadNegativeStrandFlag(false);
+            myReads.add(read);
+        }
+
+        List<Object[]> tests = new ArrayList<>();
+
+        for ( int i = 1; i < 25; i++ )
+            tests.add(new Object[]{myReads, i});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "DownsamplingFromClose", enabled = true)
+    public void testDownsamplingTestFromClose(final ObjectList<GATKSAMRecord> myReads, final int dcov) {
+
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 0.05, 20, 20, dcov, ReduceReads.DownsampleStrategy.Normal, false);
+        for ( final GATKSAMRecord read : myReads )
+            slidingWindow.addRead(read);
+        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close(new ObjectAVLTreeSet<GenomeLoc>()); // no het compression
+
+        Assert.assertEquals(result.getFirst().size(), Math.min(dcov, myReads.size()), "Down-sampling was not performed correctly");
+    }
+
+    @DataProvider(name = "NoDownsamplingForConsensusReads")
+    public Object[][] createNoDownsamplingForConsensusReadsData() {
+
+        final ObjectList<GATKSAMRecord> myReads = new ObjectArrayList<>(20);
+        for ( int i = 0; i < 30; i++ ) {
+            final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "read" + i, 0, globalStartPosition, readLength);
+            final byte[] bases = Utils.dupBytes((byte) 'A', readLength);
+            if ( i < 10 )
+                bases[50] = 'C';
+            read.setReadBases(bases);
+            read.setBaseQualities(Utils.dupBytes((byte)30, readLength));
+            read.setMappingQuality(30);
+            read.setReadNegativeStrandFlag(false);
+            read.setReadNegativeStrandFlag(i % 2 == 0);
+            myReads.add(read);
+        }
+
+        List<Object[]> tests = new ArrayList<>();
+
+        for ( int i = 0; i < 5; i++ )
+            tests.add(new Object[]{myReads, i});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "NoDownsamplingForConsensusReads", enabled = true)
+    public void testNoDownsamplingForConsensusReads(final ObjectList<GATKSAMRecord> myReads, final int dcov) {
+
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 0.05, 20, 20, dcov, ReduceReads.DownsampleStrategy.Normal, false);
+        for ( final GATKSAMRecord read : myReads )
+            slidingWindow.addRead(read);
+        Pair<ObjectSet<GATKSAMRecord>, CompressionStash> result = slidingWindow.close(null); // allow het compression (so we expect 4 reads)
+
+        Assert.assertEquals(result.getFirst().size(), 4, "Down-sampling was performed on consensus reads!");
+    }
 
     //////////////////////////////////////////////////////////////
     //// This section tests the consensus base quals accuracy ////
