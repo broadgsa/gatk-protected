@@ -63,7 +63,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
-        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.NONE, PCRFreeIntervals, "55faaae5617857e2b29848367999aa3e"});
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.NONE, PCRFreeIntervals, "3ce9c42e7e97a45a82315523dbd77fcf"});
         tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "e32b7fc4de29ed141dcafc0d789d5ed6"});
         tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "ecac86e8ef4856e6dfa306c436e9b545"});
         tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.NONE, WExIntervals, "7cb1e431119df00ec243a6a115fa74b8"});

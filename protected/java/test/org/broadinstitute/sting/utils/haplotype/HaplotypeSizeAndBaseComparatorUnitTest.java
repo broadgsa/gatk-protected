@@ -44,56 +44,39 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.haplotype;
 
-import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.Utils;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
-
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
-
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
-    }
-
+/**
+ * User: btaylor
+ * Date: 8/1/13
+ * Time: 11:09 AM
+ */
+public class HaplotypeSizeAndBaseComparatorUnitTest extends BaseTest {
     @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "88c10027c21712b1fe475c06cadd503c");
-    }
+    public void testComparison() {
+        // desired ordering is by size first, subordered by lexacographic relationship between bases
+        final List<String> rawStrings = Arrays.asList("A", "C", "AC", "CC", "CT", "AAT", "ACT", "GAT", "ACGT");
+        final List<String> lexStrings = new ArrayList<>(rawStrings);
 
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
-    }
+        for ( final List<String> seqs : Utils.makePermutations(lexStrings, lexStrings.size(), false) ) {
+            final List<Haplotype> haps = new ArrayList<>(seqs.size());
+            for ( final String seq : seqs ) {
+                haps.add(new Haplotype(seq.getBytes(), false));
+            }
 
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e746a38765298acd716194aee4d93554");
-    }
-
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "b787be740423b950f8529ccc838fabdd");
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "8e6a2002c59eafb78bdbf1db9660164b");
+            Collections.sort(haps, new HaplotypeSizeAndBaseComparator());
+            for ( int i = 0; i < lexStrings.size(); i++ )
+                Assert.assertEquals(haps.get(i).getBaseString(), lexStrings.get(i), "Failed sort " + haps + " expected " + lexStrings);
+        }
     }
 }
