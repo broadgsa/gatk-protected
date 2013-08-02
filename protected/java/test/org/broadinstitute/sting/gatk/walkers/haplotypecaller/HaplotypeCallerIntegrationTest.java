@@ -233,7 +233,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("58a0089e6ebf7cee414adb7a6002d43f"));
+                Arrays.asList("f3e636d64042e766cc6515987e85a968"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 

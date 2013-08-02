@@ -980,7 +980,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final List<Haplotype> trimmedHaplotypes = new ArrayList<>(haplotypeSet);
 
         // sort haplotypes to take full advantage of haplotype start offset optimizations in PairHMM
-        Collections.sort( trimmedHaplotypes, new HaplotypeBaseComparator() );
+        Collections.sort( trimmedHaplotypes, new HaplotypeSizeAndBaseComparator() );
 
         if ( DEBUG ) logger.info("Trimmed region to " + trimmedActiveRegion.getLocation() + " size " + trimmedActiveRegion.getLocation().size() + " reduced number of haplotypes from " + haplotypes.size() + " to only " + trimmedHaplotypes.size());
         if ( DEBUG ) {
