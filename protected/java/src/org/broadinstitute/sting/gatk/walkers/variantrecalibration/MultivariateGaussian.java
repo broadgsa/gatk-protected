@@ -77,7 +77,7 @@ public class MultivariateGaussian {
     public MultivariateGaussian( final int numAnnotations ) {
         mu = new double[numAnnotations];
         sigma = new Matrix(numAnnotations, numAnnotations);
-        pVarInGaussian = new ExpandingArrayList<Double>();
+        pVarInGaussian = new ExpandingArrayList<>();
     }
 
     public void zeroOutMu() {
