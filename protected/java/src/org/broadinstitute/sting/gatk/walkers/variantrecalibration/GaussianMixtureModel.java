@@ -77,7 +77,7 @@ public class GaussianMixtureModel {
     public GaussianMixtureModel( final int numGaussians, final int numAnnotations,
                                  final double shrinkage, final double dirichletParameter, final double priorCounts ) {
 
-        gaussians = new ArrayList<MultivariateGaussian>( numGaussians );
+        gaussians = new ArrayList<>( numGaussians );
         for( int iii = 0; iii < numGaussians; iii++ ) {
             final MultivariateGaussian gaussian = new MultivariateGaussian( numAnnotations );
             gaussians.add( gaussian );

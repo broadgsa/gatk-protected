@@ -215,6 +215,10 @@ public class VariantDataManager {
         trainingSets.add( trainingSet );
     }
 
+    public List<String> getAnnotationKeys() {
+        return annotationKeys;
+    }
+
     public boolean checkHasTrainingSet() {
         for( final TrainingSet trainingSet : trainingSets ) {
             if( trainingSet.isTraining ) { return true; }
