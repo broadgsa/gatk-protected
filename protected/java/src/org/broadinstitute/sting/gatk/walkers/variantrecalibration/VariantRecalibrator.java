@@ -326,25 +326,16 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         dataManager.normalizeData(); // Each data point is now (x - mean) / standard deviation
 
         // Generate the positive model using the training data and evaluate each variant
-        final GaussianMixtureModel goodModel = engine.generateModel( dataManager.getTrainingData() );
+        final GaussianMixtureModel goodModel = engine.generateModel( dataManager.getTrainingData(), VRAC.MAX_GAUSSIANS );
         engine.evaluateData( dataManager.getData(), goodModel, false );
 
         // Generate the negative model using the worst performing data and evaluate each variant contrastively
-        final ExpandingArrayList<VariantDatum> negativeTrainingData = dataManager.selectWorstVariants( VRAC.PERCENT_BAD_VARIANTS, VRAC.MIN_NUM_BAD_VARIANTS );
-        GaussianMixtureModel badModel = engine.generateModel( negativeTrainingData );
+        final ExpandingArrayList<VariantDatum> negativeTrainingData = dataManager.selectWorstVariants( VRAC.NUM_BAD_VARIANTS );
+        final GaussianMixtureModel badModel = engine.generateModel( negativeTrainingData, Math.min(VRAC.MAX_GAUSSIANS_FOR_NEGATIVE_MODEL, VRAC.MAX_GAUSSIANS));
         engine.evaluateData( dataManager.getData(), badModel, true );
 
-        // Detect if the negative model failed to converge because of too few points and/or too many Gaussians and try again
-        while( badModel.failedToConverge && VRAC.MAX_GAUSSIANS > 4 ) {
-            logger.info("Negative model failed to converge. Retrying...");
-            VRAC.MAX_GAUSSIANS--;
-            badModel = engine.generateModel( negativeTrainingData );
-            engine.evaluateData( dataManager.getData(), goodModel, false );
-            engine.evaluateData( dataManager.getData(), badModel, true );
-        }
-
         if( badModel.failedToConverge || goodModel.failedToConverge ) {
-            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider raising the number of variants used to train the negative model (via --percentBadVariants 0.05, for example) or lowering the maximum number of Gaussians to use in the model (via --maxGaussians 4, for example)");
+            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider raising the number of variants used to train the negative model (via --minNumBad, for example) or lowering the maximum number of Gaussians to use in the model (via --maxGaussians 4, for example)");
         }
 
         engine.calculateWorstPerformingAnnotation( dataManager.getData(), goodModel, badModel );
