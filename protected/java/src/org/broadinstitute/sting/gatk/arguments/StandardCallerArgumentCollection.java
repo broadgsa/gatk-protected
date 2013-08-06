@@ -173,7 +173,7 @@ public class StandardCallerArgumentCollection {
 
     /**
      *  This argument specifies a file with two columns "sample" and "contamination" specifying the contamination level for those samples.
-     *  Samples that do not appear in this file will be processed with CONTAMINATION_FRACTION
+     *  Samples that do not appear in this file will be processed with CONTAMINATION_FRACTION.
      **/
     @Advanced
     @Argument(fullName = "contamination_fraction_per_sample_file", shortName = "contaminationFile", doc = "Tab-separated File containing fraction of contamination in sequencing data (per sample) to aggressively remove. Format should be \"<SampleID><TAB><Contamination>\" (Contamination is double) per line; No header.", required = false)
