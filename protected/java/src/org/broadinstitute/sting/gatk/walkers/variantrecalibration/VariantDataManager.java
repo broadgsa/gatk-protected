@@ -241,13 +241,13 @@ public class VariantDataManager {
             }
         }
         logger.info( "Training with " + trainingData.size() + " variants after standard deviation thresholding." );
-        if( trainingData.size() < VRAC.MIN_NUM_BAD_VARIANTS ) {
+        if( trainingData.size() < VRAC.NUM_BAD_VARIANTS) {
             logger.warn( "WARNING: Training with very few variant sites! Please check the model reporting PDF to ensure the quality of the model is reliable." );
         }
         return trainingData;
     }
 
-    public ExpandingArrayList<VariantDatum> selectWorstVariants( double bottomPercentage, final int minimumNumber ) {
+    public ExpandingArrayList<VariantDatum> selectWorstVariants( final int minimumNumber ) {
         // The return value is the list of training variants
         final ExpandingArrayList<VariantDatum> trainingData = new ExpandingArrayList<>();
 
@@ -262,12 +262,9 @@ public class VariantDataManager {
 
         // Next sort the variants by the LOD coming from the positive model and add to the list the bottom X percent of variants
         Collections.sort( data, new VariantDatum.VariantDatumLODComparator() );
-        final int numToAdd = Math.max( minimumNumber - trainingData.size(), Math.round((float)bottomPercentage * data.size()) );
+        final int numToAdd = minimumNumber - trainingData.size();
         if( numToAdd > data.size() ) {
             throw new UserException.BadInput( "Error during negative model training. Minimum number of variants to use in training is larger than the whole call set. One can attempt to lower the --minNumBadVariants arugment but this is unsafe." );
-        } else if( numToAdd == minimumNumber - trainingData.size() ) {
-            logger.warn( "WARNING: Training with very few variant sites! Please check the model reporting PDF to ensure the quality of the model is reliable." );
-            bottomPercentage = ((float) numToAdd) / ((float) data.size());
         }
         int index = 0, numAdded = 0;
         while( numAdded < numToAdd && index < data.size() ) {
@@ -278,25 +275,31 @@ public class VariantDataManager {
                 numAdded++;
             }
         }
-        logger.info( "Additionally training with worst " + String.format("%.3f", (float) bottomPercentage * 100.0f) + "% of passing data --> " + (trainingData.size() - numBadSitesAdded) + " variants with LOD <= " + String.format("%.4f", data.get(index).lod) + "." );
+        logger.info( "Additionally training with worst " + numToAdd + "% of passing data --> " + (trainingData.size() - numBadSitesAdded) + " variants with LOD <= " + String.format("%.4f", data.get(index).lod) + "." );
         return trainingData;
     }
 
     public ExpandingArrayList<VariantDatum> getRandomDataForPlotting( int numToAdd ) {
         numToAdd = Math.min(numToAdd, data.size());
         final ExpandingArrayList<VariantDatum> returnData = new ExpandingArrayList<>();
+        // add numToAdd non-anti training sites to plot
         for( int iii = 0; iii < numToAdd; iii++) {
             final VariantDatum datum = data.get(GenomeAnalysisEngine.getRandomGenerator().nextInt(data.size()));
-            if( !datum.failingSTDThreshold ) {
+            if( ! datum.atAntiTrainingSite && !datum.failingSTDThreshold ) {
                 returnData.add(datum);
             }
         }
 
-        // Add an extra 5% of points from bad training set, since that set is small but interesting
-        for( int iii = 0; iii < Math.floor(0.05*numToAdd); iii++) {
-            final VariantDatum datum = data.get(GenomeAnalysisEngine.getRandomGenerator().nextInt(data.size()));
-            if( datum.atAntiTrainingSite && !datum.failingSTDThreshold ) { returnData.add(datum); }
-            else { iii--; }
+        final int MAX_ANTI_TRAINING_SITES = 10000;
+        int nAntiTrainingAdded = 0;
+        // Add all anti-training sites to visual
+        for( final VariantDatum datum : data ) {
+            if ( nAntiTrainingAdded > MAX_ANTI_TRAINING_SITES )
+                break;
+            else if ( datum.atAntiTrainingSite ) {
+                returnData.add(datum);
+                nAntiTrainingAdded++;
+            }
         }
 
         return returnData;
