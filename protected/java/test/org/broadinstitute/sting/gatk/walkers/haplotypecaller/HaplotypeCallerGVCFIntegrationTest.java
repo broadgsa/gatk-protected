@@ -85,4 +85,13 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
         executeTest(name, spec);
     }
+
+    @Test
+    public void testERCRegionWithNoCalledHaplotypes() {
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF",
+                b37KGReference, privateTestDir + "noCallRefModel.bam", "20:17000001-18000001");
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(""));
+        spec.disableShadowBCF();
+        executeTest("testERCRegionWithNoCalledHaplotypes", spec);
+    }
 }

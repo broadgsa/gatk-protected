@@ -791,9 +791,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if( DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
 
         if ( emitReferenceConfidence() ) {
-            return referenceConfidenceModel.calculateRefConfidence(assemblyResult.getRefHaplotype(),
-                    calledHaplotypes.getCalledHaplotypes(), assemblyResult.paddedReferenceLoc, assemblyResult.regionForGenotyping,
-                    stratifiedReadMap, calledHaplotypes.getCalls());
+            if ( calledHaplotypes.getCalls().isEmpty() ) {
+                // no called all of the potential haplotypes
+                return referenceModelForNoVariation(originalActiveRegion, false);
+            } else
+                return referenceConfidenceModel.calculateRefConfidence(assemblyResult.getRefHaplotype(),
+                        calledHaplotypes.getCalledHaplotypes(), assemblyResult.paddedReferenceLoc, assemblyResult.regionForGenotyping,
+                        stratifiedReadMap, calledHaplotypes.getCalls());
         } else {
             return calledHaplotypes.getCalls();
         }
