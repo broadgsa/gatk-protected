@@ -130,6 +130,7 @@ public class ArrayLoglessPairHMM extends PairHMM {
         nextMatchCacheArray = new double[paddedMaxReadLength];
         nextDeleteCacheArray = new double[paddedMaxReadLength];
         nextInsertCacheArray = new double [paddedMaxReadLength];
+
     }
 
 
@@ -163,59 +164,27 @@ public class ArrayLoglessPairHMM extends PairHMM {
             // note that we initialized the constants
             constantsAreInitialized = true;
 
-            // Pad the ends of the Match and Insert arrays with 0. Analogous to the first row in the Match, Insert matrices of N2MemoryPairHMM
-            grandparentMatchArray[readBases.length] = 0;
-            grandparentInsertArray[readBases.length] = 0;
-            parentMatchArray[readBases.length] = 0;
-            parentInsertArray[readBases.length] = 0;
-            currentMatchArray[readBases.length] = 0;
-            currentInsertArray[readBases.length] = 0;
-            matchCacheArray[readBases.length] = 0;
-            insertCacheArray[readBases.length] = 0;
-            nextMatchCacheArray[readBases.length] = 0;
-            nextInsertCacheArray[readBases.length] = 0;
+            // Read length may have changed, so we need to set zero-value padding at the appropriate position.
+            padMatchAndInsertArrays(readBases.length);
         }
-        // if we have not cached from prev haplotype, clear any info we may have accumulated in a previous HMM iteration
+
+        // if we have not cached from a previous haplotype, clear any info we may have accumulated in a previous HMM iteration
         if (hapStartIndex == 0) {
-            Arrays.fill(matchCacheArray, 0, readBases.length, 0);
-            Arrays.fill(deleteCacheArray, 0, readBases.length, 0);
-            Arrays.fill(insertCacheArray, 0, readBases.length, 0);
+            clearPreviouslyCachedInfo(readBases.length);
 
-            partialSum = 0;
-
-            // Padding value for the deletion arrays. Let's us have free deletions at the beginning
-            // Needs to be reset when starting a new read or when hap length changes (ie when hapStartIndex is 0)
-            final double initialValue = INITIAL_CONDITION / haplotypeBases.length;
-            // Pad the deletion arrays. Akin to padding the first row in the deletion matrix
-            parentDeleteArray[readBases.length] = initialValue;
-            grandparentDeleteArray[readBases.length] = initialValue;
-            currentDeleteArray[readBases.length] = initialValue;
-            deleteCacheArray[readBases.length] = initialValue;
-            nextDeleteCacheArray[readBases.length] = initialValue;
+            // Haplotype length may have changed, so we need to set initial-value padding at the appropriate position.
+            padDeleteArrays(haplotypeBases.length, readBases.length);
         }
-        // We build up our solution by looking at position [0] in the match, insert arrays. Need to set to 0 before we start.
-        grandparentMatchArray[0] = 0;
-        grandparentInsertArray[0] = 0;
-        parentMatchArray[0] = 0;
-        parentInsertArray[0] = 0;
-        currentMatchArray[0] = 0;
-        currentInsertArray[0] = 0;
 
-        // Array implementation. Start by initializing some array parameters
-        // Number of diagonals for a matrix  = rows + cols - 1;
-        final int maxDiagonals = readBases.length + haplotypeBases.length - hapStartIndex - 1;
-        // The array indices we want to fill will be between these values
-        int startFill;
-        int endFill;
-        // The position of the arrays to be updated
-        int arrayIndex;
-        // The coordinate in our priors and transition matrices corresponding to a given position in the read/haplotype alignment
-        int matrixRow;
-        int matrixCol;
-        // The final answer prior to log10 correction
-        double finalArraySumProbabilities = partialSum;
-        // This array will contain the partial sum to cache for the next haplotype
-        final int cacheSumIndex = nextHapStartIndex - hapStartIndex + readBases.length - 1;
+        // We build up our solution by looking at position [0] in the match, insert arrays. Need to set these to 0 before we start.
+        clearArraySolutionPosition();
+
+        // Some parameters to control behavior during the dynamic programming loop
+        final int maxDiagonals = readBases.length + haplotypeBases.length - hapStartIndex - 1;   // Number of diagonals for a matrix  = rows + cols - 1;
+        int startFill;                                                                           // The lower bound of the array indices we want to over-write
+        int endFill;                                                                             // The upper bound of the array indices we want to over-write
+        final int cacheSumIndex = nextHapStartIndex - hapStartIndex + readBases.length - 1;      // This array will contain the partial sum to cache for the next haplotype
+        double finalArraySumProbabilities = partialSum;                                          // The final answer prior to log10 correction
 
         // Perform dynamic programming using arrays, as if over diagonals of a hypothetical read/haplotype alignment matrix
         for (int i = 1; i <= maxDiagonals; i++) {
@@ -224,34 +193,11 @@ public class ArrayLoglessPairHMM extends PairHMM {
             endFill = Math.min(maxDiagonals - i + 1, readBases.length);
 
             // apply any previously cached array information
-            if (i <= readBases.length) {
-                // apply caching info necessary for calculating current DELETE array values
-                parentMatchArray[startFill] = matchCacheArray[startFill];
-                parentDeleteArray[startFill] = deleteCacheArray[startFill];
-                // apply caching info necessary for calculating current MATCH array values
-                grandparentMatchArray[startFill + 1] = matchCacheArray[startFill + 1];
-                grandparentDeleteArray[startFill + 1] = deleteCacheArray[startFill + 1];
-                grandparentInsertArray[startFill + 1] = insertCacheArray[startFill + 1];
-            }
+            if (i <= readBases.length)
+                applyPreviouslyCachedInfo(startFill);
 
-            // fill in the cells for our arrays
-            for (arrayIndex = startFill; arrayIndex < endFill; arrayIndex++) {
-
-                // translate the array position into a row, column in the priors and transition matrices
-                matrixRow = readBases.length - arrayIndex - 1;
-                matrixCol = i - matrixRow - 1 + hapStartIndex;
-
-                // update cell for each of our new arrays. Prior, transition matrices are padded +1 row,col
-                updateArrayCell(arrayIndex, prior[matrixRow+1][matrixCol+1], transition[matrixRow+1]);
-
-                // Set up caching for the next haplotype
-                // At the position of the final similar base between this haplotype and the next one, remember the mid-array values
-                if (matrixCol == nextHapStartIndex - 1) {
-                    nextMatchCacheArray[arrayIndex] = currentMatchArray[arrayIndex];
-                    nextDeleteCacheArray[arrayIndex] = currentDeleteArray[arrayIndex];
-                    nextInsertCacheArray[arrayIndex] = currentInsertArray[arrayIndex];
-                }
-            }
+            // fill in the cells for our current arrays
+            updateArrays(readBases.length, hapStartIndex, nextHapStartIndex, startFill, endFill, i);
 
             // final probability is the log10 sum of the last element in the Match and Insertion state arrays
             // this way we ignore all paths that ended in deletions! (huge)
@@ -265,27 +211,10 @@ public class ArrayLoglessPairHMM extends PairHMM {
             if (i == cacheSumIndex)
                 partialSum = finalArraySumProbabilities;
 
-            // rotate array references
-            double[] tempMatchArray = grandparentMatchArray;
-            double[] tempDeleteArray = grandparentDeleteArray;
-            double[] tempInsertArray = grandparentInsertArray;
-
-            grandparentMatchArray = parentMatchArray;
-            grandparentDeleteArray = parentDeleteArray;
-            grandparentInsertArray = parentInsertArray;
-
-            parentMatchArray = currentMatchArray;
-            parentDeleteArray = currentDeleteArray;
-            parentInsertArray = currentInsertArray;
-
-            currentMatchArray = tempMatchArray;
-            currentDeleteArray = tempDeleteArray;
-            currentInsertArray = tempInsertArray;
+            rotateArrayReferences();
         }
         // The cache arrays we wrote for this haplotype will be read for the next haplotype.
-        matchCacheArray = nextMatchCacheArray.clone();
-        deleteCacheArray = nextDeleteCacheArray.clone();
-        insertCacheArray = nextInsertCacheArray.clone();
+        rotateCacheArrays();
 
         //return result
         return Math.log10(finalArraySumProbabilities) - INITIAL_CONDITION_LOG10;
@@ -342,6 +271,136 @@ public class ArrayLoglessPairHMM extends PairHMM {
     }
 
     /**
+     * Pad the ends of the Match and Insert arrays with 0.
+     * Analogous to setting zeros in the first row in the Match, Insert matrices of N2MemoryPairHMM.
+     *
+     * @param padPosition Which index in the arrays we wish to pad
+     */
+    private void padMatchAndInsertArrays(final int padPosition) {
+        grandparentMatchArray[padPosition] = 0;
+        grandparentInsertArray[padPosition] = 0;
+        parentMatchArray[padPosition] = 0;
+        parentInsertArray[padPosition] = 0;
+        currentMatchArray[padPosition] = 0;
+        currentInsertArray[padPosition] = 0;
+        matchCacheArray[padPosition] = 0;
+        insertCacheArray[padPosition] = 0;
+        nextMatchCacheArray[padPosition] = 0;
+        nextInsertCacheArray[padPosition] = 0;
+    }
+
+    /**
+     * Pad the Delete arrays with an intial value. Let's us have free deletions at the beginning of the alignment.
+     * Analogous to padding the first row of the Delete matrix of N2MemoryPairHMM.
+     *
+     * @param haplotypeLength   The length of the present haplotype. Necessary for calculating initial padding value
+     * @param padPosition       Which index in the arrays we wish to pad
+     */
+    private void padDeleteArrays(final int haplotypeLength, final int padPosition) {
+        final double initialValue = INITIAL_CONDITION / haplotypeLength;
+
+        // Pad the deletion arrays. Akin to padding the first row in the deletion matrix
+        parentDeleteArray[padPosition] = initialValue;
+        grandparentDeleteArray[padPosition] = initialValue;
+        currentDeleteArray[padPosition] = initialValue;
+        deleteCacheArray[padPosition] = initialValue;
+        nextDeleteCacheArray[padPosition] = initialValue;
+    }
+
+    /**
+     * We build up our solution by looking at position [0] in the match, insert arrays. Need to set these to 0 before we start.
+     *
+     */
+    private void clearArraySolutionPosition() {
+        grandparentMatchArray[0] = 0;
+        grandparentInsertArray[0] = 0;
+        parentMatchArray[0] = 0;
+        parentInsertArray[0] = 0;
+        currentMatchArray[0] = 0;
+        currentInsertArray[0] = 0;
+    }
+
+    /**
+     * Clears cached information saved from the last haplotype,
+     * allowing us to start at the beginning of the present haplotype with intitial values of 0.
+     *
+     * @param fillLength How much of the cache arrays do we need to zero
+     */
+    private void clearPreviouslyCachedInfo(final int fillLength) {
+        Arrays.fill(matchCacheArray, 0, fillLength, 0);
+        Arrays.fill(deleteCacheArray, 0, fillLength, 0);
+        Arrays.fill(insertCacheArray, 0, fillLength, 0);
+
+        partialSum = 0;
+    }
+
+    /**
+     * Applies cached information saved from the last haplotype,
+     * allowing us to start in the middle of the present haplotype.
+     *
+     * @param indK the index in the arrays we wish to update with cached info
+     */
+    private void applyPreviouslyCachedInfo(int indK) {
+        // apply caching info necessary for calculating current DELETE array values
+        parentMatchArray[indK] = matchCacheArray[indK];
+        parentDeleteArray[indK] = deleteCacheArray[indK];
+
+        // apply caching info necessary for calculating current MATCH array values
+        grandparentMatchArray[indK + 1] = matchCacheArray[indK + 1];
+        grandparentDeleteArray[indK + 1] = deleteCacheArray[indK + 1];
+        grandparentInsertArray[indK + 1] = insertCacheArray[indK + 1];
+    }
+
+    /**
+     * Records the mid-process state of one location in the read/haplotype alignment.
+     * Writes new cache information for use with the next haplotype we see.
+     *
+     * @param indK the index in the cache arrays we wish to store information in
+     */
+    private void recordNewCacheInfo(int indK) {
+        nextMatchCacheArray[indK] = currentMatchArray[indK];
+        nextDeleteCacheArray[indK] = currentDeleteArray[indK];
+        nextInsertCacheArray[indK] = currentInsertArray[indK];
+    }
+
+    /**
+     * Update the HMM arrays for the current diagonal.
+     *
+     * @param readLength        The length of the read
+     * @param hapStartIndex     An offset that tells us if we are starting in the middle of the present haplotype
+     * @param nextHapStartIndex An offset that tells us which base in the NEXT haplotype we need to look at to record new caching info
+     * @param startFill         The lower bound of the array indices we want to over-write
+     * @param endFill           The upper bound of the array indices we want to over-write
+     * @param iii               The index indicating which diagonal of the read/haplotype alignment we are working on
+     */
+    private void updateArrays(final int readLength,
+                              final int hapStartIndex,
+                              final int nextHapStartIndex,
+                              final int startFill,
+                              final int endFill,
+                              final int iii) {
+
+        // The coordinate in our priors and transition matrices corresponding to a given position in the read/haplotype alignment
+        int matrixRow;
+        int matrixCol;
+
+        int arrayIndex;
+        for (arrayIndex = startFill; arrayIndex < endFill; arrayIndex++) {
+            // translate the array position into a row, column in the priors and transition matrices
+            matrixRow = readLength - arrayIndex - 1;
+            matrixCol = iii - matrixRow - 1 + hapStartIndex;
+
+            // update cell for each of our current arrays. Prior, transition matrices are padded +1 row,col
+            updateArrayCell(arrayIndex, prior[matrixRow+1][matrixCol+1], transition[matrixRow+1]);
+
+            // Set up caching for the next haplotype
+            // At the position of the final similar base between this haplotype and the next one, remember the mid-array values
+            if (matrixCol == nextHapStartIndex - 1)
+                recordNewCacheInfo(arrayIndex);
+        }
+    }
+
+    /**
      * Updates a cell in the HMM arrays
      *
      * @param indK             index in the arrays to update
@@ -356,4 +415,35 @@ public class ArrayLoglessPairHMM extends PairHMM {
         currentDeleteArray[indK] = parentMatchArray[indK] * transition[matchToDeletion] + parentDeleteArray[indK] * transition[deletionToDeletion];
     }
 
+    /**
+     * To prepare for the next diagonal in our loop, each array must be bumped to an older generation
+     *
+     */
+    private void rotateArrayReferences() {
+        double[] tempMatchArray = grandparentMatchArray;
+        double[] tempDeleteArray = grandparentDeleteArray;
+        double[] tempInsertArray = grandparentInsertArray;
+
+        grandparentMatchArray = parentMatchArray;
+        grandparentDeleteArray = parentDeleteArray;
+        grandparentInsertArray = parentInsertArray;
+
+        parentMatchArray = currentMatchArray;
+        parentDeleteArray = currentDeleteArray;
+        parentInsertArray = currentInsertArray;
+
+        currentMatchArray = tempMatchArray;
+        currentDeleteArray = tempDeleteArray;
+        currentInsertArray = tempInsertArray;
+    }
+
+    /**
+     * To prepare for the next haplotype, the caching info we wrote is copied into the cach-read arrays
+     *
+     */
+    private void rotateCacheArrays() {
+        matchCacheArray = nextMatchCacheArray.clone();
+        deleteCacheArray = nextDeleteCacheArray.clone();
+        insertCacheArray = nextInsertCacheArray.clone();
+    }
 }
