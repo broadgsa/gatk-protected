@@ -183,7 +183,7 @@ public class GenotypingEngine {
                 final List<String> priorityList = makePriorityList(eventsAtThisLoc);
 
                 // Merge the event to find a common reference representation
-                final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
+                final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false, false);
                 if( mergedVC == null ) { continue; }
 
                 if( eventsAtThisLoc.size() != mergedVC.getAlternateAlleles().size() ) {

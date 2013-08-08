@@ -61,6 +61,7 @@ import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
 import org.broadinstitute.variant.vcf.VCFHeaderLine;
@@ -81,10 +82,9 @@ import java.util.*;
  * Time: 12:52 PM
  */
 public class ReferenceConfidenceModel {
-    public final static String NON_REF_SYMBOLIC_ALLELE_NAME = "NON_REF";
-    public final static Allele NON_REF_SYMBOLIC_ALLELE = Allele.create("<"+NON_REF_SYMBOLIC_ALLELE_NAME+">", false); // represents any possible non-ref allele at this site
 
-    public final static String INDEL_INFORMATIVE_DEPTH = "CD";
+    //public final static String INDEL_INFORMATIVE_DEPTH = "CD"; // temporarily taking this extra genotype level information out for now
+    public final static String ALTERNATE_ALLELE_STRING = "ALT"; // arbitrary alternate allele
 
     private final GenomeLocParser genomeLocParser;
     private final Set<String> samples;
@@ -93,6 +93,8 @@ public class ReferenceConfidenceModel {
 
     private final static boolean WRITE_DEBUGGING_BAM = false;
     private final SAMFileWriter debuggingWriter;
+
+    private final static byte REF_MODEL_DELETION_QUAL = (byte) 30;
 
     /**
      * Create a new ReferenceConfidenceModel
@@ -124,6 +126,8 @@ public class ReferenceConfidenceModel {
         } else {
             debuggingWriter = null;
         }
+
+        initializeIndelPLCache();
     }
 
     /**
@@ -132,8 +136,9 @@ public class ReferenceConfidenceModel {
      */
     public Set<VCFHeaderLine> getVCFHeaderLines() {
         final Set<VCFHeaderLine> headerLines = new LinkedHashSet<>();
-        headerLines.add(new VCFSimpleHeaderLine("ALT", NON_REF_SYMBOLIC_ALLELE_NAME, "Represents any possible alternative allele at this location"));
-        headerLines.add(new VCFFormatHeaderLine(INDEL_INFORMATIVE_DEPTH, 1, VCFHeaderLineType.Integer, "Number of reads at locus that are informative about an indel of size <= " + indelInformativeDepthIndelSize));
+        // TODO - do we need a new kind of VCF Header subclass for specifying arbitrary alternate alleles?
+        headerLines.add(new VCFSimpleHeaderLine(ALTERNATE_ALLELE_STRING, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE_NAME, "Represents any possible alternative allele at this location"));
+        //headerLines.add(new VCFFormatHeaderLine(INDEL_INFORMATIVE_DEPTH, 1, VCFHeaderLineType.Integer, "Number of reads at locus that are informative about an indel of size <= " + indelInformativeDepthIndelSize));
         return headerLines;
     }
 
@@ -161,7 +166,7 @@ public class ReferenceConfidenceModel {
      * @param stratifiedReadMap a map from a single sample to its PerReadAlleleLikelihoodMap for each haplotype in calledHaplotypes
      * @param variantCalls calls made in this region.  The return result will contain any variant call in this list in the
      *                     correct order by genomic position, and any variant in this list will stop us emitting a ref confidence
-     *                     under any position is covers (for snps that 1 bp, but for deletion its the entire ref span)
+     *                     under any position it covers (for snps and insertions that is 1 bp, but for deletions its the entire ref span)
      * @return an ordered list of variant contexts that spans activeRegion.getLoc() and includes both reference confidence
      *         contexts as well as calls from variantCalls if any were provided
      */
@@ -181,7 +186,7 @@ public class ReferenceConfidenceModel {
         if ( refHaplotype.length() != activeRegion.getExtendedLoc().size() ) throw new IllegalArgumentException("refHaplotype " + refHaplotype.length() + " and activeRegion location size " + activeRegion.getLocation().size() + " are different");
 
         final GenomeLoc refSpan = activeRegion.getLocation();
-        final List<ReadBackedPileup> refPileups = getPileupsOverReference(refHaplotype, calledHaplotypes, paddedReferenceLoc, refSpan, stratifiedReadMap);
+        final List<ReadBackedPileup> refPileups = getPileupsOverReference(refHaplotype, calledHaplotypes, paddedReferenceLoc, activeRegion, refSpan, stratifiedReadMap);
         final byte[] ref = refHaplotype.getBases();
         final List<VariantContext> results = new ArrayList<>(refSpan.size());
         final String sampleName = stratifiedReadMap.keySet().iterator().next();
@@ -201,9 +206,10 @@ public class ReferenceConfidenceModel {
                 final int refOffset = offset + globalRefOffset;
                 final byte refBase = ref[refOffset];
                 final RefVsAnyResult homRefCalc = calcGenotypeLikelihoodsOfRefVsAny(pileup, refBase, (byte)6, null);
+                homRefCalc.capByHomRefLikelihood();
 
                 final Allele refAllele = Allele.create(refBase, true);
-                final List<Allele> refSiteAlleles = Arrays.asList(refAllele, NON_REF_SYMBOLIC_ALLELE);
+                final List<Allele> refSiteAlleles = Arrays.asList(refAllele, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
                 final VariantContextBuilder vcb = new VariantContextBuilder("HC", curPos.getContig(), curPos.getStart(), curPos.getStart(), refSiteAlleles);
                 final GenotypeBuilder gb = new GenotypeBuilder(sampleName, Arrays.asList(refAllele, refAllele));
                 gb.AD(homRefCalc.AD_Ref_Any);
@@ -224,7 +230,7 @@ public class ReferenceConfidenceModel {
 
                 gb.GQ((int) (-10 * leastConfidenceGLs.getLog10GQ(GenotypeType.HOM_REF)));
                 gb.PL(leastConfidenceGLs.getAsPLs());
-                gb.attribute(INDEL_INFORMATIVE_DEPTH, nIndelInformativeReads);
+                //gb.attribute(INDEL_INFORMATIVE_DEPTH, nIndelInformativeReads);
 
                 vcb.genotypes(gb.make());
                 results.add(vcb.make());
@@ -252,14 +258,21 @@ public class ReferenceConfidenceModel {
      * @return non-null GenotypeLikelihoods given N
      */
     protected final GenotypeLikelihoods getIndelPLs(final int nInformativeReads) {
-        // TODO -- optimization -- this could easily be optimized with some caching
-        final double homRef = 0.0;
-        final double het    = - LOG10_2 * nInformativeReads;
-        final double homVar = INDEL_ERROR_RATE * nInformativeReads;
-        return GenotypeLikelihoods.fromLog10Likelihoods(new double[]{homRef, het, homVar});
+        return indelPLCache[nInformativeReads > MAX_N_INDEL_INFORMATIVE_READS ? MAX_N_INDEL_INFORMATIVE_READS : nInformativeReads];
     }
-    private final static double LOG10_2 = Math.log10(2);
-    private final static double INDEL_ERROR_RATE = -4.5; // 10^-4.5 indel errors per bp
+
+    protected static final int MAX_N_INDEL_INFORMATIVE_READS = 40; // more than this is overkill because GQs are capped at 99 anyway
+    private static final GenotypeLikelihoods[] indelPLCache = new GenotypeLikelihoods[MAX_N_INDEL_INFORMATIVE_READS + 1];
+    private static final double INDEL_ERROR_RATE = -4.5; // 10^-4.5 indel errors per bp
+
+    private void initializeIndelPLCache() {
+        for( int nInformativeReads = 0; nInformativeReads <= MAX_N_INDEL_INFORMATIVE_READS; nInformativeReads++ ) {
+            final double homRef = 0.0;
+            final double het    = MathUtils.LOG_ONE_HALF * nInformativeReads;
+            final double homVar = INDEL_ERROR_RATE * nInformativeReads;
+            indelPLCache[nInformativeReads] = GenotypeLikelihoods.fromLog10Likelihoods(new double[]{homRef, het, homVar});
+        }
+    }
 
     /**
      * Calculate the genotype likelihoods for the sample in pileup for being hom-ref contrasted with being ref vs. alt
@@ -274,8 +287,8 @@ public class ReferenceConfidenceModel {
         final RefVsAnyResult result = new RefVsAnyResult();
 
         for( final PileupElement p : pileup ) {
-            final byte qual = p.getQual();
-            if( p.isDeletion() || qual > minBaseQual) {
+            final byte qual = (p.isDeletion() ? REF_MODEL_DELETION_QUAL : p.getQual());
+            if( p.isDeletion() || qual > minBaseQual ) {
                 int AA = 0; final int AB = 1; int BB = 2;
                 if( p.getBase() != refBase || p.isDeletion() || p.isBeforeDeletionStart() || p.isAfterDeletionEnd() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip() ) {
                     AA = 2;
@@ -302,20 +315,37 @@ public class ReferenceConfidenceModel {
     private List<ReadBackedPileup> getPileupsOverReference(final Haplotype refHaplotype,
                                                            final Collection<Haplotype> calledHaplotypes,
                                                            final GenomeLoc paddedReferenceLoc,
+                                                           final ActiveRegion activeRegion,
                                                            final GenomeLoc activeRegionSpan,
                                                            final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        final ReadDestination.ToList realignedReadsDest = new ReadDestination.ToList(header, "FOO");
-        final HaplotypeBAMWriter writer = HaplotypeBAMWriter.create(HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES, realignedReadsDest);
-        writer.setWriteHaplotypesAsWell(false); // don't write out reads for the haplotypes, as we only want the realigned reads themselves
-        writer.writeReadsAlignedToHaplotypes(calledHaplotypes.isEmpty() ? Collections.singleton(refHaplotype) : calledHaplotypes, paddedReferenceLoc, stratifiedReadMap);
-        final List<GATKSAMRecord> realignedReads = ReadUtils.sortReadsByCoordinate(realignedReadsDest.getReads());
+
+        if ( refHaplotype == null ) throw new IllegalArgumentException("refHaplotype cannot be null");
+        if ( calledHaplotypes == null ) throw new IllegalArgumentException("calledHaplotypes cannot be null");
+        if ( !calledHaplotypes.contains(refHaplotype)) throw new IllegalArgumentException("calledHaplotypes must contain the refHaplotype");
+        if ( paddedReferenceLoc == null ) throw new IllegalArgumentException("paddedReferenceLoc cannot be null");
+        if ( activeRegion == null ) throw new IllegalArgumentException("activeRegion cannot be null");
+        if ( stratifiedReadMap == null ) throw new IllegalArgumentException("stratifiedReadMap cannot be null");
+        if ( stratifiedReadMap.size() != 1 ) throw new IllegalArgumentException("stratifiedReadMap must contain exactly one sample but it contained " + stratifiedReadMap.size());
+
+        List<GATKSAMRecord> realignedReads;
+
+        if( calledHaplotypes.size() == 1 ) { // only contains ref haplotype so an optimization is to just trust the alignments to the reference haplotype as provided by the aligner
+            realignedReads = activeRegion.getReads();
+        } else {
+            final ReadDestination.ToList realignedReadsDest = new ReadDestination.ToList(header, "FOO");
+            final HaplotypeBAMWriter writer = HaplotypeBAMWriter.create(HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES, realignedReadsDest);
+            writer.setWriteHaplotypesAsWell(false); // don't write out reads for the haplotypes, as we only want the realigned reads themselves
+            writer.setOnlyRealignInformativeReads(true);
+            writer.writeReadsAlignedToHaplotypes(calledHaplotypes, paddedReferenceLoc, stratifiedReadMap);
+            realignedReads = ReadUtils.sortReadsByCoordinate(realignedReadsDest.getReads());
+        }
 
         if ( debuggingWriter != null )
             for ( final GATKSAMRecord read : realignedReads )
                 debuggingWriter.addAlignment(read);
 
         final LocusIteratorByState libs = new LocusIteratorByState(realignedReads.iterator(), LocusIteratorByState.NO_DOWNSAMPLING,
-                false, genomeLocParser, samples, false);
+                true, genomeLocParser, samples, false);
 
         final List<ReadBackedPileup> pileups = new LinkedList<>();
         final int startPos = activeRegionSpan.getStart();
@@ -378,7 +408,7 @@ public class ReferenceConfidenceModel {
             final byte refBase  = refBases[refStart + i];
             if ( readBase != refBase ) {
                 sum += readQuals[readStart + i];
-                if ( sum > maxSum )
+                if ( sum > maxSum ) // abort early
                     return sum;
             }
         }
@@ -403,7 +433,10 @@ public class ReferenceConfidenceModel {
                                                          final byte[] refBases,
                                                          final int refStart,
                                                          final int maxIndelSize) {
-        // todo -- fast exit when n bases left < maxIndelSize
+        // fast exit when n bases left < maxIndelSize
+        if( readBases.length - readStart < maxIndelSize || refBases.length - refStart < maxIndelSize ) {
+            return false;
+        }
 
         final int baselineMMSum = sumMismatchingQualities(readBases, readQuals, readStart, refBases, refStart, Integer.MAX_VALUE);
 
@@ -445,12 +478,16 @@ public class ReferenceConfidenceModel {
             final int offset = p.getOffset();
 
             // doesn't count as evidence
-            if ( p.isBeforeDeletionStart() || p.isBeforeInsertion() )
+            if ( p.isBeforeDeletionStart() || p.isBeforeInsertion() || p.isDeletion() )
                 continue;
 
             // todo -- this code really should handle CIGARs directly instead of relying on the above tests
-            if ( isReadInformativeAboutIndelsOfSize(read.getReadBases(), read.getBaseQualities(), offset, ref, pileupOffsetIntoRef, maxIndelSize))
+            if ( isReadInformativeAboutIndelsOfSize(read.getReadBases(), read.getBaseQualities(), offset, ref, pileupOffsetIntoRef, maxIndelSize) ) {
                 nInformative++;
+                if( nInformative > MAX_N_INDEL_INFORMATIVE_READS ) {
+                    return MAX_N_INDEL_INFORMATIVE_READS;
+                }
+            }
         }
         return nInformative;
     }

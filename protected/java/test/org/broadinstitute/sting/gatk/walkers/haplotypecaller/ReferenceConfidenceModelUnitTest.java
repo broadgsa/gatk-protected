@@ -99,7 +99,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
 
     @DataProvider(name = "CalcNIndelInformativeReadsData")
     public Object[][] makeMyDataProvider() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         { // very basic testing
             final String ref  = "ACGT";
@@ -187,7 +187,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
         Assert.assertEquals(prev.getAsPLs(), new int[]{0, 0, 0});
         Assert.assertEquals(-10 * prev.getLog10GQ(GenotypeType.HOM_REF), 0.0);
 
-        for ( int i = 1; i < 10000; i++ ) {
+        for ( int i = 1; i <= ReferenceConfidenceModel.MAX_N_INDEL_INFORMATIVE_READS; i++ ) {
             final GenotypeLikelihoods current = model.getIndelPLs(i);
             final double prevGQ = -10 * prev.getLog10GQ(GenotypeType.HOM_REF);
             final double currGQ = -10 * current.getLog10GQ(GenotypeType.HOM_REF);
@@ -379,7 +379,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                 Assert.assertEquals(refModel.getEnd(), loc.getStart() + i);
                 Assert.assertFalse(refModel.hasLog10PError());
                 Assert.assertEquals(refModel.getAlternateAlleles().size(), 1);
-                Assert.assertEquals(refModel.getAlternateAllele(0), ReferenceConfidenceModel.NON_REF_SYMBOLIC_ALLELE);
+                Assert.assertEquals(refModel.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
                 Assert.assertTrue(refModel.hasGenotype(sample));
 
                 final Genotype g = refModel.getGenotype(sample);
@@ -388,7 +388,6 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                 Assert.assertEquals(g.getDP(), expectedDP);
                 Assert.assertTrue(g.hasGQ());
                 Assert.assertTrue(g.hasPL());
-                Assert.assertTrue(g.hasExtendedAttribute(ReferenceConfidenceModel.INDEL_INFORMATIVE_DEPTH));
             }
 
             final VariantContext vc = call == null ? refModel : call;
