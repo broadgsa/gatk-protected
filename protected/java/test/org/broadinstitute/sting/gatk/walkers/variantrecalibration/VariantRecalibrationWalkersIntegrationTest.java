@@ -46,11 +46,19 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
 
+import org.apache.commons.collections.IteratorUtils;
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFCodec;
+import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 
 public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     private static class VRTest {
@@ -220,7 +228,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
         spec.disableShadowBCF(); // has to be disabled because the input VCF is missing LowQual annotation
-        executeTest("testApplyRecalibrationIndel-"+params.inVCF, spec);
+        executeTest("testApplyRecalibrationIndel-" + params.inVCF, spec);
     }
 
     @Test
@@ -237,6 +245,30 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile " + privateTestDir + "VQSR.mixedTest.recal",
                 Arrays.asList("20c23643a78c5b95abd1526fdab8960d"));
         executeTest("testApplyRecalibrationSnpAndIndelTogether", spec);
+    }
+
+    @Test(enabled = true)
+    public void testApplyRecalibrationSnpAndIndelTogetherExcludeFiltered() throws Exception {
+        final String base = "-R " + b37KGReference +
+                " -T ApplyRecalibration" +
+                " -L 20:1000100-1000500" +
+                " -mode BOTH" +
+                " --excludeFiltered -ts_filter_level 90.0" +
+                " --no_cmdline_in_header" +
+                " -input " + privateTestDir + "VQSR.mixedTest.input" +
+                " -o %s" +
+                " -tranchesFile " + privateTestDir + "VQSR.mixedTest.tranches" +
+                " -recalFile " + privateTestDir + "VQSR.mixedTest.recal";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(""));
+        spec.disableShadowBCF();
+        final File VCF = executeTest("testApplyRecalibrationSnpAndIndelTogether", spec).first.get(0);
+
+        for( final VariantContext VC : GATKVCFUtils.readAllVCs(VCF, new VCFCodec()).getSecond() ) {
+            if( VC != null ) {
+                Assert.assertTrue(VC.isNotFiltered()); // there should only be unfiltered records in the output VCF file
+            }
+        }
     }
 }
 
