@@ -81,6 +81,7 @@ import java.util.*;
  * <p>The Fisher Strand test may not be calculated for certain complex indel cases or for multi-allelic sites.</p>
  */
 public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+    private final static boolean ENABLE_DEBUGGING = false;
     private final static Logger logger = Logger.getLogger(FisherStrand.class);
 
     private static final String FS = "FS";
@@ -99,6 +100,8 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         if (vc.isSNP() && stratifiedContexts != null) {
             final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1);
             final int[][] tableFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), MIN_QUAL_FOR_FILTERED_TEST);
+            printTable("unfiltered", tableNoFiltering);
+            printTable("filtered", tableFiltering);
             return pValueForBestTable(tableFiltering, tableNoFiltering);
         }
         else if (stratifiedPerReadAlleleLikelihoodMap != null) {
@@ -201,6 +204,20 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
     private static void printTable(int[][] table, double pValue) {
         logger.info(String.format("%d %d; %d %d : %f", table[0][0], table[0][1], table[1][0], table[1][1], pValue));
+    }
+
+    /**
+     * Printing information to logger.info for debugging purposes
+     *
+     * @param name the name of the table
+     * @param table the table itself
+     */
+    private void printTable(final String name, final int[][] table) {
+        if ( ENABLE_DEBUGGING ) {
+            final String pValue = (String)annotationForOneTable(pValueForContingencyTable(table)).get(FS);
+            logger.info(String.format("FS %s (REF+, REF-, ALT+, ALT-) = (%d, %d, %d, %d) = %s",
+                    name, table[0][0], table[0][1], table[1][0], table[1][1], pValue));
+        }
     }
 
     private static boolean rotateTable(int[][] table) {

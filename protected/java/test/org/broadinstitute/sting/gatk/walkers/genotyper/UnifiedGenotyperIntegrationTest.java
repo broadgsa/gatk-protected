@@ -47,16 +47,22 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import net.sf.samtools.util.BlockCompressedInputStream;
+import org.apache.commons.collections.IteratorUtils;
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFCodec;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 // ********************************************************************************** //
 // Note that this class also serves as an integration test for the VariantAnnotator!  //
@@ -323,5 +329,59 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
         while ( reader.readLine() != null )
             nLines++;
         Assert.assertTrue(nLines > 0);
+    }
+
+    // --------------------------------------------------------------------------------------------------------------
+    //
+    // testing only emit samples
+    //
+    // --------------------------------------------------------------------------------------------------------------
+
+    @Test(enabled = true)
+    public void testOnlyEmitSample() throws Exception {
+        final String base = "-T UnifiedGenotyper -R " + b37KGReference + " -I "
+                + privateTestDir + "AFR.complex.variants.bam --disableDithering"
+                + " -o %s -L 20:10,000,000-10,100,000";
+        final WalkerTestSpec specAllSamples = new WalkerTestSpec(base, 1, Arrays.asList(""));
+        specAllSamples.disableShadowBCF();
+        final File allSamplesVCF = executeTest("testOnlyEmitSampleAllSamples", specAllSamples).first.get(0);
+        List<VariantContext> allSampleVCs = IteratorUtils.toList(GATKVCFUtils.readAllVCs(allSamplesVCF, new VCFCodec()).getSecond());
+
+        final WalkerTestSpec onlyHG01879 = new WalkerTestSpec(base + " -onlyEmitSamples HG01879", 1, Arrays.asList(""));
+        onlyHG01879.disableShadowBCF();
+        final File onlyHG01879VCF = executeTest("testOnlyEmitSample", onlyHG01879).first.get(0);
+        List<VariantContext> onlyHG01879VCs = IteratorUtils.toList(GATKVCFUtils.readAllVCs(onlyHG01879VCF, new VCFCodec()).getSecond());
+
+        Assert.assertEquals(allSampleVCs.size(), onlyHG01879VCs.size());
+        for ( int i = 0; i < allSampleVCs.size(); i++ ) {
+            final VariantContext allSampleVC = allSampleVCs.get(i);
+            final VariantContext onlyHG01879VC = onlyHG01879VCs.get(i);
+
+            if ( allSampleVC == null ) {
+                Assert.assertNull(onlyHG01879VC);
+            } else {
+                Assert.assertNotNull(onlyHG01879VC);
+
+                Assert.assertTrue(allSampleVC.getGenotypes().size() > 1, "All samples should have had more than 1 genotype, but didn't");
+                Assert.assertEquals(onlyHG01879VC.getGenotypes().size(), 1, "Should have found a single sample genotype, but didn't");
+                Assert.assertEquals(onlyHG01879VC.hasGenotype("HG01879"), true);
+
+                Assert.assertEquals(allSampleVC.getStart(), onlyHG01879VC.getStart());
+                Assert.assertEquals(allSampleVC.getChr(), onlyHG01879VC.getChr());
+                Assert.assertEquals(allSampleVC.getEnd(), onlyHG01879VC.getEnd());
+                Assert.assertEquals(allSampleVC.getFilters(), onlyHG01879VC.getFilters());
+                Assert.assertEquals(allSampleVC.getAlleles(), onlyHG01879VC.getAlleles());
+                Assert.assertEquals(allSampleVC.getAttributes(), onlyHG01879VC.getAttributes());
+                Assert.assertEquals(allSampleVC.getPhredScaledQual(), onlyHG01879VC.getPhredScaledQual());
+
+                final Genotype allG = allSampleVC.getGenotype("HG01879");
+                final Genotype onlyG = onlyHG01879VC.getGenotype("HG01879");
+                Assert.assertEquals(allG.getAD(), onlyG.getAD());
+                Assert.assertEquals(allG.getDP(), onlyG.getDP());
+                Assert.assertEquals(allG.getAlleles(), onlyG.getAlleles());
+                Assert.assertEquals(allG.getPL(), onlyG.getPL());
+                Assert.assertEquals(allG.toString(), onlyG.toString());
+            }
+        }
     }
 }

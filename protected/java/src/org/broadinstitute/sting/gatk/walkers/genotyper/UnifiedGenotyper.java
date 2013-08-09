@@ -183,6 +183,10 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
     @Output(doc="File to which variants should be written")
     protected VariantContextWriter writer = null;
 
+    @Advanced
+    @Argument(fullName = "onlyEmitSamples", shortName = "onlyEmitSamples", doc = "If provided, only these samples will be emitted into the VCF, regardless of which samples are present in the BAM file", required = false)
+    protected Set<String> onlyEmitSamples = Collections.emptySet();
+
     @Hidden
     @Argument(fullName = "debug_file", shortName = "debug_file", doc = "File to print all of the annotated and detailed debugging output", required = false)
     protected PrintStream verboseWriter = null;
@@ -288,9 +292,16 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
         // and perform any necessary initialization/validation steps
         annotationEngine.invokeAnnotationInitializationMethods(headerInfo);
 
-        writer.writeHeader(new VCFHeader(headerInfo, samples));
-
-
+        final Set<String> samplesForHeader;
+        if ( ! onlyEmitSamples.isEmpty() ) {
+            // make sure that onlyEmitSamples is a subset of samples
+            if ( ! samples.containsAll(onlyEmitSamples) )
+                throw new UserException.BadArgumentValue("onlyEmitSamples", "must be a strict subset of the samples in the BAM files but is wasn't");
+            samplesForHeader = onlyEmitSamples;
+        } else {
+            samplesForHeader = samples;
+        }
+        writer.writeHeader(new VCFHeader(headerInfo, samplesForHeader));
     }
 
     public static Set<VCFHeaderLine> getHeaderInfo(final UnifiedArgumentCollection UAC,
@@ -387,7 +398,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
                 try {
                     // we are actually making a call
                     sum.nCallsMade++;
-                    writer.add(call);
+                    writer.add(subsetToEmitSamples(call));
                 } catch (IllegalArgumentException e) {
                     throw new IllegalArgumentException(e.getMessage());
                 }
@@ -401,6 +412,19 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             sum.nBasesCalledConfidently++;
 
         return sum;
+    }
+
+    /**
+     * Subset the VariantContext down to just the emitting samples, if onlyEmitSamples has been provided
+     * @param fullVC the VariantContext containing calls for all samples in the BAM files
+     * @return a VariantContext that has been appropriately reduced to a subset of samples, if required
+     */
+    private VariantContext subsetToEmitSamples(final VariantContext fullVC) {
+        if ( onlyEmitSamples.isEmpty() ) {
+            return fullVC;
+        } else {
+            return GATKVariantContextUtils.trimAlleles(fullVC.subContextFromSamples(onlyEmitSamples, false), false, true);
+        }
     }
 
     public void onTraversalDone(UGStatistics sum) {
