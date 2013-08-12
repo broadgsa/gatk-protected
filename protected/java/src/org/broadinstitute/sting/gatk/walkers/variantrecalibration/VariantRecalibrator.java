@@ -335,7 +335,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         engine.evaluateData( dataManager.getData(), badModel, true );
 
         if( badModel.failedToConverge || goodModel.failedToConverge ) {
-            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider raising the number of variants used to train the negative model (via --minNumBad, for example) or lowering the maximum number of Gaussians to use in the model (via --maxGaussians 4, for example)");
+            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider " + (badModel.failedToConverge ? "raising the number of variants used to train the negative model (via --numBad 3000, for example)." : "lowering the maximum number of Gaussians allowed for use in the model (via --maxGaussians 4, for example).") );
         }
 
         engine.calculateWorstPerformingAnnotation( dataManager.getData(), goodModel, badModel );
