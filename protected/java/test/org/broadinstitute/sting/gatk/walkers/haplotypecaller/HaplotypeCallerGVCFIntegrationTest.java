@@ -79,7 +79,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
      */
     @Test(dataProvider = "MyDataProvider")
     public void testHCWithGVCF(String bam, HaplotypeCaller.ReferenceConfidenceMode mode, String intervals, String md5) {
-        final String commandLine = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s %s -ERC %s --no_cmdline_in_header",
+        final String commandLine = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s %s -ERC %s --no_cmdline_in_header",
                 b37KGReference, bam, intervals, mode);
         final String name = "testHCWithGVCF bam=" + bam + " intervals= " + intervals + " gvcf= " + mode;
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
@@ -88,7 +88,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
 
     @Test
     public void testERCRegionWithNoCalledHaplotypes() {
-        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF",
+        final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -R %s -I %s -L %s -ERC GVCF",
                 b37KGReference, privateTestDir + "noCallRefModel.bam", "20:17000001-18000001");
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(""));
         spec.disableShadowBCF();

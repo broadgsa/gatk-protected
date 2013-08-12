@@ -472,6 +472,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="paddingAroundSNPs", shortName="paddingAroundSNPs", doc = "Include at least this many bases around an event for calling snps", required=false)
     protected int PADDING_AROUND_SNPS_FOR_CALLING = 20;
 
+    /**
+     * Which PCR indel error model should we use when calculating likelihoods?  If NONE is selected, then the default base
+     * insertion/deletion qualities will be used (or taken from the read if generated through the BaseRecalibrator).
+     */
+    @Advanced
+    @Argument(fullName = "pcr_indel_model", shortName = "pcrModel", doc = "The PCR indel model to use", required = false)
+    public LikelihoodCalculationEngine.PCR_ERROR_MODEL pcrErrorModel = LikelihoodCalculationEngine.PCR_ERROR_MODEL.CONSERVATIVE;
+
     // -----------------------------------------------------------------------------------------------
     // done with Haplotype caller parameters
     // -----------------------------------------------------------------------------------------------
@@ -624,7 +632,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         // create our likelihood calculation engine
-        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM, log10GlobalReadMismappingRate, noFpga );
+        likelihoodCalculationEngine = new LikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
 
         final MergeVariantsAcrossHaplotypes variantMerger = mergeVariantsViaLD ? new LDMerger(DEBUG, 10, 1) : new MergeVariantsAcrossHaplotypes();
 

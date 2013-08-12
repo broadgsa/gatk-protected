@@ -54,8 +54,17 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.pairhmm.PairHMM;
+import org.broadinstitute.sting.utils.recalibration.covariates.RepeatCovariate;
+import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Unit tests for LikelihoodCalculationEngine
@@ -91,6 +100,45 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
                 {-4.9,  -15.4,  -33.8,   -997.9},
         };
         Assert.assertTrue(compareDoubleArrays(LikelihoodCalculationEngine.normalizeDiploidLikelihoodMatrixFromLog10(likelihoodMatrix2), normalizedMatrix2));
+    }
+
+    @DataProvider(name = "PcrErrorModelTestProvider")
+    public Object[][] createPcrErrorModelTestData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final String repeat : Arrays.asList("A", "AC", "ACG", "ACGT") ) {
+            for ( final int repeatLength : Arrays.asList(1, 2, 3, 5, 10, 15) ) {
+                tests.add(new Object[]{repeat, repeatLength});
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "PcrErrorModelTestProvider", enabled = true)
+    public void createPcrErrorModelTest(final String repeat, final int repeatLength) {
+
+        final LikelihoodCalculationEngine engine = new LikelihoodCalculationEngine((byte)0, false, PairHMM.HMM_IMPLEMENTATION.ORIGINAL, 0.0, true, LikelihoodCalculationEngine.PCR_ERROR_MODEL.CONSERVATIVE);
+
+        final String readString = Utils.dupString(repeat, repeatLength);
+        final byte[] insQuals = new byte[readString.length()];
+        final byte[] delQuals = new byte[readString.length()];
+        Arrays.fill(insQuals, (byte)LikelihoodCalculationEngine.INITIAL_QSCORE);
+        Arrays.fill(delQuals, (byte)LikelihoodCalculationEngine.INITIAL_QSCORE);
+
+        engine.applyPCRErrorModel(readString.getBytes(), insQuals, delQuals);
+
+        final RepeatCovariate repeatCovariate = new RepeatLengthCovariate();
+        repeatCovariate.initialize(LikelihoodCalculationEngine.MAX_STR_UNIT_LENGTH, LikelihoodCalculationEngine.MAX_REPEAT_LENGTH);
+
+        for ( int i = 1; i < insQuals.length; i++ ) {
+
+            final int repeatLengthFromCovariate = repeatCovariate.findTandemRepeatUnits(readString.getBytes(), i-1).getSecond();
+            final byte adjustedScore = LikelihoodCalculationEngine.getErrorModelAdjustedQual(repeatLengthFromCovariate, 3.0);
+
+            Assert.assertEquals(insQuals[i-1], adjustedScore);
+            Assert.assertEquals(delQuals[i-1], adjustedScore);
+        }
     }
 
     // BUGBUG: LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods has changed! Need to make new unit tests!
