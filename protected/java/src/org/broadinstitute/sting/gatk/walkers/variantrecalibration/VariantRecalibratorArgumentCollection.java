@@ -94,6 +94,6 @@ public class VariantRecalibratorArgumentCollection {
     public double DIRICHLET_PARAMETER = 0.001;
     @Argument(fullName="priorCounts", shortName="priorCounts", doc="The number of prior counts to use in the variational Bayes algorithm.", required=false)
     public double PRIOR_COUNTS = 20.0;
-    @Argument(fullName="numBadVariants", shortName="numBad", doc="The number of worst scoring variants to use when building the Gaussian mixture model of bad variants. Will override -percentBad argument if necessary.", required=false)
+    @Argument(fullName="numBadVariants", shortName="numBad", doc="The number of worst scoring variants to use when building the Gaussian mixture model of bad variants.", required=false)
     public int NUM_BAD_VARIANTS = 1000;
 }

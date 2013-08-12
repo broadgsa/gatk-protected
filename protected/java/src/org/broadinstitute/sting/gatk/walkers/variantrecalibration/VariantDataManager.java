@@ -264,7 +264,7 @@ public class VariantDataManager {
         Collections.sort( data, new VariantDatum.VariantDatumLODComparator() );
         final int numToAdd = minimumNumber - trainingData.size();
         if( numToAdd > data.size() ) {
-            throw new UserException.BadInput( "Error during negative model training. Minimum number of variants to use in training is larger than the whole call set. One can attempt to lower the --minNumBadVariants arugment but this is unsafe." );
+            throw new UserException.BadInput( "Error during negative model training. Minimum number of variants to use in training is larger than the whole call set. One can attempt to lower the --numBadVariants arugment but this is unsafe." );
         }
         int index = 0, numAdded = 0;
         while( numAdded < numToAdd && index < data.size() ) {
@@ -275,7 +275,7 @@ public class VariantDataManager {
                 numAdded++;
             }
         }
-        logger.info( "Additionally training with worst " + numToAdd + "% of passing data --> " + (trainingData.size() - numBadSitesAdded) + " variants with LOD <= " + String.format("%.4f", data.get(index).lod) + "." );
+        logger.info( "Additionally training with worst " + numToAdd + " scoring variants --> " + (trainingData.size() - numBadSitesAdded) + " variants with LOD <= " + String.format("%.4f", data.get(index).lod) + "." );
         return trainingData;
     }
 
