@@ -138,15 +138,17 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
     protected double TS_FILTER_LEVEL = 99.0;
     @Argument(fullName="ignore_filter", shortName="ignoreFilter", doc="If specified the variant recalibrator will use variants even if the specified filter name is marked in the input VCF file", required=false)
     private String[] IGNORE_INPUT_FILTERS = null;
+    @Argument(fullName="excludeFiltered", shortName="ef", doc="Don't output filtered loci after applying the recalibration", required=false)
+    protected boolean EXCLUDE_FILTERED = false;
     @Argument(fullName = "mode", shortName = "mode", doc = "Recalibration mode to employ: 1.) SNP for recalibrating only SNPs (emitting indels untouched in the output VCF); 2.) INDEL for indels; and 3.) BOTH for recalibrating both SNPs and indels simultaneously.", required = false)
     public VariantRecalibratorArgumentCollection.Mode MODE = VariantRecalibratorArgumentCollection.Mode.SNP;
 
     /////////////////////////////
     // Private Member Variables
     /////////////////////////////
-    final private List<Tranche> tranches = new ArrayList<Tranche>();
-    final private Set<String> inputNames = new HashSet<String>();
-    final private Set<String> ignoreInputFilterSet = new TreeSet<String>();
+    final private List<Tranche> tranches = new ArrayList<>();
+    final private Set<String> inputNames = new HashSet<>();
+    final private Set<String> ignoreInputFilterSet = new TreeSet<>();
 
     //---------------------------------------------------------------------------------------------------------------
     //
@@ -172,10 +174,10 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
         }
 
         // setup the header fields
-        final Set<VCFHeaderLine> hInfo = new HashSet<VCFHeaderLine>();
+        final Set<VCFHeaderLine> hInfo = new HashSet<>();
         hInfo.addAll(GATKVCFUtils.getHeaderFields(getToolkit(), inputNames));
         addVQSRStandardHeaderLines(hInfo);
-        final TreeSet<String> samples = new TreeSet<String>();
+        final TreeSet<String> samples = new TreeSet<>();
         samples.addAll(SampleUtils.getUniqueSamplesFromRods(getToolkit(), inputNames));
 
         if( tranches.size() >= 2 ) {
@@ -272,7 +274,10 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
                     builder.filters(filterString);
                 }
 
-                vcfWriter.add( builder.make() );
+                final VariantContext outputVC = builder.make();
+                if( !EXCLUDE_FILTERED || outputVC.isNotFiltered() ) {
+                    vcfWriter.add( outputVC );
+                }
             } else { // valid VC but not compatible with this mode, so just emit the variant untouched
                 vcfWriter.add( vc );
             }
