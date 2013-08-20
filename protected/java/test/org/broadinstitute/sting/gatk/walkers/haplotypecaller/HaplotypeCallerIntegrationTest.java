@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import net.sf.picard.reference.IndexedFastaSequenceFile;
-import org.broad.tribble.readers.AsciiLineReader;
+import org.broad.tribble.readers.LineIterator;
 import org.broad.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.utils.GenomeLoc;
@@ -190,9 +190,9 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         // confirm that the call is the correct one
         final VCFCodec codec = new VCFCodec();
         final FileInputStream s = new FileInputStream(outputVCF);
-        final AsciiLineReader lineReader = new AsciiLineReader(new PositionalBufferedStream(s));
-        codec.readHeader(lineReader);
-        final String line = lineReader.readLine();
+        final LineIterator lineIterator = codec.makeSourceFromStream(new PositionalBufferedStream(s));
+        codec.readHeader(lineIterator);
+        final String line = lineIterator.next();
         Assert.assertFalse(line == null);
         final VariantContext vc = codec.decode(line);
         Assert.assertTrue(vc.isBiallelic());

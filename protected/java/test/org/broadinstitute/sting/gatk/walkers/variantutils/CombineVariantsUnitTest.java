@@ -46,16 +46,20 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
-import org.broad.tribble.readers.AsciiLineReader;
 import org.broad.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.sting.utils.SampleUtils;
-import org.broadinstitute.variant.vcf.*;
+import org.broadinstitute.variant.vcf.VCFCodec;
+import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.variant.vcf.VCFUtils;
 import org.testng.Assert;
-
 import org.testng.annotations.Test;
 
 import java.io.StringBufferInputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * test out pieces of the combine variants code
@@ -154,7 +158,8 @@ public class CombineVariantsUnitTest {
 
     private VCFHeader createHeader(String headerStr) {
         VCFCodec codec = new VCFCodec();
-        VCFHeader head = (VCFHeader)codec.readHeader(new AsciiLineReader(new PositionalBufferedStream(new StringBufferInputStream(headerStr))));
+        VCFHeader head = null;
+        head = (VCFHeader) codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(headerStr))));
         return head;
     }
 
