@@ -61,14 +61,11 @@ import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.GenomeLocSortedSet;
 import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
+import org.broadinstitute.sting.utils.interval.IntervalUtils;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.text.XReadLines;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.List;
 
@@ -87,7 +84,7 @@ import java.util.List;
  *
  * <h3>Input</h3>
  * <p>
- *  A reference file
+ *  A reference file (for GC content), the input bam file (for base and mapping quality calculation), the missing intervals (in the -L), the baits/targets used to sequence (in the -targets) and a bed file with the coding sequence intervals of the genome (in the -cds)
  * </p>
  *
  * <h3>Output</h3>
@@ -100,6 +97,7 @@ import java.util.List;
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
  *   -T QualifyMissingIntervals \
  *   -R ref.fasta \
+ *   -I input.bam \
  *   -o output.grp \
  *   -L input.intervals \
  *   -cds cds.intervals \
@@ -114,10 +112,10 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
     protected PrintStream out;
 
     @Argument(shortName = "targets", required = true)
-    public File targetsFile;
+    public String targetsFile;
 
     @Argument(shortName = "cds", required = false)
-    public File cdsFile;
+    public String cdsFile = null;
 
     GATKReport simpleReport;
     GenomeLocSortedSet target;
@@ -128,12 +126,14 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
     }
 
     public void initialize() {
-        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "IN", "GC", "BQ", "MQ", "TP", "CD", "LN");
+        // if cds file is not provided, just use the targets file (no harm done)
+        if (cdsFile == null)
+            cdsFile = targetsFile;
+
+        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "IN", "GC", "BQ", "MQ", "DP", "TP", "CD", "LN");
         final GenomeLocParser parser = getToolkit().getGenomeLocParser();
-        target = new GenomeLocSortedSet(parser);
-        cds = new GenomeLocSortedSet(parser);
-        parseFile(targetsFile, target, parser);
-        parseFile(cdsFile, cds, parser);
+        target = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, targetsFile));
+        cds = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, cdsFile));
     }
 
     public Metrics reduceInit() {
@@ -154,7 +154,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
             baseQual += qual;
         }
         double mapQual = 0.0;
-        for (byte qual : pileup.getMappingQuals()) {
+        for (int qual : pileup.getMappingQuals()) {
             mapQual += qual;
         }
 
@@ -181,6 +181,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
                     metrics.gccontent(),
                     metrics.baseQual(),
                     metrics.mapQual(),
+                    metrics.depth(),
                     getPositionInTarget(interval),
                     cds.overlaps(interval),
                     interval.size()
@@ -188,31 +189,6 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         }
         simpleReport.print(out);
         out.close();
-    }
-
-    private static GenomeLoc parseInterval(String s, GenomeLocParser parser) {
-        if (s.isEmpty()) {
-            return null;
-        }
-        String[] first = s.split(":");
-        if (first.length == 2) {
-            String[] second = first[1].split("\\-");
-            return parser.createGenomeLoc(first[0], Integer.decode(second[0]), Integer.decode(second[1]));
-        } else {
-            throw new UserException.BadInput("Interval doesn't parse correctly: " + s);
-        }
-    }
-
-    private void parseFile(File file, GenomeLocSortedSet set, GenomeLocParser parser) {
-        try {
-            for (String s : new XReadLines(file) ) {
-                GenomeLoc interval = parseInterval(s, parser);
-                if (interval != null)
-                    set.add(interval, true);
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
     }
 
     private int getPositionInTarget(GenomeLoc interval) {

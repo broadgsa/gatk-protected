@@ -97,15 +97,15 @@ public class HeaderElementUnitTest extends BaseTest {
         HeaderElement headerElement = new HeaderElement(1000, 0);
 
         // first test that if we add and then remove it, we have no data
-        headerElement.addBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+        headerElement.addBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip, false);
         headerElement.addInsertionToTheRight();
-        headerElement.removeBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+        headerElement.removeBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip, false);
         headerElement.removeInsertionToTheRight();
         testHeaderIsEmpty(headerElement);
 
         // now, test that the data was added as expected
         for ( int i = 0; i < 10; i++ )
-            headerElement.addBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip);
+            headerElement.addBase(test.base, test.baseQual, test.insQual, test.delQual, test.MQ, minBaseQual, minMappingQual, test.isClip, false);
         testHeaderData(headerElement, test);
 
         // test the insertion adding functionality
@@ -115,8 +115,8 @@ public class HeaderElementUnitTest extends BaseTest {
     }
 
     private void testHeaderIsEmpty(final HeaderElement headerElement) {
-        Assert.assertFalse(headerElement.hasConsensusData());
-        Assert.assertFalse(headerElement.hasFilteredData());
+        Assert.assertFalse(headerElement.hasConsensusData(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS));
+        Assert.assertFalse(headerElement.hasConsensusData(SlidingWindow.ConsensusType.FILTERED));
         Assert.assertFalse(headerElement.hasInsertionToTheRight());
         Assert.assertTrue(headerElement.isEmpty());
     }
@@ -125,9 +125,9 @@ public class HeaderElementUnitTest extends BaseTest {
         Assert.assertEquals(headerElement.isVariantFromSoftClips(), test.isClip);
         Assert.assertFalse(headerElement.isEmpty());
         Assert.assertFalse(headerElement.hasInsertionToTheRight());
-        Assert.assertEquals(headerElement.hasConsensusData(), test.MQ >= minMappingQual);
-        Assert.assertEquals(headerElement.hasFilteredData(), test.MQ < minMappingQual);
-        Assert.assertEquals(headerElement.hasConsensusData() ? headerElement.getConsensusBaseCounts().getRMS() :  headerElement.getFilteredBaseCounts().getRMS(), (double)test.MQ);
+        Assert.assertEquals(headerElement.hasConsensusData(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS), test.MQ >= minMappingQual);
+        Assert.assertEquals(headerElement.hasConsensusData(SlidingWindow.ConsensusType.FILTERED), test.MQ < minMappingQual);
+        Assert.assertEquals(headerElement.getBaseCounts(headerElement.hasConsensusData(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS) ? SlidingWindow.ConsensusType.POSITIVE_CONSENSUS : SlidingWindow.ConsensusType.FILTERED).getRMS(), (double)test.MQ);
         Assert.assertFalse(headerElement.isVariantFromMismatches(0.05, 0.05));
         Assert.assertEquals(headerElement.isVariant(0.05, 0.05, 0.05), test.isClip);
     }
@@ -145,7 +145,7 @@ public class HeaderElementUnitTest extends BaseTest {
 
     @DataProvider(name = "alleles")
     public Object[][] createAllelesData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         final int[] counts = new int[]{ 0, 5, 10, 15, 20 };
         final double [] pvalues = new double[]{ 0.0, 0.01, 0.05, 0.20, 1.0 };
@@ -174,7 +174,7 @@ public class HeaderElementUnitTest extends BaseTest {
         for ( int i = 0; i < test.counts.length; i++ ) {
             final BaseIndex base = BaseIndex.values()[i];
             for ( int j = 0; j < test.counts[i]; j++ )
-                headerElement.addBase(base.b, byte20, byte10, byte10, byte20, minBaseQual, minMappingQual, false);
+                headerElement.addBase(base.b, byte20, byte10, byte10, byte20, minBaseQual, minMappingQual, false, false);
         }
 
         final int nAllelesSeen = headerElement.getNumberOfBaseAlleles(test.pvalue, test.pvalue);

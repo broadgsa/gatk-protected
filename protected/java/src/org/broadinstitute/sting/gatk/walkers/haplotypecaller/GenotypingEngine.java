@@ -56,6 +56,7 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.collections.DefaultHashMap;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.EventMap;
@@ -166,6 +167,8 @@ public class GenotypingEngine {
         // Walk along each position in the key set and create each event to be outputted
         final Set<Haplotype> calledHaplotypes = new HashSet<>();
         final List<VariantContext> returnCalls = new ArrayList<>();
+        final Map<String, Double> emptyDownSamplingMap = new DefaultHashMap<>(0.0);
+
         for( final int loc : startPosKeySet ) {
             if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) { // genotyping an event inside this active region
                 final List<VariantContext> eventsAtThisLoc = getVCsAtThisLocation(haplotypes, loc, activeAllelesToGenotype);
@@ -197,13 +200,13 @@ public class GenotypingEngine {
                     logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
                 }
 
-                final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, UG_engine.getUAC().CONTAMINATION_FRACTION );
+                final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, UG_engine.getUAC().getSampleContamination() );
 
                 final GenotypesContext genotypes = calculateGLsForThisEvent( alleleReadMap, mergedVC );
                 final VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), mergedVC.isSNP() ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL);
                 if( call != null ) {
                     final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
-                            convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, 0.0 ) );
+                            convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, emptyDownSamplingMap ) );
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
 
                     VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(tracker, stratifiedReadMap, call);
@@ -406,7 +409,7 @@ public class GenotypingEngine {
     // BUGBUG: ugh, too complicated
     protected Map<String, PerReadAlleleLikelihoodMap> convertHaplotypeReadMapToAlleleReadMap( final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
                                                                                               final Map<Allele, List<Haplotype>> alleleMapper,
-                                                                                              final double downsamplingFraction ) {
+                                                                                              final Map<String,Double> perSampleDownsamplingFraction ) {
 
         final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = new LinkedHashMap<>();
         for( final Map.Entry<String, PerReadAlleleLikelihoodMap> haplotypeReadMapEntry : haplotypeReadMap.entrySet() ) { // for each sample
@@ -423,7 +426,7 @@ public class GenotypingEngine {
                     perReadAlleleLikelihoodMap.add(readEntry.getKey(), alleleMapperEntry.getKey(), maxLikelihood);
                 }
             }
-            perReadAlleleLikelihoodMap.performPerAlleleDownsampling(downsamplingFraction); // perform contamination downsampling
+            perReadAlleleLikelihoodMap.performPerAlleleDownsampling(perSampleDownsamplingFraction.get(haplotypeReadMapEntry.getKey())); // perform contamination downsampling
             alleleReadMap.put(haplotypeReadMapEntry.getKey(), perReadAlleleLikelihoodMap);
         }
 

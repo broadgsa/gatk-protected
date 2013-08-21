@@ -44,81 +44,118 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.gvcf;
 
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-/**
- * Created with IntelliJ IDEA.
- * User: rpoplin
- * Date: 2/8/13
- */
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-public class DeBruijnAssemblyGraphUnitTest {
-    private class GetReferenceBytesTestProvider extends BaseTest.TestDataProvider {
-        public byte[] refSequence;
-        public byte[] altSequence;
-        public int KMER_LENGTH;
+public class HomRefBlockUnitTest extends BaseTest {
+    VariantContext vc;
 
-        public GetReferenceBytesTestProvider(String ref, String alt, int kmer) {
-            super(GetReferenceBytesTestProvider.class, String.format("Testing reference bytes. kmer = %d, ref = %s, alt = %s", kmer, ref, alt));
-            refSequence = ref.getBytes();
-            altSequence = alt.getBytes();
-            KMER_LENGTH = kmer;
-        }
+    @BeforeMethod
+    public void setUp() throws Exception {
+        vc = new VariantContextBuilder("foo", "20", 1, 1, Arrays.asList(Allele.create("A", true), Allele.create("C"))).make();
+    }
 
-        public byte[] expectedReferenceBytes() {
-            return refSequence;
-        }
+    @Test
+    public void testBasicConstruction() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        Assert.assertSame(band.getStartingVC(), vc);
+        Assert.assertEquals(band.getRef(), vc.getReference());
+        Assert.assertEquals(band.getGQLowerBound(), 10);
+        Assert.assertEquals(band.getGQUpperBound(), 20);
+        Assert.assertEquals(band.withinBounds(1), false);
+        Assert.assertEquals(band.withinBounds(10), true);
+        Assert.assertEquals(band.withinBounds(11), true);
+        Assert.assertEquals(band.withinBounds(20), false);
+        Assert.assertEquals(band.withinBounds(21), false);
+    }
 
-        public byte[] calculatedReferenceBytes() {
-            DeBruijnGraph graph = new DeBruijnGraph();
-            graph.addSequenceToGraph(refSequence, KMER_LENGTH, true);
-            if( altSequence.length > 0 ) {
-                graph.addSequenceToGraph(altSequence, KMER_LENGTH, false);
+    @Test
+    public void testMinMedian() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        int pos = vc.getStart();
+        band.add(pos++, gb.DP(10).GQ(11).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 10, 11, 11);
+
+        band.add(pos++, gb.DP(11).GQ(10).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 11, 10, 11);
+
+        band.add(pos++, gb.DP(12).GQ(12).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 11, 10, 11);
+
+        band.add(pos++, gb.DP(13).GQ(15).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(14).GQ(16).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(15).GQ(17).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        band.add(pos++, gb.DP(16).GQ(18).make());
+        Assert.assertEquals(band.getStop(), pos - 1);
+        assertValues(band, 10, 13, 10, 15);
+        Assert.assertEquals(band.getSize(), pos - vc.getStart());
+    }
+
+    @Test
+    public void testBigGQIsCapped() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        band.add(vc.getStart(), gb.DP(1000).GQ(1000).make());
+        assertValues(band, 1000, 1000, 99, 99);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testBadAdd() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+
+        band.add(vc.getStart() + 10, gb.DP(10).GQ(11).make());
+    }
+
+    private void assertValues(final HomRefBlock band, final int minDP, final int medianDP, final int minGQ, final int medianGQ) {
+        Assert.assertEquals(band.getMinDP(), minDP);
+        Assert.assertEquals(band.getMedianDP(), medianDP);
+        Assert.assertEquals(band.getMinGQ(), minGQ);
+        Assert.assertEquals(band.getMedianGQ(), medianGQ);
+    }
+
+
+    @DataProvider(name = "ContiguousData")
+    public Object[][] makeContiguousData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final String chrMod : Arrays.asList("", ".mismatch") ) {
+            for ( final int offset : Arrays.asList(-10, -1, 0, 1, 10) ) {
+                final boolean equals = chrMod.equals("") && offset == 0;
+                tests.add(new Object[]{vc.getChr() + chrMod, vc.getStart() + offset, equals});
             }
-            return graph.getReferenceBytes(graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex(), true, true);
         }
+
+        return tests.toArray(new Object[][]{});
     }
 
-    @DataProvider(name = "GetReferenceBytesTestProvider")
-    public Object[][] GetReferenceBytesTests() {
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "", 76);
-
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "GGTTAACC", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", 76);
-
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 3);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 4);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 5);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("GGTTAACC", "AAAAAAAAAAAAA", 7);
-        new GetReferenceBytesTestProvider("GGTTAACCATGCAGACGGGAGGCTGAGCGAGAGTTTT", "AAAAAAAAAAAAA", 6);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 66);
-        new GetReferenceBytesTestProvider("AATACCATTGGAGTTTTTTTCCAGGTTAAGATGGTGCATTGAATCCACCCATCTACTTTTGCTCCTCCCAAAACTCACTAAAACTATTATAAAGGGATTTTGTTTAAAGACACAAACTCATGAGGACAGAGAGAACAGAGTAGACAATAGTGGGGGAAAAATAAGTTGGAAGATAGAAAACAGATGGGTGAGTGGTAATCGACTCAGCAGCCCCAAGAAAGCTGAAACCCAGGGAAAGTTAAGAGTAGCCCTATTTTCATGGCAAAATCCAAGGGGGGGTGGGGAAAGAAAGAAAAACAGAAAAAAAAATGGGAATTGGCAGTCCTAGATATCTCTGGTACTGGGCAAGCCAAAGAATCAGGATAACTGGGTGAAAGGTGATTGGGAAGCAGTTAAAATCTTAGTTCCCCTCTTCCACTCTCCGAGCAGCAGGTTTCTCTCTCTCATCAGGCAGAGGGCTGGAGAT", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 76);
-
-        return GetReferenceBytesTestProvider.getTests(GetReferenceBytesTestProvider.class);
-    }
-
-    @Test(dataProvider = "GetReferenceBytesTestProvider", enabled = true)
-    public void testGetReferenceBytes(GetReferenceBytesTestProvider cfg) {
-        Assert.assertEquals(cfg.calculatedReferenceBytes(), cfg.expectedReferenceBytes(), "Reference sequences do not match");
+    @Test(dataProvider = "ContiguousData")
+    public void testIsContiguous(final String contig, final int pos, final boolean expected) {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20);
+        final VariantContext testVC = new VariantContextBuilder(vc).chr(contig).start(pos).stop(pos).make();
+        Assert.assertEquals(band.isContiguous(testVC), expected);
     }
 }

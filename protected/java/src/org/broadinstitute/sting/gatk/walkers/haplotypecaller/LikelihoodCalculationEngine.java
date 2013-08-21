@@ -60,7 +60,11 @@ import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.haplotype.HaplotypeScoreComparator;
 import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
 import org.broadinstitute.sting.utils.pairhmm.LoglessPairHMM;
+import org.broadinstitute.sting.utils.pairhmm.CnyPairHMM;
+import org.broadinstitute.sting.utils.pairhmm.BatchPairHMM;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
+import org.broadinstitute.sting.utils.recalibration.covariates.RepeatCovariate;
+import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
@@ -74,11 +78,14 @@ import java.util.*;
 public class LikelihoodCalculationEngine {
     private final static Logger logger = Logger.getLogger(LikelihoodCalculationEngine.class);
 
+    private static final byte BASE_QUALITY_SCORE_THRESHOLD = (byte) 18; // Base quals less than this value are squashed down to min possible qual
+
     private final byte constantGCP;
     private final double log10globalReadMismappingRate;
     private final boolean DEBUG;
 
     private final PairHMM.HMM_IMPLEMENTATION hmmType;
+    private final boolean noFpga;
 
     private final ThreadLocal<PairHMM> pairHMM = new ThreadLocal<PairHMM>() {
         @Override
@@ -86,7 +93,11 @@ public class LikelihoodCalculationEngine {
             switch (hmmType) {
                 case EXACT: return new Log10PairHMM(true);
                 case ORIGINAL: return new Log10PairHMM(false);
-                case LOGLESS_CACHING: return new LoglessPairHMM();
+                case LOGLESS_CACHING:
+                    if (noFpga || !CnyPairHMM.isAvailable())
+                        return new LoglessPairHMM();
+                    else
+                        return new CnyPairHMM();
                 default:
                     throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, and LOGLESS_CACHING.");
             }
@@ -96,6 +107,17 @@ public class LikelihoodCalculationEngine {
     private final static boolean WRITE_LIKELIHOODS_TO_FILE = false;
     private final static String LIKELIHOODS_FILENAME = "likelihoods.txt";
     private final PrintStream likelihoodsStream;
+
+    public enum PCR_ERROR_MODEL {
+        /** no specialized PCR error model will be applied; if base insertion/deletion qualities are present they will be used */
+        NONE,
+        /** a more aggressive model will be applied that sacrifices true positives in order to remove more false positives */
+        AGGRESSIVE,
+        /** a less aggressive model will be applied that tries to maintain a high true positive rate at the expense of allowing more false positives */
+        CONSERVATIVE
+    }
+
+    private final PCR_ERROR_MODEL pcrErrorModel;
 
     /**
      * The expected rate of random sequencing errors for a read originating from its true haplotype.
@@ -118,12 +140,17 @@ public class LikelihoodCalculationEngine {
      *                                      haplotype is at -10 and this parameter has a value of -3 then even if the
      *                                      reference haplotype gets a score of -100 from the pairhmm it will be
      *                                      assigned a likelihood of -13.
+     * @param noFpga disable FPGA acceleration
      */
-    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType, final double log10globalReadMismappingRate ) {
+    public LikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType, final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
         this.hmmType = hmmType;
         this.constantGCP = constantGCP;
         this.DEBUG = debug;
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
+        this.noFpga = noFpga;
+        this.pcrErrorModel = pcrErrorModel;
+
+        initializePCRErrorModel();
 
         if ( WRITE_LIKELIHOODS_TO_FILE ) {
             try {
@@ -136,15 +163,9 @@ public class LikelihoodCalculationEngine {
         }
     }
 
-    public LikelihoodCalculationEngine() {
-        this((byte)10, false, PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3);
-    }
-
     public void close() {
         if ( likelihoodsStream != null ) likelihoodsStream.close();
     }
-
-
 
     /**
      * Initialize our pairHMM with parameters appropriate to the haplotypes and reads we're going to evaluate
@@ -183,11 +204,7 @@ public class LikelihoodCalculationEngine {
             // evaluate the likelihood of the reads given those haplotypes
             final PerReadAlleleLikelihoodMap map = computeReadLikelihoods(haplotypes, sampleEntry.getValue());
 
-            final List<GATKSAMRecord> removedReads = map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
-//            logger.info("Removed " + removedReads.size() + " reads because of bad likelihoods from sample " + sampleEntry.getKey());
-//            for ( final GATKSAMRecord read : removedReads )
-//                logger.info("\tRemoved " + read.getReadName());
-
+            map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
             stratifiedReadMap.put(sampleEntry.getKey(), map);
         }
 
@@ -196,6 +213,8 @@ public class LikelihoodCalculationEngine {
 
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final List<Haplotype> haplotypes, final List<GATKSAMRecord> reads) {
         // first, a little set up to get copies of the Haplotypes that are Alleles (more efficient than creating them each time)
+        final BatchPairHMM batchPairHMM = (pairHMM.get() instanceof BatchPairHMM) ? (BatchPairHMM)pairHMM.get() : null;
+        final Vector<GATKSAMRecord> batchedReads = new Vector<GATKSAMRecord>(reads.size());
         final int numHaplotypes = haplotypes.size();
         final Map<Haplotype, Allele> alleleVersions = new LinkedHashMap<>(numHaplotypes);
         Allele refAllele = null;
@@ -207,18 +226,29 @@ public class LikelihoodCalculationEngine {
 
         final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
         for( final GATKSAMRecord read : reads ) {
+
+            final byte[] readBases = read.getReadBases();
             final byte[] overallGCP = new byte[read.getReadLength()];
             Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
+
             // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
             final byte[] readQuals = read.getBaseQualities().clone();
-            final byte[] readInsQuals = read.getBaseInsertionQualities();
-            final byte[] readDelQuals = read.getBaseDeletionQualities();
+            final byte[] readInsQuals = read.getBaseInsertionQualities().clone();
+            final byte[] readDelQuals = read.getBaseDeletionQualities().clone();
+
+            applyPCRErrorModel(readBases, readInsQuals, readDelQuals);
+
             for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
                 readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
-                //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
-                //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
-                // TODO -- why is Q18 hard-coded here???
-                readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
+                readQuals[kkk] = ( readQuals[kkk] < BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
+                readInsQuals[kkk] = ( readInsQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readInsQuals[kkk] );
+                readDelQuals[kkk] = ( readDelQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readDelQuals[kkk] );
+            }
+
+            if ( batchPairHMM != null ) {
+                batchPairHMM.batchAdd(haplotypes, readBases, readQuals, readInsQuals, readDelQuals, overallGCP);
+                batchedReads.add(read);
+                continue;
             }
 
             // keep track of the reference likelihood and the best non-ref likelihood
@@ -230,12 +260,12 @@ public class LikelihoodCalculationEngine {
                 final Haplotype haplotype = haplotypes.get(jjj);
                 final boolean isFirstHaplotype = jjj == 0;
                 final double log10l = pairHMM.get().computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
-                        read.getReadBases(), readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
+                        readBases, readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype);
 
                 if ( WRITE_LIKELIHOODS_TO_FILE ) {
                     likelihoodsStream.printf("%s %s %s %s %s %s %f%n",
                             haplotype.getBaseString(),
-                            new String(read.getReadBases()),
+                            new String(readBases),
                             SAMUtils.phredToFastq(readQuals),
                             SAMUtils.phredToFastq(readInsQuals),
                             SAMUtils.phredToFastq(readDelQuals),
@@ -259,6 +289,55 @@ public class LikelihoodCalculationEngine {
             final double worstRefLog10Allowed = bestNonReflog10L + log10globalReadMismappingRate;
             if ( refLog10l < (worstRefLog10Allowed) ) {
                 perReadAlleleLikelihoodMap.add(read, refAllele, worstRefLog10Allowed);
+            }
+        }
+
+        if ( batchPairHMM != null ) {
+            for( final GATKSAMRecord read : batchedReads ) {
+                double refLog10l = Double.NEGATIVE_INFINITY;
+                double bestNonReflog10L = Double.NEGATIVE_INFINITY;
+                final double[] likelihoods = batchPairHMM.batchGetResult();
+                for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
+                    final Haplotype haplotype = haplotypes.get(jjj);
+                    final double log10l = likelihoods[jjj];
+
+                    if ( WRITE_LIKELIHOODS_TO_FILE ) {
+                        final byte[] overallGCP = new byte[read.getReadLength()];
+                        Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
+                        // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
+                        final byte[] readQuals = read.getBaseQualities().clone();
+                        final byte[] readInsQuals = read.getBaseInsertionQualities();
+                        final byte[] readDelQuals = read.getBaseDeletionQualities();
+                        for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
+                            readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
+                            //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
+                            //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
+                            // TODO -- why is Q18 hard-coded here???
+                            readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
+                        }
+                        likelihoodsStream.printf("%s %s %s %s %s %s %f%n",
+                                haplotype.getBaseString(),
+                                new String(read.getReadBases()),
+                                SAMUtils.phredToFastq(readQuals),
+                                SAMUtils.phredToFastq(readInsQuals),
+                                SAMUtils.phredToFastq(readDelQuals),
+                                SAMUtils.phredToFastq(overallGCP),
+                                log10l);
+                    }
+
+                    if ( haplotype.isNonReference() )
+                        bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
+                    else
+                        refLog10l = log10l;
+
+
+                    perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
+                }
+
+                final double worstRefLog10Allowed = bestNonReflog10L + log10globalReadMismappingRate;
+                if ( refLog10l < (worstRefLog10Allowed) ) {
+                    perReadAlleleLikelihoodMap.add(read, refAllele, worstRefLog10Allowed);
+                }
             }
         }
 
@@ -454,4 +533,48 @@ public class LikelihoodCalculationEngine {
         }
         throw new ReviewedStingException( "No reference haplotype found in the list of haplotypes!" );
     }
+
+    // --------------------------------------------------------------------------------
+    //
+    // Experimental attempts at PCR error rate modeling
+    //
+    // --------------------------------------------------------------------------------
+
+    protected static final int MAX_STR_UNIT_LENGTH = 8;
+    protected static final int MAX_REPEAT_LENGTH = 20;
+    protected static final int MIN_ADJUSTED_QSCORE = 10;
+    protected static final double INITIAL_QSCORE = 40.0;
+
+    private byte[] pcrIndelErrorModelCache = new byte[MAX_REPEAT_LENGTH * MAX_STR_UNIT_LENGTH + 1];
+    private final RepeatCovariate repeatCovariate = new RepeatLengthCovariate();
+
+    private void initializePCRErrorModel() {
+        if ( pcrErrorModel == PCR_ERROR_MODEL.NONE )
+            return;
+
+        repeatCovariate.initialize(MAX_STR_UNIT_LENGTH, MAX_REPEAT_LENGTH);
+
+        pcrIndelErrorModelCache = new byte[MAX_REPEAT_LENGTH + 1];
+
+        final double rateFactor = pcrErrorModel == PCR_ERROR_MODEL.AGGRESSIVE ? 2.0 : 3.0;
+
+        for( int iii = 0; iii <= MAX_REPEAT_LENGTH; iii++ )
+            pcrIndelErrorModelCache[iii] = getErrorModelAdjustedQual(iii, rateFactor);
+    }
+
+    protected static byte getErrorModelAdjustedQual(final int repeatLength, final double rateFactor) {
+        return (byte) Math.max(MIN_ADJUSTED_QSCORE, MathUtils.fastRound( INITIAL_QSCORE - Math.exp(((double) repeatLength) / (rateFactor * Math.PI)) + 1.0 ));
+    }
+
+    protected void applyPCRErrorModel( final byte[] readBases, final byte[] readInsQuals, final byte[] readDelQuals ) {
+        if ( pcrErrorModel == PCR_ERROR_MODEL.NONE )
+            return;
+
+        for ( int iii = 1; iii < readBases.length; iii++ ) {
+            final int repeatLength = repeatCovariate.findTandemRepeatUnits(readBases, iii-1).getSecond();
+            readInsQuals[iii-1] = (byte) Math.min(0xff & readInsQuals[iii-1], 0xff & pcrIndelErrorModelCache[repeatLength]);
+            readDelQuals[iii-1] = (byte) Math.min(0xff & readDelQuals[iii-1], 0xff & pcrIndelErrorModelCache[repeatLength]);
+        }
+    }
+
 }

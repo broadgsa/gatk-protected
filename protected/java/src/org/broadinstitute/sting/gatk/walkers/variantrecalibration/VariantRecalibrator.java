@@ -326,25 +326,16 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         dataManager.normalizeData(); // Each data point is now (x - mean) / standard deviation
 
         // Generate the positive model using the training data and evaluate each variant
-        final GaussianMixtureModel goodModel = engine.generateModel( dataManager.getTrainingData() );
+        final GaussianMixtureModel goodModel = engine.generateModel( dataManager.getTrainingData(), VRAC.MAX_GAUSSIANS );
         engine.evaluateData( dataManager.getData(), goodModel, false );
 
         // Generate the negative model using the worst performing data and evaluate each variant contrastively
-        final ExpandingArrayList<VariantDatum> negativeTrainingData = dataManager.selectWorstVariants( VRAC.PERCENT_BAD_VARIANTS, VRAC.MIN_NUM_BAD_VARIANTS );
-        GaussianMixtureModel badModel = engine.generateModel( negativeTrainingData );
+        final ExpandingArrayList<VariantDatum> negativeTrainingData = dataManager.selectWorstVariants( VRAC.NUM_BAD_VARIANTS );
+        final GaussianMixtureModel badModel = engine.generateModel( negativeTrainingData, Math.min(VRAC.MAX_GAUSSIANS_FOR_NEGATIVE_MODEL, VRAC.MAX_GAUSSIANS));
         engine.evaluateData( dataManager.getData(), badModel, true );
 
-        // Detect if the negative model failed to converge because of too few points and/or too many Gaussians and try again
-        while( badModel.failedToConverge && VRAC.MAX_GAUSSIANS > 4 ) {
-            logger.info("Negative model failed to converge. Retrying...");
-            VRAC.MAX_GAUSSIANS--;
-            badModel = engine.generateModel( negativeTrainingData );
-            engine.evaluateData( dataManager.getData(), goodModel, false );
-            engine.evaluateData( dataManager.getData(), badModel, true );
-        }
-
         if( badModel.failedToConverge || goodModel.failedToConverge ) {
-            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider raising the number of variants used to train the negative model (via --percentBadVariants 0.05, for example) or lowering the maximum number of Gaussians to use in the model (via --maxGaussians 4, for example)");
+            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider " + (badModel.failedToConverge ? "raising the number of variants used to train the negative model (via --numBad 3000, for example)." : "lowering the maximum number of Gaussians allowed for use in the model (via --maxGaussians 4, for example).") );
         }
 
         engine.calculateWorstPerformingAnnotation( dataManager.getData(), goodModel, badModel );
@@ -367,7 +358,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         dataManager.writeOutRecalibrationTable( recalWriter );
         if( RSCRIPT_FILE != null ) {
             logger.info( "Writing out visualization Rscript file...");
-            createVisualizationScript( dataManager.getRandomDataForPlotting( 6000 ), goodModel, badModel, lodCutoff );
+            createVisualizationScript( dataManager.getRandomDataForPlotting( 6000 ), goodModel, badModel, lodCutoff, dataManager.getAnnotationKeys().toArray(new String[USE_ANNOTATIONS.length]) );
         }
 
         // Execute the RScript command to plot the table of truth values
@@ -379,7 +370,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         executor.exec();
     }
 
-    private void createVisualizationScript( final ExpandingArrayList<VariantDatum> randomData, final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, final double lodCutoff ) {
+    private void createVisualizationScript( final ExpandingArrayList<VariantDatum> randomData, final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, final double lodCutoff, final String[] annotationKeys ) {
         PrintStream stream;
         try {
             stream = new PrintStream(RSCRIPT_FILE);
@@ -399,9 +390,9 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         stream.println("outputPDF <- \"" + RSCRIPT_FILE + ".pdf\"");
         stream.println("pdf(outputPDF)"); // Unfortunately this is a huge pdf file, BUGBUG: need to work on reducing the file size
 
-        for(int iii = 0; iii < USE_ANNOTATIONS.length; iii++) {
-            for( int jjj = iii + 1; jjj < USE_ANNOTATIONS.length; jjj++) {
-                logger.info( "Building " + USE_ANNOTATIONS[iii] + " x " + USE_ANNOTATIONS[jjj] + " plot...");
+        for(int iii = 0; iii < annotationKeys.length; iii++) {
+            for( int jjj = iii + 1; jjj < annotationKeys.length; jjj++) {
+                logger.info( "Building " + annotationKeys[iii] + " x " + annotationKeys[jjj] + " plot...");
 
                 final ExpandingArrayList<VariantDatum> fakeData = new ExpandingArrayList<VariantDatum>();
                 double minAnn1 = 100.0, maxAnn1 = -100.0, minAnn2 = 100.0, maxAnn2 = -100.0;
@@ -454,8 +445,8 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                 stream.println("NA,NA,NA,NA,1)");
                 stream.println("d <- matrix(data,ncol=5,byrow=T)");
 
-                final String surfaceFrame = "sf." + USE_ANNOTATIONS[iii] + "." + USE_ANNOTATIONS[jjj];
-                final String dataFrame = "df." + USE_ANNOTATIONS[iii] + "." + USE_ANNOTATIONS[jjj];
+                final String surfaceFrame = "sf." + annotationKeys[iii] + "." + annotationKeys[jjj];
+                final String dataFrame = "df." + annotationKeys[iii] + "." + annotationKeys[jjj];
 
                 stream.println(surfaceFrame + " <- data.frame(x=s[,1], y=s[,2], lod=s[,3])");
                 stream.println(dataFrame + " <- data.frame(x=d[,1], y=d[,2], retained=d[,3], training=d[,4], novelty=d[,5])");
@@ -463,16 +454,16 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                 stream.println("dummyData$x <- NaN");
                 stream.println("dummyData$y <- NaN");
                 stream.println("p <- ggplot(data=" + surfaceFrame + ", aes(x=x, y=y)) + opts(panel.background = theme_rect(colour = NA), panel.grid.minor = theme_line(colour = NA), panel.grid.major = theme_line(colour = NA))");
-                stream.println("p1 = p + opts(title=\"model PDF\") + labs(x=\""+ USE_ANNOTATIONS[iii] +"\", y=\""+ USE_ANNOTATIONS[jjj] +"\") + geom_tile(aes(fill = lod)) + scale_fill_gradient(high=\"green\", low=\"red\")");
+                stream.println("p1 = p + opts(title=\"model PDF\") + labs(x=\""+ annotationKeys[iii] +"\", y=\""+ annotationKeys[jjj] +"\") + geom_tile(aes(fill = lod)) + scale_fill_gradient(high=\"green\", low=\"red\")");
                 stream.println("p <- qplot(x,y,data=" + dataFrame + ", color=retained, alpha=I(1/7),legend=FALSE) + opts(panel.background = theme_rect(colour = NA), panel.grid.minor = theme_line(colour = NA), panel.grid.major = theme_line(colour = NA))");
                 stream.println("q <- geom_point(aes(x=x,y=y,color=retained),data=dummyData, alpha=1.0, na.rm=TRUE)");
-                stream.println("p2 = p + q + labs(x=\""+ USE_ANNOTATIONS[iii] +"\", y=\""+ USE_ANNOTATIONS[jjj] +"\") + scale_colour_gradient(name=\"outcome\", high=\"black\", low=\"red\",breaks=c(-1,1),labels=c(\"filtered\",\"retained\"))");
+                stream.println("p2 = p + q + labs(x=\""+ annotationKeys[iii] +"\", y=\""+ annotationKeys[jjj] +"\") + scale_colour_gradient(name=\"outcome\", high=\"black\", low=\"red\",breaks=c(-1,1),labels=c(\"filtered\",\"retained\"))");
                 stream.println("p <- qplot(x,y,data="+ dataFrame + "["+dataFrame+"$training != 0,], color=training, alpha=I(1/7)) + opts(panel.background = theme_rect(colour = NA), panel.grid.minor = theme_line(colour = NA), panel.grid.major = theme_line(colour = NA))");
                 stream.println("q <- geom_point(aes(x=x,y=y,color=training),data=dummyData, alpha=1.0, na.rm=TRUE)");
-                stream.println("p3 = p + q + labs(x=\""+ USE_ANNOTATIONS[iii] +"\", y=\""+ USE_ANNOTATIONS[jjj] +"\") + scale_colour_gradient(high=\"green\", low=\"purple\",breaks=c(-1,1), labels=c(\"neg\", \"pos\"))");
+                stream.println("p3 = p + q + labs(x=\""+ annotationKeys[iii] +"\", y=\""+ annotationKeys[jjj] +"\") + scale_colour_gradient(high=\"green\", low=\"purple\",breaks=c(-1,1), labels=c(\"neg\", \"pos\"))");
                 stream.println("p <- qplot(x,y,data=" + dataFrame + ", color=novelty, alpha=I(1/7)) + opts(panel.background = theme_rect(colour = NA), panel.grid.minor = theme_line(colour = NA), panel.grid.major = theme_line(colour = NA))");
                 stream.println("q <- geom_point(aes(x=x,y=y,color=novelty),data=dummyData, alpha=1.0, na.rm=TRUE)");
-                stream.println("p4 = p + q + labs(x=\""+ USE_ANNOTATIONS[iii] +"\", y=\""+ USE_ANNOTATIONS[jjj] +"\") + scale_colour_gradient(name=\"novelty\", high=\"blue\", low=\"red\",breaks=c(-1,1), labels=c(\"novel\",\"known\"))");
+                stream.println("p4 = p + q + labs(x=\""+ annotationKeys[iii] +"\", y=\""+ annotationKeys[jjj] +"\") + scale_colour_gradient(name=\"novelty\", high=\"blue\", low=\"red\",breaks=c(-1,1), labels=c(\"novel\",\"known\"))");
                 stream.println("arrange(p1, p2, p3, p4, ncol=2)");
             }
         }

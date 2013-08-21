@@ -58,6 +58,7 @@ import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
+import org.broadinstitute.sting.utils.smithwaterman.SWParameterSet;
 import org.broadinstitute.sting.utils.smithwaterman.SmithWaterman;
 import org.jgrapht.EdgeFactory;
 import org.jgrapht.alg.CycleDetector;
@@ -92,6 +93,9 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     private final static String ANONYMOUS_SAMPLE = "XXX_UNNAMED_XXX";
     private final static boolean WRITE_GRAPH = false;
     private final static boolean DEBUG_NON_UNIQUE_CALC = false;
+
+    private final static int MAX_CIGAR_COMPLEXITY = 3;
+    private final static int MIN_DANGLING_TAIL_LENGTH = 5;  // SNP + 3 stabilizing nodes + the LCA
 
     /** for debugging info printing */
     private static int counter = 0;
@@ -276,13 +280,14 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      * Attempt to attach vertex with out-degree == 0 to the graph
      *
      * @param vertex the vertex to recover
+     * @param pruneFactor  the prune factor to use in ignoring chain pieces
      * @return 1 if we successfully recovered the vertex and 0 otherwise
      */
-    protected int recoverDanglingChain(final MultiDeBruijnVertex vertex) {
+    protected int recoverDanglingChain(final MultiDeBruijnVertex vertex, final int pruneFactor) {
         if ( outDegreeOf(vertex) != 0 ) throw new IllegalStateException("Attempting to recover a dangling tail for " + vertex + " but it has out-degree > 0");
 
         // generate the CIGAR string from Smith-Waterman between the dangling tail and reference paths
-        final DanglingTailMergeResult danglingTailMergeResult = generateCigarAgainstReferencePath(vertex);
+        final DanglingTailMergeResult danglingTailMergeResult = generateCigarAgainstReferencePath(vertex, pruneFactor);
 
         // if the CIGAR is too complex (or couldn't be computed) then we do not allow the merge into the reference path
         if ( danglingTailMergeResult == null || ! cigarIsOkayToMerge(danglingTailMergeResult.cigar) )
@@ -301,13 +306,14 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     protected boolean cigarIsOkayToMerge(final Cigar cigar) {
 
         final List<CigarElement> elements = cigar.getCigarElements();
+        final int numElements = elements.size();
 
         // don't allow more than a couple of different ops
-        if ( elements.size() > 3 )
+        if ( numElements > MAX_CIGAR_COMPLEXITY )
             return false;
 
         // the last element must be an M
-        if ( elements.get(elements.size() - 1).getOperator() != CigarOperator.M )
+        if ( elements.get(numElements - 1).getOperator() != CigarOperator.M )
             return false;
 
         // TODO -- do we want to check whether the Ms mismatch too much also?
@@ -334,7 +340,15 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
             return 0;
 
         final int altIndexToMerge = Math.max(danglingTailMergeResult.cigar.getReadLength() - matchingSuffix - 1, 0);
-        final int refIndexToMerge = lastRefIndex - matchingSuffix + 1;
+
+        // there is an important edge condition that we need to handle here: Smith-Waterman correctly calculates that there is a
+        // deletion, that deletion is left-aligned such that the LCA node is part of that deletion, and the rest of the dangling
+        // tail is a perfect match to the suffix of the reference path.  In this case we need to push the reference index to merge
+        // down one position so that we don't incorrectly cut a base off of the deletion.
+        final boolean firstElementIsDeletion = elements.get(0).getOperator() == CigarOperator.D;
+        final boolean mustHandleLeadingDeletionCase =  firstElementIsDeletion && (elements.get(0).getLength() + matchingSuffix == lastRefIndex + 1);
+        final int refIndexToMerge = lastRefIndex - matchingSuffix + 1 + (mustHandleLeadingDeletionCase ? 1 : 0);
+
         addEdge(danglingTailMergeResult.danglingPath.get(altIndexToMerge), danglingTailMergeResult.referencePath.get(refIndexToMerge), ((MyEdgeFactory)getEdgeFactory()).createEdge(false, 1));
         return 1;
     }
@@ -344,13 +358,14 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      * provided vertex is the sink) and the reference path.
      *
      * @param vertex   the sink of the dangling tail
+     * @param pruneFactor  the prune factor to use in ignoring chain pieces
      * @return a SmithWaterman object which can be null if no proper alignment could be generated
      */
-    protected DanglingTailMergeResult generateCigarAgainstReferencePath(final MultiDeBruijnVertex vertex) {
+    protected DanglingTailMergeResult generateCigarAgainstReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor) {
 
         // find the lowest common ancestor path between vertex and the reference sink if available
-        final List<MultiDeBruijnVertex> altPath = findPathToLowestCommonAncestorOfReference(vertex);
-        if ( altPath == null || isRefSource(altPath.get(0)) )
+        final List<MultiDeBruijnVertex> altPath = findPathToLowestCommonAncestorOfReference(vertex, pruneFactor);
+        if ( altPath == null || isRefSource(altPath.get(0)) || altPath.size() < MIN_DANGLING_TAIL_LENGTH )
             return null;
 
         // now get the reference path from the LCA
@@ -361,24 +376,32 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         final byte[] altBases = getBasesForPath(altPath);
 
         // run Smith-Waterman to determine the best alignment (and remove trailing deletions since they aren't interesting)
-        final SmithWaterman alignment = new SWPairwiseAlignment(refBases, altBases, SWPairwiseAlignment.OVERHANG_STRATEGY.INDEL);
+        final SmithWaterman alignment = new SWPairwiseAlignment(refBases, altBases, SWParameterSet.STANDARD_NGS, SWPairwiseAlignment.OVERHANG_STRATEGY.LEADING_INDEL);
         return new DanglingTailMergeResult(altPath, refPath, altBases, refBases, AlignmentUtils.removeTrailingDeletions(alignment.getCigar()));
     }
 
     /**
-     * Finds the path upwards in the graph from this vertex to the reference sequence, including the lowest common ancestor vertex
+     * Finds the path upwards in the graph from this vertex to the reference sequence, including the lowest common ancestor vertex.
+     * Note that nodes are excluded if their pruning weight is less than the pruning factor.
      *
      * @param vertex   the original vertex
+     * @param pruneFactor  the prune factor to use in ignoring chain pieces
      * @return the path if it can be determined or null if this vertex either doesn't merge onto the reference path or
      *  has an ancestor with multiple incoming edges before hitting the reference path
      */
-    protected List<MultiDeBruijnVertex> findPathToLowestCommonAncestorOfReference(final MultiDeBruijnVertex vertex) {
+    protected List<MultiDeBruijnVertex> findPathToLowestCommonAncestorOfReference(final MultiDeBruijnVertex vertex, final int pruneFactor) {
         final LinkedList<MultiDeBruijnVertex> path = new LinkedList<>();
 
         MultiDeBruijnVertex v = vertex;
         while ( ! isReferenceNode(v) && inDegreeOf(v) == 1 ) {
-            path.addFirst(v);
-            v = getEdgeSource(incomingEdgeOf(v));
+            final MultiSampleEdge edge = incomingEdgeOf(v);
+            // if it has too low a weight, don't use it (or previous vertexes) for the path
+            if ( edge.getPruningMultiplicity() < pruneFactor )
+                path.clear();
+            // otherwise it is safe to use
+            else
+                path.addFirst(v);
+            v = getEdgeSource(edge);
         }
         path.addFirst(v);
 
@@ -453,7 +476,12 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         return nonUniqueKmers.size() * 4 > uniqueKmers.size();
     }
 
-    public void recoverDanglingTails() {
+    /**
+     * Try to recover dangling tails
+     *
+     * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     */
+    public void recoverDanglingTails(final int pruneFactor) {
         if ( ! alreadyBuilt )  throw new IllegalStateException("recoverDanglingTails requires the graph be already built");
 
         int attempted = 0;
@@ -461,7 +489,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         for ( final MultiDeBruijnVertex v : vertexSet() ) {
             if ( outDegreeOf(v) == 0 && ! isRefNodeAndRefSink(v) ) {
                 attempted++;
-                nRecovered += recoverDanglingChain(v);
+                nRecovered += recoverDanglingChain(v, pruneFactor);
             }
         }
 
@@ -740,13 +768,12 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
                 // the first good base is at lastGood, can be -1 if last base was bad
                 final int start = lastGood;
                 // the stop base is end - 1 (if we're not at the end of the sequence)
-                final int stop = end == sequence.length ? sequence.length : end;
-                final int len = stop - start + 1;
+                final int len = end - start;
 
                 if ( start != -1 && len >= kmerSize ) {
                     // if the sequence is long enough to get some value out of, add it to the graph
                     final String name = read.getReadName() + "_" + start + "_" + end;
-                    addSequence(name, read.getReadGroup().getSample(), read.getReadBases(), start, stop, reducedReadCounts, false);
+                    addSequence(name, read.getReadGroup().getSample(), read.getReadBases(), start, end, reducedReadCounts, false);
                 }
 
                 lastGood = -1; // reset the last good base

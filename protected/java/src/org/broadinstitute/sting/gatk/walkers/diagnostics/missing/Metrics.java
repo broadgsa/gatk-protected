@@ -91,6 +91,7 @@ final class Metrics {
     double gccontent() {return refs > 0 ? gccontent/refs : 0.0;}
     double baseQual() {return reads > 0 ? baseQual/reads : 0.0;}
     double mapQual() {return reads > 0 ? mapQual/reads : 0.0;}
+    double depth() {return refs > 0 ? (double) reads/refs : 0.0;}
 
     /**
      * Combines two metrics

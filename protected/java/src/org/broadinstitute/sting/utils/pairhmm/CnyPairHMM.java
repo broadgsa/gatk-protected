@@ -44,107 +44,197 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.pairhmm;
 
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 
-/**
- * Fast approach to building a DeBruijnGraph
- *
- * Follows the model:
- *
- * for each X that has bases for the final graph:
- *   addKmer pair (single kmer with kmer size + 1 spanning the pair)
- *
- * flushKmersToGraph
- *
- * User: depristo
- * Date: 4/7/13
- * Time: 4:14 PM
- */
-public class DeBruijnGraphBuilder {
-    /** The size of the kmer graph we want to build */
-    private final int kmerSize;
+import java.io.File;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
-    /** The graph we're going to add kmers to */
-    private final DeBruijnGraph graph;
+public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
+    private static class HmmInput {
+        public byte[] readBases;
+        public byte[] readQuals;
+        public byte[] insertionGOP;
+        public byte[] deletionGOP;
+        public byte[] overallGCP;
+        public List<Haplotype> haplotypes;
+    };
 
-    /** keeps counts of all kmer pairs added since the last flush */
-    private final KMerCounter counter;
+    public static class ResultQueue {
+        private int offset;
+        private List<double[]> batchResults;
 
-    /**
-     * Create a new builder that will write out kmers to graph
-     *
-     * @param graph a non-null graph that can contain already added kmers
-     */
-    public DeBruijnGraphBuilder(final DeBruijnGraph graph) {
-        if ( graph == null ) throw new IllegalArgumentException("Graph cannot be null");
-        this.kmerSize = graph.getKmerSize();
-        this.graph = graph;
-        this.counter = new KMerCounter(kmerSize + 1);
-    }
-
-    /**
-     * The graph we're building
-     * @return a non-null graph
-     */
-    public DeBruijnGraph getGraph() {
-        return graph;
-    }
-
-    /**
-     * The kmer size of our graph
-     * @return positive integer
-     */
-    public int getKmerSize() {
-        return kmerSize;
-    }
-
-    /**
-     * Higher-level interface to #addKmersToGraph that adds a pair of kmers from a larger sequence of bytes to this
-     * graph.  The kmers start at start (first) and start + 1 (second) have have length getKmerSize().  The
-     * edge between them is added with isRef and multiplicity
-     *
-     * @param sequence a sequence of bases from which we want to extract a pair of kmers
-     * @param start the start of the first kmer in sequence, must be between 0 and sequence.length - 2 - getKmerSize()
-     * @param multiplicity what's the multiplicity of the edge between these two kmers
-     */
-    public void addKmerPairFromSeqToGraph( final byte[] sequence, final int start, final int multiplicity ) {
-        if ( sequence == null ) throw new IllegalArgumentException("Sequence cannot be null");
-        if ( start < 0 ) throw new IllegalArgumentException("start must be >= 0 but got " + start);
-        if ( start + 1 + getKmerSize() > sequence.length ) throw new IllegalArgumentException("start " + start + " is too big given kmerSize " + getKmerSize() + " and sequence length " + sequence.length);
-        final Kmer kmerPair = new Kmer(sequence, start, getKmerSize() + 1);
-        addKmerPair(kmerPair, multiplicity);
-    }
-
-    /**
-     * Add a single kmer pair to this builder
-     * @param kmerPair a kmer pair is a single kmer that has kmerSize + 1 bp, where 0 -> kmersize and 1 -> kmersize + 1
-     *                 will have an edge added to this
-     * @param multiplicity the desired multiplicity of this edge
-     */
-    public void addKmerPair(final Kmer kmerPair, final int multiplicity) {
-        if ( kmerPair.length() != kmerSize + 1 )  throw new IllegalArgumentException("kmer pair must be of length kmerSize + 1 = " + kmerSize + 1 + " but got " + kmerPair.length());
-        counter.addKmer(kmerPair, multiplicity);
-    }
-
-    /**
-     * Flushes the currently added kmers to the graph
-     *
-     * After this function is called the builder is reset to an empty state
-     *
-     * This flushing is expensive, so many kmers should be added to the builder before flushing.  The most
-     * efficient workflow is to add all of the kmers of a particular class (all ref bases, or all read bases)
-     * then and do one flush when completed
-     *
-     * @param addRefEdges should the kmers present in the builder be added to the graph with isRef = true for the edges?
-     */
-    public void flushKmersToGraph(final boolean addRefEdges) {
-        for ( final KMerCounter.CountedKmer countedKmer : counter.getCountedKmers() ) {
-            final byte[] first = countedKmer.getKmer().subKmer(0, kmerSize).bases();
-            final byte[] second = countedKmer.getKmer().subKmer(1, kmerSize).bases();
-            graph.addKmersToGraph(first, second, addRefEdges, countedKmer.getCount());
+        public ResultQueue() {
+            batchResults = new LinkedList<double[]>();
+            offset = 0;
         }
-        counter.clear();
+
+        public void push(double[] results) {
+            batchResults.add(results);
+        }
+
+        public double pop() {
+            double[] results = batchResults.get(0);
+            double top = results[offset++];
+            if (offset == results.length) {
+                batchResults.remove(0);
+                offset = 0;
+            }
+            return top;
+        }
+    }
+
+    final static String libPath = "/opt/convey/personalities/32100.1.1.1.0";
+    final static String libName = "gmvhdl_gatk_hmm";
+
+    private static boolean loaded = false;
+    private List<HmmInput> batchRequests = new LinkedList<HmmInput>();
+    private ResultQueue resultQueue = new ResultQueue();
+
+    static public boolean isAvailable() {
+        if (!loaded) {
+            File library = new File(libPath + "/lib" + libName + ".so");
+            return library.exists();
+        }
+        return true;
+    }
+
+    private native void initFpga();
+    private native int dequeueRequirement(int reflen, int readlen);
+    private native int enqueue(byte[] haplotypeBases,
+                               byte[] readBases,
+                               byte[] readQuals,
+                               byte[] insertionGOP,
+                               byte[] deletionGOP,
+                               byte[] overallGCP,
+                               int hapStartIndex,
+                               boolean recacheReadValues);
+    private native int flushQueue();
+    private native int dequeue(double[] results);
+    private native double softHmm(byte[] haplotypeBases,
+                                  byte[] readBases,
+                                  byte[] readQuals,
+                                  byte[] insertionGOP,
+                                  byte[] deletionGOP,
+                                  byte[] overallGCP,
+                                  int hapStartIndex,
+                                  boolean recacheReadValues);
+
+    public native void reportStats();
+
+    public void initialize( final int READ_MAX_LENGTH, final int HAPLOTYPE_MAX_LENGTH ) {
+        if (!loaded) {
+            addLibraryPath(libPath);
+            System.loadLibrary(libName);
+            initFpga();
+            loaded = true;
+            System.out.println("FPGA HMM Initialized");
+        }
+    }
+
+    public void batchAdd(final List<Haplotype> haplotypes,
+                         final byte[] readBases,
+                         final byte[] readQuals,
+                         final byte[] insertionGOP,
+                         final byte[] deletionGOP,
+                         final byte[] overallGCP) {
+        final int numHaplotypes = haplotypes.size();
+        HmmInput test = new HmmInput();
+        test.readBases = readBases;
+        test.readQuals = readQuals;
+        test.insertionGOP = insertionGOP;
+        test.deletionGOP = deletionGOP;
+        test.overallGCP = overallGCP;
+        test.haplotypes = haplotypes;
+        batchRequests.add(test);
+        for (int jjj = 0; jjj < numHaplotypes; jjj++) {
+            final boolean recacheReadValues = (jjj == 0);
+            final Haplotype haplotype = haplotypes.get(jjj);
+            enqueuePrepare(haplotype.getBases(), readBases);
+            if (enqueue(haplotype.getBases(), readBases, readQuals, insertionGOP, deletionGOP, overallGCP, 0, recacheReadValues) == 0)
+                throw new RuntimeException("FPGA queue overflow in batchAdd");
+        }
+    }
+
+    public double[] batchGetResult() {
+        double[] results;
+
+        int n = flushQueue();
+        if (n > 0) {
+            results = new double[n];
+            if (dequeue(results) != n)
+                System.out.println("queue underflow in enqueuePrepare");
+            resultQueue.push(results);
+        }
+
+        final HmmInput test = batchRequests.remove(0);
+        final int numHaplotypes = test.haplotypes.size();
+        results = new double[numHaplotypes];
+        for (int jjj = 0; jjj < numHaplotypes; jjj++) {
+            results[jjj] = resultQueue.pop();
+            if (results[jjj]<-60.0) {
+                final Haplotype haplotype = test.haplotypes.get(jjj);
+                results[jjj]=softHmm(haplotype.getBases(), test.readBases, test.readQuals, test.insertionGOP, test.deletionGOP, test.overallGCP, 0, true);
+            }
+        }
+        return results;
+    }
+
+    protected double subComputeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
+                                                                  final byte[] readBases,
+                                                                  final byte[] readQuals,
+                                                                  final byte[] insertionGOP,
+                                                                  final byte[] deletionGOP,
+                                                                  final byte[] overallGCP,
+                                                                  final int hapStartIndex,
+                                                                  final boolean recacheReadValues ) {
+        return 0.0;
+    }
+
+    private void enqueuePrepare(byte[] haplotypeBases, byte[] readBases) {
+        double[] results = null;
+        int n = dequeueRequirement(haplotypeBases.length, readBases.length);
+        if (n>0) {
+            results = new double[n];
+            if (dequeue(results)!=n)
+                System.out.println("queue underflow in enqueuePrepare");
+        } else if (n<0) {
+            n = flushQueue();
+            if (n > 0) {
+                results = new double[n];
+                if (dequeue(results) != n)
+                    System.out.println("queue underflow in enqueuePrepare");
+            }
+        }
+
+        if (results != null)
+            resultQueue.push(results);
+    }
+
+    public static void addLibraryPath(String pathToAdd) {
+        try {
+            final Field usrPathsField = ClassLoader.class.getDeclaredField("usr_paths");
+            usrPathsField.setAccessible(true);
+
+            //get array of paths
+            final String[] paths = (String[])usrPathsField.get(null);
+
+            //check if the path to add is already present
+            for(String path : paths) {
+                if(path.equals(pathToAdd)) {
+                    return;
+                }
+            }
+
+            //add the new path
+            final String[] newPaths = Arrays.copyOf(paths, paths.length + 1);
+            newPaths[newPaths.length-1] = pathToAdd;
+            usrPathsField.set(null, newPaths);
+        } catch (Exception ex) {
+        }
     }
 }

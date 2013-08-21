@@ -44,107 +44,92 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.sting.utils.haplotypeBAMWriter;
 
-import com.google.java.contract.Ensures;
-import org.jgrapht.EdgeFactory;
+import net.sf.samtools.SAMFileHeader;
+import net.sf.samtools.SAMFileWriter;
+import net.sf.samtools.SAMReadGroupRecord;
+import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
- * A DeBruijn kmer graph
+ * Utility class that allows us to easily create destinations for the HaplotypeBAMWriters
  *
- * User: rpoplin
- * Date: 2/6/13
+ * User: depristo
+ * Date: 6/19/13
+ * Time: 10:19 AM
  */
-public final class DeBruijnGraph extends BaseGraph<DeBruijnVertex, BaseEdge> {
-    /**
-     * Edge factory that creates non-reference multiplicity 1 edges
-     */
-    private static class MyEdgeFactory implements EdgeFactory<DeBruijnVertex, BaseEdge> {
+public abstract class ReadDestination {
+    public abstract void add(final GATKSAMRecord read);
+
+    private final SAMFileHeader bamHeader;
+
+    public SAMFileHeader getHeader() {
+        return bamHeader;
+    }
+
+    protected ReadDestination(final SAMFileHeader header, final String readGroupID) {
+        // prepare the bam header
+        if ( header == null ) throw new IllegalArgumentException("header cannot be null");
+        bamHeader = new SAMFileHeader();
+        bamHeader.setSequenceDictionary(header.getSequenceDictionary());
+        bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
+
+        // include the original read groups plus a new artificial one for the haplotypes
+        final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(header.getReadGroups());
+        final SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupID);
+        rg.setSample("HC");
+        rg.setSequencingCenter("BI");
+        readGroups.add(rg);
+        bamHeader.setReadGroups(readGroups);
+    }
+
+    public static class ToBAM extends ReadDestination {
+        final SAMFileWriter bamWriter;
+
+        /**
+         * Create a ReadDestination that writes to a BAM file
+         */
+        public ToBAM(final StingSAMFileWriter stingSAMWriter, final SAMFileHeader header, final String readGroupID) {
+            super(header, readGroupID);
+            if ( stingSAMWriter == null ) throw new IllegalArgumentException("writer cannot be null");
+
+            bamWriter = stingSAMWriter;
+            stingSAMWriter.setPresorted(false);
+            stingSAMWriter.writeHeader(getHeader());
+        }
+
         @Override
-        public BaseEdge createEdge(DeBruijnVertex sourceVertex, DeBruijnVertex targetVertex) {
-            return new BaseEdge(false, 1);
+        public void add(GATKSAMRecord read) {
+            bamWriter.addAlignment(read);
         }
     }
 
-    /**
-     * Create an empty DeBruijnGraph with default kmer size
-     */
-    public DeBruijnGraph() {
-        this(11);
-    }
+    public static class ToList extends ReadDestination {
+        final List<GATKSAMRecord> reads = new LinkedList<>();
 
-    /**
-     * Create an empty DeBruijnGraph with kmer size
-     * @param kmerSize kmer size, must be >= 1
-     */
-    public DeBruijnGraph(int kmerSize) {
-        super(kmerSize, new MyEdgeFactory());
-    }
-
-    /**
-     * Pull kmers out of the given long sequence and throw them on in the graph
-     * @param sequence      byte array holding the sequence with which to build the assembly graph
-     * @param KMER_LENGTH   the desired kmer length to use
-     * @param isRef         if true the kmers added to the graph will have reference edges linking them
-     */
-    public void addSequenceToGraph( final byte[] sequence, final int KMER_LENGTH, final boolean isRef ) {
-        if( sequence.length < KMER_LENGTH + 1 ) { throw new IllegalArgumentException("Provided sequence is too small for the given kmer length"); }
-        final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
-        for( int iii = 0; iii < kmersInSequence - 1; iii++ ) {
-            addKmersToGraph(Arrays.copyOfRange(sequence, iii, iii + KMER_LENGTH), Arrays.copyOfRange(sequence, iii + 1, iii + 1 + KMER_LENGTH), isRef, 1);
-        }
-    }
-
-    /**
-     * Add edge to assembly graph connecting the two kmers
-     * @param kmer1 the source kmer for the edge
-     * @param kmer2 the target kmer for the edge
-     * @param isRef true if the added edge is a reference edge
-     */
-    public void addKmersToGraph( final byte[] kmer1, final byte[] kmer2, final boolean isRef, final int multiplicity ) {
-        if( kmer1 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer2 == null ) { throw new IllegalArgumentException("Attempting to add a null kmer to the graph."); }
-        if( kmer1.length != kmer2.length ) { throw new IllegalArgumentException("Attempting to add a kmers to the graph with different lengths."); }
-
-        final DeBruijnVertex v1 = new DeBruijnVertex( kmer1 );
-        final DeBruijnVertex v2 = new DeBruijnVertex( kmer2 );
-        final BaseEdge toAdd = new BaseEdge(isRef, multiplicity);
-
-        addVertices(v1, v2);
-        addOrUpdateEdge(v1, v2, toAdd);
-    }
-
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    @Ensures({"result != null"})
-    public SeqGraph convertToSequenceGraph() {
-        final SeqGraph seqGraph = new SeqGraph(getKmerSize());
-        final Map<DeBruijnVertex, SeqVertex> vertexMap = new HashMap<DeBruijnVertex, SeqVertex>();
-
-        // create all of the equivalent seq graph vertices
-        for ( final DeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
+        /**
+         * Create a ReadDestination that captures the output reads in a list of reads
+         */
+        public ToList(SAMFileHeader header, String readGroupID) {
+            super(header, readGroupID);
         }
 
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final BaseEdge e : edgeSet() ) {
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            seqGraph.addEdge(seqInV, seqOutV, e);
+        @Override
+        public void add(GATKSAMRecord read) {
+            reads.add(read);
         }
 
-        return seqGraph;
+        /**
+         * Get the reads that have been written to this destination
+         * @return a non-null list of reads
+         */
+        public List<GATKSAMRecord> getReads() {
+            return reads;
+        }
     }
 }

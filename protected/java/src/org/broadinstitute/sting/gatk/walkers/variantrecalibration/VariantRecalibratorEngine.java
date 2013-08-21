@@ -79,8 +79,8 @@ public class VariantRecalibratorEngine {
         this.VRAC = VRAC;
     }
 
-    public GaussianMixtureModel generateModel( final List<VariantDatum> data ) {
-        final GaussianMixtureModel model = new GaussianMixtureModel( VRAC.MAX_GAUSSIANS, data.get(0).annotations.length, VRAC.SHRINKAGE, VRAC.DIRICHLET_PARAMETER, VRAC.PRIOR_COUNTS );
+    public GaussianMixtureModel generateModel( final List<VariantDatum> data, final int maxGaussians ) {
+        final GaussianMixtureModel model = new GaussianMixtureModel( maxGaussians, data.get(0).annotations.length, VRAC.SHRINKAGE, VRAC.DIRICHLET_PARAMETER, VRAC.PRIOR_COUNTS );
         variationalBayesExpectationMaximization( model, data );
         return model;
     }

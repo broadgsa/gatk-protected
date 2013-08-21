@@ -65,14 +65,18 @@ import java.util.*;
  * <p>The base quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
  */
 public class BaseQualityRankSumTest extends RankSumTest implements StandardAnnotation {
+    @Override
     public List<String> getKeyNames() { return Arrays.asList("BaseQRankSum"); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("BaseQRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities")); }
 
+    @Override
     protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {
         return (double)read.getBaseQualities()[ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, refLoc, ReadUtils.ClippingTail.RIGHT_TAIL)];
     }
 
+    @Override
     protected Double getElementForPileupElement(final PileupElement p) {
         return (double)p.getQual();
     }

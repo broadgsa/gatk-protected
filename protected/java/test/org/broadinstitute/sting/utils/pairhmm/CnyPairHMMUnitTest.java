@@ -44,156 +44,49 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.pairhmm;
 
-/**
- * Created by IntelliJ IDEA.
- * User: rpoplin
- * Date: 3/27/12
- */
-
-import net.sf.samtools.*;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.DeBruijnGraph;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.*;
+public class CnyPairHMMUnitTest extends BaseTest {
 
-public class DeBruijnAssemblerUnitTest extends BaseTest {
-    private final static boolean DEBUG = false;
+    @Test(enabled = true)
+    public void testResultQueue() {
+        final double[] row1 = new double[] { 4.5, 53.1, 6.4 };
+        final double[] row2 = new double[] { 1.0, 5.9, 6.9, 6.1, 19.8 };
+        final double[] row3 = new double[] { 10.4, 9.101, 89.5, 9.8};
+        final double[] row4 = new double[] { 7.3, 1.4, 5.67, 56.32 };
+        CnyPairHMM.ResultQueue queue = new CnyPairHMM.ResultQueue();
 
-    @Test(enabled = !DEBUG)
-    public void testReferenceCycleGraph() {
-        String refCycle = "ATCGAGGAGAGCGCCCCGAGATATATATATATATATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATATATATATATGGGAGAGGGGATATATATATATCCCCCC";
-        String noCycle = "ATCGAGGAGAGCGCCCCGAGATATTATTTGCGAGCGCGAGCGTTTTAAAAATTTTAGACGGAGAGATGGGAGAGGGGATATATAATATCCCCCC";
-        final DeBruijnGraph g1 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(refCycle.getBytes(), true), Collections.<Haplotype>emptyList());
-        final DeBruijnGraph g2 = new DeBruijnAssembler().createGraphFromSequences(new ArrayList<GATKSAMRecord>(), 10, new Haplotype(noCycle.getBytes(), true), Collections.<Haplotype>emptyList());
+        // Test inter-mixed push/pop operations produce the correct output
+        queue.push(row1);
+        queue.push(row2);
 
-        Assert.assertTrue(g1 == null, "Reference cycle graph should return null during creation.");
-        Assert.assertTrue(g2 != null, "Reference non-cycle graph should not return null during creation.");
+        for (double aRow1 : row1) Assert.assertEquals(aRow1, queue.pop());
+
+        for (int i=0; i<2; i++)
+            Assert.assertEquals(row2[i], queue.pop());
+
+        queue.push(row3);
+
+        for (int i=2; i<row2.length; i++)
+            Assert.assertEquals(row2[i], queue.pop());
+
+        for (double aRow3 : row3) Assert.assertEquals(aRow3, queue.pop());
+
+        // Test push/pop after return to empty state
+        queue.push(row4);
+
+        for (double aRow4 : row4) Assert.assertEquals(aRow4, queue.pop());
     }
 
-    private static class MockBuilder extends DeBruijnGraphBuilder {
-        public final List<Kmer> addedPairs = new LinkedList<Kmer>();
+    @Test(enabled = true)
+    public void testAddLibraryPath() {
+        final String testLibPath = privateTestDir + "testlib";
 
-        private MockBuilder(final int kmerSize) {
-            super(new DeBruijnGraph(kmerSize));
-        }
-
-        @Override
-        public void addKmerPair(Kmer kmerPair, int multiplicity) {
-            logger.info("addKmerPair" + kmerPair);
-            addedPairs.add(kmerPair);
-        }
-
-        @Override
-        public void flushKmersToGraph(boolean addRefEdges) {
-            // do nothing
-        }
-    }
-
-    @DataProvider(name = "AddReadKmersToGraph")
-    public Object[][] makeAddReadKmersToGraphData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
-
-        // this functionality can be adapted to provide input data for whatever you might want in your data
-        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
-        final int readLen = bases.length();
-        final List<Integer> allBadStarts = new ArrayList<Integer>(readLen);
-        for ( int i = 0; i < readLen; i++ ) allBadStarts.add(i);
-
-        for ( final int kmerSize : Arrays.asList(3, 4, 5) ) {
-            for ( final int nBadQuals : Arrays.asList(0, 1, 2) ) {
-                for ( final List<Integer> badStarts : Utils.makePermutations(allBadStarts, nBadQuals, false) ) {
-                    tests.add(new Object[]{bases, kmerSize, badStarts});
-                }
-            }
-        }
-
-        return tests.toArray(new Object[][]{});
-    }
-
-    @Test(dataProvider = "AddReadKmersToGraph", enabled = ! DEBUG)
-    public void testAddReadKmersToGraph(final String bases, final int kmerSize, final List<Integer> badQualsSites) {
-        final int readLen = bases.length();
-        final DeBruijnAssembler assembler = new DeBruijnAssembler();
-        final MockBuilder builder = new MockBuilder(kmerSize);
-
-        final SAMFileHeader header = ArtificialSAMUtils.createArtificialSamHeader(1, 1, 1000);
-
-        final byte[] quals = Utils.dupBytes((byte)20, bases.length());
-        for ( final int badSite : badQualsSites ) quals[badSite] = 0;
-        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "myRead", 0, 1, readLen);
-        read.setReadBases(bases.getBytes());
-        read.setBaseQualities(quals);
-
-        final Set<String> expectedBases = new HashSet<String>();
-        final Set<Integer> expectedStarts = new LinkedHashSet<Integer>();
-        for ( int i = 0; i < readLen; i++) {
-            boolean good = true;
-            for ( int j = 0; j < kmerSize + 1; j++ ) { // +1 is for pairing
-                good &= i + j < readLen && quals[i+j] >= assembler.getMinBaseQualityToUseInAssembly();
-            }
-            if ( good ) {
-                expectedStarts.add(i);
-                expectedBases.add(bases.substring(i, i + kmerSize + 1));
-            }
-        }
-
-        assembler.addReadKmersToGraph(builder, Arrays.asList(read));
-        Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
-        for ( final Kmer addedKmer : builder.addedPairs ) {
-            Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);
-        }
-    }
-
-    @DataProvider(name = "AddGGAKmersToGraph")
-    public Object[][] makeAddGGAKmersToGraphData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
-
-        // this functionality can be adapted to provide input data for whatever you might want in your data
-        final String bases = "ACGTAACCGGTTAAACCCGGGTTT";
-        final int readLen = bases.length();
-        final List<Integer> allBadStarts = new ArrayList<Integer>(readLen);
-        for ( int i = 0; i < readLen; i++ ) allBadStarts.add(i);
-
-        for ( final int kmerSize : Arrays.asList(3, 4, 5) ) {
-            tests.add(new Object[]{bases, kmerSize});
-        }
-
-        return tests.toArray(new Object[][]{});
-    }
-
-    @Test(dataProvider = "AddGGAKmersToGraph", enabled = ! DEBUG)
-    public void testAddGGAKmersToGraph(final String bases, final int kmerSize) {
-        final int readLen = bases.length();
-        final DeBruijnAssembler assembler = new DeBruijnAssembler();
-        final MockBuilder builder = new MockBuilder(kmerSize);
-
-        final Set<String> expectedBases = new HashSet<String>();
-        final Set<Integer> expectedStarts = new LinkedHashSet<Integer>();
-        for ( int i = 0; i < readLen; i++) {
-            boolean good = true;
-            for ( int j = 0; j < kmerSize + 1; j++ ) { // +1 is for pairing
-                good &= i + j < readLen;
-            }
-            if ( good ) {
-                expectedStarts.add(i);
-                expectedBases.add(bases.substring(i, i + kmerSize + 1));
-            }
-        }
-
-        assembler.addGGAKmersToGraph(builder, Arrays.asList(new Haplotype(bases.getBytes())));
-        Assert.assertEquals(builder.addedPairs.size(), expectedStarts.size());
-        for ( final Kmer addedKmer : builder.addedPairs ) {
-            Assert.assertTrue(expectedBases.contains(new String(addedKmer.bases())), "Couldn't find kmer " + addedKmer + " among all expected kmers " + expectedBases);
-        }
+        CnyPairHMM.addLibraryPath(testLibPath);
+        System.loadLibrary("CnyPairHMMUnitTest");
     }
 }

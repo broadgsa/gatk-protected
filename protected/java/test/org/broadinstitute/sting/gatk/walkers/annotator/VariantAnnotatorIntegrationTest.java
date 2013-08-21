@@ -173,6 +173,14 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testDBTagWithTwoComps() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " --comp:H3 " + privateTestDir + "fakeHM3.vcf --comp:foo " + privateTestDir + "fakeHM3.vcf -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
+                Arrays.asList("6afbf05090ae139f53467cf6e0e71cf4"));
+        executeTest("getting DB tag with 2 comps", spec);
+    }
+
+    @Test
     public void testNoQuals() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --variant " + privateTestDir + "noQual.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L " + privateTestDir + "noQual.vcf -A QualByDepth", 1,

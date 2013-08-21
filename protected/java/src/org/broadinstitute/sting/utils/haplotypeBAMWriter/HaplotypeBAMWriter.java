@@ -46,16 +46,18 @@
 
 package org.broadinstitute.sting.utils.haplotypeBAMWriter;
 
-import net.sf.samtools.*;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.SAMFileHeader;
+import net.sf.samtools.SAMTag;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Path;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
 
 import java.util.*;
 
@@ -75,8 +77,8 @@ public abstract class HaplotypeBAMWriter {
     protected final static String READ_GROUP_ID = "ArtificialHaplotype";
     protected final static String HAPLOTYPE_TAG = "HC";
 
-    final SAMFileWriter bamWriter;
-    final SAMFileHeader bamHeader;
+    final ReadDestination output;
+    boolean writeHaplotypesAsWell = true;
 
     /**
      * Possible modes for writing haplotypes to BAMs
@@ -104,27 +106,10 @@ public abstract class HaplotypeBAMWriter {
      * @return a new HaplotypeBAMWriter
      */
     public static HaplotypeBAMWriter create(final Type type, final StingSAMFileWriter stingSAMWriter, final SAMFileHeader header) {
-        if ( header == null ) throw new IllegalArgumentException("header cannot be null");
-        if ( stingSAMWriter == null ) throw new IllegalArgumentException("writer cannot be null");
         if ( type == null ) throw new IllegalArgumentException("type cannot be null");
 
-        // prepare the bam header
-        final SAMFileHeader bamHeader = new SAMFileHeader();
-        bamHeader.setSequenceDictionary(header.getSequenceDictionary());
-        bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
-
-        // include the original read groups plus a new artificial one for the haplotypes
-        final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(header.getReadGroups());
-        final SAMReadGroupRecord rg = new SAMReadGroupRecord(READ_GROUP_ID);
-        rg.setSample("HC");
-        rg.setSequencingCenter("BI");
-        readGroups.add(rg);
-        bamHeader.setReadGroups(readGroups);
-
-        // TODO -- this will be a performance problem at high-scale
-        stingSAMWriter.setPresorted(false);
-        stingSAMWriter.writeHeader(bamHeader);
-        return create(type, stingSAMWriter);
+        final ReadDestination toBam = new ReadDestination.ToBAM(stingSAMWriter, header, READ_GROUP_ID);
+        return create(type, toBam);
     }
 
     /**
@@ -134,16 +119,16 @@ public abstract class HaplotypeBAMWriter {
      * may come in out of order during writing
      *
      * @param type the type of the writer we want to create
-     * @param writer the destination, must not be null
+     * @param destination the destination, must not be null
      * @return a new HaplotypeBAMWriter
      */
-    public static HaplotypeBAMWriter create(final Type type, final SAMFileWriter writer) {
-        if ( writer == null ) throw new IllegalArgumentException("writer cannot be null");
+    public static HaplotypeBAMWriter create(final Type type, final ReadDestination destination) {
+        if ( destination == null ) throw new IllegalArgumentException("writer cannot be null");
         if ( type == null ) throw new IllegalArgumentException("type cannot be null");
 
         switch ( type ) {
-            case ALL_POSSIBLE_HAPLOTYPES: return new AllHaplotypeBAMWriter(writer);
-            case CALLED_HAPLOTYPES: return new CalledHaplotypeBAMWriter(writer);
+            case ALL_POSSIBLE_HAPLOTYPES: return new AllHaplotypeBAMWriter(destination);
+            case CALLED_HAPLOTYPES: return new CalledHaplotypeBAMWriter(destination);
             default: throw new IllegalArgumentException("Unknown type " + type);
         }
     }
@@ -154,11 +139,10 @@ public abstract class HaplotypeBAMWriter {
      * Assumes that the header has been fully initialized with a single
      * read group READ_GROUP_ID
      *
-     * @param bamWriter our output destination
+     * @param output our output destination
      */
-    protected HaplotypeBAMWriter(SAMFileWriter bamWriter) {
-        this.bamWriter = bamWriter;
-        this.bamHeader = bamWriter.getFileHeader();
+    protected HaplotypeBAMWriter(final ReadDestination output) {
+        this.output = output;
     }
 
     /**
@@ -170,11 +154,17 @@ public abstract class HaplotypeBAMWriter {
      * @param calledHaplotypes a list of the haplotypes at where actually called as non-reference
      * @param stratifiedReadMap a map from sample -> likelihoods for each read for each of the best haplotypes
      */
-    public abstract void writeReadsAlignedToHaplotypes(final List<Haplotype> haplotypes,
+    public abstract void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
                                                        final GenomeLoc paddedReferenceLoc,
-                                                       final List<Haplotype> bestHaplotypes,
+                                                       final Collection<Haplotype> bestHaplotypes,
                                                        final Set<Haplotype> calledHaplotypes,
                                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap);
+
+    public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
+                                              final GenomeLoc paddedReferenceLoc,
+                                              final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+        writeReadsAlignedToHaplotypes(haplotypes, paddedReferenceLoc, haplotypes, new HashSet<>(haplotypes), stratifiedReadMap);
+    }
 
     /**
      * Write out read aligned to haplotype to the BAM file
@@ -193,7 +183,7 @@ public abstract class HaplotypeBAMWriter {
                                              final boolean isInformative) {
         final GATKSAMRecord alignedToRef = createReadAlignedToRef(originalRead, haplotype, referenceStart, isInformative);
         if ( alignedToRef != null )
-            bamWriter.addAlignment(alignedToRef);
+            output.add(alignedToRef);
     }
 
     /**
@@ -281,8 +271,9 @@ public abstract class HaplotypeBAMWriter {
     protected void writeHaplotypesAsReads(final Collection<Haplotype> haplotypes,
                                           final Set<Haplotype> bestHaplotypes,
                                           final GenomeLoc paddedReferenceLoc) {
-        for ( final Haplotype haplotype : haplotypes )
-            writeHaplotype(haplotype, paddedReferenceLoc, bestHaplotypes.contains(haplotype));
+        if ( isWriteHaplotypesAsWell() )
+            for ( final Haplotype haplotype : haplotypes )
+                writeHaplotype(haplotype, paddedReferenceLoc, bestHaplotypes.contains(haplotype));
     }
 
     /**
@@ -295,7 +286,7 @@ public abstract class HaplotypeBAMWriter {
     private void writeHaplotype(final Haplotype haplotype,
                                 final GenomeLoc paddedRefLoc,
                                 final boolean isAmongBestHaplotypes) {
-        final GATKSAMRecord record = new GATKSAMRecord(bamHeader);
+        final GATKSAMRecord record = new GATKSAMRecord(output.getHeader());
         record.setReadBases(haplotype.getBases());
         record.setAlignmentStart(paddedRefLoc.getStart() + haplotype.getAlignmentStartHapwrtRef());
         record.setBaseQualities(Utils.dupBytes((byte) '!', haplotype.getBases().length));
@@ -307,6 +298,14 @@ public abstract class HaplotypeBAMWriter {
         record.setReferenceIndex(paddedRefLoc.getContigIndex());
         record.setAttribute(SAMTag.RG.toString(), READ_GROUP_ID);
         record.setFlags(16);
-        bamWriter.addAlignment(record);
+        output.add(record);
+    }
+
+    public boolean isWriteHaplotypesAsWell() {
+        return writeHaplotypesAsWell;
+    }
+
+    public void setWriteHaplotypesAsWell(boolean writeHaplotypesAsWell) {
+        this.writeHaplotypesAsWell = writeHaplotypesAsWell;
     }
 }

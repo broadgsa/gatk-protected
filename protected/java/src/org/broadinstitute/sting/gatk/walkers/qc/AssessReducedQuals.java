@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.qc;
 
 import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.commandline.Hidden;
 import org.broadinstitute.sting.commandline.Output;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
@@ -55,7 +56,6 @@ import org.broadinstitute.sting.gatk.walkers.LocusWalker;
 import org.broadinstitute.sting.gatk.walkers.TreeReducible;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -89,7 +89,7 @@ import java.util.List;
  *
  * @author ami
  */
-
+@Hidden
 public class AssessReducedQuals extends LocusWalker<GenomeLoc, GenomeLoc> implements TreeReducible<GenomeLoc> {
 
     private static final String reduced = "reduced";
@@ -132,6 +132,11 @@ public class AssessReducedQuals extends LocusWalker<GenomeLoc, GenomeLoc> implem
         return reportLocus ? ref.getLocus() : null;
     }
 
+    /**
+     * Get the quals separated by version and strand
+     * @param readPileup the pileup
+     * @return 2x2 array with sum of quals separated by version in 1st dimension and strand in the 2nd
+     */
     private int[] getPileupQuals(final ReadBackedPileup readPileup) {
 
         final int[] quals = new int[2];

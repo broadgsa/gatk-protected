@@ -46,11 +46,10 @@
 
 package org.broadinstitute.sting.utils.haplotypeBAMWriter;
 
-import net.sf.samtools.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.variant.variantcontext.Allele;
 
@@ -67,17 +66,17 @@ import java.util.*;
  * Time: 1:50 PM
  */
 class AllHaplotypeBAMWriter extends HaplotypeBAMWriter {
-    public AllHaplotypeBAMWriter(final SAMFileWriter bamWriter) {
-        super(bamWriter);
+    public AllHaplotypeBAMWriter(final ReadDestination destination) {
+        super(destination);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void writeReadsAlignedToHaplotypes(final List<Haplotype> haplotypes,
+    public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
                                               final GenomeLoc paddedReferenceLoc,
-                                              final List<Haplotype> bestHaplotypes,
+                                              final Collection<Haplotype> bestHaplotypes,
                                               final Set<Haplotype> calledHaplotypes,
                                               final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
         writeHaplotypesAsReads(haplotypes, new HashSet<>(bestHaplotypes), paddedReferenceLoc);
