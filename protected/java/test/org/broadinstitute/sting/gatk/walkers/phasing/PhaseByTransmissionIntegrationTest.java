@@ -46,9 +46,16 @@
 
 package org.broadinstitute.sting.gatk.walkers.phasing;
 
+import org.broad.tribble.readers.LineIterator;
+import org.broad.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.variant.vcf.VCFCodec;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Arrays;
 
 public class PhaseByTransmissionIntegrationTest extends WalkerTest {
@@ -57,6 +64,7 @@ public class PhaseByTransmissionIntegrationTest extends WalkerTest {
     private static String TNTest = phaseByTransmissionTestDataRoot + "PhaseByTransmission.IntegrationTest.TN.vcf";
     private static String TPTest = phaseByTransmissionTestDataRoot + "PhaseByTransmission.IntegrationTest.TP.vcf";
     private static String FPTest = phaseByTransmissionTestDataRoot + "PhaseByTransmission.IntegrationTest.FP.vcf";
+    private static String MultiAllelicsTest = phaseByTransmissionTestDataRoot + "PhaseByTransmission.IntegrationTest.multiAllelics.vcf";
     private static String SpecialTest = phaseByTransmissionTestDataRoot + "PhaseByTransmission.IntegrationTest.Special.vcf";
 
     //Tests using PbT on all genotypes with default parameters
@@ -200,4 +208,44 @@ public class PhaseByTransmissionIntegrationTest extends WalkerTest {
         executeTest("testFatherAlleleFirst", spec);
     }
 
+    @Test
+    public void testMultiAllelics() throws IOException {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                buildCommandLine(
+                        "-T PhaseByTransmission",
+                        "--no_cmdline_in_header",
+                        "-R " + b37KGReference,
+                        "--variant " + MultiAllelicsTest,
+                        "-ped "+ goodFamilyFile,
+                        "-L 1:10109-10315",
+                        "-o %s"
+                ),
+                1,
+                Arrays.asList("") // don't care about the md5, just testing that records aren't being dropped
+        );
+
+        final File outputVCF = executeTest("testMultiAllelics", spec).getFirst().get(0);
+
+        final VCFCodec codec = new VCFCodec();
+        final FileInputStream originalStream = new FileInputStream(MultiAllelicsTest);
+        final LineIterator originalLineIterator = codec.makeSourceFromStream(new PositionalBufferedStream(originalStream));
+        codec.readHeader(originalLineIterator);
+        int numOriginalRecords = 0;
+        while ( originalLineIterator.hasNext() ) {
+            originalLineIterator.next();
+            numOriginalRecords++;
+        }
+
+        final FileInputStream newStream = new FileInputStream(outputVCF);
+        final LineIterator newLineIterator = codec.makeSourceFromStream(new PositionalBufferedStream(newStream));
+        codec.readHeader(newLineIterator);
+        int numNewRecords = 0;
+        while ( newLineIterator.hasNext() ) {
+            newLineIterator.next();
+            numNewRecords++;
+        }
+
+        Assert.assertTrue(numOriginalRecords > 0);
+        Assert.assertEquals(numNewRecords, numOriginalRecords);
+    }
 }
