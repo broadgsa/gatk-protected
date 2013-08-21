@@ -46,7 +46,6 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
 
-import org.apache.commons.collections.IteratorUtils;
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.variant.variantcontext.Genotype;

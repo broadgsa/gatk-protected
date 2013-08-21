@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper;
 
 import net.sf.samtools.util.BlockCompressedInputStream;
-import org.apache.commons.collections.IteratorUtils;
 import org.broad.tribble.readers.AsciiLineReader;
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
@@ -55,7 +54,6 @@ import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.vcf.VCFCodec;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -345,12 +343,12 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
         final WalkerTestSpec specAllSamples = new WalkerTestSpec(base, 1, Arrays.asList(""));
         specAllSamples.disableShadowBCF();
         final File allSamplesVCF = executeTest("testOnlyEmitSampleAllSamples", specAllSamples).first.get(0);
-        List<VariantContext> allSampleVCs = IteratorUtils.toList(GATKVCFUtils.readAllVCs(allSamplesVCF, new VCFCodec()).getSecond());
+        final List<VariantContext> allSampleVCs = GATKVCFUtils.readVCF(allSamplesVCF).getSecond();
 
         final WalkerTestSpec onlyHG01879 = new WalkerTestSpec(base + " -onlyEmitSamples HG01879", 1, Arrays.asList(""));
         onlyHG01879.disableShadowBCF();
         final File onlyHG01879VCF = executeTest("testOnlyEmitSample", onlyHG01879).first.get(0);
-        List<VariantContext> onlyHG01879VCs = IteratorUtils.toList(GATKVCFUtils.readAllVCs(onlyHG01879VCF, new VCFCodec()).getSecond());
+        final List<VariantContext> onlyHG01879VCs = GATKVCFUtils.readVCF(onlyHG01879VCF).getSecond();
 
         Assert.assertEquals(allSampleVCs.size(), onlyHG01879VCs.size());
         for ( int i = 0; i < allSampleVCs.size(); i++ ) {
