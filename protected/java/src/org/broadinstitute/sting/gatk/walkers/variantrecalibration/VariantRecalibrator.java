@@ -79,14 +79,14 @@ import java.util.*;
  * Create a Gaussian mixture model by looking at the annotations values over a high quality subset of the input call set and then evaluate all input variants.
  *
  * <p>
- * This walker is the first pass in a two-stage processing step. This walker is designed to be used in conjunction with ApplyRecalibration walker.
+ * This walker is the first pass in a two-stage processing step. This walker is designed to be used in conjunction with the ApplyRecalibration walker.
  *</p>
  *
  * <p>
  * The purpose of the variant recalibrator is to assign a well-calibrated probability to each variant call in a call set.
- * One can then create highly accurate call sets by filtering based on this single estimate for the accuracy of each call.
+ * You can then create highly accurate call sets by filtering based on this single estimate for the accuracy of each call.
  * The approach taken by variant quality score recalibration is to develop a continuous, covarying estimate of the relationship
- * between SNP call annotations (QD, MQ, HaplotypeScore, and ReadPosRankSum, for example) and the the probability that a SNP is a true genetic
+ * between SNP call annotations (QD, MQ, HaplotypeScore, and ReadPosRankSum, for example) and the probability that a SNP is a true genetic
  * variant versus a sequencing or data processing artifact. This model is determined adaptively based on "true sites" provided
  * as input, typically HapMap 3 sites and those sites found to be polymorphic on the Omni 2.5M SNP chip array. This adaptive
  * error model can then be applied to both known and novel variation discovered in the call set of interest to evaluate the
@@ -94,12 +94,7 @@ import java.util.*;
  * the log odds ratio of being a true variant versus being false under the trained Gaussian mixture model.
  * </p>
  *
- * <p>
- * NOTE: In order to create the model reporting plots Rscript needs to be in your environment PATH (this is the scripting version of R, not the interactive version).
- * See <a target="r-project" href="http://www.r-project.org">http://www.r-project.org</a> for more info on how to download and install R.
- * </p>
- *
- * <h3>Input</h3>
+ * <h3>Inputs</h3>
  * <p>
  * The input raw variants to be recalibrated.
  * <p>
@@ -127,6 +122,17 @@ import java.util.*;
  *   -rscriptFile path/to/output.plots.R
  * </pre>
  *
+ * <h3>Caveat</h3>
+ *
+ * <ul>
+ * <li>The values used in the example above are only meant to show how the command lines are composed.
+ * They are not meant to be taken as specific recommendations of values to use in your own work, and they may be
+ * different from the values cited elsewhere in our documentation. For the latest and greatest recommendations on
+ * how to set parameter values for you own analyses, please read the Best Practices section of the documentation.</li>
+ *
+ * <li>In order to create the model reporting plots Rscript needs to be in your environment PATH (this is the scripting version of R, not the interactive version).
+ * See <a target="r-project" href="http://www.r-project.org">http://www.r-project.org</a> for more info on how to download and install R.</li>
+ * </ul>
  */
 
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
@@ -155,7 +161,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      * Training - Input variants which are found to overlap with these training sites are used to build the Gaussian mixture model.
      * Truth - When deciding where to set the cutoff in VQSLOD sensitivity to these truth sites is used.
      * Known - The known / novel status of a variant isn't used by the algorithm itself and is only used for reporting / display purposes.
-     * Bad - In addition to using the worst 3% of variants as compared to the Gaussian mixture model, we can also supplement the list with a database of known bad variants.
+     * Bad - In addition to using the set of worst ranked variants as compared to the Gaussian mixture model (see -numBad argument), we can also supplement the list with a database of known bad variants.
      */
     @Input(fullName="resource", shortName = "resource", doc="A list of sites for which to apply a prior probability of being correct but which aren't used by the algorithm (training and truth sets are required to run)", required=true)
     public List<RodBinding<VariantContext>> resource = Collections.emptyList();
@@ -175,7 +181,8 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     /**
      * The expected transition / transversion ratio of true novel variants in your targeted region (whole genome, exome, specific
      * genes), which varies greatly by the CpG and GC content of the region. See expected Ti/Tv ratios section of the GATK best
-     * practices documentation (http://www.broadinstitute.org/gatk/guide/topic?name=best-practices) for more information. Normal whole genome values are 2.15 and for whole exome 3.2. Note
+     * practices documentation (http://www.broadinstitute.org/gatk/guide/topic?name=best-practices) for more information.
+     * Normal values are 2.15 for human whole genome values and 3.2 for human whole exomes. Note
      * that this parameter is used for display purposes only and isn't used anywhere in the algorithm!
      */
     @Argument(fullName="target_titv", shortName="titv", doc="The expected novel Ti/Tv ratio to use when calculating FDR tranches and for display on the optimization curve output figures. (approx 2.15 for whole genome experiments). ONLY USED FOR PLOTTING PURPOSES!", required=false)
@@ -335,7 +342,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         engine.evaluateData( dataManager.getData(), badModel, true );
 
         if( badModel.failedToConverge || goodModel.failedToConverge ) {
-            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider " + (badModel.failedToConverge ? "raising the number of variants used to train the negative model (via --numBad 3000, for example)." : "lowering the maximum number of Gaussians allowed for use in the model (via --maxGaussians 4, for example).") );
+            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider " + (badModel.failedToConverge ? "raising the number of variants used to train the negative model (via --numBadVariants 3000, for example)." : "lowering the maximum number of Gaussians allowed for use in the model (via --maxGaussians 4, for example).") );
         }
 
         engine.calculateWorstPerformingAnnotation( dataManager.getData(), goodModel, badModel );
