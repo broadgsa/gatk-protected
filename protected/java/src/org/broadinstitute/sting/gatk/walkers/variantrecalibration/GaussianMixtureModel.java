@@ -283,7 +283,7 @@ public class GaussianMixtureModel {
                     }
 
                     // add this sample's probability to the pile in order to take an average in the end
-                    sumPVarInGaussian += Math.pow(10.0, MathUtils.log10sumLog10(pVarInGaussianLog10)); // p = 10 ^ Sum(pi_k * p(v|n,k))
+                    sumPVarInGaussian += Math.pow(10.0, nanTolerantLog10SumLog10(pVarInGaussianLog10)); // p = 10 ^ Sum(pi_k * p(v|n,k))
                     numRandomDraws++;
                 }
             }
