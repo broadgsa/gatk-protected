@@ -58,6 +58,7 @@ import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.collections.DefaultHashMap;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.EventMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
@@ -186,7 +187,8 @@ public class GenotypingEngine {
                 if( mergedVC == null ) { continue; }
 
                 if( eventsAtThisLoc.size() != mergedVC.getAlternateAlleles().size() ) {
-                    throw new ReviewedStingException("Record size mismatch! Something went wrong in the merging of alleles.");
+                    // this is possible in GGA mode when the same event is represented in multiple input records
+                    throw new UserException("The same event (although possibly represented differently) is present in multiple input records at location " + loc + " and this is not something we can handle at this time.  You will need to remove one of the records in order to proceed with your input file(s).");
                 }
                 final Map<VariantContext, Allele> mergeMap = new LinkedHashMap<>();
                 mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
