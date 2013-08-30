@@ -48,8 +48,8 @@ package org.broadinstitute.sting.gatk.walkers.varianteval;
 
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.testng.annotations.Test;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -374,6 +374,21 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                            " -noST -ST Novelty -o %s";
         WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("112bb3221688acad83f29542bfb33151"));
         executeTestParallel("testEvalTrackWithoutGenotypes",spec);
+    }
+
+    @Test
+    public void testEvalTrackWithoutGenotypesWithSampleFields() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                buildCommandLine(
+                        "-T VariantEval",
+                        "-R " + b37KGReference,
+                        "-eval " + variantEvalTestDataRoot + "noGenotypes.vcf",
+                        "-o %s"
+                ),
+                1,
+                Arrays.asList("")); //There is no md5 because we only care that this completes without an exception.
+        executeTest("testEvalTrackWithoutGenotypesWithSampleFields", spec);
+
     }
 
     @Test
