@@ -76,8 +76,10 @@ import java.util.*;
 public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 
     private static final int MIN_SAMPLES = 10;
+    private static final String INBREEDING_COEFFICIENT_KEY_NAME = "InbreedingCoeff";
     private Set<String> founderIds;
 
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
@@ -92,15 +94,15 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
 
     private Map<String, Object> calculateIC(final VariantContext vc) {
         final GenotypesContext genotypes = (founderIds == null || founderIds.isEmpty()) ? vc.getGenotypes() : vc.getGenotypes(founderIds);
-        if ( genotypes == null || genotypes.size() < MIN_SAMPLES || !vc.isVariant())
+        if (genotypes == null || genotypes.size() < MIN_SAMPLES || !vc.isVariant())
             return null;
 
         int idxAA = 0, idxAB = 1, idxBB = 2;
 
         if (!vc.isBiallelic()) {
             // for non-bliallelic case, do test with most common alt allele.
-            // Get then corresponding indeces in GL vectors to retrieve GL of AA,AB and BB.
-            int[] idxVector = vc.getGLIndecesOfAlternateAllele(vc.getAltAlleleWithHighestAlleleCount());
+            // Get then corresponding indices in GL vectors to retrieve GL of AA,AB and BB.
+            final int[] idxVector = vc.getGLIndecesOfAlternateAllele(vc.getAltAlleleWithHighestAlleleCount());
             idxAA = idxVector[0];
             idxAB = idxVector[1];
             idxBB = idxVector[2];
@@ -132,12 +134,12 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
         final double q = 1.0 - p; // expected alternative allele frequency
         final double F = 1.0 - ( hetCount / ( 2.0 * p * q * (double)N ) ); // inbreeding coefficient
 
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put(getKeyNames().get(0), String.format("%.4f", F));
-        return map;
+        return Collections.singletonMap(getKeyNames().get(0), (Object)String.format("%.4f", F));
     }
 
-    public List<String> getKeyNames() { return Arrays.asList("InbreedingCoeff"); }
+    @Override
+    public List<String> getKeyNames() { return Collections.singletonList(INBREEDING_COEFFICIENT_KEY_NAME); }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("InbreedingCoeff", 1, VCFHeaderLineType.Float, "Inbreeding coefficient as estimated from the genotype likelihoods per-sample when compared against the Hardy-Weinberg expectation")); }
+    @Override
+    public List<VCFInfoHeaderLine> getDescriptions() { return Collections.singletonList(new VCFInfoHeaderLine(INBREEDING_COEFFICIENT_KEY_NAME, 1, VCFHeaderLineType.Float, "Inbreeding coefficient as estimated from the genotype likelihoods per-sample when compared against the Hardy-Weinberg expectation")); }
 }

@@ -49,7 +49,6 @@ package org.broadinstitute.sting.utils.gvcf;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.ReferenceConfidenceModel;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
@@ -91,7 +90,7 @@ public class GVCFWriterUnitTest extends BaseTest {
     private List<Integer> standardPartition = Arrays.asList(1, 10, 20);
     private Allele REF = Allele.create("N", true);
     private Allele ALT = Allele.create("A");
-    private List<Allele> ALLELES = Arrays.asList(REF, ReferenceConfidenceModel.NON_REF_SYMBOLIC_ALLELE);
+    private List<Allele> ALLELES = Arrays.asList(REF, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
     private final String SAMPLE_NAME = "XXYYZZ";
 
     @BeforeMethod
@@ -223,10 +222,10 @@ public class GVCFWriterUnitTest extends BaseTest {
         Assert.assertEquals(vc.getStart(), start);
         Assert.assertEquals(vc.getEnd(), stop);
         if ( nonRef ) {
-            Assert.assertNotEquals(vc.getAlternateAllele(0), ReferenceConfidenceModel.NON_REF_SYMBOLIC_ALLELE);
+            Assert.assertNotEquals(vc.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
         } else {
             Assert.assertEquals(vc.getNAlleles(), 2);
-            Assert.assertEquals(vc.getAlternateAllele(0), ReferenceConfidenceModel.NON_REF_SYMBOLIC_ALLELE);
+            Assert.assertEquals(vc.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
             Assert.assertEquals(vc.getAttributeAsInt(GVCFWriter.BLOCK_SIZE_INFO_FIELD, -1), stop - start + 1);
             Assert.assertEquals(vc.getAttributeAsInt(VCFConstants.END_KEY, -1), stop);
             Assert.assertTrue(vc.hasGenotypes());
@@ -234,8 +233,9 @@ public class GVCFWriterUnitTest extends BaseTest {
             Assert.assertEquals(vc.getGenotypes().size(), 1);
             final Genotype g = vc.getGenotype(SAMPLE_NAME);
             Assert.assertEquals(g.hasAD(), false);
-            Assert.assertEquals(g.hasLikelihoods(), false);
-            Assert.assertEquals(g.hasPL(), false);
+            Assert.assertEquals(g.hasLikelihoods(), true);
+            Assert.assertEquals(g.hasPL(), true);
+            Assert.assertEquals(g.getPL().length == 3, true);
             Assert.assertEquals(g.hasDP(), true);
             Assert.assertEquals(g.hasGQ(), true);
         }
@@ -307,7 +307,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @DataProvider(name = "BandPartitionData")
     public Object[][] makeBandPartitionData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         tests.add(new Object[]{null, false});
         tests.add(new Object[]{Collections.emptyList(), false});

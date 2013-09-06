@@ -230,6 +230,7 @@ public class GVCFWriter implements VariantContextWriter {
         gb.DP(block.getMedianDP());
         gb.attribute(MIN_DP_FORMAT_FIELD, block.getMinDP());
         gb.attribute(MIN_GQ_FORMAT_FIELD, block.getMinGQ());
+        gb.PL(block.getMinPLs());
 
         return vcb.genotypes(gb.make()).make();
     }

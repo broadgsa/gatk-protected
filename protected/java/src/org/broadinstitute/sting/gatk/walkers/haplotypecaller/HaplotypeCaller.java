@@ -290,7 +290,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * B <= X < C
      * X >= C
      *
-     * The default bands give the following GQ blocks:
+     * The default bands with (1, 10, 20, 30, 40, 50) give the following GQ blocks:
      *
      * [0, 0]
      * (0, 10]
@@ -304,7 +304,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="GVCFGQBands", shortName="GQB", doc="Emit experimental reference confidence scores", required = false)
-    protected List<Integer> GVCFGQBands = Arrays.asList(1, 10, 20, 30, 40, 50);
+    protected List<Integer> GVCFGQBands = Arrays.asList(5, 20, 60);
 
     /**
      * This parameter determines the maximum size of an indel considered as potentially segregating in the
@@ -541,7 +541,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         samplesList.addAll( samples );
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
         final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
-        // HC GGA mode depends critically on EMIT_ALL_SITES being set for the UG engine // TODO -- why is this?
+        // HC GGA mode depends critically on EMIT_ALL_SITES being set for the UG engine
         UAC.OutputMode = SCAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
                 ? UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES : UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
         UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
@@ -553,11 +553,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         simpleUAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
-        simpleUAC.CONTAMINATION_FRACTION_FILE=null;
+        simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
         UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
-        if( UAC.CONTAMINATION_FRACTION_FILE !=null) {
+        if( UAC.CONTAMINATION_FRACTION_FILE != null ) {
             UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, UAC.CONTAMINATION_FRACTION, samples, logger));
         }
 
@@ -867,17 +867,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // Create ReadErrorCorrector object if requested - will be used within assembly engine.
         ReadErrorCorrector readErrorCorrector = null;
         if (errorCorrectReads)
-            readErrorCorrector = new ReadErrorCorrector(kmerLengthForReadErrorCorrection, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION, minObservationsForKmerToBeSolid, DEBUG,fullReferenceWithPadding);
+            readErrorCorrector = new ReadErrorCorrector(kmerLengthForReadErrorCorrection, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION, minObservationsForKmerToBeSolid, DEBUG, fullReferenceWithPadding);
 
         try {
-            final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype,readErrorCorrector );
-            if ( ! emitReferenceConfidence() && ! dontTrimActiveRegions ) {
+            final List<Haplotype> haplotypes = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype, readErrorCorrector );
+            if ( ! dontTrimActiveRegions ) {
                 return trimActiveRegion(activeRegion, haplotypes, activeAllelesToGenotype, fullReferenceWithPadding, paddedReferenceLoc);
             } else {
                 // we don't want to trim active regions, so go ahead and use the old one
                 return new AssemblyResult(haplotypes, activeRegion, fullReferenceWithPadding, paddedReferenceLoc, true);
             }
-        } catch ( Exception e ) {
+        } catch ( final Exception e ) {
             // Capture any exception that might be thrown, and write out the assembly failure BAM if requested
             if ( captureAssemblyFailureBAM ) {
                 final SAMFileWriter writer = ReadUtils.createSAMFileWriterWithCompression(getToolkit().getSAMFileHeader(), true, "assemblyFailure.bam", 5);
@@ -969,7 +969,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         EventMap.buildEventMapsForHaplotypes(haplotypes, fullReferenceWithPadding, paddedReferenceLoc, DEBUG);
         final TreeSet<VariantContext> allVariantsWithinFullActiveRegion = EventMap.getAllVariantContexts(haplotypes);
         allVariantsWithinFullActiveRegion.addAll(activeAllelesToGenotype);
-        final ActiveRegion trimmedActiveRegion = trimmer.trimRegion(originalActiveRegion, allVariantsWithinFullActiveRegion);
+        final ActiveRegion trimmedActiveRegion = trimmer.trimRegion(originalActiveRegion, allVariantsWithinFullActiveRegion, false); // TODO -- should pass emitReferenceConfidence()
 
         if ( trimmedActiveRegion == null ) {
             // there were no variants found within the active region itself, so just return null
@@ -1000,7 +1000,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 logger.info("  Remains: " + remaining + " cigar " + remaining.getCigar());
             }
         }
-
 
         // trim down the reads and add them to the trimmed active region
         final List<GATKSAMRecord> trimmedReads = new ArrayList<>(originalActiveRegion.getReads().size());
@@ -1096,7 +1095,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         activeRegion.addAll(downsampledReads);
     }
 
-    private Set<GATKSAMRecord> filterNonPassingReads( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
+    private Set<GATKSAMRecord> filterNonPassingReads( final ActiveRegion activeRegion ) {
         final Set<GATKSAMRecord> readsToRemove = new LinkedHashSet<>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
             if( rec.getReadLength() < MIN_READ_LENGTH || rec.getMappingQuality() < 20 || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
@@ -1107,7 +1106,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         return readsToRemove;
     }
 
-    private GenomeLoc getPaddedLoc( final org.broadinstitute.sting.utils.activeregion.ActiveRegion activeRegion ) {
+    private GenomeLoc getPaddedLoc( final ActiveRegion activeRegion ) {
         final int padLeft = Math.max(activeRegion.getExtendedLoc().getStart()-REFERENCE_PADDING, 1);
         final int padRight = Math.min(activeRegion.getExtendedLoc().getStop()+REFERENCE_PADDING, referenceReader.getSequenceDictionary().getSequence(activeRegion.getExtendedLoc().getContig()).getSequenceLength());
         return getToolkit().getGenomeLocParser().createGenomeLoc(activeRegion.getExtendedLoc().getContig(), padLeft, padRight);

@@ -129,7 +129,7 @@ public class IndelGenotypeLikelihoodsUnitTest extends BaseTest {
     }
     
     private List<Allele> getConsensusAlleles(int eventLength, boolean isInsertion, int minCnt, double minFraction, String altBases) {
-        final ConsensusAlleleCounter counter = new ConsensusAlleleCounter(pileupProvider.genomeLocParser, true, minCnt, minFraction);
+        final ConsensusAlleleCounter counter = new ConsensusAlleleCounter(true, minCnt, minFraction);
         return counter.computeConsensusAlleles(pileupProvider.referenceContext,
                 pileupProvider.getAlignmentContextFromAlleles(isInsertion?eventLength:-eventLength,altBases,numReadsPerAllele),
                 AlignmentContextUtils.ReadOrientation.COMPLETE);

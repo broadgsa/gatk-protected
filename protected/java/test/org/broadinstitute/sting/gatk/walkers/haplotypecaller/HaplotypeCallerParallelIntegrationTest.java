@@ -58,10 +58,10 @@ import java.util.List;
 public class HaplotypeCallerParallelIntegrationTest extends WalkerTest {
     @DataProvider(name = "NCTDataProvider")
     public Object[][] makeNCTDataProvider() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         for ( final int nct : Arrays.asList(1, 2, 4) ) {
-            tests.add(new Object[]{nct, "e4bf389676fa090c95980349310ba5ca"});
+            tests.add(new Object[]{nct, "29cb04cca87f42b4762c34dfea5d15b7"});
         }
 
         return tests.toArray(new Object[][]{});

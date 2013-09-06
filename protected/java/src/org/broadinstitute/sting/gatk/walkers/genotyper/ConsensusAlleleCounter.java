@@ -76,16 +76,13 @@ public class ConsensusAlleleCounter {
     private final int minIndelCountForGenotyping;
     private final boolean doMultiAllelicCalls;
     private final double minFractionInOneSample;
-    private final GenomeLocParser locParser;
 
-    public ConsensusAlleleCounter(final GenomeLocParser locParser,
-                                  final boolean doMultiAllelicCalls,
+    public ConsensusAlleleCounter(final boolean doMultiAllelicCalls,
                                   final int minIndelCountForGenotyping,
                                   final double minFractionInOneSample) {
         this.minIndelCountForGenotyping = minIndelCountForGenotyping;
         this.doMultiAllelicCalls = doMultiAllelicCalls;
         this.minFractionInOneSample = minFractionInOneSample;
-        this.locParser = locParser;
     }
 
     /**
@@ -289,7 +286,7 @@ public class ConsensusAlleleCounter {
         if (vcs.isEmpty())
             return Collections.emptyList(); // nothing else to do, no alleles passed minimum count criterion
 
-        final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(vcs, null, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.UNSORTED, false, false, null, false, false);
+        final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(vcs, null, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.UNSORTED, false, false, null, false, false, false);
         return mergedVC.getAlleles();
     }
 }
