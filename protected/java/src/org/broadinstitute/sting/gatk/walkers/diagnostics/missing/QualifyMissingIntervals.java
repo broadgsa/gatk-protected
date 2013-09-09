@@ -76,10 +76,12 @@ import java.util.List;
  * <ul>
  *     <li>Average Base Quality</li>
  *     <li>Average Mapping Quality</li>
+ *     <li>Average Depth</li>
  *     <li>GC Content</li>
- *     <li>Position in the target</li>
- *     <li>Coding Sequence / Intron</li>
- *     <li>Length of the uncovered area</li>
+ *     <li>Position in the target (Integer.MIN_VALUE if no overlap)</li>
+ *     <li>Length of the overlapping target (zero if no overlap)</li>
+ *     <li>Coding Sequence / Intron (optional)</li>
+ *     <li>Length of the uncovered interval</li>
  * </ul>
  *
  * <h3>Input</h3>
@@ -89,7 +91,7 @@ import java.util.List;
  *
  * <h3>Output</h3>
  * <p>
- *  GC content calculations per interval.
+ *  GC content, distance from the end of the target, coding sequence intersection, mapping and base quality averages and average depth per "missing" interval.
  * </p>
  *
  * <h3>Example</h3>
@@ -108,12 +110,24 @@ import java.util.List;
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 @By(DataSource.REFERENCE)
 public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics> implements NanoSchedulable {
+    /**
+     * A single GATKReport table with the qualifications on why the intervals passed by the -L argument were missing.
+     */
     @Output
     protected PrintStream out;
 
+    /**
+     * List of targets used in the experiment. This file will be used to calculate the distance your missing
+     * intervals are to the targets (usually exons). Typically this is your hybrid selection targets file
+     * (e.g. Agilent exome target list)
+     */
     @Argument(shortName = "targets", required = true)
     public String targetsFile;
 
+    /**
+     * List of coding sequence intervals (exons) if different from the targets file, to distinguish intervals
+     * that overlap the cds and intervals that don't.
+     */
     @Argument(shortName = "cds", required = false)
     public String cdsFile = null;
 
@@ -224,15 +238,18 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
 
     public void onTraversalDone(List<Pair<GenomeLoc, Metrics>> results) {
         for (Pair<GenomeLoc, Metrics> r : results) {
-            GenomeLoc interval = r.getFirst();
-            Metrics metrics = r.getSecond();
+            final GenomeLoc interval = r.getFirst();
+            final Metrics metrics = r.getSecond();
+            final List<GenomeLoc> overlappingIntervals = target.getOverlapping(interval);
+
             simpleReport.addRow(
                     interval.toString(),
                     metrics.gccontent(),
                     metrics.baseQual(),
                     metrics.mapQual(),
                     metrics.depth(),
-                    getPositionInTarget(interval),
+                    getPositionInTarget(interval, overlappingIntervals),
+                    getTargetSize(overlappingIntervals),
                     cds.overlaps(interval),
                     interval.size(),
                     interpret(metrics, interval)
@@ -242,13 +259,34 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         out.close();
     }
 
-    private int getPositionInTarget(GenomeLoc interval) {
-        final List<GenomeLoc> hits = target.getOverlapping(interval);
-        int result = 0;
-        for (GenomeLoc hit : hits) {
-            result = interval.getStart() - hit.getStart(); // if there are multiple hits, we'll get the last one.
+    private int getPositionInTarget(final GenomeLoc interval, final List<GenomeLoc> hits) {
+        if (hits.size() > 0) {
+            final GenomeLoc hit = hits.get(0);
+
+            // interval is larger on both ends than the target -- return the maximum distance to either side as a negative number. (min of 2 negative numbers)
+            if (interval.getStart() < hit.getStart() && interval.getStop() > hit.getStop())
+                return Math.min(interval.getStart() - hit.getStart(),
+                                interval.getStop() - hit.getStop());
+
+            // interval is a left overlap -- return a negative number representing the distance between the two starts
+            else if (interval.getStart() < hit.getStart())
+                return hit.getStart() - interval.getStart();
+
+            // interval is a right overlap -- return a negative number representing the distance between the two stops
+            else if (interval.getStop() > hit.getStop())
+                return hit.getStop() - interval.getStop();
+
+            // interval is fully contained -- return the smallest distance to the edge of the target (left or right) as a positive number
+            else
+                return Math.min(Math.abs(hit.getStart() - interval.getStart()),
+                                Math.abs(hit.getStop() - interval.getStop()));
         }
-        return result;
+        // if there is no overlapping interval, return int min value.
+        return Integer.MIN_VALUE;
+    }
+
+    private int getTargetSize(final List<GenomeLoc> overlappingIntervals) {
+        return overlappingIntervals.size() > 0 ? overlappingIntervals.get(0).size() : -1;
     }
 
     String interpret(final Metrics metrics, final GenomeLoc interval) {
