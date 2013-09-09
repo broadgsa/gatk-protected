@@ -92,7 +92,8 @@ public final class LoglessPairHMM extends N2MemoryPairHMM {
                                                                final byte[] deletionGOP,
                                                                final byte[] overallGCP,
                                                                final int hapStartIndex,
-                                                               final boolean recacheReadValues ) {
+                                                               final boolean recacheReadValues,
+                                                               final int nextHapStartIndex) {
 
         if (previousHaplotypeBases == null || previousHaplotypeBases.length != haplotypeBases.length) {
             final double initialValue = INITIAL_CONDITION / haplotypeBases.length;

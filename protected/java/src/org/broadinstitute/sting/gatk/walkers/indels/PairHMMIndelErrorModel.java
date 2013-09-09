@@ -53,6 +53,7 @@ import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.pairhmm.ArrayLoglessPairHMM;
 import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
 import org.broadinstitute.sting.utils.pairhmm.LoglessPairHMM;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
@@ -120,8 +121,11 @@ public class PairHMMIndelErrorModel {
             case LOGLESS_CACHING:
                 pairHMM = new LoglessPairHMM();
                 break;
+            case ARRAY_LOGLESS:
+                pairHMM = new ArrayLoglessPairHMM();
+                break;
             default:
-                throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the UnifiedGenotyper. Acceptable options are ORIGINAL, EXACT or LOGLESS_CACHING.");
+                throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the UnifiedGenotyper. Acceptable options are ORIGINAL, EXACT, LOGLESS_CACHING, or ARRAY_LOGLESS.");
         }
 
         // fill gap penalty table, affine naive model:
@@ -365,7 +369,10 @@ public class PairHMMIndelErrorModel {
                         baseDeletionQualities = contextLogGapOpenProbabilities;
                     }
 
+                    byte[] currentHaplotypeBases = null;
                     boolean firstHap = true;
+                    double readLikelihood;
+                    Allele currentAllele = null;
                     for (Allele a: haplotypeMap.keySet()) {
 
                         Haplotype haplotype = haplotypeMap.get(a);
@@ -381,34 +388,65 @@ public class PairHMMIndelErrorModel {
                         final long indStart = startLocationInRefForHaplotypes - haplotype.getStartPosition();
                         final long indStop =  stopLocationInRefForHaplotypes - haplotype.getStartPosition();
 
-                        double readLikelihood;
+
                         if (DEBUG)
                             System.out.format("indStart: %d indStop: %d WinStart:%d WinStop:%d start: %d stop: %d readLength: %d C:%s\n",
                                     indStart, indStop, ref.getWindow().getStart(), ref.getWindow().getStop(), startLocationInRefForHaplotypes, stopLocationInRefForHaplotypes, read.getReadLength(), read.getCigar().toString());
 
-                        final byte[] haplotypeBases = Arrays.copyOfRange(haplotype.getBases(), (int)indStart, (int)indStop);
+                        // peak at the next haplotype in the list
+                        final byte[] nextHaplotypeBases = Arrays.copyOfRange(haplotype.getBases(), (int)indStart, (int)indStop);
+                        // process the current haplotype in the list
+                        if (currentHaplotypeBases != null) {
+                            // it's possible that the indel starts at the last base of the haplotypes
+                            if ( currentHaplotypeBases.length == 0 ) {
+                                readLikelihood = -Double.MAX_VALUE;
+                            } else {
+                                if (firstHap) {
+                                    //no need to reallocate arrays for each new haplotype, as length won't change
+                                    pairHMM.initialize(readBases.length, currentHaplotypeBases.length);
+                                    firstHap = false;
+                                }
 
+                                readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(currentHaplotypeBases, readBases, readQuals,
+                                        baseInsertionQualities, baseDeletionQualities, contextLogGapContinuationProbabilities, firstHap, nextHaplotypeBases);
+                            }
+
+                            if (DEBUG) {
+                                System.out.println("H:"+new String(currentHaplotypeBases));
+                                System.out.println("R:"+new String(readBases));
+                                System.out.format("L:%4.2f\n",readLikelihood);
+                            }
+
+                            perReadAlleleLikelihoodMap.add(p, currentAllele, readLikelihood);
+                            readLikelihoods[readIdx][j++] = readLikelihood;
+                        }
+                        // update the current haplotype
+                        currentHaplotypeBases = nextHaplotypeBases;
+                        currentAllele = a;
+                    }
+                    // process the final haplotype
+                    if (currentHaplotypeBases != null) {
                         // it's possible that the indel starts at the last base of the haplotypes
-                        if ( haplotypeBases.length == 0 ) {
+                        if ( currentHaplotypeBases.length == 0 ) {
                             readLikelihood = -Double.MAX_VALUE;
                         } else {
                             if (firstHap) {
                                 //no need to reallocate arrays for each new haplotype, as length won't change
-                                pairHMM.initialize(readBases.length, haplotypeBases.length);
+                                pairHMM.initialize(readBases.length, currentHaplotypeBases.length);
                                 firstHap = false;
                             }
-
-                            readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotypeBases, readBases, readQuals,
-                                    baseInsertionQualities, baseDeletionQualities, contextLogGapContinuationProbabilities, firstHap);
+                            // there is no next haplotype, so pass null for nextHaplotypeBases.
+                            readLikelihood = pairHMM.computeReadLikelihoodGivenHaplotypeLog10(currentHaplotypeBases, readBases, readQuals,
+                                    baseInsertionQualities, baseDeletionQualities, contextLogGapContinuationProbabilities, firstHap, null);
                         }
 
                         if (DEBUG) {
-                            System.out.println("H:"+new String(haplotypeBases));
+                            System.out.println("H:"+new String(currentHaplotypeBases));
                             System.out.println("R:"+new String(readBases));
                             System.out.format("L:%4.2f\n",readLikelihood);
                         }
 
-                        perReadAlleleLikelihoodMap.add(p, a, readLikelihood);
+                        perReadAlleleLikelihoodMap.add(p, currentAllele, readLikelihood);
                         readLikelihoods[readIdx][j++] = readLikelihood;
                     }
                 }

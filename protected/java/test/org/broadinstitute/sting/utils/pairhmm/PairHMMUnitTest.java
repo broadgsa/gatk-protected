@@ -72,16 +72,18 @@ public class PairHMMUnitTest extends BaseTest {
     final N2MemoryPairHMM exactHMM = new Log10PairHMM(true); // the log truth implementation
     final N2MemoryPairHMM originalHMM = new Log10PairHMM(false); // the reference implementation
     final N2MemoryPairHMM loglessHMM = new LoglessPairHMM();
+    final PairHMM arrayHMM = new ArrayLoglessPairHMM();
 
     @BeforeClass
     public void initialize() {
         exactHMM.doNotUseTristateCorrection();
         originalHMM.doNotUseTristateCorrection();
         loglessHMM.doNotUseTristateCorrection();
+        arrayHMM.doNotUseTristateCorrection();
     }
 
-    private List<N2MemoryPairHMM> getHMMs() {
-        return Arrays.asList(exactHMM, originalHMM, loglessHMM);
+    private List<PairHMM> getHMMs() {
+        return Arrays.asList(exactHMM, originalHMM, loglessHMM, arrayHMM);
     }
 
     // --------------------------------------------------------------------------------
@@ -91,8 +93,8 @@ public class PairHMMUnitTest extends BaseTest {
     // --------------------------------------------------------------------------------
 
     private class BasicLikelihoodTestProvider {
-        final String ref, read;
-        final byte[] refBasesWithContext, readBasesWithContext;
+        final String ref, nextRef, read;
+        final byte[] refBasesWithContext, nextRefBasesWithContext, readBasesWithContext;
         final int baseQual, insQual, delQual, gcp;
         final int expectedQual;
         final boolean left, right;
@@ -100,28 +102,30 @@ public class PairHMMUnitTest extends BaseTest {
         final static String LEFT_FLANK = "GATTTATCATCGAGTCTGC";
         final static String RIGHT_FLANK = "CATGGATCGTTATCAGCTATCTCGAGGGATTCACTTAACAGTTTTA";
 
-        public BasicLikelihoodTestProvider(final String ref, final String read, final int baseQual, final int insQual, final int delQual, final int expectedQual, final int gcp ) {
-            this(ref, read, baseQual, insQual, delQual, expectedQual, gcp, false, false);
+        public BasicLikelihoodTestProvider(final String ref, final String nextRef, final String read, final int baseQual, final int insQual, final int delQual, final int expectedQual, final int gcp ) {
+            this(ref, nextRef, read, baseQual, insQual, delQual, expectedQual, gcp, false, false);
         }
 
-        public BasicLikelihoodTestProvider(final String ref, final String read, final int baseQual, final int insQual, final int delQual, final int expectedQual, final int gcp, final boolean left, final boolean right) {
+        public BasicLikelihoodTestProvider(final String ref, final String nextRef, final String read, final int baseQual, final int insQual, final int delQual, final int expectedQual, final int gcp, final boolean left, final boolean right) {
             this.baseQual = baseQual;
             this.delQual = delQual;
             this.insQual = insQual;
             this.gcp = gcp;
             this.read = read;
             this.ref = ref;
+            this.nextRef = nextRef;
             this.expectedQual = expectedQual;
             this.left = left;
             this.right = right;
 
             refBasesWithContext = asBytes(ref, left, right);
+            nextRefBasesWithContext = asBytes(nextRef, left, right);
             readBasesWithContext = asBytes(read, false, false);
         }
 
         @Override
         public String toString() {
-            return String.format("ref=%s read=%s b/i/d/c quals = %d/%d/%d/%d l/r flank = %b/%b e[qual]=%d", ref, read, baseQual, insQual, delQual, gcp, left, right, expectedQual);
+            return String.format("ref=%s nextRef=%s read=%s b/i/d/c quals = %d/%d/%d/%d l/r flank = %b/%b e[qual]=%d", ref, nextRef, read, baseQual, insQual, delQual, gcp, left, right, expectedQual);
         }
 
         public double expectedLogL() {
@@ -129,7 +133,7 @@ public class PairHMMUnitTest extends BaseTest {
         }
 
         public double getTolerance(final PairHMM hmm) {
-            if ( hmm instanceof LoglessPairHMM)
+            if ( hmm instanceof LoglessPairHMM || hmm instanceof ArrayLoglessPairHMM)
                 return toleranceFromExact();
             if ( hmm instanceof Log10PairHMM ) {
                 return ((Log10PairHMM)hmm).isDoingExactLog10Calculations() ? toleranceFromExact() : toleranceFromReference();
@@ -154,11 +158,14 @@ public class PairHMMUnitTest extends BaseTest {
             return pairHMM.computeReadLikelihoodGivenHaplotypeLog10(
                     refBasesWithContext, readBasesWithContext,
                     qualAsBytes(baseQual, false, anchorIndel), qualAsBytes(insQual, true, anchorIndel), qualAsBytes(delQual, true, anchorIndel),
-                    qualAsBytes(gcp, false, anchorIndel), true);
+                    qualAsBytes(gcp, false, anchorIndel), true, nextRefBasesWithContext);
         }
 
         private byte[] asBytes(final String bases, final boolean left, final boolean right) {
-            return ( (left ? LEFT_FLANK : "") + CONTEXT + bases + CONTEXT + (right ? RIGHT_FLANK : "")).getBytes();
+            if(bases == null)
+                return null;
+            else
+                return ( (left ? LEFT_FLANK : "") + CONTEXT + bases + CONTEXT + (right ? RIGHT_FLANK : "")).getBytes();
         }
 
         private byte[] qualAsBytes(final int phredQual, final boolean doGOP, final boolean anchorIndel) {
@@ -204,7 +211,8 @@ public class PairHMMUnitTest extends BaseTest {
                             final String ref  = new String(new byte[]{refBase});
                             final String read = new String(new byte[]{readBase});
                             final int expected = refBase == readBase ? 0 : baseQual;
-                            tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp)});
+                            // runBasicLikelihoodTests uses calcLogL(), which runs HMM with recacheReads=true. Since we will not cache, should pass null in place of a nextRef
+                            tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, null, read, baseQual, indelQual, indelQual, expected, gcp)});
                         }
                     }
 
@@ -220,10 +228,11 @@ public class PairHMMUnitTest extends BaseTest {
                                 final String ref = insertionP ? small : big;
                                 final String read = insertionP ? big : small;
 
-                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp)});
-                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, true, false)});
-                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, false, true)});
-                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, expected, gcp, true, true)});
+                                // runBasicLikelihoodTests uses calcLogL(), which runs HMM with recacheReads=true. Since we will not cache, should pass null in place of a nextRef
+                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, null, read, baseQual, indelQual, indelQual, expected, gcp)});
+                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, null, read, baseQual, indelQual, indelQual, expected, gcp, true, false)});
+                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, null, read, baseQual, indelQual, indelQual, expected, gcp, false, true)});
+                                tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, null, read, baseQual, indelQual, indelQual, expected, gcp, true, true)});
                             }
                         }
                     }
@@ -261,7 +270,8 @@ public class PairHMMUnitTest extends BaseTest {
 
                             for ( final boolean leftFlank : Arrays.asList(true, false) )
                                 for ( final boolean rightFlank : Arrays.asList(true, false) )
-                                    tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, read, baseQual, indelQual, indelQual, -0, gcp, leftFlank, rightFlank)});
+                                    // runOptimizedLikelihoodTests uses calcLogL(), which runs HMM with recacheReads=true. Since we will not cache, should pass null in place of a nextRef
+                                    tests.add(new Object[]{new BasicLikelihoodTestProvider(ref, null, read, baseQual, indelQual, indelQual, -0, gcp, leftFlank, rightFlank)});
                         }
                     }
                 }
@@ -302,6 +312,7 @@ public class PairHMMUnitTest extends BaseTest {
         }
     }
 
+
     @Test(enabled = !DEBUG)
     public void testMismatchInEveryPositionInTheReadWithCenteredHaplotype() {
         final byte[] haplotype1 = "TTCTCTTCTGTTGTGGCTGGTT".getBytes();
@@ -323,7 +334,7 @@ public class PairHMMUnitTest extends BaseTest {
             final byte[] mread = Arrays.copyOfRange(haplotype1,offset,haplotype1.length-offset);
             // change single base at position k to C. If it's a C, change to T
             mread[k] = ( mread[k] == (byte)'C' ? (byte)'T' : (byte)'C');
-            final double res1 = loglessHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype1, mread, quals, gop, gop, gcp, false);
+            final double res1 = loglessHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype1, mread, quals, gop, gop, gcp, true, null);
             final double expected = Math.log10(1.0/haplotype1.length * Math.pow(QualityUtils.qualToProb(matchQual), mread.length-1) * QualityUtils.qualToErrorProb(mismatchQual));
             Assert.assertEquals(res1, expected, 1e-2);
         }
@@ -351,7 +362,7 @@ public class PairHMMUnitTest extends BaseTest {
             final byte[] mread = Arrays.copyOfRange(haplotype1,offset,haplotype1.length);
             // change single base at position k to C. If it's a C, change to T
             mread[k] = ( mread[k] == (byte)'C' ? (byte)'T' : (byte)'C');
-            final double res1 = loglessHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype1, mread, quals, gop, gop, gcp, false);
+            final double res1 = loglessHMM.computeReadLikelihoodGivenHaplotypeLog10(haplotype1, mread, quals, gop, gop, gcp, true , null);
             final double expected = Math.log10(1.0/haplotype1.length * Math.pow(QualityUtils.qualToProb(matchQual), mread.length-1) * QualityUtils.qualToErrorProb(mismatchQual));
             Assert.assertEquals(res1, expected, 1e-2);
         }
@@ -382,11 +393,12 @@ public class PairHMMUnitTest extends BaseTest {
         final byte delQual = 37;
         final byte gcp = 10;
         hmm.initialize(readBases.length, refBases.length);
+        // running HMM with no haplotype caching. Should therefore pass null in place of nextRef bases
         final double d = hmm.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
                 Utils.dupBytes(baseQual, readBases.length),
                 Utils.dupBytes(insQual, readBases.length),
                 Utils.dupBytes(delQual, readBases.length),
-                Utils.dupBytes(gcp, readBases.length), true);
+                Utils.dupBytes(gcp, readBases.length), true, null);
         Assert.assertTrue(d <= 0.0, "Likelihoods should be <= 0 but got "+ d);
     }
 
@@ -399,11 +411,12 @@ public class PairHMMUnitTest extends BaseTest {
         final byte delQual = 100;
         final byte gcp = 100;
         hmm.initialize(readBases.length, refBases.length);
+        // running HMM with no haplotype caching. Should therefore pass null in place of nextRef bases
         double d = hmm.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
                 Utils.dupBytes(baseQual, readBases.length),
                 Utils.dupBytes(insQual, readBases.length),
                 Utils.dupBytes(delQual, readBases.length),
-                Utils.dupBytes(gcp, readBases.length), true);
+                Utils.dupBytes(gcp, readBases.length), true, null);
         double expected =  0;
         final double initialCondition = ((double) Math.abs(refBases.length-readBases.length+1))/refBases.length;
         if (readBases.length < refBases.length) {
@@ -445,11 +458,12 @@ public class PairHMMUnitTest extends BaseTest {
         final byte delQual = 40;
         final byte gcp = 10;
         hmm.initialize(readBases.length, refBases.length);
+        // running HMM with no haplotype caching. Should therefore pass null in place of nextRef bases
         hmm.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
                 Utils.dupBytes(baseQual, readBases.length),
                 Utils.dupBytes(insQual, readBases.length),
                 Utils.dupBytes(delQual, readBases.length),
-                Utils.dupBytes(gcp, readBases.length), true);
+                Utils.dupBytes(gcp, readBases.length), true, null);
     }
 
     @Test(enabled = !DEBUG)
@@ -460,20 +474,27 @@ public class PairHMMUnitTest extends BaseTest {
         final byte insQual = 40;
         final byte delQual = 40;
         final byte gcp = 10;
-
+        // running HMMs with no haplotype caching. Should therefore pass null in place of nextRef bases
         exactHMM.initialize(readBases.length, refBases.length);
         exactHMM.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
                 Utils.dupBytes(baseQual, readBases.length),
                 Utils.dupBytes(insQual, readBases.length),
                 Utils.dupBytes(delQual, readBases.length),
-                Utils.dupBytes(gcp, readBases.length), true);
+                Utils.dupBytes(gcp, readBases.length), true, null);
 
         loglessHMM.initialize(readBases.length, refBases.length);
         loglessHMM.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
                 Utils.dupBytes(baseQual, readBases.length),
                 Utils.dupBytes(insQual, readBases.length),
                 Utils.dupBytes(delQual, readBases.length),
-                Utils.dupBytes(gcp, readBases.length), true);
+                Utils.dupBytes(gcp, readBases.length), true, null);
+
+        arrayHMM.initialize(readBases.length, refBases.length);
+        arrayHMM.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
+                Utils.dupBytes(baseQual, readBases.length),
+                Utils.dupBytes(insQual, readBases.length),
+                Utils.dupBytes(delQual, readBases.length),
+                Utils.dupBytes(gcp, readBases.length), true, null);
     }
 
     @DataProvider(name = "JustHMMProvider")
@@ -498,7 +519,8 @@ public class PairHMMUnitTest extends BaseTest {
         final byte[] gcp = Utils.dupBytes((byte) 10, delQual.length);
         hmm.initialize(readBases.length + 100, refBases.length + 100);
         for ( int nExtraMaxSize = 0; nExtraMaxSize < 100; nExtraMaxSize++ ) {
-            hmm.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases, quals, insQual, delQual, gcp, true);
+            // running HMM with no haplotype caching. Should therefore pass null in place of nextRef bases
+            hmm.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases, quals, insQual, delQual, gcp, true, null);
         }
     }
 
@@ -506,10 +528,12 @@ public class PairHMMUnitTest extends BaseTest {
     public Object[][] makeHaplotypeIndexingProvider() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
+        // First difference (root2, root3) is the base position immediately following first difference (root1, root2)
         final String root1    = "ACGTGTCAAACCGGGTT";
-        final String root2    = "ACGTGTCACACTGGGTT"; // differs in two locations
+        final String root2    = "ACGTGTCACACTGGGTT"; // differs in two locations from root1
+        final String root3    = "ACGTGTCACTCCGCGTT"; // differs in two locations from root2
 
-        final String read1    = "ACGTGTCACACTGGATT"; // 1 diff from 2, 2 diff from root1
+        final String read1    = "ACGTGTCACACTGGATT"; // 1 diff from 2, 2 diff from root1, 2 diff from root3
         final String read2    = root1; // same as root1
         final String read3    = root2; // same as root2
         final String read4    = "ACGTGTCACACTGGATTCGAT";
@@ -521,7 +545,7 @@ public class PairHMMUnitTest extends BaseTest {
 //                int readLength = read.length(); {
                 for ( int readLength = 10; readLength < read.length(); readLength++ ) {
                     final String myRead = read.substring(0, readLength);
-                    tests.add(new Object[]{hmm, root1, root2, myRead});
+                    tests.add(new Object[]{hmm, root1, root2, root3, myRead});
                 }
             }
         }
@@ -530,7 +554,7 @@ public class PairHMMUnitTest extends BaseTest {
     }
 
     @Test(enabled = !DEBUG, dataProvider = "HaplotypeIndexingProvider")
-    void testHaplotypeIndexing(final PairHMM hmm, final String root1, final String root2, final String read) {
+    void testHaplotypeIndexing(final PairHMM hmm, final String root1, final String root2, final String root3, final String read) {
         final double TOLERANCE = 1e-9;
         final String prefix   = "AACCGGTTTTTGGGCCCAAACGTACGTACAGTTGGTCAACATCGATCAGGTTCCGGAGTAC";
 
@@ -544,24 +568,30 @@ public class PairHMMUnitTest extends BaseTest {
             final String myPrefix = prefix.substring(prefixStart, prefix.length());
             final String hap1 = myPrefix + root1;
             final String hap2 = myPrefix + root2;
+            final String hap3 = myPrefix + root3;
 
             final int hapStart = PairHMM.findFirstPositionWhereHaplotypesDiffer(hap1.getBytes(), hap2.getBytes());
 
-            final double actual1 = testHaplotypeIndexingCalc(hmm, hap1, read, 0, true);
-            final double actual2 = testHaplotypeIndexingCalc(hmm, hap2, read, hapStart, false);
-            final double expected2 = testHaplotypeIndexingCalc(hmm, hap2, read, 0, true);
-            Assert.assertEquals(actual2, expected2, TOLERANCE, "Caching calculation failed for read " + read + " against haplotype with prefix '" + myPrefix
+            // Run the HMM on the first haplotype, peaking ahead the second, to set up caching
+            // Then run on the second haplotype in both cached and uncached mode, and verify that results are the same
+            // When evaluating actual2, it is important that we both apply old caching from hap1 and set up new caching for hap3, to ensure read/write operations do not cause conflicts
+            final double actual1 = testHaplotypeIndexingCalc(hmm, hap1, hap2, read, 0, true);
+            final double actual2 = testHaplotypeIndexingCalc(hmm, hap2, hap3, read, hapStart, false);
+            final double expected2 = testHaplotypeIndexingCalc(hmm, hap2, null, read, 0, true);
+            Assert.assertEquals(actual2, expected2, TOLERANCE, "HMM " + hmm.getClass() + " Caching calculation failed for read " + read + " against haplotype with prefix '" + myPrefix
                     + "' expected " + expected2 + " but got " + actual2 + " with hapStart of " + hapStart);
         }
     }
 
-    private double testHaplotypeIndexingCalc(final PairHMM hmm, final String hap, final String read, final int hapStart, final boolean recache) {
+    private double testHaplotypeIndexingCalc(final PairHMM hmm, final String hap, final String nextHap, final String read, final int hapStart, final boolean recache) {
         final byte[] readBases = read.getBytes();
+        // if not peaking ahead to capture info for a future cache run, the next haplotype will be null, and this should be passed to HMM
+        final byte[] nextHapBases = nextHap == null ? null : nextHap.getBytes();
         final byte[] baseQuals = Utils.dupBytes((byte)30, readBases.length);
         final byte[] insQuals = Utils.dupBytes((byte)45, readBases.length);
         final byte[] delQuals = Utils.dupBytes((byte)40, readBases.length);
         final byte[] gcp = Utils.dupBytes((byte)10, readBases.length);
-        double d = hmm.computeReadLikelihoodGivenHaplotypeLog10(hap.getBytes(), readBases, baseQuals, insQuals, delQuals, gcp, recache);
+        double d = hmm.computeReadLikelihoodGivenHaplotypeLog10(hap.getBytes(), readBases, baseQuals, insQuals, delQuals, gcp, recache, nextHapBases);
         Assert.assertTrue(MathUtils.goodLog10Probability(d), "Likelihoods = " + d + " was bad for read " + read + " and ref " + hap + " with hapStart " + hapStart);
         return d;
     }
@@ -576,7 +606,6 @@ public class PairHMMUnitTest extends BaseTest {
                     for ( final boolean oneIsDiff : Arrays.asList(true, false) ) {
                         final byte[] hap1 = Utils.dupBytes((byte)'A', haplotypeSize1);
                         final byte[] hap2 = Utils.dupBytes((byte)'A', haplotypeSize2);
-
                         final int expected = oneIsDiff
                                 ? makeDiff(hap1, differingSite, minLength)
                                 : makeDiff(hap2, differingSite, minLength);
@@ -604,6 +633,10 @@ public class PairHMMUnitTest extends BaseTest {
         myLoglessPairHMM.doNotUseTristateCorrection();
         tests.add(new Object[]{myLoglessPairHMM});
 
+        final ArrayLoglessPairHMM myArrayLoglessPairHMM = new ArrayLoglessPairHMM();
+        myArrayLoglessPairHMM.doNotUseTristateCorrection();
+        tests.add(new Object[]{myArrayLoglessPairHMM});
+
         final Log10PairHMM myLog10PairHMM = new Log10PairHMM(true);
         myLog10PairHMM.doNotUseTristateCorrection();
         tests.add(new Object[]{myLog10PairHMM});
@@ -619,7 +652,7 @@ public class PairHMMUnitTest extends BaseTest {
 
         // didn't call initialize => should exception out
         double d = hmm.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
-                baseQuals, baseQuals, baseQuals, baseQuals, true);
+                baseQuals, baseQuals, baseQuals, baseQuals, true, null);
     }
 
     @Test(enabled = true, expectedExceptions = IllegalArgumentException.class, dataProvider = "JustHMMProvider")
@@ -630,7 +663,7 @@ public class PairHMMUnitTest extends BaseTest {
 
         hmm.initialize(3, 3);
         double d = hmm.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
-                baseQuals, baseQuals, baseQuals, baseQuals, true);
+                baseQuals, baseQuals, baseQuals, baseQuals, true, null);
     }
 
     @Test(enabled = true, expectedExceptions = IllegalArgumentException.class, dataProvider = "JustHMMProvider")
@@ -641,6 +674,6 @@ public class PairHMMUnitTest extends BaseTest {
 
         hmm.initialize(2, 3);
         double d = hmm.computeReadLikelihoodGivenHaplotypeLog10( refBases, readBases,
-                baseQuals, baseQuals, baseQuals, baseQuals, true);
+                baseQuals, baseQuals, baseQuals, baseQuals, true, null);
     }
 }

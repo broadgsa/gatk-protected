@@ -46,196 +46,82 @@
 
 package org.broadinstitute.sting.utils.pairhmm;
 
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import com.google.caliper.Param;
+import com.google.caliper.SimpleBenchmark;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.TextCigarCodec;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 
-import java.io.File;
-import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
-public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
-    private static class HmmInput {
-        public byte[] readBases;
-        public byte[] readQuals;
-        public byte[] insertionGOP;
-        public byte[] deletionGOP;
-        public byte[] overallGCP;
-        public List<Haplotype> haplotypes;
-    };
+/**
+ * Caliper microbenchmark for synthetic test data for PairHMM
+ */
+public class PairHMMSyntheticBenchmark extends SimpleBenchmark {
+    @Param ({"array_logless", "logless"})
+//    @Param({"logless", "array_logless"})
+//    @Param({"logless", "banded_w5_mle10", "banded_w5_mle20"})
+//    @Param({"logless", "banded_w10_mle20", "banded_w5_mle20", "banded_w5_mle10"})
+    String algorithm;
 
-    public static class ResultQueue {
-        private int offset;
-        private List<double[]> batchResults;
+//    @Param({"40", "100", "200", "300", "500"})
+    @Param({"40", "300"})
+//    @Param({"300"})
+    int refLength;
 
-        public ResultQueue() {
-            batchResults = new LinkedList<double[]>();
-            offset = 0;
-        }
+//    @Param({"200"})
+    @Param({"40", "101", "200"})
+//    @Param({"40", "100", "200", "300", "500"})
+    int readLength;
 
-        public void push(double[] results) {
-            batchResults.add(results);
-        }
+    private PairHMM hmm;
+    private PairHMMTestData testData;
 
-        public double pop() {
-            double[] results = batchResults.get(0);
-            double top = results[offset++];
-            if (offset == results.length) {
-                batchResults.remove(0);
-                offset = 0;
-            }
-            return top;
+
+    @Override
+    protected void setUp() throws Exception {
+        hmm = getHmm();
+        final String ref = generateSeq(refLength);
+        final String nextRef = generateSeq(refLength);
+        final String read = generateSeq(readLength);
+        testData = new PairHMMTestData(ref, nextRef, read, (byte)30);
+        System.out.println(testData.toString());
+    }
+
+    private PairHMM getHmm() {
+        switch (algorithm) {
+            case "logless": return new LoglessPairHMM();
+            case "array_logless": return new ArrayLoglessPairHMM();
+//            case "banded_w10_mle20": return new BandedLoglessPairHMM(10, 1e-20);
+//            case "banded_w5_mle20":  return new BandedLoglessPairHMM(5, 1e-20);
+//            case "banded_w5_mle10":  return new BandedLoglessPairHMM(5, 1e-10);
+            default: throw new IllegalStateException("Unexpected algorithm " + algorithm);
         }
     }
 
-    final static String libPath = "/opt/convey/personalities/32100.1.1.1.0";
-    final static String libName = "gmvhdl_gatk_hmm";
+    private String generateSeq(final int len) {
+        final List<String> root = Arrays.asList("A", "C", "G", "T");
 
-    private static boolean loaded = false;
-    private List<HmmInput> batchRequests = new LinkedList<HmmInput>();
-    private ResultQueue resultQueue = new ResultQueue();
-
-    static public boolean isAvailable() {
-        if (!loaded) {
-            File library = new File(libPath + "/lib" + libName + ".so");
-            return library.exists();
-        }
-        return true;
-    }
-
-    private native void initFpga();
-    private native int dequeueRequirement(int reflen, int readlen);
-    private native int enqueue(byte[] haplotypeBases,
-                               byte[] readBases,
-                               byte[] readQuals,
-                               byte[] insertionGOP,
-                               byte[] deletionGOP,
-                               byte[] overallGCP,
-                               int hapStartIndex,
-                               boolean recacheReadValues);
-    private native int flushQueue();
-    private native int dequeue(double[] results);
-    private native double softHmm(byte[] haplotypeBases,
-                                  byte[] readBases,
-                                  byte[] readQuals,
-                                  byte[] insertionGOP,
-                                  byte[] deletionGOP,
-                                  byte[] overallGCP,
-                                  int hapStartIndex,
-                                  boolean recacheReadValues);
-
-    public native void reportStats();
-
-    public void initialize( final int READ_MAX_LENGTH, final int HAPLOTYPE_MAX_LENGTH ) {
-        if (!loaded) {
-            addLibraryPath(libPath);
-            System.loadLibrary(libName);
-            initFpga();
-            loaded = true;
-            System.out.println("FPGA HMM Initialized");
+        String seq = "";
+        for ( int i = 0; true; i++ ) {
+            final String base = root.get(i % root.size());
+            final int copies = i / root.size() + 1;
+            seq += Utils.dupString(base, copies);
+            if ( seq.length() >= len )
+                return seq.substring(0, len);
         }
     }
 
-    public void batchAdd(final List<Haplotype> haplotypes,
-                         final byte[] readBases,
-                         final byte[] readQuals,
-                         final byte[] insertionGOP,
-                         final byte[] deletionGOP,
-                         final byte[] overallGCP) {
-        final int numHaplotypes = haplotypes.size();
-        HmmInput test = new HmmInput();
-        test.readBases = readBases;
-        test.readQuals = readQuals;
-        test.insertionGOP = insertionGOP;
-        test.deletionGOP = deletionGOP;
-        test.overallGCP = overallGCP;
-        test.haplotypes = haplotypes;
-        batchRequests.add(test);
-        for (int jjj = 0; jjj < numHaplotypes; jjj++) {
-            final boolean recacheReadValues = (jjj == 0);
-            final Haplotype haplotype = haplotypes.get(jjj);
-            enqueuePrepare(haplotype.getBases(), readBases);
-            if (enqueue(haplotype.getBases(), readBases, readQuals, insertionGOP, deletionGOP, overallGCP, 0, recacheReadValues) == 0)
-                throw new RuntimeException("FPGA queue overflow in batchAdd");
+    public void timePairHMM(int rep) {
+        for ( int i = 0; i < rep; i++ ) {
+            testData.runHMM(hmm);
         }
-    }
-
-    public double[] batchGetResult() {
-        double[] results;
-
-        int n = flushQueue();
-        if (n > 0) {
-            results = new double[n];
-            if (dequeue(results) != n)
-                System.out.println("queue underflow in enqueuePrepare");
-            resultQueue.push(results);
-        }
-
-        final HmmInput test = batchRequests.remove(0);
-        final int numHaplotypes = test.haplotypes.size();
-        results = new double[numHaplotypes];
-        for (int jjj = 0; jjj < numHaplotypes; jjj++) {
-            results[jjj] = resultQueue.pop();
-            if (results[jjj]<-60.0) {
-                final Haplotype haplotype = test.haplotypes.get(jjj);
-                results[jjj]=softHmm(haplotype.getBases(), test.readBases, test.readQuals, test.insertionGOP, test.deletionGOP, test.overallGCP, 0, true);
-            }
-        }
-        return results;
-    }
-
-    protected double subComputeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
-                                                                  final byte[] readBases,
-                                                                  final byte[] readQuals,
-                                                                  final byte[] insertionGOP,
-                                                                  final byte[] deletionGOP,
-                                                                  final byte[] overallGCP,
-                                                                  final int hapStartIndex,
-                                                                  final boolean recacheReadValues,
-                                                                  final int nextHapStartIndex) {
-        return 0.0;
-    }
-
-    private void enqueuePrepare(byte[] haplotypeBases, byte[] readBases) {
-        double[] results = null;
-        int n = dequeueRequirement(haplotypeBases.length, readBases.length);
-        if (n>0) {
-            results = new double[n];
-            if (dequeue(results)!=n)
-                System.out.println("queue underflow in enqueuePrepare");
-        } else if (n<0) {
-            n = flushQueue();
-            if (n > 0) {
-                results = new double[n];
-                if (dequeue(results) != n)
-                    System.out.println("queue underflow in enqueuePrepare");
-            }
-        }
-
-        if (results != null)
-            resultQueue.push(results);
-    }
-
-    public static void addLibraryPath(String pathToAdd) {
-        try {
-            final Field usrPathsField = ClassLoader.class.getDeclaredField("usr_paths");
-            usrPathsField.setAccessible(true);
-
-            //get array of paths
-            final String[] paths = (String[])usrPathsField.get(null);
-
-            //check if the path to add is already present
-            for(String path : paths) {
-                if(path.equals(pathToAdd)) {
-                    return;
-                }
-            }
-
-            //add the new path
-            final String[] newPaths = Arrays.copyOf(paths, paths.length + 1);
-            newPaths[newPaths.length-1] = pathToAdd;
-            usrPathsField.set(null, newPaths);
-        } catch (Exception ex) {
-        }
+//        if ( hmm instanceof BandedLoglessPairHMM ) {
+//            final BandedLoglessPairHMM banded = (BandedLoglessPairHMM)hmm;
+//            System.out.printf("Banded n cells possible  : %d%n", banded.nCellsOverall);
+//            System.out.printf("Banded n cells evaluated : %d%n", banded.nCellsEvaluated);
+//        }
     }
 }
