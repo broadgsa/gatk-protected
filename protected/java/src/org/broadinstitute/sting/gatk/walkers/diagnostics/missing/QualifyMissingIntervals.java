@@ -259,27 +259,24 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         out.close();
     }
 
-    private int getPositionInTarget(final GenomeLoc interval, final List<GenomeLoc> hits) {
-        if (hits.size() > 0) {
-            final GenomeLoc hit = hits.get(0);
+    protected static int getPositionInTarget(final GenomeLoc interval, final List<GenomeLoc> targets) {
+        if (targets.size() > 0) {
+            final GenomeLoc target = targets.get(0);
 
             // interval is larger on both ends than the target -- return the maximum distance to either side as a negative number. (min of 2 negative numbers)
-            if (interval.getStart() < hit.getStart() && interval.getStop() > hit.getStop())
-                return Math.min(interval.getStart() - hit.getStart(),
-                                interval.getStop() - hit.getStop());
+            if (interval.getStart() < target.getStart() && interval.getStop() > target.getStop())
+                return Math.min(target.getStart() - interval.getStart(), target.getStop() - interval.getStop());
 
             // interval is a left overlap -- return a negative number representing the distance between the two starts
-            else if (interval.getStart() < hit.getStart())
-                return hit.getStart() - interval.getStart();
+            else if (interval.getStart() < target.getStart())
+                return interval.getStart() - target.getStart();
 
             // interval is a right overlap -- return a negative number representing the distance between the two stops
-            else if (interval.getStop() > hit.getStop())
-                return hit.getStop() - interval.getStop();
+            else if (interval.getStop() > target.getStop())
+                return target.getStop() - interval.getStop();
 
             // interval is fully contained -- return the smallest distance to the edge of the target (left or right) as a positive number
-            else
-                return Math.min(Math.abs(hit.getStart() - interval.getStart()),
-                                Math.abs(hit.getStop() - interval.getStop()));
+            return Math.min(interval.getStart() - target.getStart(), target.getStop() - interval.getStop());
         }
         // if there is no overlapping interval, return int min value.
         return Integer.MIN_VALUE;

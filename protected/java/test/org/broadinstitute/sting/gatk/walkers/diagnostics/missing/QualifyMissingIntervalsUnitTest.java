@@ -46,6 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.missing;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import java.util.List;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
@@ -57,7 +59,6 @@ import org.testng.annotations.Test;
  * User: carneiro
  * Date: 9/20/13
  * Time: 3:59 PM
- * To change this template use File | Settings | File Templates.
  */
 public class QualifyMissingIntervalsUnitTest extends BaseTest {
     @Test(enabled = true)
@@ -91,5 +92,40 @@ public class QualifyMissingIntervalsUnitTest extends BaseTest {
 
         for (Metrics m : array)
             Assert.assertEquals(tool.interpret(m, smallInterval), QualifyMissingIntervals.Interpretation.SMALL_INTERVAL.toString());
+    }
+
+    @Test(enabled = true)
+    void testGetPositionInTarget () {
+        final UnvalidatingGenomeLoc target = new UnvalidatingGenomeLoc("a", 0, 30, 50);
+        final List<GenomeLoc> targets = new ObjectArrayList<>(1);
+        targets.add(target);
+
+        // left overlap
+        UnvalidatingGenomeLoc interval = new UnvalidatingGenomeLoc("a", 0, 10, 50);
+        Assert.assertEquals(QualifyMissingIntervals.getPositionInTarget(interval, targets), -20);
+
+        // right overlap
+        interval = new UnvalidatingGenomeLoc("a", 0, 40, 60);
+        Assert.assertEquals(QualifyMissingIntervals.getPositionInTarget(interval, targets), -10);
+
+        // interval > target with short right tail
+        interval = new UnvalidatingGenomeLoc("a", 0, 10, 60);
+        Assert.assertEquals(QualifyMissingIntervals.getPositionInTarget(interval, targets), -10);
+
+        // interval > target with short left tail
+        interval = new UnvalidatingGenomeLoc("a", 0, 10, 80);
+        Assert.assertEquals(QualifyMissingIntervals.getPositionInTarget(interval, targets), -30);
+
+        // interval < target with short right tail
+        interval = new UnvalidatingGenomeLoc("a", 0, 32, 40);
+        Assert.assertEquals(QualifyMissingIntervals.getPositionInTarget(interval, targets), 2);
+
+        // interval < target with short left tail
+        interval = new UnvalidatingGenomeLoc("a", 0, 40, 42);
+        Assert.assertEquals(QualifyMissingIntervals.getPositionInTarget(interval, targets), 8);
+
+        // no overlap
+        interval = new UnvalidatingGenomeLoc("a", 0, 40, 42);
+        Assert.assertEquals(QualifyMissingIntervals.getPositionInTarget(interval, new ObjectArrayList<GenomeLoc>()), Integer.MIN_VALUE);
     }
 }
