@@ -77,7 +77,7 @@ final class ThresHolder {
      * If at any locus, a sample has more coverage than this, it will be reported as EXCESSIVE_COVERAGE
      */
     @Argument(fullName = "maximum_coverage", shortName = "max", doc = "The maximum allowable coverage, used for calling EXCESSIVE_COVERAGE", required = false)
-    public int maximumCoverage = Integer.MAX_VALUE;
+    public int maximumCoverage = Integer.MAX_VALUE / 2;
 
     /**
      * If any sample has a paired read whose distance between alignment starts (between the pairs) is greater than this, it will be reported as BAD_MATE
