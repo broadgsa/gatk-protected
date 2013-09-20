@@ -46,55 +46,50 @@
 
 package org.broadinstitute.sting.gatk.walkers.diagnostics.missing;
 
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 /**
- * Metrics class for the QualifyMissingInterval walker
- *
- * @author Mauricio Carneiro
- * @since 5/1/13
+ * Created with IntelliJ IDEA.
+ * User: carneiro
+ * Date: 9/20/13
+ * Time: 3:59 PM
+ * To change this template use File | Settings | File Templates.
  */
-final class Metrics {
-    private double gccontent;
-    private double baseQual;
-    private double mapQual;
-    private int reads;
-    private int refs;
+public class QualifyMissingIntervalsUnitTest extends BaseTest {
+    @Test(enabled = true)
+    public void testInterpretation() {
+        final QualifyMissingIntervals tool = new QualifyMissingIntervals();
 
-    public Metrics() {}
+        final Metrics unmappable = new Metrics(0.5, 7500.0, 0.0, 2500, 20);
+        final Metrics highGC = new Metrics(0.99, 0.0, 0.0, 0, 20);
+        final Metrics lowGC = new Metrics(0.09, 0.0, 0.0, 0, 20);
+        final Metrics unsequenceable = new Metrics(0.5, 3.0, 1200.0, 10, 20);
+        final Metrics noData = new Metrics(0.5, 0.0, 0.0, 0, 20);
+        final Metrics unknown = new Metrics(0.5, 30.0, 120000.0, 2500, 20);
 
-    void reads(int reads) {this.reads = reads;}
-    void refs(int refs) {this.refs = refs;}
+        final Metrics[] array = {unmappable, highGC, lowGC, unsequenceable, noData, unknown};
 
-    void gccontent(double gccontent) {this.gccontent = gccontent;}
-    void baseQual(double baseQual) {this.baseQual = baseQual;}
-    void mapQual(double mapQual) {this.mapQual = mapQual;}
+        final GenomeLoc testInterval = new UnvalidatingGenomeLoc("chr1", 0, 10000, 20000);
+        final GenomeLoc smallInterval = new UnvalidatingGenomeLoc("chr1", 0, 1, 4);
 
-    double gccontent() {return refs > 0 ? gccontent/refs : 0.0;}
-    double baseQual() {return reads > 0 ? baseQual/reads : 0.0;}
-    double mapQual() {return reads > 0 ? mapQual/reads : 0.0;}
-    double depth() {return refs > 0 ? (double) reads/refs : 0.0;}
 
-    /**
-     * Combines two metrics
-     *
-     * @param value the other metric to combine
-     * @return itself, for simple reduce
-     */
-    public Metrics combine(Metrics value) {
-        this.gccontent += value.gccontent;
-        this.baseQual += value.baseQual;
-        this.mapQual += value.mapQual;
-        this.reads += value.reads;
-        this.refs += value.refs;
+        Assert.assertNotEquals(tool.checkMappability(unmappable), "");
+        Assert.assertNotEquals(tool.checkGCContent(highGC), "");
+        Assert.assertNotEquals(tool.checkGCContent(lowGC), "");
+        Assert.assertNotEquals(tool.checkContext(unsequenceable), "");
 
-        return this;
-    }
+        Assert.assertEquals(tool.interpret(unmappable, testInterval), QualifyMissingIntervals.Interpretation.UNMAPPABLE.toString());
+        Assert.assertEquals(tool.interpret(noData, testInterval), QualifyMissingIntervals.Interpretation.NO_DATA.toString());
+        Assert.assertEquals(tool.interpret(noData, testInterval), QualifyMissingIntervals.Interpretation.NO_DATA.toString());
+        Assert.assertEquals(tool.interpret(noData, testInterval), QualifyMissingIntervals.Interpretation.NO_DATA.toString());
+        Assert.assertEquals(tool.interpret(noData, testInterval), QualifyMissingIntervals.Interpretation.NO_DATA.toString());
+        Assert.assertEquals(tool.interpret(unknown, testInterval), QualifyMissingIntervals.Interpretation.UNKNOWN.toString());
 
-    // Test related constructor and methods
-    protected Metrics(double gccontent, double baseQual, double mapQual, int reads, int refs) {
-        this.gccontent = gccontent;
-        this.baseQual = baseQual;
-        this.mapQual = mapQual;
-        this.reads = reads;
-        this.refs = refs;
+        for (Metrics m : array)
+            Assert.assertEquals(tool.interpret(m, smallInterval), QualifyMissingIntervals.Interpretation.SMALL_INTERVAL.toString());
     }
 }

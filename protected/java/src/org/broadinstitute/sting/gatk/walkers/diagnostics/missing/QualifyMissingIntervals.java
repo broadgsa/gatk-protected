@@ -117,6 +117,56 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
     @Argument(shortName = "cds", required = false)
     public String cdsFile = null;
 
+    /**
+     * This value will be used to determine whether or not an interval had too high or too low GC content to be
+     * sequenced. This is only applied if there was not enough data in the interval.
+     */
+    @Argument(doc = "upper and lower bound for an interval to be considered high/low GC content",
+            shortName = "gc", required = false)
+    public double gcThreshold = 0.3;
+
+    /**
+     * The coverage of a missing interval may determine whether or not an interval is sequenceable. A low coverage will
+     * trigger gc content, mapping, base qualities and other checks to figure out why this interval was deemed
+     * unsequenceable.
+     */
+    @Argument(doc = "minimum coverage to be considered sequenceable",
+            shortName = "cov", required = false)
+    public int coverageThreshold = 20;
+
+    /**
+     * An average mapping quality above this value will determine the interval to be mappable.
+     */
+    @Argument(doc = "minimum mapping quality for it to be considered usable",
+            shortName = "mmq", required = false)
+    public byte mappingThreshold = 20;
+
+    /**
+     * An average base quality above this value will rule out the possibility of context specific problems with the
+     * sequencer.
+     */
+    @Argument(doc = "minimum base quality for it to be considered usable",
+            shortName = "mbq", required = false)
+    public byte qualThreshold = 20;
+
+    /**
+     * Intervals that are too small generate biased analysis. For example an interval of size 1 will have GC content
+     * 1 or 0. To avoid misinterpreting small intervals, all intervals below this threshold will be ignored in the
+     * interpretation.
+     */
+    @Argument(doc = "minimum interval length to be considered",
+            shortName = "size", required = false)
+    public byte intervalSizeThreshold = 10;
+
+    enum Interpretation {
+        UNKNOWN,
+        UNMAPPABLE,
+        UNSEQUENCEABLE,
+        GCCONTENT,
+        NO_DATA,
+        SMALL_INTERVAL
+    }
+
     GATKReport simpleReport;
     GenomeLocSortedSet target;
     GenomeLocSortedSet cds;
@@ -130,7 +180,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         if (cdsFile == null)
             cdsFile = targetsFile;
 
-        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "IN", "GC", "BQ", "MQ", "DP", "TP", "CD", "LN");
+        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "IN", "GC", "BQ", "MQ", "DP", "TP", "CD", "LN", "DS");
         final GenomeLocParser parser = getToolkit().getGenomeLocParser();
         target = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, targetsFile));
         cds = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, cdsFile));
@@ -184,7 +234,8 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
                     metrics.depth(),
                     getPositionInTarget(interval),
                     cds.overlaps(interval),
-                    interval.size()
+                    interval.size(),
+                    interpret(metrics, interval)
             );
         }
         simpleReport.print(out);
@@ -199,4 +250,43 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         }
         return result;
     }
+
+    String interpret(final Metrics metrics, final GenomeLoc interval) {
+        if (interval.size() < intervalSizeThreshold) {
+            return Interpretation.SMALL_INTERVAL.toString();
+        }
+        else if (metrics.depth() == 0.0) {
+            return Interpretation.NO_DATA.toString();
+        }
+        return trim(checkMappability(metrics) + checkGCContent(metrics) + checkContext(metrics));
+    }
+
+    String checkMappability(Metrics metrics) {
+        return metrics.depth() >= coverageThreshold && metrics.mapQual() < mappingThreshold ?
+                Interpretation.UNMAPPABLE + ", " : "";
+    }
+
+    String checkGCContent(Metrics metrics) {
+        return metrics.depth() < coverageThreshold && (metrics.gccontent() < gcThreshold || metrics.gccontent() > 1.0-gcThreshold) ?
+                Interpretation.GCCONTENT + ", " : "";
+    }
+
+    String checkContext(Metrics metrics) {
+        return metrics.depth() < coverageThreshold && metrics.baseQual() < qualThreshold ?
+                Interpretation.UNSEQUENCEABLE + ", " : "";
+    }
+
+    String trim (String s) {
+        if (s.isEmpty())
+            return Interpretation.UNKNOWN.toString();
+
+        s = s.trim();
+        if (s.endsWith(","))
+            s = s.substring(0, s.length() - 1);
+        return s;
+    }
+
+
+
+
 }
