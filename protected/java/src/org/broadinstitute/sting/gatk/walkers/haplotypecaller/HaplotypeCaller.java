@@ -475,6 +475,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     /**
      * Which PCR indel error model should we use when calculating likelihoods?  If NONE is selected, then the default base
      * insertion/deletion qualities will be used (or taken from the read if generated through the BaseRecalibrator).
+     * VERY IMPORTANT: when using PCR-free sequencing data we definitely recommend setting this argument to NONE.
      */
     @Advanced
     @Argument(fullName = "pcr_indel_model", shortName = "pcrModel", doc = "The PCR indel model to use", required = false)
