@@ -194,7 +194,7 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                         " --excludeNonVariants -combineAnnotations -setKey null" +
                         " -L 20:10,000,000-10,001,000", b37KGReference),
                 1,
-                Arrays.asList("2e15db35359144683f1e58e147362679"));
+                Arrays.asList("0413f0725fc5ec3a4f1ee246f6cb3a2a"));
         cvExecuteTest("combineSingleSamplePipelineGVCF", spec, true);
     }
 
