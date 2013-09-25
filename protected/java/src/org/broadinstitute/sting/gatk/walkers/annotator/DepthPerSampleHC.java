@@ -51,7 +51,6 @@ import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -68,11 +67,15 @@ import java.util.*;
 
 
 /**
- * The depth of coverage of each allele per sample
+ * The depth of coverage for informative reads for each sample.
  *
- * the depth for the HC is the sum of the informative alleles at this site.  It's not perfect (as we cannot
- * differentiate between reads that align over the event but aren't informative vs. those that aren't even
- * close) but it's a pretty good proxy and it matches with the AD field (i.e., sum(AD) = DP).
+ * An informative read is defined as one from which the allele it carries can be easily distinguished.  An example of a
+ * case where a read might be uninformative is where it only partially overlaps a short tandem repeat and it is not clear
+ * whether the read contains the reference allele or e.g. an extra repeat.
+ * The depth here is the sum of the informative reads at this site as determined by the Haplotype Caller; as such it can
+ * only be calculated and generated through the Haplotype Caller (it will not work when run through the Variant Annotator).
+ * This calculation is not perfect but it is a pretty good proxy for depth and it does match the values in the AD field
+ * (i.e., sum(AD) = DP).
  */
 public class DepthPerSampleHC extends GenotypeAnnotation {
     public void annotate(final RefMetaDataTracker tracker,
@@ -121,6 +124,6 @@ public class DepthPerSampleHC extends GenotypeAnnotation {
     }
 
     public List<VCFFormatHeaderLine> getDescriptions() {
-        return Collections.singletonList(VCFStandardHeaderLines.getFormatLine(getKeyNames().get(0)));
+        return Collections.singletonList(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY));
     }
 }
