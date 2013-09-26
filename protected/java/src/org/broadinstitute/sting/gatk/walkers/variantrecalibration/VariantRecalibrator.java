@@ -181,7 +181,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     /**
      * The expected transition / transversion ratio of true novel variants in your targeted region (whole genome, exome, specific
      * genes), which varies greatly by the CpG and GC content of the region. See expected Ti/Tv ratios section of the GATK best
-     * practices documentation (http://www.broadinstitute.org/gatk/guide/topic?name=best-practices) for more information.
+     * practices documentation (http://www.broadinstitute.org/gatk/guide/best-practices) for more information.
      * Normal values are 2.15 for human whole genome values and 3.2 for human whole exomes. Note
      * that this parameter is used for display purposes only and isn't used anywhere in the algorithm!
      */
@@ -371,13 +371,18 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             createVisualizationScript( dataManager.getRandomDataForPlotting( 6000 ), goodModel, badModel, lodCutoff, dataManager.getAnnotationKeys().toArray(new String[USE_ANNOTATIONS.length]) );
         }
 
-        // Execute the RScript command to plot the table of truth values
-        RScriptExecutor executor = new RScriptExecutor();
-        executor.addScript(new Resource(PLOT_TRANCHES_RSCRIPT, VariantRecalibrator.class));
-        executor.addArgs(TRANCHES_FILE.getAbsoluteFile(), TARGET_TITV);
-        // Print out the command line to make it clear to the user what is being executed and how one might modify it
-        logger.info("Executing: " + executor.getApproximateCommandLine());
-        executor.exec();
+        if(VRAC.MODE == VariantRecalibratorArgumentCollection.Mode.INDEL) {
+            // Print out an info message to make it clear why the tranches plot is not generated
+            logger.info("Tranches plot will not be generated since we are running in INDEL mode");
+        } else {
+            // Execute the RScript command to plot the table of truth values
+            RScriptExecutor executor = new RScriptExecutor();
+            executor.addScript(new Resource(PLOT_TRANCHES_RSCRIPT, VariantRecalibrator.class));
+            executor.addArgs(TRANCHES_FILE.getAbsoluteFile(), TARGET_TITV);
+            // Print out the command line to make it clear to the user what is being executed and how one might modify it
+            logger.info("Executing: " + executor.getApproximateCommandLine());
+            executor.exec();
+        }
     }
 
     private void createVisualizationScript( final ExpandingArrayList<VariantDatum> randomData, final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, final double lodCutoff, final String[] annotationKeys ) {
