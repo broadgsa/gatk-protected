@@ -136,7 +136,10 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
     /////////////////////////////
     @Argument(fullName="ts_filter_level", shortName="ts_filter_level", doc="The truth sensitivity level at which to start filtering", required=false)
     protected double TS_FILTER_LEVEL = 99.0;
-    @Argument(fullName="ignore_filter", shortName="ignoreFilter", doc="If specified the variant recalibrator will use variants even if the specified filter name is marked in the input VCF file", required=false)
+    /**
+     * For this to work properly, the -ignoreFilter argument should also be applied to the VariantRecalibration command.
+     */
+    @Argument(fullName="ignore_filter", shortName="ignoreFilter", doc="If specified, the recalibration will be applied to variants marked as filtered by the specified filter name in the input VCF file", required=false)
     private String[] IGNORE_INPUT_FILTERS = null;
     @Argument(fullName="excludeFiltered", shortName="ef", doc="Don't output filtered loci after applying the recalibration", required=false)
     protected boolean EXCLUDE_FILTERED = false;
