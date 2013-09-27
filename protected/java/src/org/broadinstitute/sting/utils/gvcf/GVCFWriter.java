@@ -46,6 +46,9 @@
 
 package org.broadinstitute.sting.utils.gvcf;
 
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.ReferenceConfidenceModel;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -284,7 +287,7 @@ public class GVCFWriter implements VariantContextWriter {
             }
 
             final Genotype g = vc.getGenotype(0);
-            if ( g.isHomRef() ) {
+            if ( g.isHomRef() && vc.hasAlternateAllele(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE) ) {
                 // create bands
                 final VariantContext maybeCompletedBand = addHomRefSite(vc, g);
                 if ( maybeCompletedBand != null ) underlyingWriter.add(maybeCompletedBand);

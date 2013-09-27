@@ -374,7 +374,7 @@ public class UnifiedGenotyperEngine {
                                                  final VariantContext vc,
                                                  final GenotypeLikelihoodsCalculationModel.Model model,
                                                  final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
-        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, false,perReadAlleleLikelihoodMap);
+        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, false, perReadAlleleLikelihoodMap);
     }
 
     /**
