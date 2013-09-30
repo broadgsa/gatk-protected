@@ -129,6 +129,16 @@ public class GVCFWriterUnitTest extends BaseTest {
         return vcb.genotypes(gb.make()).make();
     }
 
+    private VariantContext makeHomRefAlt(final String contig, final int start, final int GQ) {
+        final VariantContextBuilder vcb = new VariantContextBuilder("test", contig, start, start, Arrays.asList(REF, ALT));
+        final GenotypeBuilder gb = new GenotypeBuilder(SAMPLE_NAME, Arrays.asList(REF, REF));
+        gb.GQ(GQ);
+        gb.DP(10);
+        gb.AD(new int[]{1, 2});
+        gb.PL(new int[]{0, 10, 100});
+        return vcb.genotypes(gb.make()).make();
+    }
+
     private VariantContext makeNonRef(final String contig, final int start, final int GQ) {
         final VariantContextBuilder vcb = new VariantContextBuilder("test", contig, start, start, Arrays.asList(REF, ALT));
         final GenotypeBuilder gb = new GenotypeBuilder(SAMPLE_NAME, Arrays.asList(REF, ALT));
@@ -303,6 +313,25 @@ public class GVCFWriterUnitTest extends BaseTest {
         assertGoodVC(mockWriter.emitted.get(0), "20", 1, 2, false);
         assertGoodVC(mockWriter.emitted.get(1), "20", 3, 5, true);
         assertGoodVC(mockWriter.emitted.get(2), "20", 6, 7, false);
+    }
+
+    @Test
+    public void testHomRefAlt() {
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+
+        writer.add(makeHomRef("20", 1, 0));
+        writer.add(makeHomRef("20", 2, 0));
+        writer.add(makeHomRefAlt("20", 3, 0));
+        writer.add(makeHomRef("20", 4, 0));
+        writer.add(makeHomRef("20", 5, 0));
+        writer.add(makeHomRef("20", 6, 0));
+        writer.add(makeHomRef("20", 7, 0));
+        writer.close();
+        Assert.assertEquals(mockWriter.emitted.size(), 3);
+        assertGoodVC(mockWriter.emitted.get(0), "20", 1, 2, false);
+        Assert.assertFalse(mockWriter.emitted.get(1).hasAttribute("END"));
+        Assert.assertFalse(mockWriter.emitted.get(1).hasAttribute("BLOCK_SIZE"));
+        assertGoodVC(mockWriter.emitted.get(2), "20", 4, 7, false);
     }
 
     @DataProvider(name = "BandPartitionData")
