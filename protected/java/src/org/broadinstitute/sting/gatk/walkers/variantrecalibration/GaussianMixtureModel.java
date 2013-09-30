@@ -267,7 +267,7 @@ public class GaussianMixtureModel {
     public double evaluateDatumMarginalized( final VariantDatum datum ) {
         int numRandomDraws = 0;
         double sumPVarInGaussian = 0.0;
-        final int numIterPerMissingAnnotation = 10; // Trade off here between speed of computation and accuracy of the marginalization
+        final int numIterPerMissingAnnotation = 20; // Trade off here between speed of computation and accuracy of the marginalization
         final double[] pVarInGaussianLog10 = new double[gaussians.size()];
         // for each dimension
         for( int iii = 0; iii < datum.annotations.length; iii++ ) {
