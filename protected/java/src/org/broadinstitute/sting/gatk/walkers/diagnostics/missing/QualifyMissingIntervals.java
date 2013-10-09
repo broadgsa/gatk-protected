@@ -47,16 +47,15 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.missing;
 
 import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.commandline.Gather;
 import org.broadinstitute.sting.commandline.Output;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.report.GATKReport;
-import org.broadinstitute.sting.gatk.walkers.By;
-import org.broadinstitute.sting.gatk.walkers.DataSource;
-import org.broadinstitute.sting.gatk.walkers.LocusWalker;
-import org.broadinstitute.sting.gatk.walkers.NanoSchedulable;
+import org.broadinstitute.sting.gatk.report.GATKReportGatherer;
+import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.GenomeLocSortedSet;
@@ -109,10 +108,12 @@ import java.util.List;
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 @By(DataSource.REFERENCE)
+@PartitionBy(PartitionType.INTERVAL)
 public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics> implements NanoSchedulable {
     /**
      * A single GATKReport table with the qualifications on why the intervals passed by the -L argument were missing.
      */
+    @Gather(GATKReportGatherer.class)
     @Output
     protected PrintStream out;
 
@@ -194,7 +195,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         if (cdsFile == null)
             cdsFile = targetsFile;
 
-        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "IN", "GC", "BQ", "MQ", "DP", "TP", "CD", "LN", "DS");
+        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "IN", "GC", "BQ", "MQ", "DP", "TP", "TS", "CD", "LN", "DS");
         final GenomeLocParser parser = getToolkit().getGenomeLocParser();
         target = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, targetsFile));
         cds = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, cdsFile));
