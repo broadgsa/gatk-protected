@@ -52,18 +52,10 @@ import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.haplotype.HaplotypeScoreComparator;
-import org.broadinstitute.sting.utils.pairhmm.ArrayLoglessPairHMM;
-import org.broadinstitute.sting.utils.pairhmm.Log10PairHMM;
-import org.broadinstitute.sting.utils.pairhmm.LoglessPairHMM;
-import org.broadinstitute.sting.utils.pairhmm.CnyPairHMM;
-import org.broadinstitute.sting.utils.pairhmm.BatchPairHMM;
-import org.broadinstitute.sting.utils.pairhmm.PairHMM;
+import org.broadinstitute.sting.utils.pairhmm.*;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatCovariate;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -88,7 +80,7 @@ public class LikelihoodCalculationEngine {
     private final PairHMM.HMM_IMPLEMENTATION hmmType;
     private final boolean noFpga;
 
-    private final ThreadLocal<PairHMM> pairHMM = new ThreadLocal<PairHMM>() {
+    private final ThreadLocal<PairHMM> pairHMMThreadLocal = new ThreadLocal<PairHMM>() {
         @Override
         protected PairHMM initialValue() {
             switch (hmmType) {
@@ -109,6 +101,8 @@ public class LikelihoodCalculationEngine {
             }
         }
     };
+//    Attempted to do as below, to avoid calling pairHMMThreadLocal.get() later on, but it resulted in a NullPointerException
+//    private final PairHMM pairHMM = pairHMMThreadLocal.get();
 
     private final static boolean WRITE_LIKELIHOODS_TO_FILE = false;
     private final static String LIKELIHOODS_FILENAME = "likelihoods.txt";
@@ -173,36 +167,145 @@ public class LikelihoodCalculationEngine {
         if ( likelihoodsStream != null ) likelihoodsStream.close();
     }
 
-    /**
-     * Initialize our pairHMM with parameters appropriate to the haplotypes and reads we're going to evaluate
-     *
-     * After calling this routine the PairHMM will be configured to best evaluate all reads in the samples
-     * against the set of haplotypes
-     *
-     * @param haplotypes a non-null list of haplotypes
-     * @param perSampleReadList a mapping from sample -> reads
-     */
-    private void initializePairHMM(final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList) {
-        int X_METRIC_LENGTH = 0;
-        for( final Map.Entry<String, List<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
-            for( final GATKSAMRecord read : sample.getValue() ) {
-                final int readLength = read.getReadLength();
-                if( readLength > X_METRIC_LENGTH ) { X_METRIC_LENGTH = readLength; }
-            }
+    private void writeDebugLikelihoods(final GATKSAMRecord processedRead, final Haplotype haplotype, final double log10l){
+        if ( WRITE_LIKELIHOODS_TO_FILE ) {
+            likelihoodsStream.printf("%s %s %s %s %s %s %f%n",
+                    haplotype.getBaseString(),
+                    new String(processedRead.getReadBases() ),
+                    SAMUtils.phredToFastq(processedRead.getBaseQualities() ),
+                    SAMUtils.phredToFastq(processedRead.getBaseInsertionQualities() ),
+                    SAMUtils.phredToFastq(processedRead.getBaseDeletionQualities() ),
+                    SAMUtils.phredToFastq(constantGCP),
+                    log10l);
         }
-        int Y_METRIC_LENGTH = 0;
-        for( final Haplotype h : haplotypes ) {
-            final int haplotypeLength = h.getBases().length;
-            if( haplotypeLength > Y_METRIC_LENGTH ) { Y_METRIC_LENGTH = haplotypeLength; }
-        }
-
-        // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMM.get().initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
     }
 
+    private Map<Allele, Haplotype> createAlleleMap(List<Haplotype> haplotypes){
+        final int numHaplotypes = haplotypes.size();
+        final Map<Allele, Haplotype> alleleMap = new LinkedHashMap<>(numHaplotypes);
+        for ( final Haplotype haplotype : haplotypes ) {
+            final Allele allele = Allele.create(haplotype, true);
+            alleleMap.put(allele, haplotype);
+        }
+        return alleleMap;
+    }
+
+    private Map<GATKSAMRecord, byte[]> fillGCPArrays(List<GATKSAMRecord> reads){
+        final Map<GATKSAMRecord, byte []> GCPArrayMap = new LinkedHashMap<>();
+        for (GATKSAMRecord read: reads){
+            byte [] GCPArray = new byte[read.getReadBases().length];
+            Arrays.fill( GCPArray, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
+            GCPArrayMap.put(read, GCPArray);
+        }
+        return GCPArrayMap;
+    }
+
+    private void capMinimumReadQualities(GATKSAMRecord read, byte[] readQuals, byte[] readInsQuals, byte[] readDelQuals) {
+        for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
+            readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
+            readQuals[kkk] = ( readQuals[kkk] < BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
+            readInsQuals[kkk] = ( readInsQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readInsQuals[kkk] );
+            readDelQuals[kkk] = ( readDelQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readDelQuals[kkk] );
+        }
+    }
+
+    /**
+     * Pre-processing of the reads to be evaluated at the current location from the current sample.
+     * We apply the PCR Error Model, and cap the minimum base, insertion, and deletion qualities of each read.
+     * Modified copies of reads are packed into a new list, while original reads are retained for downstream use
+     *
+     * @param reads The original list of unmodified reads
+     * @return processedReads. A new list of reads, in the same order, whose qualities have been altered by PCR error model and minimal quality thresholding
+     */
+    private List<GATKSAMRecord> modifyReadQualities(final List<GATKSAMRecord> reads) {
+        List<GATKSAMRecord> processedReads = new LinkedList<>();
+        for ( GATKSAMRecord read : reads ) {
+
+            final byte[] readBases = read.getReadBases();
+
+            // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
+            final byte[] readQuals = read.getBaseQualities().clone();
+            final byte[] readInsQuals = read.getBaseInsertionQualities().clone();
+            final byte[] readDelQuals = read.getBaseDeletionQualities().clone();
+
+            applyPCRErrorModel(readBases, readInsQuals, readDelQuals);
+            capMinimumReadQualities(read, readQuals, readInsQuals, readDelQuals);
+
+            // Create a new copy of the read and sets its base qualities to the modified versions.
+            // Pack this into a new list for return
+            final GATKSAMRecord processedRead = GATKSAMRecord.createQualityModifiedRead(read, readBases, readQuals, readInsQuals, readDelQuals);
+            processedReads.add(processedRead);
+        }
+        return processedReads;
+    }
+
+    /**
+     * Post-processing of the read/allele likelihoods.
+     *
+     * We send quality-capped reads to the pairHMM for evaluation, and it returns a map containing these capped reads.
+     * We wish to return a map containing the original, unmodified reads.
+     *
+     * At the same time, we want to effectively set a lower cap on the reference score, based on the global mis-mapping rate.
+     * This protects us from the case where the assembly has produced haplotypes
+     * that are very divergent from reference, but are supported by only one read.  In effect
+     * we capping how badly scoring the reference can be for any read by the chance that the read
+     * itself just doesn't belong here
+     *
+     * @param perReadAlleleLikelihoodMap the original map returned by the PairHMM. Contains the processed reads, the haplotype Alleles, and their log10ls
+     * @param reads Our original, unmodified reads
+     * @param processedReads Reads whose minimum base,insertion,deletion qualities have been capped; these were actually used to derive log10ls
+     * @param alleleHaplotypeMap The map associating the Allele and Haplotype versions of each haplotype
+     *
+     * @return processedReadAlleleLikelihoodMap; a new PRALM containing the original reads, and their haplotype log10ls including capped reference log10ls
+     */
+    private PerReadAlleleLikelihoodMap capReferenceHaplotypeLikelihoods(PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap, List<GATKSAMRecord> reads, List<GATKSAMRecord> processedReads, Map<Allele, Haplotype> alleleHaplotypeMap){
+
+        // a new read/allele map, to contain the uncapped reads, haplotypes, and potentially the capped reference log10ls
+        final PerReadAlleleLikelihoodMap processedReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
+
+        Allele refAllele = null;
+        final int numReads = reads.size();
+        for (int readIndex = 0; readIndex < numReads; readIndex++) {
+
+            // Get the original and quality-modified read from their respective lists
+            // Note that this requires both lists to have reads in the same order
+            final GATKSAMRecord originalRead = reads.get(readIndex);
+            final GATKSAMRecord processedRead = processedReads.get(readIndex);
+
+            // keep track of the reference likelihood and the best non-ref likelihood
+            double refLog10l = Double.NEGATIVE_INFINITY;
+            double bestNonReflog10L = Double.NEGATIVE_INFINITY;
+
+            for ( Allele allele : alleleHaplotypeMap.keySet() ) {
+                final double log10l = perReadAlleleLikelihoodMap.getLikelihoodAssociatedWithReadAndAllele(processedRead, allele);
+                final Haplotype haplotype = alleleHaplotypeMap.get(allele);
+                if ( haplotype.isNonReference() )
+                    bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
+                else {
+                    refAllele = allele;
+                    refLog10l = log10l;
+                }
+                writeDebugLikelihoods(processedRead, haplotype, log10l);
+
+                // add the ORIGINAL (non-capped) read to the final map, along with the current haplotype and associated log10l
+                processedReadAlleleLikelihoodMap.add(originalRead, allele, log10l);
+            }
+
+            // ensure that the reference haplotype is no worse than the best non-ref haplotype minus the global
+            // mismapping rate.  This protects us from the case where the assembly has produced haplotypes
+            // that are very divergent from reference, but are supported by only one read.  In effect
+            // we capping how badly scoring the reference can be for any read by the chance that the read
+            // itself just doesn't belong here
+            final double worstRefLog10Allowed = bestNonReflog10L + log10globalReadMismappingRate;
+            if ( refLog10l < (worstRefLog10Allowed) ) {
+                processedReadAlleleLikelihoodMap.add(originalRead, refAllele, worstRefLog10Allowed);
+            }
+        }
+        return processedReadAlleleLikelihoodMap;
+    }
+
+
     public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
-        // configure the HMM
-        initializePairHMM(haplotypes, perSampleReadList);
 
         // Add likelihoods for each sample's reads to our stratifiedReadMap
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new LinkedHashMap<>();
@@ -218,137 +321,22 @@ public class LikelihoodCalculationEngine {
     }
 
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final List<Haplotype> haplotypes, final List<GATKSAMRecord> reads) {
-        // first, a little set up to get copies of the Haplotypes that are Alleles (more efficient than creating them each time)
-        final BatchPairHMM batchPairHMM = (pairHMM.get() instanceof BatchPairHMM) ? (BatchPairHMM)pairHMM.get() : null;
-        final Vector<GATKSAMRecord> batchedReads = new Vector<GATKSAMRecord>(reads.size());
-        final int numHaplotypes = haplotypes.size();
-        final Map<Haplotype, Allele> alleleVersions = new LinkedHashMap<>(numHaplotypes);
-        Allele refAllele = null;
-        for ( final Haplotype haplotype : haplotypes ) {
-            final Allele allele = Allele.create(haplotype, true);
-            alleleVersions.put(haplotype, allele);
-            if ( haplotype.isReference() ) refAllele = allele;
-        }
 
-        final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
-        for( final GATKSAMRecord read : reads ) {
+        // Modify the read qualities by applying the PCR error model and capping the minimum base,insertion,deletion qualities
+        List<GATKSAMRecord> processedReads = modifyReadQualities(reads);
 
-            final byte[] readBases = read.getReadBases();
-            final byte[] overallGCP = new byte[read.getReadLength()];
-            Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
+        // Get alleles corresponding to our haplotypees
+        Map<Allele, Haplotype> alleleHaplotypeMap = createAlleleMap(haplotypes);
 
-            // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
-            final byte[] readQuals = read.getBaseQualities().clone();
-            final byte[] readInsQuals = read.getBaseInsertionQualities().clone();
-            final byte[] readDelQuals = read.getBaseDeletionQualities().clone();
+        // Get an array containing the constantGCP for each read in our modified read list
+        Map<GATKSAMRecord,byte[]> GCPArrayMap = fillGCPArrays(processedReads);
 
-            applyPCRErrorModel(readBases, readInsQuals, readDelQuals);
+        // Run the PairHMM to calculate the log10 likelihood of each (processed) reads' arising from each haplotype
+        PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = pairHMMThreadLocal.get().computeLikelihoods(processedReads, alleleHaplotypeMap, GCPArrayMap);
 
-            for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
-                readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
-                readQuals[kkk] = ( readQuals[kkk] < BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
-                readInsQuals[kkk] = ( readInsQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readInsQuals[kkk] );
-                readDelQuals[kkk] = ( readDelQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readDelQuals[kkk] );
-            }
+        // Generate a new map containing the original, unmodified reads, and with minimal reference haplotype log10ls determined from the global mis-mapping rate
 
-            if ( batchPairHMM != null ) {
-                batchPairHMM.batchAdd(haplotypes, readBases, readQuals, readInsQuals, readDelQuals, overallGCP);
-                batchedReads.add(read);
-                continue;
-            }
-
-            // keep track of the reference likelihood and the best non-ref likelihood
-            double refLog10l = Double.NEGATIVE_INFINITY;
-            double bestNonReflog10L = Double.NEGATIVE_INFINITY;
-
-            // iterate over all haplotypes, calculating the likelihood of the read for each haplotype
-            for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
-                final Haplotype haplotype = haplotypes.get(jjj);
-                final byte[] nextHaplotypeBases = (jjj == numHaplotypes - 1) ? null : haplotypes.get(jjj+1).getBases();
-                final boolean isFirstHaplotype = jjj == 0;
-                final double log10l = pairHMM.get().computeReadLikelihoodGivenHaplotypeLog10(haplotype.getBases(),
-                        readBases, readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype, nextHaplotypeBases);
-
-                if ( WRITE_LIKELIHOODS_TO_FILE ) {
-                    likelihoodsStream.printf("%s %s %s %s %s %s %f%n",
-                            haplotype.getBaseString(),
-                            new String(readBases),
-                            SAMUtils.phredToFastq(readQuals),
-                            SAMUtils.phredToFastq(readInsQuals),
-                            SAMUtils.phredToFastq(readDelQuals),
-                            SAMUtils.phredToFastq(overallGCP),
-                            log10l);
-                }
-
-                if ( haplotype.isNonReference() )
-                    bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
-                else
-                    refLog10l = log10l;
-
-                perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
-            }
-
-            // ensure that the reference haplotype is no worse than the best non-ref haplotype minus the global
-            // mismapping rate.  This protects us from the case where the assembly has produced haplotypes
-            // that are very divergent from reference, but are supported by only one read.  In effect
-            // we capping how badly scoring the reference can be for any read by the chance that the read
-            // itself just doesn't belong here
-            final double worstRefLog10Allowed = bestNonReflog10L + log10globalReadMismappingRate;
-            if ( refLog10l < (worstRefLog10Allowed) ) {
-                perReadAlleleLikelihoodMap.add(read, refAllele, worstRefLog10Allowed);
-            }
-        }
-
-        if ( batchPairHMM != null ) {
-            for( final GATKSAMRecord read : batchedReads ) {
-                double refLog10l = Double.NEGATIVE_INFINITY;
-                double bestNonReflog10L = Double.NEGATIVE_INFINITY;
-                final double[] likelihoods = batchPairHMM.batchGetResult();
-                for( int jjj = 0; jjj < numHaplotypes; jjj++ ) {
-                    final Haplotype haplotype = haplotypes.get(jjj);
-                    final double log10l = likelihoods[jjj];
-
-                    if ( WRITE_LIKELIHOODS_TO_FILE ) {
-                        final byte[] overallGCP = new byte[read.getReadLength()];
-                        Arrays.fill( overallGCP, constantGCP ); // Is there a way to derive empirical estimates for this from the data?
-                        // NOTE -- must clone anything that gets modified here so we don't screw up future uses of the read
-                        final byte[] readQuals = read.getBaseQualities().clone();
-                        final byte[] readInsQuals = read.getBaseInsertionQualities();
-                        final byte[] readDelQuals = read.getBaseDeletionQualities();
-                        for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
-                            readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
-                            //readQuals[kkk] = ( readQuals[kkk] > readInsQuals[kkk] ? readInsQuals[kkk] : readQuals[kkk] ); // cap base quality by base insertion quality, needs to be evaluated
-                            //readQuals[kkk] = ( readQuals[kkk] > readDelQuals[kkk] ? readDelQuals[kkk] : readQuals[kkk] ); // cap base quality by base deletion quality, needs to be evaluated
-                            // TODO -- why is Q18 hard-coded here???
-                            readQuals[kkk] = ( readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
-                        }
-                        likelihoodsStream.printf("%s %s %s %s %s %s %f%n",
-                                haplotype.getBaseString(),
-                                new String(read.getReadBases()),
-                                SAMUtils.phredToFastq(readQuals),
-                                SAMUtils.phredToFastq(readInsQuals),
-                                SAMUtils.phredToFastq(readDelQuals),
-                                SAMUtils.phredToFastq(overallGCP),
-                                log10l);
-                    }
-
-                    if ( haplotype.isNonReference() )
-                        bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
-                    else
-                        refLog10l = log10l;
-
-
-                    perReadAlleleLikelihoodMap.add(read, alleleVersions.get(haplotype), log10l);
-                }
-
-                final double worstRefLog10Allowed = bestNonReflog10L + log10globalReadMismappingRate;
-                if ( refLog10l < (worstRefLog10Allowed) ) {
-                    perReadAlleleLikelihoodMap.add(read, refAllele, worstRefLog10Allowed);
-                }
-            }
-        }
-
-        return perReadAlleleLikelihoodMap;
+        return capReferenceHaplotypeLikelihoods(perReadAlleleLikelihoodMap, reads, processedReads, alleleHaplotypeMap);
     }
 
     @Requires({"alleleOrdering.size() > 0"})
@@ -421,125 +409,125 @@ public class LikelihoodCalculationEngine {
     // System to compute the best N haplotypes for genotyping
     //
     // --------------------------------------------------------------------------------
-
-    /**
-     * Helper function for selectBestHaplotypesFromEachSample that updates the score of haplotype haplotypeAsAllele
-     * @param map an annoying map object that moves us between the allele and haplotype representation
-     * @param haplotypeAsAllele the allele version of the haplotype
-     * @return the haplotype version, with its score incremented by 1 if its non-reference
-     */
-    private Haplotype updateSelectHaplotype(final Map<Allele, Haplotype> map, final Allele haplotypeAsAllele) {
-        final Haplotype h = map.get(haplotypeAsAllele); // TODO -- fixme when haplotypes are properly generic
-        if ( h.isNonReference() ) h.setScore(h.getScore() + 1); // ref is already at max value
-        return h;
-    }
-
-    /**
-     * Take the best N haplotypes and return them as a list
-     *
-     * Only considers the haplotypes selectedHaplotypes that were actually selected by at least one sample
-     * as it's preferred haplotype.  Takes the best N haplotypes from selectedHaplotypes in decreasing
-     * order of score (so higher score haplotypes are preferred).  The N we take is determined by
-     *
-     * N = min(2 * nSamples + 1, maxNumHaplotypesInPopulation)
-     *
-     * where 2 * nSamples is the number of chromosomes in 2 samples including the reference, and our workload is
-     * bounded by maxNumHaplotypesInPopulation as that number can grow without bound
-     *
-     * @param selectedHaplotypes a non-null set of haplotypes with scores >= 1
-     * @param nSamples the number of samples used to select the haplotypes
-     * @param maxNumHaplotypesInPopulation the maximum number of haplotypes we're allowed to take, regardless of nSamples
-     * @return a list of N or fewer haplotypes, with the reference haplotype first
-     */
-    private List<Haplotype> selectBestHaplotypesAccordingToScore(final Set<Haplotype> selectedHaplotypes, final int nSamples, final int maxNumHaplotypesInPopulation) {
-        final List<Haplotype> selectedHaplotypesList = new ArrayList<Haplotype>(selectedHaplotypes);
-        Collections.sort(selectedHaplotypesList, new HaplotypeScoreComparator());
-        final int numChromosomesInSamplesPlusRef = 2 * nSamples + 1;
-        final int haplotypesToKeep = Math.min(numChromosomesInSamplesPlusRef, maxNumHaplotypesInPopulation);
-        final List<Haplotype> bestHaplotypes = selectedHaplotypesList.size() <= haplotypesToKeep ? selectedHaplotypesList : selectedHaplotypesList.subList(0, haplotypesToKeep);
-        if ( bestHaplotypes.get(0).isNonReference()) throw new IllegalStateException("BUG: reference haplotype should be first in list");
-        return bestHaplotypes;
-    }
-
-    /**
-     * Select the best haplotypes for genotyping the samples in stratifiedReadMap
-     *
-     * Selects these haplotypes by counting up how often each haplotype is selected as one of the most likely
-     * haplotypes per sample.  What this means is that each sample computes the diploid genotype likelihoods for
-     * all possible pairs of haplotypes, and the pair with the highest likelihood has each haplotype each get
-     * one extra count for each haplotype (so hom-var haplotypes get two counts).  After performing this calculation
-     * the best N haplotypes are selected (@see #selectBestHaplotypesAccordingToScore) and a list of the
-     * haplotypes in order of score are returned, ensuring that at least one of the haplotypes is reference.
-     *
-     * @param haplotypes a list of all haplotypes we're considering
-     * @param stratifiedReadMap a map from sample -> read likelihoods per haplotype
-     * @param maxNumHaplotypesInPopulation the max. number of haplotypes we can select from haplotypes
-     * @return a list of selected haplotypes with size <= maxNumHaplotypesInPopulation
-     */
-    public List<Haplotype> selectBestHaplotypesFromEachSample(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation) {
-        if ( haplotypes.size() < 2 ) throw new IllegalArgumentException("Must have at least 2 haplotypes to consider but only have " + haplotypes);
-
-        if ( haplotypes.size() == 2 ) return haplotypes; // fast path -- we'll always want to use 2 haplotypes
-
-        // all of the haplotypes that at least one sample called as one of the most likely
-        final Set<Haplotype> selectedHaplotypes = new HashSet<>();
-        selectedHaplotypes.add(findReferenceHaplotype(haplotypes)); // ref is always one of the selected
-
-        // our annoying map from allele -> haplotype
-        final Map<Allele, Haplotype> allele2Haplotype = new HashMap<>();
-        for ( final Haplotype h : haplotypes ) {
-            h.setScore(h.isReference() ? Double.MAX_VALUE : 0.0); // set all of the scores to 0 (lowest value) for all non-ref haplotypes
-            allele2Haplotype.put(Allele.create(h, h.isReference()), h);
-        }
-
-        // for each sample, compute the most likely pair of haplotypes
-        for ( final Map.Entry<String, PerReadAlleleLikelihoodMap> entry : stratifiedReadMap.entrySet() ) {
-            // get the two most likely haplotypes under a diploid model for this sample
-            final MostLikelyAllele mla = entry.getValue().getMostLikelyDiploidAlleles();
-
-            if ( mla != null ) { // there was something to evaluate in this sample
-                // note that there must be at least 2 haplotypes
-                final Haplotype best = updateSelectHaplotype(allele2Haplotype, mla.getMostLikelyAllele());
-                final Haplotype second = updateSelectHaplotype(allele2Haplotype, mla.getSecondMostLikelyAllele());
-
-//            if ( DEBUG ) {
-//                logger.info("Chose haplotypes " + best + " " + best.getCigar() + " and " + second + " " + second.getCigar() + " for sample " + entry.getKey());
+//
+//    /**
+//     * Helper function for selectBestHaplotypesFromEachSample that updates the score of haplotype haplotypeAsAllele
+//     * @param map an annoying map object that moves us between the allele and haplotype representation
+//     * @param haplotypeAsAllele the allele version of the haplotype
+//     * @return the haplotype version, with its score incremented by 1 if its non-reference
+//     */
+//    private Haplotype updateSelectHaplotype(final Map<Allele, Haplotype> map, final Allele haplotypeAsAllele) {
+//        final Haplotype h = map.get(haplotypeAsAllele); // TODO -- fixme when haplotypes are properly generic
+//        if ( h.isNonReference() ) h.setScore(h.getScore() + 1); // ref is already at max value
+//        return h;
+//    }
+//
+//    /**
+//     * Take the best N haplotypes and return them as a list
+//     *
+//     * Only considers the haplotypes selectedHaplotypes that were actually selected by at least one sample
+//     * as it's preferred haplotype.  Takes the best N haplotypes from selectedHaplotypes in decreasing
+//     * order of score (so higher score haplotypes are preferred).  The N we take is determined by
+//     *
+//     * N = min(2 * nSamples + 1, maxNumHaplotypesInPopulation)
+//     *
+//     * where 2 * nSamples is the number of chromosomes in 2 samples including the reference, and our workload is
+//     * bounded by maxNumHaplotypesInPopulation as that number can grow without bound
+//     *
+//     * @param selectedHaplotypes a non-null set of haplotypes with scores >= 1
+//     * @param nSamples the number of samples used to select the haplotypes
+//     * @param maxNumHaplotypesInPopulation the maximum number of haplotypes we're allowed to take, regardless of nSamples
+//     * @return a list of N or fewer haplotypes, with the reference haplotype first
+//     */
+//    private List<Haplotype> selectBestHaplotypesAccordingToScore(final Set<Haplotype> selectedHaplotypes, final int nSamples, final int maxNumHaplotypesInPopulation) {
+//        final List<Haplotype> selectedHaplotypesList = new ArrayList<>(selectedHaplotypes);
+//        Collections.sort(selectedHaplotypesList, new HaplotypeScoreComparator());
+//        final int numChromosomesInSamplesPlusRef = 2 * nSamples + 1;
+//        final int haplotypesToKeep = Math.min(numChromosomesInSamplesPlusRef, maxNumHaplotypesInPopulation);
+//        final List<Haplotype> bestHaplotypes = selectedHaplotypesList.size() <= haplotypesToKeep ? selectedHaplotypesList : selectedHaplotypesList.subList(0, haplotypesToKeep);
+//        if ( bestHaplotypes.get(0).isNonReference()) throw new IllegalStateException("BUG: reference haplotype should be first in list");
+//        return bestHaplotypes;
+//    }
+//
+//    /**
+//     * Select the best haplotypes for genotyping the samples in stratifiedReadMap
+//     *
+//     * Selects these haplotypes by counting up how often each haplotype is selected as one of the most likely
+//     * haplotypes per sample.  What this means is that each sample computes the diploid genotype likelihoods for
+//     * all possible pairs of haplotypes, and the pair with the highest likelihood has each haplotype each get
+//     * one extra count for each haplotype (so hom-var haplotypes get two counts).  After performing this calculation
+//     * the best N haplotypes are selected (@see #selectBestHaplotypesAccordingToScore) and a list of the
+//     * haplotypes in order of score are returned, ensuring that at least one of the haplotypes is reference.
+//     *
+//     * @param haplotypes a list of all haplotypes we're considering
+//     * @param stratifiedReadMap a map from sample -> read likelihoods per haplotype
+//     * @param maxNumHaplotypesInPopulation the max. number of haplotypes we can select from haplotypes
+//     * @return a list of selected haplotypes with size <= maxNumHaplotypesInPopulation
+//     */
+//    public List<Haplotype> selectBestHaplotypesFromEachSample(final List<Haplotype> haplotypes, final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap, final int maxNumHaplotypesInPopulation) {
+//        if ( haplotypes.size() < 2 ) throw new IllegalArgumentException("Must have at least 2 haplotypes to consider but only have " + haplotypes);
+//
+//        if ( haplotypes.size() == 2 ) return haplotypes; // fast path -- we'll always want to use 2 haplotypes
+//
+//        // all of the haplotypes that at least one sample called as one of the most likely
+//        final Set<Haplotype> selectedHaplotypes = new HashSet<>();
+//        selectedHaplotypes.add(findReferenceHaplotype(haplotypes)); // ref is always one of the selected
+//
+//        // our annoying map from allele -> haplotype
+//        final Map<Allele, Haplotype> allele2Haplotype = new HashMap<>();
+//        for ( final Haplotype h : haplotypes ) {
+//            h.setScore(h.isReference() ? Double.MAX_VALUE : 0.0); // set all of the scores to 0 (lowest value) for all non-ref haplotypes
+//            allele2Haplotype.put(Allele.create(h, h.isReference()), h);
+//        }
+//
+//        // for each sample, compute the most likely pair of haplotypes
+//        for ( final Map.Entry<String, PerReadAlleleLikelihoodMap> entry : stratifiedReadMap.entrySet() ) {
+//            // get the two most likely haplotypes under a diploid model for this sample
+//            final MostLikelyAllele mla = entry.getValue().getMostLikelyDiploidAlleles();
+//
+//            if ( mla != null ) { // there was something to evaluate in this sample
+//                // note that there must be at least 2 haplotypes
+//                final Haplotype best = updateSelectHaplotype(allele2Haplotype, mla.getMostLikelyAllele());
+//                final Haplotype second = updateSelectHaplotype(allele2Haplotype, mla.getSecondMostLikelyAllele());
+//
+////            if ( DEBUG ) {
+////                logger.info("Chose haplotypes " + best + " " + best.getCigar() + " and " + second + " " + second.getCigar() + " for sample " + entry.getKey());
+////            }
+//
+//                // add these two haplotypes to the set of haplotypes that have been selected
+//                selectedHaplotypes.add(best);
+//                selectedHaplotypes.add(second);
+//
+//                // we've already selected all of our haplotypes, and we don't need to prune them down
+//                if ( selectedHaplotypes.size() == haplotypes.size() && haplotypes.size() < maxNumHaplotypesInPopulation )
+//                    break;
 //            }
-
-                // add these two haplotypes to the set of haplotypes that have been selected
-                selectedHaplotypes.add(best);
-                selectedHaplotypes.add(second);
-
-                // we've already selected all of our haplotypes, and we don't need to prune them down
-                if ( selectedHaplotypes.size() == haplotypes.size() && haplotypes.size() < maxNumHaplotypesInPopulation )
-                    break;
-            }
-        }
-
-        // take the best N haplotypes forward, in order of the number of samples that choose them
-        final int nSamples = stratifiedReadMap.size();
-        final List<Haplotype> bestHaplotypes = selectBestHaplotypesAccordingToScore(selectedHaplotypes, nSamples, maxNumHaplotypesInPopulation);
-
-        if ( DEBUG ) {
-            logger.info("Chose " + (bestHaplotypes.size() - 1) + " alternate haplotypes to genotype in all samples.");
-            for ( final Haplotype h : bestHaplotypes ) {
-                logger.info("\tHaplotype " + h.getCigar() + " selected for further genotyping" + (h.isNonReference() ? " found " + (int)h.getScore() + " haplotypes" : " as ref haplotype"));
-            }
-        }
-        return bestHaplotypes;
-    }
-
-    /**
-     * Find the haplotype that isRef(), or @throw ReviewedStingException if one isn't found
-     * @param haplotypes non-null list of haplotypes
-     * @return the reference haplotype
-     */
-    private static Haplotype findReferenceHaplotype( final List<Haplotype> haplotypes ) {
-        for( final Haplotype h : haplotypes ) {
-            if( h.isReference() ) return h;
-        }
-        throw new ReviewedStingException( "No reference haplotype found in the list of haplotypes!" );
-    }
+//        }
+//
+//        // take the best N haplotypes forward, in order of the number of samples that choose them
+//        final int nSamples = stratifiedReadMap.size();
+//        final List<Haplotype> bestHaplotypes = selectBestHaplotypesAccordingToScore(selectedHaplotypes, nSamples, maxNumHaplotypesInPopulation);
+//
+//        if ( DEBUG ) {
+//            logger.info("Chose " + (bestHaplotypes.size() - 1) + " alternate haplotypes to genotype in all samples.");
+//            for ( final Haplotype h : bestHaplotypes ) {
+//                logger.info("\tHaplotype " + h.getCigar() + " selected for further genotyping" + (h.isNonReference() ? " found " + (int)h.getScore() + " haplotypes" : " as ref haplotype"));
+//            }
+//        }
+//        return bestHaplotypes;
+//    }
+//
+//    /**
+//     * Find the haplotype that isRef(), or @throw ReviewedStingException if one isn't found
+//     * @param haplotypes non-null list of haplotypes
+//     * @return the reference haplotype
+//     */
+//    private static Haplotype findReferenceHaplotype( final List<Haplotype> haplotypes ) {
+//        for( final Haplotype h : haplotypes ) {
+//            if( h.isReference() ) return h;
+//        }
+//        throw new ReviewedStingException( "No reference haplotype found in the list of haplotypes!" );
+//    }
 
     // --------------------------------------------------------------------------------
     //
