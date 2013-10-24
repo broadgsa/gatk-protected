@@ -126,11 +126,10 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
     public String targetsFile;
 
     /**
-     * List of coding sequence intervals (exons) if different from the targets file, to distinguish intervals
-     * that overlap the cds and intervals that don't.
+     * List of baits to distinguish untargeted intervals from those that are targeted but not covered
      */
-    @Argument(shortName = "cds", required = false)
-    public String cdsFile = null;
+    @Argument(shortName = "baits", required = false)
+    public String baitsFile = null;
 
     /**
      * This value will be used to determine whether or not an interval had too high or too low GC content to be
@@ -183,8 +182,8 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
     }
 
     GATKReport simpleReport;
-    GenomeLocSortedSet target;
-    GenomeLocSortedSet cds;
+    GenomeLocSortedSet targets;
+    GenomeLocSortedSet baits;
 
     public boolean isReduceByInterval() {
         return true;
@@ -192,13 +191,13 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
 
     public void initialize() {
         // if cds file is not provided, just use the targets file (no harm done)
-        if (cdsFile == null)
-            cdsFile = targetsFile;
+        if (baitsFile == null)
+            baitsFile = targetsFile;
 
-        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "IN", "GC", "BQ", "MQ", "DP", "TP", "TS", "CD", "LN", "DS");
+        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "INTERVAL", "GC", "BQ", "MQ", "DP", "POS_IN_TARGET", "TARGET_SIZE", "BAITED", "MISSING_SIZE", "INTERPRETATION");
         final GenomeLocParser parser = getToolkit().getGenomeLocParser();
-        target = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, targetsFile));
-        cds = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, cdsFile));
+        targets = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, targetsFile));
+        baits = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, baitsFile));
     }
 
     public Metrics reduceInit() {
@@ -241,7 +240,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
         for (Pair<GenomeLoc, Metrics> r : results) {
             final GenomeLoc interval = r.getFirst();
             final Metrics metrics = r.getSecond();
-            final List<GenomeLoc> overlappingIntervals = target.getOverlapping(interval);
+            final List<GenomeLoc> overlappingIntervals = targets.getOverlapping(interval);
 
             simpleReport.addRow(
                     interval.toString(),
@@ -251,7 +250,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
                     metrics.depth(),
                     getPositionInTarget(interval, overlappingIntervals),
                     getTargetSize(overlappingIntervals),
-                    cds.overlaps(interval),
+                    baits.overlaps(interval),
                     interval.size(),
                     interpret(metrics, interval)
             );
