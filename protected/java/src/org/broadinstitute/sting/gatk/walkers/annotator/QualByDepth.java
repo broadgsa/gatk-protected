@@ -54,6 +54,8 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ActiveRegionBa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.gatk.walkers.coverage.DepthOfCoverage;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -94,19 +96,20 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
             if ( !genotype.isHet() && !genotype.isHomVar() )
                 continue;
 
-            if (stratifiedContexts!= null) {
-                AlignmentContext context = stratifiedContexts.get(genotype.getSampleName());
+            if (stratifiedContexts!= null && !stratifiedContexts.isEmpty()) {
+                final AlignmentContext context = stratifiedContexts.get(genotype.getSampleName());
                 if ( context == null )
                     continue;
                 depth += context.getBasePileup().depthOfCoverage();
 
-            }
-            else if (perReadAlleleLikelihoodMap != null) {
-                PerReadAlleleLikelihoodMap perReadAlleleLikelihoods = perReadAlleleLikelihoodMap.get(genotype.getSampleName());
+            } else if (perReadAlleleLikelihoodMap != null) {
+                final PerReadAlleleLikelihoodMap perReadAlleleLikelihoods = perReadAlleleLikelihoodMap.get(genotype.getSampleName());
                 if (perReadAlleleLikelihoods == null || perReadAlleleLikelihoods.isEmpty())
                     continue;
 
                 depth += perReadAlleleLikelihoods.getNumberOfStoredElements();
+            } else if (genotype.hasDP() && vc.isBiallelic()) { // TODO -- this currently only works with biallelic variants for now because multiallelics have had their PLs stripped out and therefore their qual score can't be recomputed
+                depth += genotype.getDP();
             }
         }
 
@@ -116,7 +119,7 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
         double QD = -10.0 * vc.getLog10PError() / ((double)depth * altAlleleLength);
         QD = fixTooHighQD(QD);
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%.2f", QD));
         return map;
     }

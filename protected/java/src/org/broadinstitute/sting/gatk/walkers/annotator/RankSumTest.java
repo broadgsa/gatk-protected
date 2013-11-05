@@ -83,7 +83,7 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
-        // either stratifiedContexts or  stratifiedPerReadAlleleLikelihoodMap has to be non-null
+        // either stratifiedContexts or stratifiedPerReadAlleleLikelihoodMap has to be non-null
 
         final GenotypesContext genotypes = vc.getGenotypes();
         if (genotypes == null || genotypes.size() == 0)
