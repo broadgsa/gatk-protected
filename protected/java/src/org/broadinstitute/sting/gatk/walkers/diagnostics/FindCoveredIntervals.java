@@ -101,11 +101,24 @@ public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
     @Argument(fullName = "coverage_threshold", shortName = "cov", doc = "The minimum allowable coverage to be considered covered", required = false)
     private int coverageThreshold = 20;
 
+    @Argument(fullName = "minBaseQuality", shortName = "minBQ", doc = "The minimum allowable base quality score to be counted for coverage",required = false)
+    private int minBaseQuality = 0;
+
+    @Argument(fullName = "minMappingQuality", shortName = "minMQ", doc = "The minimum allowable mapping quality score to be counted for coverage",required = false)
+    private int minMappingQuality = 0;
+
+
+
+
     @Override
     // Look to see if the region has sufficient coverage
     public ActivityProfileState isActive(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
 
-        int depth = context.getBasePileup().getBaseFilteredPileup(coverageThreshold).depthOfCoverage();
+        int depth;
+        if(minBaseQuality == 0 && minMappingQuality == 0)
+            depth = context.getBasePileup().getBaseFilteredPileup(coverageThreshold).depthOfCoverage();
+        else
+            depth = context.getBasePileup().getBaseAndMappingFilteredPileup(minBaseQuality,minMappingQuality).depthOfCoverage();
 
         // note the linear probability scale
         return new ActivityProfileState(ref.getLocus(), Math.min(depth / coverageThreshold, 1));
