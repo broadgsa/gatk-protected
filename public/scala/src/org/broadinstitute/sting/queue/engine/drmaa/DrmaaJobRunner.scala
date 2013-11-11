@@ -43,14 +43,13 @@ class DrmaaJobRunner(val session: Session, val function: CommandLineFunction) ex
   // Set the display name to < 512 characters of the description
   // NOTE: Not sure if this is configuration specific?
   protected val jobNameLength = 500
-  protected val jobNameFilter = """[^A-Za-z0-9_]"""
   protected def functionNativeSpec = function.jobNativeArgs.mkString(" ")
 
   def start() {
     session.synchronized {
       val drmaaJob: JobTemplate = session.createJobTemplate
 
-      drmaaJob.setJobName(function.description.take(jobNameLength).replaceAll(jobNameFilter, "_"))
+      drmaaJob.setJobName(function.analysisName.take(jobNameLength))
 
       // Set the current working directory
       drmaaJob.setWorkingDirectory(function.commandDirectory.getPath)
