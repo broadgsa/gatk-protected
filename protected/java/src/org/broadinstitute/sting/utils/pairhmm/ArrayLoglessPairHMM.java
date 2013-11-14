@@ -49,6 +49,7 @@ package org.broadinstitute.sting.utils.pairhmm;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import org.broadinstitute.sting.utils.QualityUtils;
+
 import java.util.Arrays;
 
 /**

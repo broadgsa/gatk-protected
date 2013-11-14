@@ -74,17 +74,6 @@ public final class LoglessPairHMM extends N2MemoryPairHMM {
      * {@inheritDoc}
      */
     @Override
-    public void initialize(final int readMaxLength, final int haplotypeMaxLength ) {
-        super.initialize(readMaxLength, haplotypeMaxLength);
-
-        transition = new double[paddedMaxReadLength][6];
-        prior = new double[paddedMaxReadLength][paddedMaxHaplotypeLength];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public double subComputeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
                                                                final byte[] readBases,
                                                                final byte[] readQuals,
