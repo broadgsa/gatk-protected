@@ -78,7 +78,7 @@ public class DeBruijnVertex extends BaseVertex {
      * @return integer >= 1
      */
     @Ensures("result >= 1")
-    public int getKmer() {
+    public int getKmerSize() {
         return sequence.length;
     }
 
@@ -100,7 +100,7 @@ public class DeBruijnVertex extends BaseVertex {
      * @return a byte
      */
     public byte getSuffix() {
-        return sequence[getKmer() - 1];
+        return sequence[getKmerSize() - 1];
     }
 
     /**

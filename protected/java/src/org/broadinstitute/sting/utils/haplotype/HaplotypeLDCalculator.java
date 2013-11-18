@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.utils.haplotype;
 
 import com.google.java.contract.Requires;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.LikelihoodCalculationEngine;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.PairHMMLikelihoodCalculationEngine;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.variantcontext.Allele;
@@ -100,7 +100,7 @@ public class HaplotypeLDCalculator {
                 final Map<Haplotype, Double> map = new HashMap<Haplotype, Double>(haplotypes.size());
                 for( final Haplotype h : haplotypes ) {
                     // count up the co-occurrences of the events for the R^2 calculation
-                    final double haplotypeLikelihood = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, haplotypeReadMap, Collections.singletonList(Allele.create(h, true)), false)[0][0];
+                    final double haplotypeLikelihood = PairHMMLikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, haplotypeReadMap, Collections.singletonList(Allele.create(h, true)), false)[0][0];
                     map.put(h, haplotypeLikelihood);
                 }
                 haplotypeLikelihoodsPerSample.add(map);

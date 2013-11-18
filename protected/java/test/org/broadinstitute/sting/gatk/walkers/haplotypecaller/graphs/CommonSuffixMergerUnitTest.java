@@ -93,7 +93,7 @@ public class CommonSuffixMergerUnitTest extends BaseTest {
                     for ( int nTops = 0; nTops < nMids; nTops++ ) {
                         for ( int nTopConnections = 1; nTopConnections <= nMids; nTopConnections++ ) {
                             int multi = 1;
-                            final SeqGraph graph = new SeqGraph();
+                            final SeqGraph graph = new SeqGraph(11);
                             final SeqVertex v = new SeqVertex("GGGG");
                             graph.addVertex(v);
 
@@ -169,7 +169,7 @@ public class CommonSuffixMergerUnitTest extends BaseTest {
 
     @Test
     public void testDoesntMergeSourceNodes() {
-        final SeqGraph g = new SeqGraph();
+        final SeqGraph g = new SeqGraph(11);
         final SeqVertex v1 = new SeqVertex("A");
         final SeqVertex v2 = new SeqVertex("A");
         final SeqVertex v3 = new SeqVertex("A");

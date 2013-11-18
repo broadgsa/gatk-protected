@@ -74,6 +74,20 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
         Assert.assertEquals(actual, expected);
     }
 
+    @Test
+    public void testSimpleHaplotypeRethreading() {
+        final ReadThreadingGraph assembler = new ReadThreadingGraph(11);
+        final String ref   = "CATGCACTTTAAAACTTGCCTTTTTAACAAGACTTCCAGATG";
+        final String alt   = "CATGCACTTTAAAACTTGCCGTTTTAACAAGACTTCCAGATG";
+        assembler.addSequence("anonymous", getBytes(ref), null, true);
+        assembler.addSequence("anonymous", getBytes(alt), null, false);
+        assembler.buildGraphIfNecessary();
+        Assert.assertNotEquals(ref.length() - 11 + 1,assembler.vertexSet().size(),"the number of vertex in the graph is the same as if there was no alternative sequence");
+        Assert.assertEquals(ref.length() - 11 + 1 + 11,assembler.vertexSet().size(),"the number of vertex in the graph is not the same as if there is an alternative sequence");
+        MultiDeBruijnVertex startAlt = assembler.findKmer(new Kmer(alt.getBytes(),20,11));
+        Assert.assertNotNull(startAlt);
+    }
+
     @Test(enabled = ! DEBUG)
     public void testNonUniqueMiddle() {
         final ReadThreadingGraph assembler = new ReadThreadingGraph(3);

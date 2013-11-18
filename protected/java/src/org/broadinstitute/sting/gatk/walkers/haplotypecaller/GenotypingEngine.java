@@ -337,7 +337,7 @@ public class GenotypingEngine {
         for( final String sample : alleleReadMap.keySet() ) {
             final int numHaplotypes = mergedVC.getAlleles().size();
             final double[] genotypeLikelihoods = new double[numHaplotypes * (numHaplotypes+1) / 2];
-            final double[][] haplotypeLikelihoodMatrix = LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleReadMap, mergedVC.getAlleles(), true);
+            final double[][] haplotypeLikelihoodMatrix = PairHMMLikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleReadMap, mergedVC.getAlleles(), true);
             int glIndex = 0;
             for( int iii = 0; iii < numHaplotypes; iii++ ) {
                 for( int jjj = 0; jjj <= iii; jjj++ ) {

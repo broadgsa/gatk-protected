@@ -73,6 +73,7 @@ public class PairHMMUnitTest extends BaseTest {
     final N2MemoryPairHMM originalHMM = new Log10PairHMM(false); // the reference implementation
     final N2MemoryPairHMM loglessHMM = new LoglessPairHMM();
     final PairHMM arrayHMM = new ArrayLoglessPairHMM();
+    final N2MemoryPairHMM fastloglessHMM = new FastLoglessPairHMM((byte) 10);
 
     @BeforeClass
     public void initialize() {
@@ -80,10 +81,11 @@ public class PairHMMUnitTest extends BaseTest {
         originalHMM.doNotUseTristateCorrection();
         loglessHMM.doNotUseTristateCorrection();
         arrayHMM.doNotUseTristateCorrection();
+        fastloglessHMM.doNotUseTristateCorrection();
     }
 
-    private List<PairHMM> getHMMs() {
-        return Arrays.asList(exactHMM, originalHMM, loglessHMM, arrayHMM);
+    private List<N2MemoryPairHMM> getHMMs() {
+        return Arrays.asList(exactHMM, originalHMM, loglessHMM, fastloglessHMM);
     }
 
     // --------------------------------------------------------------------------------

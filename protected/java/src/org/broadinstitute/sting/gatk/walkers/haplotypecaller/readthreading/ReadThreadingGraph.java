@@ -65,8 +65,11 @@ import org.jgrapht.alg.CycleDetector;
 
 import java.io.File;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSampleEdge> {
+public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSampleEdge> implements KmerSearchableGraph<MultiDeBruijnVertex,MultiSampleEdge> {
+
     /**
      * Edge factory that encapsulates the numPruningSamples assembly parameter
      */
@@ -108,17 +111,17 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     /**
      * A set of non-unique kmers that cannot be used as merge points in the graph
      */
-    private Set<Kmer> nonUniqueKmers;
+    protected Set<Kmer> nonUniqueKmers;
 
     /**
      * A map from kmers -> their corresponding vertex in the graph
      */
-    private Map<Kmer, MultiDeBruijnVertex> uniqueKmers = new LinkedHashMap<>();
+    protected Map<Kmer, MultiDeBruijnVertex> uniqueKmers = new LinkedHashMap<>();
 
     /**
      *
      */
-    final int kmerSize;
+
     final boolean debugGraphTransformations;
     final byte minBaseQualityToUseInAssembly;
 
@@ -129,14 +132,40 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     // state variables, initialized in resetToInitialState()
     // --------------------------------------------------------------------------------
     private Kmer refSource;
-    private boolean alreadyBuilt;
+    protected boolean alreadyBuilt;
 
-    public ReadThreadingGraph() {
-        this(25, false, (byte)6, 1);
-    }
-
+    /**
+     * Constructs an empty read-threading-grpah provided the kmerSize.
+     * @param kmerSize 1 or greater.
+     *
+     * @throw IllegalArgumentException if (@code kmerSize) < 1.
+     */
     public ReadThreadingGraph(final int kmerSize) {
         this(kmerSize, false, (byte)6, 1);
+    }
+
+
+    /**
+     * Return the collection of outgoing vertices that expand this vertex with a particular base.
+     *
+     * @param v original vertex.
+     * @param b expanding base.
+     * @return never null, but perhaps an empty set. You cannot assume that you can modify the result.
+     */
+    protected Set<MultiDeBruijnVertex> getNextVertices(final MultiDeBruijnVertex v, final byte b) {
+        if (v == null) throw new IllegalArgumentException("the input vertex cannot be null");
+        if (!vertexSet().contains(v)) throw new IllegalArgumentException("the vertex must be present in the graph");
+        final List<MultiDeBruijnVertex> result = new LinkedList<>();
+        for (final MultiDeBruijnVertex w : outgoingVerticesOf(v)) {
+            if (w.getSuffix() == b)
+                result.add(w);
+        }
+        switch (result.size()) {
+            case 0: return Collections.emptySet();
+            case 1: return Collections.singleton(result.get(0));
+            default:
+                    return new HashSet<>(result);
+        }
     }
 
     /**
@@ -147,7 +176,6 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         super(kmerSize, new MyEdgeFactory(numPruningSamples));
 
         if ( kmerSize < 1 ) throw new IllegalArgumentException("bad minkKmerSize " + kmerSize);
-        this.kmerSize = kmerSize;
         this.debugGraphTransformations = debugGraphTransformations;
         this.minBaseQualityToUseInAssembly = minBaseQualityToUseInAssembly;
 
@@ -350,6 +378,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         final int refIndexToMerge = lastRefIndex - matchingSuffix + 1 + (mustHandleLeadingDeletionCase ? 1 : 0);
 
         addEdge(danglingTailMergeResult.danglingPath.get(altIndexToMerge), danglingTailMergeResult.referencePath.get(refIndexToMerge), ((MyEdgeFactory)getEdgeFactory()).createEdge(false, 1));
+
         return 1;
     }
 
@@ -457,6 +486,33 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         // clear
         pending.clear();
         alreadyBuilt = true;
+        for (final MultiDeBruijnVertex v : uniqueKmers.values())
+            v.setAdditionalInfo(v.additionalInfo() + "+");
+    }
+
+
+    @Override
+    public boolean removeVertex(MultiDeBruijnVertex V) {
+        final boolean result = super.removeVertex(V);
+        if (result) {
+            final byte[] sequence = V.getSequence();
+            final Kmer kmer = new Kmer(sequence);
+            uniqueKmers.remove(kmer);
+        }
+        return result;
+    }
+
+
+    public void removeSingletonOrphanVertices() {
+        // Run through the graph and clean up singular orphaned nodes
+        final List<MultiDeBruijnVertex> verticesToRemove = new LinkedList<>();
+        for( final MultiDeBruijnVertex v : vertexSet() ) {
+            if( inDegreeOf(v) == 0 && outDegreeOf(v) == 0 ) {
+                verticesToRemove.add(v);
+            }
+        }
+        this.removeVertex(null);
+        removeAllVertices(verticesToRemove);
     }
 
     /**
@@ -594,6 +650,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         final SeqGraph seqGraph = new SeqGraph(kmerSize);
         final Map<MultiDeBruijnVertex, SeqVertex> vertexMap = new HashMap<MultiDeBruijnVertex, SeqVertex>();
 
+
         // create all of the equivalent seq graph vertices
         for ( final MultiDeBruijnVertex dv : vertexSet() ) {
             final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
@@ -638,7 +695,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      * @param seqForKmers the sequence we want to thread into the graph
      * @return a pair of the starting vertex and its position in seqForKmer
      */
-    private Pair<MultiDeBruijnVertex, Integer> findStart(final SequenceForKmers seqForKmers) {
+    protected Pair<MultiDeBruijnVertex, Integer> findStart(final SequenceForKmers seqForKmers) {
         final int uniqueStartPos = seqForKmers.isRef ? 0 : findUniqueStartPosition(seqForKmers.sequence, seqForKmers.start, seqForKmers.stop);
 
         if ( uniqueStartPos == -1 )
@@ -670,7 +727,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      * @param allowRefSource if true, we will allow matches to the kmer that represents the reference starting kmer
      * @return a non-null vertex
      */
-    private Pair<MultiDeBruijnVertex, Integer> getOrCreateKmerVertex(final byte[] sequence, final int start, final boolean allowRefSource) {
+    protected Pair<MultiDeBruijnVertex, Integer> getOrCreateKmerVertex(final byte[] sequence, final int start, final boolean allowRefSource) {
         final Kmer kmer = new Kmer(sequence, start, kmerSize);
         final MultiDeBruijnVertex vertex = getUniqueKmerVertex(kmer, allowRefSource);
         if ( vertex != null ) {
@@ -688,8 +745,10 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      */
     private MultiDeBruijnVertex getUniqueKmerVertex(final Kmer kmer, final boolean allowRefSource) {
         if ( ! allowRefSource && kmer.equals(refSource) ) return null;
+
         return uniqueKmers.get(kmer);
     }
+
 
     /**
      * Create a new vertex for kmer.  Add it to the uniqueKmers map if appropriate.
@@ -808,5 +867,179 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         return "ReadThreadingAssembler{" +
                 "kmerSize=" + kmerSize +
                 '}';
+    }
+
+
+    @Override
+    public MultiDeBruijnVertex findKmer(final Kmer k) {
+        return uniqueKmers.get(k);
+    }
+
+    /*************************************************************
+     * Simple string representation support for testing purposes *
+     *************************************************************/
+
+    private static final Pattern PROPERTIES_PATTERN = Pattern.compile("^\\s*\\[[^\\]]*\\]");
+    private static final Pattern PATH_PATTERN = Pattern.compile("\\{((\\S+):)?([^\\}]*)\\}");
+    private static final Pattern KMERSIZE_EXTRACTOR_PATTERN = Pattern.compile("^\\s*\\[[^\\]]*(ks|kmerSize)\\s*=\\s*(\\d+)\\s*[,\\]]");
+
+
+    /**
+     * Constructs a read-threadingg-graph for a string representation.
+     *
+     * <p>
+     *     Note: only used for testing.
+     *     Checkout {@link HaplotypeGraphUnitTest} for examples.
+     * </p>
+     * @param s the string representation of the graph {@code null}.
+     */
+    public ReadThreadingGraph(final String s) {
+        super(kmerSizeFromString(s),new MyEdgeFactory(1));
+        debugGraphTransformations = false;
+        minBaseQualityToUseInAssembly = 0;
+        applyString(s);
+        alreadyBuilt = true;
+    }
+
+    /**
+     * Obtain the kmer size for the string representation.
+     * @param str the source string representation.
+     * @return 1 or greater.
+     * @throws IllegalArgumentException if {@code} str does not contain a valid representation.
+     */
+    private static int kmerSizeFromString(final String str) {
+        final Matcher matcher = KMERSIZE_EXTRACTOR_PATTERN.matcher(str);
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(2));
+        } else
+            throw new IllegalArgumentException("the input graph spec does not indicate the kmerSize");
+    }
+
+    /**
+     * Apply description string into the graph.
+     *
+     * <p>
+     *     Note: this is done just for testing purposes.
+     *     Checkout {@link HaplotypeGraphUnitTest} for examples.
+     * </p>
+     * @param str the string representation.
+     */
+    private void applyString(final String str) {
+        final Matcher propertiesSectionMatcher = PROPERTIES_PATTERN.matcher(str);
+        final int pathStart = propertiesSectionMatcher.find() ? propertiesSectionMatcher.end() : 0;
+
+        final String pathString = str.substring(pathStart);
+        final Matcher pathMatcher = PATH_PATTERN.matcher(pathString);
+
+        boolean referenceFound = false;
+        final Map<String,MultiDeBruijnVertex> vertexById = new HashMap<>();
+
+        // Loop between path strings and add them one by one.
+        while (pathMatcher.find()) {
+            final String label = pathMatcher.group(2);
+            final boolean isReference = (label != null && label.equals("REF"));
+            if (referenceFound) {
+                if (isReference)
+                    throw new IllegalArgumentException("there are two reference paths");
+
+            } else
+                referenceFound |= isReference;
+
+            // Divide each path into its elements getting a list of sequences and labels if applies:
+            final String elementsString = pathMatcher.group(3);
+            final String[] elements = elementsString.split("\\s*->\\s*");
+            if (elements.length == 0)
+                throw new IllegalArgumentException("empty path not allowed");
+            final String[] seqs = new String[elements.length];
+            final String[] ids = new String[elements.length];
+            for (int i = 0; i < elements.length; i++) {
+                ids[i] = pathElementId(elements[i]);
+                seqs[i] = pathElementSeq(elements[i]);
+                if (seqs[i].isEmpty() && ids[i] == null)
+                    throw new IllegalArgumentException("path with empty element without an id");
+            }
+            final boolean isSource =  ids[0] == null || !vertexById.containsKey(ids[0]);
+            if (isSource && seqs[0].length() != kmerSize)
+                throw new IllegalArgumentException("source sequence length must be the same as the kmerSize "
+                        + ids[0] + " " + seqs[0] + " " + pathMatcher.group());
+            final MultiDeBruijnVertex firstVertex;
+            if (ids[0] != null && vertexById.containsKey(ids[0]))
+                firstVertex = vertexById.get(ids[0]);
+            else {
+                firstVertex = new MultiDeBruijnVertex(seqs[0].getBytes());
+                addVertex(firstVertex);
+                if (ids[0] != null)
+                    vertexById.put(ids[0],firstVertex);
+            }
+            if (!seqs[0].isEmpty() &&
+                    ((isSource && !firstVertex.getSequenceString().equals(seqs[0]))
+                            || (!isSource && firstVertex.getSuffix() != seqs[0].getBytes()[0])))
+                throw new IllegalArgumentException("mismatched first element sequence");
+
+            MultiDeBruijnVertex lastVertex = firstVertex;
+            for (int i = 1; i < elements.length; i++) {
+                if (seqs[i].length() > 1)
+                    throw new IllegalArgumentException("non-source vertex sequence must have length 1");
+                final MultiDeBruijnVertex nextVertex;
+                if (ids[i] == null || !vertexById.containsKey(ids[i])) {
+                    final Set<MultiDeBruijnVertex> nextVertices = getNextVertices(lastVertex,seqs[i].getBytes()[0]);
+                    if (nextVertices.size() == 0) {
+                        nextVertex = new MultiDeBruijnVertex(extendSequence(lastVertex.getSequence(),seqs[i].getBytes()[0]));
+                        addVertex(nextVertex);
+                    } else {
+                        nextVertex = nextVertices.iterator().next();
+                    }
+                    if (ids[i] != null)
+                        vertexById.put(ids[i],nextVertex);
+                } else {
+                    nextVertex = vertexById.get(ids[i]);
+                }
+                final MultiSampleEdge edge = addEdge(lastVertex,nextVertex);
+                if (isReference) edge.setIsRef(true);
+                lastVertex = nextVertex;
+            }
+        }
+    }
+
+    private static String pathElementId(final String element) {
+        final int parentesysPos = element.indexOf('(');
+
+        if (parentesysPos == -1)
+            return null;
+
+        final int closeParentesysPos = element.lastIndexOf(')');
+        if (closeParentesysPos == -1)
+            throw new IllegalArgumentException("non-closed id parantesys found in element: " + element);
+        final String result = element.substring(parentesysPos + 1,closeParentesysPos).trim();
+        if (result.isEmpty())
+            throw new IllegalArgumentException("empty id found in element: " + element);
+        return result;
+    }
+
+    /**
+     * Returns the lenght of a path element in the string representation.
+     * @param element the query element.
+     * @return 0 or greater.
+     */
+    private static String pathElementSeq(final String element) {
+        final int parentesysPos = element.indexOf('(');
+
+        if (parentesysPos == -1)
+            return element.trim();
+
+        return element.substring(0,parentesysPos).trim();
+    }
+
+    /**
+     * Add a base to the end of a byte sequence.
+     * @param sequence sequence where to add the base to.
+     * @param b base to add.
+     * @return never {@code null}, a new array each time.
+     */
+    private static byte[] extendSequence(final byte[] sequence, final byte b) {
+        final byte[] result = new byte[sequence.length];
+        System.arraycopy(sequence,1,result,0,sequence.length - 1);
+        result[result.length - 1] = b;
+        return result;
     }
 }

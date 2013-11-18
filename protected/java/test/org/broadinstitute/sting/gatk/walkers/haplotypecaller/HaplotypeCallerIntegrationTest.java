@@ -91,6 +91,16 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTest(NA12878_BAM, "", "439ce9024f04aad08eab1526d887e295");
     }
 
+    @Test
+    public void testHaplotypeCallerGraphBasedSingleSample() {
+        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "213df0bdaa78a695e9336128333e4407");
+    }
+
+    @Test
+    public void testHaplotypeCallerGraphBasedMultiSample() {
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "ceee711cac50b4bb66a084acb9264941");
+    }
+
     @Test(enabled = false) // can't annotate the rsID's yet
     public void testHaplotypeCallerSingleSampleWithDbsnp() {
         HCTest(NA12878_BAM, "-D " + b37dbSNP132, "");

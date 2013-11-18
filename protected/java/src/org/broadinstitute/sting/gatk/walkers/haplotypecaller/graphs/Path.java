@@ -72,17 +72,17 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
     private final static Logger logger = Logger.getLogger(Path.class);
 
     // the last vertex seen in the path
-    private final T lastVertex;
+    protected final T lastVertex;
 
     // the list of edges comprising the path
     private Set<E> edgesAsSet = null;
-    private final LinkedList<E> edgesInOrder;
+    protected final ArrayList<E> edgesInOrder;
 
     // the scores for the path
-    private final int totalScore;
+    protected final int totalScore;
 
     // the graph from which this path originated
-    private final BaseGraph<T, E> graph;
+    protected final BaseGraph<T, E> graph;
 
     // used in the bubble state machine to apply Smith-Waterman to the bubble sequence
     // these values were chosen via optimization against the NA12878 knowledge base
@@ -99,7 +99,7 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
         if ( ! graph.containsVertex(initialVertex) ) throw new IllegalArgumentException("Vertex " + initialVertex + " must be part of graph " + graph);
 
         lastVertex = initialVertex;
-        edgesInOrder = new LinkedList<E>();
+        edgesInOrder = new ArrayList<>(0);
         totalScore = 0;
         this.graph = graph;
     }
@@ -115,10 +115,28 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
     }
 
     /**
+     * Create a new path with the same field values.
+     *
+     * @param p the template path.
+     *
+     * @throws NullPointerException if {@code p} is {@code null}.
+     */
+    protected Path(final Path<T,E> p) {
+        this.edgesInOrder = p.edgesInOrder;
+        this.lastVertex = p.lastVertex;
+        this.edgesAsSet = p.edgesAsSet;
+        this.totalScore = p.totalScore;
+        this.graph = p.graph;
+    }
+
+    /**
      * Create a new Path extending p with edge
      *
-     * @param p the path to extend
-     * @param edge the edge to extend path by
+     * @param p the path to extend.
+     * @param edge the edge to extend path with.
+     *
+     * @throws IllegalArgumentException if {@code p} or {@code edge} are {@code null}, or {@code edge} is
+     * not part of {@code p}'s graph, or {@code edge} does not have as a source the last vertex in {@code p}.
      */
     public Path(final Path<T,E> p, final E edge) {
         if ( p == null ) throw new IllegalArgumentException("Path cannot be null");
@@ -128,8 +146,40 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
 
         graph = p.graph;
         lastVertex = p.graph.getEdgeTarget(edge);
-        edgesInOrder = new LinkedList<E>(p.getEdges());
+        edgesInOrder = new ArrayList<>(p.length() + 1);
+        edgesInOrder.addAll(p.edgesInOrder);
         edgesInOrder.add(edge);
+        totalScore = p.totalScore + edge.getMultiplicity();
+    }
+
+    /**
+     * Length of the path in edges.
+     *
+     * @return {@code 0} or greater.
+     */
+    public int length() {
+        return edgesInOrder.size();
+    }
+
+    /**
+     * Prepend a path with an edge.
+     *
+     * @param edge the extending edge.
+     * @param p the original path.
+     *
+     * @throws IllegalArgumentException if {@code p} or {@code edge} are {@code null}, or {@code edge} is
+     * not part of {@code p}'s graph, or {@code edge} does not have as a target the first vertex in {@code p}.
+     */
+    public Path(final E edge, final Path<T,E> p) {
+        if ( p == null ) throw new IllegalArgumentException("Path cannot be null");
+        if ( edge == null ) throw new IllegalArgumentException("Edge cannot be null");
+        if ( ! p.graph.containsEdge(edge) ) throw new IllegalArgumentException("Graph must contain edge " + edge + " but it doesn't");
+        if ( ! p.graph.getEdgeTarget(edge).equals(p.getFirstVertex())) { throw new IllegalStateException("Edges added to path must be contiguous."); }
+        graph = p.graph;
+        lastVertex = p.lastVertex;
+        edgesInOrder = new ArrayList<>(p.length() + 1);
+        edgesInOrder.add(edge);
+        edgesInOrder.addAll(p.getEdges());
         totalScore = p.totalScore + edge.getMultiplicity();
     }
 
@@ -169,6 +219,27 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
     }
 
     /**
+     * Checks whether a given path is a suffix of this path.
+     *
+     * @param other the path to compare against.
+     * @throws IllegalArgumentException if <code>other</code> is <code>null</code>, or the come from
+     *   different graphs.
+     * @return true if <code>other</code> is a suffix of this path.
+     */
+    public boolean isSuffix(final Path<T, E> other) {
+        if ( other == null ) throw new IllegalArgumentException("path cannot be null");
+        if (other.getGraph() != this.getGraph()) throw new IllegalArgumentException("the other path most belong to the same path");
+        if (!lastVertex.equals(other.lastVertex))
+          return false;
+        final ListIterator<E> myIt = edgesInOrder.listIterator(edgesInOrder.size());
+        final ListIterator<E> otherIt = other.edgesInOrder.listIterator(other.edgesInOrder.size());
+        while (myIt.hasPrevious() && otherIt.hasPrevious())
+            if (otherIt.previous() != myIt.previous())
+                return false;
+        return !otherIt.hasPrevious();
+    }
+
+    /**
      * Check that two paths have the same edges and total score
      * @param path the other path we might be the same as
      * @return true if this and path are the same
@@ -182,13 +253,13 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
         final StringBuilder b = new StringBuilder("Path{score=" + totalScore + ", path=");
         boolean first = true;
         for ( final T v : getVertices() ) {
-            if ( first ) {
+            if ( first )
                 first = false;
-            } else {
+            else
                 b.append(" -> ");
-            }
             b.append(v.getSequenceString());
         }
+        b.append('}');
         return b.toString();
     }
 
@@ -249,7 +320,11 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
      * @return a non-null vertex
      */
     public T getFirstVertex() {
-        return getGraph().getEdgeSource(edgesInOrder.pollFirst());
+        if (edgesInOrder.size() == 0) {
+            return lastVertex;
+        } else {
+            return getGraph().getEdgeSource(edgesInOrder.get(0));
+        }
     }
 
     /**
@@ -260,7 +335,7 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
     public byte[] getBases() {
         if( getEdges().isEmpty() ) { return graph.getAdditionalSequence(lastVertex); }
 
-        byte[] bases = graph.getAdditionalSequence(graph.getEdgeSource(edgesInOrder.getFirst()));
+        byte[] bases = graph.getAdditionalSequence(graph.getEdgeSource(edgesInOrder.get(0)));
         for( final E e : edgesInOrder ) {
             bases = ArrayUtils.addAll(bases, graph.getAdditionalSequence(graph.getEdgeTarget(e)));
         }
