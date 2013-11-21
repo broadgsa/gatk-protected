@@ -296,9 +296,9 @@ public class ReferenceConfidenceModel {
                     if( hqSoftClips != null && p.isNextToSoftClip() ) {
                         hqSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(p.getRead(), (byte) 28));
                     }
-                    result.AD_Ref_Any[1]++;
+                    result.AD_Ref_Any[1] += p.getRepresentativeCount();
                 } else {
-                    result.AD_Ref_Any[0]++;
+                    result.AD_Ref_Any[0] += p.getRepresentativeCount();
                 }
                 result.genotypeLikelihoods[AA] += p.getRepresentativeCount() * QualityUtils.qualToProbLog10(qual);
                 result.genotypeLikelihoods[AB] += p.getRepresentativeCount() * MathUtils.approximateLog10SumLog10( QualityUtils.qualToProbLog10(qual) + MathUtils.LOG_ONE_HALF, QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD + MathUtils.LOG_ONE_HALF );
@@ -483,7 +483,7 @@ public class ReferenceConfidenceModel {
 
             // todo -- this code really should handle CIGARs directly instead of relying on the above tests
             if ( isReadInformativeAboutIndelsOfSize(read.getReadBases(), read.getBaseQualities(), offset, ref, pileupOffsetIntoRef, maxIndelSize) ) {
-                nInformative++;
+                nInformative += p.getRepresentativeCount();
                 if( nInformative > MAX_N_INDEL_INFORMATIVE_READS ) {
                     return MAX_N_INDEL_INFORMATIVE_READS;
                 }
