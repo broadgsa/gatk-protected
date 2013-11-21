@@ -52,6 +52,7 @@ import net.sf.samtools.SAMUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
+import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
@@ -60,7 +61,9 @@ import org.broadinstitute.sting.utils.recalibration.covariates.RepeatCovariate;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.variantcontext.*;
+import org.broadinstitute.variant.vcf.VCFConstants;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -572,4 +575,212 @@ public class LikelihoodCalculationEngine {
         }
     }
 
+    // --------------------------------------------------------------------------------
+    //
+    // Posterior GL calculations
+    //
+    // --------------------------------------------------------------------------------
+
+    public static VariantContext calculatePosteriorGLs(final VariantContext vc1,
+                                                       final Collection<VariantContext> resources,
+                                                       final int numRefSamplesFromMissingResources,
+                                                       final double globalFrequencyPriorDirichlet,
+                                                       final boolean useInputSamples,
+                                                       final boolean useEM,
+                                                       final boolean useAC) {
+        if ( useEM )
+            throw new IllegalArgumentException("EM loop for posterior GLs not yet implemented");
+
+        final Map<Allele,Integer> totalAlleleCounts = new HashMap<>();
+        for ( final VariantContext resource : resources ) {
+            addAlleleCounts(totalAlleleCounts,resource,useAC);
+        }
+
+        if ( useInputSamples ) {
+            addAlleleCounts(totalAlleleCounts,vc1,useAC);
+        }
+
+        totalAlleleCounts.put(vc1.getReference(),totalAlleleCounts.get(vc1.getReference())+numRefSamplesFromMissingResources);
+
+        // now extract the counts of the alleles present within vc1, and in order
+        final double[] alleleCounts = new double[vc1.getNAlleles()];
+        int alleleIndex = 0;
+        for ( final Allele allele : vc1.getAlleles() ) {
+
+            alleleCounts[alleleIndex++] = globalFrequencyPriorDirichlet + ( totalAlleleCounts.containsKey(allele) ?
+                    totalAlleleCounts.get(allele) : 0 );
+        }
+
+        final List<double[]> likelihoods = new ArrayList<>(vc1.getNSamples());
+        for ( final Genotype genotype : vc1.getGenotypes() ) {
+            likelihoods.add(genotype.hasLikelihoods() ? genotype.getLikelihoods().getAsVector() : null );
+        }
+
+        final List<double[]> posteriors = calculatePosteriorGLs(likelihoods,alleleCounts,vc1.getMaxPloidy(2));
+
+        final GenotypesContext newContext = GenotypesContext.create();
+        for ( int genoIdx = 0; genoIdx < vc1.getNSamples(); genoIdx ++ ) {
+            final GenotypeBuilder builder = new GenotypeBuilder(vc1.getGenotype(genoIdx));
+            if ( posteriors.get(genoIdx) != null ) {
+                GATKVariantContextUtils.updateGenotypeAfterSubsetting(vc1.getAlleles(), builder,
+                        GATKVariantContextUtils.GenotypeAssignmentMethod.USE_PLS_TO_ASSIGN, posteriors.get(genoIdx), vc1.getAlleles());
+                builder.attribute(VCFConstants.GENOTYPE_POSTERIORS_KEY,
+                        Utils.listFromPrimitives(GenotypeLikelihoods.fromLog10Likelihoods(posteriors.get(genoIdx)).getAsPLs()));
+
+            }
+            newContext.add(builder.make());
+        }
+
+        final List<Integer> priors = Utils.listFromPrimitives(
+                GenotypeLikelihoods.fromLog10Likelihoods(getDirichletPrior(alleleCounts, vc1.getMaxPloidy(2))).getAsPLs());
+
+        return new VariantContextBuilder(vc1).genotypes(newContext).attribute("PG",priors).make();
+    }
+
+    /**
+     * Given genotype likelihoods and known allele counts, calculate the posterior likelihoods
+     * over the genotype states
+     * @param genotypeLikelihoods - the genotype likelihoods for the individual
+     * @param knownAlleleCountsByAllele - the known allele counts in the population. For AC=2 AN=12 site, this is {10,2}
+     * @param ploidy - the ploidy to assume
+     * @return - the posterior genotype likelihoods
+     */
+    protected static List<double[]> calculatePosteriorGLs(final List<double[]> genotypeLikelihoods,
+                                                       final double[] knownAlleleCountsByAllele,
+                                                       final int ploidy) {
+        if ( ploidy != 2 ) {
+            throw new IllegalStateException("Genotype posteriors not yet implemented for ploidy != 2");
+        }
+
+        final double[] genotypePriorByAllele = getDirichletPrior(knownAlleleCountsByAllele,ploidy);
+        final List<double[]> posteriors = new ArrayList<>(genotypeLikelihoods.size());
+        for ( final double[] likelihoods : genotypeLikelihoods ) {
+            double[] posteriorLikelihoods = null;
+
+            if ( likelihoods != null ) {
+                if ( likelihoods.length != genotypePriorByAllele.length ) {
+                    throw new IllegalStateException(String.format("Likelihoods not of correct size: expected %d, observed %d",
+                            knownAlleleCountsByAllele.length*(knownAlleleCountsByAllele.length+1)/2,likelihoods.length));
+                }
+
+                posteriorLikelihoods = new double[genotypePriorByAllele.length];
+                for ( int genoIdx = 0; genoIdx < likelihoods.length; genoIdx ++ ) {
+                    posteriorLikelihoods[genoIdx] = likelihoods[genoIdx] + genotypePriorByAllele[genoIdx];
+                }
+
+                posteriorLikelihoods = MathUtils.toLog10(MathUtils.normalizeFromLog10(posteriorLikelihoods));
+
+            }
+
+            posteriors.add(posteriorLikelihoods);
+        }
+
+        return posteriors;
+    }
+
+    // convenience function for a single genotypelikelihoods array. Just wraps.
+    protected static double[] calculatePosteriorGLs(final double[] genotypeLikelihoods,
+                                                 final double[] knownAlleleCountsByAllele,
+                                                 final int ploidy) {
+        return calculatePosteriorGLs(Arrays.asList(genotypeLikelihoods),knownAlleleCountsByAllele,ploidy).get(0);
+    }
+
+
+    /**
+     * Given known allele counts (whether external, from the sample, or both), calculate the prior distribution
+     * over genotype states. This assumes
+     *   1) Random sampling of alleles (known counts are unbiased, and frequency estimate is Dirichlet)
+     *   2) Genotype states are independent (Hardy-Weinberg)
+     * These assumptions give rise to a Dirichlet-Multinomial distribution of genotype states as a prior
+     * (the "number of trials" for the multinomial is simply the ploidy)
+     * @param knownCountsByAllele - the known counts per allele. For an AC=2, AN=12 site this is {10,2}
+     * @param ploidy - the number of chromosomes in the sample. For now restricted to 2.
+     * @return - the Dirichlet-Multinomial distribution over genotype states
+     */
+    protected static double[] getDirichletPrior(final double[] knownCountsByAllele, final int ploidy) {
+        if ( ploidy != 2 ) {
+            throw new IllegalStateException("Genotype priors not yet implemented for ploidy != 2");
+        }
+
+        // multi-allelic format is
+        // AA AB BB AC BC CC AD BD CD DD ...
+        final double sumOfKnownCounts = MathUtils.sum(knownCountsByAllele);
+        final double[] priors = new double[knownCountsByAllele.length*(knownCountsByAllele.length+1)/2];
+        int priorIndex = 0;
+        for ( int allele2 = 0; allele2 < knownCountsByAllele.length; allele2++ ) {
+            for ( int allele1 = 0; allele1 <= allele2; allele1++) {
+                final int[] counts = new int[knownCountsByAllele.length];
+                counts[allele1] += 1;
+                counts[allele2] += 1;
+                priors[priorIndex++] = MathUtils.dirichletMultinomial(knownCountsByAllele,sumOfKnownCounts,counts,ploidy);
+            }
+        }
+
+        return priors;
+    }
+
+    private static void addAlleleCounts(final Map<Allele,Integer> counts, final VariantContext context, final boolean useAC) {
+        final int[] ac;
+        if ( context.hasAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY) && ! useAC ) {
+            ac = extractInts(context.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
+        } else if ( context.hasAttribute(VCFConstants.ALLELE_COUNT_KEY) ) {
+            ac = extractInts(context.getAttribute(VCFConstants.ALLELE_COUNT_KEY));
+        } else {
+            ac = new int[context.getAlternateAlleles().size()];
+            int idx = 0;
+            for ( final Allele allele : context.getAlternateAlleles() ) {
+                ac[idx++] = context.getCalledChrCount(allele);
+            }
+        }
+
+        for ( final Allele allele : context.getAlleles() ) {
+            final int count;
+            if ( allele.isReference() ) {
+                if ( context.hasAttribute(VCFConstants.ALLELE_NUMBER_KEY) ) {
+                    count = context.getAttributeAsInt(VCFConstants.ALLELE_NUMBER_KEY,-1) - (int) MathUtils.sum(ac);
+                } else {
+                    count = context.getCalledChrCount() - (int) MathUtils.sum(ac);
+                }
+            } else {
+                count = ac[context.getAlternateAlleles().indexOf(allele)];
+            }
+            if ( ! counts.containsKey(allele) ) {
+                counts.put(allele,0);
+            }
+            counts.put(allele,count + counts.get(allele));
+        }
+    }
+
+    public static int[] extractInts(final Object integerListContainingVCField) {
+        List<Integer> mleList = null;
+        if ( integerListContainingVCField instanceof List ) {
+            if ( ((List) integerListContainingVCField).get(0) instanceof String ) {
+                mleList = new ArrayList<>(((List) integerListContainingVCField).size());
+                for ( Object s : ((List)integerListContainingVCField)) {
+                    mleList.add(Integer.parseInt((String) s));
+                }
+            } else {
+                mleList = (List<Integer>) integerListContainingVCField;
+            }
+        } else if ( integerListContainingVCField instanceof Integer ) {
+            mleList = Arrays.asList((Integer) integerListContainingVCField);
+        } else if ( integerListContainingVCField instanceof String ) {
+            mleList = Arrays.asList(Integer.parseInt((String)integerListContainingVCField));
+        }
+        if ( mleList == null )
+            throw new IllegalArgumentException(String.format("VCF does not have properly formatted "+
+                    VCFConstants.MLE_ALLELE_COUNT_KEY+" or "+VCFConstants.ALLELE_COUNT_KEY));
+
+        final int[] mle = new int[mleList.size()];
+
+        if ( ! ( mleList.get(0) instanceof Integer ) ) {
+            throw new IllegalStateException("BUG: The AC values should be an Integer, but was "+mleList.get(0).getClass().getCanonicalName());
+        }
+
+        for ( int idx = 0; idx < mle.length; idx++) {
+            mle[idx] = mleList.get(idx);
+        }
+
+        return mle;
+    }
 }

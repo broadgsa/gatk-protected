@@ -58,18 +58,33 @@ import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatCovariate;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
+import org.broadinstitute.variant.variantcontext.*;
+import org.broadinstitute.variant.vcf.VCFConstants;
 import org.testng.Assert;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
  * Unit tests for LikelihoodCalculationEngine
  */
 public class LikelihoodCalculationEngineUnitTest extends BaseTest {
+
+    Allele Aref, T, C, G, Cref, ATC, ATCATC;
+
+    @BeforeSuite
+    public void setup() {
+        // alleles
+        Aref = Allele.create("A", true);
+        Cref = Allele.create("C", true);
+        T = Allele.create("T");
+        C = Allele.create("C");
+        G = Allele.create("G");
+        ATC = Allele.create("ATC");
+        ATCATC = Allele.create("ATCATC");
+    }
 
     @Test
     public void testNormalizeDiploidLikelihoodMatrixFromLog10() {
@@ -262,5 +277,314 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
             }
         }
         return true;
+    }
+
+
+    private String arraysEq(int[] a, int[] b) {
+        if ( a.length != b.length ) {
+            return String.format("NEQ: %s | %s",Arrays.toString(a),Arrays.toString(b));
+        }
+        for ( int idx = 0; idx < a.length; idx++) {
+            if ( a[idx] - b[idx] > 1 || b[idx] - a[idx] > 1) {
+                return String.format("NEQ: %s | %s",Arrays.toString(a),Arrays.toString(b));
+            }
+        }
+
+        return "";
+    }
+
+    private int[] _mleparse(List<Integer> s) {
+        int[] mle = new int[s.size()];
+        for ( int idx = 0; idx < mle.length; idx ++) {
+            mle[idx] = s.get(idx);
+        }
+
+        return mle;
+    }
+
+    private Genotype makeGwithPLs(String sample, Allele a1, Allele a2, double[] pls) {
+        Genotype gt = new GenotypeBuilder(sample, Arrays.asList(a1, a2)).PL(pls).make();
+        if ( pls != null && pls.length > 0 ) {
+            Assert.assertNotNull(gt.getPL());
+            Assert.assertTrue(gt.getPL().length > 0);
+            for ( int i : gt.getPL() ) {
+                Assert.assertTrue(i >= 0);
+            }
+            Assert.assertNotEquals(Arrays.toString(gt.getPL()),"[0]");
+        }
+        return gt;
+    }
+
+    private Genotype makeG(String sample, Allele a1, Allele a2) {
+        return GenotypeBuilder.create(sample, Arrays.asList(a1, a2));
+    }
+
+    private Genotype makeG(String sample, Allele a1, Allele a2, int... pls) {
+        return new GenotypeBuilder(sample, Arrays.asList(a1, a2)).PL(pls).make();
+    }
+
+    private VariantContext makeVC(String source, List<Allele> alleles, Genotype... genotypes) {
+        int start = 10;
+        int stop = start; // alleles.contains(ATC) ? start + 3 : start;
+        return new VariantContextBuilder(source, "1", start, stop, alleles).genotypes(Arrays.asList(genotypes)).filters(null).make();
+    }
+
+    @Test
+    private void testCalculatePosteriorNoExternalData() {
+        VariantContext test1 = makeVC("1",Arrays.asList(Aref,T), makeG("s1",Aref,T,20,0,10),
+                makeG("s2",T,T,60,40,0),
+                makeG("s3",Aref,Aref,0,30,90));
+        test1 = new VariantContextBuilder(test1).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,3).make();
+        VariantContext test1result = LikelihoodCalculationEngine.calculatePosteriorGLs(test1, new ArrayList<VariantContext>(), 0, 0.001, true, false, false);
+        Genotype test1exp1 = makeGwithPLs("s1",Aref,T,new double[]{-2.20686, -0.03073215, -1.20686});
+        Assert.assertTrue(test1exp1.hasPL());
+        Genotype test1exp2 = makeGwithPLs("s2",T,T,new double[]{-6.000066, -3.823938, -6.557894e-05});
+        Genotype test1exp3 = makeGwithPLs("s3",Aref,Aref,new double[]{-0.0006510083, -2.824524, -9.000651});
+        Assert.assertEquals("java.util.ArrayList",test1result.getGenotype(0).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY).getClass().getCanonicalName());
+        Assert.assertEquals(arraysEq(test1exp1.getPL(), _mleparse((List<Integer>)test1result.getGenotype(0).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+        Assert.assertEquals(arraysEq(test1exp2.getPL(),_mleparse((List<Integer>)test1result.getGenotype(1).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+        Assert.assertEquals(arraysEq(test1exp3.getPL(),_mleparse((List<Integer>)test1result.getGenotype(2).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+
+        // AA AB BB AC BC CC
+        // AA AC CC AT CT TT
+        VariantContext test2 = makeVC("2",Arrays.asList(Aref,C,T),
+                makeG("s1",Aref,T,30,10,60,0,15,90),
+                makeG("s2",Aref,C,40,0,10,30,40,80),
+                makeG("s3",Aref,Aref,0,5,8,15,20,40),
+                makeG("s4",C,T,80,40,12,20,0,10));
+        test2 = new VariantContextBuilder(test2).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,new ArrayList<Integer>(Arrays.asList(2,2))).make();
+        VariantContext test2result = LikelihoodCalculationEngine.calculatePosteriorGLs(test2,new ArrayList<VariantContext>(),5,0.001,true,false,false);
+        Genotype test2exp1 = makeGwithPLs("s1",Aref,T,new double[]{-2.647372, -1.045139, -6.823193, -0.04513873, -2.198182, -9.823193});
+        Genotype test2exp2 = makeGwithPLs("s2",Aref,C,new double[]{-3.609957, -0.007723248, -1.785778, -3.007723, -4.660767, -8.785778});
+        Genotype test2exp3 = makeGwithPLs("s3",Aref,Aref,new double[] {-0.06094877, -0.9587151, -2.03677,-1.958715,  -3.111759, -5.23677});
+        Genotype test2exp4 = makeGwithPLs("s4",C,T,new double[]{-7.016534, -3.4143, -1.392355, -1.4143, -0.06734388, -1.192355});
+        Assert.assertEquals(arraysEq(test2exp1.getPL(),(int[]) _mleparse((List<Integer>)test2result.getGenotype(0).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+        Assert.assertEquals(arraysEq(test2exp2.getPL(),(int[]) _mleparse((List<Integer>)test2result.getGenotype(1).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+        Assert.assertEquals(arraysEq(test2exp3.getPL(),(int[]) _mleparse((List<Integer>)test2result.getGenotype(2).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+        Assert.assertEquals(arraysEq(test2exp4.getPL(),(int[]) _mleparse((List<Integer>)test2result.getGenotype(3).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+    }
+
+    @Test
+    private void testCalculatePosteriorSamplePlusExternal() {
+        VariantContext testOverlappingBase = makeVC("1", Arrays.asList(Aref,T), makeG("s1",T,T,40,20,0),
+                makeG("s2",Aref,T,18,0,24),
+                makeG("s3",Aref,T,22,0,12));
+        List<VariantContext> supplTest1 = new ArrayList<>(3);
+        supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,2).attribute(VCFConstants.ALLELE_NUMBER_KEY,10).make());
+        supplTest1.add(new VariantContextBuilder(makeVC("3",Arrays.asList(Aref,T))).attribute(VCFConstants.ALLELE_COUNT_KEY,4).attribute(VCFConstants.ALLELE_NUMBER_KEY,22).make());
+        supplTest1.add(makeVC("4",Arrays.asList(Aref,T),
+                makeG("s_1",T,T),
+                makeG("s_2",Aref,T)));
+        VariantContext test1result = LikelihoodCalculationEngine.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
+        // the counts here are ref=30, alt=14
+        Genotype test1exp1 = makeGwithPLs("t1",T,T,new double[]{-3.370985, -1.415172, -0.01721766});
+        Genotype test1exp2 = makeGwithPLs("t2",Aref,T,new double[]{-1.763792, -0.007978791, -3.010024});
+        Genotype test1exp3 = makeGwithPLs("t3",Aref,T,new double[]{-2.165587, -0.009773643, -1.811819});
+        Assert.assertEquals(arraysEq(test1exp1.getPL(),_mleparse((List<Integer>) test1result.getGenotype(0).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+        Assert.assertEquals(arraysEq(test1exp2.getPL(),_mleparse((List<Integer>) test1result.getGenotype(1).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+        Assert.assertEquals(arraysEq(test1exp3.getPL(),_mleparse((List<Integer>) test1result.getGenotype(2).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+
+        VariantContext testNonOverlapping = makeVC("1", Arrays.asList(Aref,T), makeG("s1",T,T,3,1,0));
+        List<VariantContext> other = Arrays.asList(makeVC("2",Arrays.asList(Aref,C),makeG("s2",C,C,10,2,0)));
+        VariantContext test2result = LikelihoodCalculationEngine.calculatePosteriorGLs(testNonOverlapping,other,0,0.001,true,false,false);
+        Genotype test2exp1 = makeGwithPLs("SGV",T,T,new double[]{-4.078345, -3.276502, -0.0002661066});
+        Assert.assertEquals(arraysEq(test2exp1.getPL(),_mleparse((List<Integer>) test2result.getGenotype(0).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
+    }
+
+    private double[] pl2gl(int[] pl) {
+        double[] gl = new double[pl.length];
+        for ( int idx = 0; idx < gl.length; idx++ ) {
+            gl[idx] = pl[idx]/(-10.0);
+        }
+
+        return MathUtils.normalizeFromLog10(gl,true);
+    }
+
+    @Test
+    private void testCalculatePosterior() {
+        int[][] likelihood_PLs  = new int[][]{
+                new int[]{3,0,3},
+                new int[]{99,0,99},
+                new int[]{50,20,0},
+                new int[]{10,0,50},
+                new int[]{80,60,0},
+                new int[]{0,42,44}};
+
+        int[] altCounts = new int[]{10,40,90};
+        int[] altAlleleNum = new int[]{100,500,1000};
+
+        double[] expected_post_10_100 = new double[] {
+                9.250326e-03, 3.020208e-01, 6.887289e-01,
+                7.693433e-12, 1.000000e+00, 5.728111e-10,
+                1.340156e-07, 2.192982e-03, 9.978069e-01,
+                6.073718e-03, 9.938811e-01, 4.522159e-05,
+                1.343101e-10, 2.197802e-07, 9.999998e-01,
+                9.960193e-01, 1.028366e-03, 2.952290e-03
+        };
+
+        double[] expected_post_10_500 = new double[] {
+                4.226647e-04, 7.513277e-02, 9.244446e-01,
+                1.413080e-12, 1.000000e+00, 3.090662e-09,
+                4.570232e-09, 4.071661e-04, 9.995928e-01,
+                1.120916e-03, 9.986339e-01, 2.451646e-04,
+                4.572093e-12, 4.073320e-08, 1.000000e+00,
+                9.151689e-01, 5.144399e-03, 7.968675e-02
+        };
+
+        double[] expected_post_10_1000 = new double[] {
+                1.077685e-04, 3.870477e-02, 9.611875e-01,
+                6.994030e-13, 1.000000e+00, 6.237975e-09,
+                1.120976e-09, 2.017756e-04, 9.997982e-01,
+                5.549722e-04, 9.989500e-01, 4.949797e-04,
+                1.121202e-12, 2.018163e-08, 1.000000e+00,
+                7.318346e-01, 8.311615e-03, 2.598538e-01
+        };
+
+        double[] expected_post_40_100 = new double[] {
+                1.102354e-01, 6.437516e-01, 2.460131e-01,
+                4.301328e-11, 1.000000e+00, 9.599306e-11,
+                4.422850e-06, 1.294493e-02, 9.870507e-01,
+                3.303763e-02, 9.669550e-01, 7.373032e-06,
+                4.480868e-09, 1.311474e-06, 9.999987e-01,
+                9.997266e-01, 1.846199e-04, 8.882157e-05
+        };
+
+        double[] expected_post_40_500 = new double[] {
+                5.711785e-03, 2.557266e-01, 7.385617e-01,
+                5.610428e-12, 1.000000e+00, 7.254558e-10,
+                7.720262e-08, 1.732352e-03, 9.982676e-01,
+                4.436495e-03, 9.955061e-01, 5.736604e-05,
+                7.733659e-11, 1.735358e-07, 9.999998e-01,
+                9.934793e-01, 1.406575e-03, 5.114153e-03
+        };
+
+        double[] expected_post_40_1000 = new double[] {
+                1.522132e-03, 1.422229e-01, 8.562549e-01,
+                2.688330e-12, 1.000000e+00, 1.512284e-09,
+                1.776184e-08, 8.317737e-04, 9.991682e-01,
+                2.130611e-03, 9.977495e-01, 1.198547e-04,
+                1.777662e-11, 8.324661e-08, 9.999999e-01,
+                9.752770e-01, 2.881677e-03, 2.184131e-02
+        };
+
+        double[] expected_post_90_100 = new double[] {
+                6.887289e-01, 3.020208e-01, 9.250326e-03,
+                5.728111e-10, 1.000000e+00, 7.693433e-12,
+                6.394346e-04, 1.405351e-01, 8.588255e-01,
+                3.127146e-01, 6.872849e-01, 4.200075e-07,
+                7.445327e-07, 1.636336e-05, 9.999829e-01,
+                9.999856e-01, 1.386699e-05, 5.346906e-07
+        };
+
+        double[] expected_post_90_500 = new double[] {
+                2.528165e-02, 4.545461e-01, 5.201723e-01,
+                1.397100e-11, 1.000000e+00, 2.874546e-10,
+                4.839050e-07, 4.360463e-03, 9.956391e-01,
+                1.097551e-02, 9.890019e-01, 2.258221e-05,
+                4.860244e-10, 4.379560e-07, 9.999996e-01,
+                9.986143e-01, 5.677671e-04, 8.179741e-04
+        };
+
+        double[] expected_post_90_1000 = new double[] {
+                7.035938e-03, 2.807708e-01, 7.121932e-01,
+                6.294627e-12, 1.000000e+00, 6.371561e-10,
+                9.859771e-08, 1.971954e-03, 9.980279e-01,
+                4.974874e-03, 9.949748e-01, 5.035678e-05,
+                9.879252e-11, 1.975850e-07, 9.999998e-01,
+                9.947362e-01, 1.255272e-03, 4.008518e-03
+        };
+
+        double[][] expectations = new double[][] {
+                expected_post_10_100,
+                expected_post_10_500,
+                expected_post_10_1000,
+                expected_post_40_100,
+                expected_post_40_500,
+                expected_post_40_1000,
+                expected_post_90_100,
+                expected_post_90_500,
+                expected_post_90_1000
+        };
+
+        int testIndex = 0;
+        for ( int altCount : altCounts ) {
+            for ( int numAlt : altAlleleNum ) {
+                double[] knownCounts = new double[2];
+                knownCounts[0] = altCount;
+                knownCounts[1] = numAlt-altCount;
+                int expected_index = 0;
+                for ( int gl_index = 0; gl_index < likelihood_PLs.length; gl_index++ ) {
+                    double[] post = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(likelihood_PLs[gl_index]), knownCounts, 2);
+                    for ( int i = 0; i < post.length; i++ ) {
+                        double expected = expectations[testIndex][expected_index++];
+                        double observed = Math.pow(10.0,post[i]);
+                        double err = Math.abs( (expected-observed)/expected );
+                        Assert.assertTrue(err < 1e-4, String.format("Counts: %s | Expected: %e | Observed: %e | pre %s | prior %s | post %s",
+                                Arrays.toString(knownCounts), expected,observed, Arrays.toString(pl2gl(likelihood_PLs[gl_index])),
+                                Arrays.toString(LikelihoodCalculationEngine.getDirichletPrior(knownCounts,2)),Arrays.toString(post)));
+                    }
+                }
+                testIndex++;
+            }
+        }
+    }
+
+    private boolean arraysApproxEqual(double[] a, double[] b, double tol) {
+        if ( a.length != b.length ) {
+            return false;
+        }
+
+        for ( int idx = 0; idx < a.length; idx++ ) {
+            if ( Math.abs(a[idx]-b[idx]) > tol ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private String errMsgArray(double[] a, double[] b) {
+        return String.format("Expected %s, Observed %s", Arrays.toString(a), Arrays.toString(b));
+    }
+
+    @Test
+    private void testPosteriorMultiAllelic() {
+        // AA AB BB AC BC CC AD BD CD DD
+        int[] PL_one = new int[] {40,20,30,0,15,25};
+        int[] PL_two = new int[] {0,20,10,99,99,99};
+        int[] PL_three = new int[] {50,40,0,30,30,10,20,40,80,50};
+        int[] PL_four  = new int[] {99,90,85,10,5,30,40,20,40,30,0,12,20,14,5};
+        int[] PL_five = new int[] {60,20,30,0,40,10,8,12,18,22,40,12,80,60,20};
+        double[] counts_one = new double[]{100.001,40.001,2.001};
+        double[] counts_two = new double[]{2504.001,16.001,218.001};
+        double[] counts_three = new double[]{10000.001,500.001,25.001,0.001};
+        double[] counts_four = new double[]{4140.001,812.001,32.001,104.001,12.001};
+        double[] counts_five = new double[]{80.001,40.001,8970.001,200.001,1922.001};
+
+        double expected_one[] = new double[] { -2.684035, -0.7852596, -2.4735, -0.08608339, -1.984017, -4.409852 };
+        double expected_two[] = new double[] { -5.736189e-05, -3.893688, -5.362878, -10.65938, -12.85386, -12.0186};
+        double expected_three[] = new double[] {-2.403234, -2.403276, -0.004467802, -2.70429, -4.005319, -3.59033, -6.102247, -9.403276, -14.70429, -13.40284};
+        double expected_four[] = new double[] {-7.828677, -7.335196, -7.843136, -0.7395892, -0.947033, -5.139092, -3.227715,
+                -1.935159, -5.339552, -4.124552, -0.1655353, -2.072979, -4.277372, -3.165498, -3.469589 };
+        double expected_five[] = new double[] { -9.170334, -5.175724, -6.767055, -0.8250021, -5.126027, -0.07628661, -3.276762,
+                -3.977787, -2.227065, -4.57769, -5.494041, -2.995066, -7.444344, -7.096104, -2.414187};
+
+        double[] post1 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_one),counts_one,2);
+        double[] post2 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_two),counts_two,2);
+        double[] post3 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_three),counts_three,2);
+        double[] post4 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_four),counts_four,2);
+        double[] post5 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_five),counts_five,2);
+
+        double[] expecPrior5 = new double[] {-4.2878195, -4.2932090, -4.8845400, -1.9424874, -2.2435120, -0.1937719, -3.5942477,
+                -3.8952723, -1.5445506, -3.4951749, -2.6115263, -2.9125508, -0.5618292, -2.2135895,
+                -1.5316722};
+
+        Assert.assertTrue(arraysApproxEqual(expecPrior5, LikelihoodCalculationEngine.getDirichletPrior(counts_five,2),1e-5),errMsgArray(expecPrior5,LikelihoodCalculationEngine.getDirichletPrior(counts_five,2)));
+
+        Assert.assertTrue(arraysApproxEqual(expected_one,post1,1e-6),errMsgArray(expected_one,post1));
+        Assert.assertTrue(arraysApproxEqual(expected_two,post2,1e-5),errMsgArray(expected_two,post2));
+        Assert.assertTrue(arraysApproxEqual(expected_three,post3,1e-5),errMsgArray(expected_three,post3));
+        Assert.assertTrue(arraysApproxEqual(expected_four,post4,1e-5),errMsgArray(expected_four,post4));
+        Assert.assertTrue(arraysApproxEqual(expected_five,post5,1e-5),errMsgArray(expected_five,post5));
     }
 }
