@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import net.sf.samtools.SAMFileHeader;
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
@@ -162,6 +161,26 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
             final int actual = model.calcNIndelInformativeReads(pileup, i, ref.getBytes(), maxIndelSize);
             Assert.assertEquals(actual, (int)expected.get(i), "failed at position " + i);
         }
+    }
+
+    @Test
+    public void testCalcNIndelInformativeReducedReads() {
+        final String bases = "ACGGGTTTGGAC";
+        final byte[] quals = Utils.dupBytes((byte)30, bases.length());
+        final int count = 10;
+        final int[] counts = new int[bases.length()];
+        for ( int i = 0; i < counts.length; i++ )
+            counts[i] = count;
+        final int position = 100;
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialReducedRead(header, "foo", 0, position, counts.length, counts);
+        read.setReadString(bases);
+        read.setBaseQualities(quals);
+        read.setCigarString(bases.length() + "M");
+        final GenomeLoc loc = new UnvalidatingGenomeLoc("20", 0, position, position);
+        final ReadBackedPileup pileup = new ReadBackedPileupImpl(loc, Collections.singletonList(read), 0);
+        final int actual = model.calcNIndelInformativeReads(pileup, 0, bases.getBytes(), 3);
+        Assert.assertEquals(actual, count);
     }
 
     @Test

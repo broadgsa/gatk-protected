@@ -487,7 +487,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         int attempted = 0;
         int nRecovered = 0;
         for ( final MultiDeBruijnVertex v : vertexSet() ) {
-            if ( outDegreeOf(v) == 0 && ! isRefNodeAndRefSink(v) ) {
+            if ( outDegreeOf(v) == 0 && ! isRefSink(v) ) {
                 attempted++;
                 nRecovered += recoverDanglingChain(v, pruneFactor);
             }
