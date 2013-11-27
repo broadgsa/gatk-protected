@@ -68,8 +68,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
-//import org.broadinstitute.sting.utils.pairhmm.LoglessCachingPairHMM;
-
 
 public class PairHMMIndelErrorModel {
     public static final int BASE_QUAL_THRESHOLD = 20;
@@ -256,6 +254,28 @@ public class PairHMMIndelErrorModel {
         
     }
 
+    /**
+     * Should we clip a downstream portion of a read because it spans off the end of a haplotype?
+     *
+     * @param read               the read in question
+     * @param refWindowStop      the end of the reference window
+     * @return true if the read needs to be clipped, false otherwise
+     */
+    protected static boolean mustClipDownstream(final GATKSAMRecord read, final int refWindowStop) {
+        return ( !read.isEmpty() && read.getSoftStart() < refWindowStop && read.getSoftStart() + read.getReadLength() > refWindowStop );
+    }
+
+    /**
+     * Should we clip a upstream portion of a read because it spans off the end of a haplotype?
+     *
+     * @param read               the read in question
+     * @param refWindowStart     the start of the reference window
+     * @return true if the read needs to be clipped, false otherwise
+     */
+    protected static boolean mustClipUpstream(final GATKSAMRecord read, final int refWindowStart) {
+        return ( !read.isEmpty() && read.getSoftStart() < refWindowStart && read.getSoftEnd() > refWindowStart );
+    }
+
     @Ensures("result != null && result.length == pileup.getNumberOfElements()")
     public synchronized double[][] computeGeneralReadHaplotypeLikelihoods(final ReadBackedPileup pileup,
                                                                           final LinkedHashMap<Allele, Haplotype> haplotypeMap, 
@@ -285,9 +305,8 @@ public class PairHMMIndelErrorModel {
                 // in them - a value of 1 will in theory do but we use a slightly higher one just for safety sake, mostly
                 // in case bases at edge of reads have lower quality.
                 final int trailingBases = 3;
-                final int extraOffset = Math.abs(eventLength);
-                final int refWindowStart = ref.getWindow().getStart()+(trailingBases+extraOffset);
-                final int refWindowStop  = ref.getWindow().getStop()-(trailingBases+extraOffset);
+                final int refWindowStart = ref.getWindow().getStart() + trailingBases;
+                final int refWindowStop  = ref.getWindow().getStop() - trailingBases;
 
                 if (DEBUG) {
                     System.out.format("Read Name:%s, aln start:%d aln stop:%d orig cigar:%s\n",p.getRead().getReadName(), p.getRead().getAlignmentStart(), p.getRead().getAlignmentEnd(), p.getRead().getCigarString());
@@ -295,11 +314,13 @@ public class PairHMMIndelErrorModel {
 
                 GATKSAMRecord read = ReadClipper.hardClipAdaptorSequence(p.getRead());
 
-                if (!read.isEmpty() && (read.getSoftEnd() > refWindowStop && read.getSoftStart() < refWindowStop))
-                    read = ReadClipper.hardClipByReferenceCoordinatesRightTail(read, refWindowStop);
+                // if the read extends beyond the downstream (right) end of the reference window, clip it
+                if ( mustClipDownstream(read, refWindowStop) )
+                    read = ReadClipper.hardClipByReadCoordinates(read, read.getSoftStart() + read.getReadLength() - refWindowStop + 1, read.getReadLength() - 1);
 
-                if (!read.isEmpty() && (read.getSoftStart() < refWindowStart && read.getSoftEnd() > refWindowStart))
-                    read = ReadClipper.hardClipByReferenceCoordinatesLeftTail (read, refWindowStart);
+                // if the read extends beyond the upstream (left) end of the reference window, clip it
+                if ( mustClipUpstream(read, refWindowStart) )
+                    read = ReadClipper.hardClipByReferenceCoordinatesLeftTail(read, refWindowStart);
 
                 if (read.isEmpty())
                     continue;
@@ -337,8 +358,9 @@ public class PairHMMIndelErrorModel {
                  * trailingBases is a padding constant(=3) and we additionally add abs(eventLength) to both sides of read to be able to
                  * differentiate context between two haplotypes
                  */
-                long startLocationInRefForHaplotypes = Math.max(readStart + numStartSoftClippedBases - trailingBases - ReadUtils.getFirstInsertionOffset(read)-extraOffset, 0);
-                long stopLocationInRefForHaplotypes =  readEnd -numEndSoftClippedBases  + trailingBases + ReadUtils.getLastInsertionOffset(read)+extraOffset;
+                final int absEventLength = Math.abs(eventLength);
+                long startLocationInRefForHaplotypes = Math.max(readStart + numStartSoftClippedBases - trailingBases - ReadUtils.getFirstInsertionOffset(read) - absEventLength, 0);
+                long stopLocationInRefForHaplotypes = readEnd - numEndSoftClippedBases + trailingBases + ReadUtils.getLastInsertionOffset(read) + absEventLength;
 
                 if (DEBUG)
                     System.out.format("orig Start:%d orig stop: %d\n", startLocationInRefForHaplotypes, stopLocationInRefForHaplotypes);
@@ -412,7 +434,7 @@ public class PairHMMIndelErrorModel {
                     // Pack the shortened read and its associated gap-continuation-penalty array into a map, as required by PairHMM
                     readGCPArrayMap.put(processedRead,contextLogGapContinuationProbabilities);
 
-                    // Create a map of alleles to a new set of haplotypes, whose bases have been trimmed to the approprate genomic locations
+                    // Create a map of alleles to a new set of haplotypes, whose bases have been trimmed to the appropriate genomic locations
                     final Map<Allele, Haplotype> trimmedHaplotypeMap = trimHaplotypes(haplotypeMap, startLocationInRefForHaplotypes, stopLocationInRefForHaplotypes, ref);
 
                     // Get the likelihoods for our clipped read against each of our trimmed haplotypes.
