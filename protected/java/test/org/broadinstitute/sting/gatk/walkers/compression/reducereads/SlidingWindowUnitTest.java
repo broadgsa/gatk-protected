@@ -860,6 +860,29 @@ public class SlidingWindowUnitTest extends BaseTest {
             Assert.assertEquals(windowHeader.get(i).getBaseCounts(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS).countOfBase(BaseUtils.Base.A.base), 0);
     }
 
+    @Test
+    public void testUpdateHeaderForReadWithHighMQ() {
+
+        // set up the window header
+        final int currentHeaderStart = 100;
+        final LinkedList<HeaderElement> windowHeader = new LinkedList<>();
+        for ( int i = 0; i < readLength; i++ )
+            windowHeader.add(new HeaderElement(currentHeaderStart + i));
+
+        // set up the read
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead", 0, currentHeaderStart, readLength);
+        read.setReadBases(Utils.dupBytes((byte) 'A', readLength));
+        read.setBaseQualities(Utils.dupBytes((byte)30, readLength));
+        read.setMappingQuality(180);
+        read.setReadNegativeStrandFlag(false);
+
+        // add the read and make sure it's not filtered because of low MQ (byte vs. int)
+        final SlidingWindow slidingWindow = new SlidingWindow("1", 0, 10, header, new GATKSAMReadGroupRecord("test"), 0, 0.05, 0.05, 0.05, 20, 20, 10, ReduceReads.DownsampleStrategy.Normal, false);
+        slidingWindow.actuallyUpdateHeaderForRead(windowHeader, read, false, 0);
+        for ( int i = 0; i < readLength; i++ )
+            Assert.assertEquals(windowHeader.get(i).getBaseCounts(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS).countOfBase(BaseUtils.Base.A.base), 1);
+    }
+
     //////////////////////////////////////////////////////////////////////////////////
     //// This section tests functionality related to polyploid consensus creation ////
     //////////////////////////////////////////////////////////////////////////////////
