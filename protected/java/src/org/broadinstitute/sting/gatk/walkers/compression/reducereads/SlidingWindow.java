@@ -1033,7 +1033,7 @@ public class SlidingWindow {
     protected void actuallyUpdateHeaderForRead(final LinkedList<HeaderElement> header, final GATKSAMRecord read, final boolean removeRead, final int startIndex) {
 
         final Iterator<HeaderElement> headerElementIterator = header.listIterator(startIndex);
-        final byte mappingQuality = (byte) read.getMappingQuality();
+        final int mappingQuality = read.getMappingQuality();
         final boolean isNegativeStrand = read.getReadNegativeStrandFlag();
 
         // iterator variables
@@ -1062,14 +1062,15 @@ public class SlidingWindow {
 
                     break;
                 case D:
-                    // deletions are added to the baseCounts with the read mapping quality as it's quality score
+                    // deletions are added to the baseCounts with the read mapping quality as its quality score
                     final int nDeletionBases = cigarElement.getLength();
+                    final byte MQbyte = mappingQuality > Byte.MAX_VALUE ? Byte.MAX_VALUE : (byte)mappingQuality;
                     for ( int i = 0; i < nDeletionBases; i++ ) {
                         headerElement = headerElementIterator.next();
                         if (removeRead)
-                            headerElement.removeBase(BaseUtils.Base.D.base, mappingQuality, mappingQuality, mappingQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false, isNegativeStrand);
+                            headerElement.removeBase(BaseUtils.Base.D.base, MQbyte, MQbyte, MQbyte, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false, isNegativeStrand);
                         else
-                            headerElement.addBase(BaseUtils.Base.D.base, mappingQuality, mappingQuality, mappingQuality, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false, isNegativeStrand);
+                            headerElement.addBase(BaseUtils.Base.D.base, MQbyte, MQbyte, MQbyte, mappingQuality, MIN_BASE_QUAL_TO_COUNT, MIN_MAPPING_QUALITY, false, isNegativeStrand);
                     }
                     locationIndex += nDeletionBases;
                     break;
