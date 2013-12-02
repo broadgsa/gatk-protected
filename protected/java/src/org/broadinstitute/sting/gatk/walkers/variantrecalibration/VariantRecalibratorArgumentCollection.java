@@ -73,27 +73,48 @@ public class VariantRecalibratorArgumentCollection {
 
     @Argument(fullName = "mode", shortName = "mode", doc = "Recalibration mode to employ: 1.) SNP for recalibrating only SNPs (emitting indels untouched in the output VCF); 2.) INDEL for indels (emitting SNPs untouched in the output VCF); and 3.) BOTH for recalibrating both SNPs and indels simultaneously (for testing purposes only, not recommended for general use).", required = false)
     public VariantRecalibratorArgumentCollection.Mode MODE = VariantRecalibratorArgumentCollection.Mode.SNP;
+
+    @Advanced
     @Argument(fullName="maxGaussians", shortName="mG", doc="The maximum number of Gaussians for the positive model to try during variational Bayes algorithm.", required=false)
-    public int MAX_GAUSSIANS = 10;
+    public int MAX_GAUSSIANS = 8;
 
     @Advanced
     @Argument(fullName="maxNegativeGaussians", shortName="mNG", doc="The maximum number of Gaussians for the negative model to try during variational Bayes algorithm.  The actual maximum used is the min of the mG and mNG arguments.  Note that this number should be small (like 4) to achieve the best results", required=false)
-    public int MAX_GAUSSIANS_FOR_NEGATIVE_MODEL = 4;
+    public int MAX_GAUSSIANS_FOR_NEGATIVE_MODEL = 2;
 
+    @Advanced
     @Argument(fullName="maxIterations", shortName="mI", doc="The maximum number of VBEM iterations to be performed in variational Bayes algorithm. Procedure will normally end when convergence is detected.", required=false)
-    public int MAX_ITERATIONS = 100;
+    public int MAX_ITERATIONS = 150;
+
+    @Advanced
     @Argument(fullName="numKMeans", shortName="nKM", doc="The number of k-means iterations to perform in order to initialize the means of the Gaussians in the Gaussian mixture model.", required=false)
-    public int NUM_KMEANS_ITERATIONS = 30;
+    public int NUM_KMEANS_ITERATIONS = 100;
+
+    @Advanced
     @Argument(fullName="stdThreshold", shortName="std", doc="If a variant has annotations more than -std standard deviations away from mean then don't use it for building the Gaussian mixture model.", required=false)
-    public double STD_THRESHOLD = 14.0;
-    @Argument(fullName="qualThreshold", shortName="qual", doc="If a known variant has raw QUAL value less than -qual then don't use it for building the Gaussian mixture model.", required=false)
-    public double QUAL_THRESHOLD = 80.0;
+    public double STD_THRESHOLD = 10.0;
+
+    @Advanced
     @Argument(fullName="shrinkage", shortName="shrinkage", doc="The shrinkage parameter in the variational Bayes algorithm.", required=false)
     public double SHRINKAGE = 1.0;
+
+    @Advanced
     @Argument(fullName="dirichlet", shortName="dirichlet", doc="The dirichlet parameter in the variational Bayes algorithm.", required=false)
     public double DIRICHLET_PARAMETER = 0.001;
+
+    @Advanced
     @Argument(fullName="priorCounts", shortName="priorCounts", doc="The number of prior counts to use in the variational Bayes algorithm.", required=false)
     public double PRIOR_COUNTS = 20.0;
-    @Argument(fullName="numBadVariants", shortName="numBad", doc="The number of worst scoring variants to use when building the Gaussian mixture model of bad variants.", required=false)
-    public int NUM_BAD_VARIANTS = 1000;
+
+    @Advanced
+    @Argument(fullName="maxNumTrainingData", shortName="maxNumTrainingData", doc="Maximum number of training data to be used in building the Gaussian mixture model. Training sets large than this will be randomly downsampled.", required=false)
+    protected int MAX_NUM_TRAINING_DATA = 2500000;
+
+    @Advanced
+    @Argument(fullName="minNumBadVariants", shortName="minNumBad", doc="The minimum number of worst scoring variants to use when building the Gaussian mixture model of bad variants.", required=false)
+    public int MIN_NUM_BAD_VARIANTS = 1000;
+
+    @Advanced
+    @Argument(fullName="badLodCutoff", shortName="badLodCutoff", doc="The LOD score below which to be used when building the Gaussian mixture model of bad variants.", required=false)
+    public double BAD_LOD_CUTOFF = -5.0;
 }

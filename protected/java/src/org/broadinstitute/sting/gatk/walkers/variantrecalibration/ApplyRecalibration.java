@@ -46,10 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
 
-import org.broadinstitute.sting.commandline.Argument;
-import org.broadinstitute.sting.commandline.Input;
-import org.broadinstitute.sting.commandline.Output;
-import org.broadinstitute.sting.commandline.RodBinding;
+import org.apache.commons.math.util.MathUtils;
+import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
@@ -112,6 +110,9 @@ import java.util.*;
 @PartitionBy(PartitionType.LOCUS)
 public class ApplyRecalibration extends RodWalker<Integer, Integer> implements TreeReducible<Integer> {
 
+    public static final String LOW_VQSLOD_FILTER_NAME = "LOW_VQSLOD";
+    private final double DEFAULT_VQSLOD_CUTOFF = 0.0;
+
     /////////////////////////////
     // Inputs
     /////////////////////////////
@@ -122,7 +123,7 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
     public List<RodBinding<VariantContext>> input;
     @Input(fullName="recal_file", shortName="recalFile", doc="The input recal file used by ApplyRecalibration", required=true)
     protected RodBinding<VariantContext> recal;
-    @Input(fullName="tranches_file", shortName="tranchesFile", doc="The input tranches file describing where to cut the data", required=true)
+    @Input(fullName="tranches_file", shortName="tranchesFile", doc="The input tranches file describing where to cut the data", required=false)
     protected File TRANCHES_FILE;
 
     /////////////////////////////
@@ -134,8 +135,13 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
     /////////////////////////////
     // Command Line Arguments
     /////////////////////////////
+    @Advanced
     @Argument(fullName="ts_filter_level", shortName="ts_filter_level", doc="The truth sensitivity level at which to start filtering", required=false)
-    protected double TS_FILTER_LEVEL = 99.0;
+    protected Double TS_FILTER_LEVEL = null;
+    @Advanced
+    @Argument(fullName="lodCutoff", shortName="lodCutoff", doc="The VQSLOD score below which to start filtering", required=false)
+    protected Double VQSLOD_CUTOFF = null;
+
     /**
      * For this to work properly, the -ignoreFilter argument should also be applied to the VariantRecalibration command.
      */
@@ -160,13 +166,15 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
     //---------------------------------------------------------------------------------------------------------------
 
     public void initialize() {
-        for ( final Tranche t : Tranche.readTranches(TRANCHES_FILE) ) {
-            if ( t.ts >= TS_FILTER_LEVEL ) {
-                tranches.add(t);
+        if( TS_FILTER_LEVEL != null ) {
+            for ( final Tranche t : Tranche.readTranches(TRANCHES_FILE) ) {
+                if ( t.ts >= TS_FILTER_LEVEL ) {
+                    tranches.add(t);
+                }
+                logger.info(String.format("Read tranche " + t));
             }
-            logger.info(String.format("Read tranche " + t));
+            Collections.reverse(tranches); // this algorithm wants the tranches ordered from best (lowest truth sensitivity) to worst (highest truth sensitivity)
         }
-        Collections.reverse(tranches); // this algorithm wants the tranches ordered from best (lowest truth sensitivity) to worst (highest truth sensitivity)
 
         for( final RodBinding rod : input ) {
             inputNames.add( rod.getName() );
@@ -183,19 +191,32 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
         final TreeSet<String> samples = new TreeSet<>();
         samples.addAll(SampleUtils.getUniqueSamplesFromRods(getToolkit(), inputNames));
 
-        if( tranches.size() >= 2 ) {
-            for( int iii = 0; iii < tranches.size() - 1; iii++ ) {
-                final Tranche t = tranches.get(iii);
-                hInfo.add(new VCFFilterHeaderLine(t.name, String.format("Truth sensitivity tranche level for " + t.model.toString() + " model at VQS Lod: " + t.minVQSLod + " <= x < " + tranches.get(iii+1).minVQSLod)));
+        if( TS_FILTER_LEVEL != null ) {
+            // if the user specifies both ts_filter_level and lodCutoff then throw a user error
+            if( VQSLOD_CUTOFF != null ) {
+                throw new UserException("Arguments --ts_filter_level and --lodCutoff are mutually exclusive. Please only specify one option.");
             }
-        }
-        if( tranches.size() >= 1 ) {
-            hInfo.add(new VCFFilterHeaderLine(tranches.get(0).name + "+", String.format("Truth sensitivity tranche level for " + tranches.get(0).model.toString() + " model at VQS Lod < " + tranches.get(0).minVQSLod)));
-        } else {
-            throw new UserException("No tranches were found in the file or were above the truth sensitivity filter level " + TS_FILTER_LEVEL);
-        }
 
-        logger.info("Keeping all variants in tranche " + tranches.get(tranches.size()-1));
+            if( tranches.size() >= 2 ) {
+                for( int iii = 0; iii < tranches.size() - 1; iii++ ) {
+                    final Tranche t = tranches.get(iii);
+                    hInfo.add(new VCFFilterHeaderLine(t.name, String.format("Truth sensitivity tranche level for " + t.model.toString() + " model at VQS Lod: " + t.minVQSLod + " <= x < " + tranches.get(iii+1).minVQSLod)));
+                }
+            }
+            if( tranches.size() >= 1 ) {
+                hInfo.add(new VCFFilterHeaderLine(tranches.get(0).name + "+", String.format("Truth sensitivity tranche level for " + tranches.get(0).model.toString() + " model at VQS Lod < " + tranches.get(0).minVQSLod)));
+            } else {
+                throw new UserException("No tranches were found in the file or were above the truth sensitivity filter level " + TS_FILTER_LEVEL);
+            }
+
+            logger.info("Keeping all variants in tranche " + tranches.get(tranches.size()-1));
+        } else {
+            if( VQSLOD_CUTOFF == null ) {
+                VQSLOD_CUTOFF = DEFAULT_VQSLOD_CUTOFF;
+            }
+            hInfo.add(new VCFFilterHeaderLine(LOW_VQSLOD_FILTER_NAME, "VQSLOD < " + VQSLOD_CUTOFF));
+            logger.info("Keeping all variants with VQSLOD >= " + VQSLOD_CUTOFF);
+        }
 
         final VCFHeader vcfHeader = new VCFHeader(hInfo, samples);
         vcfWriter.writeHeader(vcfHeader);
@@ -245,7 +266,6 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
                 }
 
                 VariantContextBuilder builder = new VariantContextBuilder(vc);
-                String filterString = null;
 
                 // Annotate the new record with its VQSLOD and the worst performing annotation
                 builder.attribute(VariantRecalibrator.VQS_LOD_KEY, lod);
@@ -255,21 +275,7 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
                 if ( recalDatum.hasAttribute(VariantRecalibrator.NEGATIVE_LABEL_KEY))
                     builder.attribute(VariantRecalibrator.NEGATIVE_LABEL_KEY, true);
 
-                for( int i = tranches.size() - 1; i >= 0; i-- ) {
-                    final Tranche tranche = tranches.get(i);
-                    if( lod >= tranche.minVQSLod ) {
-                        if( i == tranches.size() - 1 ) {
-                            filterString = VCFConstants.PASSES_FILTERS_v4;
-                        } else {
-                            filterString = tranche.name;
-                        }
-                        break;
-                    }
-                }
-
-                if( filterString == null ) {
-                    filterString = tranches.get(0).name+"+";
-                }
+                final String filterString = generateFilterString(lod);
 
                 if( filterString.equals(VCFConstants.PASSES_FILTERS_v4) ) {
                     builder.passFilters();
@@ -287,6 +293,36 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
         }
 
         return 1; // This value isn't used for anything
+    }
+
+    /**
+     * Generate the VCF filter string for this record based on the provided lod score
+     * @param lod non-null double
+     * @return the String to use as the VCF filter field
+     */
+    protected String generateFilterString( final double lod ) {
+        String filterString = null;
+        if( TS_FILTER_LEVEL != null ) {
+            for( int i = tranches.size() - 1; i >= 0; i-- ) {
+                final Tranche tranche = tranches.get(i);
+                if( lod >= tranche.minVQSLod ) {
+                    if( i == tranches.size() - 1 ) {
+                        filterString = VCFConstants.PASSES_FILTERS_v4;
+                    } else {
+                        filterString = tranche.name;
+                    }
+                    break;
+                }
+            }
+
+            if( filterString == null ) {
+                filterString = tranches.get(0).name+"+";
+            }
+        } else {
+            filterString = ( lod < VQSLOD_CUTOFF ? LOW_VQSLOD_FILTER_NAME : VCFConstants.PASSES_FILTERS_v4 );
+        }
+
+        return filterString;
     }
 
     private static VariantContext getMatchingRecalVC(final VariantContext target, final List<VariantContext> recalVCs) {

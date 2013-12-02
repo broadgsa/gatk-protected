@@ -160,11 +160,11 @@ public class TrancheManager {
         }
     }
 
-    public static List<Tranche> findTranches( final ArrayList<VariantDatum> data, final double[] tranches, final SelectionMetric metric, final VariantRecalibratorArgumentCollection.Mode model ) {
+    public static List<Tranche> findTranches( final List<VariantDatum> data, final double[] tranches, final SelectionMetric metric, final VariantRecalibratorArgumentCollection.Mode model ) {
         return findTranches( data, tranches, metric, model, null );
     }
 
-    public static List<Tranche> findTranches( final ArrayList<VariantDatum> data, final double[] trancheThresholds, final SelectionMetric metric, final VariantRecalibratorArgumentCollection.Mode model, final File debugFile ) {
+    public static List<Tranche> findTranches( final List<VariantDatum> data, final double[] trancheThresholds, final SelectionMetric metric, final VariantRecalibratorArgumentCollection.Mode model, final File debugFile ) {
         logger.info(String.format("Finding %d tranches for %d variants", trancheThresholds.length, data.size()));
 
         Collections.sort( data, new VariantDatum.VariantDatumLODComparator() );
@@ -172,7 +172,7 @@ public class TrancheManager {
 
         if ( debugFile != null) { writeTranchesDebuggingInfo(debugFile, data, metric); }
 
-        List<Tranche> tranches = new ArrayList<Tranche>();
+        List<Tranche> tranches = new ArrayList<>();
         for ( double trancheThreshold : trancheThresholds ) {
             Tranche t = findTranche(data, metric, trancheThreshold, model);
 

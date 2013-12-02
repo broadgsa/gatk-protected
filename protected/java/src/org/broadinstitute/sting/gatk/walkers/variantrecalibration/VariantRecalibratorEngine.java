@@ -69,7 +69,7 @@ public class VariantRecalibratorEngine {
     // the unified argument collection
     final private VariantRecalibratorArgumentCollection VRAC;
 
-    private final static double MIN_PROB_CONVERGENCE = 2E-2;
+    private final static double MIN_PROB_CONVERGENCE = 2E-3;
 
     /////////////////////////////
     // Public Methods to interface with the Engine
