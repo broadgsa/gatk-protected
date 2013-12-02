@@ -44,83 +44,90 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.indels;
 
-import org.broadinstitute.sting.WalkerTest;
+
+import net.sf.picard.reference.IndexedFastaSequenceFile;
+import net.sf.samtools.SAMFileHeader;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.*;
 
-public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
+public class PairHMMIndelErrorModelUnitTest extends BaseTest {
 
-    private final static String baseCommand = "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b36KGReference + " --no_cmdline_in_header -glm BOTH -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
+    private SAMFileHeader header;
 
-    // --------------------------------------------------------------------------------------------------------------
-    //
-    // testing normal calling
-    //
-    // --------------------------------------------------------------------------------------------------------------
-    @Test
-    public void testMultiSamplePilot1() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000", 1,
-                Arrays.asList("ec0977e3fd3e2ac29c9821f0ca830455"));
-        executeTest("test MultiSample Pilot1", spec);
+    @BeforeClass
+    public void setup() throws FileNotFoundException {
+        final IndexedFastaSequenceFile seq = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
+        header = ArtificialSAMUtils.createArtificialSamHeader(seq.getSequenceDictionary());
     }
 
-    @Test
-    public void testWithAllelesPassedIn1() {
-        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
-                baseCommand + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "allelesForUG.vcf -I " + validationDataLocation + "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,025,000", 1,
-                Arrays.asList("ebfcc3dd8c1788929cb50050c5d456df"));
-        executeTest("test MultiSample Pilot2 with alleles passed in", spec1);
+    private static final int refWindowStart = 1000;
+    private static final int refWindowEnd = 1100;
+
+    @DataProvider(name = "ClipUpstreamProvider")
+    public Object[][] ClipUpstreamTestData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final int readStart : Arrays.asList(900, 950, 990, 1000) ) {
+            for ( final int readLength : Arrays.asList(10, 50, 100) ) {
+                for ( final int delLength : Arrays.asList(0, 5, 10) ) {
+                    tests.add(new Object[]{readStart, readLength, delLength});
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
     }
 
-    @Test
-    public void testWithAllelesPassedIn2() {
-        WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
-                baseCommand + " --output_mode EMIT_ALL_SITES --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "allelesForUG.vcf -I " + validationDataLocation + "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,025,000", 1,
-                Arrays.asList("3e646003c5b93da80c7d8e5d0ff2ee4e"));
-        executeTest("test MultiSample Pilot2 with alleles passed in and emitting all sites", spec2);
+    @Test(dataProvider = "ClipUpstreamProvider", enabled = true)
+    public void clipUpstreamTest(final int readStart, final int readLength, final int delLength) {
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead", 0, readStart, readLength);
+        if ( delLength == 0 )
+            read.setCigarString(readLength + "M");
+        else
+            read.setCigarString((readLength / 2) + "M" + delLength + "D" + (readLength / 2) + "M");
+
+        final boolean result = PairHMMIndelErrorModel.mustClipUpstream(read, refWindowStart);
+        Assert.assertEquals(result, read.getSoftStart() < refWindowStart && read.getSoftEnd() > refWindowStart);
     }
 
-    @Test
-    public void testSingleSamplePilot2() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,100,000", 1,
-                Arrays.asList("02b521fe88a6606a29c12c0885c3debd"));
-        executeTest("test SingleSample Pilot2", spec);
+    @DataProvider(name = "ClipDownstreamProvider")
+    public Object[][] ClipDownstreamTestData() {
+        List<Object[]> tests = new ArrayList<Object[]>();
+
+        for ( final int readStart : Arrays.asList(1000, 1050, 1090, 1100) ) {
+            for ( final int readLength : Arrays.asList(10, 50, 100) ) {
+                for ( final int delLength : Arrays.asList(0, 5, 10) ) {
+                    tests.add(new Object[]{readStart, readLength, delLength});
+                }
+            }
+        }
+
+        return tests.toArray(new Object[][]{});
     }
 
-    @Test
-    public void testMultipleSNPAlleles() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH --dbsnp " + b37dbSNP129 + " -I " + privateTestDir + "multiallelic.snps.bam -o %s -L " + privateTestDir + "multiallelic.snps.intervals", 1,
-                Arrays.asList("dd5ad3beaa75319bb2ef1434d2dd9f73"));
-        executeTest("test Multiple SNP alleles", spec);
-    }
+    @Test(dataProvider = "ClipDownstreamProvider", enabled = true)
+    public void clipDownstreamTest(final int readStart, final int readLength, final int delLength) {
 
-    @Test
-    public void testBadRead() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH -I " + privateTestDir + "badRead.test.bam -o %s -L 1:22753424-22753464", 1,
-                Arrays.asList("d915535c1458733f09f82670092fcab6"));
-        executeTest("test bad read", spec);
-    }
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead", 0, readStart, readLength);
+        if ( delLength == 0 )
+            read.setCigarString(readLength + "M");
+        else
+            read.setCigarString((readLength / 2) + "M" + delLength + "D" + (readLength / 2) + "M");
 
-    @Test
-    public void testReverseTrim() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam -o %s -L 20:10289124 -L 20:10090289", 1,
-                Arrays.asList("a973298b2801b80057bea88507e2858d"));
-        executeTest("test reverse trim", spec);
-    }
-
-    @Test
-    public void testMismatchedPLs() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + privateTestDir + "mismatchedPLs.bam -o %s -L 1:24020341", 1,
-                Arrays.asList("8d91d98c4e79897690d3c6918b6ac761"));
-        executeTest("test mismatched PLs", spec);
+        final boolean result = PairHMMIndelErrorModel.mustClipDownstream(read, refWindowEnd);
+        Assert.assertEquals(result, read.getSoftStart() < refWindowEnd && read.getSoftStart() + readLength > refWindowEnd);
     }
 }
