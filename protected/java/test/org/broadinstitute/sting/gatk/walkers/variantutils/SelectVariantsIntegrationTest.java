@@ -316,7 +316,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b37KGReference + " -o %s --no_cmdline_in_header -sf " + samplesFile + " --excludeNonVariants --variant " + testfile,
                 1,
-                Arrays.asList("f14d75892b99547d8e9ba3a03bfb04ea")
+                Arrays.asList("69862fb97e8e895fe65c7abb14b03cee")
         );
         executeTest("test select from multi allelic with excludeNonVariants --" + testfile, spec);
     }
