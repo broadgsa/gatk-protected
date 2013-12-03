@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadThreadingGraph;
 
 /**
  * Result of assembling, with the resulting graph and status
@@ -57,6 +58,7 @@ import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
  */
 public class AssemblyResult {
     private final Status status;
+    private ReadThreadingGraph threadingGraph;
     private final SeqGraph graph;
 
     /**
@@ -72,8 +74,24 @@ public class AssemblyResult {
         this.graph = graph;
     }
 
+    /**
+     * Returns the threading-graph associated with this assembly-result.
+     */
+    public void setThreadingGraph(final ReadThreadingGraph threadingGraph) {
+        this.threadingGraph = threadingGraph;
+    }
+
+    public ReadThreadingGraph getThreadingGraph() {
+        return threadingGraph;
+    }
+
     public Status getStatus() { return status; }
     public SeqGraph getGraph() { return graph; }
+
+    public int getKmerSize() {
+        return graph.getKmerSize();
+    }
+
 
     /**
      * Status of the assembly result

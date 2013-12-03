@@ -64,7 +64,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Date: 4/17/13
  * Time: 3:20 PM
  */
-final class MultiDeBruijnVertex extends DeBruijnVertex {
+public final class MultiDeBruijnVertex extends DeBruijnVertex {
     private final static boolean KEEP_TRACK_OF_READS = false;
 
     // Note that using an AtomicInteger is critical to allow multi-threaded HaplotypeCaller
@@ -116,6 +116,10 @@ final class MultiDeBruijnVertex extends DeBruijnVertex {
 
     @Override
     public String additionalInfo() {
-        return KEEP_TRACK_OF_READS ? (! reads.contains("ref") ? "__" + Utils.join(",", reads) : "") : "";
+        return super.additionalInfo() + (KEEP_TRACK_OF_READS ? (! reads.contains("ref") ? "__" + Utils.join(",", reads) : "") : "");
+    }
+
+     int getId() {
+        return id;
     }
 }

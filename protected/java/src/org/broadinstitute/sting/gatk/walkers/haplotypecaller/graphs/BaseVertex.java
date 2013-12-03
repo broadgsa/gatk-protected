@@ -48,6 +48,8 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.HaplotypeGraph;
+
 import java.util.Arrays;
 
 /**
@@ -181,7 +183,7 @@ public class BaseVertex {
 
     /**
      * Set additional debugging information for this vertex
-     * @param info
+     * @param info the new info value.
      */
     public void setAdditionalInfo(final String info) {
         if ( info == null ) throw new IllegalArgumentException("info cannot be null");
@@ -192,4 +194,32 @@ public class BaseVertex {
      * @return the additional information for display about this vertex
      */
     public String additionalInfo() { return additionalInfo; }
+
+    /**
+     * Checks whether the vertex sequence is ambiguous or not.
+     *
+     * <p>
+     *     Ambiguity may come about as a result of either:
+     *     <ul>
+     *        <li>by construction as the generating sequence (read or haplotype) had ambiguous bases</li>
+     *        <li>or because this vertex is the result of merging two or more vertices with some variation upstream
+     *        no more than kmerSize bases away (e.g. by executing  {@link HaplotypeGraph#mergeCommonChains}</li>
+     *     </ul>
+     * </p>
+     *
+     * @return {@code true} iff so.
+     */
+    public boolean hasAmbiguousSequence() {
+        for (final byte base : sequence)
+            switch (Character.toUpperCase(base)) {
+                case 'A' :
+                case 'T' :
+                case 'G' :
+                case 'C' :
+                    continue;
+                default :
+                    return true;
+            }
+        return false;
+    }
 }

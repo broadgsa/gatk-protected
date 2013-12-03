@@ -189,7 +189,7 @@ public class SharedVertexSequenceSplitter {
      * Must be called before calling updateGraph
      */
     public void split() {
-        splitGraph = new SeqGraph();
+        splitGraph = new SeqGraph(outer.getKmerSize());
         newMiddles = new LinkedList<SeqVertex>();
         edgesToRemove = new LinkedList<BaseEdge>();
 

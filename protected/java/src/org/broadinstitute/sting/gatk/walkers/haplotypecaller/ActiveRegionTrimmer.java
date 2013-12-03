@@ -86,6 +86,7 @@ class ActiveRegionTrimmer {
         if ( maxDistanceInExtensionForGenotyping < 0 ) throw new IllegalArgumentException("maxDistanceInExtensionForGenotyping must be >= 0 but got " + maxDistanceInExtensionForGenotyping);
         if ( parser == null ) throw new IllegalArgumentException("parser cannot be null");
 
+        logger.debug("Trimmer created with parameters " + logTrimming + " " + snpPadding + " " + nonSnpPadding + " " + maxDistanceInExtensionForGenotyping);
         this.logTrimming = logTrimming;
         this.snpPadding = snpPadding;
         this.nonSnpPadding = nonSnpPadding;
@@ -105,6 +106,7 @@ class ActiveRegionTrimmer {
      * @return a new ActiveRegion trimmed down to just what's needed for genotyping, or null if we couldn't do this successfully
      */
     public ActiveRegion trimRegion(final ActiveRegion region, final TreeSet<VariantContext> allVariantsWithinExtendedRegion, final boolean emitReferenceConfidence) {
+
         if ( allVariantsWithinExtendedRegion.isEmpty() ) // no variants, so just return the current region
             return null;
 
@@ -125,6 +127,10 @@ class ActiveRegionTrimmer {
         // we don't actually have anything in the region after removing variants that don't overlap the region's full location
         if ( trimLoc == null ) return null;
 
+//        final GenomeLoc maxSpan = parser.createPaddedGenomeLoc(region.getLocation(), maxDistanceInExtensionForGenotyping);
+        // Try to have one kmer before and after any event.
+
+        final GenomeLoc regionLoc = region.getLocation();
         final GenomeLoc maxSpan = parser.createPaddedGenomeLoc(region.getLocation(), maxDistanceInExtensionForGenotyping);
         final GenomeLoc idealSpan = parser.createPaddedGenomeLoc(trimLoc, pad);
         final GenomeLoc finalSpan = maxSpan.intersect(idealSpan);
@@ -132,6 +138,7 @@ class ActiveRegionTrimmer {
         final ActiveRegion trimmedRegion = region.trim(finalSpan);
         if ( logTrimming ) {
             logger.info("events     : " + withinActiveRegion);
+            logger.info("region     : " + regionLoc);
             logger.info("trimLoc    : " + trimLoc);
             logger.info("pad        : " + pad);
             logger.info("idealSpan  : " + idealSpan);

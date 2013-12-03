@@ -62,7 +62,7 @@ import java.util.Set;
  * @author: depristo
  * @since 03/2013
  */
-public final class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
+public class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
     /**
      * Edge factory that creates non-reference multiplicity 1 edges
      */
@@ -88,13 +88,6 @@ public final class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
      * thinking something has gone wrong and throw an exception?
      */
     private final static int MAX_REASONABLE_SIMPLIFICATION_CYCLES = 100;
-
-    /**
-     * Construct an empty SeqGraph
-     */
-    public SeqGraph() {
-        this(11);
-    }
 
     /**
      * Construct an empty SeqGraph where we'll add nodes based on a kmer size of kmer
@@ -294,10 +287,8 @@ public final class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
 
         // create the combined vertex, and add it to the graph
         // TODO -- performance problem -- can be optimized if we want
-        final List<byte[]> seqs = new LinkedList<byte[]>();
-        for ( SeqVertex v : linearChain ) seqs.add(v.getSequence());
-        final byte[] seqsCat = org.broadinstitute.sting.utils.Utils.concat(seqs.toArray(new byte[][]{}));
-        final SeqVertex addedVertex = new SeqVertex( seqsCat );
+
+        final SeqVertex addedVertex = mergeLinearChainVertices(linearChain);
         addVertex(addedVertex);
 
         final Set<BaseEdge> inEdges = incomingEdgesOf(first);
@@ -313,6 +304,13 @@ public final class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
 
         removeAllVertices(linearChain);
         return true;
+    }
+
+    protected SeqVertex mergeLinearChainVertices(final List<SeqVertex> vertices) {
+        final List<byte[]> seqs = new LinkedList<byte[]>();
+        for ( SeqVertex v : vertices ) seqs.add(v.getSequence());
+        final byte[] seqsCat = org.broadinstitute.sting.utils.Utils.concat(seqs.toArray(new byte[][]{}));
+        return new SeqVertex( seqsCat );
     }
 
     /**

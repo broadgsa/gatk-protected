@@ -68,9 +68,9 @@ import org.testng.annotations.Test;
 import java.util.*;
 
 /**
- * Unit tests for LikelihoodCalculationEngine
+ * Unit tests for PairHMMLikelihoodCalculationEngine
  */
-public class LikelihoodCalculationEngineUnitTest extends BaseTest {
+public class PairHMMLikelihoodCalculationEngineUnitTest extends BaseTest {
 
     Allele Aref, T, C, G, Cref, ATC, ATCATC;
 
@@ -100,7 +100,7 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
         };
 
 
-        Assert.assertTrue(compareDoubleArrays(LikelihoodCalculationEngine.normalizeDiploidLikelihoodMatrixFromLog10(likelihoodMatrix), normalizedMatrix));
+        Assert.assertTrue(compareDoubleArrays(PairHMMLikelihoodCalculationEngine.normalizeDiploidLikelihoodMatrixFromLog10(likelihoodMatrix), normalizedMatrix));
 
         double[][] likelihoodMatrix2 = {
                 {-90.2,     0,      0,        0},
@@ -114,7 +114,7 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
                 {-4.9,  -15.4,  -33.8,        0},
                 {-4.9,  -15.4,  -33.8,   -997.9},
         };
-        Assert.assertTrue(compareDoubleArrays(LikelihoodCalculationEngine.normalizeDiploidLikelihoodMatrixFromLog10(likelihoodMatrix2), normalizedMatrix2));
+        Assert.assertTrue(compareDoubleArrays(PairHMMLikelihoodCalculationEngine.normalizeDiploidLikelihoodMatrixFromLog10(likelihoodMatrix2), normalizedMatrix2));
     }
 
     @DataProvider(name = "PcrErrorModelTestProvider")
@@ -133,30 +133,31 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
     @Test(dataProvider = "PcrErrorModelTestProvider", enabled = true)
     public void createPcrErrorModelTest(final String repeat, final int repeatLength) {
 
-        final LikelihoodCalculationEngine engine = new LikelihoodCalculationEngine((byte)0, false, PairHMM.HMM_IMPLEMENTATION.ORIGINAL, 0.0, true, LikelihoodCalculationEngine.PCR_ERROR_MODEL.CONSERVATIVE);
+        final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte)0, false,
+                PairHMM.HMM_IMPLEMENTATION.ORIGINAL, 0.0, true,
+                PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.CONSERVATIVE);
 
         final String readString = Utils.dupString(repeat, repeatLength);
         final byte[] insQuals = new byte[readString.length()];
         final byte[] delQuals = new byte[readString.length()];
-        Arrays.fill(insQuals, (byte)LikelihoodCalculationEngine.INITIAL_QSCORE);
-        Arrays.fill(delQuals, (byte)LikelihoodCalculationEngine.INITIAL_QSCORE);
+        Arrays.fill(insQuals, (byte)PairHMMLikelihoodCalculationEngine.INITIAL_QSCORE);
+        Arrays.fill(delQuals, (byte)PairHMMLikelihoodCalculationEngine.INITIAL_QSCORE);
 
         engine.applyPCRErrorModel(readString.getBytes(), insQuals, delQuals);
 
         final RepeatCovariate repeatCovariate = new RepeatLengthCovariate();
-        repeatCovariate.initialize(LikelihoodCalculationEngine.MAX_STR_UNIT_LENGTH, LikelihoodCalculationEngine.MAX_REPEAT_LENGTH);
+        repeatCovariate.initialize(PairHMMLikelihoodCalculationEngine.MAX_STR_UNIT_LENGTH, PairHMMLikelihoodCalculationEngine.MAX_REPEAT_LENGTH);
 
         for ( int i = 1; i < insQuals.length; i++ ) {
 
             final int repeatLengthFromCovariate = repeatCovariate.findTandemRepeatUnits(readString.getBytes(), i-1).getSecond();
-            final byte adjustedScore = LikelihoodCalculationEngine.getErrorModelAdjustedQual(repeatLengthFromCovariate, 3.0);
+            final byte adjustedScore = PairHMMLikelihoodCalculationEngine.getErrorModelAdjustedQual(repeatLengthFromCovariate, 3.0);
 
             Assert.assertEquals(insQuals[i-1], adjustedScore);
             Assert.assertEquals(delQuals[i-1], adjustedScore);
         }
     }
 
-    // BUGBUG: LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods has changed! Need to make new unit tests!
     /*
     private class BasicLikelihoodTestProvider extends TestDataProvider {
         public Double readLikelihoodForHaplotype1;
@@ -210,7 +211,7 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
             }
             final HashSet<String> sampleSet = new HashSet<String>(1);
             sampleSet.add("myTestSample");
-            return LikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sampleSet, haplotypes);
+            return PairHMMLikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sampleSet, haplotypes);
         }
     }
 
@@ -335,7 +336,7 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
                 makeG("s2",T,T,60,40,0),
                 makeG("s3",Aref,Aref,0,30,90));
         test1 = new VariantContextBuilder(test1).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,3).make();
-        VariantContext test1result = LikelihoodCalculationEngine.calculatePosteriorGLs(test1, new ArrayList<VariantContext>(), 0, 0.001, true, false, false);
+        VariantContext test1result = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(test1, new ArrayList<VariantContext>(), 0, 0.001, true, false, false);
         Genotype test1exp1 = makeGwithPLs("s1",Aref,T,new double[]{-2.20686, -0.03073215, -1.20686});
         Assert.assertTrue(test1exp1.hasPL());
         Genotype test1exp2 = makeGwithPLs("s2",T,T,new double[]{-6.000066, -3.823938, -6.557894e-05});
@@ -353,7 +354,7 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
                 makeG("s3",Aref,Aref,0,5,8,15,20,40),
                 makeG("s4",C,T,80,40,12,20,0,10));
         test2 = new VariantContextBuilder(test2).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,new ArrayList<Integer>(Arrays.asList(2,2))).make();
-        VariantContext test2result = LikelihoodCalculationEngine.calculatePosteriorGLs(test2,new ArrayList<VariantContext>(),5,0.001,true,false,false);
+        VariantContext test2result = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(test2,new ArrayList<VariantContext>(),5,0.001,true,false,false);
         Genotype test2exp1 = makeGwithPLs("s1",Aref,T,new double[]{-2.647372, -1.045139, -6.823193, -0.04513873, -2.198182, -9.823193});
         Genotype test2exp2 = makeGwithPLs("s2",Aref,C,new double[]{-3.609957, -0.007723248, -1.785778, -3.007723, -4.660767, -8.785778});
         Genotype test2exp3 = makeGwithPLs("s3",Aref,Aref,new double[] {-0.06094877, -0.9587151, -2.03677,-1.958715,  -3.111759, -5.23677});
@@ -375,7 +376,7 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
         supplTest1.add(makeVC("4",Arrays.asList(Aref,T),
                 makeG("s_1",T,T),
                 makeG("s_2",Aref,T)));
-        VariantContext test1result = LikelihoodCalculationEngine.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
+        VariantContext test1result = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
         // the counts here are ref=30, alt=14
         Genotype test1exp1 = makeGwithPLs("t1",T,T,new double[]{-3.370985, -1.415172, -0.01721766});
         Genotype test1exp2 = makeGwithPLs("t2",Aref,T,new double[]{-1.763792, -0.007978791, -3.010024});
@@ -386,7 +387,7 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
 
         VariantContext testNonOverlapping = makeVC("1", Arrays.asList(Aref,T), makeG("s1",T,T,3,1,0));
         List<VariantContext> other = Arrays.asList(makeVC("2",Arrays.asList(Aref,C),makeG("s2",C,C,10,2,0)));
-        VariantContext test2result = LikelihoodCalculationEngine.calculatePosteriorGLs(testNonOverlapping,other,0,0.001,true,false,false);
+        VariantContext test2result = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(testNonOverlapping,other,0,0.001,true,false,false);
         Genotype test2exp1 = makeGwithPLs("SGV",T,T,new double[]{-4.078345, -3.276502, -0.0002661066});
         Assert.assertEquals(arraysEq(test2exp1.getPL(),_mleparse((List<Integer>) test2result.getGenotype(0).getAnyAttribute(VCFConstants.GENOTYPE_POSTERIORS_KEY))), "");
     }
@@ -514,14 +515,14 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
                 knownCounts[1] = numAlt-altCount;
                 int expected_index = 0;
                 for ( int gl_index = 0; gl_index < likelihood_PLs.length; gl_index++ ) {
-                    double[] post = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(likelihood_PLs[gl_index]), knownCounts, 2);
+                    double[] post = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(likelihood_PLs[gl_index]), knownCounts, 2);
                     for ( int i = 0; i < post.length; i++ ) {
                         double expected = expectations[testIndex][expected_index++];
                         double observed = Math.pow(10.0,post[i]);
                         double err = Math.abs( (expected-observed)/expected );
                         Assert.assertTrue(err < 1e-4, String.format("Counts: %s | Expected: %e | Observed: %e | pre %s | prior %s | post %s",
                                 Arrays.toString(knownCounts), expected,observed, Arrays.toString(pl2gl(likelihood_PLs[gl_index])),
-                                Arrays.toString(LikelihoodCalculationEngine.getDirichletPrior(knownCounts,2)),Arrays.toString(post)));
+                                Arrays.toString(PairHMMLikelihoodCalculationEngine.getDirichletPrior(knownCounts,2)),Arrays.toString(post)));
                     }
                 }
                 testIndex++;
@@ -569,17 +570,17 @@ public class LikelihoodCalculationEngineUnitTest extends BaseTest {
         double expected_five[] = new double[] { -9.170334, -5.175724, -6.767055, -0.8250021, -5.126027, -0.07628661, -3.276762,
                 -3.977787, -2.227065, -4.57769, -5.494041, -2.995066, -7.444344, -7.096104, -2.414187};
 
-        double[] post1 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_one),counts_one,2);
-        double[] post2 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_two),counts_two,2);
-        double[] post3 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_three),counts_three,2);
-        double[] post4 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_four),counts_four,2);
-        double[] post5 = LikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_five),counts_five,2);
+        double[] post1 = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_one),counts_one,2);
+        double[] post2 = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_two),counts_two,2);
+        double[] post3 = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_three),counts_three,2);
+        double[] post4 = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_four),counts_four,2);
+        double[] post5 = PairHMMLikelihoodCalculationEngine.calculatePosteriorGLs(pl2gl(PL_five),counts_five,2);
 
         double[] expecPrior5 = new double[] {-4.2878195, -4.2932090, -4.8845400, -1.9424874, -2.2435120, -0.1937719, -3.5942477,
                 -3.8952723, -1.5445506, -3.4951749, -2.6115263, -2.9125508, -0.5618292, -2.2135895,
                 -1.5316722};
 
-        Assert.assertTrue(arraysApproxEqual(expecPrior5, LikelihoodCalculationEngine.getDirichletPrior(counts_five,2),1e-5),errMsgArray(expecPrior5,LikelihoodCalculationEngine.getDirichletPrior(counts_five,2)));
+        Assert.assertTrue(arraysApproxEqual(expecPrior5, PairHMMLikelihoodCalculationEngine.getDirichletPrior(counts_five,2),1e-5),errMsgArray(expecPrior5,PairHMMLikelihoodCalculationEngine.getDirichletPrior(counts_five,2)));
 
         Assert.assertTrue(arraysApproxEqual(expected_one,post1,1e-6),errMsgArray(expected_one,post1));
         Assert.assertTrue(arraysApproxEqual(expected_two,post2,1e-5),errMsgArray(expected_two,post2));

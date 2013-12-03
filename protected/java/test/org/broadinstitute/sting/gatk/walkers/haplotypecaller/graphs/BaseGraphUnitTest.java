@@ -60,7 +60,7 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        graph = new SeqGraph();
+        graph = new SeqGraph(11);
 
         v1 = new SeqVertex("A");
         v2 = new SeqVertex("C");
@@ -118,7 +118,7 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @Test
     public void testRemoveSingletonOrphanVerticesOnSingleRefNode() throws Exception {
-        final SeqGraph original = new SeqGraph();
+        final SeqGraph original = new SeqGraph(11);
         original.addVertex(v1);
         original.removeSingletonOrphanVertices();
         Assert.assertTrue(original.containsVertex(v1));
@@ -128,7 +128,7 @@ public class BaseGraphUnitTest extends BaseTest {
     @Test
     public void testIsRefSourceAndSink() throws Exception {
 
-        final SeqGraph g = new SeqGraph();
+        final SeqGraph g = new SeqGraph(11);
         g.addVertex(v1);
         Assert.assertTrue(g.isRefSource(v1));
         Assert.assertTrue(g.isRefSink(v1));
@@ -164,7 +164,7 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @Test
     public void testRemovePathsNotConnectedToRef() throws Exception {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         SeqVertex src = new SeqVertex("A");
         SeqVertex end = new SeqVertex("A");
@@ -216,7 +216,7 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @Test
     public void testRemoveVerticesNotConnectedToRefRegardlessOfEdgeDirection() throws Exception {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         SeqVertex src = new SeqVertex("A");
         SeqVertex end = new SeqVertex("A");
@@ -275,7 +275,7 @@ public class BaseGraphUnitTest extends BaseTest {
     public void testPrintEmptyGraph() throws Exception {
         final File tmp = File.createTempFile("tmp", "dot");
         tmp.deleteOnExit();
-        new SeqGraph().printGraph(tmp, 10);
+        new SeqGraph(11).printGraph(tmp, 10);
         new TestGraph().printGraph(tmp, 10);
     }
 

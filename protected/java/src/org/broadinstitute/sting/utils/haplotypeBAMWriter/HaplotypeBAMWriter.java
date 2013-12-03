@@ -186,10 +186,15 @@ public abstract class HaplotypeBAMWriter {
             if( originalRead != null ) {
                 output.add(originalRead);
             }
+        } else if (haplotype == null) {
+            output.add(originalRead);
+            return;
         } else {
             final GATKSAMRecord alignedToRef = createReadAlignedToRef(originalRead, haplotype, referenceStart, isInformative);
             if ( alignedToRef != null ) {
                 output.add(alignedToRef);
+            } else {
+                output.add(originalRead);
             }
         }
     }

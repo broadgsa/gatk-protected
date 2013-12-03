@@ -68,7 +68,7 @@ import java.util.*;
 @Invariant("!this.isAllowingMultipleEdges()")
 public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends DefaultDirectedGraph<V, E> {
     protected final static Logger logger = Logger.getLogger(BaseGraph.class);
-    private final int kmerSize;
+    protected final int kmerSize;
 
     /**
      * Construct a TestGraph with kmerSize
