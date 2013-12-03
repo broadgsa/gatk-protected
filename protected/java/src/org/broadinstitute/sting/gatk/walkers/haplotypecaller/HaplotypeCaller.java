@@ -92,6 +92,7 @@ import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
+import org.broadinstitute.sting.utils.variant.GATKVCFIndexType;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
@@ -536,6 +537,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     ReferenceConfidenceModel referenceConfidenceModel = null;
 
+    // as determined experimentally Nov-Dec 2013
+    protected final static GATKVCFIndexType OPTIMAL_GVCF_INDEX_TYPE = GATKVCFIndexType.LINEAR;
+    protected final static int OPTIMAL_GVCF_INDEX_PARAMETER = 128000;
+
     //---------------------------------------------------------------------------------------------------------------
     //
     // initialize
@@ -601,6 +606,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             if ( samples.size() != 1 ) throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently");
             headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
             if ( emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
+                // a kluge to enforce the use of this indexing strategy
+                if (getToolkit().getArguments().variant_index_type != OPTIMAL_GVCF_INDEX_TYPE ||
+                        getToolkit().getArguments().variant_index_parameter != OPTIMAL_GVCF_INDEX_PARAMETER) {
+                    throw new UserException.GVCFIndexException(OPTIMAL_GVCF_INDEX_TYPE, OPTIMAL_GVCF_INDEX_PARAMETER);
+                }
+
                 try {
                     vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands);
                 } catch ( IllegalArgumentException e ) {
