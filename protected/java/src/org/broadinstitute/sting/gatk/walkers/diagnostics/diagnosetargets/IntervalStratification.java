@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
 
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -57,9 +58,13 @@ final class IntervalStratification extends AbstractStratification {
     private final Map<String, AbstractStratification> samples;
     private final GenomeLoc interval;
     private List<CallableStatus> callableStatuses;
+    private long gcCount = 0;
 
     public IntervalStratification(Set<String> samples, GenomeLoc interval, ThresHolder thresholds) {
         super(thresholds);
+
+        assert interval != null && interval.size() > 0;  // contracts
+
         this.interval = interval;
         this.samples = new HashMap<String, AbstractStratification>(samples.size());
         for (String sample : samples)
@@ -83,8 +88,11 @@ final class IntervalStratification extends AbstractStratification {
      * This takes the input and manages passing the data to the SampleStatistics and Locus Statistics
      *
      * @param context    The alignment context given from the walker
+     * @param ref        The reference context given from the walker
      */
-    public void addLocus(AlignmentContext context) {
+    public void addLocus(final AlignmentContext context,  final ReferenceContext ref) {
+        assert ref != null;  // contracts
+
         ReadBackedPileup pileup = context.getBasePileup();
 
         Map<String, ReadBackedPileup> samplePileups = pileup.getPileupsForSamples(samples.keySet());
@@ -99,7 +107,11 @@ final class IntervalStratification extends AbstractStratification {
 
             sampleStratification.addLocus(context.getLocation(), samplePileup);
         }
+        gcCount += (ref.getBase() == 'G' || ref.getBase() == 'C') ? 1 : 0;
+    }
 
+    public double gcContent() {
+        return (double) gcCount / interval.size();
     }
 
     /**
