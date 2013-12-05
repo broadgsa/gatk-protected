@@ -335,6 +335,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // general advanced arguments to control haplotype caller behavior
     // -----------------------------------------------------------------------------------------------
 
+    /**
+     * Users should be aware that this argument can really affect the results of the variant calling and should exercise caution.
+     * Using a prune factor of 1 (or below) will prevent any pruning from the graph which is generally not ideal; it can make the
+     * calling much slower and even less accurate (because it can prevent effective merging of "tails" in the graph).  Higher values
+     * tend to make the calling much faster, but also lowers the sensitivity of the results (because it ultimately requires higher
+     * depth to produce calls).
+     */
     @Advanced
     @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with < X supporting kmers are pruned from the graph", required = false)
     protected int MIN_PRUNE_FACTOR = 2;
