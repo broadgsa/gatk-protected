@@ -84,10 +84,10 @@ import java.util.List;
  * Reduces the BAM file using read based compression that keeps only essential information for variant calling
  *
  * <p>
- * This walker will generated reduced versions of the BAM files that still follow the BAM spec
- * and contain all the information necessary for the GSA variant calling pipeline. Some options
- * allow you to tune in how much compression you want to achieve. The default values have been
- * shown to reduce a typical whole exome BAM file 100x. The higher the coverage, the bigger the
+ * This tool will generate reduced versions of the BAM files that still follow the BAM specification
+ * and contain all the information necessary to call variants according to the GATK Best Practices recommendations.
+ * Some options allow you to tune how much compression you want to achieve. The default values have been
+ * shown to reduce a typical whole exome BAM file by 100x. The higher the coverage, the bigger the
  * savings in file size and performance of the downstream tools.
  *
  * <h3>Input</h3>
@@ -121,25 +121,25 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     private SAMFileWriter writerToUse = null;
 
     /**
-     * The number of bases to keep around mismatches (potential variation)
+     *
      */
-    @Argument(fullName = "context_size", shortName = "cs", doc = "", required = false)
+    @Argument(fullName = "context_size", shortName = "cs", doc = "The number of bases to keep around mismatches (potential variation)", required = false)
     public int contextSize = 10;
 
     /**
-     * The minimum mapping quality to be considered for the consensus synthetic read. Reads that have
+     * Reads that have
      * mapping quality below this threshold will not be counted towards consensus, but are still counted
      * towards variable regions.
      */
-    @Argument(fullName = "minimum_mapping_quality", shortName = "minmap", doc = "", required = false)
+    @Argument(fullName = "minimum_mapping_quality", shortName = "minmap", doc = "The minimum mapping quality to be considered for the consensus synthetic read", required = false)
     public int minMappingQuality = 20;
 
     /**
-     * The minimum base quality to be considered for the consensus synthetic read. Reads that have
+     * Reads that have
      * base quality below this threshold will not be counted towards consensus, but are still counted
      * towards variable regions.
      */
-    @Argument(fullName = "minimum_base_quality_to_consider", shortName = "minqual", doc = "", required = false)
+    @Argument(fullName = "minimum_base_quality_to_consider", shortName = "minqual", doc = "The minimum base quality to be considered for the consensus synthetic read", required = false)
     public byte minBaseQual = 15;
 
     /**
@@ -160,81 +160,77 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
     public List<RodBinding<VariantContext>> known = Collections.emptyList();
 
     /**
-     * Do not simplify read (strip away all extra information of the read -- anything other than bases, quals
-     * and read group).
+     * This strips away all extra information of the read -- anything other than bases, quals
+     * and read group.
      */
-    @Argument(fullName = "dont_simplify_reads", shortName = "nosimplify", doc = "", required = false)
+    @Argument(fullName = "dont_simplify_reads", shortName = "nosimplify", doc = "Do not simplify read", required = false)
     public boolean DONT_SIMPLIFY_READS = false;
 
     /**
-     * Do not hard clip adaptor sequences. Note: You don't have to turn this on for reads that are not mate paired.
-     * The program will behave correctly in those cases.
+     * Note that it is not necessary to turn this on for reads that are not mate paired.
+     * The program will behave correctly by default in those cases.
      */
-    @Argument(fullName = "dont_hardclip_adaptor_sequences", shortName = "noclip_ad", doc = "", required = false)
+    @Argument(fullName = "dont_hardclip_adaptor_sequences", shortName = "noclip_ad", doc = "Do not hard clip adaptor sequences", required = false)
     public boolean DONT_CLIP_ADAPTOR_SEQUENCES = false;
 
     /**
-     * Do not hard clip the low quality tails of the reads. This option overrides the argument of minimum tail
+     * This option overrides the argument of minimum tail
      * quality.
      */
-    @Argument(fullName = "dont_hardclip_low_qual_tails", shortName = "noclip_tail", doc = "", required = false)
+    @Argument(fullName = "dont_hardclip_low_qual_tails", shortName = "noclip_tail", doc = "Do not hard clip the low quality tails of the reads", required = false)
     public boolean DONT_CLIP_LOW_QUAL_TAILS = false;
 
     /**
-     * Do not use high quality soft-clipped bases. By default, ReduceReads will hard clip away any low quality soft clipped
+     * By default, ReduceReads will hard clip away any low quality soft clipped
      * base left by the aligner and use the high quality soft clipped bases in it's traversal algorithm to identify variant
      * regions. The minimum quality for soft clipped bases is the same as the minimum base quality to consider (minqual)
      */
-    @Argument(fullName = "dont_use_softclipped_bases", shortName = "no_soft", doc = "", required = false)
+    @Argument(fullName = "dont_use_softclipped_bases", shortName = "no_soft", doc = "Do not use high quality soft-clipped bases", required = false)
     public boolean DONT_USE_SOFTCLIPPED_BASES = false;
 
     /**
-     * Do not compress read names. By default, ReduceReads will compress read names to numbers and guarantee 
+     * By default, ReduceReads will compress read names to numbers and guarantee
      * uniqueness and reads with similar name will still have similar compressed names. Note: If you scatter/gather
      * there is no guarantee that read name uniqueness will be maintained -- in this case we recommend not compressing. 
      */
-    @Argument(fullName = "dont_compress_read_names", shortName = "nocmp_names", doc = "", required = false)
+    @Argument(fullName = "dont_compress_read_names", shortName = "nocmp_names", doc = "Do not compress read names", required = false)
     public boolean DONT_COMPRESS_READ_NAMES = false;
 
     /**
-     * Optionally hard clip all incoming reads to the desired intervals. The hard clips will happen exactly at the interval
-     * border.
+     * The hard clips will happen exactly at the interval border.
      */
-    @Argument(fullName = "hard_clip_to_interval", shortName = "clip_int", doc = "", required = false)
+    @Argument(fullName = "hard_clip_to_interval", shortName = "clip_int", doc = "Hard clip all incoming reads to the desired intervals", required = false)
     public boolean HARD_CLIP_TO_INTERVAL = false;
 
     /**
-     * Minimum proportion of mismatches in a site to trigger a variant region. Anything below this will be
+     * Anything below this will be
      * considered consensus and reduced (otherwise we will try to trigger polyploid compression).  Note that
      * this value is used only regions with high coverage.
      */
     @Advanced
-    @Argument(fullName = "minimum_alt_proportion_to_trigger_variant", shortName = "minvar", doc = "", required = false)
+    @Argument(fullName = "minimum_alt_proportion_to_trigger_variant", shortName = "minvar", doc = "Minimum proportion of mismatches in a site to trigger a variant region", required = false)
     public double minAltProportionToTriggerVariant = 0.05;
 
     /**
-     * Minimum p-value from binomial distribution of mismatches in a site to trigger a variant region.
      * Any site with a value falling below this will be considered consensus and reduced (otherwise we will try to
      * trigger polyploid compression).  Note that this value is used only regions with low coverage.
      */
     @Advanced
-    @Argument(fullName = "minimum_alt_pvalue_to_trigger_variant", shortName = "min_pvalue", doc = "", required = false)
+    @Argument(fullName = "minimum_alt_pvalue_to_trigger_variant", shortName = "min_pvalue", doc = "Minimum p-value from binomial distribution of mismatches in a site to trigger a variant region", required = false)
     public double minAltPValueToTriggerVariant = 0.01;
 
     /**
-     * Minimum proportion of indels in a site to trigger a variant region. Anything below this will be
-     * considered consensus.
+     * Anything below this will be considered consensus.
      */
-    @Argument(fullName = "minimum_del_proportion_to_trigger_variant", shortName = "mindel", doc = "", required = false)
+    @Argument(fullName = "minimum_del_proportion_to_trigger_variant", shortName = "mindel", doc = "Minimum proportion of indels in a site to trigger a variant region", required = false)
     public double minIndelProportionToTriggerVariant = 0.05;
 
     /**
-     * The number of reads emitted per sample in a variant region can be downsampled for better compression.
      * This level of downsampling only happens after the region has been evaluated, therefore it can
      * be combined with the engine level downsampling.
      * A value of 0 turns downsampling off.
      */
-    @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "", required = false)
+    @Argument(fullName = "downsample_coverage", shortName = "ds", doc = "Downsample the number of reads emitted per sample in a variant region for better compression", required = false)
     public int downsampleCoverage = 250;
 
     /**
@@ -243,27 +239,27 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
      * To prevent users from unintentionally running the tool in a less than ideal manner, we require them
      * to explicitly enable multi-sample analysis with this argument.
      */
-    @Argument(fullName = "cancer_mode", shortName = "cancer_mode", doc = "enable multi-samples reduction for cancer analysis", required = false)
+    @Argument(fullName = "cancer_mode", shortName = "cancer_mode", doc = "Enable multi-sample reduction for cancer analysis", required = false)
     public boolean ALLOW_MULTIPLE_SAMPLES = false;
 
     @Hidden
-    @Argument(fullName = "nwayout", shortName = "nw", doc = "", required = false)
+    @Argument(fullName = "nwayout", shortName = "nw", doc = "Generate separate output files per input file", required = false)
     public boolean nwayout = false;
 
     @Hidden
-    @Argument(fullName = "", shortName = "dl", doc = "", required = false)
+    @Argument(fullName = "", shortName = "dl", doc = "Debug level", required = false)
     public int debugLevel = 0;
 
     @Hidden
-    @Argument(fullName = "", shortName = "dr", doc = "", required = false)
+    @Argument(fullName = "", shortName = "dr", doc = "Debug read", required = false)
     public String debugRead = "";
 
     @Hidden
-    @Argument(fullName = "downsample_strategy", shortName = "dm", doc = "", required = false)
+    @Argument(fullName = "downsample_strategy", shortName = "dm", doc = "Downsampling strategy", required = false)
     public DownsampleStrategy downsampleStrategy = DownsampleStrategy.Normal;
     
     @Hidden 
-    @Argument(fullName = "no_pg_tag", shortName = "npt", doc ="", required = false)
+    @Argument(fullName = "no_pg_tag", shortName = "npt", doc ="Discard program tags", required = false)
     public boolean NO_PG_TAG = false;
 
     public enum DownsampleStrategy {
@@ -297,7 +293,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
             throw new UserException.MissingArgument("out", "the output must be provided and is optional only for certain debugging modes");
 
         if ( nwayout && out != null )
-            throw new UserException.CommandLineException("--out and --nwayout can not be used simultaneously; please use one or the other");
+            throw new UserException.CommandLineException("--out and --nwayout cannot be used simultaneously; please use one or the other");
 
         if ( minAltPValueToTriggerVariant < 0.0 || minAltPValueToTriggerVariant > 1.0 )
             throw new UserException.BadArgumentValue("--minimum_alt_pvalue_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
@@ -306,7 +302,7 @@ public class ReduceReads extends ReadWalker<ObjectArrayList<GATKSAMRecord>, Redu
             throw new UserException.BadArgumentValue("--minimum_alt_proportion_to_trigger_variant", "must be a value between 0 and 1 (inclusive)");
 
         if ( SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader()).size() > 1 && !ALLOW_MULTIPLE_SAMPLES )
-            throw new UserException.BadInput("Reduce Reads is not meant to be run for more than 1 sample at a time except for the specific case of tumor/normal pairs in cancer analysis");
+            throw new UserException.BadInput("Reduce Reads is not meant to be run for more than 1 sample at a time except for the specific case of tumor/normal pairs in cancer analysis. If that is what you want to do, use the -cancer_mode flag.");
 
         if ( known.isEmpty() )
             knownSnpPositions = null;

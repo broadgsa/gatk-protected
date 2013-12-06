@@ -60,7 +60,7 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        graph = new SeqGraph();
+        graph = new SeqGraph(11);
 
         v1 = new SeqVertex("A");
         v2 = new SeqVertex("C");
@@ -95,7 +95,7 @@ public class BaseGraphUnitTest extends BaseTest {
     }
 
     @Test
-         public void testRemoveSingletonOrphanVertices() throws Exception {
+    public void testRemoveSingletonOrphanVertices() throws Exception {
         // all vertices in graph are connected
         final List<SeqVertex> kept = new LinkedList<SeqVertex>(graph.vertexSet());
         final SeqVertex rm1 = new SeqVertex("CAGT");
@@ -117,8 +117,54 @@ public class BaseGraphUnitTest extends BaseTest {
     }
 
     @Test
+    public void testRemoveSingletonOrphanVerticesOnSingleRefNode() throws Exception {
+        final SeqGraph original = new SeqGraph(11);
+        original.addVertex(v1);
+        original.removeSingletonOrphanVertices();
+        Assert.assertTrue(original.containsVertex(v1));
+        Assert.assertEquals(original.vertexSet().size(), 1);
+    }
+
+    @Test
+    public void testIsRefSourceAndSink() throws Exception {
+
+        final SeqGraph g = new SeqGraph(11);
+        g.addVertex(v1);
+        Assert.assertTrue(g.isRefSource(v1));
+        Assert.assertTrue(g.isRefSink(v1));
+        Assert.assertTrue(g.isReferenceNode(v1));
+
+        g.addVertices(v2, v3, v4, v5);
+        g.addEdge(v1, v2);
+        g.addEdge(v2, v3);
+        final BaseEdge refEdge = new BaseEdge(true, 1);
+        g.addEdge(v3, v4, refEdge);
+        g.addEdge(v4, v5);
+
+        Assert.assertFalse(g.isRefSource(v1));
+        Assert.assertFalse(g.isRefSink(v1));
+        Assert.assertFalse(g.isReferenceNode(v1));
+
+        Assert.assertFalse(g.isRefSource(v2));
+        Assert.assertFalse(g.isRefSink(v2));
+        Assert.assertFalse(g.isReferenceNode(v2));
+
+        Assert.assertTrue(g.isRefSource(v3));
+        Assert.assertFalse(g.isRefSink(v3));
+        Assert.assertTrue(g.isReferenceNode(v3));
+
+        Assert.assertFalse(g.isRefSource(v4));
+        Assert.assertTrue(g.isRefSink(v4));
+        Assert.assertTrue(g.isReferenceNode(v4));
+
+        Assert.assertFalse(g.isRefSource(v5));
+        Assert.assertFalse(g.isRefSink(v5));
+        Assert.assertFalse(g.isReferenceNode(v5));
+    }
+
+    @Test
     public void testRemovePathsNotConnectedToRef() throws Exception {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         SeqVertex src = new SeqVertex("A");
         SeqVertex end = new SeqVertex("A");
@@ -170,7 +216,7 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @Test
     public void testRemoveVerticesNotConnectedToRefRegardlessOfEdgeDirection() throws Exception {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         SeqVertex src = new SeqVertex("A");
         SeqVertex end = new SeqVertex("A");
@@ -229,7 +275,7 @@ public class BaseGraphUnitTest extends BaseTest {
     public void testPrintEmptyGraph() throws Exception {
         final File tmp = File.createTempFile("tmp", "dot");
         tmp.deleteOnExit();
-        new SeqGraph().printGraph(tmp, 10);
+        new SeqGraph(11).printGraph(tmp, 10);
         new TestGraph().printGraph(tmp, 10);
     }
 

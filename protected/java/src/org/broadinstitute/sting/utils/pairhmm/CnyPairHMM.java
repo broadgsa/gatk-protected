@@ -47,12 +47,16 @@
 package org.broadinstitute.sting.utils.pairhmm;
 
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.variant.variantcontext.Allele;
 
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
     private static class HmmInput {
@@ -62,14 +66,14 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
         public byte[] deletionGOP;
         public byte[] overallGCP;
         public List<Haplotype> haplotypes;
-    };
+    }
 
     public static class ResultQueue {
         private int offset;
         private List<double[]> batchResults;
 
         public ResultQueue() {
-            batchResults = new LinkedList<double[]>();
+            batchResults = new LinkedList<>();
             offset = 0;
         }
 
@@ -92,7 +96,7 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
     final static String libName = "gmvhdl_gatk_hmm";
 
     private static boolean loaded = false;
-    private List<HmmInput> batchRequests = new LinkedList<HmmInput>();
+    private List<HmmInput> batchRequests = new LinkedList<>();
     private ResultQueue resultQueue = new ResultQueue();
 
     static public boolean isAvailable() {
@@ -184,6 +188,55 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
         return results;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public PerReadAlleleLikelihoodMap computeLikelihoods(final List<GATKSAMRecord> reads, final Map<Allele, Haplotype> alleleHaplotypeMap, final Map<GATKSAMRecord, byte[]> GCPArrayMap){
+
+        // initialize the pairHMM if necessary
+        if (! initialized) {
+            int readMaxLength = findMaxReadLength(reads);
+            int haplotypeMaxLength = findMaxHaplotypeLength(alleleHaplotypeMap);
+            initialize(readMaxLength, haplotypeMaxLength);
+        }
+
+        // Pass the read bases/quals, and the haplotypes as a list into the HMM
+        performBatchAdditions(reads, alleleHaplotypeMap, GCPArrayMap);
+
+        // Get the log10-likelihoods for each read/haplotype ant pack into the results map
+        final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
+        collectLikelihoodResults(reads, alleleHaplotypeMap, likelihoodMap);
+
+        return likelihoodMap;
+    }
+
+    private void collectLikelihoodResults(List<GATKSAMRecord> reads, Map<Allele, Haplotype> alleleHaplotypeMap, PerReadAlleleLikelihoodMap likelihoodMap) {
+        for(final GATKSAMRecord read : reads){
+            final double[] likelihoods = batchGetResult();
+            int jjj = 0;
+            for (Allele allele : alleleHaplotypeMap.keySet()){
+                final double log10l = likelihoods[jjj];
+                likelihoodMap.add(read, allele, log10l);
+                jjj++;
+            }
+        }
+    }
+
+    private void performBatchAdditions(List<GATKSAMRecord> reads, Map<Allele, Haplotype> alleleHaplotypeMap, Map<GATKSAMRecord, byte[]> GCPArrayMap) {
+        final List<Haplotype> haplotypeList = getHaplotypeList(alleleHaplotypeMap);
+        for(final GATKSAMRecord read : reads){
+            final byte[] readBases = read.getReadBases();
+            final byte[] readQuals = read.getBaseQualities();
+            final byte[] readInsQuals = read.getBaseInsertionQualities();
+            final byte[] readDelQuals = read.getBaseDeletionQualities();
+            final byte[] overallGCP = GCPArrayMap.get(read);
+
+            batchAdd(haplotypeList, readBases, readQuals, readInsQuals, readDelQuals, overallGCP);
+        }
+    }
+
+
     protected double subComputeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
                                                                   final byte[] readBases,
                                                                   final byte[] readQuals,
@@ -191,8 +244,17 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
                                                                   final byte[] deletionGOP,
                                                                   final byte[] overallGCP,
                                                                   final int hapStartIndex,
-                                                                  final boolean recacheReadValues ) {
+                                                                  final boolean recacheReadValues,
+                                                                  final int nextHapStartIndex) {
         return 0.0;
+    }
+
+    private List<Haplotype> getHaplotypeList(Map<Allele, Haplotype> alleleHaplotypeMap){
+        final List<Haplotype> haplotypeList = new LinkedList<>();
+        for (Allele a : alleleHaplotypeMap.keySet()){
+             haplotypeList.add(alleleHaplotypeMap.get(a));
+        }
+        return haplotypeList;
     }
 
     private void enqueuePrepare(byte[] haplotypeBases, byte[] readBases) {

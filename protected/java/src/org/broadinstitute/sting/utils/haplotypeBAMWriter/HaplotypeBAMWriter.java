@@ -77,8 +77,9 @@ public abstract class HaplotypeBAMWriter {
     protected final static String READ_GROUP_ID = "ArtificialHaplotype";
     protected final static String HAPLOTYPE_TAG = "HC";
 
-    final ReadDestination output;
-    boolean writeHaplotypesAsWell = true;
+    private final ReadDestination output;
+    private boolean writeHaplotypesAsWell = true;
+    private boolean onlyRealignInformativeReads = false;
 
     /**
      * Possible modes for writing haplotypes to BAMs
@@ -181,9 +182,21 @@ public abstract class HaplotypeBAMWriter {
                                              final Haplotype haplotype,
                                              final int referenceStart,
                                              final boolean isInformative) {
-        final GATKSAMRecord alignedToRef = createReadAlignedToRef(originalRead, haplotype, referenceStart, isInformative);
-        if ( alignedToRef != null )
-            output.add(alignedToRef);
+        if( onlyRealignInformativeReads && !isInformative ) {
+            if( originalRead != null ) {
+                output.add(originalRead);
+            }
+        } else if (haplotype == null) {
+            output.add(originalRead);
+            return;
+        } else {
+            final GATKSAMRecord alignedToRef = createReadAlignedToRef(originalRead, haplotype, referenceStart, isInformative);
+            if ( alignedToRef != null ) {
+                output.add(alignedToRef);
+            } else {
+                output.add(originalRead);
+            }
+        }
     }
 
     /**
@@ -305,7 +318,15 @@ public abstract class HaplotypeBAMWriter {
         return writeHaplotypesAsWell;
     }
 
-    public void setWriteHaplotypesAsWell(boolean writeHaplotypesAsWell) {
+    public void setWriteHaplotypesAsWell(final boolean writeHaplotypesAsWell) {
         this.writeHaplotypesAsWell = writeHaplotypesAsWell;
+    }
+
+    public boolean getOnlyRealignInformativeReads() {
+        return onlyRealignInformativeReads;
+    }
+
+    public void setOnlyRealignInformativeReads(final boolean onlyRealignInformativeReads) {
+        this.onlyRealignInformativeReads = onlyRealignInformativeReads;
     }
 }

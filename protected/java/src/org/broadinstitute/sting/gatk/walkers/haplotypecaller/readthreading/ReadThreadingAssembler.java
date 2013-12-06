@@ -181,7 +181,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
             return null;
         }
 
-        printDebugGraphTransform(rtgraph, new File("sequenceGraph.0.0.raw_readthreading_graph.dot"));
+        printDebugGraphTransform(rtgraph, new File("" + refHaplotype.getGenomeLocation() + "-sequenceGraph." + kmerSize + ".0.0.raw_readthreading_graph.dot"));
 
         // go through and prune all of the chains where all edges have <= pruneFactor.  This must occur
         // before recoverDanglingTails in the graph, so that we don't spend a ton of time recovering
@@ -195,20 +195,23 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         // remove all heading and trailing paths
         if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();
 
-        printDebugGraphTransform(rtgraph, new File("sequenceGraph.0.1.cleaned_readthreading_graph.dot"));
+        printDebugGraphTransform(rtgraph, new File("" + refHaplotype.getGenomeLocation() + "-sequenceGraph." + kmerSize + ".0.1.cleaned_readthreading_graph.dot"));
 
         final SeqGraph initialSeqGraph = rtgraph.convertToSequenceGraph();
+        if (debugGraphTransformations) initialSeqGraph.printGraph(new File("" + refHaplotype.getGenomeLocation() + "-sequenceGraph." + kmerSize + ".0.1.initial_seqgraph.dot"),10000);
 
         // if the unit tests don't want us to cleanup the graph, just return the raw sequence graph
         if ( justReturnRawGraph ) return new AssemblyResult(AssemblyResult.Status.ASSEMBLED_SOME_VARIATION, initialSeqGraph);
 
-        if ( debug ) logger.info("Using kmer size of " + rtgraph.getKmerSize() + " in read threading assembler");
-        printDebugGraphTransform(initialSeqGraph, new File("sequenceGraph.0.2.initial_seqgraph.dot"));
+        if (debug) logger.info("Using kmer size of " + rtgraph.getKmerSize() + " in read threading assembler");
+        printDebugGraphTransform(initialSeqGraph, new File( "" + refHaplotype.getGenomeLocation() + "-sequenceGraph." + kmerSize + ".0.2.initial_seqgraph.dot"));
         initialSeqGraph.cleanNonRefPaths(); // TODO -- I don't this is possible by construction
 
         final AssemblyResult cleaned = cleanupSeqGraph(initialSeqGraph);
         final AssemblyResult.Status status = cleaned.getStatus() == AssemblyResult.Status.ASSEMBLED_SOME_VARIATION && requireReasonableNumberOfPaths && !reasonableNumberOfPaths(cleaned.getGraph()) ? AssemblyResult.Status.FAILED : cleaned.getStatus();
-        return new AssemblyResult(status, cleaned.getGraph());
+        final AssemblyResult result = new AssemblyResult(status, cleaned.getGraph());
+        result.setThreadingGraph(rtgraph);
+        return result;
     }
 
     /**

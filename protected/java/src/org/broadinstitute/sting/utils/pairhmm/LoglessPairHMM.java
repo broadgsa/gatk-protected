@@ -55,31 +55,20 @@ import org.broadinstitute.sting.utils.QualityUtils;
  * User: rpoplin, carneiro
  * Date: 10/16/12
  */
-public final class LoglessPairHMM extends N2MemoryPairHMM {
+public class LoglessPairHMM extends N2MemoryPairHMM {
     protected static final double INITIAL_CONDITION = Math.pow(2, 1020);
     protected static final double INITIAL_CONDITION_LOG10 = Math.log10(INITIAL_CONDITION);
 
     // we divide e by 3 because the observed base could have come from any of the non-observed alleles
     protected static final double TRISTATE_CORRECTION = 3.0;
 
-    private static final int matchToMatch = 0;
-    private static final int indelToMatch = 1;
-    private static final int matchToInsertion = 2;
-    private static final int insertionToInsertion = 3;
-    private static final int matchToDeletion = 4;
-    private static final int deletionToDeletion = 5;
+    protected static final int matchToMatch = 0;
+    protected static final int indelToMatch = 1;
+    protected static final int matchToInsertion = 2;
+    protected static final int insertionToInsertion = 3;
+    protected static final int matchToDeletion = 4;
+    protected static final int deletionToDeletion = 5;
 
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void initialize(final int readMaxLength, final int haplotypeMaxLength ) {
-        super.initialize(readMaxLength, haplotypeMaxLength);
-
-        transition = new double[paddedMaxReadLength][6];
-        prior = new double[paddedMaxReadLength][paddedMaxHaplotypeLength];
-    }
 
     /**
      * {@inheritDoc}
@@ -92,7 +81,8 @@ public final class LoglessPairHMM extends N2MemoryPairHMM {
                                                                final byte[] deletionGOP,
                                                                final byte[] overallGCP,
                                                                final int hapStartIndex,
-                                                               final boolean recacheReadValues ) {
+                                                               final boolean recacheReadValues,
+                                                               final int nextHapStartIndex) {
 
         if (previousHaplotypeBases == null || previousHaplotypeBases.length != haplotypeBases.length) {
             final double initialValue = INITIAL_CONDITION / haplotypeBases.length;
@@ -138,7 +128,7 @@ public final class LoglessPairHMM extends N2MemoryPairHMM {
      * @param readQuals      the base quality scores of the read
      * @param startIndex     where to start updating the distanceMatrix (in case this read is similar to the previous read)
      */
-    public void initializePriors(final byte[] haplotypeBases, final byte[] readBases, final byte[] readQuals, final int startIndex) {
+    protected void initializePriors(final byte[] haplotypeBases, final byte[] readBases, final byte[] readQuals, final int startIndex) {
 
         // initialize the pBaseReadLog10 matrix for all combinations of read x haplotype bases
         // Abusing the fact that java initializes arrays with 0.0, so no need to fill in rows and columns below 2.
@@ -190,7 +180,7 @@ public final class LoglessPairHMM extends N2MemoryPairHMM {
      * @param prior            the likelihood editing distance matrix for the read x haplotype
      * @param transition        an array with the six transition relevant to this location
      */
-    private void updateCell( final int indI, final int indJ, final double prior, final double[] transition) {
+    protected void updateCell( final int indI, final int indJ, final double prior, final double[] transition) {
 
         matchMatrix[indI][indJ] = prior * ( matchMatrix[indI - 1][indJ - 1] * transition[matchToMatch] +
                                                  insertionMatrix[indI - 1][indJ - 1] * transition[indelToMatch] +

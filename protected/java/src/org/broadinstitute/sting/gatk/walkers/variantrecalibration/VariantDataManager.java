@@ -71,7 +71,7 @@ import java.util.*;
  */
 
 public class VariantDataManager {
-    private ExpandingArrayList<VariantDatum> data;
+    private List<VariantDatum> data;
     private double[] meanVector;
     private double[] varianceVector; // this is really the standard deviation
     public List<String> annotationKeys;
@@ -88,30 +88,30 @@ public class VariantDataManager {
         trainingSets = new ArrayList<>();
     }
 
-    public void setData( final ExpandingArrayList<VariantDatum> data ) {
+    public void setData( final List<VariantDatum> data ) {
         this.data = data;
     }
 
-    public ExpandingArrayList<VariantDatum> getData() {
+    public List<VariantDatum> getData() {
         return data;
     }
 
     public void normalizeData() {
         boolean foundZeroVarianceAnnotation = false;
         for( int iii = 0; iii < meanVector.length; iii++ ) {
-            final double theMean = mean(iii);
-            final double theSTD = standardDeviation(theMean, iii);
+            final double theMean = mean(iii, true);
+            final double theSTD = standardDeviation(theMean, iii, true);
             logger.info( annotationKeys.get(iii) + String.format(": \t mean = %.2f\t standard deviation = %.2f", theMean, theSTD) );
             if( Double.isNaN(theMean) ) {
                 throw new UserException.BadInput("Values for " + annotationKeys.get(iii) + " annotation not detected for ANY training variant in the input callset. VariantAnnotator may be used to add these annotations. See " + HelpConstants.forumPost("discussion/49/using-variant-annotator"));
             }
 
-            foundZeroVarianceAnnotation = foundZeroVarianceAnnotation || (theSTD < 1E-6);
+            foundZeroVarianceAnnotation = foundZeroVarianceAnnotation || (theSTD < 1E-5);
             meanVector[iii] = theMean;
             varianceVector[iii] = theSTD;
             for( final VariantDatum datum : data ) {
                 // Transform each data point via: (x - mean) / standard deviation
-                datum.annotations[iii] = ( datum.isNull[iii] ? GenomeAnalysisEngine.getRandomGenerator().nextGaussian() : ( datum.annotations[iii] - theMean ) / theSTD );
+                datum.annotations[iii] = ( datum.isNull[iii] ? 0.1 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian() : ( datum.annotations[iii] - theMean ) / theSTD );
             }
         }
         if( foundZeroVarianceAnnotation ) {
@@ -129,7 +129,7 @@ public class VariantDataManager {
 
         // re-order the data by increasing standard deviation so that the results don't depend on the order things were specified on the command line
         // standard deviation over the training points is used as a simple proxy for information content, perhaps there is a better thing to use here
-        final List<Integer> theOrder = calculateSortOrder(varianceVector);
+        final List<Integer> theOrder = calculateSortOrder(meanVector);
         annotationKeys = reorderList(annotationKeys, theOrder);
         varianceVector = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(varianceVector), theOrder));
         meanVector = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(meanVector), theOrder));
@@ -137,40 +137,41 @@ public class VariantDataManager {
             datum.annotations = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(datum.annotations), theOrder));
             datum.isNull = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(datum.isNull), theOrder));
         }
+        logger.info("Annotations are now ordered by their information content: " + annotationKeys.toString());
     }
 
     /**
      * Get a list of indices which give the ascending sort order of the data array
-     * @param data the data to consider
+     * @param inputVector the data to consider
      * @return a non-null list of integers with length matching the length of the input array
      */
-    protected List<Integer> calculateSortOrder(final double[] data) {
-        final List<Integer> theOrder = new ArrayList<>(data.length);
-        final List<MyStandardDeviation> sortedData = new ArrayList<>(data.length);
+    protected List<Integer> calculateSortOrder(final double[] inputVector) {
+        final List<Integer> theOrder = new ArrayList<>(inputVector.length);
+        final List<MyDoubleForSorting> toBeSorted = new ArrayList<>(inputVector.length);
         int count = 0;
-        for( final double d : data ) {
-            sortedData.add(new MyStandardDeviation(d, count++));
+        for( int iii = 0; iii < inputVector.length; iii++ ) {
+            toBeSorted.add(new MyDoubleForSorting(-1.0 * Math.abs(inputVector[iii] - mean(iii, false)), count++));
         }
-        Collections.sort(sortedData); // sort the data in ascending order
-        for( final MyStandardDeviation d : sortedData ) {
+        Collections.sort(toBeSorted);
+        for( final MyDoubleForSorting d : toBeSorted ) {
             theOrder.add(d.originalIndex); // read off the sort order by looking at the index field
         }
         return theOrder;
     }
 
-    // small private class to assist in reading off the new ordering of the standard deviation array
-    private class MyStandardDeviation implements Comparable<MyStandardDeviation> {
-        final Double standardDeviation;
+    // small private class to assist in reading off the new ordering of the annotation array
+    private class MyDoubleForSorting implements Comparable<MyDoubleForSorting> {
+        final Double myData;
         final int originalIndex;
 
-        public MyStandardDeviation( final double standardDeviation, final int originalIndex ) {
-            this.standardDeviation = standardDeviation;
+        public MyDoubleForSorting(final double myData, final int originalIndex) {
+            this.myData = myData;
             this.originalIndex = originalIndex;
         }
 
         @Override
-        public int compareTo(final MyStandardDeviation other) {
-            return standardDeviation.compareTo(other.standardDeviation);
+        public int compareTo(final MyDoubleForSorting other) {
+            return myData.compareTo(other.myData);
         }
     }
 
@@ -233,92 +234,77 @@ public class VariantDataManager {
         return false;
     }
 
-    public ExpandingArrayList<VariantDatum> getTrainingData() {
-        final ExpandingArrayList<VariantDatum> trainingData = new ExpandingArrayList<>();
+    public List<VariantDatum> getTrainingData() {
+        final List<VariantDatum> trainingData = new ExpandingArrayList<>();
         for( final VariantDatum datum : data ) {
-            if( datum.atTrainingSite && !datum.failingSTDThreshold && datum.originalQual > VRAC.QUAL_THRESHOLD ) {
+            if( datum.atTrainingSite && !datum.failingSTDThreshold ) {
                 trainingData.add( datum );
             }
         }
         logger.info( "Training with " + trainingData.size() + " variants after standard deviation thresholding." );
-        if( trainingData.size() < VRAC.NUM_BAD_VARIANTS) {
+        if( trainingData.size() < VRAC.MIN_NUM_BAD_VARIANTS ) {
             logger.warn( "WARNING: Training with very few variant sites! Please check the model reporting PDF to ensure the quality of the model is reliable." );
+        } else if( trainingData.size() > VRAC.MAX_NUM_TRAINING_DATA ) {
+            logger.warn( "WARNING: Very large training set detected. Downsampling to " + VRAC.MAX_NUM_TRAINING_DATA + " training variants." );
+            Collections.shuffle(trainingData);
+            return trainingData.subList(0, VRAC.MAX_NUM_TRAINING_DATA);
         }
         return trainingData;
     }
 
-    public ExpandingArrayList<VariantDatum> selectWorstVariants( final int minimumNumber ) {
-        // The return value is the list of training variants
-        final ExpandingArrayList<VariantDatum> trainingData = new ExpandingArrayList<>();
+    public List<VariantDatum> selectWorstVariants() {
+        final List<VariantDatum> trainingData = new ExpandingArrayList<>();
 
-        // First add to the training list all sites overlapping any bad sites training tracks
         for( final VariantDatum datum : data ) {
-            if( datum.atAntiTrainingSite && !datum.failingSTDThreshold && !Double.isInfinite(datum.lod) ) {
-                trainingData.add( datum );
-            }
-        }
-        final int numBadSitesAdded = trainingData.size();
-        logger.info( "Found " + numBadSitesAdded + " variants overlapping bad sites training tracks." );
-
-        // Next sort the variants by the LOD coming from the positive model and add to the list the bottom X percent of variants
-        Collections.sort( data, new VariantDatum.VariantDatumLODComparator() );
-        final int numToAdd = minimumNumber - trainingData.size();
-        if( numToAdd > data.size() ) {
-            throw new UserException.BadInput( "Error during negative model training. Minimum number of variants to use in training is larger than the whole call set. One can attempt to lower the --numBadVariants arugment but this is unsafe." );
-        }
-        int index = 0, numAdded = 0;
-        while( numAdded < numToAdd && index < data.size() ) {
-            final VariantDatum datum = data.get(index++);
-            if( datum != null && !datum.atAntiTrainingSite && !datum.failingSTDThreshold && !Double.isInfinite(datum.lod) ) {
+            if( datum != null && !datum.failingSTDThreshold && !Double.isInfinite(datum.lod) && datum.lod < VRAC.BAD_LOD_CUTOFF ) {
                 datum.atAntiTrainingSite = true;
                 trainingData.add( datum );
-                numAdded++;
             }
         }
-        logger.info( "Additionally training with worst " + numToAdd + " scoring variants --> " + (trainingData.size() - numBadSitesAdded) + " variants with LOD <= " + String.format("%.4f", data.get(index).lod) + "." );
+
+        logger.info( "Training with worst " + trainingData.size() + " scoring variants --> variants with LOD <= " + String.format("%.4f", VRAC.BAD_LOD_CUTOFF) + "." );
+
         return trainingData;
     }
 
-    public ExpandingArrayList<VariantDatum> getRandomDataForPlotting( int numToAdd ) {
-        numToAdd = Math.min(numToAdd, data.size());
-        final ExpandingArrayList<VariantDatum> returnData = new ExpandingArrayList<>();
-        // add numToAdd non-anti training sites to plot
-        for( int iii = 0; iii < numToAdd; iii++) {
-            final VariantDatum datum = data.get(GenomeAnalysisEngine.getRandomGenerator().nextInt(data.size()));
-            if( ! datum.atAntiTrainingSite && !datum.failingSTDThreshold ) {
-                returnData.add(datum);
-            }
-        }
+    public List<VariantDatum> getEvaluationData() {
+        final List<VariantDatum> evaluationData = new ExpandingArrayList<>();
 
-        final int MAX_ANTI_TRAINING_SITES = 10000;
-        int nAntiTrainingAdded = 0;
-        // Add all anti-training sites to visual
         for( final VariantDatum datum : data ) {
-            if ( nAntiTrainingAdded > MAX_ANTI_TRAINING_SITES )
-                break;
-            else if ( datum.atAntiTrainingSite ) {
-                returnData.add(datum);
-                nAntiTrainingAdded++;
+            if( datum != null && !datum.failingSTDThreshold && !datum.atTrainingSite && !datum.atAntiTrainingSite ) {
+                evaluationData.add( datum );
             }
         }
 
+        return evaluationData;
+    }
+
+    public List<VariantDatum> getRandomDataForPlotting( final int numToAdd, final List<VariantDatum> trainingData, final List<VariantDatum> antiTrainingData, final List<VariantDatum> evaluationData ) {
+        final List<VariantDatum> returnData = new ExpandingArrayList<>();
+        Collections.shuffle(trainingData);
+        Collections.shuffle(antiTrainingData);
+        Collections.shuffle(evaluationData);
+        returnData.addAll(trainingData.subList(0, Math.min(numToAdd, trainingData.size())));
+        returnData.addAll(antiTrainingData.subList(0, Math.min(numToAdd, antiTrainingData.size())));
+        returnData.addAll(evaluationData.subList(0, Math.min(numToAdd, evaluationData.size())));
+        Collections.shuffle(returnData);
         return returnData;
     }
 
-    private double mean( final int index ) {
+    protected double mean( final int index, final boolean trainingData ) {
         double sum = 0.0;
         int numNonNull = 0;
         for( final VariantDatum datum : data ) {
-            if( datum.atTrainingSite && !datum.isNull[index] ) { sum += datum.annotations[index]; numNonNull++; }
+            if( (trainingData == datum.atTrainingSite) && !datum.isNull[index] ) { sum += datum.annotations[index]; numNonNull++; }
         }
         return sum / ((double) numNonNull);
     }
 
-    private double standardDeviation( final double mean, final int index ) {
+    protected double standardDeviation( final double mean, final int index, final boolean trainingData ) {
         double sum = 0.0;
         int numNonNull = 0;
         for( final VariantDatum datum : data ) {
-            if( datum.atTrainingSite && !datum.isNull[index] ) { sum += ((datum.annotations[index] - mean)*(datum.annotations[index] - mean)); numNonNull++; }
+            if( (trainingData == datum.atTrainingSite) && !datum.isNull[index] ) { sum += ((datum.annotations[index] - mean)*(datum.annotations[index] - mean)); numNonNull++; }
         }
         return Math.sqrt( sum / ((double) numNonNull) );
     }
@@ -343,12 +329,9 @@ public class VariantDataManager {
         try {
             value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
             if( Double.isInfinite(value) ) { value = Double.NaN; }
-            if( jitter && annotationKey.equalsIgnoreCase("HRUN") ) { // Integer valued annotations must be jittered a bit to work in this GMM
-                value += -0.25 + 0.5 * GenomeAnalysisEngine.getRandomGenerator().nextDouble();
-            }
-
-            if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, 0.0001) == 0 ) { value = -0.2 + 0.4*GenomeAnalysisEngine.getRandomGenerator().nextDouble(); }
-            if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, 0.001) == 0 ) { value = -0.2 + 0.4*GenomeAnalysisEngine.getRandomGenerator().nextDouble(); }
+            if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("InbreedingCoeff") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
         } catch( Exception e ) {
             value = Double.NaN; // The VQSR works with missing data by marginalizing over the missing dimension when evaluating the Gaussian mixture model
         }

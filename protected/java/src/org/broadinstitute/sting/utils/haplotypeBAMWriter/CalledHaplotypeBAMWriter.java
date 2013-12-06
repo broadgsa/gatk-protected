@@ -46,15 +46,17 @@
 
 package org.broadinstitute.sting.utils.haplotypeBAMWriter;
 
-import net.sf.samtools.SAMFileWriter;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.variant.variantcontext.Allele;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Writes a BAM containing just the reads in stratifiedReadMap aligned to their
@@ -99,7 +101,9 @@ class CalledHaplotypeBAMWriter extends HaplotypeBAMWriter {
         for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
             for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
                 final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue(), allelesOfCalledHaplotypes);
-                writeReadAgainstHaplotype(entry.getKey(), alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele()), paddedReferenceLoc.getStart(), bestAllele.isInformative());
+                final Haplotype haplotype = alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele());
+                if (haplotype == null) continue;
+                writeReadAgainstHaplotype(entry.getKey(), haplotype, paddedReferenceLoc.getStart(), bestAllele.isInformative());
             }
         }
     }

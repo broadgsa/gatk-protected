@@ -86,6 +86,7 @@ class ActiveRegionTrimmer {
         if ( maxDistanceInExtensionForGenotyping < 0 ) throw new IllegalArgumentException("maxDistanceInExtensionForGenotyping must be >= 0 but got " + maxDistanceInExtensionForGenotyping);
         if ( parser == null ) throw new IllegalArgumentException("parser cannot be null");
 
+        logger.debug("Trimmer created with parameters " + logTrimming + " " + snpPadding + " " + nonSnpPadding + " " + maxDistanceInExtensionForGenotyping);
         this.logTrimming = logTrimming;
         this.snpPadding = snpPadding;
         this.nonSnpPadding = nonSnpPadding;
@@ -101,28 +102,35 @@ class ActiveRegionTrimmer {
      *
      * @param region our full active region
      * @param allVariantsWithinExtendedRegion all of the variants found in the entire region, sorted by their start position
+     * @param emitReferenceConfidence are we going to estimate the reference confidence with this active region?
      * @return a new ActiveRegion trimmed down to just what's needed for genotyping, or null if we couldn't do this successfully
      */
-    public ActiveRegion trimRegion(final ActiveRegion region, final TreeSet<VariantContext> allVariantsWithinExtendedRegion) {
+    public ActiveRegion trimRegion(final ActiveRegion region, final TreeSet<VariantContext> allVariantsWithinExtendedRegion, final boolean emitReferenceConfidence) {
+
         if ( allVariantsWithinExtendedRegion.isEmpty() ) // no variants, so just return the current region
             return null;
 
-        final List<VariantContext> withinActiveRegion = new LinkedList<VariantContext>();
-        int pad = snpPadding;
+        final List<VariantContext> withinActiveRegion = new LinkedList<>();
+        boolean foundNonSnp = false;
         GenomeLoc trimLoc = null;
         for ( final VariantContext vc : allVariantsWithinExtendedRegion ) {
             final GenomeLoc vcLoc = parser.createGenomeLoc(vc);
             if ( region.getLocation().overlapsP(vcLoc) ) {
                 if ( ! vc.isSNP() ) // if anything isn't a SNP use the bigger padding
-                    pad = nonSnpPadding;
+                    foundNonSnp = true;
                 trimLoc = trimLoc == null ? vcLoc : trimLoc.endpointSpan(vcLoc);
                 withinActiveRegion.add(vc);
             }
         }
+        final int pad = ( emitReferenceConfidence || foundNonSnp ? nonSnpPadding : snpPadding );
 
         // we don't actually have anything in the region after removing variants that don't overlap the region's full location
         if ( trimLoc == null ) return null;
 
+//        final GenomeLoc maxSpan = parser.createPaddedGenomeLoc(region.getLocation(), maxDistanceInExtensionForGenotyping);
+        // Try to have one kmer before and after any event.
+
+        final GenomeLoc regionLoc = region.getLocation();
         final GenomeLoc maxSpan = parser.createPaddedGenomeLoc(region.getLocation(), maxDistanceInExtensionForGenotyping);
         final GenomeLoc idealSpan = parser.createPaddedGenomeLoc(trimLoc, pad);
         final GenomeLoc finalSpan = maxSpan.intersect(idealSpan);
@@ -130,6 +138,7 @@ class ActiveRegionTrimmer {
         final ActiveRegion trimmedRegion = region.trim(finalSpan);
         if ( logTrimming ) {
             logger.info("events     : " + withinActiveRegion);
+            logger.info("region     : " + regionLoc);
             logger.info("trimLoc    : " + trimLoc);
             logger.info("pad        : " + pad);
             logger.info("idealSpan  : " + idealSpan);

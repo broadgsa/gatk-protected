@@ -55,10 +55,8 @@ import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.collections.PrimitivePair;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
@@ -213,7 +211,8 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
         final ActiveRegion activeRegion = new ActiveRegion(loc, null, true, genomeLocParser, 0);
         activeRegion.addAll(reads);
 //        logger.warn("Assembling " + activeRegion + " with " + engine);
-        return assembler.runLocalAssembly(activeRegion, refHaplotype, refBases, loc, Collections.<VariantContext>emptyList(), null);
+        final AssemblyResultSet assemblyResultSet =  assembler.runLocalAssembly(activeRegion, refHaplotype, refBases, loc, Collections.<VariantContext>emptyList(), null);
+        return assemblyResultSet.getHaplotypeList();
     }
 
     @DataProvider(name = "SimpleAssemblyTestData")

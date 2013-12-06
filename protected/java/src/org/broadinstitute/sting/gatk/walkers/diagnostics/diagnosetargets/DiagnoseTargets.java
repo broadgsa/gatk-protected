@@ -89,7 +89,12 @@ import java.util.*;
  * <p/>
  * <h3>Output</h3>
  * <p>
- * A modified VCF detailing each interval by sample
+ * A modified VCF detailing each interval by sample and information for each interval according to the thresholds used.
+ * Interval information includes GC Content, average interval depth, callable status among others.
+ *
+ * If you use the --missing option, you can get as a second output a intervals file with the loci that have missing data.
+ * This file can then be used as input to QualifyMissingIntervals for full qualification and interpretation of why
+ * the data is missing.
  * </p>
  * <p/>
  * <h3>Examples</h3>
@@ -117,6 +122,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
     private static final String AVG_INTERVAL_DP_KEY = "IDP";
     private static final String LOW_COVERAGE_LOCI = "LL";
     private static final String ZERO_COVERAGE_LOCI = "ZL";
+    private static final String GC_CONTENT_KEY = "GC";
 
 
     @Output(doc = "File to which interval statistics should be written")
@@ -161,7 +167,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
         // at this point, all intervals in intervalMap overlap with this locus, so update all of them
         for (IntervalStratification intervalStratification : intervalMap.values())
-            intervalStratification.addLocus(context);
+            intervalStratification.addLocus(context, ref);
 
         return 1L;
     }
@@ -276,6 +282,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
         attributes.put(VCFConstants.END_KEY, interval.getStop());
         attributes.put(AVG_INTERVAL_DP_KEY, stats.averageCoverage(interval.size()));
+        attributes.put(GC_CONTENT_KEY, stats.gcContent());
 
         vcb = vcb.attributes(attributes);
         vcb = vcb.genotypes(genotypes);
@@ -391,6 +398,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         // INFO fields for overall data
         headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
         headerLines.add(new VCFInfoHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average depth across the interval. Sum of the depth in a loci divided by interval size."));
+        headerLines.add(new VCFInfoHeaderLine(GC_CONTENT_KEY, 1, VCFHeaderLineType.Float, "GC Content of the interval"));
         headerLines.add(new VCFInfoHeaderLine("Diagnose Targets", 0, VCFHeaderLineType.Flag, "DiagnoseTargets mode"));
 
         // FORMAT fields for each genotype

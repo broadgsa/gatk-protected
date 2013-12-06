@@ -102,7 +102,7 @@ public class KBestPathsUnitTest extends BaseTest {
 
     @Test(dataProvider = "BasicPathFindingData", enabled = !DEBUG)
     public void testBasicPathFinding(final int nStartNodes, final int nBranchesPerBubble, final int nEndNodes, final boolean addCycle, final boolean allowCycles) {
-        SeqGraph graph = new SeqGraph();
+        SeqGraph graph = new SeqGraph(11);
 
         final SeqVertex middleTop = new SeqVertex("GTAC");
         final SeqVertex middleBottom = new SeqVertex("ACTG");
@@ -134,7 +134,7 @@ public class KBestPathsUnitTest extends BaseTest {
 
     @Test(enabled = !DEBUG)
     public void testPathFindingComplexCycle() {
-        SeqGraph graph = new SeqGraph();
+        SeqGraph graph = new SeqGraph(11);
 
         final SeqVertex v1 = new SeqVertex("A");
         final SeqVertex v2 = new SeqVertex("C");
@@ -154,7 +154,7 @@ public class KBestPathsUnitTest extends BaseTest {
 
     @Test(enabled = !DEBUG)
     public void testPathFindingCycleLastNode() {
-        SeqGraph graph = new SeqGraph();
+        SeqGraph graph = new SeqGraph(11);
 
         final SeqVertex v1 = new SeqVertex("A");
         final SeqVertex v2 = new SeqVertex("C");
@@ -276,7 +276,7 @@ public class KBestPathsUnitTest extends BaseTest {
     @Test(dataProvider = "TripleBubbleDataProvider", enabled = !DEBUG)
     public void testTripleBubbleData(final int refBubbleLength, final int altBubbleLength, final boolean offRefBeginning, final boolean offRefEnding) {
         // Construct the assembly graph
-        SeqGraph graph = new SeqGraph();
+        SeqGraph graph = new SeqGraph(11);
         final String preAltOption = "ATCGATCGATCGATCGATCG";
         final String postAltOption = "CCCC";
         final String preRef = "ATGG";
@@ -384,7 +384,7 @@ public class KBestPathsUnitTest extends BaseTest {
     @Test(enabled = !DEBUG)
     public void testIntraNodeInsertionDeletion() {
         // Construct the assembly graph
-        SeqGraph graph = new SeqGraph();
+        SeqGraph graph = new SeqGraph(11);
         final SeqVertex top = new SeqVertex("T");
         final SeqVertex bot = new SeqVertex("T");
         final SeqVertex alt = new SeqVertex("AAACCCCC");
@@ -410,7 +410,7 @@ public class KBestPathsUnitTest extends BaseTest {
     @Test(enabled = !DEBUG)
     public void testHardSWPath() {
         // Construct the assembly graph
-        SeqGraph graph = new SeqGraph();
+        SeqGraph graph = new SeqGraph(11);
         final SeqVertex top = new SeqVertex( "NNN" );
         final SeqVertex bot = new SeqVertex( "NNN" );
         final SeqVertex alt = new SeqVertex(               "ACAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGAGA" );
@@ -472,7 +472,7 @@ public class KBestPathsUnitTest extends BaseTest {
     @Test(dataProvider = "SystematicRefAltSWTestData", enabled = !DEBUG)
     public void testRefAltSW(final String prefix, final String end, final String refMid, final String altMid, final String midCigar) {
         // Construct the assembly graph
-        SeqGraph graph = new SeqGraph();
+        SeqGraph graph = new SeqGraph(11);
 
         final int padSize = 0;
         SeqVertex top = new SeqVertex(Utils.dupString("N", padSize));

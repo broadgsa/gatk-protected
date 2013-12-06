@@ -49,7 +49,6 @@ package org.broadinstitute.sting.utils.gvcf;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.ReferenceConfidenceModel;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
@@ -91,7 +90,7 @@ public class GVCFWriterUnitTest extends BaseTest {
     private List<Integer> standardPartition = Arrays.asList(1, 10, 20);
     private Allele REF = Allele.create("N", true);
     private Allele ALT = Allele.create("A");
-    private List<Allele> ALLELES = Arrays.asList(REF, ReferenceConfidenceModel.NON_REF_SYMBOLIC_ALLELE);
+    private List<Allele> ALLELES = Arrays.asList(REF, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
     private final String SAMPLE_NAME = "XXYYZZ";
 
     @BeforeMethod
@@ -122,6 +121,16 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     private VariantContext makeHomRef(final String contig, final int start, final int GQ) {
         final VariantContextBuilder vcb = new VariantContextBuilder("test", contig, start, start, ALLELES);
+        final GenotypeBuilder gb = new GenotypeBuilder(SAMPLE_NAME, Arrays.asList(REF, REF));
+        gb.GQ(GQ);
+        gb.DP(10);
+        gb.AD(new int[]{1, 2});
+        gb.PL(new int[]{0, 10, 100});
+        return vcb.genotypes(gb.make()).make();
+    }
+
+    private VariantContext makeHomRefAlt(final String contig, final int start, final int GQ) {
+        final VariantContextBuilder vcb = new VariantContextBuilder("test", contig, start, start, Arrays.asList(REF, ALT));
         final GenotypeBuilder gb = new GenotypeBuilder(SAMPLE_NAME, Arrays.asList(REF, REF));
         gb.GQ(GQ);
         gb.DP(10);
@@ -223,10 +232,10 @@ public class GVCFWriterUnitTest extends BaseTest {
         Assert.assertEquals(vc.getStart(), start);
         Assert.assertEquals(vc.getEnd(), stop);
         if ( nonRef ) {
-            Assert.assertNotEquals(vc.getAlternateAllele(0), ReferenceConfidenceModel.NON_REF_SYMBOLIC_ALLELE);
+            Assert.assertNotEquals(vc.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
         } else {
             Assert.assertEquals(vc.getNAlleles(), 2);
-            Assert.assertEquals(vc.getAlternateAllele(0), ReferenceConfidenceModel.NON_REF_SYMBOLIC_ALLELE);
+            Assert.assertEquals(vc.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
             Assert.assertEquals(vc.getAttributeAsInt(GVCFWriter.BLOCK_SIZE_INFO_FIELD, -1), stop - start + 1);
             Assert.assertEquals(vc.getAttributeAsInt(VCFConstants.END_KEY, -1), stop);
             Assert.assertTrue(vc.hasGenotypes());
@@ -234,8 +243,9 @@ public class GVCFWriterUnitTest extends BaseTest {
             Assert.assertEquals(vc.getGenotypes().size(), 1);
             final Genotype g = vc.getGenotype(SAMPLE_NAME);
             Assert.assertEquals(g.hasAD(), false);
-            Assert.assertEquals(g.hasLikelihoods(), false);
-            Assert.assertEquals(g.hasPL(), false);
+            Assert.assertEquals(g.hasLikelihoods(), true);
+            Assert.assertEquals(g.hasPL(), true);
+            Assert.assertEquals(g.getPL().length == 3, true);
             Assert.assertEquals(g.hasDP(), true);
             Assert.assertEquals(g.hasGQ(), true);
         }
@@ -305,9 +315,28 @@ public class GVCFWriterUnitTest extends BaseTest {
         assertGoodVC(mockWriter.emitted.get(2), "20", 6, 7, false);
     }
 
+    @Test
+    public void testHomRefAlt() {
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+
+        writer.add(makeHomRef("20", 1, 0));
+        writer.add(makeHomRef("20", 2, 0));
+        writer.add(makeHomRefAlt("20", 3, 0));
+        writer.add(makeHomRef("20", 4, 0));
+        writer.add(makeHomRef("20", 5, 0));
+        writer.add(makeHomRef("20", 6, 0));
+        writer.add(makeHomRef("20", 7, 0));
+        writer.close();
+        Assert.assertEquals(mockWriter.emitted.size(), 3);
+        assertGoodVC(mockWriter.emitted.get(0), "20", 1, 2, false);
+        Assert.assertFalse(mockWriter.emitted.get(1).hasAttribute("END"));
+        Assert.assertFalse(mockWriter.emitted.get(1).hasAttribute("BLOCK_SIZE"));
+        assertGoodVC(mockWriter.emitted.get(2), "20", 4, 7, false);
+    }
+
     @DataProvider(name = "BandPartitionData")
     public Object[][] makeBandPartitionData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         tests.add(new Object[]{null, false});
         tests.add(new Object[]{Collections.emptyList(), false});

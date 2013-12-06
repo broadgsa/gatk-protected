@@ -124,15 +124,16 @@ public abstract class LocalAssemblyEngine {
      * @param refLoc                    GenomeLoc object corresponding to the reference sequence with padding
      * @param activeAllelesToGenotype   the alleles to inject into the haplotypes during GGA mode
      * @param readErrorCorrector        a ReadErrorCorrector object, if read are to be corrected before assembly. Can be null if no error corrector is to be used.
-     * @return                          a non-empty list of all the haplotypes that are produced during assembly
+     * @return                          the resulting assembly-result-set
      */
-    public List<Haplotype> runLocalAssembly(final ActiveRegion activeRegion,
+    public AssemblyResultSet runLocalAssembly(final ActiveRegion activeRegion,
                                             final Haplotype refHaplotype,
                                             final byte[] fullReferenceWithPadding,
                                             final GenomeLoc refLoc,
                                             final List<VariantContext> activeAllelesToGenotype,
                                             final ReadErrorCorrector readErrorCorrector) {
         if( activeRegion == null ) { throw new IllegalArgumentException("Assembly engine cannot be used with a null ActiveRegion."); }
+        if( activeRegion.getExtendedLoc() == null ) { throw new IllegalArgumentException("Active region must have an extended location."); }
         if( refHaplotype == null ) { throw new IllegalArgumentException("Reference haplotype cannot be null."); }
         if( fullReferenceWithPadding.length != refLoc.size() ) { throw new IllegalArgumentException("Reference bases and reference loc must be the same size."); }
         if( pruneFactor < 0 ) { throw new IllegalArgumentException("Pruning factor cannot be negative"); }
@@ -153,26 +154,32 @@ public abstract class LocalAssemblyEngine {
         }
 
         final List<SeqGraph> nonRefGraphs = new LinkedList<>();
+        final AssemblyResultSet resultSet = new AssemblyResultSet();
+        resultSet.setRegionForGenotyping(activeRegion);
+        resultSet.setFullReferenceWithPadding(fullReferenceWithPadding);
+        resultSet.setPaddedReferenceLoc(refLoc);
+        final GenomeLoc activeRegionExtendedLocation = activeRegion.getExtendedLoc();
+        refHaplotype.setGenomeLocation(activeRegionExtendedLocation);
+        resultSet.add(refHaplotype);
+        final Map<SeqGraph,AssemblyResult> assemblyResultByGraph = new HashMap<>();
         // create the graphs by calling our subclass assemble method
         for ( final AssemblyResult result : assemble(correctedReads, refHaplotype, activeAlleleHaplotypes) ) {
             if ( result.getStatus() == AssemblyResult.Status.ASSEMBLED_SOME_VARIATION ) {
                 // do some QC on the graph
                 sanityCheckGraph(result.getGraph(), refHaplotype);
                 // add it to graphs with meaningful non-reference features
+                assemblyResultByGraph.put(result.getGraph(),result);
                 nonRefGraphs.add(result.getGraph());
             }
+
         }
+
+        findBestPaths (nonRefGraphs, refHaplotype, refLoc, activeRegionExtendedLocation, assemblyResultByGraph, resultSet);
 
         // print the graphs if the appropriate debug option has been turned on
         if ( graphWriter != null ) { printGraphs(nonRefGraphs); }
 
-        if ( nonRefGraphs.isEmpty() ) {
-            // we couldn't assemble any meaningful graphs, so return just the reference haplotype
-            return Collections.singletonList(refHaplotype);
-        } else {
-            // find the best paths in the graphs and return them as haplotypes
-            return findBestPaths( nonRefGraphs, refHaplotype, refLoc, activeRegion.getExtendedLoc() );
-        }
+        return resultSet;
     }
 
     /**
@@ -198,8 +205,10 @@ public abstract class LocalAssemblyEngine {
         return new ArrayList<>(returnHaplotypes);
     }
 
+
     @Ensures({"result.contains(refHaplotype)"})
-    protected List<Haplotype> findBestPaths(final List<SeqGraph> graphs, final Haplotype refHaplotype, final GenomeLoc refLoc, final GenomeLoc activeRegionWindow) {
+    protected List<Haplotype> findBestPaths(final List<SeqGraph> graphs, final Haplotype refHaplotype, final GenomeLoc refLoc, final GenomeLoc activeRegionWindow,
+                                            final Map<SeqGraph,AssemblyResult> assemblyResultByGraph, final AssemblyResultSet assemblyResultSet) {
         // add the reference haplotype separately from all the others to ensure that it is present in the list of haplotypes
         final Set<Haplotype> returnHaplotypes = new LinkedHashSet<>();
         returnHaplotypes.add( refHaplotype );
@@ -235,7 +244,9 @@ public abstract class LocalAssemblyEngine {
                     h.setCigar(cigar);
                     h.setAlignmentStartHapwrtRef(activeRegionStart);
                     h.setScore(path.getScore());
+                    h.setGenomeLocation(activeRegionWindow);
                     returnHaplotypes.add(h);
+                    assemblyResultSet.add(h, assemblyResultByGraph.get(graph));
 
                     if ( debug )
                         logger.info("Adding haplotype " + h.getCigar() + " from graph with kmer " + graph.getKmerSize());
@@ -243,8 +254,6 @@ public abstract class LocalAssemblyEngine {
             }
         }
 
-        // add genome locs to the haplotypes
-        for ( final Haplotype h : returnHaplotypes ) h.setGenomeLocation(activeRegionWindow);
 
         if ( returnHaplotypes.size() < returnHaplotypes.size() )
             logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);
@@ -262,8 +271,8 @@ public abstract class LocalAssemblyEngine {
         }
 
         return new ArrayList<>(returnHaplotypes);
-    }
 
+    }
     /**
      * We use CigarOperator.N as the signal that an incomplete or too divergent bubble was found during bubble traversal
      * @param c the cigar to test
@@ -326,7 +335,6 @@ public abstract class LocalAssemblyEngine {
             seqGraph.addEdge(complete, dummy, new BaseEdge(true, 0));
         }
         printDebugGraphTransform(seqGraph, new File("sequenceGraph.5.final.dot"));
-
         return new AssemblyResult(AssemblyResult.Status.ASSEMBLED_SOME_VARIATION, seqGraph);
     }
 

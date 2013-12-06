@@ -95,7 +95,11 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
     @Argument(fullName = "min_base_quality_score", shortName = "mbq", doc = "Minimum base quality required to consider a base for calling", required = false)
     public int MIN_BASE_QUALTY_SCORE = 17;
 
-    @Argument(fullName = "max_deletion_fraction", shortName = "deletions", doc = "Maximum fraction of reads with deletions spanning this locus for it to be callable [to disable, set to < 0 or > 1; default:0.05]", required = false)
+    /**
+     * If the fraction of reads with deletions spanning a locus is greater than this value, the site will not be considered callable and will be skipped.
+     * To disable the use of this parameter, set its value to >1.
+     */
+    @Argument(fullName = "max_deletion_fraction", shortName = "deletions", doc = "Maximum fraction of reads with deletions spanning this locus for it to be callable", required = false)
     public Double MAX_DELETION_FRACTION = 0.05;
 
     /**

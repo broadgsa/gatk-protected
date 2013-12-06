@@ -91,6 +91,16 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTest(NA12878_BAM, "", "439ce9024f04aad08eab1526d887e295");
     }
 
+    @Test
+    public void testHaplotypeCallerGraphBasedSingleSample() {
+        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "213df0bdaa78a695e9336128333e4407");
+    }
+
+    @Test
+    public void testHaplotypeCallerGraphBasedMultiSample() {
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "ceee711cac50b4bb66a084acb9264941");
+    }
+
     @Test(enabled = false) // can't annotate the rsID's yet
     public void testHaplotypeCallerSingleSampleWithDbsnp() {
         HCTest(NA12878_BAM, "-D " + b37dbSNP132, "");
@@ -136,16 +146,16 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     }
 
     private boolean containsDuplicateRecord( final File vcf, final GenomeLocParser parser ) {
-        final List<Pair<GenomeLoc, GenotypingEngine.Event>> VCs = new ArrayList<Pair<GenomeLoc, GenotypingEngine.Event>>();
+        final List<Pair<GenomeLoc, GenotypingEngine.Event>> VCs = new ArrayList<>();
         try {
             for( final VariantContext vc :  GATKVCFUtils.readVCF(vcf).getSecond() ) {
-                VCs.add(new Pair<GenomeLoc, GenotypingEngine.Event>(parser.createGenomeLoc(vc), new GenotypingEngine.Event(vc)));
+                VCs.add(new Pair<>(parser.createGenomeLoc(vc), new GenotypingEngine.Event(vc)));
             }
         } catch( IOException e ) {
             throw new IllegalStateException("Somehow the temporary VCF from the integration test could not be read.");
         }
 
-        final Set<Pair<GenomeLoc, GenotypingEngine.Event>> VCsAsSet = new HashSet<Pair<GenomeLoc, GenotypingEngine.Event>>(VCs);
+        final Set<Pair<GenomeLoc, GenotypingEngine.Event>> VCsAsSet = new HashSet<>(VCs);
         return VCsAsSet.size() != VCs.size(); // The set will remove duplicate Events.
     }
 
@@ -233,7 +243,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("f3e636d64042e766cc6515987e85a968"));
+                Arrays.asList("a43d6226a51eb525f0774f88e3778189"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -256,7 +266,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestAggressivePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model AGGRESSIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,000,000-10,300,000", 1,
-                Arrays.asList("ab49f80783e5db5f9ab6b13ba2ad00cb"));
+                Arrays.asList("19c2992541ede7407192660fdc1fadbf"));
         executeTest("HC calling with aggressive indel error modeling on WGS intervals", spec);
     }
 
@@ -264,7 +274,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestConservativePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model CONSERVATIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,000,000-10,300,000", 1,
-                Arrays.asList("16f7ffa063511c70bad795639a1c2638"));
+                Arrays.asList("f4ab037915db3a40ba26e9ee30d40e16"));
         executeTest("HC calling with conservative indel error modeling on WGS intervals", spec);
     }
 }

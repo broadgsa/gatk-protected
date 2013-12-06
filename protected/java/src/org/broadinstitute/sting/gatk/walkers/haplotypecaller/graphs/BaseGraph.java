@@ -68,7 +68,7 @@ import java.util.*;
 @Invariant("!this.isAllowingMultipleEdges()")
 public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends DefaultDirectedGraph<V, E> {
     protected final static Logger logger = Logger.getLogger(BaseGraph.class);
-    private final int kmerSize;
+    protected final int kmerSize;
 
     /**
      * Construct a TestGraph with kmerSize
@@ -95,10 +95,13 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
      */
     public boolean isReferenceNode( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
-        for( final BaseEdge e : edgesOf(v) ) {
-            if( e.isRef() ) { return true; }
+
+        for ( final BaseEdge e : edgesOf(v) ) {
+            if ( e.isRef() ) { return true; }
         }
-        return false;
+
+        // edge case: if the graph only has one node then it's a ref node, otherwise it's not
+        return (vertexSet().size() == 1);
     }
 
     /**
@@ -155,61 +158,45 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
     }
 
     /**
-     * @param e the edge to test
-     * @return  true if this edge is a reference source edge
-     */
-    public boolean isRefSource( final E e ) {
-        if( e == null ) { throw new IllegalArgumentException("Attempting to test a null edge."); }
-        for( final E edgeToTest : incomingEdgesOf(getEdgeSource(e)) ) {
-            if( edgeToTest.isRef() ) { return false; }
-        }
-        return true;
-    }
-
-    /**
      * @param v the vertex to test
      * @return  true if this vertex is a reference source
      */
     public boolean isRefSource( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
-        for( final E edgeToTest : incomingEdgesOf(v) ) {
-            if( edgeToTest.isRef() ) { return false; }
+
+        // confirm that no incoming edges are reference edges
+        for ( final E edgeToTest : incomingEdgesOf(v) ) {
+            if ( edgeToTest.isRef() ) { return false; }
         }
-        return true;
+
+        // confirm that there is an outgoing reference edge
+        for ( final E edgeToTest : outgoingEdgesOf(v) ) {
+            if ( edgeToTest.isRef() ) { return true; }
+        }
+
+        // edge case: if the graph only has one node then it's a ref sink, otherwise it's not
+        return (vertexSet().size() == 1);
     }
 
     /**
-     * @param e the edge to test
-     * @return  true if this edge is a reference sink edge
-     */
-    public boolean isRefSink( final E e ) {
-        if( e == null ) { throw new IllegalArgumentException("Attempting to test a null edge."); }
-        for( final E edgeToTest : outgoingEdgesOf(getEdgeTarget(e)) ) {
-            if( edgeToTest.isRef() ) { return false; }
-        }
-        return true;
-    }
-
-    /**
-     * // TODO -- the logic of this test is just wrong
      * @param v the vertex to test
      * @return  true if this vertex is a reference sink
      */
     public boolean isRefSink( final V v ) {
         if( v == null ) { throw new IllegalArgumentException("Attempting to test a null vertex."); }
-        for( final E edgeToTest : outgoingEdgesOf(v) ) {
-            if( edgeToTest.isRef() ) { return false; }
-        }
-        return true;
-    }
 
-    /**
-     * Is this both a refsink node and a reference node
-     * @param v a non-null vertex
-     * @return true if v is both a sink and a reference node
-     */
-    public boolean isRefNodeAndRefSink(final V v) {
-        return isRefSink(v) && isReferenceNode(v);
+        // confirm that no outgoing edges are reference edges
+        for ( final E edgeToTest : outgoingEdgesOf(v) ) {
+            if ( edgeToTest.isRef() ) { return false; }
+        }
+
+        // confirm that there is an incoming reference edge
+        for ( final E edgeToTest : incomingEdgesOf(v) ) {
+            if ( edgeToTest.isRef() ) { return true; }
+        }
+
+        // edge case: if the graph only has one node then it's a ref source, otherwise it's not
+        return (vertexSet().size() == 1);
     }
 
     /**
@@ -217,7 +204,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
      */
     public V getReferenceSourceVertex( ) {
         for( final V v : vertexSet() ) {
-            if( isReferenceNode(v) && isRefSource(v) ) {
+            if( isRefSource(v) ) {
                 return v;
             }
         }
@@ -229,7 +216,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
      */
     public V getReferenceSinkVertex( ) {
         for( final V v : vertexSet() ) {
-            if( isReferenceNode(v) && isRefSink(v) ) {
+            if( isRefSink(v) ) {
                 return v;
             }
         }
@@ -490,7 +477,7 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         // Run through the graph and clean up singular orphaned nodes
         final List<V> verticesToRemove = new LinkedList<>();
         for( final V v : vertexSet() ) {
-            if( inDegreeOf(v) == 0 && outDegreeOf(v) == 0 ) {
+            if( inDegreeOf(v) == 0 && outDegreeOf(v) == 0 && !isRefSource(v) ) {
                 verticesToRemove.add(v);
             }
         }

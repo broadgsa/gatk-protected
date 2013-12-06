@@ -89,9 +89,8 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
     protected static List<Allele> computeConsensusAlleles(final ReferenceContext ref,
                                                  final Map<String, AlignmentContext> contexts,
                                                  final AlignmentContextUtils.ReadOrientation contextType,
-                                                 final GenomeLocParser locParser,
                                                  final UnifiedArgumentCollection UAC) {
-        ConsensusAlleleCounter counter = new ConsensusAlleleCounter(locParser, true, UAC.MIN_INDEL_COUNT_FOR_GENOTYPING, UAC.MIN_INDEL_FRACTION_PER_SAMPLE);
+        ConsensusAlleleCounter counter = new ConsensusAlleleCounter(true, UAC.MIN_INDEL_COUNT_FOR_GENOTYPING, UAC.MIN_INDEL_FRACTION_PER_SAMPLE);
         return counter.computeConsensusAlleles(ref, contexts, contextType);
     }
 
@@ -113,7 +112,7 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
             // starting a new site: clear allele list
             haplotypeMap.clear();
             perReadAlleleLikelihoodMap.clear(); // clean mapping sample-> per read, per allele likelihoods
-            alleleList = getInitialAlleleList(tracker, ref, contexts, contextType, locParser, UAC, ignoreSNPAllelesWhenGenotypingIndels);
+            alleleList = getInitialAlleleList(tracker, ref, contexts, contextType, UAC, ignoreSNPAllelesWhenGenotypingIndels);
             if (alleleList.isEmpty())
                 return null;
         }
@@ -212,7 +211,6 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
                                                     final ReferenceContext ref,
                                                     final Map<String, AlignmentContext> contexts,
                                                     final AlignmentContextUtils.ReadOrientation contextType,
-                                                    final GenomeLocParser locParser,
                                                     final UnifiedArgumentCollection UAC,
                                                     final boolean ignoreSNPAllelesWhenGenotypingIndels) {
 
@@ -244,7 +242,7 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
             }
 
         } else {
-            alleles = computeConsensusAlleles(ref, contexts, contextType, locParser, UAC);
+            alleles = computeConsensusAlleles(ref, contexts, contextType, UAC);
         }
         return alleles;
     }

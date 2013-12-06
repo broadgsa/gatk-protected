@@ -68,5 +68,13 @@ final class RefVsAnyResult {
     /**
      * @return Get the DP (sum of AD values)
      */
-    public int getDP() { return AD_Ref_Any[0] + AD_Ref_Any[1]; }
+    protected int getDP() { return AD_Ref_Any[0] + AD_Ref_Any[1]; }
+
+    /**
+     * Cap the het and hom var likelihood values by the hom ref likelihood.
+     */
+    protected void capByHomRefLikelihood() {
+        genotypeLikelihoods[1] = Math.min(genotypeLikelihoods[0], genotypeLikelihoods[1]);
+        genotypeLikelihoods[2] = Math.min(genotypeLikelihoods[0], genotypeLikelihoods[2]);
+    }
 }

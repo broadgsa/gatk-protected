@@ -81,7 +81,7 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
 
     @Test(enabled = !DEBUG)
     public void testSplitPrevHaveMultipleEdges() {
-        final SeqGraph original = new SeqGraph();
+        final SeqGraph original = new SeqGraph(11);
         final SeqVertex v1 = new SeqVertex("A");
         final SeqVertex v2 = new SeqVertex("A");
         final SeqVertex v3 = new SeqVertex("A");
@@ -100,7 +100,7 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
 
     @Test(enabled = !DEBUG)
     public void testSplitNoCycles() {
-        final SeqGraph original = new SeqGraph();
+        final SeqGraph original = new SeqGraph(11);
         final SeqVertex v1 = new SeqVertex("A");
         final SeqVertex v2 = new SeqVertex("AC");
         final SeqVertex v3 = new SeqVertex("TC");
@@ -118,7 +118,7 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
 
     @Test(timeOut = 10000, enabled = !DEBUG)
     public void testSplitComplexCycle() {
-        final SeqGraph original = new SeqGraph();
+        final SeqGraph original = new SeqGraph(11);
         final SeqVertex r1 = new SeqVertex("ACTG");
         final SeqVertex r2 = new SeqVertex("ATGC");
         final SeqVertex cat1 = new SeqVertex("CAT");
@@ -142,7 +142,7 @@ public class CommonSuffixSplitterUnitTest extends BaseTest {
 
     @Test(timeOut = 10000)
     public void testSplitInfiniteCycleFailure() {
-        final SeqGraph original = new SeqGraph();
+        final SeqGraph original = new SeqGraph(11);
         final SeqVertex v1 = new SeqVertex("GC");
         final SeqVertex v2 = new SeqVertex("X");
         final SeqVertex v3 = new SeqVertex("N");

@@ -112,18 +112,18 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
 
     private void annotateWithPileup(final AlignmentContext stratifiedContext, final VariantContext vc, final GenotypeBuilder gb) {
 
-        HashMap<Byte, Integer> alleleCounts = new HashMap<Byte, Integer>();
-        for ( Allele allele : vc.getAlleles() )
+        final HashMap<Byte, Integer> alleleCounts = new HashMap<>();
+        for ( final Allele allele : vc.getAlleles() )
             alleleCounts.put(allele.getBases()[0], 0);
 
-        ReadBackedPileup pileup = stratifiedContext.getBasePileup();
-        for ( PileupElement p : pileup ) {
+        final ReadBackedPileup pileup = stratifiedContext.getBasePileup();
+        for ( final PileupElement p : pileup ) {
             if ( alleleCounts.containsKey(p.getBase()) )
                 alleleCounts.put(p.getBase(), alleleCounts.get(p.getBase())+p.getRepresentativeCount());
         }
 
         // we need to add counts in the correct order
-        int[] counts = new int[alleleCounts.size()];
+        final int[] counts = new int[alleleCounts.size()];
         counts[0] = alleleCounts.get(vc.getReference().getBases()[0]);
         for (int i = 0; i < vc.getAlternateAlleles().size(); i++)
             counts[i+1] = alleleCounts.get(vc.getAlternateAllele(i).getBases()[0]);
@@ -141,7 +141,7 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
         final HashMap<Allele, Integer> alleleCounts = new HashMap<>();
         for ( final Allele allele : vc.getAlleles() ) { alleleCounts.put(allele, 0); }
 
-        for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
+        for ( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
             final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue(), alleles);
             if (! a.isInformative() ) continue; // read is non-informative
             final GATKSAMRecord read = el.getKey();

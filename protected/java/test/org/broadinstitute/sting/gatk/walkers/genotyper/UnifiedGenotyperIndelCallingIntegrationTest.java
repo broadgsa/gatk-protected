@@ -101,7 +101,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,500,000",
                 1,
-                Arrays.asList("c6f0fa039ca5672469838bc9f52c72d3"));
+                Arrays.asList("3d12bdb816d27bf7c9efb4c13dc2aec7"));
 
         executeTest(String.format("test indel calling, multiple technologies"), spec);
     }
@@ -136,7 +136,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
                 baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + result.get(0).getAbsolutePath() + " -I " + validationDataLocation +
                         "low_coverage_CEU.chr1.10k-11k.bam -o %s -L " + result.get(0).getAbsolutePath(), 1,
-                Arrays.asList("8682738c2c66b502cdbf7db466a5c3e2"));
+                Arrays.asList("a2c8e83f37cd1e114b42af4b873f57bc"));
         executeTest("test MultiSample Pilot1 CEU indels using GENOTYPE_GIVEN_ALLELES", spec2);
     }
 
