@@ -47,7 +47,8 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.caliper.Param;
-import org.apache.commons.codec.digest.DigestUtils;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.pairhmm.ActiveRegionTestDataSet;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -64,7 +65,7 @@ import java.util.*;
  * Time: 2:48 PM
  * To change this template use File | Settings | File Templates.
  */
-public class ActiveRegionTestDataSetUnitTest  {
+public class ActiveRegionTestDataSetUnitTest extends BaseTest {
 
 
 
@@ -419,6 +420,6 @@ public class ActiveRegionTestDataSetUnitTest  {
                     "CTGGGAGCCTAAGGCATCACTCAAGATACAGGCTCGGTAACGTACGCTCTAGCCATCTAA" +
                     "CTATCCCCTATGTCTTATAGGGACCTACGTTATCTGCCTG";
 
-    protected final static String REF_MD5 = new String(DigestUtils.md5(REF));
+    protected final static String REF_MD5 = Utils.calcMD5(REF);
 
 }

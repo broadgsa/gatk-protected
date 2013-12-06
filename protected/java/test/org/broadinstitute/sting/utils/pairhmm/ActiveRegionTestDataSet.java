@@ -49,14 +49,13 @@ package org.broadinstitute.sting.utils.pairhmm;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMSequenceRecord;
-import org.apache.commons.math.MathException;
 import org.apache.commons.math.distribution.ExponentialDistribution;
-import org.apache.commons.math.distribution.ExponentialDistributionImpl;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResult;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResultSet;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Civar;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadThreadingGraph;
 import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
@@ -325,7 +324,7 @@ public class ActiveRegionTestDataSet {
                 this.setReadName(r.getReadName());
             }
 
-        ExponentialDistribution indelLengthDist = new ExponentialDistributionImpl(1.0/0.9);
+        ExponentialDistribution indelLengthDist = MathUtils.exponentialDistribution(1.0 / 0.9);
 
         public MyGATKSAMRecord(final GATKSAMRecord r, final Random rnd) {
             super(r.getHeader(), r.getReferenceIndex(), r.getAlignmentStart(), (short) r.getReadNameLength(),
@@ -390,7 +389,7 @@ public class ActiveRegionTestDataSet {
             final int length;
             try {
                 length = (int) Math.round(indelLengthDist.inverseCumulativeProbability(rnd.nextDouble()) + 1);
-            } catch (MathException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
             return length;
