@@ -185,19 +185,6 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
     @Test public void complexTestSitesOnly() { combineComplexSites(" -sites_only", "46bbbbb8fc9ae6467a4f8fe35b8d7d14"); }
     @Test public void complexTestSitesOnlyMinimal() { combineComplexSites(" -sites_only -minimalVCF", "46bbbbb8fc9ae6467a4f8fe35b8d7d14"); }
 
-    @Test public void combineSingleSamplePipelineGVCF() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
-                        " -V:sample2 " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
-                        " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
-                        " -multipleAllelesMergeType MIX_TYPES" +
-                        " --excludeNonVariants -combineAnnotations -setKey null" +
-                        " -L 20:10,000,000-10,001,000", b37KGReference),
-                1,
-                Arrays.asList("0413f0725fc5ec3a4f1ee246f6cb3a2a"));
-        cvExecuteTest("combineSingleSamplePipelineGVCF", spec, true);
-    }
-
     @Test
     public void combineDBSNPDuplicateSites() {
          WalkerTestSpec spec = new WalkerTestSpec(
