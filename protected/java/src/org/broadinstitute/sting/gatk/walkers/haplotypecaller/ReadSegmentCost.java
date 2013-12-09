@@ -69,7 +69,7 @@ class ReadSegmentCost {
     /**
      * Holds the cost value. It public and non-final for convenience.
      */
-    protected double cost;
+    private double cost;
 
     /**
      * Caches the path bases (the haplotype segment bases).
@@ -87,7 +87,15 @@ class ReadSegmentCost {
                     final Route<MultiDeBruijnVertex, MultiSampleEdge> path, double cost) {
         this.read = read;
         this.path = path;
-        this.cost = cost;
+        setCost(cost);
+    }
+
+    public double getCost() {
+        return cost;
+    }
+
+    public void setCost(final double value) {
+        cost = value;
     }
 
     /**

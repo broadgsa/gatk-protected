@@ -58,10 +58,23 @@ public class ReadCost {
     /**
      * Holds the cost value. Public for convenience, please use with care.
      */
-    public double cost;
+    private double cost;
 
-    public ReadCost(final GATKSAMRecord r) {
+    /**
+     * Create a new read cost object provided the read and the gap extension penalty.
+     *
+     * @param r the read.
+     * @param initialCost the initial cost for the read before any read-segment alignment.
+     *
+     * @throws NullPointerException if {@code r} is {@code null}.
+     * @throws IllegalArgumentException if {@code initialCost} is not a valid likelihood.
+     */
+    public ReadCost(final GATKSAMRecord r, final double initialCost) {
+        if (r == null) throw new NullPointerException();
+        if (Double.isNaN(initialCost) || Double.isInfinite(initialCost) || initialCost > 0)
+            throw new IllegalArgumentException("initial cost must be a finite 0 or negative value (" + initialCost + ")");
         read = r;
+        cost = initialCost;
     }
 
 
@@ -76,5 +89,24 @@ public class ReadCost {
             return s1.compareTo(s2);
         }
     };
+
+
+    /**
+     * Add to the cost.
+     * @param value value to add.
+     */
+    public void addCost(final double value) {
+        if (cost + value > 0)
+            throw new IllegalArgumentException("value brings cost over 0. Current cost " + cost + " value " + value);
+        cost += value;
+    }
+
+    /**
+     * Return cost.
+     * @return 0 or less.
+     */
+    public double getCost() {
+        return cost;
+    }
 
 }

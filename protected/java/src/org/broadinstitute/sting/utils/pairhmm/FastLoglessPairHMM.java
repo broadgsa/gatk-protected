@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.utils.pairhmm;
 
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.PairHMMLikelihoodCalculationEngine;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
@@ -146,6 +147,11 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
     public FastLoglessPairHMM(final byte gcp) {
         constantGCP = gcp;
         initialize(readCapacity,haplotypeCapacity);
+    }
+
+    @Override
+    public byte getGapExtensionPenalty() {
+        return constantGCP;
     }
 
 
@@ -384,9 +390,10 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
         for (int kkk = 0; kkk < readQuals.length; kkk++) {
             readQuals[kkk] = (byte) Math.min(0xff & readQuals[kkk],
                     mq); // cap base quality by mapping
-            // TODO -- why is Q18 hard-coded here???
-            readQuals[kkk] = (readQuals[kkk] < (byte) 18 ? QualityUtils.MIN_USABLE_Q_SCORE
-                    : readQuals[kkk]);
+            readQuals[kkk] = (byte) (readQuals[kkk] < PairHMMLikelihoodCalculationEngine.BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE
+                    : Math.max(QualityUtils.MIN_USABLE_Q_SCORE,readQuals[kkk]));
+            readInsQuals[kkk] = (byte) Math.max(QualityUtils.MIN_USABLE_Q_SCORE,readInsQuals[kkk]);
+            readDelQuals[kkk] = (byte) Math.max(QualityUtils.MIN_USABLE_Q_SCORE,readDelQuals[kkk]);
         }
         this.readBases = readBases;
         this.readQuals = readQuals;
@@ -691,7 +698,7 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
     private double calculateLocalLikelihoodGeneral(final Problem p) {
 
         initializeMatrixValues(p,null);
-        int fromCol = p.hapStart + 1;
+     // int fromCol = p.hapStart + 1;
      //   if (previousProblem == null) {
      //       fromCol = p.hapStart + 1;
      //   } else {
@@ -704,7 +711,7 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
      //   previousProblem = p;
 
         updateTable(p.readStart + 1, p.readEnd + 1,
-                fromCol, p.hapEnd + 1);
+                p.hapStart + 1, p.hapEnd + 1);
 
         if (p.trailing) {
             return finalLikelihoodCalculation(p.readEnd,p.hapStart,p.hapEnd + 1)

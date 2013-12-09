@@ -72,6 +72,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     final static String CEUTRIO_BAM = validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam";
     final static String NA12878_RECALIBRATED_BAM = privateTestDir + "NA12878.100kb.BQSRv2.example.bam";
     final static String NA12878_PCRFREE = privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam";
+    final static String NA12878_PCRFREE250_ADAPTER_TRIMMED = privateTestDir + "PCRFree.2x250.b37_decoy.NA12878.adapter_trimmed-10000000-11000000.bam";
     final static String CEUTRIO_MT_TEST_BAM = privateTestDir + "CEUTrio.HiSeq.b37.MT.1_50.bam";
     final static String INTERVALS_FILE = validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals";
 
@@ -253,6 +254,32 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-11,000,000 -D " + b37dbSNP132
                         + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
                 Arrays.asList("1352cbe1404aefc94eb8e044539a9882"));
+        executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
+    }
+
+    @Test
+    public void HCTestDBSNPAnnotationWGSGraphBased() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
+                Arrays.asList("a6c4d5d2eece2bd2c51a81e34e80040f"));
+        executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
+    }
+
+    @Test
+    public void HCTestDBSNPAnnotationWExGraphBased() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-11,000,000 -D " + b37dbSNP132
+                        + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
+                Arrays.asList("69db1045b5445a4f90843f368bd62814"));
+        executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
+    }
+
+    @Test
+    public void HCTestGraphBasedPCRFreePositiveLogLkFix() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + hg19Reference + " --no_cmdline_in_header -I " + NA12878_PCRFREE250_ADAPTER_TRIMMED + " -o %s -L 20:10,000,000-11,000,000 "
+                        , 1,
+                Arrays.asList(""));
         executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
     }
 
