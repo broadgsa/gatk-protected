@@ -165,10 +165,10 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
     /**
      * Any set of VCF files to use as lists of training, truth, or known sites.
-     * Training - Input variants which are found to overlap with these training sites are used to build the Gaussian mixture model.
-     * Truth - When deciding where to set the cutoff in VQSLOD sensitivity to these truth sites is used.
-     * Known - The known / novel status of a variant isn't used by the algorithm itself and is only used for reporting / display purposes.
-     * Bad - In addition to using the set of worst ranked variants as compared to the Gaussian mixture model (see -numBad argument), we can also supplement the list with a database of known bad variants.
+     * Training - The program builds the Gaussian mixture model using input variants that overlap with these training sites.
+     * Truth - The program uses these truth sites to determine where to set the cutoff in VQSLOD sensitivity.
+     * Known - The program only uses known sites for reporting purposes (to indicate whether variants are already known or novel). They are not used in any calculations by the algorithm itself.
+     * Bad - A database of known bad variants can be used to supplement the set of worst ranked variants (compared to the Gaussian mixture model) that the program selects from the data to model "bad" variants.
      */
     @Input(fullName="resource", shortName = "resource", doc="A list of sites for which to apply a prior probability of being correct but which aren't used by the algorithm (training and truth sets are required to run)", required=true)
     public List<RodBinding<VariantContext>> resource = Collections.emptyList();
