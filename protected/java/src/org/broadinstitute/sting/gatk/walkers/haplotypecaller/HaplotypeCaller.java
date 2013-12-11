@@ -342,6 +342,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // -----------------------------------------------------------------------------------------------
 
     /**
+     * The minimum confidence needed for a given base for it to be used in variant calling.
+     */
+    @Argument(fullName = "min_base_quality_score", shortName = "mbq", doc = "Minimum base quality required to consider a base for calling", required = false)
+    public byte MIN_BASE_QUALTY_SCORE = 10;
+
+    /**
      * Users should be aware that this argument can really affect the results of the variant calling and should exercise caution.
      * Using a prune factor of 1 (or below) will prevent any pruning from the graph which is generally not ideal; it can make the
      * calling much slower and even less accurate (because it can prevent effective merging of "tails" in the graph).  Higher values
@@ -440,10 +446,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler for only this graph size", required = false)
     protected boolean debugGraphTransformations = false;
 
-    @Hidden // TODO -- not currently useful
-    @Argument(fullName="useLowQualityBasesForAssembly", shortName="useLowQualityBasesForAssembly", doc="If specified, we will include low quality bases when doing the assembly", required = false)
-    protected boolean useLowQualityBasesForAssembly = false;
-
     @Hidden
     @Argument(fullName="dontTrimActiveRegions", shortName="dontTrimActiveRegions", doc="If specified, we will not trim down the active region from the full region (active + extension) to just the active interval for genotyping", required = false)
     protected boolean dontTrimActiveRegions = false;
@@ -536,10 +538,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private final static int maxReadsInRegionPerSample = 1000; // TODO -- should be an argument
     private final static int minReadsPerAlignmentStart = 5; // TODO -- should be an argument
 
-    // bases with quality less than or equal to this value are trimmed off the tails of the reads
-    private static final byte MIN_TAIL_QUALITY = 20;
-
+    private byte MIN_TAIL_QUALITY;
     private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
+
     // the minimum length of a read we'd consider using for genotyping
     private final static int MIN_READ_LENGTH = 10;
 
@@ -651,9 +652,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         assemblyEngine.setDebugGraphTransformations(debugGraphTransformations);
         assemblyEngine.setAllowCyclesInKmerGraphToGeneratePaths(allowCyclesInKmerGraphToGeneratePaths);
         assemblyEngine.setRecoverDanglingTails(!dontRecoverDanglingTails);
+        assemblyEngine.setMinBaseQualityToUseInAssembly(MIN_BASE_QUALTY_SCORE);
+
+        MIN_TAIL_QUALITY = (byte)(MIN_BASE_QUALTY_SCORE - 1);
 
         if ( graphWriter != null ) assemblyEngine.setGraphWriter(graphWriter);
-        if ( useLowQualityBasesForAssembly ) assemblyEngine.setMinBaseQualityToUseInAssembly((byte)1);
 
         // setup the likelihood calculation engine
         if ( phredScaledGlobalReadMismappingRate < 0 ) phredScaledGlobalReadMismappingRate = -1;
@@ -758,12 +761,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final GenotypesContext genotypes = GenotypesContext.create(splitContexts.keySet().size());
         final MathUtils.RunningAverage averageHQSoftClips = new MathUtils.RunningAverage();
         for( final Map.Entry<String, AlignmentContext> sample : splitContexts.entrySet() ) {
-            final double[] genotypeLikelihoods = referenceConfidenceModel.calcGenotypeLikelihoodsOfRefVsAny(sample.getValue().getBasePileup(), ref.getBase(), (byte) 18, averageHQSoftClips).genotypeLikelihoods;
+            final double[] genotypeLikelihoods = referenceConfidenceModel.calcGenotypeLikelihoodsOfRefVsAny(sample.getValue().getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE, averageHQSoftClips).genotypeLikelihoods;
             genotypes.add( new GenotypeBuilder(sample.getKey()).alleles(noCall).PL(genotypeLikelihoods).make() );
         }
 
         final List<Allele> alleles = Arrays.asList(FAKE_REF_ALLELE , FAKE_ALT_ALLELE);
-        final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.INDEL);
+        final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.SNP);
         final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
 
         return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
@@ -1113,8 +1116,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             GATKSAMRecord clippedRead;
             if (errorCorrectReads)
                 clippedRead = ReadClipper.hardClipLowQualEnds( myRead, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION );
-            else if (useLowQualityBasesForAssembly)
-                clippedRead = myRead;
             else  // default case: clip low qual ends of reads
                 clippedRead= ReadClipper.hardClipLowQualEnds( myRead, MIN_TAIL_QUALITY );
 

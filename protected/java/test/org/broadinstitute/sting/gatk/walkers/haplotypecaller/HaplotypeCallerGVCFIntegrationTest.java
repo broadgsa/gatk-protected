@@ -65,13 +65,12 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
-        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.NONE, PCRFreeIntervals, "96328c91cf9b06de231b37a22a7a7639"});
-        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "ac25e9a78b89655197513bb0eb7a6845"});
-        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "dc0dde72131d562587acae967cf2031f"});
-        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.NONE, WExIntervals, "7cb1e431119df00ec243a6a115fa74b8"});
-        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "90e22230149e6c32d1115d0e2f03cab1"});
-        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.GVCF, WExIntervals, "b39a4bc19a0acfbade22a011cd229262"});
-
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.NONE, PCRFreeIntervals, "53aa13711a1ceec1453f21c705723f04"});
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "4bb8e44b2d04757f8b11ca6400828357"});
+        tests.add(new Object[]{NA12878_PCRFREE, HaplotypeCaller.ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "8ddc291584f56e27d125b6a0523f2703"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.NONE, WExIntervals, "39bf5fe3911d0c646eefa8f79894f4df"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "e53e164cc3f5cbd5fba083f2cdb98a88"});
+        tests.add(new Object[]{NA12878_WEx, HaplotypeCaller.ReferenceConfidenceMode.GVCF, WExIntervals, "a258dbbfabe88dad11d57151cd256831"});
 
         return tests.toArray(new Object[][]{});
     }
