@@ -71,7 +71,7 @@ import java.util.*;
 public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculationEngine {
     private final static Logger logger = Logger.getLogger(PairHMMLikelihoodCalculationEngine.class);
 
-    private static final byte BASE_QUALITY_SCORE_THRESHOLD = (byte) 18; // Base quals less than this value are squashed down to min possible qual
+    public static final byte BASE_QUALITY_SCORE_THRESHOLD = (byte) 18; // Base quals less than this value are squashed down to min possible qual
 
     private final byte constantGCP;
     private final double log10globalReadMismappingRate;

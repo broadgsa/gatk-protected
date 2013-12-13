@@ -97,4 +97,9 @@ public interface FlexibleHMM {
     public void loadRead(byte[] bases, byte[] bq, byte[] iq, byte[] dq, int mq);
 
 
+    /**
+     * Returns the constant gap extension penalty in Phred scale
+     * @return never @code null.
+     */
+    byte getGapExtensionPenalty();
 }

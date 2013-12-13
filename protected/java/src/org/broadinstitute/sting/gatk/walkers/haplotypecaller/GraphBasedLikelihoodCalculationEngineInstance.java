@@ -52,8 +52,8 @@ import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Path;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Route;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.HaplotypeGraph;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.MultiDeBruijnVertex;
+import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.collections.CountSet;
 import org.broadinstitute.sting.utils.collections.CountSet;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
@@ -118,6 +118,11 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
     private final FlexibleHMM hmm;
 
     /**
+     * Holds the log10 probability of passing from a indel to a match.
+     */
+    private final double indelToMatchTransitionLog10Probability;
+
+    /**
      * Maximum likelihood difference between the reference haplotype and the best alternative haplotype.
      *
      * <p>If the difference is greater for a read, the reference haplotype likelihood is increase in order to not go
@@ -146,6 +151,7 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
             throw new IllegalArgumentException("the global reading mismapping rate cannot be positive or zero");
 
         this.hmm = hmm;
+        this.indelToMatchTransitionLog10Probability = QualityUtils.qualToProbLog10(hmm.getGapExtensionPenalty());
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
 
         haplotypes = new ArrayList<>(assemblyResultSet.getHaplotypeList());
@@ -302,9 +308,7 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
         for (final Haplotype haplotype : supportedHaplotypes)
             calculatePerReadAlleleLikelihoodMapHaplotypeProcessing(haplotype, alleleVersions, result, maxAlleleLogLk, costsEndingByVertex);
 
-        //TODO Does not seem to be needed in practice:
-        //TODO furhter testing/evaluation required before removing it completely.
-        //makeLikelihoodAdjustment(alleleVersions, result, maxAlternativeAlleleLogLk.keySet(), maxAlternativeAlleleLogLk);
+        makeLikelihoodAdjustment(alleleVersions, result, maxAlleleLogLk.keySet(), maxAlleleLogLk);
         applyGlobalReadMismappingRate(alleleVersions, result, maxAlleleLogLk);
         return result;
     }
@@ -350,12 +354,12 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
         final List<ReadCost> readCosts = new ArrayList<>(readCostByRead.values());
         Collections.sort(readCosts, ReadCost.COMPARATOR);
         for (final ReadCost rc : readCosts)
-            result.add(rc.read, alleleVersions.get(haplotype), rc.cost);
+            result.add(rc.read, alleleVersions.get(haplotype), rc.getCost());
 
         for (final ReadCost rc : readCosts) {
             final Double currentMax = maxAlleleLogLk.get(rc.read);
-            if (currentMax == null || currentMax < rc.cost)
-                maxAlleleLogLk.put(rc.read, rc.cost);
+            if (currentMax == null || currentMax < rc.getCost())
+                maxAlleleLogLk.put(rc.read, rc.getCost());
         }
     }
 
@@ -379,8 +383,8 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
                     continue;
                 ReadCost rc = readCosts.get(pc.read);
                 if (rc == null)
-                    readCosts.put(pc.read, rc = new ReadCost(pc.read));
-                rc.cost += pc.cost;
+                    readCosts.put(pc.read, rc = new ReadCost(pc.read,indelToMatchTransitionLog10Probability));
+                rc.addCost(pc.getCost());
             }
         }
     }
@@ -641,7 +645,7 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
         // Calculate the costs.
         for (final ReadSegmentCost readSegmentCost : readSegmentCosts) {
             hmm.loadHaplotypeBases(readSegmentCost.bases);
-            readSegmentCost.cost = hmm.calculateLocalLikelihood(Math.max(0, readStart), readEnd - rightClipping, 0, readSegmentCost.bases.length - rightClipping, false);
+            readSegmentCost.setCost(hmm.calculateLocalLikelihood(Math.max(0, readStart), readEnd - rightClipping, 0, readSegmentCost.bases.length - rightClipping, false));
             if (prependVertex != null)
                 readSegmentCost.path = new Route<>(prependVertex,readSegmentCost.path);
             if (appendVertex != null)
