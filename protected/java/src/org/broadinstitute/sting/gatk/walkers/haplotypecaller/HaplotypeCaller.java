@@ -564,6 +564,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public void initialize() {
         super.initialize();
 
+        if (dontGenotype && emitReferenceConfidence == ReferenceConfidenceMode.GVCF)
+            throw new UserException("You cannot request gVCF output and do not genotype at the same time");
+
+        if ( emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
+            SCAC.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
+            SCAC.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
+            logger.info("Standard Emitting and Calling confidence set to 0.0 for gVCF output");
+        }
+
         if ( SCAC.AFmodel == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY )
             throw new UserException.BadArgumentValue("pnrm", "HaplotypeCaller doesn't currently support " + SCAC.AFmodel);
 
@@ -615,24 +624,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
         headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotyperEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
 
-        referenceConfidenceModel = new ReferenceConfidenceModel(getToolkit().getGenomeLocParser(), samples, getToolkit().getSAMFileHeader(), indelSizeToEliminateInRefModel);
-        if ( emitReferenceConfidence() ) {
-            if ( samples.size() != 1 ) throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently");
-            headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
-            if ( emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
-                // a kluge to enforce the use of this indexing strategy
-                if (getToolkit().getArguments().variant_index_type != OPTIMAL_GVCF_INDEX_TYPE ||
-                        getToolkit().getArguments().variant_index_parameter != OPTIMAL_GVCF_INDEX_PARAMETER) {
-                    throw new UserException.GVCFIndexException(OPTIMAL_GVCF_INDEX_TYPE, OPTIMAL_GVCF_INDEX_PARAMETER);
-                }
-
-                try {
-                    vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands);
-                } catch ( IllegalArgumentException e ) {
-                    throw new UserException.BadArgumentValue("GQBands", "are malformed: " + e.getMessage());
-                }
-            }
-        }
+        initializeReferenceConfidenceModel(samples, headerInfo);
 
         vcfWriter.writeHeader(new VCFHeader(headerInfo, samples));
 
@@ -686,6 +678,28 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         trimmer = new ActiveRegionTrimmer(DEBUG, PADDING_AROUND_SNPS_FOR_CALLING, PADDING_AROUND_OTHERS_FOR_CALLING,
                 UAC.GenotypingMode.equals(GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES) ? MAX_GGA_ACTIVE_REGION_EXTENSION : MAX_DISCOVERY_ACTIVE_REGION_EXTENSION,
                 getToolkit().getGenomeLocParser());
+    }
+
+    private void initializeReferenceConfidenceModel(final Set<String> samples, final Set<VCFHeaderLine> headerInfo) {
+        referenceConfidenceModel = new ReferenceConfidenceModel(getToolkit().getGenomeLocParser(), samples, getToolkit().getSAMFileHeader(), indelSizeToEliminateInRefModel);
+        if ( emitReferenceConfidence() ) {
+            if ( samples.size() != 1 ) throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently");
+            headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
+            if ( emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
+                // a kluge to enforce the use of this indexing strategy
+                if (getToolkit().getArguments().variant_index_type != OPTIMAL_GVCF_INDEX_TYPE ||
+                        getToolkit().getArguments().variant_index_parameter != OPTIMAL_GVCF_INDEX_PARAMETER) {
+                    throw new UserException.GVCFIndexException(OPTIMAL_GVCF_INDEX_TYPE, OPTIMAL_GVCF_INDEX_PARAMETER);
+                }
+                SCAC.STANDARD_CONFIDENCE_FOR_EMITTING = 0.0;
+
+                try {
+                    vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands);
+                } catch ( IllegalArgumentException e ) {
+                    throw new UserException.BadArgumentValue("GQBands", "are malformed: " + e.getMessage());
+                }
+            }
+        }
     }
 
     /**
@@ -833,10 +847,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap =
                 likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,reads);
 
-
-
-
-
         // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
         //  was a bad interaction between that selection and the marginalization that happens over each event when computing
         //  GLs.  In particular, for samples that are heterozygous non-reference (B/C) the marginalization for B treats the
@@ -852,7 +862,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 regionForGenotyping.getLocation(),
                 getToolkit().getGenomeLocParser(),
                 metaDataTracker,
-                activeAllelesToGenotype );
+                activeAllelesToGenotype, emitReferenceConfidence() );
 
         // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
         if ( bamWriter != null ) {
@@ -866,8 +876,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         if( DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
 
+
         if ( emitReferenceConfidence() ) {
-            if ( calledHaplotypes.getCalls().isEmpty() ) {
+            if ( !containsCalls(calledHaplotypes) ) {
                 // no called all of the potential haplotypes
                 return referenceModelForNoVariation(originalActiveRegion, false);
             } else
@@ -877,6 +888,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         } else {
             return calledHaplotypes.getCalls();
         }
+    }
+
+    private boolean containsCalls(final GenotypingEngine.CalledHaplotypes calledHaplotypes) {
+        final List<VariantContext> calls = calledHaplotypes.getCalls();
+        if (calls.isEmpty()) return false;
+        for (final VariantContext call : calls)
+            for (final Genotype genotype : call.getGenotypes())
+                if (genotype.isCalled())
+                    return true;
+        return false;
     }
 
     /**

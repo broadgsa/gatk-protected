@@ -48,17 +48,50 @@ package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypesContext;
+import org.broadinstitute.variant.variantcontext.*;
 
-import java.util.ArrayList;
+import java.util.*;
 
 /**
  * Uses the Exact calculation of Heng Li
  */
 abstract class ExactAFCalc extends AFCalc {
     protected static final int HOM_REF_INDEX = 0;  // AA likelihoods are always first
+    /**
+     * Sorts {@link org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first.
+     */
+    protected static final Comparator<LikelihoodSum> LIKELIHOOD_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
+
+        @Override
+        public int compare(final LikelihoodSum o1, final LikelihoodSum o2) {
+            return - Double.compare(o1.sum,o2.sum);
+        }
+    };
+    /**
+     * Sorts {@link org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first but make sure that
+     * NON_REF alleles are place are last.
+     */
+    protected static final Comparator<LikelihoodSum> LIKELIHOOD_NON_REF_THEN_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
+        @Override
+        public int compare(final LikelihoodSum o1, final LikelihoodSum o2) {
+            if (o1.allele == GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE)
+                return 1;
+            else if (o2.allele == GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE)
+                return -1;
+            else
+                return o1.compareTo(o2);
+        }
+    };
+    /**
+     * Sorts {@link org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with lower alternative allele index are first regardless of
+     * the likelihood sum.
+     */
+    protected static final Comparator<LikelihoodSum> LIKELIHOOD_INDEX_COMPARATOR = new Comparator<LikelihoodSum>() {
+        @Override
+        public int compare(final LikelihoodSum o1, final LikelihoodSum o2) {
+            return Integer.compare(o1.index, o2.index);
+        }
+    };
 
     protected ExactAFCalc(final int nSamples, int maxAltAlleles, final int ploidy) {
         super(nSamples, maxAltAlleles, ploidy);
@@ -69,9 +102,10 @@ abstract class ExactAFCalc extends AFCalc {
      */
     protected static final class LikelihoodSum implements Comparable<LikelihoodSum> {
         public double sum = 0.0;
-        public Allele allele;
+        public final Allele allele;
+        public final int index;
 
-        public LikelihoodSum(Allele allele) { this.allele = allele; }
+        public LikelihoodSum(final Allele allele, final int index) { this.allele = allele; this.index = index; }
 
         public int compareTo(LikelihoodSum other) {
             final double diff = sum - other.sum;
@@ -85,12 +119,12 @@ abstract class ExactAFCalc extends AFCalc {
      * @return               ArrayList of doubles corresponding to GL vectors
      */
     protected static ArrayList<double[]> getGLs(final GenotypesContext GLs, final boolean includeDummy) {
-        ArrayList<double[]> genotypeLikelihoods = new ArrayList<double[]>(GLs.size() + 1);
+        final ArrayList<double[]> genotypeLikelihoods = new ArrayList<>(GLs.size() + 1);
 
         if ( includeDummy ) genotypeLikelihoods.add(new double[]{0.0,0.0,0.0}); // dummy
         for ( Genotype sample : GLs.iterateInSampleNameOrder() ) {
             if ( sample.hasLikelihoods() ) {
-                double[] gls = sample.getLikelihoods().getAsVector();
+                final double[] gls = sample.getLikelihoods().getAsVector();
 
                 if ( MathUtils.sum(gls) < GATKVariantContextUtils.SUM_GL_THRESH_NOCALL )
                     genotypeLikelihoods.add(gls);
@@ -99,4 +133,108 @@ abstract class ExactAFCalc extends AFCalc {
 
         return genotypeLikelihoods;
     }
+
+    @Override
+    protected VariantContext reduceScope(final VariantContext vc) {
+        // don't try to genotype too many alternate alleles
+        final List<Allele> inputAltAlleles = vc.getAlternateAlleles();
+        final List<Allele> outputAltAlleles = reduceScopeAlleles(vc,getMaxAltAlleles());
+
+        // only if output allele has reduced from the input alt allele set size we should care.
+        final int altAlleleReduction = inputAltAlleles.size() - outputAltAlleles.size();
+
+        if (altAlleleReduction == 0)
+            return vc;
+        else if (altAlleleReduction != 0) {
+            logger.warn("this tool is currently set to genotype at most " + getMaxAltAlleles()
+                    + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart()
+                    + " has " + (vc.getAlternateAlleles().size())
+                    + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
+
+            final List<Allele> alleles = new ArrayList<>(getMaxAltAlleles() + 1);
+            alleles.add(vc.getReference());
+            alleles.addAll(reduceScopeAlleles(vc, getMaxAltAlleles()));
+            final VariantContextBuilder builder = new VariantContextBuilder(vc);
+            builder.alleles(alleles);
+            builder.genotypes(reduceScopeGenotypes(vc, alleles));
+            if (altAlleleReduction < 0)
+                throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc + " " + builder.make());
+            return builder.make();
+        } else // if (altAlleleReduction < 0)
+            throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc);
+    }
+
+    /**
+     * Returns a the new set of alleles to use.
+     * @param vc target variant context.
+     * @param numAllelesToChoose number of alleles to keep.
+     * @return the list of alternative allele to keep.
+     */
+    protected List<Allele> reduceScopeAlleles(final VariantContext vc, final int numAllelesToChoose) {
+
+        // Look  for the <NON_REF> allele to exclude it from the pruning if present.
+        final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
+
+        final int nonRefAltAlleleIndex = GATKVariantContextUtils.indexOfAltAllele(vc,
+                GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE, false);
+        final boolean nonRefAltAllelePresent = nonRefAltAlleleIndex >= 0;
+
+        // <NON_REF> should not be considered in the downsizing, so we need to count it out when
+        // considering if alt. allele downsizing is required.
+        final int numProperOriginalAltAlleles = numOriginalAltAlleles - (nonRefAltAllelePresent ? 1 : 0);
+
+        // Avoid pointless allele reduction:
+        if (numAllelesToChoose >= numProperOriginalAltAlleles)
+            return vc.getAlternateAlleles();
+
+        final LikelihoodSum[] likelihoodSums = new LikelihoodSum[numOriginalAltAlleles];
+        for ( int i = 0; i < numOriginalAltAlleles; i++ ) {
+            final Allele allele = vc.getAlternateAllele(i);
+            likelihoodSums[i] = new LikelihoodSum(allele,i);
+        }
+
+        // Calculate the allele likelihood sums.
+        reduceScopeCalculateLikelihoodSums(vc, likelihoodSums);
+
+        // sort them by probability mass and choose the best ones
+        // Make sure that the <NON_REF> allele is last if present.
+        Collections.sort(Arrays.asList(likelihoodSums), nonRefAltAllelePresent ? LIKELIHOOD_NON_REF_THEN_SUM_COMPARATOR : LIKELIHOOD_SUM_COMPARATOR);
+
+        // We need to return the best likelihood alleles in the original alternative allele index order.
+        // This heap will keep track of that index order.
+        final PriorityQueue<LikelihoodSum> mostLikelyAllelesHeapByIndex = new PriorityQueue<>(numOriginalAltAlleles, LIKELIHOOD_INDEX_COMPARATOR);
+
+        for ( int i = 0; i < numAllelesToChoose; i++ )
+            mostLikelyAllelesHeapByIndex.add(likelihoodSums[i]);
+
+        // guaranteed no to have been added at this point thanks for checking on whether reduction was
+        // needed in the first place.
+        if (nonRefAltAllelePresent)
+            mostLikelyAllelesHeapByIndex.add(likelihoodSums[nonRefAltAlleleIndex]);
+
+        final ArrayList<Allele> orderedBestAlleles = new ArrayList<>(numAllelesToChoose);
+
+        while (!mostLikelyAllelesHeapByIndex.isEmpty())
+            orderedBestAlleles.add(mostLikelyAllelesHeapByIndex.remove().allele);
+
+        return orderedBestAlleles;
+    }
+
+    protected static final int PL_INDEX_OF_HOM_REF = 0;
+
+    /**
+     * Update the likelihood sums with using the variant context genotype likelihoods.
+     * @param vc source variant context.
+     * @param likelihoodSums where to update the likelihood sums.
+     */
+    protected abstract void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final LikelihoodSum[] likelihoodSums);
+
+    /**
+     * Transforms the genotypes of the variant context according to the new subset of possible alleles.
+     *
+     * @param vc original variant-context.
+     * @param allelesToUse possible alleles.
+     * @return never {@code null}, the new set of genotype calls for the reduced scope.
+     */
+    protected abstract GenotypesContext reduceScopeGenotypes(final VariantContext vc, final List<Allele> allelesToUse);
 }

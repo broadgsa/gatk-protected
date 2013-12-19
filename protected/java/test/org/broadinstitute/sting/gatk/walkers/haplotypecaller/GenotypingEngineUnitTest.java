@@ -57,9 +57,13 @@ import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
+import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.variantcontext.*;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -278,6 +282,60 @@ public class GenotypingEngineUnitTest extends BaseTest {
         }
         Assert.assertTrue(compareVCMaps(calculatedMap, expectedMap));
     }
+
+    @Test(dataProvider="AddMiscellaneousDataProvider", enabled=false)
+    public void testAddMiscellaneousAllele(final String readBases, final int readOffset,
+                                           final String ref, final int refOffset,
+                                           final String referenceAllele, final String[] alternatives, final double[] likelihoods, final double[] expected) {
+        final byte baseQual = (byte)30;
+
+        final byte[] baseQuals = Utils.dupBytes(baseQual, readBases.length());
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(readBases.getBytes(), baseQuals, readBases.length() + "M");
+        final GenomeLoc loc = new UnvalidatingGenomeLoc("20",0,refOffset,refOffset);
+        final ReadBackedPileup pileup = new ReadBackedPileupImpl(loc,Collections.singletonList(read),readOffset);
+        final VariantContextBuilder vcb = new VariantContextBuilder();
+        final GenotypeBuilder gb = new GenotypeBuilder();
+        final List<String> alleleStrings = new ArrayList<>( 1 + alternatives.length);
+        alleleStrings.add(referenceAllele);
+        alleleStrings.addAll(Arrays.asList(alternatives));
+
+        gb.AD(new int[] { 1 });
+        gb.DP(1);
+        gb.PL(likelihoods);
+
+        vcb.alleles(alleleStrings);
+        vcb.loc("20",refOffset,refOffset + referenceAllele.length() -1);
+
+        vcb.genotypes(gb.make());
+
+        final VariantContext vc = vcb.make();
+
+        final VariantContext updatedVc = null; // GenotypingEngine.addMiscellaneousAllele(vc,pileup,ref.getBytes(),0);
+        final GenotypeLikelihoods updatedLikelihoods = updatedVc.getGenotype(0).getLikelihoods();
+        Assert.assertEquals(updatedLikelihoods.getAsVector().length, expected.length);
+        final double[] updatedLikelihoodsArray = updatedVc.getGenotype(0).getLikelihoods().getAsVector();
+        for (int i = 0; i < updatedLikelihoodsArray.length; i++) {
+            Assert.assertEquals(updatedLikelihoodsArray[i],expected[i],0.0001);
+        }
+        Allele altAllele = null;
+        for (final Allele allele : updatedVc.getAlleles())
+            if (allele.isSymbolic() && allele.getBaseString().equals(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE_NAME))
+                altAllele = allele;
+        Assert.assertNotNull(altAllele);
+    }
+
+    @DataProvider(name="AddMiscellaneousDataProvider")
+    public Iterator<Object[]> addMiscellaneousAlleleDataProvider() {
+        return Arrays.asList(ADD_MISCELLANEOUS_ALLELE_DATA).iterator();
+    }
+
+    private static final double MATCH_LnLK = QualityUtils.qualToProbLog10((byte)30);
+    private static final double MISS_LnLK = QualityUtils.qualToErrorProbLog10((byte)30);
+
+    private static final Object[][] ADD_MISCELLANEOUS_ALLELE_DATA = new Object[][] {
+            new Object[] {"ACTG", 0,"ACTGTGAGTATTCC",0,"A",new String[]{}, new double[] {MATCH_LnLK * MATCH_LnLK}, 6,
+                    new double[] {MATCH_LnLK * MATCH_LnLK,MATCH_LnLK * MISS_LnLK, MISS_LnLK * MISS_LnLK}}
+    };
 
     /**
      * Private function to compare Map of VCs, it only checks the types and start locations of the VariantContext

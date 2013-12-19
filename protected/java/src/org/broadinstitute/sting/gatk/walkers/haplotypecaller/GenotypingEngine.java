@@ -57,8 +57,6 @@ import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.collections.DefaultHashMap;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.EventMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
@@ -136,7 +134,10 @@ public class GenotypingEngine {
      * @param activeRegionWindow                     Active window
      * @param genomeLocParser                        GenomeLocParser
      * @param activeAllelesToGenotype                Alleles to genotype
+     * @param addNonRef whether we should add a &lt;NON_REF&gt; alternative allele to the result variation contexts.
+     *
      * @return                                       A CalledHaplotypes object containing a list of VC's with genotyped events and called haplotypes
+     *
      */
     @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
     @Ensures("result != null")
@@ -150,7 +151,8 @@ public class GenotypingEngine {
                                                        final GenomeLoc activeRegionWindow,
                                                        final GenomeLocParser genomeLocParser,
                                                        final RefMetaDataTracker tracker,
-                                                       final List<VariantContext> activeAllelesToGenotype ) {
+                                                       final List<VariantContext> activeAllelesToGenotype,
+                                                       final boolean addNonRef) {
         // sanity check input arguments
         if (UG_engine == null) throw new IllegalArgumentException("UG_Engine input can't be null, got "+UG_engine);
         if (haplotypes == null || haplotypes.isEmpty()) throw new IllegalArgumentException("haplotypes input should be non-empty and non-null, got "+haplotypes);
@@ -183,16 +185,27 @@ public class GenotypingEngine {
                 final List<String> priorityList = makePriorityList(eventsAtThisLoc);
 
                 // Merge the event to find a common reference representation
-                final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
+
+                VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
+
+                final VariantContextBuilder vcb = new VariantContextBuilder(mergedVC);
+
                 if( mergedVC == null ) { continue; }
 
-                if( eventsAtThisLoc.size() != mergedVC.getAlternateAlleles().size() ) {
-                    // this is possible in GGA mode when the same event is represented in multiple input records
-                    throw new UserException("The same event (although possibly represented differently) is present in multiple input records at location " + loc + " and this is not something we can handle at this time.  You will need to remove one of the records in order to proceed with your input file(s).");
+                final GenotypeLikelihoodsCalculationModel.Model calculationModel = mergedVC.isSNP()
+                        ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL;
+
+                if (addNonRef) {
+                    final List<Allele> alleleList = new ArrayList<>();
+                    alleleList.addAll(mergedVC.getAlleles());
+                    alleleList.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                    vcb.alleles(alleleList);
+                    mergedVC = vcb.make();
                 }
+
                 final Map<VariantContext, Allele> mergeMap = new LinkedHashMap<>();
                 mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
-                for(int iii = 0; iii < mergedVC.getAlternateAlleles().size(); iii++) {
+                for(int iii = 0; iii < eventsAtThisLoc.size(); iii++) {
                     mergeMap.put(eventsAtThisLoc.get(iii), mergedVC.getAlternateAllele(iii)); // BUGBUG: This is assuming that the order of alleles is the same as the priority list given to simpleMerge function
                 }
 
@@ -204,11 +217,14 @@ public class GenotypingEngine {
 
                 final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, UG_engine.getUAC().getSampleContamination() );
 
+                if (addNonRef) addMiscellaneousAllele(alleleReadMap);
+
                 final GenotypesContext genotypes = calculateGLsForThisEvent( alleleReadMap, mergedVC );
-                final VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), mergedVC.isSNP() ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL);
+                final VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel);
                 if( call != null ) {
                     final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
                             convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, emptyDownSamplingMap ) );
+                    if (addNonRef) addMiscellaneousAllele(alleleReadMap_annotations);
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
 
                     VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(tracker, stratifiedReadMap, call);
@@ -218,14 +234,44 @@ public class GenotypingEngine {
                     }
 
                     // maintain the set of all called haplotypes
-                    for ( final Allele calledAllele : call.getAlleles() )
-                        calledHaplotypes.addAll(alleleMapper.get(calledAllele));
+                    for ( final Allele calledAllele : call.getAlleles() ) {
+                        final List<Haplotype> haplotypeList = alleleMapper.get(calledAllele);
+                        if (haplotypeList == null) continue;
+                        calledHaplotypes.addAll(haplotypeList);
+                    }
 
                     returnCalls.add( annotatedCall );
                 }
             }
         }
+
         return new CalledHaplotypes(returnCalls, calledHaplotypes);
+    }
+
+    /**
+     * Add the <NON_REF> allele
+     * @param stratifiedReadMap target per-read-allele-likelihood-map.
+     */
+    public static Map<String, PerReadAlleleLikelihoodMap>  addMiscellaneousAllele(final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+        final Allele miscellanoeusAllele = GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE;
+        for (Map.Entry<String, PerReadAlleleLikelihoodMap> perSample : stratifiedReadMap.entrySet()) {
+            for (Map.Entry<GATKSAMRecord, Map<Allele, Double>> perRead : perSample.getValue().getLikelihoodReadMap().entrySet()) {
+                double bestLikelihood = Double.NEGATIVE_INFINITY;
+                double secondBestLikelihood = Double.NEGATIVE_INFINITY;
+                for (Map.Entry<Allele,Double> perAllele : perRead.getValue().entrySet()) {
+                    final double value = perAllele.getValue();
+                    if (value > bestLikelihood) {
+                        secondBestLikelihood = bestLikelihood;
+                        bestLikelihood = value;
+                    } else if (value < bestLikelihood && value > secondBestLikelihood) {
+                        secondBestLikelihood = value;
+                    }
+                }
+                final double miscellanousLikelihood = Double.isInfinite(secondBestLikelihood) ? bestLikelihood : secondBestLikelihood;
+                perSample.getValue().add(perRead.getKey(),miscellanoeusAllele,miscellanousLikelihood);
+            }
+        }
+        return stratifiedReadMap;
     }
 
     /**
