@@ -79,6 +79,7 @@ public class UnifiedGenotyperEngine {
     private static final String GPSTRING = "GENERALPLOIDY";
 
     public static final String NUMBER_OF_DISCOVERED_ALLELES_KEY = "NDA";
+    public static final String PL_FOR_ALL_SNP_ALLELES_KEY = "APL";
 
     public static final double HUMAN_SNP_HETEROZYGOSITY = 1e-3;
     public static final double HUMAN_INDEL_HETEROZYGOSITY = 1e-4;
@@ -373,7 +374,7 @@ public class UnifiedGenotyperEngine {
                                                  final VariantContext vc,
                                                  final GenotypeLikelihoodsCalculationModel.Model model,
                                                  final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
-        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, false,perReadAlleleLikelihoodMap);
+        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, false, perReadAlleleLikelihoodMap);
     }
 
     /**

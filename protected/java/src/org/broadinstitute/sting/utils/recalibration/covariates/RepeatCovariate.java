@@ -74,6 +74,11 @@ public abstract class RepeatCovariate implements ExperimentalCovariate {
         MAX_REPEAT_LENGTH = RAC.MAX_REPEAT_LENGTH;
     }
 
+    public void initialize(final int MAX_STR_UNIT_LENGTH, final int MAX_REPEAT_LENGTH) {
+        this.MAX_STR_UNIT_LENGTH = MAX_STR_UNIT_LENGTH;
+        this.MAX_REPEAT_LENGTH = MAX_REPEAT_LENGTH;
+    }
+
     @Override
     public void recordValues(final GATKSAMRecord read, final ReadCovariates values) {
         // store the original bases and then write Ns over low quality ones
@@ -103,7 +108,7 @@ public abstract class RepeatCovariate implements ExperimentalCovariate {
 
     }
 
-    private Pair<byte[], Integer> findTandemRepeatUnits(byte[] readBases, int offset) {
+    public Pair<byte[], Integer> findTandemRepeatUnits(byte[] readBases, int offset) {
         int maxBW = 0;
         byte[] bestBWRepeatUnit = new byte[]{readBases[offset]};
         for (int str = 1; str <= MAX_STR_UNIT_LENGTH; str++) {

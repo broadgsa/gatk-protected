@@ -69,7 +69,7 @@ public class VariantRecalibratorEngine {
     // the unified argument collection
     final private VariantRecalibratorArgumentCollection VRAC;
 
-    private final static double MIN_PROB_CONVERGENCE = 2E-2;
+    private final static double MIN_PROB_CONVERGENCE = 2E-3;
 
     /////////////////////////////
     // Public Methods to interface with the Engine
@@ -79,8 +79,8 @@ public class VariantRecalibratorEngine {
         this.VRAC = VRAC;
     }
 
-    public GaussianMixtureModel generateModel( final List<VariantDatum> data ) {
-        final GaussianMixtureModel model = new GaussianMixtureModel( VRAC.MAX_GAUSSIANS, data.get(0).annotations.length, VRAC.SHRINKAGE, VRAC.DIRICHLET_PARAMETER, VRAC.PRIOR_COUNTS );
+    public GaussianMixtureModel generateModel( final List<VariantDatum> data, final int maxGaussians ) {
+        final GaussianMixtureModel model = new GaussianMixtureModel( maxGaussians, data.get(0).annotations.length, VRAC.SHRINKAGE, VRAC.DIRICHLET_PARAMETER, VRAC.PRIOR_COUNTS );
         variationalBayesExpectationMaximization( model, data );
         return model;
     }

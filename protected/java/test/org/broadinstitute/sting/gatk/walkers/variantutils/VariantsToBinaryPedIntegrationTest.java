@@ -87,7 +87,7 @@ public class VariantsToBinaryPedIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("NA12878.subset.vcf", "CEUTrio.NA12878.fam",10),
                 3,
-                Arrays.asList("411ef932095728bfa5e509c2c0e4cfa8","8e8bc0b5e69f22c54c0960f13c25d26c","02f1c462ebc8576e399d0e94f729fd95")
+                Arrays.asList("411ef932095728bfa5e509c2c0e4cfa8","daf853d2fcbfc77daa1f9ae190be24f4","02f1c462ebc8576e399d0e94f729fd95")
         );
 
         executeTest(testName, spec);
@@ -177,7 +177,7 @@ public class VariantsToBinaryPedIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("CEUTrio.subset.vcf", "CEUTrio.fam",10),
                 3,
-                Arrays.asList("59b93fbb4bb31309b3adc83ba96dd1a2","900f22c6d49a6ba0774466e99592e51d","7887d2e0bf605dbcd0688c552cdb99d5")
+                Arrays.asList("59b93fbb4bb31309b3adc83ba96dd1a2","3bfb01c17935e3d194d266755b446e82","7887d2e0bf605dbcd0688c552cdb99d5")
         );
 
         executeTest(testName, spec);

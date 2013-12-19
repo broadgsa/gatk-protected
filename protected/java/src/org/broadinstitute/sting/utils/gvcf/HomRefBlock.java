@@ -69,10 +69,11 @@ import java.util.List;
  */
 final class HomRefBlock {
     private final VariantContext startingVC;
-    int stop;
+    private int stop;
     private final int minGQ, maxGQ;
-    private List<Integer> GQs = new ArrayList<>(100);
-    private List<Integer> DPs = new ArrayList<>(100);
+    private int[] minPLs = null;
+    final private List<Integer> GQs = new ArrayList<>(100);
+    final private List<Integer> DPs = new ArrayList<>(100);
     private final Allele ref;
 
     /**
@@ -116,9 +117,23 @@ final class HomRefBlock {
     public void add(final int pos, final Genotype g) {
         if ( g == null ) throw new IllegalArgumentException("g cannot be null");
         if ( ! g.hasGQ() ) throw new IllegalArgumentException("g must have GQ field");
+        if ( ! g.hasPL() ) throw new IllegalArgumentException("g must have PL field");
         if ( ! g.hasDP() ) throw new IllegalArgumentException("g must have DP field");
         if ( pos != stop + 1 ) throw new IllegalArgumentException("adding genotype at pos " + pos + " isn't contiguous with previous stop " + stop);
 
+        if( minPLs == null ) { // if the minPLs vector has not been set yet, create it here by copying the provided genotype's PLs
+            final int[] PL = g.getPL();
+            if( PL.length == 3 ) {
+                minPLs = PL.clone();
+            }
+        } else { // otherwise take the min with the provided genotype's PLs
+            final int[] PL = g.getPL();
+            if( PL.length == 3 ) {
+                minPLs[0] = Math.min(minPLs[0], PL[0]);
+                minPLs[1] = Math.min(minPLs[1], PL[1]);
+                minPLs[2] = Math.min(minPLs[2], PL[2]);
+            }
+        }
         stop = pos;
         GQs.add(Math.min(g.getGQ(), 99)); // cap the GQs by the max. of 99 emission
         DPs.add(g.getDP());
@@ -141,6 +156,8 @@ final class HomRefBlock {
     public int getMinDP() { return MathUtils.arrayMin(DPs); }
     /** Get the median DP observed within this band */
     public int getMedianDP() { return MathUtils.median(DPs); }
+    /** Get the min PLs observed within this band, can be null if no PLs have yet been observed */
+    public int[] getMinPLs() { return minPLs; }
 
     protected int getGQUpperBound() { return maxGQ; }
     protected int getGQLowerBound() { return minGQ; }

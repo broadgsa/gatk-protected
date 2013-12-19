@@ -46,7 +46,6 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.Utils;

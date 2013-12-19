@@ -125,7 +125,7 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
 
     @Test(dataProvider = "PrefixSuffixData")
     public void testSplitter(final List<String> strings, int expectedPrefixLen, int expectedSuffixLen) {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         final List<SeqVertex> v = new ArrayList<SeqVertex>();
         for ( final String s : strings ) {
@@ -202,7 +202,7 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
 
     @Test(dataProvider = "CompleteCycleData")
     public void testSplitterCompleteCycle(final List<String> strings, final boolean hasTop, final boolean hasBot) {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         int edgeWeight = 1;
         final SeqVertex top = hasTop ? new SeqVertex("AAAAAAAA") : null;
@@ -276,7 +276,7 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
 
     @Test(dataProvider = "MeetsMinSequenceData")
     public void testSplitterCompleteCycle(final List<String> mids, final int minSeqLength, final boolean prefixMeets, final boolean suffixMeets) {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         final SeqVertex top = new SeqVertex("AAAAAAAA");
         final SeqVertex bot = new SeqVertex("GGGGGGGG");

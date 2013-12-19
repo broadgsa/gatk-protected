@@ -47,29 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.missing;
 
 /**
- * Short one line description of the walker.
- * <p/>
- * <p>
- * [Long description of the walker]
- * </p>
- * <p/>
- * <p/>
- * <h2>Input</h2>
- * <p>
- * [Description of the Input]
- * </p>
- * <p/>
- * <h2>Output</h2>
- * <p>
- * [Description of the Output]
- * </p>
- * <p/>
- * <h2>Examples</h2>
- * <pre>
- *    java
- *      -jar GenomeAnalysisTK.jar
- *      -T [walker name]
- *  </pre>
+ * Metrics class for the QualifyMissingInterval walker
  *
  * @author Mauricio Carneiro
  * @since 5/1/13
@@ -81,6 +59,8 @@ final class Metrics {
     private int reads;
     private int refs;
 
+    public Metrics() {}
+
     void reads(int reads) {this.reads = reads;}
     void refs(int refs) {this.refs = refs;}
 
@@ -91,6 +71,7 @@ final class Metrics {
     double gccontent() {return refs > 0 ? gccontent/refs : 0.0;}
     double baseQual() {return reads > 0 ? baseQual/reads : 0.0;}
     double mapQual() {return reads > 0 ? mapQual/reads : 0.0;}
+    double depth() {return refs > 0 ? (double) reads/refs : 0.0;}
 
     /**
      * Combines two metrics
@@ -106,5 +87,14 @@ final class Metrics {
         this.refs += value.refs;
 
         return this;
+    }
+
+    // Test related constructor and methods
+    protected Metrics(double gccontent, double baseQual, double mapQual, int reads, int refs) {
+        this.gccontent = gccontent;
+        this.baseQual = baseQual;
+        this.mapQual = mapQual;
+        this.reads = reads;
+        this.refs = refs;
     }
 }

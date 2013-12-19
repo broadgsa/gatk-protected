@@ -47,28 +47,24 @@
 package org.broadinstitute.sting.gatk.walkers.diagnostics.missing;
 
 import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.commandline.Gather;
 import org.broadinstitute.sting.commandline.Output;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.report.GATKReport;
-import org.broadinstitute.sting.gatk.walkers.By;
-import org.broadinstitute.sting.gatk.walkers.DataSource;
-import org.broadinstitute.sting.gatk.walkers.LocusWalker;
-import org.broadinstitute.sting.gatk.walkers.NanoSchedulable;
+import org.broadinstitute.sting.gatk.report.GATKReportGatherer;
+import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.GenomeLocSortedSet;
 import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
+import org.broadinstitute.sting.utils.interval.IntervalUtils;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.text.XReadLines;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.List;
 
@@ -79,10 +75,12 @@ import java.util.List;
  * <ul>
  *     <li>Average Base Quality</li>
  *     <li>Average Mapping Quality</li>
+ *     <li>Average Depth</li>
  *     <li>GC Content</li>
- *     <li>Position in the target</li>
- *     <li>Coding Sequence / Intron</li>
- *     <li>Length of the uncovered area</li>
+ *     <li>Position in the target (Integer.MIN_VALUE if no overlap)</li>
+ *     <li>Length of the overlapping target (zero if no overlap)</li>
+ *     <li>Coding Sequence / Intron (optional)</li>
+ *     <li>Length of the uncovered interval</li>
  * </ul>
  *
  * <h3>Input</h3>
@@ -92,7 +90,7 @@ import java.util.List;
  *
  * <h3>Output</h3>
  * <p>
- *  GC content calculations per interval.
+ *  GC content, distance from the end of the target, coding sequence intersection, mapping and base quality averages and average depth per "missing" interval.
  * </p>
  *
  * <h3>Example</h3>
@@ -110,32 +108,96 @@ import java.util.List;
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 @By(DataSource.REFERENCE)
+@PartitionBy(PartitionType.INTERVAL)
 public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics> implements NanoSchedulable {
+    /**
+     * A single GATKReport table with the qualifications on why the intervals passed by the -L argument were missing.
+     */
+    @Gather(GATKReportGatherer.class)
     @Output
     protected PrintStream out;
 
+    /**
+     * List of targets used in the experiment. This file will be used to calculate the distance your missing
+     * intervals are to the targets (usually exons). Typically this is your hybrid selection targets file
+     * (e.g. Agilent exome target list)
+     */
     @Argument(shortName = "targets", required = true)
-    public File targetsFile;
+    public String targetsFile;
 
-    @Argument(shortName = "cds", required = false)
-    public File cdsFile = null;
+    /**
+     * List of baits to distinguish untargeted intervals from those that are targeted but not covered
+     */
+    @Argument(shortName = "baits", required = false)
+    public String baitsFile = null;
+
+    /**
+     * This value will be used to determine whether or not an interval had too high or too low GC content to be
+     * sequenced. This is only applied if there was not enough data in the interval.
+     */
+    @Argument(doc = "upper and lower bound for an interval to be considered high/low GC content",
+            shortName = "gc", required = false)
+    public double gcThreshold = 0.3;
+
+    /**
+     * The coverage of a missing interval may determine whether or not an interval is sequenceable. A low coverage will
+     * trigger gc content, mapping, base qualities and other checks to figure out why this interval was deemed
+     * unsequenceable.
+     */
+    @Argument(doc = "minimum coverage to be considered sequenceable",
+            shortName = "cov", required = false)
+    public int coverageThreshold = 20;
+
+    /**
+     * An average mapping quality above this value will determine the interval to be mappable.
+     */
+    @Argument(doc = "minimum mapping quality for it to be considered usable",
+            shortName = "mmq", required = false)
+    public byte mappingThreshold = 20;
+
+    /**
+     * An average base quality above this value will rule out the possibility of context specific problems with the
+     * sequencer.
+     */
+    @Argument(doc = "minimum base quality for it to be considered usable",
+            shortName = "mbq", required = false)
+    public byte qualThreshold = 20;
+
+    /**
+     * Intervals that are too small generate biased analysis. For example an interval of size 1 will have GC content
+     * 1 or 0. To avoid misinterpreting small intervals, all intervals below this threshold will be ignored in the
+     * interpretation.
+     */
+    @Argument(doc = "minimum interval length to be considered",
+            shortName = "size", required = false)
+    public byte intervalSizeThreshold = 10;
+
+    enum Interpretation {
+        UNKNOWN,
+        UNMAPPABLE,
+        UNSEQUENCEABLE,
+        GCCONTENT,
+        NO_DATA,
+        SMALL_INTERVAL
+    }
 
     GATKReport simpleReport;
-    GenomeLocSortedSet target;
-    GenomeLocSortedSet cds;
+    GenomeLocSortedSet targets;
+    GenomeLocSortedSet baits;
 
     public boolean isReduceByInterval() {
         return true;
     }
 
     public void initialize() {
-        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "IN", "GC", "BQ", "MQ", "TP", "CD", "LN");
+        // if cds file is not provided, just use the targets file (no harm done)
+        if (baitsFile == null)
+            baitsFile = targetsFile;
+
+        simpleReport = GATKReport.newSimpleReport("QualifyMissingIntervals", "INTERVAL", "GC", "BQ", "MQ", "DP", "POS_IN_TARGET", "TARGET_SIZE", "BAITED", "MISSING_SIZE", "INTERPRETATION");
         final GenomeLocParser parser = getToolkit().getGenomeLocParser();
-        target = new GenomeLocSortedSet(parser);
-        cds = new GenomeLocSortedSet(parser);
-        parseFile(targetsFile, target, parser);
-        if (cdsFile != null)
-            parseFile(cdsFile, cds, parser);
+        targets = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, targetsFile));
+        baits = new GenomeLocSortedSet(parser, IntervalUtils.intervalFileToList(parser, baitsFile));
     }
 
     public Metrics reduceInit() {
@@ -156,7 +218,7 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
             baseQual += qual;
         }
         double mapQual = 0.0;
-        for (byte qual : pileup.getMappingQuals()) {
+        for (int qual : pileup.getMappingQuals()) {
             mapQual += qual;
         }
 
@@ -176,53 +238,90 @@ public final class QualifyMissingIntervals extends LocusWalker<Metrics, Metrics>
 
     public void onTraversalDone(List<Pair<GenomeLoc, Metrics>> results) {
         for (Pair<GenomeLoc, Metrics> r : results) {
-            GenomeLoc interval = r.getFirst();
-            Metrics metrics = r.getSecond();
+            final GenomeLoc interval = r.getFirst();
+            final Metrics metrics = r.getSecond();
+            final List<GenomeLoc> overlappingIntervals = targets.getOverlapping(interval);
+
             simpleReport.addRow(
                     interval.toString(),
                     metrics.gccontent(),
                     metrics.baseQual(),
                     metrics.mapQual(),
-                    getPositionInTarget(interval),
-                    cds.overlaps(interval),
-                    interval.size()
+                    metrics.depth(),
+                    getPositionInTarget(interval, overlappingIntervals),
+                    getTargetSize(overlappingIntervals),
+                    baits.overlaps(interval),
+                    interval.size(),
+                    interpret(metrics, interval)
             );
         }
         simpleReport.print(out);
         out.close();
     }
 
-    private static GenomeLoc parseInterval(String s, GenomeLocParser parser) {
-        if (s.isEmpty()) {
-            return null;
+    protected static int getPositionInTarget(final GenomeLoc interval, final List<GenomeLoc> targets) {
+        if (targets.size() > 0) {
+            final GenomeLoc target = targets.get(0);
+
+            // interval is larger on both ends than the target -- return the maximum distance to either side as a negative number. (min of 2 negative numbers)
+            if (interval.getStart() < target.getStart() && interval.getStop() > target.getStop())
+                return Math.min(target.getStart() - interval.getStart(), target.getStop() - interval.getStop());
+
+            // interval is a left overlap -- return a negative number representing the distance between the two starts
+            else if (interval.getStart() < target.getStart())
+                return interval.getStart() - target.getStart();
+
+            // interval is a right overlap -- return a negative number representing the distance between the two stops
+            else if (interval.getStop() > target.getStop())
+                return target.getStop() - interval.getStop();
+
+            // interval is fully contained -- return the smallest distance to the edge of the target (left or right) as a positive number
+            return Math.min(interval.getStart() - target.getStart(), target.getStop() - interval.getStop());
         }
-        String[] first = s.split(":");
-        if (first.length == 2) {
-            String[] second = first[1].split("\\-");
-            return parser.createGenomeLoc(first[0], Integer.decode(second[0]), Integer.decode(second[1]));
-        } else {
-            throw new UserException.BadInput("Interval doesn't parse correctly: " + s);
-        }
+        // if there is no overlapping interval, return int min value.
+        return Integer.MIN_VALUE;
     }
 
-    private void parseFile(File file, GenomeLocSortedSet set, GenomeLocParser parser) {
-        try {
-            for (String s : new XReadLines(file) ) {
-                GenomeLoc interval = parseInterval(s, parser);
-                if (interval != null)
-                    set.add(interval, true);
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+    private int getTargetSize(final List<GenomeLoc> overlappingIntervals) {
+        return overlappingIntervals.size() > 0 ? overlappingIntervals.get(0).size() : -1;
     }
 
-    private int getPositionInTarget(GenomeLoc interval) {
-        final List<GenomeLoc> hits = target.getOverlapping(interval);
-        int result = 0;
-        for (GenomeLoc hit : hits) {
-            result = interval.getStart() - hit.getStart(); // if there are multiple hits, we'll get the last one.
+    String interpret(final Metrics metrics, final GenomeLoc interval) {
+        if (interval.size() < intervalSizeThreshold) {
+            return Interpretation.SMALL_INTERVAL.toString();
         }
-        return result;
+        else if (metrics.depth() == 0.0) {
+            return Interpretation.NO_DATA.toString();
+        }
+        return trim(checkMappability(metrics) + checkGCContent(metrics) + checkContext(metrics));
     }
+
+    String checkMappability(Metrics metrics) {
+        return metrics.depth() >= coverageThreshold && metrics.mapQual() < mappingThreshold ?
+                Interpretation.UNMAPPABLE + ", " : "";
+    }
+
+    String checkGCContent(Metrics metrics) {
+        return metrics.depth() < coverageThreshold && (metrics.gccontent() < gcThreshold || metrics.gccontent() > 1.0-gcThreshold) ?
+                Interpretation.GCCONTENT + ", " : "";
+    }
+
+    String checkContext(Metrics metrics) {
+        return metrics.depth() < coverageThreshold && metrics.baseQual() < qualThreshold ?
+                Interpretation.UNSEQUENCEABLE + ", " : "";
+    }
+
+    String trim (String s) {
+        if (s.isEmpty())
+            return Interpretation.UNKNOWN.toString();
+
+        s = s.trim();
+        if (s.endsWith(","))
+            s = s.substring(0, s.length() - 1);
+        return s;
+    }
+
+
+
+
 }

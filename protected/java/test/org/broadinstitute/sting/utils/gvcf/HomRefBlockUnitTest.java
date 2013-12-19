@@ -85,32 +85,34 @@ public class HomRefBlockUnitTest extends BaseTest {
 
     @Test
     public void testMinMedian() {
+        //TODO - might be better to make this test use a data provider?
         final HomRefBlock band = new HomRefBlock(vc, 10, 20);
         final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
 
         int pos = vc.getStart();
-        band.add(pos++, gb.DP(10).GQ(11).make());
+        band.add(pos++, gb.DP(10).GQ(11).PL(new int[]{0,11,100}).make());
         Assert.assertEquals(band.getStop(), pos - 1);
         assertValues(band, 10, 10, 11, 11);
 
-        band.add(pos++, gb.DP(11).GQ(10).make());
+        band.add(pos++, gb.DP(11).GQ(10).PL(new int[]{0,10,100}).make());
         Assert.assertEquals(band.getStop(), pos - 1);
         assertValues(band, 10, 11, 10, 11);
 
-        band.add(pos++, gb.DP(12).GQ(12).make());
+        band.add(pos++, gb.DP(12).GQ(12).PL(new int[]{0,12,100}).make());
         Assert.assertEquals(band.getStop(), pos - 1);
         assertValues(band, 10, 11, 10, 11);
 
-        band.add(pos++, gb.DP(13).GQ(15).make());
+        band.add(pos++, gb.DP(13).GQ(15).PL(new int[]{0,15,100}).make());
         Assert.assertEquals(band.getStop(), pos - 1);
-        band.add(pos++, gb.DP(14).GQ(16).make());
+        band.add(pos++, gb.DP(14).GQ(16).PL(new int[]{0,16,100}).make());
         Assert.assertEquals(band.getStop(), pos - 1);
-        band.add(pos++, gb.DP(15).GQ(17).make());
+        band.add(pos++, gb.DP(15).GQ(17).PL(new int[]{0,17,100}).make());
         Assert.assertEquals(band.getStop(), pos - 1);
-        band.add(pos++, gb.DP(16).GQ(18).make());
+        band.add(pos++, gb.DP(16).GQ(18).PL(new int[]{0,18,100}).make());
         Assert.assertEquals(band.getStop(), pos - 1);
         assertValues(band, 10, 13, 10, 15);
         Assert.assertEquals(band.getSize(), pos - vc.getStart());
+        Assert.assertTrue(Arrays.equals(band.getMinPLs(), new int[]{0,10,100}));
     }
 
     @Test
@@ -118,7 +120,7 @@ public class HomRefBlockUnitTest extends BaseTest {
         final HomRefBlock band = new HomRefBlock(vc, 10, 20);
         final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
 
-        band.add(vc.getStart(), gb.DP(1000).GQ(1000).make());
+        band.add(vc.getStart(), gb.DP(1000).GQ(1000).PL(new int[]{0,10,100}).make());
         assertValues(band, 1000, 1000, 99, 99);
     }
 
@@ -127,7 +129,7 @@ public class HomRefBlockUnitTest extends BaseTest {
         final HomRefBlock band = new HomRefBlock(vc, 10, 20);
         final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
 
-        band.add(vc.getStart() + 10, gb.DP(10).GQ(11).make());
+        band.add(vc.getStart() + 10, gb.DP(10).GQ(11).PL(new int[]{0,10,100}).make());
     }
 
     private void assertValues(final HomRefBlock band, final int minDP, final int medianDP, final int minGQ, final int medianGQ) {
@@ -140,7 +142,7 @@ public class HomRefBlockUnitTest extends BaseTest {
 
     @DataProvider(name = "ContiguousData")
     public Object[][] makeContiguousData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         for ( final String chrMod : Arrays.asList("", ".mismatch") ) {
             for ( final int offset : Arrays.asList(-10, -1, 0, 1, 10) ) {

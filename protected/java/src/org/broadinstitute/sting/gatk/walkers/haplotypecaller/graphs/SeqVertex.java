@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.Utils;
+
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 

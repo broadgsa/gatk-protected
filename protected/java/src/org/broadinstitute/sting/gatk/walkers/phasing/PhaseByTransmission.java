@@ -56,7 +56,6 @@ import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.samples.Sample;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
-import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.help.HelpConstants;
@@ -839,8 +838,13 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
             return metricsCounters;
 
         final VariantContext vc = tracker.getFirstValue(variantCollection.variants, context.getLocation());
-        if (vc == null || !vc.isBiallelic())
+        if ( vc == null )
             return metricsCounters;
+
+        if ( !vc.isBiallelic() ) {
+            vcfWriter.add(vc);
+            return metricsCounters;
+        }
 
         final VariantContextBuilder builder = new VariantContextBuilder(vc);
 

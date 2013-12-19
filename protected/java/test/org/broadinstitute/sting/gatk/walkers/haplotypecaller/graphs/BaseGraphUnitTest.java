@@ -49,7 +49,6 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.File;
@@ -61,7 +60,7 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        graph = new SeqGraph();
+        graph = new SeqGraph(11);
 
         v1 = new SeqVertex("A");
         v2 = new SeqVertex("C");
@@ -96,7 +95,7 @@ public class BaseGraphUnitTest extends BaseTest {
     }
 
     @Test
-         public void testRemoveSingletonOrphanVertices() throws Exception {
+    public void testRemoveSingletonOrphanVertices() throws Exception {
         // all vertices in graph are connected
         final List<SeqVertex> kept = new LinkedList<SeqVertex>(graph.vertexSet());
         final SeqVertex rm1 = new SeqVertex("CAGT");
@@ -118,8 +117,54 @@ public class BaseGraphUnitTest extends BaseTest {
     }
 
     @Test
+    public void testRemoveSingletonOrphanVerticesOnSingleRefNode() throws Exception {
+        final SeqGraph original = new SeqGraph(11);
+        original.addVertex(v1);
+        original.removeSingletonOrphanVertices();
+        Assert.assertTrue(original.containsVertex(v1));
+        Assert.assertEquals(original.vertexSet().size(), 1);
+    }
+
+    @Test
+    public void testIsRefSourceAndSink() throws Exception {
+
+        final SeqGraph g = new SeqGraph(11);
+        g.addVertex(v1);
+        Assert.assertTrue(g.isRefSource(v1));
+        Assert.assertTrue(g.isRefSink(v1));
+        Assert.assertTrue(g.isReferenceNode(v1));
+
+        g.addVertices(v2, v3, v4, v5);
+        g.addEdge(v1, v2);
+        g.addEdge(v2, v3);
+        final BaseEdge refEdge = new BaseEdge(true, 1);
+        g.addEdge(v3, v4, refEdge);
+        g.addEdge(v4, v5);
+
+        Assert.assertFalse(g.isRefSource(v1));
+        Assert.assertFalse(g.isRefSink(v1));
+        Assert.assertFalse(g.isReferenceNode(v1));
+
+        Assert.assertFalse(g.isRefSource(v2));
+        Assert.assertFalse(g.isRefSink(v2));
+        Assert.assertFalse(g.isReferenceNode(v2));
+
+        Assert.assertTrue(g.isRefSource(v3));
+        Assert.assertFalse(g.isRefSink(v3));
+        Assert.assertTrue(g.isReferenceNode(v3));
+
+        Assert.assertFalse(g.isRefSource(v4));
+        Assert.assertTrue(g.isRefSink(v4));
+        Assert.assertTrue(g.isReferenceNode(v4));
+
+        Assert.assertFalse(g.isRefSource(v5));
+        Assert.assertFalse(g.isRefSink(v5));
+        Assert.assertFalse(g.isReferenceNode(v5));
+    }
+
+    @Test
     public void testRemovePathsNotConnectedToRef() throws Exception {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         SeqVertex src = new SeqVertex("A");
         SeqVertex end = new SeqVertex("A");
@@ -171,7 +216,7 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @Test
     public void testRemoveVerticesNotConnectedToRefRegardlessOfEdgeDirection() throws Exception {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         SeqVertex src = new SeqVertex("A");
         SeqVertex end = new SeqVertex("A");
@@ -230,8 +275,8 @@ public class BaseGraphUnitTest extends BaseTest {
     public void testPrintEmptyGraph() throws Exception {
         final File tmp = File.createTempFile("tmp", "dot");
         tmp.deleteOnExit();
-        new SeqGraph().printGraph(tmp, 10);
-        new DeBruijnGraph().printGraph(tmp, 10);
+        new SeqGraph(11).printGraph(tmp, 10);
+        new TestGraph().printGraph(tmp, 10);
     }
 
     @Test
@@ -249,71 +294,6 @@ public class BaseGraphUnitTest extends BaseTest {
     }
 
     @Test(enabled = true)
-    public void testPruneGraph() {
-        DeBruijnGraph graph = new DeBruijnGraph();
-        DeBruijnGraph expectedGraph = new DeBruijnGraph();
-
-        DeBruijnVertex v = new DeBruijnVertex("ATGG");
-        DeBruijnVertex v2 = new DeBruijnVertex("ATGGA");
-        DeBruijnVertex v3 = new DeBruijnVertex("ATGGT");
-        DeBruijnVertex v4 = new DeBruijnVertex("ATGGG");
-        DeBruijnVertex v5 = new DeBruijnVertex("ATGGC");
-        DeBruijnVertex v6 = new DeBruijnVertex("ATGGCCCCCC");
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new BaseEdge(false, 1));
-        graph.addEdge(v2, v3, new BaseEdge(false, 3));
-        graph.addEdge(v3, v4, new BaseEdge(false, 5));
-        graph.addEdge(v4, v5, new BaseEdge(false, 3));
-        graph.addEdge(v5, v6, new BaseEdge(false, 2));
-
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        graph.pruneGraph(2);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
-
-        graph = new DeBruijnGraph();
-        expectedGraph = new DeBruijnGraph();
-
-        graph.addVertex(v);
-        graph.addVertex(v2);
-        graph.addVertex(v3);
-        graph.addVertex(v4);
-        graph.addVertex(v5);
-        graph.addVertex(v6);
-        graph.addEdge(v, v2, new BaseEdge(true, 1));
-        graph.addEdge(v2, v3, new BaseEdge(false, 3));
-        graph.addEdge(v3, v4, new BaseEdge(false, 5));
-        graph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        expectedGraph.addVertex(v);
-        expectedGraph.addVertex(v2);
-        expectedGraph.addVertex(v3);
-        expectedGraph.addVertex(v4);
-        expectedGraph.addVertex(v5);
-        expectedGraph.addEdge(v, v2, new BaseEdge(true, 1));
-        expectedGraph.addEdge(v2, v3, new BaseEdge(false, 3));
-        expectedGraph.addEdge(v3, v4, new BaseEdge(false, 5));
-        expectedGraph.addEdge(v4, v5, new BaseEdge(false, 3));
-
-        graph.pruneGraph(2);
-
-        Assert.assertTrue(BaseGraph.graphEquals(graph, expectedGraph));
-    }
-
-    @Test(enabled = true)
     public void testGetBases() {
 
         final int kmerSize = 4;
@@ -324,7 +304,7 @@ public class BaseGraphUnitTest extends BaseTest {
             vertexes.add(new DeBruijnVertex(testString.substring(i, i + kmerSize)));
         }
 
-        final String result = new String(new DeBruijnGraph().getBasesForPath(vertexes));
+        final String result = new String(new TestGraph().getBasesForPath(vertexes));
         Assert.assertEquals(result, testString.substring(kmerSize - 1));
     }
 }

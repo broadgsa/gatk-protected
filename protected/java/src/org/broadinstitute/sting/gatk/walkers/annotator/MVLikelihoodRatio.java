@@ -70,12 +70,19 @@ import java.util.*;
  * <p>Given a variant context, this tool uses the genotype likelihoods to assess the likelihood of the site being a mendelian violation
  * versus the likelihood of the site transmitting according to mendelian rules. </p>
  *
+ * <h3>Caveats</h3>
+ *
+ * <p>This tool assumes that the organism is diploid.</p>
+ *
  * <p>Note that this annotation requires a valid ped file.</p>
  *
- * <h3>Caveat</h3>
- * <p>This tool assumes that the organism is diploid. When multiple trios are present, the annotation is simply the maximum
+ * <p>When multiple trios are present, the annotation is simply the maximum
  * of the likelihood ratios, rather than the strict 1-Prod(1-p_i) calculation, as this can scale poorly for uncertain
  * sites and many trios.</p>
+ *
+ * <p>This annotation can only be used from the Variant Annotator.
+ * If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect.
+ * If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</p>
  */
 
 public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiringAnnotation {

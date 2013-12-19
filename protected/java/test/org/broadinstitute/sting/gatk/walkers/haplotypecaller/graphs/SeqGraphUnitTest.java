@@ -72,7 +72,7 @@ public class SeqGraphUnitTest extends BaseTest {
         }
 
         public SeqGraph calcGraph() {
-            final DeBruijnGraph deBruijnGraph = new DeBruijnGraph();
+            final TestGraph deBruijnGraph = new TestGraph();
             final int kmersInSequence = sequence.length - KMER_LENGTH + 1;
             for (int i = 0; i < kmersInSequence - 1; i++) {
                 // get the kmers
@@ -113,6 +113,8 @@ public class SeqGraphUnitTest extends BaseTest {
         Assert.assertEquals(actualV.getSequence(), cfg.sequence);
     }
 
+
+
     @DataProvider(name = "IsDiamondData")
     public Object[][] makeIsDiamondData() throws Exception {
         List<Object[]> tests = new ArrayList<Object[]>();
@@ -120,7 +122,7 @@ public class SeqGraphUnitTest extends BaseTest {
         SeqGraph graph;
         SeqVertex pre1, pre2, top, middle1, middle2, middle3, bottom, tail1, tail2;
 
-        graph = new SeqGraph();
+        graph = new SeqGraph(11);
 
         pre1 = new SeqVertex("ACT");
         pre2 = new SeqVertex("AGT");
@@ -170,7 +172,7 @@ public class SeqGraphUnitTest extends BaseTest {
 
         // top connects to bottom directly as well
         {
-            final SeqGraph topConnectsToBottomToo = new SeqGraph();
+            final SeqGraph topConnectsToBottomToo = new SeqGraph(11);
             final SeqVertex top2 = new SeqVertex("A");
             final SeqVertex middle4 = new SeqVertex("C");
             final SeqVertex bottom2 = new SeqVertex("G");
@@ -194,7 +196,7 @@ public class SeqGraphUnitTest extends BaseTest {
     public Object[][] makeMergingData() throws Exception {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
 
         SeqVertex pre1 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "CT");
         SeqVertex pre2 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "GT");
@@ -216,7 +218,7 @@ public class SeqGraphUnitTest extends BaseTest {
             graph.addVertices(top);
             graph.addEdges(pre1, top);
             final SeqVertex pre1_top = new SeqVertex(pre1.getSequenceString() + top.getSequenceString());
-            final SeqGraph expected = new SeqGraph();
+            final SeqGraph expected = new SeqGraph(11);
             expected.addVertex(pre1_top);
             tests.add(new Object[]{graph.clone(), expected.clone()});
         }
@@ -225,7 +227,7 @@ public class SeqGraphUnitTest extends BaseTest {
         {
             graph.addVertices(middle1);
             graph.addEdges(top, middle1);
-            final SeqGraph expected = new SeqGraph();
+            final SeqGraph expected = new SeqGraph(11);
             final SeqVertex pre1_top_middle1 = new SeqVertex(pre1.getSequenceString() + top.getSequenceString() + middle1.getSequenceString());
             expected.addVertex(pre1_top_middle1);
             tests.add(new Object[]{graph.clone(), expected});
@@ -235,7 +237,7 @@ public class SeqGraphUnitTest extends BaseTest {
         {
             graph.addVertices(middle2);
             graph.addEdges(top, middle2);
-            final SeqGraph expected = new SeqGraph();
+            final SeqGraph expected = new SeqGraph(11);
             final SeqVertex pre1_top = new SeqVertex(pre1.getSequenceString() + top.getSequenceString());
             expected.addVertices(pre1_top, middle1, middle2);
             expected.addEdges(pre1_top, middle1);
@@ -248,7 +250,7 @@ public class SeqGraphUnitTest extends BaseTest {
             graph.addVertices(bottom);
             graph.addEdges(middle1, bottom);
             graph.addEdges(middle2, bottom);
-            final SeqGraph expected = new SeqGraph();
+            final SeqGraph expected = new SeqGraph(11);
             final SeqVertex pre1_top = new SeqVertex(pre1.getSequenceString() + top.getSequenceString());
             final SeqVertex newMiddle1 = new SeqVertex("G");
             final SeqVertex newMiddle2 = new SeqVertex("T");
@@ -274,12 +276,12 @@ public class SeqGraphUnitTest extends BaseTest {
         }
 
         { // all the nodes -> lots of merging and motion of nodes
-            final SeqGraph all = new SeqGraph();
+            final SeqGraph all = new SeqGraph(11);
             all.addVertices(pre1, pre2, top, middle1, middle2, bottom, tail1, tail2);
             all.addEdges(pre1, top, middle1, bottom, tail1);
             all.addEdges(pre2, top, middle2, bottom, tail2);
 
-            final SeqGraph expected = new SeqGraph();
+            final SeqGraph expected = new SeqGraph(11);
             SeqVertex newPre1 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "C");
             SeqVertex newPre2 = new SeqVertex(Utils.dupString("A", SeqGraph.MIN_COMMON_SEQUENCE_TO_MERGE_SOURCE_SINK_VERTICES) + "G");
             final SeqVertex newTop = new SeqVertex("TA");
@@ -294,7 +296,7 @@ public class SeqGraphUnitTest extends BaseTest {
 
         // test the case where we delete a middle node away because the common sequence is all of its sequence
         {
-            final SeqGraph graph2 = new SeqGraph();
+            final SeqGraph graph2 = new SeqGraph(11);
             final SeqVertex mytop = new SeqVertex("A");
             final SeqVertex mid1 = new SeqVertex("AC");
             final SeqVertex mid2 = new SeqVertex("C");
@@ -303,7 +305,7 @@ public class SeqGraphUnitTest extends BaseTest {
             graph2.addEdges(mytop, mid1, bot);
             graph2.addEdges(mytop, mid2, bot);
 
-            final SeqGraph expected = new SeqGraph();
+            final SeqGraph expected = new SeqGraph(11);
             final SeqVertex newMid1 = new SeqVertex("A");
             final SeqVertex newBottom = new SeqVertex("CG");
             expected.addVertices(mytop, newMid1, newBottom);
@@ -339,7 +341,7 @@ public class SeqGraphUnitTest extends BaseTest {
     //
     @Test(enabled = !DEBUG)
     public void testBubbleSameBasesWithRef() {
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
         final SeqVertex top = new SeqVertex("A");
         final SeqVertex mid1 = new SeqVertex("ACT");
         final SeqVertex mid2 = new SeqVertex("ACT");
@@ -349,7 +351,7 @@ public class SeqGraphUnitTest extends BaseTest {
         graph.addEdge(top, mid1, new BaseEdge(true, 1));
         graph.addEdge(mid1, bot, new BaseEdge(true, 1));
 
-        final SeqGraph expected = new SeqGraph();
+        final SeqGraph expected = new SeqGraph(11);
         expected.addVertex(new SeqVertex("AACTC"));
         final SeqGraph actual = ((SeqGraph)graph.clone());
         actual.simplifyGraph();
@@ -360,8 +362,8 @@ public class SeqGraphUnitTest extends BaseTest {
     public Object[][] makeLinearZipData() throws Exception {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        SeqGraph graph = new SeqGraph();
-        SeqGraph expected = new SeqGraph();
+        SeqGraph graph = new SeqGraph(11);
+        SeqGraph expected = new SeqGraph(11);
 
         // empty graph => empty graph
         tests.add(new Object[]{graph.clone(), expected.clone()});
@@ -377,7 +379,7 @@ public class SeqGraphUnitTest extends BaseTest {
         tests.add(new Object[]{graph.clone(), expected.clone()});
 
         graph.addEdges(a1, c1);
-        expected = new SeqGraph();
+        expected = new SeqGraph(11);
         expected.addVertices(ac1);
         tests.add(new Object[]{graph.clone(), expected.clone()});
 
@@ -385,25 +387,25 @@ public class SeqGraphUnitTest extends BaseTest {
         SeqVertex g1 = new SeqVertex("G");
         graph.addVertices(g1);
         graph.addEdges(c1, g1);
-        expected = new SeqGraph();
+        expected = new SeqGraph(11);
         expected.addVertex(new SeqVertex("ACG"));
         tests.add(new Object[]{graph.clone(), expected.clone()});
 
         // adding something that isn't connected isn't a problem
         SeqVertex t1 = new SeqVertex("T");
         graph.addVertices(t1);
-        expected = new SeqGraph();
+        expected = new SeqGraph(11);
         expected.addVertices(new SeqVertex("ACG"), new SeqVertex("T"));
         tests.add(new Object[]{graph.clone(), expected.clone()});
 
         // splitting chain with branch produces the correct zipped subgraphs
         final SeqVertex a2 = new SeqVertex("A");
         final SeqVertex c2 = new SeqVertex("C");
-        graph = new SeqGraph();
+        graph = new SeqGraph(11);
         graph.addVertices(a1, c1, g1, t1, a2, c2);
         graph.addEdges(a1, c1, g1, t1, a2);
         graph.addEdges(g1, c2);
-        expected = new SeqGraph();
+        expected = new SeqGraph(11);
         SeqVertex acg = new SeqVertex("ACG");
         SeqVertex ta = new SeqVertex("TA");
         expected.addVertices(acg, ta, c2);
@@ -413,11 +415,11 @@ public class SeqGraphUnitTest extends BaseTest {
 
         // Can merge chains with loops in them
         {
-            graph = new SeqGraph();
+            graph = new SeqGraph(11);
             graph.addVertices(a1, c1, g1);
             graph.addEdges(a1, c1, g1);
             graph.addEdges(a1, a1);
-            expected = new SeqGraph();
+            expected = new SeqGraph(11);
 
             SeqVertex ac = new SeqVertex("AC");
             SeqVertex cg = new SeqVertex("CG");
@@ -433,7 +435,7 @@ public class SeqGraphUnitTest extends BaseTest {
 
             graph.removeEdge(c1, c1);
             graph.addEdges(g1, g1);
-            expected = new SeqGraph();
+            expected = new SeqGraph(11);
             expected.addVertices(ac, g1);
             expected.addEdges(ac, g1, g1);
             tests.add(new Object[]{graph.clone(), expected.clone()});
@@ -443,8 +445,8 @@ public class SeqGraphUnitTest extends BaseTest {
         {
             final List<String> bases = Arrays.asList("A", "C", "G", "T", "TT", "GG", "CC", "AA");
             for ( final int len : Arrays.asList(1, 2, 10, 100, 1000)) {
-                graph = new SeqGraph();
-                expected = new SeqGraph();
+                graph = new SeqGraph(11);
+                expected = new SeqGraph(11);
                 SeqVertex last = null;
                 String expectedBases = "";
                 for ( int i = 0; i < len; i++ ) {
@@ -465,8 +467,8 @@ public class SeqGraphUnitTest extends BaseTest {
             int edgeWeight = 1;
             for ( final int nIncoming : Arrays.asList(0, 2, 5, 10) ) {
                 for ( final int nOutgoing : Arrays.asList(0, 2, 5, 10) ) {
-                    graph = new SeqGraph();
-                    expected = new SeqGraph();
+                    graph = new SeqGraph(11);
+                    expected = new SeqGraph(11);
 
                     graph.addVertices(a1, c1, g1);
                     graph.addEdges(a1, c1, g1);
@@ -530,7 +532,7 @@ public class SeqGraphUnitTest extends BaseTest {
         final SeqVertex v5 = new SeqVertex("CCTCCACCATCCTCCCCTCTAGGCTTCTCCTCCTCCTCCACCATCCTCCCCTCTAGACTTCTCCTCCTCCTCCACCATCCTCCCCTCTAGACTTCTCCTCCTCCTCCACCATC");
         final SeqVertex v6 = new SeqVertex("CTCCCCT");
 
-        final SeqGraph graph = new SeqGraph();
+        final SeqGraph graph = new SeqGraph(11);
         graph.addVertices(v1, v2, v3, v4, v5, v6);
         graph.addEdges(v1, v3, v4, v6, v3);
         graph.addEdges(v2, v4);
@@ -538,4 +540,5 @@ public class SeqGraphUnitTest extends BaseTest {
 
         graph.simplifyGraph();
     }
+
 }

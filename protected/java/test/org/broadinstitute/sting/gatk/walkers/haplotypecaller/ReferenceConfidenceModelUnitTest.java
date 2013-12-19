@@ -47,7 +47,6 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import net.sf.samtools.SAMFileHeader;
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
@@ -99,7 +98,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
 
     @DataProvider(name = "CalcNIndelInformativeReadsData")
     public Object[][] makeMyDataProvider() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         { // very basic testing
             final String ref  = "ACGT";
@@ -165,6 +164,26 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
     }
 
     @Test
+    public void testCalcNIndelInformativeReducedReads() {
+        final String bases = "ACGGGTTTGGAC";
+        final byte[] quals = Utils.dupBytes((byte)30, bases.length());
+        final int count = 10;
+        final int[] counts = new int[bases.length()];
+        for ( int i = 0; i < counts.length; i++ )
+            counts[i] = count;
+        final int position = 100;
+
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialReducedRead(header, "foo", 0, position, counts.length, counts);
+        read.setReadString(bases);
+        read.setBaseQualities(quals);
+        read.setCigarString(bases.length() + "M");
+        final GenomeLoc loc = new UnvalidatingGenomeLoc("20", 0, position, position);
+        final ReadBackedPileup pileup = new ReadBackedPileupImpl(loc, Collections.singletonList(read), 0);
+        final int actual = model.calcNIndelInformativeReads(pileup, 0, bases.getBytes(), 3);
+        Assert.assertEquals(actual, count);
+    }
+
+    @Test
     public void testClose() {
         model.close();
     }
@@ -187,7 +206,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
         Assert.assertEquals(prev.getAsPLs(), new int[]{0, 0, 0});
         Assert.assertEquals(-10 * prev.getLog10GQ(GenotypeType.HOM_REF), 0.0);
 
-        for ( int i = 1; i < 10000; i++ ) {
+        for ( int i = 1; i <= ReferenceConfidenceModel.MAX_N_INDEL_INFORMATIVE_READS; i++ ) {
             final GenotypeLikelihoods current = model.getIndelPLs(i);
             final double prevGQ = -10 * prev.getLog10GQ(GenotypeType.HOM_REF);
             final double currGQ = -10 * current.getLog10GQ(GenotypeType.HOM_REF);
@@ -379,7 +398,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                 Assert.assertEquals(refModel.getEnd(), loc.getStart() + i);
                 Assert.assertFalse(refModel.hasLog10PError());
                 Assert.assertEquals(refModel.getAlternateAlleles().size(), 1);
-                Assert.assertEquals(refModel.getAlternateAllele(0), ReferenceConfidenceModel.NON_REF_SYMBOLIC_ALLELE);
+                Assert.assertEquals(refModel.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
                 Assert.assertTrue(refModel.hasGenotype(sample));
 
                 final Genotype g = refModel.getGenotype(sample);
@@ -388,7 +407,6 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                 Assert.assertEquals(g.getDP(), expectedDP);
                 Assert.assertTrue(g.hasGQ());
                 Assert.assertTrue(g.hasPL());
-                Assert.assertTrue(g.hasExtendedAttribute(ReferenceConfidenceModel.INDEL_INFORMATIVE_DEPTH));
             }
 
             final VariantContext vc = call == null ? refModel : call;

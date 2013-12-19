@@ -55,10 +55,8 @@ import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.collections.PrimitivePair;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
@@ -87,15 +85,6 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
         header = ArtificialSAMUtils.createArtificialSamHeader(seq.getSequenceDictionary());
     }
 
-    private enum Assembler {DEBRUIJN_ASSEMBLER, READ_THREADING_ASSEMBLER}
-    private LocalAssemblyEngine createAssembler(final Assembler type) {
-        switch ( type ) {
-            case DEBRUIJN_ASSEMBLER: return new DeBruijnAssembler();
-            case READ_THREADING_ASSEMBLER: return new ReadThreadingAssembler();
-            default: throw new IllegalStateException("Unexpected " + type);
-        }
-    }
-
     @DataProvider(name = "AssembleIntervalsData")
     public Object[][] makeAssembleIntervalsData() {
         List<Object[]> tests = new ArrayList<Object[]>();
@@ -107,12 +96,10 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
         final int stepSize = 200;
         final int nReadsToUse = 5;
 
-        for ( final Assembler assembler : Assembler.values() ) {
-            for ( int startI = start; startI < end; startI += stepSize) {
-                final int endI = startI + windowSize;
-                final GenomeLoc refLoc = genomeLocParser.createGenomeLoc(contig, startI, endI);
-                tests.add(new Object[]{assembler, refLoc, nReadsToUse});
-            }
+        for ( int startI = start; startI < end; startI += stepSize) {
+            final int endI = startI + windowSize;
+            final GenomeLoc refLoc = genomeLocParser.createGenomeLoc(contig, startI, endI);
+            tests.add(new Object[]{new ReadThreadingAssembler(), refLoc, nReadsToUse});
         }
 
         return tests.toArray(new Object[][]{});
@@ -130,13 +117,11 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
         final int variantStepSize = 1;
         final int nReadsToUse = 5;
 
-        for ( final Assembler assembler : Assembler.values() ) {
-            for ( int startI = start; startI < end; startI += stepSize) {
-                final int endI = startI + windowSize;
-                final GenomeLoc refLoc = genomeLocParser.createGenomeLoc(contig, startI, endI);
-                for ( int variantStart = windowSize / 2 - 10; variantStart < windowSize / 2 + 10; variantStart += variantStepSize ) {
-                    tests.add(new Object[]{assembler, refLoc, nReadsToUse, variantStart});
-                }
+        for ( int startI = start; startI < end; startI += stepSize) {
+            final int endI = startI + windowSize;
+            final GenomeLoc refLoc = genomeLocParser.createGenomeLoc(contig, startI, endI);
+            for ( int variantStart = windowSize / 2 - 10; variantStart < windowSize / 2 + 10; variantStart += variantStepSize ) {
+                tests.add(new Object[]{new ReadThreadingAssembler(), refLoc, nReadsToUse, variantStart});
             }
         }
 
@@ -144,7 +129,7 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
     }
 
     @Test(dataProvider = "AssembleIntervalsData")
-    public void testAssembleRef(final Assembler assembler, final GenomeLoc loc, final int nReadsToUse) {
+    public void testAssembleRef(final ReadThreadingAssembler assembler, final GenomeLoc loc, final int nReadsToUse) {
         final byte[] refBases = seq.getSubsequenceAt(loc.getContig(), loc.getStart(), loc.getStop()).getBases();
 
         final List<GATKSAMRecord> reads = new LinkedList<GATKSAMRecord>();
@@ -163,7 +148,7 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
     }
 
     @Test(dataProvider = "AssembleIntervalsWithVariantData")
-    public void testAssembleRefAndSNP(final Assembler assembler, final GenomeLoc loc, final int nReadsToUse, final int variantSite) {
+    public void testAssembleRefAndSNP(final ReadThreadingAssembler assembler, final GenomeLoc loc, final int nReadsToUse, final int variantSite) {
         final byte[] refBases = seq.getSubsequenceAt(loc.getContig(), loc.getStart(), loc.getStop()).getBases();
         final Allele refBase = Allele.create(refBases[variantSite], true);
         final Allele altBase = Allele.create((byte)(refBase.getBases()[0] == 'A' ? 'C' : 'A'), false);
@@ -172,7 +157,7 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
     }
 
     @Test(dataProvider = "AssembleIntervalsWithVariantData")
-    public void testAssembleRefAndDeletion(final Assembler assembler, final GenomeLoc loc, final int nReadsToUse, final int variantSite) {
+    public void testAssembleRefAndDeletion(final ReadThreadingAssembler assembler, final GenomeLoc loc, final int nReadsToUse, final int variantSite) {
         final byte[] refBases = seq.getSubsequenceAt(loc.getContig(), loc.getStart(), loc.getStop()).getBases();
         for ( int deletionLength = 1; deletionLength < 10; deletionLength++ ) {
             final Allele refBase = Allele.create(new String(refBases).substring(variantSite, variantSite + deletionLength + 1), true);
@@ -183,7 +168,7 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
     }
 
     @Test(dataProvider = "AssembleIntervalsWithVariantData")
-    public void testAssembleRefAndInsertion(final Assembler assembler, final GenomeLoc loc, final int nReadsToUse, final int variantSite) {
+    public void testAssembleRefAndInsertion(final ReadThreadingAssembler assembler, final GenomeLoc loc, final int nReadsToUse, final int variantSite) {
         final byte[] refBases = seq.getSubsequenceAt(loc.getContig(), loc.getStart(), loc.getStop()).getBases();
         for ( int insertionLength = 1; insertionLength < 10; insertionLength++ ) {
             final Allele refBase = Allele.create(refBases[variantSite], false);
@@ -193,7 +178,7 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
         }
     }
 
-    private void testAssemblyWithVariant(final Assembler assembler, final byte[] refBases, final GenomeLoc loc, final int nReadsToUse, final VariantContext site) {
+    private void testAssemblyWithVariant(final ReadThreadingAssembler assembler, final byte[] refBases, final GenomeLoc loc, final int nReadsToUse, final VariantContext site) {
         final String preRef = new String(refBases).substring(0, site.getStart());
         final String postRef = new String(refBases).substring(site.getEnd() + 1, refBases.length);
         final byte[] altBases = (preRef + site.getAlternateAllele(0).getBaseString() + postRef).getBytes();
@@ -217,7 +202,7 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
     }
 
 
-    private List<Haplotype> assemble(final Assembler assembler, final byte[] refBases, final GenomeLoc loc, final List<GATKSAMRecord> reads) {
+    private List<Haplotype> assemble(final ReadThreadingAssembler assembler, final byte[] refBases, final GenomeLoc loc, final List<GATKSAMRecord> reads) {
         final Haplotype refHaplotype = new Haplotype(refBases, true);
         final Cigar c = new Cigar();
         c.add(new CigarElement(refHaplotype.getBases().length, CigarOperator.M));
@@ -225,9 +210,9 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
 
         final ActiveRegion activeRegion = new ActiveRegion(loc, null, true, genomeLocParser, 0);
         activeRegion.addAll(reads);
-        final LocalAssemblyEngine engine = createAssembler(assembler);
 //        logger.warn("Assembling " + activeRegion + " with " + engine);
-        return engine.runLocalAssembly(activeRegion, refHaplotype, refBases, loc, Collections.<VariantContext>emptyList(), null);
+        final AssemblyResultSet assemblyResultSet =  assembler.runLocalAssembly(activeRegion, refHaplotype, refBases, loc, Collections.<VariantContext>emptyList(), null);
+        return assemblyResultSet.getHaplotypeList();
     }
 
     @DataProvider(name = "SimpleAssemblyTestData")
@@ -239,30 +224,25 @@ public class LocalAssemblyEngineUnitTest extends BaseTest {
         final int windowSize = 200;
         final int end        = start + windowSize;
 
-        final Map<Assembler, Integer> edgeExcludesByAssembler = new EnumMap<>(Assembler.class);
-        edgeExcludesByAssembler.put(Assembler.DEBRUIJN_ASSEMBLER, 26);
-        edgeExcludesByAssembler.put(Assembler.READ_THREADING_ASSEMBLER, 25); // TODO -- decrease to zero when the edge calling problem is fixed
+        final int excludeVariantsWithinXbp = 25; // TODO -- decrease to zero when the edge calling problem is fixed
 
         final String ref = new String(seq.getSubsequenceAt(contig, start, end).getBases());
         final GenomeLoc refLoc = genomeLocParser.createGenomeLoc(contig, start, end);
 
-        for ( final Assembler assembler : Assembler.values() ) {
-            final int excludeVariantsWithXbp = edgeExcludesByAssembler.get(assembler);
             for ( int snpPos = 0; snpPos < windowSize; snpPos++) {
-                if ( snpPos > excludeVariantsWithXbp && (windowSize - snpPos) >= excludeVariantsWithXbp ) {
+                if ( snpPos > excludeVariantsWithinXbp && (windowSize - snpPos) >= excludeVariantsWithinXbp ) {
                     final byte[] altBases = ref.getBytes();
                     altBases[snpPos] = altBases[snpPos] == 'A' ? (byte)'C' : (byte)'A';
                     final String alt = new String(altBases);
-                    tests.add(new Object[]{"SNP at " + snpPos, assembler, refLoc, ref, alt});
+                    tests.add(new Object[]{"SNP at " + snpPos, new ReadThreadingAssembler(), refLoc, ref, alt});
                 }
             }
-        }
 
         return tests.toArray(new Object[][]{});
     }
 
     @Test(dataProvider = "SimpleAssemblyTestData")
-    public void testSimpleAssembly(final String name, final Assembler assembler, final GenomeLoc loc, final String ref, final String alt) {
+    public void testSimpleAssembly(final String name, final ReadThreadingAssembler assembler, final GenomeLoc loc, final String ref, final String alt) {
         final byte[] refBases = ref.getBytes();
         final byte[] altBases = alt.getBytes();
 

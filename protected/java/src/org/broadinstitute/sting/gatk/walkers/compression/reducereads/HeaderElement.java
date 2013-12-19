@@ -59,7 +59,8 @@ import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
  * out due to mapping or base quality.
  */
 public class HeaderElement {
-    private BaseAndQualsCounts consensusBaseCounts;                                                                     // How many A,C,G,T (and D's) are in this site.
+    private BaseAndQualsCounts positiveConsensusBaseCounts;                                                                     // How many A,C,G,T (and D's) are in this site.
+    private BaseAndQualsCounts negativeConsensusBaseCounts;                                                                     // How many A,C,G,T (and D's) are in this site.
     private BaseAndQualsCounts filteredBaseCounts;                                                                      // How many A,C,G,T (and D's) were filtered out in this site.
     private int insertionsToTheRight;                                                                                   // How many reads in this site had insertions to the immediate right
     private int location;                                                                                               // Genome location of this site (the sliding window knows which contig we're at
@@ -70,12 +71,18 @@ public class HeaderElement {
         return location;
     }
 
-    public BaseAndQualsCounts getFilteredBaseCounts() {
+    /**
+     * Get the base counts object for the consensus type
+     *
+     * @param consensusType   the type to use
+     * @return non-null base counts
+     */
+    public BaseAndQualsCounts getBaseCounts(final SlidingWindow.ConsensusType consensusType) {
+        if ( consensusType == SlidingWindow.ConsensusType.POSITIVE_CONSENSUS )
+            return positiveConsensusBaseCounts;
+        if ( consensusType == SlidingWindow.ConsensusType.NEGATIVE_CONSENSUS )
+            return negativeConsensusBaseCounts;
         return filteredBaseCounts;
-    }
-
-    public BaseAndQualsCounts getConsensusBaseCounts() {
-        return consensusBaseCounts;
     }
 
     /**
@@ -85,7 +92,7 @@ public class HeaderElement {
      * @param location the reference location for the new element
      */
     public HeaderElement(final int location) {
-        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, location);
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), new BaseAndQualsCounts(), 0, location);
     }
 
     /**
@@ -95,20 +102,22 @@ public class HeaderElement {
      * @param location the reference location for the new element
      */
     public HeaderElement(final int location, final int insertionsToTheRight) {
-        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, location);
+        this(new BaseAndQualsCounts(), new BaseAndQualsCounts(), new BaseAndQualsCounts(), insertionsToTheRight, location);
     }
 
     /**
      * Creates a new HeaderElement with all given parameters
      *
-     * @param consensusBaseCounts  the BaseCounts object for the running consensus synthetic read
+     * @param positiveConsensusBaseCounts  the BaseCounts object for the running positive consensus synthetic read
+     * @param negativeConsensusBaseCounts  the BaseCounts object for the running negative consensus synthetic read
      * @param filteredBaseCounts   the BaseCounts object for the filtered data synthetic read
      * @param insertionsToTheRight number of insertions to the right of this HeaderElement
      * @param location             the reference location of this reference element
      *                             HeaderElement
      */
-    public HeaderElement(BaseAndQualsCounts consensusBaseCounts, BaseAndQualsCounts filteredBaseCounts, int insertionsToTheRight, int location) {
-        this.consensusBaseCounts = consensusBaseCounts;
+    public HeaderElement(final BaseAndQualsCounts positiveConsensusBaseCounts, final BaseAndQualsCounts negativeConsensusBaseCounts, final BaseAndQualsCounts filteredBaseCounts, final int insertionsToTheRight, final int location) {
+        this.positiveConsensusBaseCounts = positiveConsensusBaseCounts;
+        this.negativeConsensusBaseCounts = negativeConsensusBaseCounts;
         this.filteredBaseCounts = filteredBaseCounts;
         this.insertionsToTheRight = insertionsToTheRight;
         this.location = location;
@@ -124,7 +133,8 @@ public class HeaderElement {
      * @return true if site is variant by any definition. False otherwise.
      */
     public boolean isVariant(final double minVariantPvalue, final double minVariantProportion, final double minIndelProportion) {
-        return hasConsensusData() && (isVariantFromInsertions(minIndelProportion) || isVariantFromMismatches(minVariantPvalue, minVariantProportion) || isVariantFromDeletions(minIndelProportion) || isVariantFromSoftClips());
+        return ( hasConsensusData(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS) || hasConsensusData(SlidingWindow.ConsensusType.NEGATIVE_CONSENSUS) )
+                && (isVariantFromInsertions(minIndelProportion) || isVariantFromMismatches(minVariantPvalue, minVariantProportion) || isVariantFromDeletions(minIndelProportion) || isVariantFromSoftClips());
     }
 
     /**
@@ -138,13 +148,18 @@ public class HeaderElement {
      * @param minBaseQual        the minimum base qual allowed to be a good base
      * @param minMappingQual     the minimum mapping qual allowed to be a good read
      * @param isSoftClipped      true if the base is soft-clipped in the original read
+     * @param isNegativeStrand   true if the base comes from a read on the negative strand
      */
-    public void addBase(byte base, byte baseQual, byte insQual, byte delQual, int baseMappingQuality, int minBaseQual, int minMappingQual, boolean isSoftClipped) {
+    public void addBase(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQuality, final int minBaseQual, final int minMappingQual, final boolean isSoftClipped, final boolean isNegativeStrand) {
         // If the base passes the MQ filter it is included in the consensus base counts, otherwise it's part of the filtered counts
-        if ( baseMappingQuality >= minMappingQual )
-            consensusBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
-        else
+        if ( baseMappingQuality >= minMappingQual ) {
+            if ( isNegativeStrand )
+                negativeConsensusBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
+            else
+                positiveConsensusBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
+        } else {
             filteredBaseCounts.incr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual);
+        }
     }
 
     /**
@@ -158,14 +173,20 @@ public class HeaderElement {
      * @param minBaseQual        the minimum base qual allowed to be a good base
      * @param minMappingQual     the minimum mapping qual allowed to be a good read
      * @param isSoftClipped      true if the base is soft-clipped in the original read
+     * @param isNegativeStrand   true if the base comes from a read on the negative strand
      */
-    public void removeBase(byte base, byte baseQual, byte insQual, byte delQual, int baseMappingQuality, int minBaseQual, int minMappingQual, boolean isSoftClipped) {
+    public void removeBase(final byte base, final byte baseQual, final byte insQual, final byte delQual, final int baseMappingQuality, final int minBaseQual, final int minMappingQual, final boolean isSoftClipped, final boolean isNegativeStrand) {
         // If the base passes the MQ filter it is included in the consensus base counts, otherwise it's part of the filtered counts
-        if ( baseMappingQuality >= minMappingQual )
-            consensusBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
-        else
+        if ( baseMappingQuality >= minMappingQual ) {
+            if ( isNegativeStrand )
+                negativeConsensusBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
+            else
+                positiveConsensusBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual, isSoftClipped);
+        } else {
             filteredBaseCounts.decr(base, baseQual, insQual, delQual, baseMappingQuality, baseQual < minBaseQual);
+        }
     }
+
     /**
      * Adds an insertions to the right of the HeaderElement and updates all counts accordingly. All insertions
      * should be added to the right of the element.
@@ -177,19 +198,11 @@ public class HeaderElement {
     /**
      * Does this HeaderElement contain consensus data?
      *
+     * @param consensusType   the type to use
      * @return whether or not this HeaderElement contains consensus data
      */
-    public boolean hasConsensusData() {
-        return consensusBaseCounts.totalCount() > 0;
-    }
-
-    /**
-     * Does this HeaderElement contain filtered data?
-     *
-     * @return whether or not this HeaderElement contains filtered data
-     */
-    public boolean hasFilteredData() {
-        return filteredBaseCounts.totalCount() > 0;
+    public boolean hasConsensusData(final SlidingWindow.ConsensusType consensusType) {
+        return getBaseCounts(consensusType).totalCount() > 0;
     }
 
     /**
@@ -198,7 +211,7 @@ public class HeaderElement {
      * @return whether or not this HeaderElement has no data
      */
     public boolean isEmpty() {
-        return (!hasFilteredData() && !hasConsensusData());
+        return !hasConsensusData(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS) && !hasConsensusData(SlidingWindow.ConsensusType.NEGATIVE_CONSENSUS) && !hasConsensusData(SlidingWindow.ConsensusType.FILTERED);
     }
 
     /**
@@ -224,12 +237,16 @@ public class HeaderElement {
      * @return whether or not the HeaderElement is variant due to excess insertions
      */
     private boolean isVariantFromInsertions(double minIndelProportion) {
-        final int numberOfBases = consensusBaseCounts.totalCount();
+        final int numberOfBases = totalCountForBothStrands();
         if (numberOfBases == 0)
             return (insertionsToTheRight > 0); // do we only have insertions?
 
         // if we have bases and insertions, check the ratio
         return ((double) insertionsToTheRight / numberOfBases) > minIndelProportion;
+    }
+
+    private int totalCountForBothStrands() {
+        return positiveConsensusBaseCounts.totalCount() + negativeConsensusBaseCounts.totalCount();
     }
 
     /**
@@ -238,7 +255,8 @@ public class HeaderElement {
      * @return whether or not the HeaderElement is variant due to excess deletions
      */
     private boolean isVariantFromDeletions(double minIndelProportion) {
-        return consensusBaseCounts.baseIndexWithMostCounts() == BaseIndex.D || consensusBaseCounts.baseCountProportion(BaseIndex.D) > minIndelProportion;
+        return positiveConsensusBaseCounts.baseIndexWithMostCounts() == BaseIndex.D || positiveConsensusBaseCounts.baseCountProportion(BaseIndex.D) > minIndelProportion
+                || negativeConsensusBaseCounts.baseIndexWithMostCounts() == BaseIndex.D || negativeConsensusBaseCounts.baseCountProportion(BaseIndex.D) > minIndelProportion;
     }
 
     /**
@@ -249,9 +267,23 @@ public class HeaderElement {
      * @return whether or not the HeaderElement is variant due to excess mismatches
      */
     protected boolean isVariantFromMismatches(final double minVariantPvalue, final double minVariantProportion) {
-        final int totalCount = consensusBaseCounts.totalCountWithoutIndels();
-        final BaseIndex mostCommon = consensusBaseCounts.baseIndexWithMostProbabilityWithoutIndels();
-        final int countOfOtherBases = totalCount - consensusBaseCounts.countOfBase(mostCommon);
+        return isVariantFromMismatches(minVariantPvalue, minVariantProportion, SlidingWindow.ConsensusType.POSITIVE_CONSENSUS) ||
+                isVariantFromMismatches(minVariantPvalue, minVariantProportion, SlidingWindow.ConsensusType.NEGATIVE_CONSENSUS);
+    }
+
+    /**
+     * Whether or not the HeaderElement is variant due to excess mismatches
+     *
+     * @param minVariantPvalue     the minimum pvalue to call a site variant (used with low coverage).
+     * @param minVariantProportion the minimum proportion to call a site variant (used with high coverage).
+     * @param consensusType        the consensus type to use
+     * @return whether or not the HeaderElement is variant due to excess mismatches
+     */
+    private boolean isVariantFromMismatches(final double minVariantPvalue, final double minVariantProportion, final SlidingWindow.ConsensusType consensusType) {
+        final BaseAndQualsCounts baseAndQualsCounts = getBaseCounts(consensusType);
+        final int totalCount = baseAndQualsCounts.totalCountWithoutIndels();
+        final BaseIndex mostCommon = baseAndQualsCounts.baseIndexWithMostProbabilityWithoutIndels();
+        final int countOfOtherBases = totalCount - baseAndQualsCounts.countOfBase(mostCommon);
         return hasSignificantCount(countOfOtherBases, totalCount, minVariantPvalue, minVariantProportion);
     }
 
@@ -262,8 +294,20 @@ public class HeaderElement {
      * @return true if we had more soft clipped bases contributing to this site than matches/mismatches.
      */
     protected boolean isVariantFromSoftClips() {
-        final int nSoftClippedBases = consensusBaseCounts.nSoftclips();
-        return nSoftClippedBases > 0 && nSoftClippedBases >= (consensusBaseCounts.totalCount() - nSoftClippedBases);
+        return isVariantFromSoftClips(SlidingWindow.ConsensusType.POSITIVE_CONSENSUS) || isVariantFromSoftClips(SlidingWindow.ConsensusType.NEGATIVE_CONSENSUS);
+    }
+
+    /**
+     * This handles the special case where we have more bases that came from soft clips than bases that came from
+     * normal bases by forcing it to become a variant region. We don't want a consensus based on too little information.
+     *
+     * @param consensusType        the consensus type to use
+     * @return true if we had more soft clipped bases contributing to this site than matches/mismatches.
+     */
+    private boolean isVariantFromSoftClips(final SlidingWindow.ConsensusType consensusType) {
+        final BaseAndQualsCounts baseAndQualsCounts = getBaseCounts(consensusType);
+        final int nSoftClippedBases = baseAndQualsCounts.nSoftclips();
+        return nSoftClippedBases > 0 && nSoftClippedBases >= (baseAndQualsCounts.totalCount() - nSoftClippedBases);
     }
 
     /**
@@ -287,9 +331,9 @@ public class HeaderElement {
      */
     public ObjectArrayList<BaseIndex> getAlleles(final double minVariantPvalue, final double minVariantProportion) {
         // make sure we have bases at all
-        final int totalBaseCount = consensusBaseCounts.totalCount();
+        final int totalBaseCount = totalCountForBothStrands();
         if ( totalBaseCount == 0 )
-            return new ObjectArrayList<BaseIndex>(0);
+            return new ObjectArrayList<>(0);
 
         // next, check for insertions; technically, the insertion count can be greater than totalBaseCount
         // (because of the way insertions are counted), so we need to account for that
@@ -297,9 +341,9 @@ public class HeaderElement {
             return null;
 
         // finally, check for the bases themselves (including deletions)
-        final ObjectArrayList<BaseIndex> alleles = new ObjectArrayList<BaseIndex>(4);
+        final ObjectArrayList<BaseIndex> alleles = new ObjectArrayList<>(4);
         for ( final BaseIndex base : BaseIndex.values() ) {
-            final int baseCount = consensusBaseCounts.countOfBase(base);
+            final int baseCount = positiveConsensusBaseCounts.countOfBase(base) + negativeConsensusBaseCounts.countOfBase(base);
             if ( baseCount == 0 )
                 continue;
 
@@ -320,7 +364,7 @@ public class HeaderElement {
      * @return true if there are significant softclips, false otherwise
      */
     public boolean hasSignificantSoftclips(final double minVariantPvalue, final double minVariantProportion) {
-        return hasSignificantCount(consensusBaseCounts.nSoftclips(), consensusBaseCounts.totalCount(), minVariantPvalue, minVariantProportion);
+        return hasSignificantCount(positiveConsensusBaseCounts.nSoftclips() + negativeConsensusBaseCounts.nSoftclips(), totalCountForBothStrands(), minVariantPvalue, minVariantProportion);
     }
 
     /*

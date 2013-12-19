@@ -58,6 +58,8 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnota
 import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.QualityUtils;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
@@ -81,6 +83,7 @@ import java.util.*;
  * <p>The Fisher Strand test may not be calculated for certain complex indel cases or for multi-allelic sites.</p>
  */
 public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+    private final static boolean ENABLE_DEBUGGING = false;
     private final static Logger logger = Logger.getLogger(FisherStrand.class);
 
     private static final String FS = "FS";
@@ -96,9 +99,18 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         if ( !vc.isVariant() )
             return null;
 
+        if ( vc.hasGenotypes() ) {
+            final int[][] tableFromPerSampleAnnotations = getTableFromSamples( vc.getGenotypes() );
+            if ( tableFromPerSampleAnnotations != null ) {
+              return pValueForBestTable(tableFromPerSampleAnnotations, null);
+            }
+        }
+
         if (vc.isSNP() && stratifiedContexts != null) {
             final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1);
             final int[][] tableFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), MIN_QUAL_FOR_FILTERED_TEST);
+            printTable("unfiltered", tableNoFiltering);
+            printTable("filtered", tableFiltering);
             return pValueForBestTable(tableFiltering, tableNoFiltering);
         }
         else if (stratifiedPerReadAlleleLikelihoodMap != null) {
@@ -112,6 +124,32 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
             // for non-snp variants, we  need per-read likelihoods.
             // for snps, we can get same result from simple pileup
             return null;
+    }
+
+    /**
+     * Create the FisherStrand table by retrieving the per-sample strand bias annotation and adding them together
+     * @param genotypes the genotypes from which to pull out the per-sample strand bias annotation
+     * @return the table used for the FisherStrand p-value calculation, will be null if none of the genotypes contain the per-sample SB annotation
+     */
+    private int[][] getTableFromSamples( final GenotypesContext genotypes ) {
+        if( genotypes == null ) { throw new IllegalArgumentException("Genotypes cannot be null."); }
+
+        final int[] sbArray = {0,0,0,0}; // forward-reverse -by- alternate-reference
+        boolean foundData = false;
+
+        for( final Genotype g : genotypes ) {
+            if( g.isNoCall() || ! g.hasAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME) )
+                continue;
+
+            foundData = true;
+            final String sbbsString = (String) g.getAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME);
+            final int[] data = encodeSBBS(sbbsString);
+            for( int index = 0; index < sbArray.length; index++ ) {
+                sbArray[index] += data[index];
+            }
+        }
+
+        return ( foundData ? decodeSBBS(sbArray) : null );
     }
 
     /**
@@ -145,12 +183,56 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
     }
 
     public List<String> getKeyNames() {
-        return Arrays.asList(FS);
+        return Collections.singletonList(FS);
     }
 
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(
-                new VCFInfoHeaderLine(FS, 1, VCFHeaderLineType.Float, "Phred-scaled p-value using Fisher's exact test to detect strand bias"));
+        return Collections.singletonList(new VCFInfoHeaderLine(FS, 1, VCFHeaderLineType.Float, "Phred-scaled p-value using Fisher's exact test to detect strand bias"));
+    }
+
+    /**
+     * Helper function to turn the FisherStrand table into the SB annotation array
+     * @param table the table used by the FisherStrand annotation
+     * @return the array used by the per-sample Strand Bias annotation
+     */
+    public static int[] getContingencyArray( final int[][] table ) {
+        if(table.length != 2) { throw new IllegalArgumentException("Expecting a 2x2 strand bias table."); }
+        if(table[0].length != 2) { throw new IllegalArgumentException("Expecting a 2x2 strand bias table."); }
+        final int[] array = new int[4]; // TODO - if we ever want to do something clever with multi-allelic sites this will need to change
+        array[0] = table[0][0];
+        array[1] = table[0][1];
+        array[2] = table[1][0];
+        array[3] = table[1][1];
+        return array;
+    }
+
+    /**
+     * Helper function to parse the genotype annotation into the SB annotation array
+     * @param string the string that is returned by genotype.getAnnotation("SB")
+     * @return the array used by the per-sample Strand Bias annotation
+     */
+    private static int[] encodeSBBS( final String string ) {
+        final int[] array = new int[4];
+        final StringTokenizer tokenizer = new StringTokenizer(string, ",", false);
+        for( int index = 0; index < 4; index++ ) {
+            array[index] = Integer.parseInt(tokenizer.nextToken());
+        }
+        return array;
+    }
+
+    /**
+     * Helper function to turn the  SB annotation array into the FisherStrand table
+     * @param array the array used by the per-sample Strand Bias annotation
+     * @return the table used by the FisherStrand annotation
+     */
+    private static int[][] decodeSBBS( final int[] array ) {
+        if(array.length != 4) { throw new IllegalArgumentException("Expecting a length = 4 strand bias array."); }
+        final int[][] table = new int[2][2];
+        table[0][0] = array[0];
+        table[0][1] = array[1];
+        table[1][0] = array[2];
+        table[1][1] = array[3];
+        return table;
     }
 
     private Double pValueForContingencyTable(int[][] originalTable) {
@@ -201,6 +283,20 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
     private static void printTable(int[][] table, double pValue) {
         logger.info(String.format("%d %d; %d %d : %f", table[0][0], table[0][1], table[1][0], table[1][1], pValue));
+    }
+
+    /**
+     * Printing information to logger.info for debugging purposes
+     *
+     * @param name the name of the table
+     * @param table the table itself
+     */
+    private void printTable(final String name, final int[][] table) {
+        if ( ENABLE_DEBUGGING ) {
+            final String pValue = (String)annotationForOneTable(pValueForContingencyTable(table)).get(FS);
+            logger.info(String.format("FS %s (REF+, REF-, ALT+, ALT-) = (%d, %d, %d, %d) = %s",
+                    name, table[0][0], table[0][1], table[1][0], table[1][1], pValue));
+        }
     }
 
     private static boolean rotateTable(int[][] table) {
@@ -267,13 +363,16 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
      *   allele2   #       #
      * @return a 2x2 contingency table
      */
-    private static int[][] getContingencyTable( final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap, final VariantContext vc) {
+    public static int[][] getContingencyTable( final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap, final VariantContext vc) {
+        if( stratifiedPerReadAlleleLikelihoodMap == null ) { throw new IllegalArgumentException("stratifiedPerReadAlleleLikelihoodMap cannot be null"); }
+        if( vc == null ) { throw new IllegalArgumentException("input vc cannot be null"); }
+
         final Allele ref = vc.getReference();
         final Allele alt = vc.getAltAlleleWithHighestAlleleCount();
-        int[][] table = new int[2][2];
+        final int[][] table = new int[2][2];
 
-        for (PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
-            for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
+        for (final PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
+            for (final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
                 final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
                 final GATKSAMRecord read = el.getKey();
                 final int representativeCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;

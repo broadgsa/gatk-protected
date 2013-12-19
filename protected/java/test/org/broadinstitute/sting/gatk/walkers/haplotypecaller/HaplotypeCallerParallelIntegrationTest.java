@@ -58,10 +58,10 @@ import java.util.List;
 public class HaplotypeCallerParallelIntegrationTest extends WalkerTest {
     @DataProvider(name = "NCTDataProvider")
     public Object[][] makeNCTDataProvider() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         for ( final int nct : Arrays.asList(1, 2, 4) ) {
-            tests.add(new Object[]{nct, "e800f6bb3a820da5c6b29f0195480796"});
+            tests.add(new Object[]{nct, "29cb04cca87f42b4762c34dfea5d15b7"});
         }
 
         return tests.toArray(new Object[][]{});
@@ -70,7 +70,7 @@ public class HaplotypeCallerParallelIntegrationTest extends WalkerTest {
     @Test(dataProvider = "NCTDataProvider")
     public void testHCNCT(final int nct, final String md5) {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I "
+                "-T HaplotypeCaller --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I "
                         + privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam -o %s " +
                         " -L 20:10,000,000-10,100,000 -G none -A -contamination 0.0 -nct " + nct, 1,
                 Arrays.asList(md5));

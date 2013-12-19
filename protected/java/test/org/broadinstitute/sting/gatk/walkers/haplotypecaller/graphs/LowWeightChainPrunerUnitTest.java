@@ -51,7 +51,6 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.util.*;
 
 public class LowWeightChainPrunerUnitTest extends BaseTest {
@@ -71,7 +70,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
                 for ( final boolean isRef : Arrays.asList(true, false)) {
                     { // just an isolated chain
                         final int nExpected = edgeWeight < pruneFactor && ! isRef ? 3 : 0;
-                        SeqGraph graph = new SeqGraph();
+                        SeqGraph graph = new SeqGraph(11);
                         graph.addVertices(v1, v2, v3);
                         graph.addEdges(new BaseEdge(isRef, edgeWeight), v1, v2, v3);
                         tests.add(new Object[]{"combinatorial", graph, pruneFactor, nExpected > 0 ? Collections.emptySet() : graph.vertexSet()});
@@ -81,7 +80,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
         }
 
         { // connects to ref chain
-            SeqGraph graph = new SeqGraph();
+            SeqGraph graph = new SeqGraph(11);
             graph.addVertices(v1, v2, v3);
             graph.addVertices(v4, v5);
             graph.addEdges(new BaseEdge(true, 1), v4, v5);
@@ -90,7 +89,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
         }
 
         { // has bad cycle
-            SeqGraph graph = new SeqGraph();
+            SeqGraph graph = new SeqGraph(11);
             graph.addVertices(v1, v2, v3, v4);
             graph.addEdges(new BaseEdge(false, 1), v4, v1, v2, v3, v1);
             // note that we'll remove v4 because it's low weight
@@ -98,7 +97,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
         }
 
         { // has good cycle
-            SeqGraph graph = new SeqGraph();
+            SeqGraph graph = new SeqGraph(111);
             graph.addVertices(v1, v2, v3, v4);
             graph.addEdges(new BaseEdge(false, 3), v4, v1, v2, v3, v1);
             // note that we'll remove v4 because it's low weight
@@ -106,7 +105,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
         }
 
         { // has branch
-            SeqGraph graph = new SeqGraph();
+            SeqGraph graph = new SeqGraph(11);
             graph.addVertices(v1, v2, v3, v4, v5, v6);
             graph.addEdges(new BaseEdge(false, 1), v1, v2, v3, v4, v6);
             graph.addEdges(new BaseEdge(false, 1), v1, v2, v3, v5, v6);
@@ -114,7 +113,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
         }
 
         { // middle vertex above threshold => no one can be removed
-            SeqGraph graph = new SeqGraph();
+            SeqGraph graph = new SeqGraph(11);
             graph.addVertices(v1, v2, v3, v4, v5);
             graph.addEdges(new BaseEdge(false, 1), v1, v2);
             graph.addEdges(new BaseEdge(false, 3), v2, v3);
@@ -123,7 +122,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
         }
 
         { // the branching node has value > pruneFactor
-            SeqGraph graph = new SeqGraph();
+            SeqGraph graph = new SeqGraph(11);
             graph.addVertices(v1, v2, v3, v4, v5, v6);
             graph.addEdges(new BaseEdge(false, 3), v1, v2);
             graph.addEdges(new BaseEdge(false, 3), v2, v3);
@@ -133,7 +132,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
         }
 
         { // A single isolated chain with weights all below pruning should be pruned
-            SeqGraph graph = new SeqGraph();
+            SeqGraph graph = new SeqGraph(11);
             graph.addVertices(v1, v2, v3, v4, v5);
             graph.addEdges(new BaseEdge(false, 1), v1, v2, v3);
             graph.addEdges(new BaseEdge(false, 5), v4, v5);
@@ -141,7 +140,7 @@ public class LowWeightChainPrunerUnitTest extends BaseTest {
         }
 
         { // A chain with weights all below pruning should be pruned, even if it connects to another good chain
-            SeqGraph graph = new SeqGraph();
+            SeqGraph graph = new SeqGraph(11);
             graph.addVertices(v1, v2, v3, v4, v5, v6);
             graph.addEdges(new BaseEdge(false, 1), v1, v2, v3, v5);
             graph.addEdges(new BaseEdge(false, 5), v4, v5, v6);

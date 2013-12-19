@@ -46,13 +46,24 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
+import org.broad.tribble.readers.LineIterator;
+import org.broad.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFCodec;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Arrays;
 
 public class VariantAnnotatorIntegrationTest extends WalkerTest {
+
+    final static String REF = b37KGReference;
+    final static String CEUTRIO_BAM = validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam";
 
     public static String baseTestString() {
         return "-T VariantAnnotator -R " + b36KGReference + " --no_cmdline_in_header -o %s";
@@ -290,4 +301,96 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         executeTest("Testing InbreedingCoeff annotation with PED file", spec);
     }
 
+    @Test
+    public void testStrandBiasBySample() throws IOException {
+        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(""));
+        final File outputVCF = executeTest("testStrandBiasBySample", spec).getFirst().get(0);
+
+        final String baseNoFS = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -XA FisherStrand -A StrandBiasBySample";
+        final WalkerTestSpec specNoFS = new WalkerTestSpec(baseNoFS, 1, Arrays.asList(""));
+        specNoFS.disableShadowBCF();
+        final File outputVCFNoFS = executeTest("testStrandBiasBySample component stand bias annotation", specNoFS).getFirst().get(0);
+
+        final String baseAnn = String.format("-T VariantAnnotator -R %s -V %s", REF, outputVCFNoFS.getAbsolutePath()) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -A FisherStrand";
+        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList(""));
+        specAnn.disableShadowBCF();
+        final File outputVCFAnn = executeTest("testStrandBiasBySample re-annotation of FisherStrand", specAnn).getFirst().get(0);
+
+        // confirm that the FisherStrand values are identical for the two pipelines
+        final VCFCodec codec = new VCFCodec();
+        final FileInputStream s = new FileInputStream(outputVCF);
+        final LineIterator lineIterator = codec.makeSourceFromStream(new PositionalBufferedStream(s));
+        codec.readHeader(lineIterator);
+
+        final VCFCodec codecAnn = new VCFCodec();
+        final FileInputStream sAnn = new FileInputStream(outputVCFAnn);
+        final LineIterator lineIteratorAnn = codecAnn.makeSourceFromStream(new PositionalBufferedStream(sAnn));
+        codecAnn.readHeader(lineIteratorAnn);
+
+        while( lineIterator.hasNext() && lineIteratorAnn.hasNext() ) {
+            final String line = lineIterator.next();
+            Assert.assertFalse(line == null);
+            final VariantContext vc = codec.decode(line);
+
+            final String lineAnn = lineIteratorAnn.next();
+            Assert.assertFalse(lineAnn == null);
+            final VariantContext vcAnn = codecAnn.decode(lineAnn);
+
+            Assert.assertTrue(vc.hasAttribute("FS"));
+            Assert.assertTrue(vcAnn.hasAttribute("FS"));
+            Assert.assertEquals(vc.getAttributeAsDouble("FS", 0.0), vcAnn.getAttributeAsDouble("FS", -1.0));
+        }
+
+        Assert.assertFalse(lineIterator.hasNext());
+        Assert.assertFalse(lineIteratorAnn.hasNext());
+    }
+
+    @Test
+    public void testQualByDepth() throws IOException {
+        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(""));
+        final File outputVCF = executeTest("testQualByDepth", spec).getFirst().get(0);
+
+        final String baseNoQD = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -XA QualByDepth";
+        final WalkerTestSpec specNoQD = new WalkerTestSpec(baseNoQD, 1, Arrays.asList(""));
+        specNoQD.disableShadowBCF();
+        final File outputVCFNoQD = executeTest("testQualByDepth calling without QD", specNoQD).getFirst().get(0);
+
+        final String baseAnn = String.format("-T VariantAnnotator -R %s -V %s", REF, outputVCFNoQD.getAbsolutePath()) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -A QualByDepth";
+        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("139a4384f5a7c1f49ada67f416642249"));
+        specAnn.disableShadowBCF();
+        final File outputVCFAnn = executeTest("testQualByDepth re-annotation of QD", specAnn).getFirst().get(0);
+
+        // confirm that the QD values are present in the new file for all biallelic variants
+        // QD values won't be identical because some filtered reads are missing during re-annotation
+
+        final VCFCodec codec = new VCFCodec();
+        final FileInputStream s = new FileInputStream(outputVCF);
+        final LineIterator lineIterator = codec.makeSourceFromStream(new PositionalBufferedStream(s));
+        codec.readHeader(lineIterator);
+
+        final VCFCodec codecAnn = new VCFCodec();
+        final FileInputStream sAnn = new FileInputStream(outputVCFAnn);
+        final LineIterator lineIteratorAnn = codecAnn.makeSourceFromStream(new PositionalBufferedStream(sAnn));
+        codecAnn.readHeader(lineIteratorAnn);
+
+        while( lineIterator.hasNext() && lineIteratorAnn.hasNext() ) {
+            final String line = lineIterator.next();
+            Assert.assertFalse(line == null);
+            final VariantContext vc = codec.decode(line);
+
+            final String lineAnn = lineIteratorAnn.next();
+            Assert.assertFalse(lineAnn == null);
+            final VariantContext vcAnn = codecAnn.decode(lineAnn);
+
+            if( vc.isBiallelic() ) {
+                Assert.assertTrue(vc.hasAttribute("QD"));
+                Assert.assertTrue(vcAnn.hasAttribute("QD"));
+            }
+        }
+
+        Assert.assertFalse(lineIterator.hasNext());
+        Assert.assertFalse(lineIteratorAnn.hasNext());
+    }
 }

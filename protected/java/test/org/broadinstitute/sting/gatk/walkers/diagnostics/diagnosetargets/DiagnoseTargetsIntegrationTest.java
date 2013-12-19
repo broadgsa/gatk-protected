@@ -66,11 +66,11 @@ public class DiagnoseTargetsIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testSingleSample() {
-        DTTest("testSingleSample ", "-I " + singleSample + " -max 75", "1771e95aed2b3b240dc353f84e19847d");
+        DTTest("testSingleSample ", "-I " + singleSample + " -max 75", "6ca3d3917a7b65eaa877aa3658d80912");
     }
 
     @Test(enabled = true)
     public void testMultiSample() {
-        DTTest("testMultiSample ", "-I " + multiSample, "c7f1691dbe5f121c4a79be823d3057e5");
+        DTTest("testMultiSample ", "-I " + multiSample, "f50c6b9bef9f63f0a8b32ae9a9bdd51a");
     }
 }

@@ -108,7 +108,7 @@ public class GeneralPloidyIndelGenotypeLikelihoodsCalculationModel extends Gener
                                                   final List<Allele> allAllelesToUse){
 
 
-        List<Allele> alleles = IndelGenotypeLikelihoodsCalculationModel.getInitialAlleleList(tracker, ref, contexts, contextType, locParser, UAC,true);
+        List<Allele> alleles = IndelGenotypeLikelihoodsCalculationModel.getInitialAlleleList(tracker, ref, contexts, contextType, UAC,true);
 
         if (alleles.size() > MAX_NUM_ALLELES_TO_GENOTYPE)
             alleles = alleles.subList(0,MAX_NUM_ALLELES_TO_GENOTYPE);

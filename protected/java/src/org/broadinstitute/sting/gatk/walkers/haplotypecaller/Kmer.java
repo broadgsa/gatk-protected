@@ -49,8 +49,6 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 import com.google.java.contract.Requires;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Fast wrapper for byte[] kmers
@@ -68,7 +66,7 @@ import java.util.Map;
  */
 public class Kmer {
     // this values may be updated in the course of interacting with this kmer
-    private byte[] bases;
+    protected byte[] bases;
     protected int start;
 
     // two constants
@@ -126,6 +124,16 @@ public class Kmer {
         this.hash = kmer.hash;
     }
 
+    public Kmer(final Kmer kmer, final byte nextChar) {
+        final byte[] sequence = new byte[kmer.length];
+        System.arraycopy(kmer.bases,kmer.start + 1,sequence,0,kmer.length - 1);
+        sequence[kmer.length - 1] = nextChar;
+        bases = sequence;
+        start = 0;
+        length = kmer.length;
+        hash = myHashCode(bases,start,length);
+    }
+
     /**
      * Create a derived shallow kmer that starts at newStart and has newLength bases
      * @param newStart the new start of kmer, where 0 means that start of the kmer, 1 means skip the first base
@@ -144,6 +152,7 @@ public class Kmer {
      * @return a non-null byte[] containing length() bases of this kmer, regardless of how this kmer was created
      */
     public byte[] bases() {
+
         if ( start != 0 || bases.length != length ) {
             // update operation.  Rip out the exact byte[] and update start so we don't ever do this again
             bases = Arrays.copyOfRange(bases, start, start + length);
@@ -151,6 +160,44 @@ public class Kmer {
         }
 
         return bases;
+    }
+
+
+    /**
+     * Copies kmer bytes into a byte array.
+     *
+     * @param start first position of the kmer to copy
+     * @param dest  what array to copy into
+     * @param offset what position the first byte to copy should go into the destination array.
+     * @param length how many bytes to copy
+     *
+     * @throws IllegalArgumentException if <code>start</code> is negative or combined with <code>length</code> it goes
+     *        beyond the end of the kmer. Also if <code>length</code> is negative.
+     * @throws NullPointerException if dest is <code>null</code>
+     * @throws ArrayIndexOutOfBoundsException if dest does not have capacity to received the data.
+     */
+    public void copyTo(final int start, final byte[] dest, final int offset, final int length) {
+        if (start + length > this.length) {
+            throw new IllegalArgumentException("request goes beyond end of kmer");
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("requested length cannot be negative");
+        }
+        System.arraycopy(bases,this.start + start,dest,offset,length);
+    }
+
+    /**
+     * Copies kmer bytes into a byte array.
+     *
+     * @param dest  what array to copy into
+     * @param offset what position the first byte to copy should go into the destination array.
+     *
+     * @throws IllegalArgumentException if <code>start</code> is negative or combined with <code>length</code> it goes
+     *        beyond the end of the kmer. Also if <code>length</code> is negative.
+     * @throws NullPointerException if dest is <code>null</code>
+     */
+    public void copyTo(final byte[] dest, final int offset) {
+        System.arraycopy(bases,start,dest,offset,length);
     }
 
     /**
@@ -219,13 +266,13 @@ public class Kmer {
 
     @Override
     public String toString() {
-        return "Kmer{" + new String(bases()) + "}";
+        return "Kmer{" + new String(bases,start,length) + "}";
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || !Kmer.class.isAssignableFrom(o.getClass())) return false;
 
         final Kmer kmer = (Kmer) o;
 
@@ -263,5 +310,24 @@ public class Kmer {
             result = 31 * result + a[start + i];
 
         return result;
+    }
+
+    public byte base(final int i) {
+        return bases[start + i];
+    }
+
+    public Kmer shift(final byte nextChar) {
+        if (bases.length > start + length && bases[start + length] == nextChar) {
+           return new Kmer(bases,start + 1,length);
+        } else {
+           final byte[] newBases = new byte[length];
+           System.arraycopy(bases,start + 1,newBases,0,length - 1);
+           newBases[length - 1] = nextChar;
+           return new Kmer(newBases,0,length);
+        }
+    }
+
+    public byte lastBase() {
+        return bases[start + length - 1];
     }
 }

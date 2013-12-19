@@ -47,10 +47,17 @@
 package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.variant.variantcontext.Genotype;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.vcf.VCFCodec;
+import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 
 public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     private static class VRTest {
@@ -72,9 +79,9 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     }
 
     VRTest lowPass = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
-            "4d08c8eee61dd1bdea8c5765f34e41f0",  // tranches
-            "ca7de32b6143cce58aa4bc59b311feb7",  // recal file
-            "cc7f413ba50b3d12f11f95aaa31e67d1"); // cut VCF
+            "6f029dc7d16e63e19c006613cd0a5cff",  // tranches
+            "73c7897441622c9b37376eb4f071c560",  // recal file
+            "11a28df79b92229bd317ac49a3ed0fa1"); // cut VCF
 
     @DataProvider(name = "VRTest")
     public Object[][] createData1() {
@@ -95,8 +102,6 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -L 20:1,000,000-40,000,000" +
                         " --no_cmdline_in_header" +
                         " -an QD -an HaplotypeScore -an HRun" +
-                        " -percentBad 0.07" +
-                        " --minNumBadVariants 0" +
                         " --trustAllPolymorphic" + // for speed
                         " -recalFile %s" +
                         " -tranchesFile %s",
@@ -121,9 +126,9 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     }
 
     VRTest bcfTest = new VRTest(privateTestDir + "vqsr.bcf_test.snps.unfiltered.bcf",
-            "6a1eef4d02857dbb117a15420b5c0ce9",  // tranches
-            "db9faaee11ee5427a81ddee328245f8c",  // recal file
-            "42e0fcd8e048a5f6abc41a4d1c3e97a5"); // cut VCF
+            "3ad7f55fb3b072f373cbce0b32b66df4",  // tranches
+            "e747c08131d58d9a4800720f6ca80e0c",  // recal file
+            "e5808af3af0f2611ba5a3d172ab2557b"); // cut VCF
 
     @DataProvider(name = "VRBCFTest")
     public Object[][] createVRBCFTest() {
@@ -173,15 +178,15 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
 
     VRTest indelUnfiltered = new VRTest(
             validationDataLocation + "combined.phase1.chr20.raw.indels.unfiltered.sites.vcf", // all FILTERs as .
-            "b7589cd098dc153ec64c02dcff2838e4",  // tranches
-            "5a9ba210a3c68109289a71039a04509d",  // recal file
-            "d816bd43c844069d65711a7975707437"); // cut VCF
+            "9a331328370889168a7aa3a625f73620",  // tranches
+            "2cbbd146d68c40200b782e0226f71976",  // recal file
+            "64dd98a5ab80cf5fd9a36eb66b38268e"); // cut VCF
 
     VRTest indelFiltered = new VRTest(
             validationDataLocation + "combined.phase1.chr20.raw.indels.filtered.sites.vcf", // all FILTERs as PASS
-            "b7589cd098dc153ec64c02dcff2838e4",  // tranches
-            "5a9ba210a3c68109289a71039a04509d",  // recal file
-            "6bcb344511c727c28523825f73c7daee"); // cut VCF
+            "9a331328370889168a7aa3a625f73620",  // tranches
+            "2cbbd146d68c40200b782e0226f71976",  // recal file
+            "c0ec662001e829f5779a9d13b1d77d80"); // cut VCF
 
     @DataProvider(name = "VRIndelTest")
     public Object[][] createTestVariantRecalibratorIndel() {
@@ -200,9 +205,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -L 20:1,000,000-40,000,000" +
                         " --no_cmdline_in_header" +
                         " -an QD -an ReadPosRankSum -an HaplotypeScore" +
-                        " -percentBad 0.08" +
                         " -mode INDEL -mG 3" +
-                        " --minNumBadVariants 0" +
                         " --trustAllPolymorphic" + // for speed
                         " -recalFile %s" +
                         " -tranchesFile %s",
@@ -224,7 +227,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
         spec.disableShadowBCF(); // has to be disabled because the input VCF is missing LowQual annotation
-        executeTest("testApplyRecalibrationIndel-"+params.inVCF, spec);
+        executeTest("testApplyRecalibrationIndel-" + params.inVCF, spec);
     }
 
     @Test
@@ -239,8 +242,32 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -tranchesFile " + privateTestDir + "VQSR.mixedTest.tranches" +
                         " -recalFile " + privateTestDir + "VQSR.mixedTest.recal",
-                Arrays.asList("20c23643a78c5b95abd1526fdab8960d"));
+                Arrays.asList("03a0ed00af6aac76d39e569f90594a02"));
         executeTest("testApplyRecalibrationSnpAndIndelTogether", spec);
+    }
+
+    @Test(enabled = true)
+    public void testApplyRecalibrationSnpAndIndelTogetherExcludeFiltered() throws Exception {
+        final String base = "-R " + b37KGReference +
+                " -T ApplyRecalibration" +
+                " -L 20:1000100-1000500" +
+                " -mode BOTH" +
+                " --excludeFiltered -ts_filter_level 90.0" +
+                " --no_cmdline_in_header" +
+                " -input " + privateTestDir + "VQSR.mixedTest.input" +
+                " -o %s" +
+                " -tranchesFile " + privateTestDir + "VQSR.mixedTest.tranches" +
+                " -recalFile " + privateTestDir + "VQSR.mixedTest.recal";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(""));
+        spec.disableShadowBCF();
+        final File VCF = executeTest("testApplyRecalibrationSnpAndIndelTogether", spec).first.get(0);
+
+        for( final VariantContext VC : GATKVCFUtils.readAllVCs(VCF, new VCFCodec()).getSecond() ) {
+            if( VC != null ) {
+                Assert.assertTrue(VC.isNotFiltered()); // there should only be unfiltered records in the output VCF file
+            }
+        }
     }
 }
 

@@ -77,7 +77,7 @@ public class GaussianMixtureModel {
     public GaussianMixtureModel( final int numGaussians, final int numAnnotations,
                                  final double shrinkage, final double dirichletParameter, final double priorCounts ) {
 
-        gaussians = new ArrayList<MultivariateGaussian>( numGaussians );
+        gaussians = new ArrayList<>( numGaussians );
         for( int iii = 0; iii < numGaussians; iii++ ) {
             final MultivariateGaussian gaussian = new MultivariateGaussian( numAnnotations );
             gaussians.add( gaussian );
@@ -267,7 +267,7 @@ public class GaussianMixtureModel {
     public double evaluateDatumMarginalized( final VariantDatum datum ) {
         int numRandomDraws = 0;
         double sumPVarInGaussian = 0.0;
-        final int numIterPerMissingAnnotation = 10; // Trade off here between speed of computation and accuracy of the marginalization
+        final int numIterPerMissingAnnotation = 20; // Trade off here between speed of computation and accuracy of the marginalization
         final double[] pVarInGaussianLog10 = new double[gaussians.size()];
         // for each dimension
         for( int iii = 0; iii < datum.annotations.length; iii++ ) {
@@ -283,7 +283,7 @@ public class GaussianMixtureModel {
                     }
 
                     // add this sample's probability to the pile in order to take an average in the end
-                    sumPVarInGaussian += Math.pow(10.0, MathUtils.log10sumLog10(pVarInGaussianLog10)); // p = 10 ^ Sum(pi_k * p(v|n,k))
+                    sumPVarInGaussian += Math.pow(10.0, nanTolerantLog10SumLog10(pVarInGaussianLog10)); // p = 10 ^ Sum(pi_k * p(v|n,k))
                     numRandomDraws++;
                 }
             }
