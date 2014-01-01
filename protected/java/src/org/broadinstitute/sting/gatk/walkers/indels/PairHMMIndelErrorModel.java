@@ -262,7 +262,7 @@ public class PairHMMIndelErrorModel {
      * @return true if the read needs to be clipped, false otherwise
      */
     protected static boolean mustClipDownstream(final GATKSAMRecord read, final int refWindowStop) {
-        return ( !read.isEmpty() && read.getSoftStart() < refWindowStop && read.getSoftStart() + read.getReadLength() > refWindowStop );
+        return ( !read.isEmpty() && read.getSoftStart() < refWindowStop && read.getSoftStart() + read.getReadLength() - 1 > refWindowStop );
     }
 
     /**
@@ -316,7 +316,7 @@ public class PairHMMIndelErrorModel {
 
                 // if the read extends beyond the downstream (right) end of the reference window, clip it
                 if ( mustClipDownstream(read, refWindowStop) )
-                    read = ReadClipper.hardClipByReadCoordinates(read, read.getSoftStart() + read.getReadLength() - refWindowStop + 1, read.getReadLength() - 1);
+                    read = ReadClipper.hardClipByReadCoordinates(read, refWindowStop - read.getSoftStart() + 1, read.getReadLength() - 1);
 
                 // if the read extends beyond the upstream (left) end of the reference window, clip it
                 if ( mustClipUpstream(read, refWindowStart) )
