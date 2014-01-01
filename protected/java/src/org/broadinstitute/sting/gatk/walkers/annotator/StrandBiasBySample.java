@@ -80,11 +80,8 @@ public class StrandBiasBySample extends GenotypeAnnotation implements Experiment
                          final Genotype g,
                          final GenotypeBuilder gb,
                          final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-        if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
+        if ( ! isAppropriateInput(alleleLikelihoodMap, g) )
             return;
-
-        if (alleleLikelihoodMap == null )
-            throw new IllegalStateException("StrandBiasBySample can only be used with likelihood based annotations in the HaplotypeCaller");
 
         final int[][] table = FisherStrand.getContingencyTable(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc);
 
@@ -97,4 +94,7 @@ public class StrandBiasBySample extends GenotypeAnnotation implements Experiment
     @Override
     public List<VCFFormatHeaderLine> getDescriptions() { return Collections.singletonList(new VCFFormatHeaderLine(getKeyNames().get(0), 4, VCFHeaderLineType.Integer, "Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias.")); }
 
+    private boolean isAppropriateInput(final PerReadAlleleLikelihoodMap map, final Genotype g) {
+        return ! (map == null || g == null || !g.isCalled());
+    }
 }
