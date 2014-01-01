@@ -286,7 +286,7 @@ public class ConsensusAlleleCounter {
         if (vcs.isEmpty())
             return Collections.emptyList(); // nothing else to do, no alleles passed minimum count criterion
 
-        final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(vcs, null, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.UNSORTED, false, false, null, false, false, false);
+        final VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(vcs, null, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.UNSORTED, false, false, null, false, false);
         return mergedVC.getAlleles();
     }
 }
