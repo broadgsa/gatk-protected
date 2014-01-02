@@ -130,4 +130,12 @@ public class PairHMMIndelErrorModelUnitTest extends BaseTest {
         final boolean result = PairHMMIndelErrorModel.mustClipDownstream(read, refWindowEnd);
         Assert.assertEquals(result, read.getSoftStart() < refWindowEnd && read.getSoftStart() + readLength > refWindowEnd);
     }
+
+    @Test
+    public void clipDownstreamAtBorderTest() {
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(header, "basicRead", 0, 5, 10);
+        read.setCigarString("10M");
+        Assert.assertEquals(PairHMMIndelErrorModel.mustClipDownstream(read, 13), true);
+        Assert.assertEquals(PairHMMIndelErrorModel.mustClipDownstream(read, 14), false);
+    }
 }
