@@ -152,10 +152,16 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     // Inputs
     /////////////////////////////
     /**
-     * These calls should be unfiltered and annotated with the error covariates that are intended to use for modeling.
+     * These calls should be unfiltered and annotated with the error covariates that are intended to be used for modeling.
      */
     @Input(fullName="input", shortName = "input", doc="The raw input variants to be recalibrated", required=true)
     public List<RodBinding<VariantContext>> input;
+
+    /**
+     * These additional calls should be unfiltered and annotated with the error covariates that are intended to be used for modeling.
+     */
+    @Input(fullName="aggregate", shortName = "aggregate", doc="Additional raw input variants to be used in building the model", required=false)
+    public List<RodBinding<VariantContext>> aggregate;
 
     /**
      * Any set of VCF files to use as lists of training, truth, or known sites.
@@ -290,29 +296,53 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             return mapList;
         }
 
-        for( final VariantContext vc : tracker.getValues(input, context.getLocation()) ) {
+        mapList.addAll( addOverlappingVariants(input, true, tracker, context) );
+        if( aggregate != null ) {
+            mapList.addAll( addOverlappingVariants(aggregate, false, tracker, context) );
+        }
+
+        return mapList;
+    }
+
+    /**
+     * Using the RefMetaDataTracker find overlapping variants and pull out the necessary information to create the VariantDatum
+     * @param rods      the rods to search within
+     * @param isInput   is this rod an -input rod?
+     * @param tracker   the RefMetaDataTracker from the RODWalker map call
+     * @param context   the AlignmentContext from the RODWalker map call
+     * @return  a list of VariantDatums, can be empty
+     */
+    private List<VariantDatum> addOverlappingVariants( final List<RodBinding<VariantContext>> rods, final boolean isInput, final RefMetaDataTracker tracker, final AlignmentContext context ) {
+        if( rods == null ) { throw new IllegalArgumentException("rods cannot be null."); }
+        if( tracker == null ) { throw new IllegalArgumentException("tracker cannot be null."); }
+        if( context == null ) { throw new IllegalArgumentException("context cannot be null."); }
+
+        final ExpandingArrayList<VariantDatum> variants = new ExpandingArrayList<>();
+
+        for( final VariantContext vc : tracker.getValues(rods, context.getLocation()) ) {
             if( vc != null && ( vc.isNotFiltered() || ignoreInputFilterSet.containsAll(vc.getFilters()) ) ) {
                 if( VariantDataManager.checkVariationClass( vc, VRAC.MODE ) ) {
                     final VariantDatum datum = new VariantDatum();
 
                     // Populate the datum with lots of fields from the VariantContext, unfortunately the VC is too big so we just pull in only the things we absolutely need.
                     dataManager.decodeAnnotations( datum, vc, true ); //BUGBUG: when run with HierarchicalMicroScheduler this is non-deterministic because order of calls depends on load of machine
-                    datum.loc = getToolkit().getGenomeLocParser().createGenomeLoc(vc);
+                    datum.loc = ( isInput ? getToolkit().getGenomeLocParser().createGenomeLoc(vc) : null );
                     datum.originalQual = vc.getPhredScaledQual();
                     datum.isSNP = vc.isSNP() && vc.isBiallelic();
                     datum.isTransition = datum.isSNP && GATKVariantContextUtils.isTransition(vc);
+                    datum.isAggregate = !isInput;
 
                     // Loop through the training data sets and if they overlap this loci then update the prior and training status appropriately
                     dataManager.parseTrainingSets( tracker, context.getLocation(), vc, datum, TRUST_ALL_POLYMORPHIC );
                     final double priorFactor = QualityUtils.qualToProb( datum.prior );
                     datum.prior = Math.log10( priorFactor ) - Math.log10( 1.0 - priorFactor );
 
-                    mapList.add( datum );
+                    variants.add( datum );
                 }
             }
         }
 
-        return mapList;
+        return variants;
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -357,6 +387,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         // Generate the negative model using the worst performing data and evaluate each variant contrastively
         final List<VariantDatum> negativeTrainingData = dataManager.selectWorstVariants();
         final GaussianMixtureModel badModel = engine.generateModel( negativeTrainingData, Math.min(VRAC.MAX_GAUSSIANS_FOR_NEGATIVE_MODEL, VRAC.MAX_GAUSSIANS));
+        dataManager.dropAggregateData(); // Don't need the aggregate data anymore so let's free up the memory
         engine.evaluateData( dataManager.getData(), badModel, true );
 
         if( badModel.failedToConverge || goodModel.failedToConverge ) {

@@ -74,7 +74,8 @@ public class VariantDatum {
     public int consensusCount;
     public GenomeLoc loc;
     public int worstAnnotation;
-    public MultivariateGaussian assignment; // used in K-means implementation 
+    public MultivariateGaussian assignment; // used in K-means implementation
+    public boolean isAggregate; // this datum was provided to aid in modeling but isn't part of the input callset
 
     public static class VariantDatumLODComparator implements Comparator<VariantDatum>, Serializable {
         @Override

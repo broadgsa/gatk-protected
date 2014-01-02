@@ -142,4 +142,39 @@ public class VariantDataManagerUnitTest extends BaseTest {
 
         Assert.assertTrue( trainingData.size() == MAX_NUM_TRAINING_DATA );
     }
+
+    @Test
+    public final void testDropAggregateData() {
+        final int MAX_NUM_TRAINING_DATA = 5000;
+        final double passingQual = 400.0;
+        final VariantRecalibratorArgumentCollection VRAC = new VariantRecalibratorArgumentCollection();
+        VRAC.MAX_NUM_TRAINING_DATA = MAX_NUM_TRAINING_DATA;
+
+        VariantDataManager vdm = new VariantDataManager(new ArrayList<String>(), VRAC);
+        final List<VariantDatum> theData = new ArrayList<>();
+        for( int iii = 0; iii < MAX_NUM_TRAINING_DATA * 10; iii++) {
+            final VariantDatum datum = new VariantDatum();
+            datum.atTrainingSite = true;
+            datum.isAggregate = false;
+            datum.failingSTDThreshold = false;
+            datum.originalQual = passingQual;
+            theData.add(datum);
+        }
+
+        for( int iii = 0; iii < MAX_NUM_TRAINING_DATA * 2; iii++) {
+            final VariantDatum datum = new VariantDatum();
+            datum.atTrainingSite = false;
+            datum.isAggregate = true;
+            datum.failingSTDThreshold = false;
+            datum.originalQual = passingQual;
+            theData.add(datum);
+        }
+
+        vdm.setData(theData);
+        vdm.dropAggregateData();
+
+        for( final VariantDatum datum : vdm.getData() ) {
+            Assert.assertFalse( datum.isAggregate );
+        }
+    }
 }
