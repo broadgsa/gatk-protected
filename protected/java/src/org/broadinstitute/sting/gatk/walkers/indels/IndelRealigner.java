@@ -1548,15 +1548,27 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
                 return false;
             }
 
-            // annotate the record with the original cigar (and optionally the alignment start)
-            if ( !NO_ORIGINAL_ALIGNMENT_TAGS ) {
-                read.setAttribute(ORIGINAL_CIGAR_TAG, read.getCigar().toString());
-                if ( newStart != read.getAlignmentStart() )
-                    read.setAttribute(ORIGINAL_POSITION_TAG, read.getAlignmentStart());
-            }
+            // store the old CIGAR and start in case we need to back out
+            final Cigar oldCigar = read.getCigar();
+            final int oldStart = read.getAlignmentStart();
 
+            // try updating the read with the new CIGAR and start
             read.setCigar(newCigar);
             read.setAlignmentStart(newStart);
+
+            // back out if necessary
+            if ( realignmentProducesBadAlignment(read) ) {
+                read.setCigar(oldCigar);
+                read.setAlignmentStart(oldStart);
+                return false;
+            }
+
+            // annotate the record with the original cigar and start (if it changed)
+            if ( !NO_ORIGINAL_ALIGNMENT_TAGS ) {
+                read.setAttribute(ORIGINAL_CIGAR_TAG, oldCigar.toString());
+                if ( newStart != oldStart )
+                    read.setAttribute(ORIGINAL_POSITION_TAG, oldStart);
+            }
 
             return true;
         }
@@ -1576,6 +1588,28 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         public long getAlignerMismatchScore() {
             return alignerMismatchScore;
         }
+    }
+
+    /**
+     * Determines whether the read aligns off the end of the contig
+     *
+     * @param read  the read to check
+     * @return true if it aligns off the end
+     */
+    private boolean realignmentProducesBadAlignment(final GATKSAMRecord read) {
+        final int contigLength = referenceReader.getSequenceDictionary().getSequence(currentInterval.getContig()).getSequenceLength();
+        return realignmentProducesBadAlignment(read, contigLength);
+    }
+
+    /**
+     * Determines whether the read aligns off the end of the contig.
+     * Pulled out to make it testable.
+     *
+     * @param read  the read to check
+     * @return true if it aligns off the end
+     */
+    protected static boolean realignmentProducesBadAlignment(final GATKSAMRecord read, final int contigLength) {
+        return read.getAlignmentEnd() > contigLength;
     }
 
     private static class Consensus {
