@@ -82,6 +82,12 @@ import static org.broadinstitute.sting.utils.variant.GATKVCFUtils.getVCFHeadersF
 /**
  * Walks along all variant ROD loci, caching a user-defined window of VariantContext sites, and then finishes phasing them when they go out of range (using upstream and downstream reads).
  *
+ * The current implementation works for diploid SNPs, and will transparently (but properly) ignore other sites.
+ *
+ * The underlying algorithm is based on building up 2^n local haplotypes,
+ * where n is the number of heterozygous SNPs in the local region we expected to find phase-informative reads (and assumes a maximum value of maxPhaseSites, a user parameter).
+ * Then, these 2^n haplotypes are used to determine, with sufficient certainty (the assigned PQ score), to which haplotype the alleles of a genotype at a particular locus belong (denoted by the HP tag).
+ *
  * <p>
  * Performs physical phasing of SNP calls, based on sequencing reads.
  * </p>
@@ -160,13 +166,6 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
     @Hidden
     @Argument(fullName = "permitNoSampleOverlap", shortName = "permitNoSampleOverlap", doc = "Don't exit (just WARN) when the VCF and BAMs do not overlap in samples", required = false)
     private boolean permitNoSampleOverlap = false;
-
-    @Deprecated
-    /**
-     * Important note: do not use this argument if your input data set is not already phased or it will cause the tool to skip over all heterozygous sites.
-     */
-    @Argument(fullName = "respectPhaseInInput", shortName = "respectPhaseInInput", doc = "Will only phase genotypes in cases where the resulting output will necessarily be consistent with any existing phase (for example, from trios)", required = false)
-    private boolean respectPhaseInInput = false;
 
     private GenomeLoc mostDownstreamLocusReached = null;
 
@@ -327,6 +326,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         return GATKVariantContextUtils.pruneVariantContext(subvc, KEYS_TO_KEEP_IN_REDUCED_VCF);
     }
 
+    // Phase all "waiting" genotypes in the unphasedSiteQueue, but only if we have sufficient downstream genotypes with which to phase them
     private List<VariantContext> processQueue(PhasingStats phaseStats, boolean processAll) {
         List<VariantContext> oldPhasedList = new LinkedList<VariantContext>();
 
@@ -362,6 +362,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         return oldPhasedList;
     }
 
+    // Flush out sites with (possibly) phased genotypes, if those sites are no longer needed to phase other downstream sites
     private List<VariantContext> discardIrrelevantPhasedSites() {
         List<VariantContext> vcList = new LinkedList<VariantContext>();
 
@@ -517,6 +518,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         return PQ >= phaseQualityThresh;
     }
 
+    // A genotype and the base pileup that supports it
     private static class GenotypeAndReadBases {
         public Genotype genotype;
         public ReadBasesAtPosition readBases;
@@ -529,6 +531,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         }
     }
 
+    // Object to represent the local window of het genotypes for which haplotypes are being scored and ranked
     private class PhasingWindow {
         private Genotype[] hetGenotypes = null;
 
@@ -602,6 +605,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
                 hetGenotypes[index++] = copyGrb.genotype;
         }
 
+        // Build the read sub-sequences at the het genomic positions:
         private void buildReadsAtHetSites(List<GenotypeAndReadBases> listHetGenotypes, String sample, GenomeLoc phasingLoc) {
             buildReadsAtHetSites(listHetGenotypes, sample, phasingLoc, null);
         }
@@ -650,6 +654,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             }
         }
 
+        // Object to represent a pair of genomic sites, and all reads overlapping those 2 sites (though possibly others)
         private class EdgeToReads {
             private TreeMap<PhasingGraphEdge, List<String>> edgeReads;
 
@@ -695,6 +700,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             }
         }
 
+        // Remove any reads that add no "connections" (PhasingGraphEdge) between pairs of het sites:
         public Set<String> removeExtraneousReads(int numHetSites) {
             PhasingGraph readGraph = new PhasingGraph(numHetSites);
             EdgeToReads edgeToReads = new EdgeToReads();
@@ -840,6 +846,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             return keepReads;
         }
 
+        // Remove all het sites that have no reads (which may occur if all of the reads supporting the original call don't contain an additional het site and were thus removed above):
         private List<GenotypeAndReadBases> removeExtraneousSites(List<GenotypeAndReadBases> listHetGenotypes) {
             Set<Integer> sitesWithReads = new HashSet<Integer>();
             for (Map.Entry<String, PhasingRead> nameToReads : readsAtHetSites.entrySet()) {
@@ -879,6 +886,10 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             return keepHetSites;
         }
 
+        /* Auxilary object to sort candidate het sites with which to phase the index site,
+           where sorting is performed based on distance to the index site
+           (since presumably closer sites will have greater numbers of overlapping reads)
+         */
         private class SortSitesBySumOfDist implements Comparator<Integer> {
             private Vector<GenotypeAndReadBases> grb;
 
@@ -916,6 +927,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             }
         }
 
+        // Create a "phasing window" of het sites to use for phasing the index site, but limiting to only maxPhaseSites het sites to incorporate [as specified by the user]
         private List<GenotypeAndReadBases> trimWindow(List<GenotypeAndReadBases> listHetGenotypes, String sample, GenomeLoc phaseLocus) {
             if (DEBUG)
                 logger.warn("Trying to phase sample " + sample + " at locus " + phaseLocus + " within a window of " + cacheWindow + " bases yields " + listHetGenotypes.size() + " heterozygous sites to phase:\n" + toStringGRL(listHetGenotypes));
@@ -966,6 +978,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         }
     }
 
+    // Phase a particular sample's het genotype using a constructed PhasingWindow:
     private PhaseResult phaseSampleAtSite(PhasingWindow phaseWindow) {
         /* Will map a phase and its "complement" to a single representative phase,
           and marginalizeAsNewTable() marginalizes to 2 positions [starting at the previous position, and then the current position]:
@@ -1041,6 +1054,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         return new PhaseResult(maxHapQual.getRepresentative(), maxHapQual.phaseQuality, phasingContainsInconsistencies);
     }
 
+    // Object represents the maximum-scoring haplotype and its corresponding quality score
     private static class MaxHaplotypeAndQuality {
         public PhasingTable.PhasingTableEntry maxEntry;
         public double phaseQuality;
@@ -1055,7 +1069,6 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         }
 
         // Calculates maxEntry and its PQ (within table hapTable):
-
         private void calculateMaxHapAndPhasingQuality(PhasingTable hapTable, boolean printDebug) {
             hapTable.normalizeScores();
             if (printDebug)
@@ -1073,6 +1086,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             this.phaseQuality = -10.0 * (sumErrorProbs.getLog10Value());
         }
 
+        // Comparator that compares if 2 haplotypes map back to the same "representative" haplotype (accounts for reverse complementarity)
         public boolean hasSameRepresentativeHaplotype(MaxHaplotypeAndQuality that) {
             return this.getRepresentative().equals(that.getRepresentative());
         }
@@ -1180,6 +1194,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
       Inner classes:
     */
 
+    // A variant and the reads for each sample at that site:
     private class VariantAndReads {
         public VariantContext variant;
         public HashMap<String, ReadBasesAtPosition> sampleReadBases;
@@ -1214,6 +1229,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         }
     }
 
+    // Object to represent a variant that has yet to be phased, along with its underlying base pileups:
     private class UnfinishedVariantAndReads {
         public UnfinishedVariantContext unfinishedVariant;
         public HashMap<String, ReadBasesAtPosition> sampleReadBases;
@@ -1313,6 +1329,9 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
 // AN ArrayList OF Allele [OR SIMILAR OBJECT], and WON'T USE: getSingleBase(alleleI)
 //
 
+    /* Creates table of all 2^n local haplotypes,
+       where n is the number of heterozygous SNPs in the local region we expected to find phase-informative reads
+     */
     private static abstract class HaplotypeTableCreator {
         protected Genotype[] genotypes;
 
@@ -1341,6 +1360,9 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             return allHaps;
         }
 
+        /* For phasing site X relative to site X-1, we sum the probabilities over all haplotypes of the phases of [X-1, X].
+           That is, we aggregate probability mass over all haplotypes consistent with a particular phase at the [X-1, X] pair.
+         */
         public static PhasingTable marginalizeAsNewTable(PhasingTable table) {
             TreeMap<Haplotype, PreciseNonNegativeDouble> hapMap = new TreeMap<Haplotype, PreciseNonNegativeDouble>();
             for (PhasingTable.PhasingTableEntry pte : table) {
@@ -1366,6 +1388,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         }
     }
 
+    // Implementation for diploid alleles (thus assuming 2^n haplotypes):
     private static class TableCreatorOfHaplotypeAndComplementForDiploidAlleles extends HaplotypeTableCreator {
         private SNPallelePair[] SNPallelePairs;
         Set<Integer> marginalizeInds;
@@ -1412,6 +1435,9 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             return 1.0;
         }
 
+        /* Since assuming biallelic genotypes, we use this to map a haplotype to the corresponding haplotype,
+           where the other allele is chosen at each site
+         */
         private Haplotype complement(Haplotype hap) {
             int numSites = SNPallelePairs.length;
             if (hap.size() != numSites)
@@ -1426,6 +1452,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         }
     }
 
+    // Table to represent the list of all haplotypes and their scores:
     private static class PhasingTable implements Iterable<PhasingTable.PhasingTableEntry> {
         private LinkedList<PhasingTableEntry> table;
 
@@ -1464,6 +1491,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             return maxPte;
         }
 
+        // Normalize all the scores of the phasing table by their sum total:
         public void normalizeScores() {
             PreciseNonNegativeDouble normalizeBy = new PreciseNonNegativeDouble(ZERO);
             for (PhasingTableEntry pte : table)
@@ -1485,6 +1513,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             return sb.toString();
         }
 
+        // An entry in the phasing table for a particular set of equivalent haplotypes (e.g., a haplotype and its "complement" -- see above)
         public static class PhasingTableEntry implements Comparable<PhasingTableEntry> {
             private HaplotypeClass haplotypeClass;
             private PhasingScore score;
@@ -1528,6 +1557,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         return (! gt.isFiltered() && gt.isCalled() && gt.getPloidy() == 2);
     }
 
+    // Class to output verbose information on instances where a single read has multiple bases at the same position (e.g., from paired-end overlap with a base error):
     private class MultipleBaseCountsWriter {
         private BufferedWriter writer = null;
         private TreeMap<SampleReadLocus, MultipleBaseCounts> multipleBaseCounts = null;
@@ -1644,6 +1674,7 @@ class HaplotypeClass implements Iterable<Haplotype> {
     }
 }
 
+// Summary statistics about phasing rates, for each sample
 class PhasingStats {
     private int numReads;
     private int numVarSites;
