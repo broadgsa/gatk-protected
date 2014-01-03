@@ -80,6 +80,9 @@ public class VariantRecalibratorEngine {
     }
 
     public GaussianMixtureModel generateModel( final List<VariantDatum> data, final int maxGaussians ) {
+        if( data == null || data.isEmpty() ) { throw new IllegalArgumentException("No data found."); }
+        if( maxGaussians <= 0 ) { throw new IllegalArgumentException("maxGaussians must be a positive integer but found: " + maxGaussians); }
+
         final GaussianMixtureModel model = new GaussianMixtureModel( maxGaussians, data.get(0).annotations.length, VRAC.SHRINKAGE, VRAC.DIRICHLET_PARAMETER, VRAC.PRIOR_COUNTS );
         variationalBayesExpectationMaximization( model, data );
         return model;

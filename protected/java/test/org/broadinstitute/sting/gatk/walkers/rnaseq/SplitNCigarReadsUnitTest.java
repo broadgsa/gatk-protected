@@ -44,83 +44,139 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
-import org.broadinstitute.sting.WalkerTest;
+import net.sf.samtools.Cigar;
+import net.sf.samtools.CigarElement;
+import net.sf.samtools.CigarOperator;
+import org.broadinstitute.sting.gatk.walkers.rnaseq.SplitNCigarReads;
+import org.broadinstitute.sting.utils.clipping.ReadClipperTestUtils;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
-public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
+/**
+ *
+ * Tests all possible (and valid) cigar strings that might contain any cigar elements. It uses a code that were written to test the ReadClipper walker.
+ * For valid cigar sting in length 8 there are few thousands options, with N in every possible option and with more than one N (for example 1M1N1M1N1M1N2M).
+ * The cigarElements array is used to provide all the possible cigar element that might be included.
+ *
+ * User: ami
+ * Date: 11/14/13
+ * Time: 6:49 PM
+ */
+public class SplitNCigarReadsUnitTest {
+    final static CigarElement[] cigarElements = {
+            new CigarElement(1, CigarOperator.HARD_CLIP),
+            new CigarElement(1, CigarOperator.SOFT_CLIP),
+            new CigarElement(1, CigarOperator.INSERTION),
+            new CigarElement(1, CigarOperator.DELETION),
+            new CigarElement(1, CigarOperator.MATCH_OR_MISMATCH),
+            new CigarElement(1, CigarOperator.SKIPPED_REGION)
+    };
 
-    private final static String baseCommand = "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b36KGReference + " --no_cmdline_in_header -glm BOTH -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
+    @Test(enabled = true)
+    public void splitReadAtN() {
+        final int cigarStringLength = 10;
+        final List<Cigar> cigarList = ReadClipperTestUtils.generateCigarList(cigarStringLength,cigarElements);
 
-    // --------------------------------------------------------------------------------------------------------------
-    //
-    // testing normal calling
-    //
-    // --------------------------------------------------------------------------------------------------------------
-    @Test
-    public void testMultiSamplePilot1() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000", 1,
-                Arrays.asList("710d379607129935b1b7b6960ca7b213"));
-        executeTest("test MultiSample Pilot1", spec);
+        // For Debugging use those lines (instead of above cigarList) to create specific read:
+        //------------------------------------------------------------------------------------
+        // final GATKSAMRecord tmpRead = GATKSAMRecord.createRandomRead(6);
+        // tmpRead.setCigarString("1M1N1M");
+
+        // final List<Cigar> cigarList = new ArrayList<>();
+        // cigarList.add(tmpRead.getCigar());
+
+        for(Cigar cigar: cigarList){
+
+
+            final int numOfSplits = numOfNElements(cigar.getCigarElements());
+
+            if(numOfSplits != 0 && isCigarDoesNotHaveEmptyRegionsBetweenNs(cigar)){
+
+                GATKSAMRecord read = ReadClipperTestUtils.makeReadFromCigar(cigar);
+                List<GATKSAMRecord> splitReads = SplitNCigarReads.splitNCigarRead(read);
+                final int expectedReads = numOfSplits+1;
+                Assert.assertEquals(splitReads.size(),expectedReads,"wrong number of reads after split read with cigar: "+cigar+" at Ns [expected]: "+expectedReads+" [actual value]: "+splitReads.size());
+                final List<Integer> readLengths = consecutiveNonNElements(read.getCigar().getCigarElements());
+                int index = 0;
+                int offsetFromStart = 0;
+                for(GATKSAMRecord splitRead: splitReads){
+                    int expectedLength = readLengths.get(index);
+                    Assert.assertTrue(splitRead.getReadLength() == expectedLength,
+                            "the "+index+" (starting with 0) split read has a wrong length.\n" +
+                            "cigar of original read: "+cigar+"\n"+
+                            "expected length: "+expectedLength+"\n"+
+                            "actual length: "+splitRead.getReadLength()+"\n");
+                    assertBases(splitRead.getReadBases(), read.getReadBases(), offsetFromStart);
+                    index++;
+                    offsetFromStart += expectedLength;
+                }
+            }
+        }
     }
 
-    @Test
-    public void testWithAllelesPassedIn1() {
-        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
-                baseCommand + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "allelesForUG.vcf -I " + validationDataLocation + "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,025,000", 1,
-                Arrays.asList("ebfcc3dd8c1788929cb50050c5d456df"));
-        executeTest("test MultiSample Pilot2 with alleles passed in", spec1);
+    private int numOfNElements(final List<CigarElement> cigarElements){
+        int numOfNElements = 0;
+        for (CigarElement element: cigarElements){
+            if (element.getOperator() == CigarOperator.SKIPPED_REGION)
+                numOfNElements++;
+        }
+        return numOfNElements;
     }
 
-    @Test
-    public void testWithAllelesPassedIn2() {
-        WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
-                baseCommand + " --output_mode EMIT_ALL_SITES --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "allelesForUG.vcf -I " + validationDataLocation + "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,025,000", 1,
-                Arrays.asList("3e646003c5b93da80c7d8e5d0ff2ee4e"));
-        executeTest("test MultiSample Pilot2 with alleles passed in and emitting all sites", spec2);
+    private static boolean isCigarDoesNotHaveEmptyRegionsBetweenNs(final Cigar cigar) {
+        boolean sawM = false;
+        boolean sawS = false;
+
+        for (CigarElement cigarElement : cigar.getCigarElements()) {
+            if (cigarElement.getOperator().equals(CigarOperator.SKIPPED_REGION)) {
+                if(!sawM && !sawS)
+                    return false;
+                sawM = false;
+                sawS = false;
+            }
+            if (cigarElement.getOperator().equals(CigarOperator.MATCH_OR_MISMATCH))
+                sawM = true;
+            if (cigarElement.getOperator().equals(CigarOperator.SOFT_CLIP))
+                sawS = true;
+
+        }
+        if(!sawS && !sawM)
+            return false;
+        return true;
     }
 
-    @Test
-    public void testSingleSamplePilot2() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,100,000", 1,
-                Arrays.asList("02b521fe88a6606a29c12c0885c3debd"));
-        executeTest("test SingleSample Pilot2", spec);
+    private List<Integer> consecutiveNonNElements(final List<CigarElement> cigarElements){
+        final LinkedList<Integer> results = new LinkedList<>();
+        int consecutiveLength = 0;
+        for(CigarElement element: cigarElements){
+            final CigarOperator op = element.getOperator();
+            if(op.equals(CigarOperator.MATCH_OR_MISMATCH) || op.equals(CigarOperator.SOFT_CLIP) || op.equals(CigarOperator.INSERTION)){
+                consecutiveLength += element.getLength();
+            }
+            else if(op.equals(CigarOperator.SKIPPED_REGION))
+            {
+                if(consecutiveLength != 0){
+                    results.addLast(consecutiveLength);
+                    consecutiveLength = 0;
+                }
+            }
+        }
+        if(consecutiveLength != 0)
+            results.addLast(consecutiveLength);
+        return results;
     }
 
-    @Test
-    public void testMultipleSNPAlleles() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH --dbsnp " + b37dbSNP129 + " -I " + privateTestDir + "multiallelic.snps.bam -o %s -L " + privateTestDir + "multiallelic.snps.intervals", 1,
-                Arrays.asList("dd5ad3beaa75319bb2ef1434d2dd9f73"));
-        executeTest("test Multiple SNP alleles", spec);
+    private void assertBases(final byte[] actualBase, final byte[] expectedBase, final int startIndex) {
+        for (int i = 0; i < actualBase.length; i++) {
+            Assert.assertEquals(actualBase[i], expectedBase[startIndex + i],"unmatched bases between: "+ Arrays.toString(actualBase)+"\nand:\n"+Arrays.toString(expectedBase)+"\nat position: "+i);
+        }
     }
 
-    @Test
-    public void testBadRead() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH -I " + privateTestDir + "badRead.test.bam -o %s -L 1:22753424-22753464", 1,
-                Arrays.asList("d915535c1458733f09f82670092fcab6"));
-        executeTest("test bad read", spec);
-    }
-
-    @Test
-    public void testReverseTrim() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam -o %s -L 20:10289124 -L 20:10090289", 1,
-                Arrays.asList("a973298b2801b80057bea88507e2858d"));
-        executeTest("test reverse trim", spec);
-    }
-
-    @Test
-    public void testMismatchedPLs() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + privateTestDir + "mismatchedPLs.bam -o %s -L 1:24020341", 1,
-                Arrays.asList("8d91d98c4e79897690d3c6918b6ac761"));
-        executeTest("test mismatched PLs", spec);
-    }
 }

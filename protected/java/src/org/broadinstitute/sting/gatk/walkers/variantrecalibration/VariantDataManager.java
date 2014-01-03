@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
 
+import it.unimi.dsi.fastutil.booleans.BooleanLists;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
@@ -71,7 +72,7 @@ import java.util.*;
  */
 
 public class VariantDataManager {
-    private List<VariantDatum> data;
+    private List<VariantDatum> data = Collections.emptyList();
     private double[] meanVector;
     private double[] varianceVector; // this is really the standard deviation
     public List<String> annotationKeys;
@@ -80,7 +81,7 @@ public class VariantDataManager {
     protected final List<TrainingSet> trainingSets;
 
     public VariantDataManager( final List<String> annotationKeys, final VariantRecalibratorArgumentCollection VRAC ) {
-        this.data = null;
+        this.data = Collections.emptyList();
         this.annotationKeys = new ArrayList<>( annotationKeys );
         this.VRAC = VRAC;
         meanVector = new double[this.annotationKeys.size()];
@@ -277,6 +278,19 @@ public class VariantDataManager {
         }
 
         return evaluationData;
+    }
+
+    /**
+     * Remove all VariantDatum's from the data list which are marked as aggregate data
+     */
+    public void dropAggregateData() {
+        final Iterator<VariantDatum> iter = data.iterator();
+        while (iter.hasNext()) {
+            final VariantDatum datum = iter.next();
+            if( datum.isAggregate ) {
+                iter.remove();
+            }
+        }
     }
 
     public List<VariantDatum> getRandomDataForPlotting( final int numToAdd, final List<VariantDatum> trainingData, final List<VariantDatum> antiTrainingData, final List<VariantDatum> evaluationData ) {

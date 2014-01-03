@@ -44,57 +44,185 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.annotator;
+package org.broadinstitute.sting.gatk.walkers.variantutils;
 
+import org.broadinstitute.sting.commandline.*;
+import org.broadinstitute.sting.gatk.CommandLineGATK;
+import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
+import org.broadinstitute.sting.gatk.walkers.Reference;
+import org.broadinstitute.sting.gatk.walkers.RodWalker;
+import org.broadinstitute.sting.gatk.walkers.TreeReducible;
+import org.broadinstitute.sting.gatk.walkers.Window;
+import org.broadinstitute.sting.gatk.walkers.annotator.ChromosomeCountConstants;
+import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ExperimentalAnnotation;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
+import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.SampleUtils;
+import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.sting.utils.help.HelpConstants;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.vcf.VCFFormatHeaderLine;
-import org.broadinstitute.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.vcf.*;
 
 import java.util.*;
 
 /**
- * Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias
- * User: rpoplin
- * Date: 8/28/13
+ * Combines gVCF records that were produced by the Haplotype Caller from single sample sources.
+ *
+ * <p>
+ * CombineReferenceCalculationVariants combines gVCF records that were produced as part of the "single sample discovery"
+ * pipeline using the '-ERC GVCF' mode of the Haplotype Caller.  This tools performs the multi-sample joint aggregation
+ * step and merges the records together in a sophisticated manner.
+ *
+ * At all positions of the target, this tool will combine all spanning records, produce correct genotype likelihoods,
+ * re-genotype the newly merged record, and then re-annotate it.
+ *
+ *
+ * <h3>Input</h3>
+ * <p>
+ * One or more Haplotype Caller gVCFs to combine.
+ * </p>
+ *
+ * <h3>Output</h3>
+ * <p>
+ * A combined VCF.
+ * </p>
+ *
+ * <h3>Examples</h3>
+ * <pre>
+ * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ *   -R ref.fasta \
+ *   -T CombineReferenceCalculationVariants \
+ *   --variant input1.vcf \
+ *   --variant input2.vcf \
+ *   -o output.vcf
+ * </pre>
+ *
  */
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
+@Reference(window=@Window(start=-10,stop=10))
+public class CombineReferenceCalculationVariants extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
 
-public class StrandBiasBySample extends GenotypeAnnotation implements ExperimentalAnnotation {
+    // TODO -- allow a file of VCF paths to be entered?
 
-    public final static String STRAND_BIAS_BY_SAMPLE_KEY_NAME = "SB";
+    /**
+     * The VCF files to merge together
+     */
+    @Input(fullName="variant", shortName = "V", doc="One or more input VCF files", required=true)
+    public List<RodBinding<VariantContext>> variants;
 
-    @Override
-    public void annotate(final RefMetaDataTracker tracker,
-                         final AnnotatorCompatible walker,
-                         final ReferenceContext ref,
-                         final AlignmentContext stratifiedContext,
-                         final VariantContext vc,
-                         final Genotype g,
-                         final GenotypeBuilder gb,
-                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-        if ( ! isAppropriateInput(alleleLikelihoodMap, g) )
-            return;
+    @Output(doc="File to which variants should be written")
+    protected VariantContextWriter vcfWriter = null;
 
-        final int[][] table = FisherStrand.getContingencyTable(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc);
+    @Argument(fullName="includeNonVariants", shortName="inv", doc="Include loci found to be non-variant after the combining procedure", required=false)
+    public boolean INCLUDE_NON_VARIANTS = false;
 
-        gb.attribute(STRAND_BIAS_BY_SAMPLE_KEY_NAME, FisherStrand.getContingencyArray(table));
+    /**
+     * Which annotations to recompute for the combined output VCF file.
+     */
+    @Advanced
+    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute", required=false)
+    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts"}));
+
+    /**
+     * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
+     * dbSNP is not used in any way for the calculations themselves.
+     */
+    @ArgumentCollection
+    protected DbsnpArgumentCollection dbsnp = new DbsnpArgumentCollection();
+    public RodBinding<VariantContext> getDbsnpRodBinding() { return dbsnp.dbsnp; }
+
+    // the genotyping engine
+    private UnifiedGenotyperEngine genotypingEngine;
+    // the annotation engine
+    private VariantAnnotatorEngine annotationEngine;
+
+    public List<RodBinding<VariantContext>> getCompRodBindings() { return Collections.emptyList(); }
+    public RodBinding<VariantContext> getSnpEffRodBinding() { return null; }
+    public List<RodBinding<VariantContext>> getResourceRodBindings() { return Collections.emptyList(); }
+    public boolean alwaysAppendDbsnpId() { return false; }
+
+
+    public void initialize() {
+        // take care of the VCF headers
+        final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit());
+        final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
+        final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
+        headerLines.addAll(Arrays.asList(ChromosomeCountConstants.descriptions));
+        final VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
+        vcfWriter.writeHeader(vcfHeader);
+
+        // create the genotyping engine
+        final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
+        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.BOTH;
+        UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES;
+        UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES;
+        genotypingEngine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
+
+        // create the annotation engine
+        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
+    }
+
+    public VariantContext map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
+        if ( tracker == null ) // RodWalkers can make funky map calls
+            return null;
+
+        final GenomeLoc loc = ref.getLocus();
+        final VariantContext combinedVC = GATKVariantContextUtils.referenceConfidenceMerge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null);
+        if ( combinedVC == null )
+            return null;
+
+        return regenotypeVC(tracker, ref, combinedVC);
+    }
+
+    /**
+     * Re-genotype (and re-annotate) a combined genomic VC
+     *
+     * @param tracker        the ref tracker
+     * @param ref            the ref context
+     * @param combinedVC     the combined genomic VC
+     * @return a new VariantContext or null if the site turned monomorphic and we don't want such sites
+     */
+    protected VariantContext regenotypeVC(final RefMetaDataTracker tracker, final ReferenceContext ref, final VariantContext combinedVC) {
+        if ( combinedVC == null ) throw new IllegalArgumentException("combinedVC cannot be null");
+
+        VariantContext result = combinedVC;
+
+        // only re-genotype polymorphic sites
+        if ( combinedVC.isVariant() )
+            result = genotypingEngine.calculateGenotypes(result);
+
+        // if it turned monomorphic and we don't want such sites, quit
+        if ( !INCLUDE_NON_VARIANTS && result.isMonomorphicInSamples() )
+            return null;
+
+        // re-annotate it
+        return annotationEngine.annotateContext(tracker, ref, null, result);
+    }
+
+    public VariantContextWriter reduceInit() {
+        return vcfWriter;
+    }
+
+    public VariantContextWriter reduce(final VariantContext vc, final VariantContextWriter writer) {
+        if ( vc != null )
+            writer.add(vc);
+        return writer;
     }
 
     @Override
-    public List<String> getKeyNames() { return Collections.singletonList(STRAND_BIAS_BY_SAMPLE_KEY_NAME); }
+    public VariantContextWriter treeReduce(final VariantContextWriter lhs, final VariantContextWriter rhs) {
+        return lhs;
+    }
 
     @Override
-    public List<VCFFormatHeaderLine> getDescriptions() { return Collections.singletonList(new VCFFormatHeaderLine(getKeyNames().get(0), 4, VCFHeaderLineType.Integer, "Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias.")); }
-
-    private boolean isAppropriateInput(final PerReadAlleleLikelihoodMap map, final Genotype g) {
-        return ! (map == null || g == null || !g.isCalled());
-    }
+    public void onTraversalDone(final VariantContextWriter writer) {}
 }

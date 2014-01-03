@@ -62,11 +62,21 @@ import java.util.List;
 public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     private static class VRTest {
         String inVCF;
+        String aggregateVCF;
         String tranchesMD5;
         String recalMD5;
         String cutVCFMD5;
+
         public VRTest(String inVCF, String tranchesMD5, String recalMD5, String cutVCFMD5) {
             this.inVCF = inVCF;
+            this.tranchesMD5 = tranchesMD5;
+            this.recalMD5 = recalMD5;
+            this.cutVCFMD5 = cutVCFMD5;
+        }
+
+        public VRTest(String inVCF, String aggregateVCF, String tranchesMD5, String recalMD5, String cutVCFMD5) {
+            this.inVCF = inVCF;
+            this.aggregateVCF = aggregateVCF;
             this.tranchesMD5 = tranchesMD5;
             this.recalMD5 = recalMD5;
             this.cutVCFMD5 = cutVCFMD5;
@@ -83,10 +93,20 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
             "73c7897441622c9b37376eb4f071c560",  // recal file
             "11a28df79b92229bd317ac49a3ed0fa1"); // cut VCF
 
+    VRTest lowPassPlusExomes = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
+            validationDataLocation + "1kg_exomes_unfiltered.AFR.unfiltered.vcf",
+            "ce4bfc6619147fe7ce1f8331bbeb86ce",  // tranches
+            "1b33c10be7d8bf8e9accd11113835262",  // recal file
+            "4700d52a06f2ef3a5882719b86911e51"); // cut VCF
+
     @DataProvider(name = "VRTest")
     public Object[][] createData1() {
         return new Object[][]{ {lowPass} };
-        //return new Object[][]{ {yriTrio}, {lowPass} }; // Add hg19 chr20 trio calls here
+    }
+
+    @DataProvider(name = "VRAggregateTest")
+    public Object[][] createData2() {
+        return new Object[][]{ {lowPassPlusExomes} };
     }
 
     @Test(dataProvider = "VRTest")
@@ -125,6 +145,43 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         executeTest("testApplyRecalibration-"+params.inVCF, spec);
     }
 
+    @Test(dataProvider = "VRAggregateTest")
+    public void testVariantRecalibratorAggregate(VRTest params) {
+        //System.out.printf("PARAMS FOR %s is %s%n", vcf, clusterFile);
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-R " + b37KGReference +
+                        " -resource:known=true,prior=10.0 " + GATKDataLocation + "dbsnp_132_b37.leftAligned.vcf" +
+                        " -resource:truth=true,training=true,prior=15.0 " + comparisonDataLocation + "Validated/HapMap/3.3/sites_r27_nr.b37_fwd.vcf" +
+                        " -resource:training=true,truth=true,prior=12.0 " + comparisonDataLocation + "Validated/Omni2.5_chip/Omni25_sites_1525_samples.b37.vcf" +
+                        " -T VariantRecalibrator" +
+                        " -input " + params.inVCF +
+                        " -aggregate " + params.aggregateVCF +
+                        " -L 20:1,000,000-40,000,000" +
+                        " --no_cmdline_in_header" +
+                        " -an QD -an HaplotypeScore -an MQ" +
+                        " --trustAllPolymorphic" + // for speed
+                        " -recalFile %s" +
+                        " -tranchesFile %s",
+                Arrays.asList(params.recalMD5, params.tranchesMD5));
+        executeTest("testVariantRecalibratorAggregate-"+params.inVCF, spec).getFirst();
+    }
+
+    @Test(dataProvider = "VRAggregateTest",dependsOnMethods="testVariantRecalibratorAggregate")
+    public void testApplyRecalibrationAggregate(VRTest params) {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-R " + b37KGReference +
+                        " -T ApplyRecalibration" +
+                        " -L 20:12,000,000-30,000,000" +
+                        " --no_cmdline_in_header" +
+                        " -input " + params.inVCF +
+                        " -U LENIENT_VCF_PROCESSING -o %s" +
+                        " -tranchesFile " + getMd5DB().getMD5FilePath(params.tranchesMD5, null) +
+                        " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
+                Arrays.asList(params.cutVCFMD5));
+        spec.disableShadowBCF(); // TODO -- enable when we support symbolic alleles
+        executeTest("testApplyRecalibrationAggregate-"+params.inVCF, spec);
+    }
+
     VRTest bcfTest = new VRTest(privateTestDir + "vqsr.bcf_test.snps.unfiltered.bcf",
             "3ad7f55fb3b072f373cbce0b32b66df4",  // tranches
             "e747c08131d58d9a4800720f6ca80e0c",  // recal file
@@ -133,7 +190,6 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     @DataProvider(name = "VRBCFTest")
     public Object[][] createVRBCFTest() {
         return new Object[][]{ {bcfTest} };
-        //return new Object[][]{ {yriTrio}, {lowPass} }; // Add hg19 chr20 trio calls here
     }
 
     @Test(dataProvider = "VRBCFTest")
