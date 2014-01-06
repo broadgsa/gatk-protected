@@ -56,7 +56,6 @@ import org.broadinstitute.sting.gatk.walkers.PartitionBy;
 import org.broadinstitute.sting.gatk.walkers.PartitionType;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
 import org.broadinstitute.sting.gatk.walkers.TreeReducible;
-import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.R.RScriptExecutor;
 import org.broadinstitute.sting.utils.Utils;
@@ -155,7 +154,8 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      * These calls should be unfiltered and annotated with the error covariates that are intended to be used for modeling.
      */
     @Input(fullName="input", shortName = "input", doc="The raw input variants to be recalibrated", required=true)
-    public List<RodBinding<VariantContext>> input;
+    public List<RodBindingCollection<VariantContext>> inputCollections;
+    final private List<RodBinding<VariantContext>> input = new ArrayList<>();
 
     /**
      * These additional calls should be unfiltered and annotated with the error covariates that are intended to be used for modeling.
@@ -272,7 +272,6 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             throw new UserException.CommandLineException( "No truth set found! Please provide sets of known polymorphic loci marked with the truth=true ROD binding tag. For example, -resource:hapmap,VCF,known=false,training=true,truth=true,prior=12.0 hapmapFile.vcf" );
         }
 
-
         final Set<VCFHeaderLine> hInfo = new HashSet<>();
         ApplyRecalibration.addVQSRStandardHeaderLines(hInfo);
         recalWriter.writeHeader( new VCFHeader(hInfo) );
@@ -280,6 +279,10 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         for( int iii = 0; iii < REPLICATE * 2; iii++ ) {
             replicate.add(GenomeAnalysisEngine.getRandomGenerator().nextDouble());
         }
+
+        // collect the actual rod bindings into a list for use later
+        for ( final RodBindingCollection<VariantContext> inputCollection : inputCollections )
+            input.addAll(inputCollection.getRodBindings());
     }
 
     //---------------------------------------------------------------------------------------------------------------
