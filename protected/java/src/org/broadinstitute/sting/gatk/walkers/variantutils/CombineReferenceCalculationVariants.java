@@ -111,13 +111,12 @@ import java.util.*;
 @Reference(window=@Window(start=-10,stop=10))
 public class CombineReferenceCalculationVariants extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
 
-    // TODO -- allow a file of VCF paths to be entered?
-
     /**
      * The VCF files to merge together
      */
     @Input(fullName="variant", shortName = "V", doc="One or more input VCF files", required=true)
-    public List<RodBinding<VariantContext>> variants;
+    public List<RodBindingCollection<VariantContext>> variantCollections;
+    final private List<RodBinding<VariantContext>> variants = new ArrayList<>();
 
     @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
@@ -169,6 +168,10 @@ public class CombineReferenceCalculationVariants extends RodWalker<VariantContex
 
         // create the annotation engine
         annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
+
+        // collect the actual rod bindings into a list for use later
+        for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
+            variants.addAll(variantCollection.getRodBindings());
     }
 
     public VariantContext map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
