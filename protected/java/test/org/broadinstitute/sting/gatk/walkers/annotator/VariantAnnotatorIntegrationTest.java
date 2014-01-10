@@ -358,7 +358,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         final File outputVCFNoQD = executeTest("testQualByDepth calling without QD", specNoQD).getFirst().get(0);
 
         final String baseAnn = String.format("-T VariantAnnotator -R %s -V %s", REF, outputVCFNoQD.getAbsolutePath()) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -A QualByDepth";
-        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("139a4384f5a7c1f49ada67f416642249"));
+        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("0c331915b07b42d726bc3d623aa9997b"));
         specAnn.disableShadowBCF();
         final File outputVCFAnn = executeTest("testQualByDepth re-annotation of QD", specAnn).getFirst().get(0);
 
@@ -384,10 +384,8 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
             Assert.assertFalse(lineAnn == null);
             final VariantContext vcAnn = codecAnn.decode(lineAnn);
 
-            if( vc.isBiallelic() ) {
-                Assert.assertTrue(vc.hasAttribute("QD"));
-                Assert.assertTrue(vcAnn.hasAttribute("QD"));
-            }
+	    Assert.assertTrue(vc.hasAttribute("QD"));
+	    Assert.assertTrue(vcAnn.hasAttribute("QD"));
         }
 
         Assert.assertFalse(lineIterator.hasNext());

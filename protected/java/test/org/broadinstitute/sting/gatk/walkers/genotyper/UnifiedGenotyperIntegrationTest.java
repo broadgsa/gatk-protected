@@ -182,12 +182,12 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     // --------------------------------------------------------------------------------------------------------------
     @Test
     public void testHeterozyosity1() {
-        testHeterozosity( 0.01, "2f3051caa785c7c1e2a8b23fa4da90b1" );
+        testHeterozosity( 0.01, "6053106407e09a6aefb78395a0e22ec4" );
     }
 
     @Test
     public void testHeterozyosity2() {
-        testHeterozosity( 1.0 / 1850, "228df9e38580d8ffe1134da7449fa35e" );
+        testHeterozosity( 1.0 / 1850, "37666375278259c4d7dc800a0f73c1ca" );
     }
 
     private void testHeterozosity(final double arg, final String md5) {
@@ -203,7 +203,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     //
     // --------------------------------------------------------------------------------------------------------------
 
-    private final static String COMPRESSED_OUTPUT_MD5 = "eebec02fdde9937bffaf44902ace6207";
+    private final static String COMPRESSED_OUTPUT_MD5 = "c5c6af421cffa12fe6bdaced6cd41dd2";
 
     @Test
     public void testCompressedOutput() {
@@ -260,7 +260,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,100,000",
                 1,
-                Arrays.asList("c4248f02103e37e89b0f22c0d9c98492"));
+                Arrays.asList("630d1dcfb7650a9287d6723c38b0746a"));
 
         executeTest(String.format("test multiple technologies"), spec);
     }
@@ -279,7 +279,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                         " -L 1:10,000,000-10,100,000" +
                         " -baq CALCULATE_AS_NECESSARY",
                 1,
-                Arrays.asList("96c7862d55e933b274cabe45c9c443d9"));
+                Arrays.asList("976e88e4accb4436ad9ac97df9477648"));
 
         executeTest(String.format("test calling with BAQ"), spec);
     }
