@@ -50,9 +50,12 @@ package org.broadinstitute.sting.gatk.walkers.indels;
 import net.sf.picard.reference.IndexedFastaSequenceFile;
 import net.sf.samtools.SAMFileHeader;
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.variant.variantcontext.Allele;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -137,5 +140,17 @@ public class PairHMMIndelErrorModelUnitTest extends BaseTest {
         read.setCigarString("10M");
         Assert.assertEquals(PairHMMIndelErrorModel.mustClipDownstream(read, 13), true);
         Assert.assertEquals(PairHMMIndelErrorModel.mustClipDownstream(read, 14), false);
+    }
+
+    @Test
+    public void trimHaplotypesToNullAlleleTest() {
+        // we need a case where start and stop > haplotype coordinates
+        final int start = 100, stop = 100;
+	final Haplotype h = new Haplotype(new byte[]{(byte)'A'}, new UnvalidatingGenomeLoc("1", 0, 10, 10));
+	final Map<Allele, Haplotype> input = new HashMap<Allele, Haplotype>(1);
+	input.put(Allele.create("A"), h);
+
+	final Map<Allele, Haplotype> output = PairHMMIndelErrorModel.trimHaplotypes(input, start, stop, null);
+        Assert.assertTrue(output.isEmpty());
     }
 }
