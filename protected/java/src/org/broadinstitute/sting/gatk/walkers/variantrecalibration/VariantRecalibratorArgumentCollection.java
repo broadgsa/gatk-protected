@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
 
 import org.broadinstitute.sting.commandline.Advanced;
 import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.commandline.Hidden;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 
 /**
@@ -117,4 +118,19 @@ public class VariantRecalibratorArgumentCollection {
     @Advanced
     @Argument(fullName="badLodCutoff", shortName="badLodCutoff", doc="The LOD score below which to be used when building the Gaussian mixture model of bad variants.", required=false)
     public double BAD_LOD_CUTOFF = -5.0;
+
+    /////////////////////////////
+    // Deprecated Arguments
+    // Keeping them here is meant to provide users with error messages that are more informative than "arg not defined" when they use an argument that has been put out of service
+    /////////////////////////////
+
+    @Hidden
+    @Deprecated
+    @Argument(fullName="percentBadVariants", shortName="percentBad", doc="This argument is no longer used in GATK versions 2.7 and newer. Please see the online documentation for the latest usage recommendations.", required=false)
+    public double PERCENT_BAD_VARIANTS = 0.03;
+
+    @Hidden
+    @Deprecated
+    @Argument(fullName="numBadVariants", shortName="numBad", doc="This argument is no longer used in GATK versions 2.8 and newer. Please see the online documentation for the latest usage recommendations.", required=false)
+    public int NUM_BAD_VARIANTS = 1000;
 }
