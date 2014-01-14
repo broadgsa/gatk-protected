@@ -108,7 +108,7 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
                     continue;
 
                 depth += perReadAlleleLikelihoods.getNumberOfStoredElements();
-            } else if (genotype.hasDP() && vc.isBiallelic()) { // TODO -- this currently only works with biallelic variants for now because multiallelics have had their PLs stripped out and therefore their qual score can't be recomputed
+            } else if ( genotype.hasDP() ) {
                 depth += genotype.getDP();
             }
         }
@@ -117,11 +117,27 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
             return null;
 
         final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
-        double QD = -10.0 * vc.getLog10PError() / ((double)depth * altAlleleLength);
+	// Hack: when refContext == null then we know we are coming from the HaplotypeCaller and do not want to do a
+	//  full length-based normalization (because the indel length problem is present only in the UnifiedGenotyper)
+        double QD = -10.0 * vc.getLog10PError() / ((double)depth * indelNormalizationFactor(altAlleleLength, ref != null));
+
+	// Hack: see note in the fixTooHighQD method below
         QD = fixTooHighQD(QD);
-        Map<String, Object> map = new HashMap<>();
+
+        final Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%.2f", QD));
         return map;
+    }
+
+    /**
+     * Generate the indel normalization factor.
+     *
+     * @param altAlleleLength  the average alternate allele length for the call
+     * @param increaseNormalizationAsLengthIncreases should we apply a normalization factor based on the allele length?
+     * @return a possitive double
+     */
+    private double indelNormalizationFactor(final double altAlleleLength, final boolean increaseNormalizationAsLengthIncreases) {
+	return ( increaseNormalizationAsLengthIncreases ? Math.max(altAlleleLength / 3.0, 1.0) : 1.0);
     }
 
     /**
