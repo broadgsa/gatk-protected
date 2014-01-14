@@ -258,7 +258,7 @@ public class HaplotypeResolver extends RodWalker<Integer, Integer> {
     }
 
     private void writeOne(final VariantContext vc, final String set, final String status) {
-        final Map<String, Object> attrs = new HashMap<String, Object>(vc.getAttributes());
+        final Map<String, Object> attrs = new HashMap<>();
         if ( SET_KEY != null && set != null )
             attrs.put(SET_KEY, set);
         if ( STATUS_KEY != null && status != null )
