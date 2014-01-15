@@ -205,10 +205,21 @@ public class PairHMMIndelErrorModel {
         }
     }
 
-    private LinkedHashMap<Allele, Haplotype> trimHaplotypes(final LinkedHashMap<Allele, Haplotype> haplotypeMap,
-                                                            long startLocationInRefForHaplotypes,
-                                                            long stopLocationInRefForHaplotypes,
-                                                            final ReferenceContext ref){
+    /**
+     * Trims the haplotypes in the given map to the provided start/stop.
+     *
+     * @param haplotypeMap                      the input map
+     * @param startLocationInRefForHaplotypes   the start location of the trim
+     * @param stopLocationInRefForHaplotypes    the stop location of the trim
+     * @param ref                               the reference context (used for debugging only, so can be null)
+     * @return a non-null mapping corresponding to the trimmed version of the original;
+     *   some elements may be lost if trimming cannot be performed on them (e.g. they fall outside of the region to keep)
+     */
+    protected static Map<Allele, Haplotype> trimHaplotypes(final Map<Allele, Haplotype> haplotypeMap,
+                                                           long startLocationInRefForHaplotypes,
+                                                           long stopLocationInRefForHaplotypes,
+                                                           final ReferenceContext ref) {
+        if ( haplotypeMap == null ) throw new IllegalArgumentException("The input allele to haplotype map cannot be null");
 
         final LinkedHashMap<Allele, Haplotype> trimmedHaplotypeMap = new LinkedHashMap<>();
         for (final Allele a: haplotypeMap.keySet()) {
@@ -225,10 +236,13 @@ public class PairHMMIndelErrorModel {
 
             final long indStart = startLocationInRefForHaplotypes - haplotype.getStartPosition();
             final long indStop =  stopLocationInRefForHaplotypes - haplotype.getStartPosition();
+            if ( indStart >= indStop )
+                continue;
 
-            if (DEBUG)
-                System.out.format("indStart: %d indStop: %d WinStart:%d WinStop:%d start: %d stop: %d\n",
-                        indStart, indStop, ref.getWindow().getStart(), ref.getWindow().getStop(), startLocationInRefForHaplotypes, stopLocationInRefForHaplotypes);
+            // commented out here because we need to make this method static for unit testing
+            //if (DEBUG)
+            //    System.out.format("indStart: %d indStop: %d WinStart:%d WinStop:%d start: %d stop: %d\n",
+            //            indStart, indStop, ref.getWindow().getStart(), ref.getWindow().getStop(), startLocationInRefForHaplotypes, stopLocationInRefForHaplotypes);
 
             // get the trimmed haplotype-bases array and create a new haplotype based on it. Pack this into the new map
             final byte[] trimmedHaplotypeBases = Arrays.copyOfRange(haplotype.getBases(), (int)indStart, (int)indStop);
