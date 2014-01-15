@@ -81,25 +81,28 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
     private final boolean noFpga;
 
     private final ThreadLocal<PairHMM> pairHMMThreadLocal = new ThreadLocal<PairHMM>() {
-        @Override
-        protected PairHMM initialValue() {
-            switch (hmmType) {
-                case EXACT: return new Log10PairHMM(true);
-                case ORIGINAL: return new Log10PairHMM(false);
-                case LOGLESS_CACHING:
-                    if (noFpga || !CnyPairHMM.isAvailable())
-                        return new LoglessPairHMM();
-                    else
-                        return new CnyPairHMM();
-                case ARRAY_LOGLESS:
-                    if (noFpga || !CnyPairHMM.isAvailable())
-                        return new ArrayLoglessPairHMM();
-                    else
-                        return new CnyPairHMM();
-                default:
-                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
-            }
-        }
+	@Override
+	protected PairHMM initialValue() {
+	    switch (hmmType) {
+		case EXACT: return new Log10PairHMM(true);
+		case ORIGINAL: return new Log10PairHMM(false);
+		case LOGLESS_CACHING:
+		    if (noFpga || !CnyPairHMM.isAvailable())
+		    {
+			//return new LoglessPairHMM();
+			return new JNILoglessPairHMM();
+		    }
+		    else
+			return new CnyPairHMM();
+		case ARRAY_LOGLESS:
+		    if (noFpga || !CnyPairHMM.isAvailable())
+			return new ArrayLoglessPairHMM();
+		    else
+			return new CnyPairHMM();
+		default:
+		    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
+	    }
+	}
     };
 //    Attempted to do as below, to avoid calling pairHMMThreadLocal.get() later on, but it resulted in a NullPointerException
 //    private final PairHMM pairHMM = pairHMMThreadLocal.get();
