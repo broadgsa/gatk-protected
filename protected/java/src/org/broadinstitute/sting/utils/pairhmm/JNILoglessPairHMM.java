@@ -65,35 +65,53 @@ import java.util.Map;
  * Date: 10/16/12
  */
 public class JNILoglessPairHMM extends LoglessPairHMM {
-    static {
-	System.loadLibrary("JNILoglessPairHMM");
-    }
 
-    private static final boolean debug = true;	//simulates ifdef
+    private static final boolean debug = false;	 //simulates ifdef
+    private static final boolean debug0_1 = false;	 //simulates ifdef
+    private static final boolean debug1 = false; //simulates ifdef
     private static final boolean debug2 = false;
     private static final boolean debug3 = false;
+    private int numComputeLikelihoodCalls = 0;
 
-    @Override
-    protected void finalize() throws Throwable {
-	try{
-	    debugClose();
-	}catch(Throwable t){
-	    throw t;
-	}finally{
-	    super.finalize();
+    //Used to copy references to byteArrays to JNI from reads
+    protected class JNIReadDataHolderClass
+    {
+       	public byte[] readBases = null;
+	public byte[] readQuals = null;
+	public byte[] insertionGOP = null;
+	public byte[] deletionGOP = null;
+	public byte[] overallGCP = null;
+    }
+
+    //Used to copy references to byteArrays to JNI from haplotypes
+    protected class JNIHaplotypeDataHolderClass
+    {
+	public byte[] haplotypeBases = null;
+    }
+    
+    private native void jniGlobalInit(Class<?> readDataHolderClass, Class<?> haplotypeDataHolderClass);
+    
+    private static boolean isJNILoglessPairHMMLibraryLoaded = false;
+    
+    public JNILoglessPairHMM()
+    {
+	super();
+	if(!isJNILoglessPairHMMLibraryLoaded)
+	{
+	    System.loadLibrary("JNILoglessPairHMM");
+	    isJNILoglessPairHMMLibraryLoaded = true;
+	    jniGlobalInit(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class);	//need to do this only once
 	}
     }
-						    
-    private native void jniInitialize(final int readMaxLength, final int haplotypeMaxLength);
-    
-    private native static void jniInitializeProbabilities(final double[][] transition, final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP);
 
+    //Used to test parts of the compute kernel separately    
+    private native void jniInitialize(final int readMaxLength, final int haplotypeMaxLength);
+    private native static void jniInitializeProbabilities(final double[][] transition, final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP);
     private native double jniInitializePriorsAndUpdateCells(
 	    boolean doInitialization,
 	    final int paddedReadLength, final int paddedHaplotypeLength,
 	    final byte[] readBases, final byte[] haplotypeBases, final byte[] readQuals,
 	    final int hapStartIndex);
-
     private native double jniSubComputeReadLikelihoodGivenHaplotypeLog10(
 	    final int readLength, final int haplotypeLength,
 	    final byte[] readBases, final byte[] haplotypeBases, final byte[] readQuals,
@@ -101,14 +119,15 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	    final int hapStartIndex);
 
 
-
+    //Used only when testing parts of the compute kernel
      /**
      * {@inheritDoc}
      */
     @Override
     public void initialize(final int readMaxLength, final int haplotypeMaxLength)
     {
-      super.initialize(readMaxLength, haplotypeMaxLength);
+      if(debug)
+	super.initialize(readMaxLength, haplotypeMaxLength);
       if(debug3)
       {
 	  System.out.println("Java: alloc initialized readMaxLength : "+readMaxLength+" haplotypeMaxLength : "+haplotypeMaxLength);
@@ -119,97 +138,142 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	  jniInitialize(readMaxLength, haplotypeMaxLength);
     }
 
+    //Real compute kernel
+    private native void jniComputeLikelihoods(int numReads, int numHaplotypes,
+	    JNIReadDataHolderClass[] readDataArray, JNIHaplotypeDataHolderClass[] haplotypeDataArray,
+	    double[] likelihoodArray, int maxNumThreadsToUse);
     /**
      * {@inheritDoc}
      */
     @Override
     public PerReadAlleleLikelihoodMap computeLikelihoods(final List<GATKSAMRecord> reads, final Map<Allele, Haplotype> alleleHaplotypeMap, final Map<GATKSAMRecord, byte[]> GCPArrayMap)
     {
-	PerReadAlleleLikelihoodMap retValue = super.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
+	// (re)initialize the pairHMM only if necessary
+	final int readMaxLength = debug ? findMaxReadLength(reads) : 0;
+	final int haplotypeMaxLength = debug ? findMaxHaplotypeLength(alleleHaplotypeMap) : 0;
 	if(debug)
+	{
+	    if (!initialized || readMaxLength > maxReadLength || haplotypeMaxLength > maxHaplotypeLength)
+	    { initialize(readMaxLength, haplotypeMaxLength); }
+	    if ( ! initialized )
+		throw new IllegalStateException("Must call initialize before calling jniComputeLikelihoods in debug mode");
+	}
+	int readListSize = reads.size();
+	int alleleHaplotypeMapSize = alleleHaplotypeMap.size();
+	if(debug0_1)
+	    System.out.println("Java numReads "+readListSize+" numHaplotypes "+alleleHaplotypeMapSize);
+	JNIReadDataHolderClass[] readDataArray = new JNIReadDataHolderClass[readListSize];
+	int idx = 0;
+	for(GATKSAMRecord read : reads)
+	{
+	    readDataArray[idx] = new JNIReadDataHolderClass();
+	    readDataArray[idx].readBases = read.getReadBases();
+	    readDataArray[idx].readQuals = read.getBaseQualities();
+	    readDataArray[idx].insertionGOP = read.getBaseInsertionQualities();
+	    readDataArray[idx].deletionGOP = read.getBaseDeletionQualities();
+	    readDataArray[idx].overallGCP = GCPArrayMap.get(read);
+
+	    if(debug0_1)
+		System.out.println("Java read length "+readDataArray[idx].readBases.length);
+	    if(debug3)
+	    {
+		for(int i=0;i<readDataArray[idx].readBases.length;++i)
+		{
+		    debugDump("reads_java.txt",String.format("%d\n",(int)readDataArray[idx].readBases[i]),true);
+		    debugDump("reads_java.txt",String.format("%d\n",(int)readDataArray[idx].readQuals[i]),true);
+		    debugDump("reads_java.txt",String.format("%d\n",(int)readDataArray[idx].insertionGOP[i]),true);
+		    debugDump("reads_java.txt",String.format("%d\n",(int)readDataArray[idx].deletionGOP[i]),true);
+		    debugDump("reads_java.txt",String.format("%d\n",(int)readDataArray[idx].overallGCP[i]),true);
+		}
+	    }
+	    ++idx;
+	}
+	JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[alleleHaplotypeMapSize];
+	idx = 0;
+	for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())	//order is important - access in same order always
+	{
+	    haplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
+	    haplotypeDataArray[idx].haplotypeBases = currEntry.getValue().getBases();
+	    if(debug0_1)
+		System.out.println("Java haplotype length "+haplotypeDataArray[idx].haplotypeBases.length);
+	    if(debug3)
+	    {
+		for(int i=0;i<haplotypeDataArray[idx].haplotypeBases.length;++i)
+		    debugDump("haplotype_bases_java.txt",String.format("%d\n",(int)haplotypeDataArray[idx].haplotypeBases[i]),true);
+	    }
+	    ++idx;
+	}
+	double[] likelihoodArray = new double[readListSize*alleleHaplotypeMapSize];	//to store results
+	//for(reads)
+	//   for(haplotypes)
+	//       compute_full_prob()
+	jniComputeLikelihoods(readListSize, alleleHaplotypeMapSize, readDataArray, haplotypeDataArray, likelihoodArray, 12);
+
+
+	//final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
+	PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
+	idx = 0;
+	for(GATKSAMRecord read : reads)
+	    for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())//order is important - access in same order always
+	    {
+		likelihoodMap.add(read, currEntry.getKey(), likelihoodArray[idx]);
+		++idx;
+	    }
+	if(debug)
+	{
+	    //to compare values
+	    likelihoodMap = super.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
+	    //for floating point values, no exact equality
+	    //check whether numbers are close in terms of abs_error or relative_error
+	    //For very large values, relative_error is relevant
+	    //For very small values, abs_error is relevant
+	    boolean toDump = false;
+	    for(int i=0;i<likelihoodArray.length;++i)
+	    {
+		double abs_error = Math.abs(likelihoodArray[i] - mLikelihoodArray[i]);
+		double relative_error = 0;
+		if(mLikelihoodArray[i] == 0)
+		    relative_error = 0;
+		else
+		    relative_error = Math.abs(abs_error/mLikelihoodArray[i]);
+		if(abs_error > 1e-5 && relative_error > 1e-5)
+		{
+		    toDump = true;
+		    break;
+		}
+	    }
+	    //if numbers are not close, then dump out the data that produced the inconsistency
+	    if(toDump)
+	    {
+		idx = 0;
+		System.out.println("Dump : Java numReads "+readListSize+" numHaplotypes "+alleleHaplotypeMapSize);
+		for(int i=0;i<readDataArray.length;++i)
+		{
+		    for(int j=0;j<haplotypeDataArray.length;++j)
+		    {
+			debugDump("debug_dump.log",new String(haplotypeDataArray[j].haplotypeBases)+" ",true);
+			debugDump("debug_dump.log",new String(readDataArray[i].readBases)+" ",true);
+			for(int k=0;k<readDataArray[i].readBases.length;++k)
+			    debugDump("debug_dump.log",String.format("%d",(int)(readDataArray[i].readQuals[k]))+" ",true);
+			for(int k=0;k<readDataArray[i].readBases.length;++k)
+			    debugDump("debug_dump.log",String.format("%d",(int)(readDataArray[i].insertionGOP[k]))+" ",true);
+			for(int k=0;k<readDataArray[i].readBases.length;++k)
+			    debugDump("debug_dump.log",String.format("%d",(int)(readDataArray[i].deletionGOP[k]))+" ",true);
+			for(int k=0;k<readDataArray[i].readBases.length;++k)
+			    debugDump("debug_dump.log",String.format("%d",(int)(readDataArray[i].overallGCP[k]))+" ",true);
+			debugDump("debug_dump.log","\n",true);
+			debugDump("debug_results.log",String.format("%e %e\n",mLikelihoodArray[idx],likelihoodArray[idx]),true);
+			++idx;
+		    }
+		}
+	    }	
 	    debugClose();
-	return retValue;
+	}
+	++numComputeLikelihoodCalls;
+	//if(numComputeLikelihoodCalls == 5)
+	//System.exit(0);
+	return likelihoodMap;
     }
-    //{
-
-	    //// (re)initialize the pairHMM only if necessary
-	    //final int readMaxLength = findMaxReadLength(reads);
-	    //final int haplotypeMaxLength = findMaxHaplotypeLength(alleleHaplotypeMap);
-	    //if (!initialized || readMaxLength > maxReadLength || haplotypeMaxLength > maxHaplotypeLength)
-	    //{ initialize(readMaxLength, haplotypeMaxLength); }
-
-	    //if ( ! initialized )
-		//throw new IllegalStateException("Must call initialize before calling computeReadLikelihoodGivenHaplotypeLog10");
-	    //final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
-	    //for(GATKSAMRecord read : reads){
-		//final byte[] readBases = read.getReadBases();
-		//final byte[] readQuals = read.getBaseQualities();
-		//final byte[] readInsQuals = read.getBaseInsertionQualities();
-		//final byte[] readDelQuals = read.getBaseDeletionQualities();
-		//final byte[] overallGCP = GCPArrayMap.get(read);
-
-		//// peak at the next haplotype in the list (necessary to get nextHaplotypeBases, which is required for caching in the array implementation)
-		//byte[] currentHaplotypeBases = null;
-		//boolean isFirstHaplotype = true;
-		//Allele currentAllele = null;
-		//double log10l;
-		//for (final Allele allele : alleleHaplotypeMap.keySet()){
-		    //final Haplotype haplotype = alleleHaplotypeMap.get(allele);
-		    //final byte[] nextHaplotypeBases = haplotype.getBases();
-		    //if (currentHaplotypeBases != null) {
-			//log10l = computeReadLikelihoodGivenHaplotypeLog10(currentHaplotypeBases,
-				//readBases, readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype, nextHaplotypeBases);
-			//likelihoodMap.add(read, currentAllele, log10l);
-		    //}
-		    //// update the current haplotype
-		    //currentHaplotypeBases = nextHaplotypeBases;
-		    //currentAllele = allele;
-		//}
-		//// process the final haplotype
-		//if (currentHaplotypeBases != null) {
-
-		    //// there is no next haplotype, so pass null for nextHaplotypeBases.
-		    //log10l = computeReadLikelihoodGivenHaplotypeLog10(currentHaplotypeBases,
-			    //readBases, readQuals, readInsQuals, readDelQuals, overallGCP, isFirstHaplotype, null);
-		    //likelihoodMap.add(read, currentAllele, log10l);
-		//}
-	    //}
-	    //return likelihoodMap;
-	//}
-
-	///**
-	 //* {@inheritDoc}
-	 //*/
-	//@Override
-	//protected final double computeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
-                                                                  //final byte[] readBases,
-                                                                  //final byte[] readQuals,
-                                                                  //final byte[] insertionGOP,
-                                                                  //final byte[] deletionGOP,
-                                                                  //final byte[] overallGCP,
-                                                                  //final boolean recacheReadValues,
-                                                                  //final byte[] nextHaploytpeBases) {
-
-        //if ( haplotypeBases == null ) throw new IllegalArgumentException("haplotypeBases cannot be null");
-        //if ( haplotypeBases.length > maxHaplotypeLength ) throw new IllegalArgumentException("Haplotype bases is too long, got " + haplotypeBases.length + " but max is " + maxHaplotypeLength);
-        //if ( readBases == null ) throw new IllegalArgumentException("readBases cannot be null");
-        //if ( readBases.length > maxReadLength ) throw new IllegalArgumentException("readBases is too long, got " + readBases.length + " but max is " + maxReadLength);
-        //if ( readQuals.length != readBases.length ) throw new IllegalArgumentException("Read bases and read quals aren't the same size: " + readBases.length + " vs " + readQuals.length);
-        //if ( insertionGOP.length != readBases.length ) throw new IllegalArgumentException("Read bases and read insertion quals aren't the same size: " + readBases.length + " vs " + insertionGOP.length);
-        //if ( deletionGOP.length != readBases.length ) throw new IllegalArgumentException("Read bases and read deletion quals aren't the same size: " + readBases.length + " vs " + deletionGOP.length);
-        //if ( overallGCP.length != readBases.length ) throw new IllegalArgumentException("Read bases and overall GCP aren't the same size: " + readBases.length + " vs " + overallGCP.length);
-
-        //paddedReadLength = readBases.length + 1;
-        //paddedHaplotypeLength = haplotypeBases.length + 1;
-        //double result = subComputeReadLikelihoodGivenHaplotypeLog10(haplotypeBases, readBases, readQuals, insertionGOP, deletionGOP, overallGCP, 0, true, 0);
-        //if ( ! MathUtils.goodLog10Probability(result) )
-            //throw new IllegalStateException("PairHMM Log Probability cannot be greater than 0: " + String.format("haplotype: %s, read: %s, result: %f", Arrays.toString(haplotypeBases), Arrays.toString(readBases), result));
-        //// Warning: Careful if using the PairHMM in parallel! (this update has to be taken care of).
-        //// Warning: This assumes no downstream modification of the haplotype bases (saves us from copying the array). It is okay for the haplotype caller and the Unified Genotyper.
-	//// KG: seems pointless is not being used anywhere
-        //previousHaplotypeBases = haplotypeBases;
-        //return result;
-    //}
 
     /**
      * {@inheritDoc}
@@ -232,10 +296,11 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	//}
 	//System.out.println("#### END STACK TRACE ####");
 	//
+      if(debug1)
 	jniSubComputeReadLikelihoodGivenHaplotypeLog10(readBases.length, haplotypeBases.length,
-		readBases, haplotypeBases, readQuals,
-		insertionGOP, deletionGOP, overallGCP,
-		hapStartIndex);
+	    readBases, haplotypeBases, readQuals,
+	    insertionGOP, deletionGOP, overallGCP,
+	    hapStartIndex);
 
 	boolean doInitialization = (previousHaplotypeBases == null || previousHaplotypeBases.length != haplotypeBases.length);
 	if (doInitialization) {
@@ -309,6 +374,9 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 
         // initialize the pBaseReadLog10 matrix for all combinations of read x haplotype bases
         // Abusing the fact that java initializes arrays with 0.0, so no need to fill in rows and columns below 2.
+
+	if(debug3)
+	    System.out.println("hapStartIndex "+startIndex);
 
         for (int i = 0; i < readBases.length; i++) {
             final byte x = readBases[i];

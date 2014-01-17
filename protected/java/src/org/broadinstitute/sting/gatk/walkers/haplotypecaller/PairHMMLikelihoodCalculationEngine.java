@@ -88,12 +88,11 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
 		case ORIGINAL: return new Log10PairHMM(false);
 		case LOGLESS_CACHING:
 		    if (noFpga || !CnyPairHMM.isAvailable())
-		    {
-			//return new LoglessPairHMM();
-			return new JNILoglessPairHMM();
-		    }
+		      return new LoglessPairHMM();
 		    else
 			return new CnyPairHMM();
+		case JNI_LOGLESS_CACHING:
+		    return new JNILoglessPairHMM();
 		case ARRAY_LOGLESS:
 		    if (noFpga || !CnyPairHMM.isAvailable())
 			return new ArrayLoglessPairHMM();
