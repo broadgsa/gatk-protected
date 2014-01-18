@@ -66,13 +66,13 @@ import java.util.Map;
  */
 public class JNILoglessPairHMM extends LoglessPairHMM {
 
-    private static final boolean debug = false;	 //simulates ifdef
+    private static final boolean debug = true;	 //simulates ifdef
     private static final boolean debug0_1 = false;	 //simulates ifdef
     private static final boolean debug1 = false; //simulates ifdef
     private static final boolean debug2 = false;
     private static final boolean debug3 = false;
     private int numComputeLikelihoodCalls = 0;
-
+    
     //Used to copy references to byteArrays to JNI from reads
     protected class JNIReadDataHolderClass
     {
@@ -138,6 +138,7 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	  jniInitialize(readMaxLength, haplotypeMaxLength);
     }
 
+
     //Real compute kernel
     private native void jniComputeLikelihoods(int numReads, int numHaplotypes,
 	    JNIReadDataHolderClass[] readDataArray, JNIHaplotypeDataHolderClass[] haplotypeDataArray,
@@ -160,6 +161,7 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	}
 	int readListSize = reads.size();
 	int alleleHaplotypeMapSize = alleleHaplotypeMap.size();
+	int numTestcases = readListSize*alleleHaplotypeMapSize;
 	if(debug0_1)
 	    System.out.println("Java numReads "+readListSize+" numHaplotypes "+alleleHaplotypeMapSize);
 	JNIReadDataHolderClass[] readDataArray = new JNIReadDataHolderClass[readListSize];
@@ -274,6 +276,7 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	//System.exit(0);
 	return likelihoodMap;
     }
+
 
     /**
      * {@inheritDoc}
