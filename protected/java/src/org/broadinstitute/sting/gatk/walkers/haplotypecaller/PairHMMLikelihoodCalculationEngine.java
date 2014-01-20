@@ -165,8 +165,10 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         }
     }
 
+    @Override
     public void close() {
         if ( likelihoodsStream != null ) likelihoodsStream.close();
+	pairHMMThreadLocal.get().close();
     }
 
     private void writeDebugLikelihoods(final GATKSAMRecord processedRead, final Haplotype haplotype, final double log10l){

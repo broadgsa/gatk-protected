@@ -1086,7 +1086,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         referenceConfidenceModel.close();
         //TODO remove the need to call close here for debugging, the likelihood output stream should be managed
         //TODO (open & close) at the walker, not the engine.
-        //likelihoodCalculationEngine.close();
+	likelihoodCalculationEngine.close();
         logger.info("Ran local assembly on " + result + " active regions");
     }
 

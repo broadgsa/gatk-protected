@@ -89,4 +89,6 @@ public interface LikelihoodCalculationEngine {
      */
     public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(AssemblyResultSet assemblyResultSet,
                                Map<String, List<GATKSAMRecord>> perSampleReadList);
+
+    public void close();
 }

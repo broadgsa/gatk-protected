@@ -66,7 +66,8 @@ import java.util.Map;
  */
 public class JNILoglessPairHMM extends LoglessPairHMM {
 
-    private static final boolean debug = true;	 //simulates ifdef
+    private static final boolean debug = false;	 //simulates ifdef
+    private static final boolean verify = debug || false;	 //simulates ifdef
     private static final boolean debug0_1 = false;	 //simulates ifdef
     private static final boolean debug1 = false; //simulates ifdef
     private static final boolean debug2 = false;
@@ -90,6 +91,7 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
     }
     
     private native void jniGlobalInit(Class<?> readDataHolderClass, Class<?> haplotypeDataHolderClass);
+    private native void jniClose();
     
     private static boolean isJNILoglessPairHMMLibraryLoaded = false;
     
@@ -102,6 +104,13 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	    isJNILoglessPairHMMLibraryLoaded = true;
 	    jniGlobalInit(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class);	//need to do this only once
 	}
+    }
+
+    @Override
+    public void close()
+    {
+	jniClose();
+	debugClose();
     }
 
     //Used to test parts of the compute kernel separately    
@@ -126,7 +135,7 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
     @Override
     public void initialize(final int readMaxLength, final int haplotypeMaxLength)
     {
-      if(debug)
+      if(verify)
 	super.initialize(readMaxLength, haplotypeMaxLength);
       if(debug3)
       {
@@ -150,14 +159,14 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
     public PerReadAlleleLikelihoodMap computeLikelihoods(final List<GATKSAMRecord> reads, final Map<Allele, Haplotype> alleleHaplotypeMap, final Map<GATKSAMRecord, byte[]> GCPArrayMap)
     {
 	// (re)initialize the pairHMM only if necessary
-	final int readMaxLength = debug ? findMaxReadLength(reads) : 0;
-	final int haplotypeMaxLength = debug ? findMaxHaplotypeLength(alleleHaplotypeMap) : 0;
-	if(debug)
+	final int readMaxLength = verify ? findMaxReadLength(reads) : 0;
+	final int haplotypeMaxLength = verify ? findMaxHaplotypeLength(alleleHaplotypeMap) : 0;
+	if(verify)
 	{
 	    if (!initialized || readMaxLength > maxReadLength || haplotypeMaxLength > maxHaplotypeLength)
 	    { initialize(readMaxLength, haplotypeMaxLength); }
 	    if ( ! initialized )
-		throw new IllegalStateException("Must call initialize before calling jniComputeLikelihoods in debug mode");
+		throw new IllegalStateException("Must call initialize before calling jniComputeLikelihoods in debug/verify mode");
 	}
 	int readListSize = reads.size();
 	int alleleHaplotypeMapSize = alleleHaplotypeMap.size();
@@ -221,7 +230,7 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 		likelihoodMap.add(read, currEntry.getKey(), likelihoodArray[idx]);
 		++idx;
 	    }
-	if(debug)
+	if(verify)
 	{
 	    //to compare values
 	    likelihoodMap = super.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
@@ -273,6 +282,7 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	}
 	++numComputeLikelihoodCalls;
 	//if(numComputeLikelihoodCalls == 5)
+	//jniClose();
 	//System.exit(0);
 	return likelihoodMap;
     }
@@ -299,11 +309,11 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	//}
 	//System.out.println("#### END STACK TRACE ####");
 	//
-      if(debug1)
-	jniSubComputeReadLikelihoodGivenHaplotypeLog10(readBases.length, haplotypeBases.length,
-	    readBases, haplotypeBases, readQuals,
-	    insertionGOP, deletionGOP, overallGCP,
-	    hapStartIndex);
+	if(debug1)
+	    jniSubComputeReadLikelihoodGivenHaplotypeLog10(readBases.length, haplotypeBases.length,
+		    readBases, haplotypeBases, readQuals,
+		    insertionGOP, deletionGOP, overallGCP,
+		    hapStartIndex);
 
 	boolean doInitialization = (previousHaplotypeBases == null || previousHaplotypeBases.length != haplotypeBases.length);
 	if (doInitialization) {
@@ -358,8 +368,8 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	++numCalls;
 	//if(numCalls == 100)
 	//{
-	    //debugClose();
-	    //System.exit(0);
+	//debugClose();
+	//System.exit(0);
 	//}
 	return Math.log10(finalSumProbabilities) - INITIAL_CONDITION_LOG10;
     }
