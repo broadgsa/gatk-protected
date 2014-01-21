@@ -332,7 +332,7 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         }
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMMThreadLocal.get().initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+        pairHMMThreadLocal.get().initialize(haplotypes, perSampleReadList, X_METRIC_LENGTH, Y_METRIC_LENGTH);
     }
 
 

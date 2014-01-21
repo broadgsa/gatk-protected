@@ -57,6 +57,7 @@ import org.broadinstitute.variant.variantcontext.Allele;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 
 /**
@@ -147,6 +148,52 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	  jniInitialize(readMaxLength, haplotypeMaxLength);
     }
 
+    private native void jniInitialize(final int numHaplotypes, final int numTotalReads, JNIHaplotypeDataHolderClass[] haplotypeDataArray,
+	    JNIReadDataHolderClass[] readDataArray);
+    HashMap<String, Integer> sampleToIndex = new HashMap<String, Integer>();
+    //Used to transfer data to JNI 
+     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void initialize( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList, final int readMaxLength, final int haplotypeMaxLength ) {
+	if(verify)
+	    super.initialize(haplotypes, perSampleReadList, readMaxLength, haplotypeMaxLength);
+	/*
+	int numHaplotypes = haplotypes.size();
+	JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
+	int idx = 0;
+	for(final Haplotype currHaplotype : haplotypes)
+	{
+	    haplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
+	    haplotypeDataArray[idx].haplotypeBases = currHaplotype.getBases();
+	    ++idx;
+	}
+	sampleToIndex.clear();
+	int totalNumReads = 0;
+	for(final Map.Entry<String, List<GATKSAMRecord>> currEntry : perSampleReadList)
+	{
+	    sampleToIndex.put(currEntry.getKey(), totalNumReads);
+	    totalNumReads += currEntry.getValue().size();
+	}
+
+	JNIHaplotypeDataHolderClass[] readDataArray = new JNIReadDataHolderClass[totalNumReads];
+	idx = 0;
+	for(final Map.Entry<String, List<GATKSAMRecord>> currEntry : perSampleReadList)
+	{
+	    for(GATKSAMRecord read : currEntry.getValue())
+	    {
+		readDataArray[idx] = new JNIReadDataHolderClass();
+		readDataArray[idx].readBases = read.getReadBases();
+		readDataArray[idx].readQuals = read.getBaseQualities();
+		readDataArray[idx].insertionGOP = read.getBaseInsertionQualities();
+		readDataArray[idx].deletionGOP = read.getBaseDeletionQualities();
+		readDataArray[idx].overallGCP = GCPArrayMap.get(read);
+		++idx;
+	    }
+	}
+	jniInitialize(numHaplotypes, numTotalReads, haplotypeDataArray, readDataArray);*/
+    }
 
     //Real compute kernel
     private native void jniComputeLikelihoods(int numReads, int numHaplotypes,
