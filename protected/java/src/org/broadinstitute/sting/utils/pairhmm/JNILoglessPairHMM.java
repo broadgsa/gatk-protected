@@ -68,8 +68,8 @@ import java.util.HashMap;
 public class JNILoglessPairHMM extends LoglessPairHMM {
 
     private static final boolean debug = false;	 //simulates ifdef
-    private static final boolean verify = debug || false;	 //simulates ifdef
-    private static final boolean debug0_1 = false;	 //simulates ifdef
+    private static final boolean verify = debug || true;	 //simulates ifdef
+    private static final boolean debug0_1 = true;	 //simulates ifdef
     private static final boolean debug1 = false; //simulates ifdef
     private static final boolean debug2 = false;
     private static final boolean debug3 = false;
@@ -148,10 +148,10 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	  jniInitialize(readMaxLength, haplotypeMaxLength);
     }
 
-    private native void jniInitialize(final int numHaplotypes, final int numTotalReads, JNIHaplotypeDataHolderClass[] haplotypeDataArray,
-	    JNIReadDataHolderClass[] readDataArray);
-    HashMap<String, Integer> sampleToIndex = new HashMap<String, Integer>();
-    //Used to transfer data to JNI 
+    private HashMap<Haplotype,Integer> haplotypeToHaplotypeListIdxMap = new HashMap<Haplotype,Integer>();
+    private native void jniInitializeHaplotypes(final int numHaplotypes,  JNIHaplotypeDataHolderClass[] haplotypeDataArray);
+    //Used to transfer data to JNI
+    //Since the haplotypes are the same for all calls to computeLikelihoods within a region, transfer the haplotypes only once to the JNI per region
      /**
      * {@inheritDoc}
      */
@@ -159,7 +159,6 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
     public void initialize( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList, final int readMaxLength, final int haplotypeMaxLength ) {
 	if(verify)
 	    super.initialize(haplotypes, perSampleReadList, readMaxLength, haplotypeMaxLength);
-	/*
 	int numHaplotypes = haplotypes.size();
 	JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
 	int idx = 0;
@@ -167,32 +166,22 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	{
 	    haplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
 	    haplotypeDataArray[idx].haplotypeBases = currHaplotype.getBases();
+	    haplotypeToHaplotypeListIdxMap.put(currHaplotype, idx);
 	    ++idx;
 	}
-	sampleToIndex.clear();
-	int totalNumReads = 0;
-	for(final Map.Entry<String, List<GATKSAMRecord>> currEntry : perSampleReadList)
-	{
-	    sampleToIndex.put(currEntry.getKey(), totalNumReads);
-	    totalNumReads += currEntry.getValue().size();
-	}
+	jniInitializeHaplotypes(numHaplotypes, haplotypeDataArray);
+    }
 
-	JNIHaplotypeDataHolderClass[] readDataArray = new JNIReadDataHolderClass[totalNumReads];
-	idx = 0;
-	for(final Map.Entry<String, List<GATKSAMRecord>> currEntry : perSampleReadList)
-	{
-	    for(GATKSAMRecord read : currEntry.getValue())
-	    {
-		readDataArray[idx] = new JNIReadDataHolderClass();
-		readDataArray[idx].readBases = read.getReadBases();
-		readDataArray[idx].readQuals = read.getBaseQualities();
-		readDataArray[idx].insertionGOP = read.getBaseInsertionQualities();
-		readDataArray[idx].deletionGOP = read.getBaseDeletionQualities();
-		readDataArray[idx].overallGCP = GCPArrayMap.get(read);
-		++idx;
-	    }
-	}
-	jniInitialize(numHaplotypes, numTotalReads, haplotypeDataArray, readDataArray);*/
+    private native void jniFinalizeRegion();
+    //Tell JNI to release arrays - really important if native code is directly accessing Java memory, if not
+    //accessing Java memory directly, still important to release memory from C++
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void finalizeRegion()
+    {
+	jniFinalizeRegion();
     }
 
     //Real compute kernel
@@ -216,10 +205,10 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 		throw new IllegalStateException("Must call initialize before calling jniComputeLikelihoods in debug/verify mode");
 	}
 	int readListSize = reads.size();
-	int alleleHaplotypeMapSize = alleleHaplotypeMap.size();
-	int numTestcases = readListSize*alleleHaplotypeMapSize;
+	int numHaplotypes = alleleHaplotypeMap.size();
+	int numTestcases = readListSize*numHaplotypes;
 	if(debug0_1)
-	    System.out.println("Java numReads "+readListSize+" numHaplotypes "+alleleHaplotypeMapSize);
+	    System.out.println("Java numReads "+readListSize+" numHaplotypes "+numHaplotypes);
 	JNIReadDataHolderClass[] readDataArray = new JNIReadDataHolderClass[readListSize];
 	int idx = 0;
 	for(GATKSAMRecord read : reads)
@@ -246,39 +235,68 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	    }
 	    ++idx;
 	}
-	JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[alleleHaplotypeMapSize];
-	idx = 0;
-	for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())	//order is important - access in same order always
+
+	JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
+	if(verify)
 	{
-	    haplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
-	    haplotypeDataArray[idx].haplotypeBases = currEntry.getValue().getBases();
-	    if(debug0_1)
-		System.out.println("Java haplotype length "+haplotypeDataArray[idx].haplotypeBases.length);
-	    if(debug3)
+	    idx = 0;
+	    for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())	//order is important - access in same order always
 	    {
-		for(int i=0;i<haplotypeDataArray[idx].haplotypeBases.length;++i)
-		    debugDump("haplotype_bases_java.txt",String.format("%d\n",(int)haplotypeDataArray[idx].haplotypeBases[i]),true);
+		haplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
+		haplotypeDataArray[idx].haplotypeBases = currEntry.getValue().getBases();
+		if(debug0_1)
+		    System.out.println("Java haplotype length "+haplotypeDataArray[idx].haplotypeBases.length);
+		if(debug3)
+		{
+		    for(int i=0;i<haplotypeDataArray[idx].haplotypeBases.length;++i)
+			debugDump("haplotype_bases_java.txt",String.format("%d\n",(int)haplotypeDataArray[idx].haplotypeBases[i]),true);
+		}
+		++idx;
 	    }
-	    ++idx;
 	}
-	double[] likelihoodArray = new double[readListSize*alleleHaplotypeMapSize];	//to store results
+	double[] likelihoodArray = new double[readListSize*numHaplotypes];	//to store results
 	//for(reads)
 	//   for(haplotypes)
 	//       compute_full_prob()
-	jniComputeLikelihoods(readListSize, alleleHaplotypeMapSize, readDataArray, haplotypeDataArray, likelihoodArray, 12);
+	jniComputeLikelihoods(readListSize, numHaplotypes, readDataArray, haplotypeDataArray, likelihoodArray, 12);
 
 
 	//final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
 	PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
 	idx = 0;
+	int idxInsideHaplotypeList = 0;
+	int readIdx = 0;
 	for(GATKSAMRecord read : reads)
+	{
 	    for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())//order is important - access in same order always
 	    {
-		likelihoodMap.add(read, currEntry.getKey(), likelihoodArray[idx]);
+		//Since the order of haplotypes in the List<Haplotype> and alleleHaplotypeMap is different,
+		//get idx of current haplotype in the list and use this idx to get the right likelihoodValue
+		idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(currEntry.getValue());
+		likelihoodMap.add(read, currEntry.getKey(), likelihoodArray[readIdx + idxInsideHaplotypeList]);
 		++idx;
 	    }
+	    readIdx += numHaplotypes;
+	}
 	if(verify)
 	{
+	    //re-order values in likelihoodArray
+	    double[] tmpArray = new double[numHaplotypes];
+	    idx = 0;
+	    idxInsideHaplotypeList = 0;
+	    readIdx = 0;
+	    for(GATKSAMRecord read : reads)
+	    {
+		for(int j=0;j<numHaplotypes;++j)
+		    tmpArray[j] = likelihoodArray[readIdx+j];
+		for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())//order is important - access in same order always
+		{
+		    idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(currEntry.getValue());
+		    likelihoodArray[idx] = tmpArray[idxInsideHaplotypeList];
+		    ++idx;
+		}
+		readIdx += numHaplotypes;
+	    }
 	    //to compare values
 	    likelihoodMap = super.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
 	    //for floating point values, no exact equality
@@ -304,23 +322,23 @@ public class JNILoglessPairHMM extends LoglessPairHMM {
 	    if(toDump)
 	    {
 		idx = 0;
-		System.out.println("Dump : Java numReads "+readListSize+" numHaplotypes "+alleleHaplotypeMapSize);
+		System.out.println("Dump : Java numReads "+readListSize+" numHaplotypes "+numHaplotypes);
 		for(int i=0;i<readDataArray.length;++i)
 		{
 		    for(int j=0;j<haplotypeDataArray.length;++j)
 		    {
-			debugDump("debug_dump.log",new String(haplotypeDataArray[j].haplotypeBases)+" ",true);
-			debugDump("debug_dump.log",new String(readDataArray[i].readBases)+" ",true);
+			debugDump("debug_dump.txt",new String(haplotypeDataArray[j].haplotypeBases)+" ",true);
+			debugDump("debug_dump.txt",new String(readDataArray[i].readBases)+" ",true);
 			for(int k=0;k<readDataArray[i].readBases.length;++k)
-			    debugDump("debug_dump.log",String.format("%d",(int)(readDataArray[i].readQuals[k]))+" ",true);
+			    debugDump("debug_dump.txt",String.format("%d",(int)(readDataArray[i].readQuals[k]))+" ",true);
 			for(int k=0;k<readDataArray[i].readBases.length;++k)
-			    debugDump("debug_dump.log",String.format("%d",(int)(readDataArray[i].insertionGOP[k]))+" ",true);
+			    debugDump("debug_dump.txt",String.format("%d",(int)(readDataArray[i].insertionGOP[k]))+" ",true);
 			for(int k=0;k<readDataArray[i].readBases.length;++k)
-			    debugDump("debug_dump.log",String.format("%d",(int)(readDataArray[i].deletionGOP[k]))+" ",true);
+			    debugDump("debug_dump.txt",String.format("%d",(int)(readDataArray[i].deletionGOP[k]))+" ",true);
 			for(int k=0;k<readDataArray[i].readBases.length;++k)
-			    debugDump("debug_dump.log",String.format("%d",(int)(readDataArray[i].overallGCP[k]))+" ",true);
-			debugDump("debug_dump.log","\n",true);
-			debugDump("debug_results.log",String.format("%e %e\n",mLikelihoodArray[idx],likelihoodArray[idx]),true);
+			    debugDump("debug_dump.txt",String.format("%d",(int)(readDataArray[i].overallGCP[k]))+" ",true);
+			debugDump("debug_dump.txt","\n",true);
+			debugDump("debug_results.txt",String.format("%e %e\n",mLikelihoodArray[idx],likelihoodArray[idx]),true);
 			++idx;
 		    }
 		}

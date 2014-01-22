@@ -335,6 +335,11 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         pairHMMThreadLocal.get().initialize(haplotypes, perSampleReadList, X_METRIC_LENGTH, Y_METRIC_LENGTH);
     }
 
+    private void finalizePairHMM()
+    {
+	pairHMMThreadLocal.get().finalizeRegion();
+    }
+
 
     @Override
     public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final AssemblyResultSet assemblyResultSet, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
@@ -352,6 +357,9 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
             map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
             stratifiedReadMap.put(sampleEntry.getKey(), map);
         }
+	
+	//Used mostly by the JNI implementation(s) to free arrays
+	finalizePairHMM();
 
         return stratifiedReadMap;
     }
