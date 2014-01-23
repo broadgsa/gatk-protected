@@ -165,8 +165,10 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         }
     }
 
+    @Override
     public void close() {
         if ( likelihoodsStream != null ) likelihoodsStream.close();
+	pairHMMThreadLocal.get().close();
     }
 
     private void writeDebugLikelihoods(final GATKSAMRecord processedRead, final Haplotype haplotype, final double log10l){
@@ -330,7 +332,12 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         }
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMMThreadLocal.get().initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+        pairHMMThreadLocal.get().initialize(haplotypes, perSampleReadList, X_METRIC_LENGTH, Y_METRIC_LENGTH);
+    }
+
+    private void finalizePairHMM()
+    {
+	pairHMMThreadLocal.get().finalizeRegion();
     }
 
 
@@ -350,6 +357,9 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
             map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
             stratifiedReadMap.put(sampleEntry.getKey(), map);
         }
+	
+	//Used mostly by the JNI implementation(s) to free arrays
+	finalizePairHMM();
 
         return stratifiedReadMap;
     }
