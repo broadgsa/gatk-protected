@@ -68,8 +68,8 @@ import java.util.HashMap;
 public class JNILoglessPairHMM extends LoglessPairHMM {
 
     private static final boolean debug = false;	 //simulates ifdef
-    private static final boolean verify = debug || true;	 //simulates ifdef
-    private static final boolean debug0_1 = true;	 //simulates ifdef
+    private static final boolean verify = debug || false;	 //simulates ifdef
+    private static final boolean debug0_1 = false;	 //simulates ifdef
     private static final boolean debug1 = false; //simulates ifdef
     private static final boolean debug2 = false;
     private static final boolean debug3 = false;
