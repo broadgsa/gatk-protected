@@ -73,8 +73,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,500,000",
                 1,
-                Arrays.asList("1ad3943ae27a0062c52a19abe1c0d32c"));
-
+                Arrays.asList("8a4de9e1f59cffe80a4372cf02fe809e"));
         executeTest(String.format("test indel caller in SLX"), spec);
     }
 
@@ -101,7 +100,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,500,000",
                 1,
-                Arrays.asList("8a0a751afdb2a8166432d9822e4d814c"));
+                Arrays.asList("2b92df91a9337b9d9f03db5699bb41f2"));
 
         executeTest(String.format("test indel calling, multiple technologies"), spec);
     }
@@ -121,7 +120,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                 baseCommandIndels + " --output_mode EMIT_ALL_SITES --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles "
                         + privateTestDir + "indelAllelesForUG.vcf -I " + validationDataLocation +
                         "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,100,000", 1,
-                Arrays.asList("01fec03933816e8d82aabe6e5b276dd5"));
+                Arrays.asList("d3d56be9e804132a8d085b5d0acb49f1"));
         executeTest("test MultiSample Pilot2 indels with alleles passed in and emitting all sites", spec);
     }
 
@@ -136,7 +135,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
                 baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + result.get(0).getAbsolutePath() + " -I " + validationDataLocation +
                         "low_coverage_CEU.chr1.10k-11k.bam -o %s -L " + result.get(0).getAbsolutePath(), 1,
-                Arrays.asList("e3c95f745ebf2d4f26759878966c5280"));
+                Arrays.asList("505a0dfa1ec335af6850654f926ec051"));
         executeTest("test MultiSample Pilot1 CEU indels using GENOTYPE_GIVEN_ALLELES", spec2);
     }
 

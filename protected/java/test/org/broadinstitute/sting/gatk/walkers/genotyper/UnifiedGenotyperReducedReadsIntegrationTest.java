@@ -74,7 +74,7 @@ public class UnifiedGenotyperReducedReadsIntegrationTest extends WalkerTest {
 
     @Test
     public void testReducedBamINDELs() {
-        testReducedCalling("INDEL", "d593628b2bc144e987a9e75e5eee0001");
+        testReducedCalling("INDEL", "0281c3f46f7b1989c37b52ab7e337293");
     }
 
 

@@ -54,6 +54,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.broadinstitute.sting.utils.pairhmm.PairHMMModel.*;
+
 /**
  * Fast partial PairHMM backed on the standard Logless PairHMM
  *
