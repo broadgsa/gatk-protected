@@ -50,147 +50,149 @@ import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import org.broadinstitute.sting.utils.QualityUtils;
 
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.variant.variantcontext.Allele;
+
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+
+
 /**
  * Created with IntelliJ IDEA.
  * User: rpoplin, carneiro
  * Date: 10/16/12
  */
-public class LoglessPairHMM extends N2MemoryPairHMM {
-    protected static final double INITIAL_CONDITION = Math.pow(2, 1020);
-    protected static final double INITIAL_CONDITION_LOG10 = Math.log10(INITIAL_CONDITION);
+public class VectorLoglessPairHMM extends JNILoglessPairHMM {
 
-    // we divide e by 3 because the observed base could have come from any of the non-observed alleles
-    protected static final double TRISTATE_CORRECTION = 3.0;
+    //For machine capabilities
+    public static final long sse42Mask = 1;
+    public static final long avxMask = 2;
 
-    protected static final int matchToMatch = 0;
-    protected static final int indelToMatch = 1;
-    protected static final int matchToInsertion = 2;
-    protected static final int insertionToInsertion = 3;
-    protected static final int matchToDeletion = 4;
-    protected static final int deletionToDeletion = 5;
+    //Used to copy references to byteArrays to JNI from reads
+    protected class JNIReadDataHolderClass {
+        public byte[] readBases = null;
+        public byte[] readQuals = null;
+        public byte[] insertionGOP = null;
+        public byte[] deletionGOP = null;
+        public byte[] overallGCP = null;
+    }
 
-    
+    //Used to copy references to byteArrays to JNI from haplotypes
+    protected class JNIHaplotypeDataHolderClass {
+        public byte[] haplotypeBases = null;
+    }
+
+    public native long jniGetMachineType();
+    private native void jniClose();
+    private native void jniGlobalInit(Class<?> readDataHolderClass, Class<?> haplotypeDataHolderClass, long mask);
+
+    private static boolean isVectorLoglessPairHMMLibraryLoaded = false;
+    public VectorLoglessPairHMM() {
+        super();
+        if(!isVectorLoglessPairHMMLibraryLoaded) {
+            System.loadLibrary("VectorLoglessPairHMM");
+            isVectorLoglessPairHMMLibraryLoaded = true;
+            jniGlobalInit(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, 0xFFFFFFFFFFFFFFFFl);        //need to do this only once
+        }
+    }
+
+    @Override
+    public void close()
+    {
+        jniClose();
+    }
+
+    private native void jniInitializeHaplotypes(final int numHaplotypes,  JNIHaplotypeDataHolderClass[] haplotypeDataArray);
+    //Hold the mapping between haplotype and index in the list of Haplotypes passed to initialize
+    //Use this mapping in computeLikelihoods to find the likelihood value corresponding to a given Haplotype
+    private HashMap<Haplotype,Integer> haplotypeToHaplotypeListIdxMap = new HashMap<Haplotype,Integer>();
+    @Override
+    public HashMap<Haplotype, Integer> getHaplotypeToHaplotypeListIdxMap() { return haplotypeToHaplotypeListIdxMap; }
+    //Used to transfer data to JNI
+    //Since the haplotypes are the same for all calls to computeLikelihoods within a region, transfer the haplotypes only once to the JNI per region
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public double subComputeReadLikelihoodGivenHaplotypeLog10( final byte[] haplotypeBases,
-                                                               final byte[] readBases,
-                                                               final byte[] readQuals,
-                                                               final byte[] insertionGOP,
-                                                               final byte[] deletionGOP,
-                                                               final byte[] overallGCP,
-                                                               final int hapStartIndex,
-                                                               final boolean recacheReadValues,
-                                                               final int nextHapStartIndex) {
-
-        if (previousHaplotypeBases == null || previousHaplotypeBases.length != haplotypeBases.length) {
-            final double initialValue = INITIAL_CONDITION / haplotypeBases.length;
-            // set the initial value (free deletions in the beginning) for the first row in the deletion matrix
-            for( int j = 0; j < paddedHaplotypeLength; j++ ) {
-                deletionMatrix[0][j] = initialValue;
-            }
+    public void initialize( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList,
+            final int readMaxLength, final int haplotypeMaxLength ) {
+        int numHaplotypes = haplotypes.size();
+        JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
+        int idx = 0;
+        haplotypeToHaplotypeListIdxMap.clear();
+        for(final Haplotype currHaplotype : haplotypes)
+        {
+            haplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
+            haplotypeDataArray[idx].haplotypeBases = currHaplotype.getBases();
+            haplotypeToHaplotypeListIdxMap.put(currHaplotype, idx);
+            ++idx;
         }
-
-        if ( ! constantsAreInitialized || recacheReadValues ) {
-            initializeProbabilities(transition, insertionGOP, deletionGOP, overallGCP);
-
-            // note that we initialized the constants
-            constantsAreInitialized = true;
-        }
-
-        initializePriors(haplotypeBases, readBases, readQuals, hapStartIndex);
-
-        for (int i = 1; i < paddedReadLength; i++) {
-            // +1 here is because hapStartIndex is 0-based, but our matrices are 1 based
-            for (int j = hapStartIndex+1; j < paddedHaplotypeLength; j++) {
-                updateCell(i, j, prior[i][j], transition[i]);
-            }
-        }
-
-        // final probability is the log10 sum of the last element in the Match and Insertion state arrays
-        // this way we ignore all paths that ended in deletions! (huge)
-        // but we have to sum all the paths ending in the M and I matrices, because they're no longer extended.
-        final int endI = paddedReadLength - 1;
-        double finalSumProbabilities = 0.0;
-        for (int j = 1; j < paddedHaplotypeLength; j++) {
-            finalSumProbabilities += matchMatrix[endI][j] + insertionMatrix[endI][j];
-        }
-        return Math.log10(finalSumProbabilities) - INITIAL_CONDITION_LOG10;
+        jniInitializeHaplotypes(numHaplotypes, haplotypeDataArray);
     }
 
+    private native void jniFinalizeRegion();
+    //Tell JNI to release arrays - really important if native code is directly accessing Java memory, if not
+    //accessing Java memory directly, still important to release memory from C++
     /**
-     * Initializes the matrix that holds all the constants related to the editing
-     * distance between the read and the haplotype.
-     *
-     * @param haplotypeBases the bases of the haplotype
-     * @param readBases      the bases of the read
-     * @param readQuals      the base quality scores of the read
-     * @param startIndex     where to start updating the distanceMatrix (in case this read is similar to the previous read)
+     * {@inheritDoc}
      */
-    protected void initializePriors(final byte[] haplotypeBases, final byte[] readBases, final byte[] readQuals, final int startIndex) {
+    @Override
+    public void finalizeRegion()
+    {
+        jniFinalizeRegion();
+    }
 
-        // initialize the pBaseReadLog10 matrix for all combinations of read x haplotype bases
-        // Abusing the fact that java initializes arrays with 0.0, so no need to fill in rows and columns below 2.
+    //Real compute kernel
+    private native void jniComputeLikelihoods(int numReads, int numHaplotypes, JNIReadDataHolderClass[] readDataArray,
+            JNIHaplotypeDataHolderClass[] haplotypeDataArray, double[] likelihoodArray, int maxNumThreadsToUse);
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public PerReadAlleleLikelihoodMap computeLikelihoods( final List<GATKSAMRecord> reads, final Map<Allele, Haplotype> alleleHaplotypeMap, final Map<GATKSAMRecord, byte[]> GCPArrayMap ) {
+        int readListSize = reads.size();
+        int numHaplotypes = alleleHaplotypeMap.size();
+        int numTestcases = readListSize*numHaplotypes;
+        JNIReadDataHolderClass[] readDataArray = new JNIReadDataHolderClass[readListSize];
+        int idx = 0;
+        for(GATKSAMRecord read : reads)
+        {
+            readDataArray[idx] = new JNIReadDataHolderClass();
+            readDataArray[idx].readBases = read.getReadBases();
+            readDataArray[idx].readQuals = read.getBaseQualities();
+            readDataArray[idx].insertionGOP = read.getBaseInsertionQualities();
+            readDataArray[idx].deletionGOP = read.getBaseDeletionQualities();
+            readDataArray[idx].overallGCP = GCPArrayMap.get(read);
+            ++idx;
+        }
 
-        for (int i = 0; i < readBases.length; i++) {
-            final byte x = readBases[i];
-            final byte qual = readQuals[i];
-            for (int j = startIndex; j < haplotypeBases.length; j++) {
-                final byte y = haplotypeBases[j];
-                prior[i+1][j+1] = ( x == y || x == (byte) 'N' || y == (byte) 'N' ?
-                        QualityUtils.qualToProb(qual) : (QualityUtils.qualToErrorProb(qual) / (doNotUseTristateCorrection ? 1.0 : TRISTATE_CORRECTION)) );
+        JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
+        mLikelihoodArray = new double[readListSize*numHaplotypes];      //to store results
+        //for(reads)
+        //   for(haplotypes)
+        //       compute_full_prob()
+        jniComputeLikelihoods(readListSize, numHaplotypes, readDataArray, haplotypeDataArray, mLikelihoodArray, 12);
+
+        final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
+        idx = 0;
+        int idxInsideHaplotypeList = 0;
+        int readIdx = 0;
+        for(GATKSAMRecord read : reads)
+        {
+            for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())//order is important - access in same order always
+            {
+                //Since the order of haplotypes in the List<Haplotype> and alleleHaplotypeMap is different,
+                //get idx of current haplotype in the list and use this idx to get the right likelihoodValue
+                idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(currEntry.getValue());
+                likelihoodMap.add(read, currEntry.getKey(), mLikelihoodArray[readIdx + idxInsideHaplotypeList]);
+                ++idx;
             }
+            readIdx += numHaplotypes;
         }
-    }
-
-    /**
-     * Initializes the matrix that holds all the constants related to quality scores.
-     *
-     * @param insertionGOP   insertion quality scores of the read
-     * @param deletionGOP    deletion quality scores of the read
-     * @param overallGCP     overall gap continuation penalty
-     */
-    @Requires({
-            "insertionGOP != null",
-            "deletionGOP != null",
-            "overallGCP != null"
-    })
-    @Ensures("constantsAreInitialized")
-    protected static void initializeProbabilities(final double[][] transition, final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP) {
-        for (int i = 0; i < insertionGOP.length; i++) {
-            final int qualIndexGOP = Math.min(insertionGOP[i] + deletionGOP[i], Byte.MAX_VALUE);
-            transition[i+1][matchToMatch] = QualityUtils.qualToProb((byte) qualIndexGOP);
-            transition[i+1][indelToMatch] = QualityUtils.qualToProb(overallGCP[i]);
-            transition[i+1][matchToInsertion] = QualityUtils.qualToErrorProb(insertionGOP[i]);
-            transition[i+1][insertionToInsertion] = QualityUtils.qualToErrorProb(overallGCP[i]);
-            transition[i+1][matchToDeletion] = QualityUtils.qualToErrorProb(deletionGOP[i]);
-            transition[i+1][deletionToDeletion] = QualityUtils.qualToErrorProb(overallGCP[i]);
-            //TODO it seems that it is not always the case that matchToMatch + matchToDeletion + matchToInsertion == 1.
-            //TODO We have detected cases of 1.00002 which can cause problems downstream. This are typically masked
-            //TODO by the fact that we always add a indelToMatch penalty to all PairHMM likelihoods (~ -0.1)
-            //TODO This is in fact not well justified and although it does not have any effect (since is equally added to all
-            //TODO haplotypes likelihoods) perhaps we should just remove it eventually and fix this != 1.0 issue here.
-        }
-    }
-
-    /**
-     * Updates a cell in the HMM matrix
-     *
-     * The read and haplotype indices are offset by one because the state arrays have an extra column to hold the
-     * initial conditions
-
-     * @param indI             row index in the matrices to update
-     * @param indJ             column index in the matrices to update
-     * @param prior            the likelihood editing distance matrix for the read x haplotype
-     * @param transition        an array with the six transition relevant to this location
-     */
-    protected void updateCell( final int indI, final int indJ, final double prior, final double[] transition) {
-
-        matchMatrix[indI][indJ] = prior * ( matchMatrix[indI - 1][indJ - 1] * transition[matchToMatch] +
-                                                 insertionMatrix[indI - 1][indJ - 1] * transition[indelToMatch] +
-                                                 deletionMatrix[indI - 1][indJ - 1] * transition[indelToMatch] );
-        insertionMatrix[indI][indJ] = matchMatrix[indI - 1][indJ] * transition[matchToInsertion] + insertionMatrix[indI - 1][indJ] * transition[insertionToInsertion];
-        deletionMatrix[indI][indJ] = matchMatrix[indI][indJ - 1] * transition[matchToDeletion] + deletionMatrix[indI][indJ - 1] * transition[deletionToDeletion];
+        return likelihoodMap;
     }
 }
