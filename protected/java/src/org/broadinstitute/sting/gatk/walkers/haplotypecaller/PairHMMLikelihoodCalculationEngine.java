@@ -93,8 +93,8 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
 			return new CnyPairHMM();
 		case VECTOR_LOGLESS_CACHING:
 		    return new VectorLoglessPairHMM();
-		case DEBUG_JNI_LOGLESS_CACHING:
-		    return new DebugJNILoglessPairHMM(hmmType);
+		case DEBUG_VECTOR_LOGLESS_CACHING:
+		    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING);
 		case ARRAY_LOGLESS:
 		    if (noFpga || !CnyPairHMM.isAvailable())
 			return new ArrayLoglessPairHMM();

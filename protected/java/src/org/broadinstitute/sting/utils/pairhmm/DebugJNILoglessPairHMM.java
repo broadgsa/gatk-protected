@@ -76,7 +76,7 @@ import java.io.IOException;
 public class DebugJNILoglessPairHMM extends LoglessPairHMM {
 
     private static final boolean debug = false;  //simulates ifdef
-    private static final boolean verify = debug || false;        //simulates ifdef
+    private static final boolean verify = debug || true;        //simulates ifdef
     private static final boolean debug0_1 = false;       //simulates ifdef
     private static final boolean debug1 = false; //simulates ifdef
     private static final boolean debug2 = false;

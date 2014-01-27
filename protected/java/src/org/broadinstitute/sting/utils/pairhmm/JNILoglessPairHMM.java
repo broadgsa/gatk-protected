@@ -58,4 +58,5 @@ import java.util.HashMap;
  */
 public abstract class JNILoglessPairHMM extends LoglessPairHMM {
     public abstract HashMap<Haplotype, Integer> getHaplotypeToHaplotypeListIdxMap();
+    protected long setupTime = 0;
 }

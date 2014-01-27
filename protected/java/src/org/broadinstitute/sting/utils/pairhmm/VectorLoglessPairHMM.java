@@ -70,6 +70,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     //For machine capabilities
     public static final long sse42Mask = 1;
     public static final long avxMask = 2;
+    public static final long enableAll = 0xFFFFFFFFFFFFFFFFl;
 
     //Used to copy references to byteArrays to JNI from reads
     protected class JNIReadDataHolderClass {
@@ -95,13 +96,15 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         if(!isVectorLoglessPairHMMLibraryLoaded) {
             System.loadLibrary("VectorLoglessPairHMM");
             isVectorLoglessPairHMMLibraryLoaded = true;
-            jniGlobalInit(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, 0xFFFFFFFFFFFFFFFFl);        //need to do this only once
+            jniGlobalInit(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, enableAll);        //need to do this only once
         }
     }
 
     @Override
     public void close()
     {
+        System.out.println("Time spent in setup for JNI call : "+setupTime);
+        super.close();
         jniClose();
     }
 
@@ -154,6 +157,8 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
      */
     @Override
     public PerReadAlleleLikelihoodMap computeLikelihoods( final List<GATKSAMRecord> reads, final Map<Allele, Haplotype> alleleHaplotypeMap, final Map<GATKSAMRecord, byte[]> GCPArrayMap ) {
+        if(doProfiling)
+            startTime = System.nanoTime();
         int readListSize = reads.size();
         int numHaplotypes = alleleHaplotypeMap.size();
         int numTestcases = readListSize*numHaplotypes;
@@ -170,12 +175,13 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
             ++idx;
         }
 
-        JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
         mLikelihoodArray = new double[readListSize*numHaplotypes];      //to store results
+        if(doProfiling)
+            setupTime += (System.nanoTime() - startTime);
         //for(reads)
         //   for(haplotypes)
         //       compute_full_prob()
-        jniComputeLikelihoods(readListSize, numHaplotypes, readDataArray, haplotypeDataArray, mLikelihoodArray, 12);
+        jniComputeLikelihoods(readListSize, numHaplotypes, readDataArray, null, mLikelihoodArray, 12);
 
         final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
         idx = 0;
@@ -193,6 +199,8 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
             }
             readIdx += numHaplotypes;
         }
+        if(doProfiling)
+            computeTime += (System.nanoTime() - startTime);
         return likelihoodMap;
     }
 }
