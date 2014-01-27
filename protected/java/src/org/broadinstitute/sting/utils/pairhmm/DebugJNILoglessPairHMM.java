@@ -277,7 +277,7 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
         }
         ++numComputeLikelihoodCalls;
         //if(numComputeLikelihoodCalls == 5)
-        //jniPairHMM.jniClose();
+        //jniPairHMM.close();
         //System.exit(0);
         return likelihoodMap;
     }

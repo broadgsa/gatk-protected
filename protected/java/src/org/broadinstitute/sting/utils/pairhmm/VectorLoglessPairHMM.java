@@ -86,26 +86,34 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         public byte[] haplotypeBases = null;
     }
 
+    /**
+     * Return 64-bit mask representing machine capabilities
+     * Bit 0 is LSB, bit 63 MSB
+     * Bit 0 represents sse4.2 availability
+     * Bit 1 represents AVX availability
+     */
     public native long jniGetMachineType();
-    private native void jniClose();
-    private native void jniGlobalInit(Class<?> readDataHolderClass, Class<?> haplotypeDataHolderClass, long mask);
+    
+    /**
+     * Function to initialize the fields of JNIReadDataHolderClass and JNIHaplotypeDataHolderClass from JVM.
+     * C++ codegets FieldIDs for these classes once and re-uses these IDs for the remainder of the program. Field IDs do not
+     * change per JVM session
+     * @param readDataHolderClass class type of JNIReadDataHolderClass
+     * @param haplotypeDataHolderClass class type of JNIHaplotypeDataHolderClass
+     * @param mask mask is a 64 bit integer identical to the one received from jniGetMachineType(). Users can disable usage of some hardware features by zeroing some bits in the mask
+     * */
+    private native void jniInitializeClassFieldsAndMachineMask(Class<?> readDataHolderClass, Class<?> haplotypeDataHolderClass, long mask);
 
     private static boolean isVectorLoglessPairHMMLibraryLoaded = false;
+    //The constructor is called only once inside PairHMMLikelihoodCalculationEngine
     public VectorLoglessPairHMM() {
         super();
+        //Load the library and initialize the FieldIDs
         if(!isVectorLoglessPairHMMLibraryLoaded) {
             System.loadLibrary("VectorLoglessPairHMM");
             isVectorLoglessPairHMMLibraryLoaded = true;
-            jniGlobalInit(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, enableAll);        //need to do this only once
+            jniInitializeClassFieldsAndMachineMask(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, enableAll);        //need to do this only once
         }
-    }
-
-    @Override
-    public void close()
-    {
-        System.out.println("Time spent in setup for JNI call : "+setupTime);
-        super.close();
-        jniClose();
     }
 
     private native void jniInitializeHaplotypes(final int numHaplotypes,  JNIHaplotypeDataHolderClass[] haplotypeDataArray);
@@ -114,9 +122,9 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     private HashMap<Haplotype,Integer> haplotypeToHaplotypeListIdxMap = new HashMap<Haplotype,Integer>();
     @Override
     public HashMap<Haplotype, Integer> getHaplotypeToHaplotypeListIdxMap() { return haplotypeToHaplotypeListIdxMap; }
+    
     //Used to transfer data to JNI
     //Since the haplotypes are the same for all calls to computeLikelihoods within a region, transfer the haplotypes only once to the JNI per region
-
     /**
      * {@inheritDoc}
      */
@@ -136,10 +144,12 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         }
         jniInitializeHaplotypes(numHaplotypes, haplotypeDataArray);
     }
-
+    /**
+     * Tell JNI to release arrays - really important if native code is directly accessing Java memory, if not
+     * accessing Java memory directly, still important to release memory from C++
+     */
     private native void jniFinalizeRegion();
-    //Tell JNI to release arrays - really important if native code is directly accessing Java memory, if not
-    //accessing Java memory directly, still important to release memory from C++
+
     /**
      * {@inheritDoc}
      */
@@ -149,7 +159,9 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         jniFinalizeRegion();
     }
 
-    //Real compute kernel
+    /**
+     * Real compute kernel
+     */
     private native void jniComputeLikelihoods(int numReads, int numHaplotypes, JNIReadDataHolderClass[] readDataArray,
             JNIHaplotypeDataHolderClass[] haplotypeDataArray, double[] likelihoodArray, int maxNumThreadsToUse);
     /**
@@ -202,5 +214,17 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         if(doProfiling)
             computeTime += (System.nanoTime() - startTime);
         return likelihoodMap;
+    }
+    
+    /**
+     * Print final profiling information from native code
+     */
+    public native void jniClose();
+    @Override
+    public void close()
+    {
+        System.out.println("Time spent in setup for JNI call : "+(setupTime*1e-9));
+        super.close();
+        jniClose();
     }
 }
