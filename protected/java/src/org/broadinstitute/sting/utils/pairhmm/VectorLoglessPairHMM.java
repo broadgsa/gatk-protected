@@ -104,15 +104,17 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
      * */
     private native void jniInitializeClassFieldsAndMachineMask(Class<?> readDataHolderClass, Class<?> haplotypeDataHolderClass, long mask);
 
-    private static boolean isVectorLoglessPairHMMLibraryLoaded = false;
+    private static Boolean isVectorLoglessPairHMMLibraryLoaded = false;
     //The constructor is called only once inside PairHMMLikelihoodCalculationEngine
     public VectorLoglessPairHMM() {
         super();
-        //Load the library and initialize the FieldIDs
-        if(!isVectorLoglessPairHMMLibraryLoaded) {
-            System.loadLibrary("VectorLoglessPairHMM");
-            isVectorLoglessPairHMMLibraryLoaded = true;
-            jniInitializeClassFieldsAndMachineMask(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, enableAll);        //need to do this only once
+        synchronized(isVectorLoglessPairHMMLibraryLoaded) {
+            //Load the library and initialize the FieldIDs
+            if(!isVectorLoglessPairHMMLibraryLoaded) {
+                System.loadLibrary("VectorLoglessPairHMM");
+                isVectorLoglessPairHMMLibraryLoaded = true;
+                jniInitializeClassFieldsAndMachineMask(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, enableAll);        //need to do this only once
+            }
         }
     }
 
