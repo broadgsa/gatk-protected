@@ -530,8 +530,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     ReferenceConfidenceModel referenceConfidenceModel = null;
 
     // as determined experimentally Nov-Dec 2013
-    protected final static GATKVCFIndexType OPTIMAL_GVCF_INDEX_TYPE = GATKVCFIndexType.LINEAR;
-    protected final static int OPTIMAL_GVCF_INDEX_PARAMETER = 128000;
+    public final static GATKVCFIndexType OPTIMAL_GVCF_INDEX_TYPE = GATKVCFIndexType.LINEAR;
+    public final static int OPTIMAL_GVCF_INDEX_PARAMETER = 128000;
 
     //---------------------------------------------------------------------------------------------------------------
     //

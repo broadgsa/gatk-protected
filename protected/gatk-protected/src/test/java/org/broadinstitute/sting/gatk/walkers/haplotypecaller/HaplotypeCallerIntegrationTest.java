@@ -309,4 +309,15 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 Arrays.asList("061a5a9bde0739fe58b314bf8bf8eee3"));
         executeTest("HC calling with conservative indel error modeling on WGS intervals", spec);
     }
+
+    @Test
+    public void testNoSuchEdgeBugFix() {
+        final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -R %s -I %s -L %s -dontTrimActiveRegions -ERC GVCF " +
+                "-likelihoodEngine GraphBased -variant_index_type %s -variant_index_parameter %d",
+                b37KGReferenceWithDecoy, privateTestDir + "graphbased_no_such_edge_bug.bam", privateTestDir + "graphbased_no_such_edge_bug.intervals.bed",
+                HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(""));
+        spec.disableShadowBCF();
+        executeTest("testGraphBasedNoSuchEdgeBugFix", spec);
+    }
 }
