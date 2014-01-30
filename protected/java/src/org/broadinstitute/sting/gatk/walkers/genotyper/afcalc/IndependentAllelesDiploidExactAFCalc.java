@@ -107,6 +107,7 @@ import java.util.*;
  * prior for the ith least likely allele.
  */
  public class IndependentAllelesDiploidExactAFCalc extends DiploidExactAFCalc {
+
     /**
      * The min. confidence of an allele to be included in the joint posterior.
      */
@@ -249,7 +250,7 @@ import java.util.*;
             final int nAlts = rootVC.getNAlleles() - 1;
             final List<Genotype> biallelicGenotypes = new ArrayList<Genotype>(rootVC.getNSamples());
             for ( final Genotype g : rootVC.getGenotypes() )
-                biallelicGenotypes.add(combineGLs(g, altAlleleIndex, nAlts));
+                biallelicGenotypes.add(combineGLsPrecise(g, altAlleleIndex, nAlts));
 
             final VariantContextBuilder vcb = new VariantContextBuilder(rootVC);
             final Allele altAllele = rootVC.getAlternateAllele(altAlleleIndex - 1);
@@ -281,6 +282,7 @@ import java.util.*;
      */
     @Requires({"original.hasLikelihoods()"}) // TODO -- add ploidy == 2 test "original.getPLs() == null || original.getPLs().length == 3"})
     @Ensures({"result.hasLikelihoods()", "result.getPL().length == 3"})
+    @Deprecated
     protected Genotype combineGLs(final Genotype original, final int altIndex, final int nAlts ) {
         if ( original.isNonInformative() )
             return new GenotypeBuilder(original).PL(BIALLELIC_NON_INFORMATIVE_PLS).alleles(BIALLELIC_NOCALL).make();
@@ -316,6 +318,75 @@ import java.util.*;
         return new GenotypeBuilder(original).PL(GLs).alleles(BIALLELIC_NOCALL).make();
     }
 
+
+    private static final double PHRED_2_LOG10_COEFF = -.1;
+
+    /**
+     * Returns a new Genotype with the PLs of the multi-allelic original reduced to a bi-allelic case.
+     *
+     * <p>Uses the log-sum-exp trick in order to work well with very low PLs</p>
+     *
+     * <p>This is handled in the following way:</p>
+     *
+     * <p>Suppose we have for a A/B/C site the following GLs:</p>
+     *
+     * <p>AA AB BB AC BC CC</p>
+     *
+     * <p>and we want to get the bi-allelic GLs for X/B, where X is everything not B</p>
+     *
+     * <p>XX = AA + AC + CC (since X = A or C)<br/>
+     * XB = AB + BC                           <br/>
+     * BB = BB                                     <br/>
+     * </p>
+     * <p>
+     *     This implementation use the log sum trick in order to avoid numeric inestability.
+     * </p>
+     *
+     * @param original the original multi-allelic genotype
+     * @param altIndex the index of the alt allele we wish to keep in the bialleic case -- with ref == 0
+     * @param nAlts the total number of alt alleles
+     * @return a new biallelic genotype with appropriate PLs
+     */
+    @Requires({"original.hasLikelihoods()"})
+    @Ensures({"result.hasLikelihoods()", "result.getPL().length == 3"})
+    protected Genotype combineGLsPrecise(final Genotype original, final int altIndex, final int nAlts ) {
+
+        if ( original.isNonInformative() )
+            return new GenotypeBuilder(original).PL(BIALLELIC_NON_INFORMATIVE_PLS).alleles(BIALLELIC_NOCALL).make();
+
+        if ( altIndex < 1 || altIndex > nAlts ) throw new IllegalStateException("altIndex must be between 1 and nAlts " + nAlts);
+
+        final int[] pls = original.getPL();
+
+        final int nAlleles = nAlts + 1;
+
+        final int plCount = pls.length;
+
+        double BB = 0;
+        final double[] XBvalues = new double[nAlleles - 1];
+        final double[] XXvalues = new double[plCount - nAlleles];
+
+        int xbOffset = 0;
+        int xxOffset = 0;
+        for ( int index = 0; index < plCount; index++ ) {
+            final GenotypeLikelihoods.GenotypeLikelihoodsAllelePair pair = GenotypeLikelihoods.getAllelePair(index);
+            int i = pair.alleleIndex1;
+            int j = pair.alleleIndex2;
+            if (i == j) {
+              if (i == altIndex) BB = PHRED_2_LOG10_COEFF * pls[index]; else XXvalues[xxOffset++] = PHRED_2_LOG10_COEFF * pls[index];
+            } else if (i == altIndex || j == altIndex)
+              XBvalues[xbOffset++] = PHRED_2_LOG10_COEFF * pls[index];
+            else
+              XXvalues[xxOffset++] = PHRED_2_LOG10_COEFF * pls[index];
+        }
+
+        final double XB = MathUtils.log10sumLog10(XBvalues);
+        final double XX = MathUtils.log10sumLog10(XXvalues);
+
+        final double[] GLs = new double[] { XX, XB, BB};
+        return new GenotypeBuilder(original).PL(GLs).alleles(BIALLELIC_NOCALL).make();
+    }
+
     protected final List<AFCalcResult> applyMultiAllelicPriors(final List<AFCalcResult> conditionalPNonRefResults) {
         final ArrayList<AFCalcResult> sorted = new ArrayList<AFCalcResult>(conditionalPNonRefResults);
 
@@ -339,7 +410,6 @@ import java.util.*;
 
         return sorted;
     }
-
 
     /**
      * Take the independent estimates of pNonRef for each alt allele and combine them into a single result

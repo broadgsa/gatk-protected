@@ -48,7 +48,10 @@ package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.variantcontext.*;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.GenotypeLikelihoods;
+import org.broadinstitute.variant.variantcontext.GenotypesContext;
+import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.util.*;
 
@@ -67,10 +70,10 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
         final int numChr = 2*numSamples;
 
         // queue of AC conformations to process
-        final LinkedList<ExactACset> ACqueue = new LinkedList<ExactACset>();
+        final LinkedList<ExactACset> ACqueue = new LinkedList<>();
 
         // mapping of ExactACset indexes to the objects
-        final HashMap<ExactACcounts, ExactACset> indexesToACset = new HashMap<ExactACcounts, ExactACset>(numChr+1);
+        final HashMap<ExactACcounts, ExactACset> indexesToACset = new HashMap<>(numChr+1);
 
         // add AC=0 to the queue
         final int[] zeroCounts = new int[numAlternateAlleles];
@@ -84,7 +87,7 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
             // compute log10Likelihoods
             final ExactACset set = ACqueue.remove();
 
-            final double log10LofKs = calculateAlleleCountConformation(set, genotypeLikelihoods, numChr, ACqueue, indexesToACset, log10AlleleFrequencyPriors);
+            calculateAlleleCountConformation(set, genotypeLikelihoods, numChr, ACqueue, indexesToACset, log10AlleleFrequencyPriors);
 
             // clean up memory
             indexesToACset.remove(set.getACcounts());
@@ -95,58 +98,28 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
         return getResultFromFinalState(vc, log10AlleleFrequencyPriors);
     }
 
-    @Override
-    protected VariantContext reduceScope(final VariantContext vc) {
-        // don't try to genotype too many alternate alleles
-        if ( vc.getAlternateAlleles().size() > getMaxAltAlleles() ) {
-            logger.warn("this tool is currently set to genotype at most " + getMaxAltAlleles() + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart() + " has " + (vc.getAlternateAlleles().size()) + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
 
-            VariantContextBuilder builder = new VariantContextBuilder(vc);
-            List<Allele> alleles = new ArrayList<Allele>(getMaxAltAlleles() + 1);
-            alleles.add(vc.getReference());
-            alleles.addAll(chooseMostLikelyAlternateAlleles(vc, getMaxAltAlleles()));
-            builder.alleles(alleles);
-            builder.genotypes(GATKVariantContextUtils.subsetDiploidAlleles(vc, alleles, GATKVariantContextUtils.GenotypeAssignmentMethod.SET_TO_NO_CALL));
-            return builder.make();
-        } else {
-            return vc;
-        }
+    @Override
+    protected GenotypesContext reduceScopeGenotypes(final VariantContext vc, final List<Allele> allelesToUse) {
+        return GATKVariantContextUtils.subsetDiploidAlleles(vc, allelesToUse, GATKVariantContextUtils.GenotypeAssignmentMethod.SET_TO_NO_CALL);
     }
 
-    private static final int PL_INDEX_OF_HOM_REF = 0;
-    private static List<Allele> chooseMostLikelyAlternateAlleles(VariantContext vc, int numAllelesToChoose) {
-        final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
-        final LikelihoodSum[] likelihoodSums = new LikelihoodSum[numOriginalAltAlleles];
-        for ( int i = 0; i < numOriginalAltAlleles; i++ )
-            likelihoodSums[i] = new LikelihoodSum(vc.getAlternateAllele(i));
-
-        // based on the GLs, find the alternate alleles with the most probability; sum the GLs for the most likely genotype
+    @Override
+    protected void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final LikelihoodSum[] likelihoodSums) {
         final ArrayList<double[]> GLs = getGLs(vc.getGenotypes(), true);
         for ( final double[] likelihoods : GLs ) {
             final int PLindexOfBestGL = MathUtils.maxElementIndex(likelihoods);
             if ( PLindexOfBestGL != PL_INDEX_OF_HOM_REF ) {
-                GenotypeLikelihoods.GenotypeLikelihoodsAllelePair alleles = GenotypeLikelihoods.getAllelePair(PLindexOfBestGL);
+                final GenotypeLikelihoods.GenotypeLikelihoodsAllelePair alleles = GenotypeLikelihoods.getAllelePair(PLindexOfBestGL);
+                final int alleleLikelihoodIndex1 = alleles.alleleIndex1 - 1;
+                final int alleleLikelihoodIndex2 = alleles.alleleIndex2 - 1;
                 if ( alleles.alleleIndex1 != 0 )
-                    likelihoodSums[alleles.alleleIndex1-1].sum += likelihoods[PLindexOfBestGL] - likelihoods[PL_INDEX_OF_HOM_REF];
+                    likelihoodSums[alleleLikelihoodIndex1].sum += likelihoods[PLindexOfBestGL] - likelihoods[PL_INDEX_OF_HOM_REF];
                 // don't double-count it
                 if ( alleles.alleleIndex2 != 0 && alleles.alleleIndex2 != alleles.alleleIndex1 )
-                    likelihoodSums[alleles.alleleIndex2-1].sum += likelihoods[PLindexOfBestGL] - likelihoods[PL_INDEX_OF_HOM_REF];
+                    likelihoodSums[alleleLikelihoodIndex2].sum += likelihoods[PLindexOfBestGL] - likelihoods[PL_INDEX_OF_HOM_REF];
             }
         }
-
-        // sort them by probability mass and choose the best ones
-        Collections.sort(Arrays.asList(likelihoodSums));
-        final ArrayList<Allele> bestAlleles = new ArrayList<Allele>(numAllelesToChoose);
-        for ( int i = 0; i < numAllelesToChoose; i++ )
-            bestAlleles.add(likelihoodSums[i].allele);
-
-        final ArrayList<Allele> orderedBestAlleles = new ArrayList<Allele>(numAllelesToChoose);
-        for ( Allele allele : vc.getAlternateAlleles() ) {
-            if ( bestAlleles.contains(allele) )
-                orderedBestAlleles.add(allele);
-        }
-
-        return orderedBestAlleles;
     }
 
     private static final class DependentSet {
@@ -199,8 +172,8 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
 
         // add conformations for the k+2 case if it makes sense; note that the 2 new alleles may be the same or different
         if ( ACwiggle > 1 ) {
-            final ArrayList<DependentSet> differentAlleles = new ArrayList<DependentSet>(numAltAlleles * numAltAlleles);
-            final ArrayList<DependentSet> sameAlleles = new ArrayList<DependentSet>(numAltAlleles);
+            final ArrayList<DependentSet> differentAlleles = new ArrayList<>(numAltAlleles * numAltAlleles);
+            final ArrayList<DependentSet> sameAlleles = new ArrayList<>(numAltAlleles);
 
             for ( int allele_i = 0; allele_i < numAltAlleles; allele_i++ ) {
                 for ( int allele_j = allele_i; allele_j < numAltAlleles; allele_j++ ) {

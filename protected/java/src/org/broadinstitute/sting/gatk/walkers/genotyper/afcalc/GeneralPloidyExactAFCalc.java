@@ -59,7 +59,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 10; // if PL vectors longer than this # of elements, don't log them
 
     private final int ploidy;
-    private final static double MAX_LOG10_ERROR_TO_STOP_EARLY = 6; // we want the calculation to be accurate to 1 / 10^6
+
     private final static boolean VERBOSE = false;
 
     protected GeneralPloidyExactAFCalc(final int nSamples, final int maxAltAlleles, final int ploidy) {
@@ -68,22 +68,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     }
 
     @Override
-    protected VariantContext reduceScope(VariantContext vc) {
-        // don't try to genotype too many alternate alleles
-        if ( vc.getAlternateAlleles().size() > getMaxAltAlleles()) {
-            logger.warn("this tool is currently set to genotype at most " + getMaxAltAlleles() + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart() + " has " + (vc.getAlternateAlleles().size()) + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
-
-            final List<Allele> alleles = new ArrayList<Allele>(getMaxAltAlleles() + 1);
-            alleles.add(vc.getReference());
-            alleles.addAll(chooseMostLikelyAlternateAlleles(vc, getMaxAltAlleles(), ploidy));
-
-            VariantContextBuilder builder = new VariantContextBuilder(vc);
-            builder.alleles(alleles);
-            builder.genotypes(subsetAlleles(vc, alleles, false, ploidy));
-            return builder.make();
-        } else {
-            return vc;
-        }
+    protected GenotypesContext reduceScopeGenotypes(final VariantContext vc, final List<Allele> allelesToUse) {
+        return subsetAlleles(vc,allelesToUse,false,ploidy);
     }
 
     @Override
@@ -105,8 +91,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 
         public CombinedPoolLikelihoods() {
             // final int numElements = GenotypeLikelihoods.numLikelihoods();
-            alleleCountSetList = new LinkedList<ExactACset>();
-            conformationMap = new HashMap<ExactACcounts,ExactACset>();
+            alleleCountSetList = new LinkedList<>();
+            conformationMap = new HashMap<>();
             maxLikelihood = Double.NEGATIVE_INFINITY;
         }
 
@@ -136,53 +122,21 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         public int getLength() {
             return alleleCountSetList.size();
         }
-     }
+    }
 
-    /**
-     *
-     * Chooses N most likely alleles in a set of pools (samples) based on GL sum over alt alleles
-     * @param vc                          Input variant context
-     * @param numAllelesToChoose          Number of alleles to choose
-     * @param ploidy                      Ploidy per pool
-     * @return                            list of numAllelesToChoose most likely alleles
-     */
-
-    private static final int PL_INDEX_OF_HOM_REF = 0;
-    private static List<Allele> chooseMostLikelyAlternateAlleles(VariantContext vc, int numAllelesToChoose, int ploidy) {
-        final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
-        final LikelihoodSum[] likelihoodSums = new LikelihoodSum[numOriginalAltAlleles];
-        for ( int i = 0; i < numOriginalAltAlleles; i++ )
-            likelihoodSums[i] = new LikelihoodSum(vc.getAlternateAllele(i));
-
-        // based on the GLs, find the alternate alleles with the most probability; sum the GLs for the most likely genotype
+    @Override
+    protected void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final LikelihoodSum[] likelihoodSums) {
+        final int numOriginalAltAlleles = likelihoodSums.length;
         final ArrayList<double[]> GLs = getGLs(vc.getGenotypes(), false);
         for ( final double[] likelihoods : GLs ) {
-
             final int PLindexOfBestGL = MathUtils.maxElementIndex(likelihoods);
             final int[] acCount = GeneralPloidyGenotypeLikelihoods.getAlleleCountFromPLIndex(1 + numOriginalAltAlleles, ploidy, PLindexOfBestGL);
             // by convention, first count coming from getAlleleCountFromPLIndex comes from reference allele
-            for (int k=1; k < acCount.length;k++) {
-                if (acCount[k] > 0)
+            for (int k=1; k < acCount.length;k++)
+                if (acCount[k] > 0 )
                     likelihoodSums[k-1].sum += acCount[k] * (likelihoods[PLindexOfBestGL] - likelihoods[PL_INDEX_OF_HOM_REF]);
-
-            }
         }
-
-        // sort them by probability mass and choose the best ones
-        Collections.sort(Arrays.asList(likelihoodSums));
-        final ArrayList<Allele> bestAlleles = new ArrayList<Allele>(numAllelesToChoose);
-        for ( int i = 0; i < numAllelesToChoose; i++ )
-            bestAlleles.add(likelihoodSums[i].allele);
-
-        final ArrayList<Allele> orderedBestAlleles = new ArrayList<Allele>(numAllelesToChoose);
-        for ( Allele allele : vc.getAlternateAlleles() ) {
-            if ( bestAlleles.contains(allele) )
-                orderedBestAlleles.add(allele);
-        }
-
-        return orderedBestAlleles;
     }
-
 
     /**
      * Simple non-optimized version that combines GLs from several pools and produces global AF distribution.
@@ -231,9 +185,9 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                                                int newGLPloidy,
                                                                int numAlleles,
                                                                final double[] log10AlleleFrequencyPriors) {
-        final LinkedList<ExactACset> ACqueue = new LinkedList<ExactACset>();
+        final LinkedList<ExactACset> ACqueue = new LinkedList<>();
         // mapping of ExactACset indexes to the objects
-        final HashMap<ExactACcounts, ExactACset> indexesToACset = new HashMap<ExactACcounts, ExactACset>();
+        final HashMap<ExactACcounts, ExactACset> indexesToACset = new HashMap<>();
         final CombinedPoolLikelihoods newPool = new CombinedPoolLikelihoods();
 
         // add AC=0 to the queue
@@ -251,7 +205,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
             getStateTracker().incNEvaluations();
             // compute log10Likelihoods
             final ExactACset ACset = ACqueue.remove();
-            final double log10LofKs = calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, ACqueue, indexesToACset);
+
+            calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, ACqueue, indexesToACset);
 
             // clean up memory
             indexesToACset.remove(ACset.getACcounts());
@@ -514,7 +469,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                           final int ploidy) {
         // the genotypes with PLs
         final GenotypesContext oldGTs = vc.getGenotypes();
-        List<Allele> NO_CALL_ALLELES = new ArrayList<Allele>(ploidy);
+        List<Allele> NO_CALL_ALLELES = new ArrayList<>(ploidy);
 
         for (int k=0; k < ploidy; k++)
             NO_CALL_ALLELES.add(Allele.NO_CALL);
@@ -584,8 +539,6 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * @param newLikelihoods       the PL array
      * @param allelesToUse         the list of alleles to choose from (corresponding to the PLs)
      * @param numChromosomes        Number of chromosomes per pool
-     *
-     * @return genotype
      */
     private void assignGenotype(final GenotypeBuilder gb,
                                 final double[] newLikelihoods,
@@ -599,8 +552,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         final int PLindex = numNewAltAlleles == 0 ? 0 : MathUtils.maxElementIndex(newLikelihoods);
 
         final int[] mlAlleleCount = GeneralPloidyGenotypeLikelihoods.getAlleleCountFromPLIndex(allelesToUse.size(), numChromosomes, PLindex);
-        final ArrayList<Double> alleleFreqs = new ArrayList<Double>();
-        final ArrayList<Integer> alleleCounts = new ArrayList<Integer>();
+        final ArrayList<Double> alleleFreqs = new ArrayList<>();
+        final ArrayList<Integer> alleleCounts = new ArrayList<>();
 
 
         for (int k=1; k < mlAlleleCount.length; k++) {
@@ -629,6 +582,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         }
         gb.alleles(myAlleles);
 
+        // TODO - deprecated so what is the appropriate method to call?
         if ( numNewAltAlleles > 0 )
             gb.log10PError(GenotypeLikelihoods.getGQLog10FromLikelihoods(PLindex, newLikelihoods));
     }

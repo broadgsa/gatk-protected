@@ -422,14 +422,14 @@ public class UnifiedGenotyperEngine {
                     generateEmptyContext(tracker, refContext, stratifiedContexts, rawContext));
         }
 
-        AFCalcResult AFresult = afcm.get().getLog10PNonRef(vc, getAlleleFrequencyPriors(model));
+        final AFCalcResult AFresult = afcm.get().getLog10PNonRef(vc, getAlleleFrequencyPriors(model));
 
         // is the most likely frequency conformation AC=0 for all alternate alleles?
         boolean bestGuessIsRef = true;
 
         // determine which alternate alleles have AF>0
-        final List<Allele> myAlleles = new ArrayList<Allele>(vc.getAlleles().size());
-        final List<Integer> alleleCountsofMLE = new ArrayList<Integer>(vc.getAlleles().size());
+        final List<Allele> myAlleles = new ArrayList<>(vc.getAlleles().size());
+        final List<Integer> alleleCountsofMLE = new ArrayList<>(vc.getAlleles().size());
         myAlleles.add(vc.getReference());
         for ( int i = 0; i < AFresult.getAllelesUsedInGenotyping().size(); i++ ) {
             final Allele alternateAllele = AFresult.getAllelesUsedInGenotyping().get(i);
@@ -439,16 +439,13 @@ public class UnifiedGenotyperEngine {
             // Compute if the site is considered polymorphic with sufficient confidence relative to our
             // phred-scaled emission QUAL
             final boolean isNonRef = AFresult.isPolymorphicPhredScaledQual(alternateAllele, UAC.STANDARD_CONFIDENCE_FOR_EMITTING);
+            final boolean toInclude = isNonRef || alternateAllele == GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE ||
+                    UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ||
+                    UAC.annotateAllSitesWithPLs;
 
-            // if the most likely AC is not 0, then this is a good alternate allele to use
-            if ( isNonRef ) {
-                myAlleles.add(alternateAllele);
-                alleleCountsofMLE.add(AFresult.getAlleleCountAtMLE(alternateAllele));
-                bestGuessIsRef = false;
-            }
-            // if in GENOTYPE_GIVEN_ALLELES mode, we still want to allow the use of a poor allele
-            else if ( UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ||
-                    UAC.annotateAllSitesWithPLs) {
+            bestGuessIsRef &= !isNonRef;
+
+            if (toInclude) {
                 myAlleles.add(alternateAllele);
                 alleleCountsofMLE.add(AFresult.getAlleleCountAtMLE(alternateAllele));
             }
@@ -513,29 +510,29 @@ public class UnifiedGenotyperEngine {
 
             // the overall lod
             //double overallLog10PofNull = AFresult.log10AlleleFrequencyPosteriors[0];
-            double overallLog10PofF = AFresult.getLog10LikelihoodOfAFGT0();
+            final double overallLog10PofF = AFresult.getLog10LikelihoodOfAFGT0();
             //if ( DEBUG_SLOD ) System.out.println("overallLog10PofF=" + overallLog10PofF);
 
-            List<Allele> allAllelesToUse = builder.make().getAlleles();
+            final List<Allele> allAllelesToUse = builder.make().getAlleles();
             
             // the forward lod
-            VariantContext vcForward = calculateLikelihoods(tracker, refContext, stratifiedContexts, AlignmentContextUtils.ReadOrientation.FORWARD, allAllelesToUse, false, model, perReadAlleleLikelihoodMap);
-            AFresult = afcm.get().getLog10PNonRef(vcForward, getAlleleFrequencyPriors(model));
+            final VariantContext vcForward = calculateLikelihoods(tracker, refContext, stratifiedContexts, AlignmentContextUtils.ReadOrientation.FORWARD, allAllelesToUse, false, model, perReadAlleleLikelihoodMap);
+            final AFCalcResult forwardAFresult = afcm.get().getLog10PNonRef(vcForward, getAlleleFrequencyPriors(model));
             //double[] normalizedLog10Posteriors = MathUtils.normalizeFromLog10(AFresult.log10AlleleFrequencyPosteriors, true);
-            double forwardLog10PofNull = AFresult.getLog10LikelihoodOfAFEq0();
-            double forwardLog10PofF = AFresult.getLog10LikelihoodOfAFGT0();
+            final double forwardLog10PofNull = forwardAFresult.getLog10LikelihoodOfAFEq0();
+            final double forwardLog10PofF = forwardAFresult.getLog10LikelihoodOfAFGT0();
             //if ( DEBUG_SLOD ) System.out.println("forwardLog10PofNull=" + forwardLog10PofNull + ", forwardLog10PofF=" + forwardLog10PofF);
 
             // the reverse lod
-            VariantContext vcReverse = calculateLikelihoods(tracker, refContext, stratifiedContexts, AlignmentContextUtils.ReadOrientation.REVERSE, allAllelesToUse, false, model, perReadAlleleLikelihoodMap);
-            AFresult = afcm.get().getLog10PNonRef(vcReverse, getAlleleFrequencyPriors(model));
+            final VariantContext vcReverse = calculateLikelihoods(tracker, refContext, stratifiedContexts, AlignmentContextUtils.ReadOrientation.REVERSE, allAllelesToUse, false, model, perReadAlleleLikelihoodMap);
+            final AFCalcResult reverseAFresult = afcm.get().getLog10PNonRef(vcReverse, getAlleleFrequencyPriors(model));
             //normalizedLog10Posteriors = MathUtils.normalizeFromLog10(AFresult.log10AlleleFrequencyPosteriors, true);
-            double reverseLog10PofNull = AFresult.getLog10LikelihoodOfAFEq0();
-            double reverseLog10PofF = AFresult.getLog10LikelihoodOfAFGT0();
+            final double reverseLog10PofNull = reverseAFresult.getLog10LikelihoodOfAFEq0();
+            final double reverseLog10PofF = reverseAFresult.getLog10LikelihoodOfAFGT0();
             //if ( DEBUG_SLOD ) System.out.println("reverseLog10PofNull=" + reverseLog10PofNull + ", reverseLog10PofF=" + reverseLog10PofF);
 
-            double forwardLod = forwardLog10PofF + reverseLog10PofNull - overallLog10PofF;
-            double reverseLod = reverseLog10PofF + forwardLog10PofNull - overallLog10PofF;
+            final double forwardLod = forwardLog10PofF + reverseLog10PofNull - overallLog10PofF;
+            final double reverseLod = reverseLog10PofF + forwardLog10PofNull - overallLog10PofF;
             //if ( DEBUG_SLOD ) System.out.println("forward lod=" + forwardLod + ", reverse lod=" + reverseLod);
 
             // strand score is max bias between forward and reverse strands

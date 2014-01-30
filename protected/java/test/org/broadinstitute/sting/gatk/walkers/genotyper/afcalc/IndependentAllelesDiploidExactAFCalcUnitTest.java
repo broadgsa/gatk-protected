@@ -106,14 +106,22 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
     }
 
     @Test(enabled = true, dataProvider = "TestCombineGLs")
-    private void testCombineGLs(final int altIndex, final int nAlts, final Genotype testg, final Genotype expected) {
+    public void testCombineGLsPrecise(final int altIndex, final int nAlts, final Genotype testg, final Genotype expected) {
         final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc)AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 1, 4);
-        final Genotype combined = calc.combineGLs(testg, altIndex, nAlts);
+        final Genotype combined = calc.combineGLsPrecise(testg, altIndex, nAlts);
 
         Assert.assertEquals(combined.getPL(), expected.getPL(),
                 "Combined PLs " + Utils.join(",", combined.getPL()) + " != expected " + Utils.join(",", expected.getPL()));
     }
 
+    @Test(enabled = true, dataProvider = "TestCombineGLs")
+    public void testCombinePrecise(final int altIndex, final int nAlts, final Genotype testg, final Genotype expected) {
+        final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc)AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 1, 4);
+        final Genotype combined = calc.combineGLsPrecise(testg, altIndex, nAlts);
+
+        Assert.assertEquals(combined.getPL(), expected.getPL(),
+                "Combined PLs " + Utils.join(",", combined.getPL()) + " != expected " + Utils.join(",", expected.getPL()));
+    }
 
     static Allele A = Allele.create("A", true);
     static Allele C = Allele.create("C");

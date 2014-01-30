@@ -118,7 +118,6 @@ final class HomRefBlock {
         if ( g == null ) throw new IllegalArgumentException("g cannot be null");
         if ( ! g.hasGQ() ) throw new IllegalArgumentException("g must have GQ field");
         if ( ! g.hasPL() ) throw new IllegalArgumentException("g must have PL field");
-        if ( ! g.hasDP() ) throw new IllegalArgumentException("g must have DP field");
         if ( pos != stop + 1 ) throw new IllegalArgumentException("adding genotype at pos " + pos + " isn't contiguous with previous stop " + stop);
 
         if( minPLs == null ) { // if the minPLs vector has not been set yet, create it here by copying the provided genotype's PLs
@@ -136,7 +135,7 @@ final class HomRefBlock {
         }
         stop = pos;
         GQs.add(Math.min(g.getGQ(), 99)); // cap the GQs by the max. of 99 emission
-        DPs.add(g.getDP());
+        DPs.add(Math.max(g.getDP(),0));
     }
 
     /**
