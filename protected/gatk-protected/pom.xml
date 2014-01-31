@@ -44,7 +44,7 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>sting-utils</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
+            <classifier>test-utils</classifier>
             <scope>test</scope>
         </dependency>
 
@@ -52,7 +52,7 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>gatk-framework</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
+            <classifier>test-utils</classifier>
             <scope>test</scope>
         </dependency>
 
