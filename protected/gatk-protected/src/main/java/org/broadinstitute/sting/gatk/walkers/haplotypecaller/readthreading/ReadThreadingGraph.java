@@ -46,21 +46,12 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.KMerCounter;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Kmer;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
-import org.broadinstitute.sting.utils.smithwaterman.SWParameterSet;
-import org.broadinstitute.sting.utils.smithwaterman.SmithWaterman;
-import org.jgrapht.EdgeFactory;
 import org.jgrapht.alg.CycleDetector;
 
 import java.io.File;
@@ -68,37 +59,13 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSampleEdge> implements KmerSearchableGraph<MultiDeBruijnVertex,MultiSampleEdge> {
-
-    /**
-     * Edge factory that encapsulates the numPruningSamples assembly parameter
-     */
-    private static class MyEdgeFactory implements EdgeFactory<MultiDeBruijnVertex, MultiSampleEdge> {
-        final int numPruningSamples;
-
-        public MyEdgeFactory(int numPruningSamples) {
-            this.numPruningSamples = numPruningSamples;
-        }
-
-        @Override
-        public MultiSampleEdge createEdge(final MultiDeBruijnVertex sourceVertex, final MultiDeBruijnVertex targetVertex) {
-            return new MultiSampleEdge(false, 1, numPruningSamples);
-        }
-
-        public MultiSampleEdge createEdge(final boolean isRef, final int multiplicity) {
-            return new MultiSampleEdge(isRef, multiplicity, numPruningSamples);
-        }
-
-    }
+public class ReadThreadingGraph extends DanglingChainMergingGraph implements KmerSearchableGraph<MultiDeBruijnVertex,MultiSampleEdge> {
 
     private final static Logger logger = Logger.getLogger(ReadThreadingGraph.class);
 
     private final static String ANONYMOUS_SAMPLE = "XXX_UNNAMED_XXX";
     private final static boolean WRITE_GRAPH = false;
     private final static boolean DEBUG_NON_UNIQUE_CALC = false;
-
-    private final static int MAX_CIGAR_COMPLEXITY = 3;
-    private final static int MIN_DANGLING_TAIL_LENGTH = 5;  // SNP + 3 stabilizing nodes + the LCA
 
     /** for debugging info printing */
     private static int counter = 0;
@@ -132,13 +99,12 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     // state variables, initialized in resetToInitialState()
     // --------------------------------------------------------------------------------
     private Kmer refSource;
-    protected boolean alreadyBuilt;
 
     /**
      * Constructs an empty read-threading-grpah provided the kmerSize.
      * @param kmerSize 1 or greater.
      *
-     * @throw IllegalArgumentException if (@code kmerSize) < 1.
+     * @throws IllegalArgumentException if (@code kmerSize) < 1.
      */
     public ReadThreadingGraph(final int kmerSize) {
         this(kmerSize, false, (byte)6, 1);
@@ -250,12 +216,11 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      * @param seqForKmers a non-null sequence
      */
     private void threadSequence(final SequenceForKmers seqForKmers) {
-        final Pair<MultiDeBruijnVertex,Integer> startingInfo = findStart(seqForKmers);
-        if ( startingInfo == null )
+        final int uniqueStartPos = findStart(seqForKmers);
+        if ( uniqueStartPos == -1 )
             return;
 
-        final MultiDeBruijnVertex startingVertex = startingInfo.getFirst();
-        final int uniqueStartPos = startingInfo.getSecond();
+        final MultiDeBruijnVertex startingVertex = getOrCreateKmerVertex(seqForKmers.sequence, uniqueStartPos);
 
         // increase the counts of all edges incoming into the starting vertex supported by going back in sequence
         if ( increaseCountsBackwards )
@@ -278,177 +243,22 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     }
 
     /**
-     * Class to keep track of the important dangling tail merging data
-     */
-    protected final class DanglingTailMergeResult {
-        final List<MultiDeBruijnVertex> danglingPath, referencePath;
-        final byte[] danglingPathString, referencePathString;
-        final Cigar cigar;
-
-        public DanglingTailMergeResult(final List<MultiDeBruijnVertex> danglingPath,
-                                       final List<MultiDeBruijnVertex> referencePath,
-                                       final byte[] danglingPathString,
-                                       final byte[] referencePathString,
-                                       final Cigar cigar) {
-            this.danglingPath = danglingPath;
-            this.referencePath = referencePath;
-            this.danglingPathString = danglingPathString;
-            this.referencePathString = referencePathString;
-            this.cigar = cigar;
-        }
-    }
-
-    /**
-     * Attempt to attach vertex with out-degree == 0 to the graph
+     * Find vertex and its position in seqForKmers where we should start assembling seqForKmers
      *
-     * @param vertex the vertex to recover
-     * @param pruneFactor  the prune factor to use in ignoring chain pieces
-     * @return 1 if we successfully recovered the vertex and 0 otherwise
+     * @param seqForKmers the sequence we want to thread into the graph
+     * @return the position of the starting vertex in seqForKmer, or -1 if it cannot find one
      */
-    protected int recoverDanglingChain(final MultiDeBruijnVertex vertex, final int pruneFactor) {
-        if ( outDegreeOf(vertex) != 0 ) throw new IllegalStateException("Attempting to recover a dangling tail for " + vertex + " but it has out-degree > 0");
-
-        // generate the CIGAR string from Smith-Waterman between the dangling tail and reference paths
-        final DanglingTailMergeResult danglingTailMergeResult = generateCigarAgainstReferencePath(vertex, pruneFactor);
-
-        // if the CIGAR is too complex (or couldn't be computed) then we do not allow the merge into the reference path
-        if ( danglingTailMergeResult == null || ! cigarIsOkayToMerge(danglingTailMergeResult.cigar) )
+    protected int findStart(final SequenceForKmers seqForKmers) {
+        if ( seqForKmers.isRef )
             return 0;
 
-        // merge
-        return mergeDanglingTail(danglingTailMergeResult);
-    }
-
-    /**
-     * Determine whether the provided cigar is okay to merge into the reference path
-     *
-     * @param cigar    the cigar to analyze
-     * @return true if it's okay to merge, false otherwise
-     */
-    protected boolean cigarIsOkayToMerge(final Cigar cigar) {
-
-        final List<CigarElement> elements = cigar.getCigarElements();
-        final int numElements = elements.size();
-
-        // don't allow more than a couple of different ops
-        if ( numElements > MAX_CIGAR_COMPLEXITY )
-            return false;
-
-        // the last element must be an M
-        if ( elements.get(numElements - 1).getOperator() != CigarOperator.M )
-            return false;
-
-        // TODO -- do we want to check whether the Ms mismatch too much also?
-
-        return true;
-    }
-
-    /**
-     * Actually merge the dangling tail if possible
-     *
-     * @param danglingTailMergeResult   the result from generating a Cigar for the dangling tail against the reference
-     * @return 1 if merge was successful, 0 otherwise
-     */
-    protected int mergeDanglingTail(final DanglingTailMergeResult danglingTailMergeResult) {
-
-        final List<CigarElement> elements = danglingTailMergeResult.cigar.getCigarElements();
-        final CigarElement lastElement = elements.get(elements.size() - 1);
-        if ( lastElement.getOperator() != CigarOperator.M )
-            throw new IllegalArgumentException("The last Cigar element must be an M");
-
-        final int lastRefIndex = danglingTailMergeResult.cigar.getReferenceLength() - 1;
-        final int matchingSuffix = Math.min(GraphUtils.longestSuffixMatch(danglingTailMergeResult.referencePathString, danglingTailMergeResult.danglingPathString, lastRefIndex), lastElement.getLength());
-        if ( matchingSuffix == 0 )
-            return 0;
-
-        final int altIndexToMerge = Math.max(danglingTailMergeResult.cigar.getReadLength() - matchingSuffix - 1, 0);
-
-        // there is an important edge condition that we need to handle here: Smith-Waterman correctly calculates that there is a
-        // deletion, that deletion is left-aligned such that the LCA node is part of that deletion, and the rest of the dangling
-        // tail is a perfect match to the suffix of the reference path.  In this case we need to push the reference index to merge
-        // down one position so that we don't incorrectly cut a base off of the deletion.
-        final boolean firstElementIsDeletion = elements.get(0).getOperator() == CigarOperator.D;
-        final boolean mustHandleLeadingDeletionCase =  firstElementIsDeletion && (elements.get(0).getLength() + matchingSuffix == lastRefIndex + 1);
-        final int refIndexToMerge = lastRefIndex - matchingSuffix + 1 + (mustHandleLeadingDeletionCase ? 1 : 0);
-
-        addEdge(danglingTailMergeResult.danglingPath.get(altIndexToMerge), danglingTailMergeResult.referencePath.get(refIndexToMerge), ((MyEdgeFactory)getEdgeFactory()).createEdge(false, 1));
-
-        return 1;
-    }
-
-    /**
-     * Generates the CIGAR string from the Smith-Waterman alignment of the dangling path (where the
-     * provided vertex is the sink) and the reference path.
-     *
-     * @param vertex   the sink of the dangling tail
-     * @param pruneFactor  the prune factor to use in ignoring chain pieces
-     * @return a SmithWaterman object which can be null if no proper alignment could be generated
-     */
-    protected DanglingTailMergeResult generateCigarAgainstReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor) {
-
-        // find the lowest common ancestor path between vertex and the reference sink if available
-        final List<MultiDeBruijnVertex> altPath = findPathToLowestCommonAncestorOfReference(vertex, pruneFactor);
-        if ( altPath == null || isRefSource(altPath.get(0)) || altPath.size() < MIN_DANGLING_TAIL_LENGTH )
-            return null;
-
-        // now get the reference path from the LCA
-        final List<MultiDeBruijnVertex> refPath = getReferencePath(altPath.get(0));
-
-        // create the Smith-Waterman strings to use
-        final byte[] refBases = getBasesForPath(refPath);
-        final byte[] altBases = getBasesForPath(altPath);
-
-        // run Smith-Waterman to determine the best alignment (and remove trailing deletions since they aren't interesting)
-        final SmithWaterman alignment = new SWPairwiseAlignment(refBases, altBases, SWParameterSet.STANDARD_NGS, SWPairwiseAlignment.OVERHANG_STRATEGY.LEADING_INDEL);
-        return new DanglingTailMergeResult(altPath, refPath, altBases, refBases, AlignmentUtils.removeTrailingDeletions(alignment.getCigar()));
-    }
-
-    /**
-     * Finds the path upwards in the graph from this vertex to the reference sequence, including the lowest common ancestor vertex.
-     * Note that nodes are excluded if their pruning weight is less than the pruning factor.
-     *
-     * @param vertex   the original vertex
-     * @param pruneFactor  the prune factor to use in ignoring chain pieces
-     * @return the path if it can be determined or null if this vertex either doesn't merge onto the reference path or
-     *  has an ancestor with multiple incoming edges before hitting the reference path
-     */
-    protected List<MultiDeBruijnVertex> findPathToLowestCommonAncestorOfReference(final MultiDeBruijnVertex vertex, final int pruneFactor) {
-        final LinkedList<MultiDeBruijnVertex> path = new LinkedList<>();
-
-        MultiDeBruijnVertex v = vertex;
-        while ( ! isReferenceNode(v) && inDegreeOf(v) == 1 ) {
-            final MultiSampleEdge edge = incomingEdgeOf(v);
-            // if it has too low a weight, don't use it (or previous vertexes) for the path
-            if ( edge.getPruningMultiplicity() < pruneFactor )
-                path.clear();
-            // otherwise it is safe to use
-            else
-                path.addFirst(v);
-            v = getEdgeSource(edge);
-        }
-        path.addFirst(v);
-
-        return isReferenceNode(v) ? path : null;
-    }
-
-    /**
-     * Finds the path downwards in the graph from this vertex to the reference sink, including this vertex
-     *
-     * @param start   the reference vertex to start from
-     * @return the path (non-null, non-empty)
-     */
-    protected List<MultiDeBruijnVertex> getReferencePath(final MultiDeBruijnVertex start) {
-        if ( ! isReferenceNode(start) ) throw new IllegalArgumentException("Cannot construct the reference path from a vertex that is not on that path");
-
-        final List<MultiDeBruijnVertex> path = new ArrayList<>();
-
-        MultiDeBruijnVertex v = start;
-        while ( v != null ) {
-            path.add(v);
-            v = getNextReferenceVertex(v);
+        for ( int i = seqForKmers.start; i < seqForKmers.stop - kmerSize; i++ ) {
+            final Kmer kmer1 = new Kmer(seqForKmers.sequence, i, kmerSize);
+            if ( !nonUniqueKmers.contains(kmer1) )
+                return i;
         }
 
-        return path;
+        return -1;
     }
 
     /**
@@ -526,26 +336,6 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         return nonUniqueKmers.size() * 4 > uniqueKmers.size();
     }
 
-    /**
-     * Try to recover dangling tails
-     *
-     * @param pruneFactor  the prune factor to use in ignoring chain pieces
-     */
-    public void recoverDanglingTails(final int pruneFactor) {
-        if ( ! alreadyBuilt )  throw new IllegalStateException("recoverDanglingTails requires the graph be already built");
-
-        int attempted = 0;
-        int nRecovered = 0;
-        for ( final MultiDeBruijnVertex v : vertexSet() ) {
-            if ( outDegreeOf(v) == 0 && ! isRefSink(v) ) {
-                attempted++;
-                nRecovered += recoverDanglingChain(v, pruneFactor);
-            }
-        }
-
-        if ( debugGraphTransformations ) logger.info("Recovered " + nRecovered + " of " + attempted + " dangling tails");
-    }
-
     /** structure that keeps track of the non-unique kmers for a given kmer size */
     private static class NonUniqueResult {
         final Set<Kmer> nonUniques;
@@ -568,7 +358,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      */
     protected NonUniqueResult determineKmerSizeAndNonUniques(final int minKmerSize, final int maxKmerSize) {
         final Collection<SequenceForKmers> withNonUniques = getAllPendingSequences();
-        final Set<Kmer> nonUniqueKmers = new HashSet<Kmer>();
+        final Set<Kmer> nonUniqueKmers = new HashSet<>();
 
         // go through the sequences and determine which kmers aren't unique within each read
         int kmerSize = minKmerSize;
@@ -606,7 +396,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      * @return non-null Collection
      */
     private Collection<SequenceForKmers> getAllPendingSequences() {
-        final LinkedList<SequenceForKmers> result = new LinkedList<SequenceForKmers>();
+        final LinkedList<SequenceForKmers> result = new LinkedList<>();
         for ( final List<SequenceForKmers> oneSampleWorth : pending.values() ) result.addAll(oneSampleWorth);
         return result;
     }
@@ -642,7 +432,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         buildGraphIfNecessary();
 
         final SeqGraph seqGraph = new SeqGraph(kmerSize);
-        final Map<MultiDeBruijnVertex, SeqVertex> vertexMap = new HashMap<MultiDeBruijnVertex, SeqVertex>();
+        final Map<MultiDeBruijnVertex, SeqVertex> vertexMap = new HashMap<>();
 
 
         // create all of the equivalent seq graph vertices
@@ -684,51 +474,15 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     }
 
     /**
-     * Find vertex and its position in seqForKmers where we should start assembling seqForKmers
-     *
-     * @param seqForKmers the sequence we want to thread into the graph
-     * @return a pair of the starting vertex and its position in seqForKmer
-     */
-    protected Pair<MultiDeBruijnVertex, Integer> findStart(final SequenceForKmers seqForKmers) {
-        final int uniqueStartPos = seqForKmers.isRef ? 0 : findUniqueStartPosition(seqForKmers.sequence, seqForKmers.start, seqForKmers.stop);
-
-        if ( uniqueStartPos == -1 )
-            return null;
-
-        return getOrCreateKmerVertex(seqForKmers.sequence, uniqueStartPos, true);
-    }
-
-    /**
-     * Find a starting point in sequence that begins a unique kmer among all kmers in the graph
-     * @param sequence the sequence of bases
-     * @param start the first base to use in sequence
-     * @param stop the last base to use in sequence
-     * @return the index into sequence that begins a unique kmer of size kmerSize, or -1 if none could be found
-     */
-    private int findUniqueStartPosition(final byte[] sequence, final int start, final int stop) {
-        for ( int i = start; i < stop - kmerSize; i++ ) {
-            final Kmer kmer1 = new Kmer(sequence, i, kmerSize);
-            if ( uniqueKmers.containsKey(kmer1) )
-                return i;
-        }
-        return -1;
-    }
-
-    /**
      * Get the vertex for the kmer in sequence starting at start
      * @param sequence the sequence
      * @param start the position of the kmer start
-     * @param allowRefSource if true, we will allow matches to the kmer that represents the reference starting kmer
      * @return a non-null vertex
      */
-    protected Pair<MultiDeBruijnVertex, Integer> getOrCreateKmerVertex(final byte[] sequence, final int start, final boolean allowRefSource) {
+    private MultiDeBruijnVertex getOrCreateKmerVertex(final byte[] sequence, final int start) {
         final Kmer kmer = new Kmer(sequence, start, kmerSize);
-        final MultiDeBruijnVertex vertex = getUniqueKmerVertex(kmer, allowRefSource);
-        if ( vertex != null ) {
-            return new Pair<>(vertex, start);
-        } else {
-            return new Pair<>(createVertex(kmer), start);
-        }
+        final MultiDeBruijnVertex vertex = getUniqueKmerVertex(kmer, true);
+        return ( vertex != null ) ? vertex : createVertex(kmer);
     }
 
     /**
@@ -878,11 +632,11 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 
 
     /**
-     * Constructs a read-threadingg-graph for a string representation.
+     * Constructs a read-threading-graph for a string representation.
      *
      * <p>
      *     Note: only used for testing.
-     *     Checkout {@link HaplotypeGraphUnitTest} for examples.
+     *     Checkout {@see HaplotypeGraphUnitTest} for examples.
      * </p>
      * @param s the string representation of the graph {@code null}.
      */
@@ -913,7 +667,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      *
      * <p>
      *     Note: this is done just for testing purposes.
-     *     Checkout {@link HaplotypeGraphUnitTest} for examples.
+     *     Checkout {@see HaplotypeGraphUnitTest} for examples.
      * </p>
      * @param str the string representation.
      */
@@ -934,9 +688,9 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
             if (referenceFound) {
                 if (isReference)
                     throw new IllegalArgumentException("there are two reference paths");
-
-            } else
-                referenceFound |= isReference;
+            } else if ( isReference ) {
+                referenceFound = true;
+            }
 
             // Divide each path into its elements getting a list of sequences and labels if applies:
             final String elementsString = pathMatcher.group(3);

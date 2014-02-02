@@ -186,9 +186,10 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         // tails that we'll ultimately just trim away anyway, as the dangling tail edges have weight of 1
         rtgraph.pruneLowWeightChains(pruneFactor);
 
-        // look at all chains in the graph that terminate in a non-ref node (dangling sinks) and see if
+        // look at all chains in the graph that terminate in a non-ref node (dangling sources and sinks) and see if
         // we can recover them by merging some N bases from the chain back into the reference
         if ( recoverDanglingTails ) rtgraph.recoverDanglingTails(pruneFactor);
+        if ( recoverDanglingHeads ) rtgraph.recoverDanglingHeads(pruneFactor);
 
         // remove all heading and trailing paths
         if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();
