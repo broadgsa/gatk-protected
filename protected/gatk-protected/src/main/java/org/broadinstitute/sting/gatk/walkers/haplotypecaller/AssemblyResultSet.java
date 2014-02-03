@@ -51,8 +51,10 @@ import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadT
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
 import org.broadinstitute.sting.utils.collections.CountSet;
-import org.broadinstitute.sting.utils.collections.CountSet;
+import org.broadinstitute.sting.utils.haplotype.EventMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.haplotype.HaplotypeSizeAndBaseComparator;
+import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -84,6 +86,9 @@ public  class AssemblyResultSet {
     private Haplotype refHaplotype;
     private boolean wasTrimmed = false;
     private final CountSet kmerSizes;
+    private TreeSet<VariantContext> variationEvents;
+    private boolean debug;
+    private static Logger logger = Logger.getLogger(AssemblyResultSet.class);
 
     /**
      * Constructs a new empty assembly result set.
@@ -95,21 +100,29 @@ public  class AssemblyResultSet {
         kmerSizes = new CountSet(4);
     }
 
+
+    /**
+     * Change the debug status for this assembly-result-set.
+     * @param newValue new value for the debug status.
+     */
+    void setDebug(final boolean newValue) {
+        debug = newValue;
+    }
+
     /**
      * Trims an assembly result set down based on a new set of trimmed haplotypes.
      *
-     * @param originalByTrimmedHaplotypes map from trimmed to original haplotypes.
      * @param trimmedActiveRegion the trimmed down active region.
      *
      * @throws NullPointerException if any argument in {@code null} or
      *      if there are {@code null} entries in {@code originalByTrimmedHaplotypes} for trimmed haplotype keys.
      * @throws IllegalArgumentException if there is no reference haplotype amongst the trimmed ones.
      *
-     *
      * @return never {@code null}, a new trimmed assembly result set.
      */
-    public AssemblyResultSet trimTo(final ActiveRegion trimmedActiveRegion,
-                                    final Map<Haplotype,Haplotype> originalByTrimmedHaplotypes) {
+    public AssemblyResultSet trimTo(final ActiveRegion trimmedActiveRegion) {
+
+        final Map<Haplotype,Haplotype> originalByTrimmedHaplotypes = calculateOriginalByTrimmedHaplotypes(trimmedActiveRegion);
         if (refHaplotype == null) throw new IllegalStateException();
         if (trimmedActiveRegion == null) throw new NullPointerException();
         final AssemblyResultSet result = new AssemblyResultSet();
@@ -129,6 +142,53 @@ public  class AssemblyResultSet {
             throw new IllegalStateException("missing reference haplotype in the trimmed set");
         result.wasTrimmed = true;
         return result;
+    }
+
+    private Map<Haplotype, Haplotype> calculateOriginalByTrimmedHaplotypes(final ActiveRegion trimmedActiveRegion) {
+        if ( debug ) logger.info("Trimming active region " + getRegionForGenotyping() + " with " + getHaplotypeCount() + " haplotypes");
+
+        final List<Haplotype> haplotypeList = getHaplotypeList();
+
+        // trim down the haplotypes
+        final Map<Haplotype,Haplotype> originalByTrimmedHaplotypes = new HashMap<>();
+
+        for ( final Haplotype h : haplotypeList ) {
+            final Haplotype trimmed = h.trim(trimmedActiveRegion.getExtendedLoc());
+
+            if ( trimmed != null ) {
+                if (originalByTrimmedHaplotypes.containsKey(trimmed)) {
+                    if (trimmed.isReference()) {
+                        originalByTrimmedHaplotypes.remove(trimmed);
+                        originalByTrimmedHaplotypes.put(trimmed, h);
+                    }
+                } else
+                    originalByTrimmedHaplotypes.put(trimmed,h);
+            } else if (h.isReference())
+                throw new IllegalStateException("trimming eliminates the reference haplotype");
+            else if ( debug ) {
+                logger.info("Throwing out haplotype " + h + " with cigar " + h.getCigar() +
+                        " because it starts with or ends with an insertion or deletion when trimmed to " +
+                        trimmedActiveRegion.getExtendedLoc());
+            }
+        }
+
+        // create the final list of trimmed haplotypes
+        final List<Haplotype> trimmedHaplotypes = new ArrayList<>(originalByTrimmedHaplotypes.keySet());
+
+        // resort the trimmed haplotypes.
+        Collections.sort(trimmedHaplotypes,new HaplotypeSizeAndBaseComparator());
+        final Map<Haplotype,Haplotype> sortedOriginalByTrimmedHaplotypes = new LinkedHashMap<>(trimmedHaplotypes.size());
+        for (final Haplotype trimmed : trimmedHaplotypes)
+            sortedOriginalByTrimmedHaplotypes.put(trimmed,originalByTrimmedHaplotypes.get(trimmed));
+
+
+        if ( debug ) logger.info("Trimmed region to " + trimmedActiveRegion.getLocation() + " size " +
+                trimmedActiveRegion.getLocation().size() + " reduced number of haplotypes from " +
+                haplotypeList.size() + " to only " + trimmedHaplotypes.size());
+        if ( debug )
+            for ( final Haplotype remaining: trimmedHaplotypes )
+                logger.info("Remains: " + remaining + " cigar " + remaining.getCigar());
+        return sortedOriginalByTrimmedHaplotypes;
     }
 
     /**
@@ -463,4 +523,21 @@ public  class AssemblyResultSet {
             throw new IllegalStateException("the assembly-result-set already have a reference haplotype that is different");
     }
 
+    /**
+     * Returns a sorted set of variant events that best explain the haplotypes found by the assembly
+     * across kmerSizes.
+     *
+     * <p/>
+     * The result is sorted incrementally by location.
+     *
+     * @return never {@code null}, but perhaps an empty collection.
+     */
+    public TreeSet<VariantContext> getVariationEvents() {
+        if (variationEvents == null) {
+            final List<Haplotype> haplotypeList = getHaplotypeList();
+            EventMap.buildEventMapsForHaplotypes(haplotypeList,fullReferenceWithPadding,paddedReferenceLoc,debug);
+            variationEvents = EventMap.getAllVariantContexts(haplotypeList);
+        }
+        return variationEvents;
+    }
 }

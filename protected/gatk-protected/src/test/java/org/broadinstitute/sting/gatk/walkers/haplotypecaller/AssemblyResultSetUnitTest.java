@@ -146,7 +146,7 @@ public class AssemblyResultSetUnitTest extends BaseTest
         for (final Haplotype h : haplotypesAndResultSets.keySet())
             originalHaplotypesByTrimmed.put(h.trim(newRegion.getExtendedLoc()), h);
 
-        final AssemblyResultSet trimmed = subject.trimTo(newRegion, originalHaplotypesByTrimmed);
+        final AssemblyResultSet trimmed = subject.trimTo(newRegion);
 
         Assert.assertFalse(subject.wasTrimmed());
         Assert.assertTrue(trimmed.wasTrimmed());

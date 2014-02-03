@@ -46,7 +46,6 @@
 package org.broadinstitute.sting.utils.collections;
 
 import com.google.java.contract.Requires;
-import com.sun.istack.internal.NotNull;
 
 import java.lang.reflect.Array;
 import java.util.*;
@@ -264,7 +263,7 @@ public class CountSet implements Cloneable, Set<Integer> {
      * @return <code>true</code> if <code>value</code> is inside the set, <code>false</code> otherwise.
      */
     public boolean contains(final int value) {
-        return Arrays.binarySearch(elements,0,size,value) >= 0;
+        return Arrays.binarySearch(elements, 0, size, value) >= 0;
     }
 
     /**
@@ -300,14 +299,13 @@ public class CountSet implements Cloneable, Set<Integer> {
             return false;  //To change body of implemented methods use File | Settings | File Templates.
     }
 
+
     @Override
-    @NotNull
     public Iterator<Integer> iterator() {
         return new MyIterator();
     }
 
     @Override
-    @NotNull
     public Object[] toArray() {
         final Integer[] result = new Integer[size];
         for (int i = 0; i < size; i++)
@@ -316,7 +314,6 @@ public class CountSet implements Cloneable, Set<Integer> {
     }
 
     @Override
-    @NotNull
     @SuppressWarnings("unchecked")
     public <T> T[] toArray(final T[] a) {
         if (a == null)
@@ -328,7 +325,7 @@ public class CountSet implements Cloneable, Set<Integer> {
             throw new ArrayStoreException();
 
         @SuppressWarnings("unchecked")
-        final T[] dest = (a.length < size) ? (T[]) (Object[]) Array.newInstance(componentClass, size) : a;
+        final T[] dest = (a.length < size) ? (T[]) Array.newInstance(componentClass, size) : a;
 
         for (int i = 0; i < size; i++)
             dest[i] = (T) (Integer) elements[i];
@@ -339,7 +336,6 @@ public class CountSet implements Cloneable, Set<Integer> {
      * Copies the content of the set into an integer array. The result can be freely modified by the invoker.
      * @return never <code>null</code> but a zero-length array if the set is empty.
      */
-    @NotNull
     public int[] toIntArray() {
         return Arrays.copyOfRange(elements,0,size);
     }
@@ -470,7 +466,6 @@ public class CountSet implements Cloneable, Set<Integer> {
      * Returns a copy of this set which can be changed without modifying the original one.
      * @return never {@code null}.
      */
-    @NotNull
     @SuppressWarnings("all")
     public CountSet clone() {
         return new CountSet(this);

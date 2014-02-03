@@ -46,8 +46,6 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-
-import com.sun.istack.internal.NotNull;
 import net.sf.samtools.SAMRecord;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 
@@ -82,6 +80,7 @@ public class KmerSequence implements List<Kmer> {
      * @param hap the haplotype to represent as a sequence of kmers.
      * @param kmerSize the kmer size.
      */
+    @SuppressWarnings("unused")
     public KmerSequence(final Haplotype hap, final int kmerSize) {
         this(hap.getBases(), kmerSize);
     }
@@ -95,7 +94,6 @@ public class KmerSequence implements List<Kmer> {
     public KmerSequence(final byte[] sequence, final int kmerSize) {
         this(sequence,0,Math.max(0,sequence.length - kmerSize + 1),kmerSize, sequence.length);
     }
-
 
     /**
      * Creates a kmer sequence out of a range of a byte array
@@ -186,7 +184,6 @@ public class KmerSequence implements List<Kmer> {
     }
 
     @Override
-    @NotNull
     public Iterator<Kmer> iterator() {
         return new Iterator<Kmer>() {
 
@@ -209,16 +206,14 @@ public class KmerSequence implements List<Kmer> {
         };
     }
 
-    @NotNull
     @Override
     public Object[] toArray() {
         return toArray(new Kmer[size()]);
     }
 
     @Override
-    @NotNull
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(@NotNull final T[] a) {
+    public <T> T[] toArray(final T[] a) {
         if (a == null) {
             throw new IllegalArgumentException();
         } else if (!a.getClass().getComponentType().isAssignableFrom(Kmer.class)) {
@@ -261,17 +256,17 @@ public class KmerSequence implements List<Kmer> {
     }
 
     @Override
-    public boolean addAll(final int index, @NotNull final Collection<? extends Kmer> c) {
+    public boolean addAll(final int index, final Collection<? extends Kmer> c) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public boolean removeAll(@NotNull final Collection<?> c) {
+    public boolean removeAll(final Collection<?> c) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public boolean retainAll(@NotNull final Collection<?> c) {
+    public boolean retainAll(final Collection<?> c) {
         throw new UnsupportedOperationException();
     }
 
@@ -352,19 +347,16 @@ public class KmerSequence implements List<Kmer> {
     }
 
     @Override
-    @NotNull
     public ListIterator<Kmer> listIterator() {
         return new MyListIterator(0);
     }
 
     @Override
-    @NotNull
     public ListIterator<Kmer> listIterator(final int index) {
         return new MyListIterator(index);
     }
 
     @Override
-    @NotNull
     public List<Kmer> subList(final int fromIndex, final int toIndex) {
         return subsequence(fromIndex,toIndex);
     }
@@ -373,7 +365,6 @@ public class KmerSequence implements List<Kmer> {
      * Returns the byte array representation of the kmer sequence.
      * @return never {@code null}.
      */
-    @NotNull
     public byte[] getBytes() {
         if (start == 0 && rawLength == sequence.length)
             return sequence;

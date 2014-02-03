@@ -214,6 +214,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected DbsnpArgumentCollection dbsnp = new DbsnpArgumentCollection();
     private double log10GlobalReadMismappingRate;
 
+    /**
+     * Active region trimmer reference.
+     */
+    @ArgumentCollection
+    protected ActiveRegionTrimmer trimmer = new ActiveRegionTrimmer();
+
     public RodBinding<VariantContext> getDbsnpRodBinding() { return dbsnp.dbsnp; }
 
     /**
@@ -447,10 +453,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected boolean debugGraphTransformations = false;
 
     @Hidden
-    @Argument(fullName="dontTrimActiveRegions", shortName="dontTrimActiveRegions", doc="If specified, we will not trim down the active region from the full region (active + extension) to just the active interval for genotyping", required = false)
-    protected boolean dontTrimActiveRegions = false;
-
-    @Hidden
     @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="If specified, we will not analyze soft clipped bases in the reads", required = false)
     protected boolean dontUseSoftClippedBases = false;
 
@@ -478,28 +480,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Hidden
     @Argument(fullName="minObservationsForKmerToBeSolid", shortName="minObservationsForKmerToBeSolid", doc = "A k-mer must be seen at least these times for it considered to be solid", required=false)
     protected int minObservationsForKmerToBeSolid = 20;
-
-    /**
-     * the maximum extent into the full active region extension that we're willing to go in genotyping our events
-     */
-    @Hidden
-    @Argument(fullName="maxDiscARExtension", shortName="maxDiscARExtension", doc = "the maximum extent into the full active region extension that we're willing to go in genotyping our events for discovery", required=false)
-    protected int MAX_DISCOVERY_ACTIVE_REGION_EXTENSION = 25;
-
-    @Hidden
-    @Argument(fullName="maxGGAARExtension", shortName="maxGGAARExtension", doc = "the maximum extent into the full active region extension that we're willing to go in genotyping our events for GGA mode", required=false)
-    protected int MAX_GGA_ACTIVE_REGION_EXTENSION = 300;
-
-    /**
-     * Include at least this many bases around an event for calling it
-     */
-    @Hidden
-    @Argument(fullName="paddingAroundIndels", shortName="paddingAroundIndels", doc = "Include at least this many bases around an event for calling indels", required=false)
-    protected int PADDING_AROUND_OTHERS_FOR_CALLING = 150;
-
-    @Hidden
-    @Argument(fullName="paddingAroundSNPs", shortName="paddingAroundSNPs", doc = "Include at least this many bases around an event for calling snps", required=false)
-    protected int PADDING_AROUND_SNPS_FOR_CALLING = 20;
 
     /**
      * Which PCR indel error model should we use when calculating likelihoods?  If NONE is selected, then the default base
@@ -532,8 +512,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     // reference base padding size
     private static final int REFERENCE_PADDING = 500;
-
-    private ActiveRegionTrimmer trimmer = null;
 
     private final static int maxReadsInRegionPerSample = 1000; // TODO -- should be an argument
     private final static int minReadsPerAlignmentStart = 5; // TODO -- should be an argument
@@ -675,9 +653,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             haplotypeBAMWriter = HaplotypeBAMWriter.create(bamWriterType, bamWriter, getToolkit().getSAMFileHeader());
         }
 
-        trimmer = new ActiveRegionTrimmer(DEBUG, PADDING_AROUND_SNPS_FOR_CALLING, PADDING_AROUND_OTHERS_FOR_CALLING,
-                UAC.GenotypingMode.equals(GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES) ? MAX_GGA_ACTIVE_REGION_EXTENSION : MAX_DISCOVERY_ACTIVE_REGION_EXTENSION,
-                getToolkit().getGenomeLocParser());
+        trimmer.initialize(getToolkit().getGenomeLocParser(), DEBUG,
+                UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES,emitReferenceConfidence());
     }
 
     private void initializeReferenceConfidenceModel(final Set<String> samples, final Set<VCFHeaderLine> headerInfo) {
@@ -691,7 +668,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                         getToolkit().getArguments().variant_index_parameter != OPTIMAL_GVCF_INDEX_PARAMETER) {
                     throw new UserException.GVCFIndexException(OPTIMAL_GVCF_INDEX_TYPE, OPTIMAL_GVCF_INDEX_PARAMETER);
                 }
-                SCAC.STANDARD_CONFIDENCE_FOR_EMITTING = 0.0;
 
                 try {
                     vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands);
@@ -799,10 +775,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // we're benchmarking ART and/or the active region determination code in the HC, just leave without doing any work
             return NO_CALLS;
 
-        if( !originalActiveRegion.isActive() ) {
+        if( !originalActiveRegion.isActive() )
             // Not active so nothing to do!
             return referenceModelForNoVariation(originalActiveRegion, true);
-        }
 
         final List<VariantContext> activeAllelesToGenotype = new ArrayList<>();
         if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
@@ -819,20 +794,41 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         // run the local assembler, getting back a collection of information on how we should proceed
-        final AssemblyResultSet assemblyResult = assembleReads(originalActiveRegion, activeAllelesToGenotype);
+        final AssemblyResultSet untrimmedAssemblyResult = assembleReads(originalActiveRegion, activeAllelesToGenotype);
+
+        final TreeSet<VariantContext> allVariationEvents = untrimmedAssemblyResult.getVariationEvents();
+        // TODO - line bellow might be unecessary : it might be that assemblyResult will always have those alleles anyway
+        // TODO - so check and remove if that is the case:
+        allVariationEvents.addAll(activeAllelesToGenotype);
+
+        final ActiveRegionTrimmer.Result trimmingResult = trimmer.trim(originalActiveRegion,allVariationEvents);
+
+        if (!trimmingResult.isVariationPresent())
+            return referenceModelForNoVariation(originalActiveRegion,false);
+
+        final AssemblyResultSet assemblyResult =
+                trimmingResult.needsTrimming() ? untrimmedAssemblyResult.trimTo(trimmingResult.getCallableRegion()) : untrimmedAssemblyResult;
+
         final ActiveRegion regionForGenotyping = assemblyResult.getRegionForGenotyping();
 
-        // abort early if something is out of the acceptable range
-        if( ! assemblyResult.isVariationPresent() ) {
-            return referenceModelForNoVariation(originalActiveRegion, false);
-        } // only the reference haplotype remains so nothing else to do!
-
-        if (dontGenotype) return NO_CALLS; // user requested we not proceed
-
         // filter out reads from genotyping which fail mapping quality based criteria
+        //TODO - why don't do this before any assembly is done? Why not just once at the beginning of this method
+        //TODO - on the originalActiveRegion?
+        //TODO - if you move this up you might have to consider to change referenceModelForNoVariation
+        //TODO - that does also filter reads.
         final Collection<GATKSAMRecord> filteredReads = filterNonPassingReads( regionForGenotyping );
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
+        // abort early if something is out of the acceptable range
+        // TODO is this ever true at this point??? perhaps GGA. Need to check.
+        if( ! assemblyResult.isVariationPresent() )
+            return referenceModelForNoVariation(originalActiveRegion, false);
+
+        // For sure this is not true if gVCF is on.
+        if (dontGenotype) return NO_CALLS; // user requested we not proceed
+
+
+        // TODO is this ever true at this point??? perhaps GGA. Need to check.
         if( regionForGenotyping.size() == 0 ) {
             // no reads remain after filtering so nothing else to do!
             return referenceModelForNoVariation(originalActiveRegion, false);
@@ -881,10 +877,20 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             if ( !containsCalls(calledHaplotypes) ) {
                 // no called all of the potential haplotypes
                 return referenceModelForNoVariation(originalActiveRegion, false);
-            } else
-                return referenceConfidenceModel.calculateRefConfidence(assemblyResult.getReferenceHaplotype(),
+            } else {
+                final List<VariantContext> result = new LinkedList<>();
+                // output left-flanking non-variant section:
+                if (trimmingResult.hasLeftFlankingRegion())
+                    result.addAll(referenceModelForNoVariation(trimmingResult.nonVariantLeftFlankRegion(),false));
+                // output variant containing region.
+                result.addAll(referenceConfidenceModel.calculateRefConfidence(assemblyResult.getReferenceHaplotype(),
                         calledHaplotypes.getCalledHaplotypes(), assemblyResult.getPaddedReferenceLoc(), regionForGenotyping,
-                        stratifiedReadMap, calledHaplotypes.getCalls());
+                        stratifiedReadMap, calledHaplotypes.getCalls()));
+                // output right-flanking non-variant section:
+                if (trimmingResult.hasRightFlankingRegion())
+                    result.addAll(referenceModelForNoVariation(trimmingResult.nonVariantRightFlankRegion(),false));
+                return result;
+            }
         } else {
             return calledHaplotypes.getCalls();
         }
@@ -925,17 +931,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         try {
             final AssemblyResultSet assemblyResultSet = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype,readErrorCorrector );
             assemblyResultSet.debugDump(logger);
+            return assemblyResultSet;
 
-            if (  ! dontTrimActiveRegions ) {
-                final ActiveRegion trimmedActiveRegion = trimActiveRegion(assemblyResultSet,activeAllelesToGenotype);
-                if (trimmedActiveRegion != null)
-                    return trimAssemblyResultSet(assemblyResultSet, trimmedActiveRegion);
-                else {
-                    assemblyResultSet.resetVariationPresent();
-                    return assemblyResultSet;
-                }
-            } else
-                return assemblyResultSet;
         } catch ( final Exception e ) {
             // Capture any exception that might be thrown, and write out the assembly failure BAM if requested
             if ( captureAssemblyFailureBAM ) {
@@ -969,17 +966,20 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     private List<VariantContext> referenceModelForNoVariation(final ActiveRegion region, final boolean needsToBeFinalized) {
         if ( emitReferenceConfidence() ) {
-            if ( needsToBeFinalized ) finalizeActiveRegion(region);
-            filterNonPassingReads(region); // TODO -- remove when filtering is done in finalizeActiveRegion
+            //TODO - why the activeRegion cannot manage its own one-time finalization and filtering?
+            //TODO - perhaps we can remove the last parameter of this method and the three lines bellow?
+            if ( needsToBeFinalized )
+                finalizeActiveRegion(region);
+            filterNonPassingReads(region);
+
             final GenomeLoc paddedLoc = region.getExtendedLoc();
             final Haplotype refHaplotype = createReferenceHaplotype(region, paddedLoc);
             final List<Haplotype> haplotypes = Collections.singletonList(refHaplotype);
             return referenceConfidenceModel.calculateRefConfidence(refHaplotype, haplotypes,
                     paddedLoc, region, createDummyStratifiedReadMap(refHaplotype, samplesList, region),
                     Collections.<VariantContext>emptyList());
-        } else {
+        } else
             return NO_CALLS;
-        }
     }
 
     /**
@@ -1004,91 +1004,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         return map;
-    }
-
-    private ActiveRegion trimActiveRegion(final AssemblyResultSet resultSet, final Collection<VariantContext> activeAllelesToGenotype) {
-        if ( DEBUG ) logger.info("Trimming active region " + resultSet.getRegionForGenotyping() + " with " + resultSet.getHaplotypeCount() + " haplotypes");
-        final List<Haplotype> haplotypeList = resultSet.getHaplotypeList();
-        final ActiveRegion originalGenotypingRegion = resultSet.getRegionForGenotyping();
-        EventMap.buildEventMapsForHaplotypes(haplotypeList, resultSet.getFullReferenceWithPadding(), resultSet.getPaddedReferenceLoc(), DEBUG);
-        final TreeSet<VariantContext> allVariantsWithinFullActiveRegion = EventMap.getAllVariantContexts(haplotypeList);
-        allVariantsWithinFullActiveRegion.addAll(activeAllelesToGenotype);
-
-        final ActiveRegion trimmedActiveRegion = trimmer.trimRegion(originalGenotypingRegion, allVariantsWithinFullActiveRegion,false);
-        if ( trimmedActiveRegion == null ) {
-            // there were no variants found within the active region itself, so just return null
-            if ( DEBUG ) logger.info("No variation found within the active region, skipping the region :-)");
-            return null;
-        }
-
-        // trim down the reads and add them to the trimmed active region
-        final List<GATKSAMRecord> trimmedReads = new ArrayList<>(originalGenotypingRegion.getReads().size());
-        for( final GATKSAMRecord read : originalGenotypingRegion.getReads() ) {
-            final GATKSAMRecord clippedRead = ReadClipper.hardClipToRegion( read,
-                    trimmedActiveRegion.getExtendedLoc().getStart(), trimmedActiveRegion.getExtendedLoc().getStop() );
-            if( trimmedActiveRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 )
-                trimmedReads.add(clippedRead);
-        }
-        trimmedActiveRegion.clearReads();
-        trimmedActiveRegion.addAll(ReadUtils.sortReadsByCoordinate(trimmedReads));
-
-        return trimmedActiveRegion;
-    }
-
-
-    /**
-     * Trims a assembly result set according to the active-region trimming.
-     *
-     * @param resultSet the original assembly result set.
-     * @param trimmedActiveRegion the trimmed active region to trim to.
-     * @return the assembly result set trimmed.
-     */
-    private AssemblyResultSet trimAssemblyResultSet(final AssemblyResultSet resultSet, final ActiveRegion trimmedActiveRegion) {
-        if ( DEBUG ) logger.info("Trimming active region " + resultSet.getRegionForGenotyping() + " with " + resultSet.getHaplotypeCount() + " haplotypes");
-
-        final List<Haplotype> haplotypeList = resultSet.getHaplotypeList();
-
-        // trim down the haplotypes
-        final Map<Haplotype,Haplotype> originalByTrimmedHaplotypes = new HashMap<>();
-
-        for ( final Haplotype h : haplotypeList ) {
-            final Haplotype trimmed = h.trim(trimmedActiveRegion.getExtendedLoc());
-
-            if ( trimmed != null ) {
-                if (originalByTrimmedHaplotypes.containsKey(trimmed)) {
-                    if (trimmed.isReference()) {
-                        originalByTrimmedHaplotypes.remove(trimmed);
-                        originalByTrimmedHaplotypes.put(trimmed, h);
-                    }
-                } else
-                    originalByTrimmedHaplotypes.put(trimmed,h);
-            } else if (h.isReference())
-                throw new IllegalStateException("trimming eliminates the reference haplotype");
-            else if ( DEBUG ) {
-                logger.info("Throwing out haplotype " + h + " with cigar " + h.getCigar() +
-                        " because it starts with or ends with an insertion or deletion when trimmed to " +
-                        trimmedActiveRegion.getExtendedLoc());
-            }
-        }
-
-        // create the final list of trimmed haplotypes
-        final List<Haplotype> trimmedHaplotypes = new ArrayList<>(originalByTrimmedHaplotypes.keySet());
-
-        // resort the trimmed haplotypes.
-        Collections.sort(trimmedHaplotypes,new HaplotypeSizeAndBaseComparator());
-        final Map<Haplotype,Haplotype> sortedOriginalByTrimmedHaplotypes = new LinkedHashMap<>(trimmedHaplotypes.size());
-        for (final Haplotype trimmed : trimmedHaplotypes)
-            sortedOriginalByTrimmedHaplotypes.put(trimmed,originalByTrimmedHaplotypes.get(trimmed));
-
-
-        if ( DEBUG ) logger.info("Trimmed region to " + trimmedActiveRegion.getLocation() + " size " +
-                trimmedActiveRegion.getLocation().size() + " reduced number of haplotypes from " +
-                haplotypeList.size() + " to only " + trimmedHaplotypes.size());
-        if ( DEBUG )
-            for ( final Haplotype remaining: trimmedHaplotypes )
-                logger.info("Remains: " + remaining + " cigar " + remaining.getCigar());
-
-        return resultSet.trimTo(trimmedActiveRegion,sortedOriginalByTrimmedHaplotypes);
     }
 
     //---------------------------------------------------------------------------------------------------------------

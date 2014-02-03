@@ -45,8 +45,6 @@
 */
 package org.broadinstitute.sting.utils;
 
-import com.sun.istack.internal.NotNull;
-
 import java.util.Random;
 
 /**
@@ -70,6 +68,7 @@ public class RandomDNA {
      *     described in {@link Random} documentation.
      * </p>
      */
+    @SuppressWarnings("unused")
     public RandomDNA() {
         random = new Random();
     }
@@ -115,7 +114,6 @@ public class RandomDNA {
      * @throws IllegalArgumentException if {@code size} is negative.
      * @return never {@code null}.
      */
-    @NotNull
     public byte[] nextBases(final int size) {
         if (size < 0) throw new IllegalArgumentException("the size cannot be negative");
         final byte[] result = new byte[size];
