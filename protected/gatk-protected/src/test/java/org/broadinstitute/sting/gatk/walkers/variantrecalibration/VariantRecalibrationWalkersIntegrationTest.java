@@ -109,7 +109,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         return new Object[][]{ {lowPassPlusExomes} };
     }
 
-    @Test(dataProvider = "VRTest")
+    @Test(dataProvider = "VRTest", enabled = false)
     public void testVariantRecalibrator(VRTest params) {
         //System.out.printf("PARAMS FOR %s is %s%n", vcf, clusterFile);
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(

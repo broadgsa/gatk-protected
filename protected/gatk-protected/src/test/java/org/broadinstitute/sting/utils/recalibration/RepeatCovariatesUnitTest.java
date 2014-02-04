@@ -136,7 +136,7 @@ public class RepeatCovariatesUnitTest {
      * Build synthetic reads with random content made up of tandem repeats, record computed Repeat Unit and # repeats and see if
      * they match with read context
      */
-    @Test(enabled = true)
+    @Test(enabled = false)
     public void testManyObservations() {
         final int NUM_UNITS = 10;
         final int MAX_REPEAT_UNIT_LENGTH = RAC.MAX_STR_UNIT_LENGTH;
