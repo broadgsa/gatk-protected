@@ -129,7 +129,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         executeTest("testVariantRecalibrator-"+params.inVCF, spec).getFirst();
     }
 
-    @Test(dataProvider = "VRTest",dependsOnMethods="testVariantRecalibrator")
+    @Test(dataProvider = "VRTest",dependsOnMethods="testVariantRecalibrator", enabled = false)
     public void testApplyRecalibration(VRTest params) {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b37KGReference +
