@@ -92,6 +92,11 @@ public class SelectVariantsParallelIntegrationTest extends WalkerTest {
                 final String args = "-select 'DP > 30' -V " + testfile;
                 new ParallelSelectTestProvider(b37KGReference, args, "c64b45a14d41b1e5cddbe036b47e7519", nt);
             }
+            { // AD and PL decoding race condition
+                final String testfile = privateTestDir + "race_condition.vcf";
+                final String args = "-env -sn SAMPLE -L 1:1-10,000,000 -V " + testfile;
+                new ParallelSelectTestProvider(b37KGReference, args, "62e6156387d6e91bd2b08ef649cb1129", nt);
+            }
         }
 
         return ParallelSelectTestProvider.getTests(ParallelSelectTestProvider.class);
