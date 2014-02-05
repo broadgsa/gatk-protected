@@ -69,6 +69,7 @@ import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.*;
 
@@ -201,10 +202,11 @@ public class CombineReferenceCalculationVariants extends RodWalker<VariantContex
         if ( combinedVC == null ) throw new IllegalArgumentException("combinedVC cannot be null");
 
         VariantContext result = combinedVC;
+        final Map<String,Object> originalAttributes = combinedVC.getAttributes();
 
         // only re-genotype polymorphic sites
         if ( combinedVC.isVariant() )
-            result = genotypingEngine.calculateGenotypes(result);
+            result = new VariantContextBuilder(genotypingEngine.calculateGenotypes(result)).attributes(originalAttributes).make();
 
         // if it turned monomorphic and we don't want such sites, quit
         if ( result == null || (!INCLUDE_NON_VARIANTS && result.isMonomorphicInSamples()) )
