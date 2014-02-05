@@ -57,16 +57,28 @@ public class CombineReferenceCalculationVariantsIntegrationTest extends WalkerTe
         return "-T CombineReferenceCalculationVariants --no_cmdline_in_header -L 1:1-50,000,000 -o %s -R " + ref + args;
     }
 
-    // TODO -- enable this test (and create others) once the Haplotype Caller produces appropriate gVCFs (with <NON-REF> for every record)
-    @Test(enabled = false)
+    @Test(enabled = true)
     public void combineSingleSamplePipelineGVCF() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
                         " -V:sample2 " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
-                        " -L 20:10,000,000-10,001,000", b37KGReference),
+                        " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Arrays.asList("0413f0725fc5ec3a4f1ee246f6cb3a2a"));
+                Arrays.asList("66e3b512de9de64b03c708386736cc2f"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
+
+    @Test(enabled = true)
+    public void combineSingleSamplePipelineGVCF_includeNonVariants() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
+                        " -V:sample2 " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
+                        " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
+                        " -inv -L 20:10,000,000-10,010,000", b37KGReference),
+                1,
+                Arrays.asList("de957075796512cb9f333f77515e97d5"));
+        executeTest("combineSingleSamplePipelineGVCF", spec);
+    }
+
 }
