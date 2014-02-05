@@ -42,18 +42,8 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>sting-utils</artifactId>
-            <version>${project.version}</version>
-            <classifier>test-utils</classifier>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>${project.groupId}</groupId>
             <artifactId>gatk-framework</artifactId>
             <version>${project.version}</version>
-            <classifier>test-utils</classifier>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
