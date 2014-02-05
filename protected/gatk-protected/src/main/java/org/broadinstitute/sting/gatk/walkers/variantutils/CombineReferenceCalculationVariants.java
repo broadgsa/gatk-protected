@@ -153,9 +153,12 @@ public class CombineReferenceCalculationVariants extends RodWalker<VariantContex
     public void initialize() {
         // take care of the VCF headers
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit());
-        final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
         headerLines.addAll(Arrays.asList(ChromosomeCountConstants.descriptions));
+        if ( dbsnp != null && dbsnp.dbsnp.isBound() )
+            VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
+
+        final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
         final VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
         vcfWriter.writeHeader(vcfHeader);
 
@@ -204,7 +207,7 @@ public class CombineReferenceCalculationVariants extends RodWalker<VariantContex
             result = genotypingEngine.calculateGenotypes(result);
 
         // if it turned monomorphic and we don't want such sites, quit
-        if ( !INCLUDE_NON_VARIANTS && result.isMonomorphicInSamples() )
+        if ( result == null || (!INCLUDE_NON_VARIANTS && result.isMonomorphicInSamples()) )
             return null;
 
         // re-annotate it
