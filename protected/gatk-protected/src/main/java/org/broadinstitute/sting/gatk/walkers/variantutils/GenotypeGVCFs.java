@@ -79,7 +79,7 @@ import java.util.*;
  * Combines gVCF records that were produced by the Haplotype Caller from single sample sources.
  *
  * <p>
- * CombineReferenceCalculationVariants combines gVCF records that were produced as part of the "single sample discovery"
+ * GenotypeGVCFs combines gVCF records that were produced as part of the "single sample discovery"
  * pipeline using the '-ERC GVCF' mode of the Haplotype Caller.  This tools performs the multi-sample joint aggregation
  * step and merges the records together in a sophisticated manner.
  *
@@ -101,7 +101,7 @@ import java.util.*;
  * <pre>
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \
- *   -T CombineReferenceCalculationVariants \
+ *   -T GenotypeGVCFs \
  *   --variant input1.vcf \
  *   --variant input2.vcf \
  *   -o output.vcf
@@ -110,7 +110,7 @@ import java.util.*;
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
 @Reference(window=@Window(start=-10,stop=10))
-public class CombineReferenceCalculationVariants extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
+public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
 
     /**
      * The VCF files to merge together

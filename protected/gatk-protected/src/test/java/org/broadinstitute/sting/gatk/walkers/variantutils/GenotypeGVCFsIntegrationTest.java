@@ -51,10 +51,10 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 
-public class CombineReferenceCalculationVariantsIntegrationTest extends WalkerTest {
+public class GenotypeGVCFsIntegrationTest extends WalkerTest {
 
     private static String baseTestString(String args, String ref) {
-        return "-T CombineReferenceCalculationVariants --no_cmdline_in_header -L 1:1-50,000,000 -o %s -R " + ref + args;
+        return "-T GenotypeGVCFs --no_cmdline_in_header -L 1:1-50,000,000 -o %s -R " + ref + args;
     }
 
     @Test(enabled = true)
