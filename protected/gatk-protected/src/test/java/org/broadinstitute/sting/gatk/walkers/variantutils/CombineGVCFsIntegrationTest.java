@@ -47,38 +47,122 @@
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 
-public class GenotypeGVCFsIntegrationTest extends WalkerTest {
-
-    private static String baseTestString(String args, String ref) {
-        return "-T GenotypeGVCFs --no_cmdline_in_header -L 1:1-50,000,000 -o %s -R " + ref + args;
+public class CombineGVCFsIntegrationTest extends WalkerTest {
+    public static String baseTestString(String args) {
+        return "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V "
+                + privateTestDir + "gvcfExample1.vcf -V " + privateTestDir + "gvcfExample2.vcf" + args;
     }
 
-    @Test(enabled = true)
-    public void combineSingleSamplePipelineGVCF() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
-                        " -V:sample2 " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
-                        " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
-                        " -L 20:10,000,000-20,000,000", b37KGReference),
-                1,
-                Arrays.asList("10670f6f04d3d662aa38c20ac74af35c"));
-        executeTest("combineSingleSamplePipelineGVCF", spec);
+    @Test
+    public void testOneStartsBeforeTwoAndEndsAfterwards() throws Exception {
+        final String cmd = baseTestString(" -L 1:69485-69509");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
+        spec.disableShadowBCF();
+        final File gVCF = executeTest("testOneStartsBeforeTwoAndEndsAfterwards", spec).first.get(0);
+        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
+
+        Assert.assertEquals(allVCs.size(), 2, "Observed: " + allVCs);
+
+        final VariantContext first = allVCs.get(0);
+        Assert.assertEquals(first.getStart(), 69491);
+        Assert.assertEquals(first.getEnd(), 69497);
+        Assert.assertEquals(first.getGenotypes().size(), 2);
+        Assert.assertTrue(first.getGenotype("NA1").isCalled());
+        Assert.assertTrue(first.getGenotype("NA2").isNoCall());
+
+        final VariantContext second = allVCs.get(1);
+        Assert.assertEquals(second.getStart(), 69498);
+        Assert.assertEquals(second.getEnd(), 69506);
+        Assert.assertEquals(second.getGenotypes().size(), 2);
+        Assert.assertTrue(second.getGenotype("NA1").isCalled());
+        Assert.assertTrue(second.getGenotype("NA2").isCalled());
     }
 
-    @Test(enabled = true)
-    public void combineSingleSamplePipelineGVCF_includeNonVariants() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
-                        " -V:sample2 " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
-                        " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
-                        " -inv -L 20:10,000,000-10,010,000", b37KGReference),
-                1,
-                Arrays.asList("de957075796512cb9f333f77515e97d5"));
-        executeTest("combineSingleSamplePipelineGVCF", spec);
+    @Test
+    public void testTwoSpansManyBlocksInOne() throws Exception {
+        final String cmd = baseTestString(" -L 1:69512-69634");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
+        spec.disableShadowBCF();
+        final File gVCF = executeTest("testTwoSpansManyBlocksInOne", spec).first.get(0);
+        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
+
+        Assert.assertEquals(allVCs.size(), 5);
     }
 
+    @Test
+    public void testOneHasAltAndTwoHasNothing() throws Exception {
+        final String cmd = baseTestString(" -L 1:69511");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
+        spec.disableShadowBCF();
+        final File gVCF = executeTest("testOneHasAltAndTwoHasNothing", spec).first.get(0);
+        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
+
+        Assert.assertEquals(allVCs.size(), 1);
+
+        final VariantContext first = allVCs.get(0);
+        Assert.assertEquals(first.getStart(), 69511);
+        Assert.assertEquals(first.getEnd(), 69511);
+        Assert.assertEquals(first.getGenotypes().size(), 2);
+        Assert.assertTrue(first.getGenotype("NA1").isCalled());
+        Assert.assertTrue(first.getGenotype("NA2").isNoCall());
+    }
+
+    @Test
+    public void testOneHasAltAndTwoHasRefBlock() throws Exception {
+        final String cmd = baseTestString(" -L 1:69635");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
+        spec.disableShadowBCF();
+        final File gVCF = executeTest("testOneHasAltAndTwoHasRefBlock", spec).first.get(0);
+        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
+
+        Assert.assertEquals(allVCs.size(), 1);
+
+        final VariantContext first = allVCs.get(0);
+        Assert.assertEquals(first.getStart(), 69635);
+        Assert.assertEquals(first.getEnd(), 69635);
+        Assert.assertEquals(first.getNAlleles(), 3);
+        Assert.assertEquals(first.getGenotypes().size(), 2);
+        Assert.assertTrue(first.getGenotype("NA1").isHet());
+    }
+
+    @Test
+    public void testOneHasDeletionAndTwoHasRefBlock() throws Exception {
+        final String cmd = baseTestString(" -L 1:69772-69783");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
+        spec.disableShadowBCF();
+        final File gVCF = executeTest("testOneHasDeletionAndTwoHasRefBlock", spec).first.get(0);
+        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
+
+        Assert.assertEquals(allVCs.size(), 2);
+
+        final VariantContext first = allVCs.get(0);
+        Assert.assertEquals(first.getStart(), 69772);
+        Assert.assertEquals(first.getEnd(), 69776);
+        Assert.assertEquals(first.getNAlleles(), 3);
+        Assert.assertEquals(first.getGenotypes().size(), 2);
+        Assert.assertTrue(first.getGenotype("NA1").isHet());
+
+        final VariantContext second = allVCs.get(1);
+        Assert.assertEquals(second.getStart(), 69773);
+        Assert.assertEquals(second.getEnd(), 69783);
+        Assert.assertEquals(second.getGenotypes().size(), 2);
+        Assert.assertTrue(second.getGenotype("NA1").isHomRef());
+    }
+
+    @Test
+    public void testMD5s() throws Exception {
+        final String cmd = baseTestString(" -L 1:69485-69791");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d90227fd360761d9534b1080b17159dd"));
+        spec.disableShadowBCF();
+        executeTest("testMD5s", spec);
+    }
 }

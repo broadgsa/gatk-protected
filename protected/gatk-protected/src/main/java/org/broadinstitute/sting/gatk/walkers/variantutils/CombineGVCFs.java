@@ -48,71 +48,73 @@ package org.broadinstitute.sting.gatk.walkers.variantutils;
 
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
-import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.Reference;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
-import org.broadinstitute.sting.gatk.walkers.TreeReducible;
 import org.broadinstitute.sting.gatk.walkers.Window;
-import org.broadinstitute.sting.gatk.walkers.annotator.ChromosomeCountConstants;
-import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.*;
 
 import java.util.*;
 
 /**
- * Genotypes any number of gVCF files that were produced by the Haplotype Caller into a single joint VCF file.
+ * Combines any number of gVCF files that were produced by the Haplotype Caller into a single joint gVCF file.
  *
  * <p>
- * GenotypeGVCFs merges gVCF records that were produced as part of the "single sample discovery" pipeline using
- * the '-ERC GVCF' mode of the Haplotype Caller.  This tool performs the multi-sample joint aggregation
- * step and merges the records together in a sophisticated manner.
+ * CombineGVCFs is meant to be used for hierarchical merging of gVCFs that will eventually be input into GenotypeGVCFs.
+ * One would use this tool when needing to genotype too large a number of individual gVCFs; instead of passing them
+ * all in to GenotypeGVCFs, one would first use CombineGVCFs on smaller batches of samples and then pass these combined
+ * gVCFs to GenotypeGVCFs.
  *
- * At all positions of the target, this tool will combine all spanning records, produce correct genotype likelihoods,
- * re-genotype the newly merged record, and then re-annotate it.
- *
- * Note that this tool cannot work with just any gVCF files - they must have been produced with the Haplotype Caller,
- * which uses a sophisticated reference model to produce accurate genotype likelihoods for every position in the target.
+ * Note that this tool cannot work with just any gVCF files - they must have been produced with the Haplotype Caller
+ * as part of the "single sample discovery" pipeline using the '-ERC GVCF' mode, which uses a sophisticated reference
+ * model to produce accurate genotype likelihoods for every position in the target.
  *
  * <h3>Input</h3>
  * <p>
- * One or more Haplotype Caller gVCFs to genotype.
+ * One or more Haplotype Caller gVCFs to combine.
  * </p>
  *
  * <h3>Output</h3>
  * <p>
- * A combined, genotyped VCF.
+ * A combined VCF.
  * </p>
  *
  * <h3>Examples</h3>
  * <pre>
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \
- *   -T GenotypeGVCFs \
+ *   -T CombineGVCFs \
  *   --variant gvcf1.vcf \
  *   --variant gvcf2.vcf \
- *   -o output.vcf
+ *   -o mergeGvcf.vcf
  * </pre>
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
-@Reference(window=@Window(start=-10,stop=10))
-public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
+@Reference(window=@Window(start=0,stop=1))
+public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, LinkedList<VariantContext>> {
+
+    protected final class PositionalState {
+        final List<VariantContext> VCs;
+        final byte[] refBases;
+        final GenomeLoc loc;
+        public PositionalState(final List<VariantContext> VCs, final byte[] refBases, final GenomeLoc loc) {
+            this.VCs = VCs;
+            this.refBases = refBases;
+            this.loc = loc;
+        }
+    }
 
     /**
      * The gVCF files to merge together
@@ -121,118 +123,161 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     public List<RodBindingCollection<VariantContext>> variantCollections;
     final private List<RodBinding<VariantContext>> variants = new ArrayList<>();
 
-    @Output(doc="File to which variants should be written")
+    @Output(doc="File to which the combined gVCF should be written")
     protected VariantContextWriter vcfWriter = null;
 
-    @Argument(fullName="includeNonVariants", shortName="inv", doc="Include loci found to be non-variant after the combining procedure", required=false)
-    public boolean INCLUDE_NON_VARIANTS = false;
-
-    /**
-     * Which annotations to recompute for the combined output VCF file.
-     */
-    @Advanced
-    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute", required=false)
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts"}));
-
-    /**
-     * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
-     * dbSNP is not used in any way for the calculations themselves.
-     */
-    @ArgumentCollection
-    protected DbsnpArgumentCollection dbsnp = new DbsnpArgumentCollection();
-    public RodBinding<VariantContext> getDbsnpRodBinding() { return dbsnp.dbsnp; }
-
-    // the genotyping engine
-    private UnifiedGenotyperEngine genotypingEngine;
-    // the annotation engine
-    private VariantAnnotatorEngine annotationEngine;
-
-    public List<RodBinding<VariantContext>> getCompRodBindings() { return Collections.emptyList(); }
-    public RodBinding<VariantContext> getSnpEffRodBinding() { return null; }
-    public List<RodBinding<VariantContext>> getResourceRodBindings() { return Collections.emptyList(); }
-    public boolean alwaysAppendDbsnpId() { return false; }
-
+    private GenomeLocParser genomeLocParser;
 
     public void initialize() {
         // take care of the VCF headers
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit());
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
-        headerLines.addAll(Arrays.asList(ChromosomeCountConstants.descriptions));
-        if ( dbsnp != null && dbsnp.dbsnp.isBound() )
-            VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
         final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
         final VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
         vcfWriter.writeHeader(vcfHeader);
 
-        // create the genotyping engine
-        final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
-        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.BOTH;
-        UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES;
-        UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES;
-        genotypingEngine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
-
-        // create the annotation engine
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
-
         // collect the actual rod bindings into a list for use later
         for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
             variants.addAll(variantCollection.getRodBindings());
+
+        genomeLocParser = getToolkit().getGenomeLocParser();
     }
 
-    public VariantContext map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
+    public PositionalState map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
         if ( tracker == null ) // RodWalkers can make funky map calls
             return null;
 
         final GenomeLoc loc = ref.getLocus();
-        final VariantContext combinedVC = GATKVariantContextUtils.referenceConfidenceMerge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
-        if ( combinedVC == null )
-            return null;
+        return new PositionalState(tracker.getValues(variants, loc), ref.getBases(), loc);
+    }
 
-        return regenotypeVC(tracker, ref, combinedVC);
+    public LinkedList<VariantContext> reduceInit() {
+        return new LinkedList<>();
+    }
+
+    public LinkedList<VariantContext> reduce(final PositionalState startingStates, final LinkedList<VariantContext> previousState) {
+        if ( startingStates == null )
+            return previousState;
+
+        final int currentPos = startingStates.loc.getStart();
+
+        if ( !startingStates.VCs.isEmpty() ) {
+            endPreviousStates(previousState, currentPos - 1, startingStates.refBases[0]);
+            previousState.addAll(startingStates.VCs);
+        }
+
+        if ( containsEndingContext(previousState, currentPos) ) {
+            endPreviousStates(previousState, currentPos, startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N');
+        }
+
+        return previousState;
     }
 
     /**
-     * Re-genotype (and re-annotate) a combined genomic VC
+     * Does the given list of VariantContexts contain any whose context ends at the given position?
      *
-     * @param tracker        the ref tracker
-     * @param ref            the ref context
-     * @param combinedVC     the combined genomic VC
-     * @return a new VariantContext or null if the site turned monomorphic and we don't want such sites
+     * @param VCs  list of VariantContexts
+     * @param pos  the position to check against
+     * @return true if there are one or more VCs that end at pos, false otherwise
      */
-    protected VariantContext regenotypeVC(final RefMetaDataTracker tracker, final ReferenceContext ref, final VariantContext combinedVC) {
-        if ( combinedVC == null ) throw new IllegalArgumentException("combinedVC cannot be null");
+    private boolean containsEndingContext(final List<VariantContext> VCs, final int pos) {
+        if ( VCs == null ) throw new IllegalArgumentException("The list of VariantContexts cannot be null");
 
-        VariantContext result = combinedVC;
-        final Map<String,Object> originalAttributes = combinedVC.getAttributes();
-
-        // only re-genotype polymorphic sites
-        if ( combinedVC.isVariant() )
-            result = new VariantContextBuilder(genotypingEngine.calculateGenotypes(result)).attributes(originalAttributes).make();
-
-        // if it turned monomorphic and we don't want such sites, quit
-        if ( result == null || (!INCLUDE_NON_VARIANTS && result.isMonomorphicInSamples()) )
-            return null;
-
-        // re-annotate it
-        return annotationEngine.annotateContext(tracker, ref, null, result);
+        for ( final VariantContext vc : VCs ) {
+            if ( vc.getEnd() == pos )
+                return true;
+        }
+        return false;
     }
 
-    public VariantContextWriter reduceInit() {
-        return vcfWriter;
+    /**
+     * Disrupt the VariantContexts so that they all stop at the given pos, write them out, and put the remainder back in the list.
+     *
+     * @param VCs  list of VariantContexts
+     * @param pos  the target ending position
+     * @param refBase the reference base to use at the position AFTER pos
+     */
+    private void endPreviousStates(final LinkedList<VariantContext> VCs, final int pos, final byte refBase) {
+        if ( VCs == null ) throw new IllegalArgumentException("The list of VariantContexts cannot be null");
+
+        final List<VariantContext> stoppedVCs = new ArrayList<>(VCs.size());
+
+        for ( int i = VCs.size() - 1; i >= 0; i-- ) {
+            final VariantContext vc = VCs.get(i);
+            if ( vc.getStart() > pos )
+                continue;
+
+            // if it was ending anyways, then just remove it as is;
+            // note that for the purposes of this method, deletions are considered to be single base events (as opposed
+            // to ref blocks), hence the check for the number of alleles (because we know there will always be a <NON_REF> allele)
+            if ( vc.getNAlleles() > 2 || vc.getEnd() == pos ) {
+                stoppedVCs.add(vc);
+                VCs.remove(i);
+            }
+            // otherwise we need to split it into two pieces
+            else {
+                // the first half
+                final Map<String, Object> attrs = new HashMap<>(vc.getAttributes());
+                if ( attrs.containsKey(VCFConstants.END_KEY) )
+                    attrs.put(VCFConstants.END_KEY, Integer.toString(pos));
+                stoppedVCs.add(new VariantContextBuilder(vc).stop(pos).attributes(attrs).make());
+
+                // the second half
+                final Allele refAllele = Allele.create(refBase, true);
+                final List<Allele> alleles = new ArrayList<>();
+                alleles.add(refAllele);
+                alleles.addAll(vc.getAlternateAlleles());
+                final GenotypesContext genotypes = GenotypesContext.create(vc.getNSamples());
+                for ( final Genotype g : vc.getGenotypes() )
+                    genotypes.add(new GenotypeBuilder(g).alleles(Arrays.asList(refAllele, refAllele)).make());
+                VCs.set(i, new VariantContextBuilder(vc).start(pos + 1).alleles(alleles).genotypes(genotypes).make());
+            }
+        }
+
+        if ( !stoppedVCs.isEmpty() ) {
+            final VariantContext mergedVC = mergeVCs(stoppedVCs);
+            vcfWriter.add(mergedVC);
+        }
     }
 
-    public VariantContextWriter reduce(final VariantContext vc, final VariantContextWriter writer) {
-        if ( vc != null )
-            writer.add(vc);
-        return writer;
+    /**
+     * Combine (and re-annotate) a list of VariantContexts
+     *
+     * @param VCs  the VariantContexts to merge
+     * @return a new VariantContext
+     */
+    private VariantContext mergeVCs(final List<VariantContext> VCs) {
+        // we need the specialized merge if the site contains anything other than ref blocks
+        if ( containsTrueAltAllele(VCs) )
+            return GATKVariantContextUtils.referenceConfidenceMerge(VCs, genomeLocParser.createGenomeLoc(VCs.get(0)), null, false);
+
+        // otherwise we can drop down to the generic simple merge
+        return GATKVariantContextUtils.simpleMerge(VCs, null, VCs.size(),
+                    GATKVariantContextUtils.FilteredRecordMergeType.KEEP_UNCONDITIONAL,
+                    GATKVariantContextUtils.GenotypeMergeType.UNSORTED, false, false, null, false, false);
+    }
+
+    /**
+     * Does the given list of VariantContexts contain any with an alternate allele other than <NON_REF>?
+     *
+     * @param VCs  list of VariantContexts
+     * @return true if there are one or more VCs that contain a true alternate allele, false otherwise
+     */
+    private boolean containsTrueAltAllele(final List<VariantContext> VCs) {
+        if ( VCs == null ) throw new IllegalArgumentException("The list of VariantContexts cannot be null");
+
+        for ( final VariantContext vc : VCs ) {
+            if ( vc.getNAlleles() > 2 )
+                return true;
+        }
+        return false;
     }
 
     @Override
-    public VariantContextWriter treeReduce(final VariantContextWriter lhs, final VariantContextWriter rhs) {
-        return lhs;
+    public void onTraversalDone(final LinkedList<VariantContext> state) {
+        // there shouldn't be any state left unless the user cut in the middle of a gVCF block
+        if ( !state.isEmpty() )
+            logger.warn("You have asked for an interval that cuts in the middle of one or more gVCF blocks. Please note that this will cause you to lose records that don't end within your interval.");
     }
-
-    @Override
-    public void onTraversalDone(final VariantContextWriter writer) {}
 }
