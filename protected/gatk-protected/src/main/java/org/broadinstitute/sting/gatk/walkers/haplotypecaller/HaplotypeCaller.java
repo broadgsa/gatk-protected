@@ -549,6 +549,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             SCAC.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
             SCAC.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
             logger.info("Standard Emitting and Calling confidence set to 0.0 for gVCF output");
+
+            // also, we don't need to output several of the annotations
+            annotationsToExclude.add("ChromosomeCounts");
+            annotationsToExclude.add("FisherStrand");
+            annotationsToExclude.add("QualByDepth");
+
+            // but we definitely want certain other ones
+            annotationsToUse.add("StrandBiasBySample");
         }
 
         if ( SCAC.AFmodel == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY )

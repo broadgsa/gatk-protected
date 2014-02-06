@@ -195,15 +195,15 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
      * @param table the table used by the FisherStrand annotation
      * @return the array used by the per-sample Strand Bias annotation
      */
-    public static int[] getContingencyArray( final int[][] table ) {
+    public static List<Integer> getContingencyArray( final int[][] table ) {
         if(table.length != 2) { throw new IllegalArgumentException("Expecting a 2x2 strand bias table."); }
         if(table[0].length != 2) { throw new IllegalArgumentException("Expecting a 2x2 strand bias table."); }
-        final int[] array = new int[4]; // TODO - if we ever want to do something clever with multi-allelic sites this will need to change
-        array[0] = table[0][0];
-        array[1] = table[0][1];
-        array[2] = table[1][0];
-        array[3] = table[1][1];
-        return array;
+        final List<Integer> list = new ArrayList<>(4); // TODO - if we ever want to do something clever with multi-allelic sites this will need to change
+        list.add(table[0][0]);
+        list.add(table[0][1]);
+        list.add(table[1][0]);
+        list.add(table[1][1]);
+        return list;
     }
 
     /**

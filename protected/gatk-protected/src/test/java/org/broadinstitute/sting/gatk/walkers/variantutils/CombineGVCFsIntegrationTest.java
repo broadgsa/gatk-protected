@@ -112,8 +112,6 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         Assert.assertEquals(first.getStart(), 69511);
         Assert.assertEquals(first.getEnd(), 69511);
         Assert.assertEquals(first.getGenotypes().size(), 2);
-        Assert.assertTrue(first.getGenotype("NA1").isCalled());
-        Assert.assertTrue(first.getGenotype("NA2").isNoCall());
     }
 
     @Test
@@ -131,7 +129,6 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         Assert.assertEquals(first.getEnd(), 69635);
         Assert.assertEquals(first.getNAlleles(), 3);
         Assert.assertEquals(first.getGenotypes().size(), 2);
-        Assert.assertTrue(first.getGenotype("NA1").isHet());
     }
 
     @Test
@@ -149,19 +146,17 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         Assert.assertEquals(first.getEnd(), 69776);
         Assert.assertEquals(first.getNAlleles(), 3);
         Assert.assertEquals(first.getGenotypes().size(), 2);
-        Assert.assertTrue(first.getGenotype("NA1").isHet());
 
         final VariantContext second = allVCs.get(1);
         Assert.assertEquals(second.getStart(), 69773);
         Assert.assertEquals(second.getEnd(), 69783);
         Assert.assertEquals(second.getGenotypes().size(), 2);
-        Assert.assertTrue(second.getGenotype("NA1").isHomRef());
     }
 
     @Test
     public void testMD5s() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d90227fd360761d9534b1080b17159dd"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("ad4916ff9ab1479845558ddaaae131a6"));
         spec.disableShadowBCF();
         executeTest("testMD5s", spec);
     }
