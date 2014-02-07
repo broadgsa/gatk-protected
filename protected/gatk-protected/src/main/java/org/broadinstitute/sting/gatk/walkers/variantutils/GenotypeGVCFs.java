@@ -207,11 +207,15 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         final Map<String,Object> originalAttributes = combinedVC.getAttributes();
 
         // only re-genotype polymorphic sites
-        if ( combinedVC.isVariant() )
-            result = new VariantContextBuilder(genotypingEngine.calculateGenotypes(result)).attributes(originalAttributes).make();
+        if ( combinedVC.isVariant() ) {
+            final VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
+            if ( regenotypedVC == null )
+                return null;
+            result = new VariantContextBuilder(regenotypedVC).attributes(originalAttributes).make();
+        }
 
         // if it turned monomorphic and we don't want such sites, quit
-        if ( result == null || (!INCLUDE_NON_VARIANTS && result.isMonomorphicInSamples()) )
+        if ( !INCLUDE_NON_VARIANTS && result.isMonomorphicInSamples() )
             return null;
 
         // re-annotate it
