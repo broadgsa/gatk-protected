@@ -489,16 +489,20 @@ class ActiveRegionTrimmer {
         final GenomeLoc idealSpan = locParser.createPaddedGenomeLoc(variantSpan, padding);
         final GenomeLoc finalSpan = maximumSpan.intersect(idealSpan).union(variantSpan);
 
-        final Pair<GenomeLoc,GenomeLoc> nonVariantRegions = nonVariantTargetRegions(originalRegion, variantSpan);
+        // Make double sure that, if we are emitting GVCF we won't call non-variable positions beyond the target active region span.
+        // In regular call we don't do so so we don't care and we want to maintain behavior, so the conditional.
+        final GenomeLoc callableSpan = emitReferenceConfidence ? variantSpan.intersect(originalRegionRange) : variantSpan;
+
+        final Pair<GenomeLoc,GenomeLoc> nonVariantRegions = nonVariantTargetRegions(originalRegion, callableSpan);
 
         if ( debug ) {
-            logger.info("events     : " + withinActiveRegion);
-            logger.info("region     : " + originalRegion);
-            logger.info("variantSpan    : " + variantSpan);
-            logger.info("pad        : " + padding);
-            logger.info("idealSpan  : " + idealSpan);
-            logger.info("maximumSpan    : " + maximumSpan);
-            logger.info("finalSpan  : " + finalSpan);
+            logger.info("events       : " + withinActiveRegion);
+            logger.info("region       : " + originalRegion);
+            logger.info("callableSpan : " + callableSpan);
+            logger.info("padding      : " + padding);
+            logger.info("idealSpan    : " + idealSpan);
+            logger.info("maximumSpan  : " + maximumSpan);
+            logger.info("finalSpan    : " + finalSpan);
         }
 
         return new Result(emitReferenceConfidence,true,originalRegion,padding, usableExtension,withinActiveRegion,nonVariantRegions,finalSpan,idealSpan,maximumSpan,variantSpan);
@@ -527,7 +531,7 @@ class ActiveRegionTrimmer {
                     locParser.createGenomeLoc(contig, finalStop + 1, targetStop)) :
                     new Pair<>(locParser.createGenomeLoc(contig, targetStart, finalStart - 1),GenomeLoc.UNMAPPED);
         } else if (postTrimmingRequired)
-            return new Pair<>(locParser.createGenomeLoc(targetRegionRange.getContig(), finalStop + 1, targetStop),GenomeLoc.UNMAPPED);
+            return new Pair<>(GenomeLoc.UNMAPPED,locParser.createGenomeLoc(targetRegionRange.getContig(), finalStop + 1, targetStop));
         else
             return new Pair<>(GenomeLoc.UNMAPPED,GenomeLoc.UNMAPPED);
     }
