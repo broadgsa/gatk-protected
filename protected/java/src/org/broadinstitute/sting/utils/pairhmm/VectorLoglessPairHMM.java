@@ -77,8 +77,9 @@ import java.io.OutputStream;
 public class VectorLoglessPairHMM extends JNILoglessPairHMM {
 
     //For machine capabilities
-    public static final long sse42Mask = 1;
-    public static final long avxMask = 2;
+    public static final long sse41Mask = 1;
+    public static final long sse42Mask = 2;
+    public static final long avxMask = 4;
     public static final long enableAll = 0xFFFFFFFFFFFFFFFFl;
 
     //Used to copy references to byteArrays to JNI from reads
