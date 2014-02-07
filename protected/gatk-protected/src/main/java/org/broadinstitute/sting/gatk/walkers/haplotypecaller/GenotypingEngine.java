@@ -134,7 +134,7 @@ public class GenotypingEngine {
      * @param activeRegionWindow                     Active window
      * @param genomeLocParser                        GenomeLocParser
      * @param activeAllelesToGenotype                Alleles to genotype
-     * @param addNonRef whether we should add a &lt;NON_REF&gt; alternative allele to the result variation contexts.
+     * @param emitReferenceConfidence whether we should add a &lt;NON_REF&gt; alternative allele to the result variation contexts.
      *
      * @return                                       A CalledHaplotypes object containing a list of VC's with genotyped events and called haplotypes
      *
@@ -152,7 +152,7 @@ public class GenotypingEngine {
                                                        final GenomeLocParser genomeLocParser,
                                                        final RefMetaDataTracker tracker,
                                                        final List<VariantContext> activeAllelesToGenotype,
-                                                       final boolean addNonRef) {
+                                                       final boolean emitReferenceConfidence) {
         // sanity check input arguments
         if (UG_engine == null) throw new IllegalArgumentException("UG_Engine input can't be null, got "+UG_engine);
         if (haplotypes == null || haplotypes.isEmpty()) throw new IllegalArgumentException("haplotypes input should be non-empty and non-null, got "+haplotypes);
@@ -195,7 +195,7 @@ public class GenotypingEngine {
                 final GenotypeLikelihoodsCalculationModel.Model calculationModel = mergedVC.isSNP()
                         ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL;
 
-                if (addNonRef) {
+                if (emitReferenceConfidence) {
                     final List<Allele> alleleList = new ArrayList<>();
                     alleleList.addAll(mergedVC.getAlleles());
                     alleleList.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
@@ -217,19 +217,19 @@ public class GenotypingEngine {
 
                 final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, UG_engine.getUAC().getSampleContamination() );
 
-                if (addNonRef) addMiscellaneousAllele(alleleReadMap);
+                if (emitReferenceConfidence) addMiscellaneousAllele(alleleReadMap);
 
                 final GenotypesContext genotypes = calculateGLsForThisEvent( alleleReadMap, mergedVC );
-                final VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel);
+                VariantContext call = UG_engine.calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel);
                 if( call != null ) {
                     final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
                             convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, emptyDownSamplingMap ) );
-                    if (addNonRef) addMiscellaneousAllele(alleleReadMap_annotations);
+                    if (emitReferenceConfidence) addMiscellaneousAllele(alleleReadMap_annotations);
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
 
                     VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(tracker, stratifiedReadMap, call);
 
-                    if( call.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
+                    if( !emitReferenceConfidence && call.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
                         annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
                     }
 

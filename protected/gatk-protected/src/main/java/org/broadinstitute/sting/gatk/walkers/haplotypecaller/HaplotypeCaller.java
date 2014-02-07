@@ -545,10 +545,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if (dontGenotype && emitReferenceConfidence == ReferenceConfidenceMode.GVCF)
             throw new UserException("You cannot request gVCF output and do not genotype at the same time");
 
-        if ( emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
+        if ( emitReferenceConfidence() ) {
             SCAC.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
             SCAC.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
-            logger.info("Standard Emitting and Calling confidence set to 0.0 for gVCF output");
 
             // also, we don't need to output several of the annotations
             annotationsToExclude.add("ChromosomeCounts");
@@ -557,6 +556,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
             // but we definitely want certain other ones
             annotationsToUse.add("StrandBiasBySample");
+            logger.info("Standard Emitting and Calling confidence set to 0.0 for reference-model confidence output");
         }
 
         if ( SCAC.AFmodel == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY )
@@ -572,6 +572,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 ? UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES : UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
         UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
+        if (emitReferenceConfidence() && !UG_engine.getUAC().annotateAllSitesWithPLs) {
+           UG_engine.getUAC().annotateAllSitesWithPLs = true;
+           logger.info("All sites annotated with PLs force to true for reference-model confidence output");
+        }
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
         UnifiedArgumentCollection simpleUAC = new UnifiedArgumentCollection(UAC);
         simpleUAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
