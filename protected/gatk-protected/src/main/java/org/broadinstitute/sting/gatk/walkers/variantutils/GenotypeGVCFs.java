@@ -68,8 +68,7 @@ import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.*;
 
@@ -124,6 +123,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
 
+    // TODO -- currently this option doesn't actually work; must fix
     @Argument(fullName="includeNonVariants", shortName="inv", doc="Include loci found to be non-variant after the combining procedure", required=false)
     public boolean INCLUDE_NON_VARIANTS = false;
 
@@ -197,21 +197,20 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      *
      * @param tracker        the ref tracker
      * @param ref            the ref context
-     * @param combinedVC     the combined genomic VC
+     * @param originalVC     the combined genomic VC
      * @return a new VariantContext or null if the site turned monomorphic and we don't want such sites
      */
-    protected VariantContext regenotypeVC(final RefMetaDataTracker tracker, final ReferenceContext ref, final VariantContext combinedVC) {
-        if ( combinedVC == null ) throw new IllegalArgumentException("combinedVC cannot be null");
+    protected VariantContext regenotypeVC(final RefMetaDataTracker tracker, final ReferenceContext ref, final VariantContext originalVC) {
+        if ( originalVC == null ) throw new IllegalArgumentException("originalVC cannot be null");
 
-        VariantContext result = combinedVC;
-        final Map<String,Object> originalAttributes = combinedVC.getAttributes();
+        VariantContext result = originalVC;
 
         // only re-genotype polymorphic sites
-        if ( combinedVC.isVariant() ) {
+        if ( result.isVariant() ) {
             final VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
             if ( regenotypedVC == null )
                 return null;
-            result = new VariantContextBuilder(regenotypedVC).attributes(originalAttributes).make();
+            result = new VariantContextBuilder(regenotypedVC).attributes(originalVC.getAttributes()).make();
         }
 
         // if it turned monomorphic and we don't want such sites, quit
@@ -219,7 +218,43 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             return null;
 
         // re-annotate it
-        return annotationEngine.annotateContext(tracker, ref, null, result);
+        result = annotationEngine.annotateContext(tracker, ref, null, result);
+
+        // fix some of the annotations
+        return new VariantContextBuilder(result).genotypes(fixGenotypeAnnotations(result.getGenotypes(), originalVC.getGenotypes())).make();
+    }
+
+    /**
+     * Fixes genotype-level annotations that need to be updated.
+     * 1. recover the AD values from oldGs into newGs (the genotyping process strips out AD values for various reasons)
+     * 2. move MIN_DP to DP if present
+     * 3. remove SB is present
+     *
+     * @param newGs the new Genotypes to fix
+     * @param originalGs the original Genotypes to pull annotations from
+     * @return a new set of Genotypes
+     */
+    private List<Genotype> fixGenotypeAnnotations(final GenotypesContext newGs, final GenotypesContext originalGs) {
+        final List<Genotype> recoveredGs = new ArrayList<>(newGs.size());
+        for ( final Genotype newG : newGs ) {
+            final Genotype originalG = originalGs.get(newG.getSampleName());
+            final Map<String, Object> attrs = new HashMap<>(newG.getExtendedAttributes());
+
+            // recover the AD
+            final GenotypeBuilder builder = new GenotypeBuilder(newG).AD(originalG.getAD());
+
+            // move the MIN_DP to DP
+            if ( newG.hasExtendedAttribute("MIN_DP") ) {
+                builder.DP(newG.getAttributeAsInt("MIN_DP", 0));
+                attrs.remove("MIN_DP");
+            }
+
+            // remove SB
+            attrs.remove("SB");
+
+            recoveredGs.add(builder.noAttributes().attributes(attrs).make());
+        }
+        return recoveredGs;
     }
 
     public VariantContextWriter reduceInit() {
