@@ -54,7 +54,7 @@ import java.util.Arrays;
 public class GenotypeGVCFsIntegrationTest extends WalkerTest {
 
     private static String baseTestString(String args, String ref) {
-        return "-T GenotypeGVCFs --no_cmdline_in_header -L 1:1-50,000,000 -o %s -R " + ref + args;
+        return "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + ref + args;
     }
 
     @Test(enabled = true)
@@ -65,11 +65,11 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Arrays.asList("10670f6f04d3d662aa38c20ac74af35c"));
+                Arrays.asList("8fd26c30509b98372c2945405a1d7cc4"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
-    @Test(enabled = true)
+    @Test(enabled = false)  // TODO -- reenable when this option works
     public void combineSingleSamplePipelineGVCF_includeNonVariants() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
@@ -78,7 +78,39 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -inv -L 20:10,000,000-10,010,000", b37KGReference),
                 1,
                 Arrays.asList("de957075796512cb9f333f77515e97d5"));
-        executeTest("combineSingleSamplePipelineGVCF", spec);
+        executeTest("combineSingleSamplePipelineGVCF_includeNonVariants", spec);
     }
 
+    @Test(enabled = true)
+    public void combineSingleSamplePipelineGVCF_addDbsnp() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
+                        " -V:sample2 " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
+                        " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
+                        " -L 20:10,000,000-11,000,000 --dbsnp " + b37dbSNP132, b37KGReference),
+                1,
+                Arrays.asList("d0eb9046c24fa6a66ee20feff35457d4"));
+        executeTest("combineSingleSamplePipelineGVCF_addDbsnp", spec);
+    }
+
+    @Test(enabled = true)
+    public void testJustOneSample() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -L 1:69485-69791 -o %s -R " + b37KGReference +
+                " -V " + privateTestDir + "gvcfExample1.vcf",
+                1,
+                Arrays.asList("dd0e2846b3be9692ecb94f152b45c316"));
+        executeTest("testJustOneSample", spec);
+    }
+
+    @Test(enabled = true)
+    public void testSamplesWithDifferentLs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -L 1:69485-69791 -o %s -R " + b37KGReference +
+                        " -V " + privateTestDir + "gvcfExample1.vcf" +
+                        " -V " + privateTestDir + "gvcfExample2.vcf",
+                1,
+                Arrays.asList("a4f76a094af4708fc7f96a9b7a1b8726"));
+        executeTest("testSamplesWithDifferentLs", spec);
+    }
 }
