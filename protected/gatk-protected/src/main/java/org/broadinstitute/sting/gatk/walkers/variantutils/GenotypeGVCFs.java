@@ -76,46 +76,48 @@ import org.broadinstitute.variant.vcf.*;
 import java.util.*;
 
 /**
- * Combines gVCF records that were produced by the Haplotype Caller from single sample sources.
+ * Genotypes any number of gVCF files that were produced by the Haplotype Caller into a single joint VCF file.
  *
  * <p>
- * CombineReferenceCalculationVariants combines gVCF records that were produced as part of the "single sample discovery"
- * pipeline using the '-ERC GVCF' mode of the Haplotype Caller.  This tools performs the multi-sample joint aggregation
+ * GenotypeGVCFs merges gVCF records that were produced as part of the "single sample discovery" pipeline using
+ * the '-ERC GVCF' mode of the Haplotype Caller.  This tool performs the multi-sample joint aggregation
  * step and merges the records together in a sophisticated manner.
  *
  * At all positions of the target, this tool will combine all spanning records, produce correct genotype likelihoods,
  * re-genotype the newly merged record, and then re-annotate it.
  *
+ * Note that this tool cannot work with just any gVCF files - they must have been produced with the Haplotype Caller,
+ * which uses a sophisticated reference model to produce accurate genotype likelihoods for every position in the target.
  *
  * <h3>Input</h3>
  * <p>
- * One or more Haplotype Caller gVCFs to combine.
+ * One or more Haplotype Caller gVCFs to genotype.
  * </p>
  *
  * <h3>Output</h3>
  * <p>
- * A combined VCF.
+ * A combined, genotyped VCF.
  * </p>
  *
  * <h3>Examples</h3>
  * <pre>
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \
- *   -T CombineReferenceCalculationVariants \
- *   --variant input1.vcf \
- *   --variant input2.vcf \
+ *   -T GenotypeGVCFs \
+ *   --variant gvcf1.vcf \
+ *   --variant gvcf2.vcf \
  *   -o output.vcf
  * </pre>
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
 @Reference(window=@Window(start=-10,stop=10))
-public class CombineReferenceCalculationVariants extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
+public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
 
     /**
-     * The VCF files to merge together
+     * The gVCF files to merge together
      */
-    @Input(fullName="variant", shortName = "V", doc="One or more input VCF files", required=true)
+    @Input(fullName="variant", shortName = "V", doc="One or more input gVCF files", required=true)
     public List<RodBindingCollection<VariantContext>> variantCollections;
     final private List<RodBinding<VariantContext>> variants = new ArrayList<>();
 
@@ -183,7 +185,7 @@ public class CombineReferenceCalculationVariants extends RodWalker<VariantContex
             return null;
 
         final GenomeLoc loc = ref.getLocus();
-        final VariantContext combinedVC = GATKVariantContextUtils.referenceConfidenceMerge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null);
+        final VariantContext combinedVC = GATKVariantContextUtils.referenceConfidenceMerge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
         if ( combinedVC == null )
             return null;
 

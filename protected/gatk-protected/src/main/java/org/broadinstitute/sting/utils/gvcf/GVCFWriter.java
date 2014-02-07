@@ -145,9 +145,11 @@ public class GVCFWriter implements VariantContextWriter {
     public void writeHeader(VCFHeader header) {
         if ( header == null ) throw new IllegalArgumentException("header cannot be null");
         header.addMetaDataLine(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
-        header.addMetaDataLine(new VCFInfoHeaderLine(BLOCK_SIZE_INFO_FIELD, 1, VCFHeaderLineType.Integer, "Size of the homozygous reference GVCF block"));
         header.addMetaDataLine(new VCFFormatHeaderLine(MIN_DP_FORMAT_FIELD, 1, VCFHeaderLineType.Integer, "Minimum DP observed within the GVCF block"));
-        header.addMetaDataLine(new VCFFormatHeaderLine(MIN_GQ_FORMAT_FIELD, 1, VCFHeaderLineType.Integer, "Minimum GQ observed within the GVCF block"));
+
+        // These annotations are no longer standard
+        //header.addMetaDataLine(new VCFInfoHeaderLine(BLOCK_SIZE_INFO_FIELD, 1, VCFHeaderLineType.Integer, "Size of the homozygous reference GVCF block"));
+        //header.addMetaDataLine(new VCFFormatHeaderLine(MIN_GQ_FORMAT_FIELD, 1, VCFHeaderLineType.Integer, "Minimum GQ observed within the GVCF block"));
 
         for ( final HomRefBlock partition : GQPartitions ) {
             header.addMetaDataLine(partition.toVCFHeaderLine());
@@ -225,7 +227,9 @@ public class GVCFWriter implements VariantContextWriter {
         vcb.attributes(new HashMap<String, Object>(2)); // clear the attributes
         vcb.stop(block.getStop());
         vcb.attribute(VCFConstants.END_KEY, block.getStop());
-        vcb.attribute(BLOCK_SIZE_INFO_FIELD, block.getSize());
+
+        // This annotation is no longer standard
+        //vcb.attribute(BLOCK_SIZE_INFO_FIELD, block.getSize());
 
         // create the single Genotype with GQ and DP annotations
         final GenotypeBuilder gb = new GenotypeBuilder(sampleName, Collections.nCopies(2, block.getRef()));
@@ -233,8 +237,10 @@ public class GVCFWriter implements VariantContextWriter {
         gb.GQ(block.getMedianGQ());
         gb.DP(block.getMedianDP());
         gb.attribute(MIN_DP_FORMAT_FIELD, block.getMinDP());
-        gb.attribute(MIN_GQ_FORMAT_FIELD, block.getMinGQ());
         gb.PL(block.getMinPLs());
+
+        // This annotation is no longer standard
+        //gb.attribute(MIN_GQ_FORMAT_FIELD, block.getMinGQ());
 
         return vcb.genotypes(gb.make()).make();
     }

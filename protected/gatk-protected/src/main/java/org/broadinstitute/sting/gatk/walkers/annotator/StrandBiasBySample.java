@@ -50,7 +50,6 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.GenotypeAnnotation;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.variantcontext.Genotype;
@@ -67,7 +66,7 @@ import java.util.*;
  * Date: 8/28/13
  */
 
-public class StrandBiasBySample extends GenotypeAnnotation implements ExperimentalAnnotation {
+public class StrandBiasBySample extends GenotypeAnnotation {
 
     public final static String STRAND_BIAS_BY_SAMPLE_KEY_NAME = "SB";
 
