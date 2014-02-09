@@ -166,11 +166,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         vcfWriter.writeHeader(vcfHeader);
 
         // create the genotyping engine
-        final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
-        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.BOTH;
-        UAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES;
-        UAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES;
-        genotypingEngine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
+        genotypingEngine = new UnifiedGenotyperEngine(getToolkit(), new UnifiedArgumentCollection(), logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
         // create the annotation engine
         annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
