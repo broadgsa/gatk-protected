@@ -236,7 +236,6 @@ public class GVCFWriterUnitTest extends BaseTest {
         } else {
             Assert.assertEquals(vc.getNAlleles(), 2);
             Assert.assertEquals(vc.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
-            Assert.assertEquals(vc.getAttributeAsInt(GVCFWriter.BLOCK_SIZE_INFO_FIELD, -1), stop - start + 1);
             Assert.assertEquals(vc.getAttributeAsInt(VCFConstants.END_KEY, -1), stop);
             Assert.assertTrue(vc.hasGenotypes());
             Assert.assertTrue(vc.hasGenotype(SAMPLE_NAME));
