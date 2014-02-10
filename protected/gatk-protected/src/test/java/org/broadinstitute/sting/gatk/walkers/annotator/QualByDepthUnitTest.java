@@ -46,140 +46,54 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.vcf.VCFHeaderLineType;
-import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypesContext;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.variant.variantcontext.*;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Variant confidence (from the QUAL field) / unfiltered depth of non-reference samples.  Note that the QD is also normalized by event length.
- *
- * Low scores are indicative of false positive calls and artifacts.  Note that QualByDepth requires sequencing
- * reads associated with the samples with polymorphic genotypes.
- */
-public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
-//    private final static Logger logger = Logger.getLogger(QualByDepth.class);
+public class QualByDepthUnitTest extends WalkerTest {
 
-    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
-                                        final AnnotatorCompatible walker,
-                                        final ReferenceContext ref,
-                                        final Map<String, AlignmentContext> stratifiedContexts,
-                                        final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
-        if ( !vc.hasLog10PError() )
-            return null;
+    @DataProvider(name = "UsingAD")
+    public Object[][] makeUsingADData() {
+        List<Object[]> tests = new ArrayList<>();
 
-        final GenotypesContext genotypes = vc.getGenotypes();
-        if ( genotypes == null || genotypes.size() == 0 )
-            return null;
+        final Allele A = Allele.create("A", true);
+        final Allele C = Allele.create("C");
+        final Allele G = Allele.create("G");
 
-        int depth = 0;
+        final List<Allele> AA = Arrays.asList(A,A);
+        final List<Allele> AC = Arrays.asList(A,C);
+        final List<Allele> CC = Arrays.asList(C,C);
+        final List<Allele> AG = Arrays.asList(A,G);
+        final List<Allele> CG = Arrays.asList(C,G);
+        final List<Allele> GG = Arrays.asList(G,G);
+        final List<Allele> ACG = Arrays.asList(A,C,G);
 
-        for ( final Genotype genotype : genotypes ) {
+        final Genotype gAC = new GenotypeBuilder("1", AC).DP(10).AD(new int[]{5,5}).make();
+        final Genotype gAA = new GenotypeBuilder("2", AA).DP(10).AD(new int[]{10,0}).make();
+        final Genotype gACerror = new GenotypeBuilder("3", AC).DP(10).AD(new int[]{9,1}).make();
+        final Genotype gGG = new GenotypeBuilder("4", GG).DP(10).AD(new int[]{1,9}).make();
 
-            // we care only about variant calls with likelihoods
-            if ( !genotype.isHet() && !genotype.isHomVar() )
-                continue;
+        tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, AC).log10PError(-5).genotypes(Arrays.asList(gAC)).make(), 5.0});
+        tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, AC).log10PError(-5).genotypes(Arrays.asList(gAA, gAC)).make(), 5.0});
+        tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, AC).log10PError(-5).genotypes(Arrays.asList(gAC, gACerror)).make(), 5.0});
+        tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, ACG).log10PError(-5).genotypes(Arrays.asList(gAA, gAC, gACerror, gGG)).make(), 2.5});
 
-            // if we have the AD values for this sample, let's make sure that the variant depth is greater than 1!
-            // TODO -- If we like how this is working and want to apply it to a situation other than the single sample HC pipeline,
-            // TODO --  then we will need to modify the annotateContext() - and related - routines in the VariantAnnotatorEngine
-            // TODO --  so that genotype-level annotations are run first (to generate AD on the samples) and then the site-level
-            // TODO --  annotations must come afterwards (so that QD can use the AD).
-            if ( genotype.hasAD() ) {
-                final int[] AD = genotype.getAD();
-                int variantDepth = 0;
-                for ( int i = 1; i < AD.length; i++ )
-                    variantDepth += AD[i];
-                if ( variantDepth <= 1 )
-                    continue;
-            }
-
-            if (stratifiedContexts!= null && !stratifiedContexts.isEmpty()) {
-                final AlignmentContext context = stratifiedContexts.get(genotype.getSampleName());
-                if ( context == null )
-                    continue;
-                depth += context.getBasePileup().depthOfCoverage();
-
-            } else if (perReadAlleleLikelihoodMap != null) {
-                final PerReadAlleleLikelihoodMap perReadAlleleLikelihoods = perReadAlleleLikelihoodMap.get(genotype.getSampleName());
-                if (perReadAlleleLikelihoods == null || perReadAlleleLikelihoods.isEmpty())
-                    continue;
-
-                depth += perReadAlleleLikelihoods.getNumberOfStoredElements();
-            } else if ( genotype.hasDP() ) {
-                depth += genotype.getDP();
-            }
-        }
-
-        if ( depth == 0 )
-            return null;
-
-        final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
-	// Hack: when refContext == null then we know we are coming from the HaplotypeCaller and do not want to do a
-	//  full length-based normalization (because the indel length problem is present only in the UnifiedGenotyper)
-        double QD = -10.0 * vc.getLog10PError() / ((double)depth * indelNormalizationFactor(altAlleleLength, ref != null));
-
-	// Hack: see note in the fixTooHighQD method below
-        QD = fixTooHighQD(QD);
-
-        final Map<String, Object> map = new HashMap<>();
-        map.put(getKeyNames().get(0), String.format("%.2f", QD));
-        return map;
+        return tests.toArray(new Object[][]{});
     }
 
-    /**
-     * Generate the indel normalization factor.
-     *
-     * @param altAlleleLength  the average alternate allele length for the call
-     * @param increaseNormalizationAsLengthIncreases should we apply a normalization factor based on the allele length?
-     * @return a possitive double
-     */
-    private double indelNormalizationFactor(final double altAlleleLength, final boolean increaseNormalizationAsLengthIncreases) {
-	return ( increaseNormalizationAsLengthIncreases ? Math.max(altAlleleLength / 3.0, 1.0) : 1.0);
+    @Test(dataProvider = "UsingAD")
+    public void testUsingAD(final VariantContext vc, final double expectedQD) {
+        final Map<String, Object> annotatedMap = new QualByDepth().annotate(null, null, null, null, vc, null);
+        Assert.assertNotNull(annotatedMap, vc.toString());
+        final String QD = (String)annotatedMap.get("QD");
+        Assert.assertEquals(Double.valueOf(QD), expectedQD, 0.0001);
     }
-
-    /**
-     * The haplotype caller generates very high quality scores when multiple events are on the
-     * same haplotype.  This causes some very good variants to have unusually high QD values,
-     * and VQSR will filter these out.  This code looks at the QD value, and if it is above
-     * threshold we map it down to the mean high QD value, with some jittering
-     *
-     * // TODO -- remove me when HaplotypeCaller bubble caller is live
-     *
-     * @param QD the raw QD score
-     * @return a QD value
-     */
-    private double fixTooHighQD(final double QD) {
-        if ( QD < MAX_QD_BEFORE_FIXING ) {
-            return QD;
-        } else {
-            return IDEAL_HIGH_QD + GenomeAnalysisEngine.getRandomGenerator().nextGaussian() * JITTER_SIGMA;
-        }
-    }
-
-    private final static double MAX_QD_BEFORE_FIXING = 35;
-    private final static double IDEAL_HIGH_QD = 30;
-    private final static double JITTER_SIGMA = 3;
-
-    public List<String> getKeyNames() { return Arrays.asList("QD"); }
-
-    public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(new VCFInfoHeaderLine(getKeyNames().get(0), 1, VCFHeaderLineType.Float, "Variant Confidence/Quality by Depth"));
-    }
-
 
 }
