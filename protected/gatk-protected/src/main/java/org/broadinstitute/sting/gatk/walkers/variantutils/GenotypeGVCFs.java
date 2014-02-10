@@ -222,27 +222,23 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         result = annotationEngine.annotateContext(tracker, ref, null, result);
 
         // fix some of the annotations
-        return new VariantContextBuilder(result).genotypes(fixGenotypeAnnotations(result.getGenotypes(), originalVC.getGenotypes())).make();
+        return new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result.getGenotypes())).make();
     }
 
     /**
-     * Fixes genotype-level annotations that need to be updated.
-     * 1. recover the AD values from oldGs into newGs (the genotyping process strips out AD values for various reasons)
-     * 2. move MIN_DP to DP if present
-     * 3. remove SB is present
+     * Cleans up genotype-level annotations that need to be updated.
+     * 1. move MIN_DP to DP if present
+     * 2. remove SB is present
      *
      * @param newGs the new Genotypes to fix
-     * @param originalGs the original Genotypes to pull annotations from
      * @return a new set of Genotypes
      */
-    private List<Genotype> fixGenotypeAnnotations(final GenotypesContext newGs, final GenotypesContext originalGs) {
+    private List<Genotype> cleanupGenotypeAnnotations(final GenotypesContext newGs) {
         final List<Genotype> recoveredGs = new ArrayList<>(newGs.size());
         for ( final Genotype newG : newGs ) {
-            final Genotype originalG = originalGs.get(newG.getSampleName());
             final Map<String, Object> attrs = new HashMap<>(newG.getExtendedAttributes());
 
-            // recover the AD
-            final GenotypeBuilder builder = new GenotypeBuilder(newG).AD(originalG.getAD());
+            final GenotypeBuilder builder = new GenotypeBuilder(newG);
 
             // move the MIN_DP to DP
             if ( newG.hasExtendedAttribute("MIN_DP") ) {
