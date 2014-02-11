@@ -103,7 +103,7 @@ import java.util.*;
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
 @Reference(window=@Window(start=0,stop=1))
-public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, LinkedList<VariantContext>> {
+public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, CombineGVCFs.OverallState> {
 
     protected final class PositionalState {
         final List<VariantContext> VCs;
@@ -114,6 +114,14 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Linked
             this.refBases = refBases;
             this.loc = loc;
         }
+    }
+
+    protected final class OverallState {
+        final LinkedList<VariantContext> VCs = new LinkedList<>();
+        GenomeLoc prevPos = null;
+        byte refAfterPrevPos;
+
+        public OverallState() {}
     }
 
     /**
@@ -152,26 +160,38 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Linked
         return new PositionalState(tracker.getValues(variants, loc), ref.getBases(), loc);
     }
 
-    public LinkedList<VariantContext> reduceInit() {
-        return new LinkedList<>();
+    public OverallState reduceInit() {
+        return new OverallState();
     }
 
-    public LinkedList<VariantContext> reduce(final PositionalState startingStates, final LinkedList<VariantContext> previousState) {
+    public OverallState reduce(final PositionalState startingStates, final OverallState previousState) {
         if ( startingStates == null )
             return previousState;
 
         final int currentPos = startingStates.loc.getStart();
 
         if ( !startingStates.VCs.isEmpty() ) {
-            endPreviousStates(previousState, currentPos - 1, startingStates.refBases[0]);
-            previousState.addAll(startingStates.VCs);
+            if ( ! okayToSkipThisSite(currentPos, previousState.prevPos) )
+                endPreviousStates(previousState, currentPos - 1, startingStates.refBases[0]);
+            previousState.VCs.addAll(startingStates.VCs);
         }
 
-        if ( containsEndingContext(previousState, currentPos) ) {
+        if ( containsEndingContext(previousState.VCs, currentPos) ) {
             endPreviousStates(previousState, currentPos, startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N');
         }
 
         return previousState;
+    }
+
+    /**
+     * Is it okay to skip the given position?
+     *
+     * @param thisPos      this position
+     * @param lastPosRun   the last position for which we created a VariantContext
+     * @return true if it is okay to skip this position, false otherwise
+     */
+    private boolean okayToSkipThisSite(final int thisPos, final GenomeLoc lastPosRun) {
+        return lastPosRun != null && thisPos == lastPosRun.getStart() + 1;
     }
 
     /**
@@ -194,68 +214,80 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Linked
     /**
      * Disrupt the VariantContexts so that they all stop at the given pos, write them out, and put the remainder back in the list.
      *
-     * @param VCs  list of VariantContexts
-     * @param pos  the target ending position
+     * @param state   the state with list of VariantContexts
+     * @param pos     the target ending position
      * @param refBase the reference base to use at the position AFTER pos
      */
-    private void endPreviousStates(final LinkedList<VariantContext> VCs, final int pos, final byte refBase) {
-        if ( VCs == null ) throw new IllegalArgumentException("The list of VariantContexts cannot be null");
+    private void endPreviousStates(final OverallState state, final int pos, final byte refBase) {
 
-        final List<VariantContext> stoppedVCs = new ArrayList<>(VCs.size());
+        final List<VariantContext> stoppedVCs = new ArrayList<>(state.VCs.size());
 
-        for ( int i = VCs.size() - 1; i >= 0; i-- ) {
-            final VariantContext vc = VCs.get(i);
-            if ( vc.getStart() > pos )
-                continue;
+        for ( int i = state.VCs.size() - 1; i >= 0; i-- ) {
+            final VariantContext vc = state.VCs.get(i);
+            if ( vc.getStart() <= pos ) {
 
-            // if it was ending anyways, then just remove it as is;
-            // note that for the purposes of this method, deletions are considered to be single base events (as opposed
-            // to ref blocks), hence the check for the number of alleles (because we know there will always be a <NON_REF> allele)
-            if ( vc.getNAlleles() > 2 || vc.getEnd() == pos ) {
                 stoppedVCs.add(vc);
-                VCs.remove(i);
-            }
-            // otherwise we need to split it into two pieces
-            else {
-                // the first half
-                final Map<String, Object> attrs = new HashMap<>(vc.getAttributes());
-                if ( attrs.containsKey(VCFConstants.END_KEY) )
-                    attrs.put(VCFConstants.END_KEY, Integer.toString(pos));
-                stoppedVCs.add(new VariantContextBuilder(vc).stop(pos).attributes(attrs).make());
 
-                // the second half
-                final Allele refAllele = Allele.create(refBase, true);
-                final List<Allele> alleles = new ArrayList<>();
-                alleles.add(refAllele);
-                alleles.addAll(vc.getAlternateAlleles());
-                final GenotypesContext genotypes = GenotypesContext.create(vc.getNSamples());
-                for ( final Genotype g : vc.getGenotypes() )
-                    genotypes.add(new GenotypeBuilder(g).alleles(Arrays.asList(refAllele, refAllele)).make());
-                VCs.set(i, new VariantContextBuilder(vc).start(pos + 1).alleles(alleles).genotypes(genotypes).make());
+                // if it was ending anyways, then remove it from the future state;
+                // note that for the purposes of this method, deletions are considered to be single base events (as opposed
+                // to ref blocks), hence the check for the number of alleles (because we know there will always be a <NON_REF> allele)
+                if ( vc.getNAlleles() > 2 || vc.getEnd() == pos )
+                    state.VCs.remove(i);
             }
         }
 
         if ( !stoppedVCs.isEmpty() ) {
-            final VariantContext mergedVC = mergeVCs(stoppedVCs);
+            final GenomeLoc gLoc = genomeLocParser.createGenomeLoc(stoppedVCs.get(0).getChr(), pos);
+
+            // we need the specialized merge if the site contains anything other than ref blocks
+            final VariantContext mergedVC;
+            if ( containsTrueAltAllele(stoppedVCs) )
+                mergedVC = GATKVariantContextUtils.referenceConfidenceMerge(stoppedVCs, gLoc, refBase, false);
+            else
+                mergedVC = referenceBlockMerge(stoppedVCs, state, pos);
+
             vcfWriter.add(mergedVC);
+            state.prevPos = gLoc;
+            state.refAfterPrevPos = refBase;
         }
     }
 
     /**
-     * Combine (and re-annotate) a list of VariantContexts
+     * Combine a list of reference block VariantContexts.
+     * We can't use GATKVariantContextUtils.simpleMerge() because it is just too slow for this sort of thing.
      *
-     * @param VCs  the VariantContexts to merge
-     * @return a new VariantContext
+     * @param VCs   the variant contexts to merge
+     * @param state the state object
+     * @param end   the end of this block (inclusive)
+     * @return a new merged VariantContext
      */
-    private VariantContext mergeVCs(final List<VariantContext> VCs) {
-        // we need the specialized merge if the site contains anything other than ref blocks
-        if ( containsTrueAltAllele(VCs) )
-            return GATKVariantContextUtils.referenceConfidenceMerge(VCs, genomeLocParser.createGenomeLoc(VCs.get(0)), null, false);
+    private VariantContext referenceBlockMerge(final List<VariantContext> VCs, final OverallState state, final int end) {
 
-        // otherwise we can drop down to the generic simple merge
-        return GATKVariantContextUtils.simpleMerge(VCs, null, VCs.size(),
-                    GATKVariantContextUtils.FilteredRecordMergeType.KEEP_UNCONDITIONAL,
-                    GATKVariantContextUtils.GenotypeMergeType.UNSORTED, false, false, null, false, false);
+        final VariantContext first = VCs.get(0);
+
+        // ref allele and start
+        final Allele refAllele;
+        final int start;
+        if ( state.prevPos == null || !state.prevPos.getContig().equals(first.getChr()) || first.getStart() >= state.prevPos.getStart() + 1) {
+            start = first.getStart();
+            refAllele = first.getReference();
+        } else {
+            start = state.prevPos.getStart() + 1;
+            refAllele = Allele.create(state.refAfterPrevPos, true);
+        }
+
+        // attributes
+        final Map<String, Object> attrs = new HashMap<>(1);
+        attrs.put(VCFConstants.END_KEY, Integer.toString(end));
+
+        // genotypes
+        final GenotypesContext genotypes = GenotypesContext.create();
+        for ( final VariantContext vc : VCs ) {
+            for ( final Genotype g : vc.getGenotypes() )
+                genotypes.add(new GenotypeBuilder(g).alleles(Arrays.asList(refAllele, refAllele)).make());
+        }
+
+        return new VariantContextBuilder("", first.getChr(), start, end, Arrays.asList(refAllele, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE)).attributes(attrs).genotypes(genotypes).make();
     }
 
     /**
@@ -275,9 +307,9 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Linked
     }
 
     @Override
-    public void onTraversalDone(final LinkedList<VariantContext> state) {
+    public void onTraversalDone(final OverallState state) {
         // there shouldn't be any state left unless the user cut in the middle of a gVCF block
-        if ( !state.isEmpty() )
+        if ( !state.VCs.isEmpty() )
             logger.warn("You have asked for an interval that cuts in the middle of one or more gVCF blocks. Please note that this will cause you to lose records that don't end within your interval.");
     }
 }

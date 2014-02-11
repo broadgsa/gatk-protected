@@ -156,7 +156,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testMD5s() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("c36bbd50c9596b2fa7a7fc3952ae9690"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d2a5ca67a8ef6e27854e7a439883f05d"));
         spec.disableShadowBCF();
         executeTest("testMD5s", spec);
     }
