@@ -56,10 +56,8 @@ import org.broadinstitute.sting.gatk.walkers.Reference;
 import org.broadinstitute.sting.gatk.walkers.RodWalker;
 import org.broadinstitute.sting.gatk.walkers.TreeReducible;
 import org.broadinstitute.sting.gatk.walkers.Window;
-import org.broadinstitute.sting.gatk.walkers.annotator.ChromosomeCountConstants;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
 import org.broadinstitute.sting.utils.GenomeLoc;
@@ -154,10 +152,14 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
 
     public void initialize() {
+        // create the annotation engine
+        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
+
         // take care of the VCF headers
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit());
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
-        headerLines.addAll(Arrays.asList(ChromosomeCountConstants.descriptions));
+        headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
+        VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.MLE_ALLELE_COUNT_KEY, VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
             VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
@@ -167,9 +169,6 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
         // create the genotyping engine
         genotypingEngine = new UnifiedGenotyperEngine(getToolkit(), new UnifiedArgumentCollection(), logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
-
-        // create the annotation engine
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
 
         // collect the actual rod bindings into a list for use later
         for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
@@ -206,7 +205,13 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             final VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
             if ( regenotypedVC == null )
                 return null;
-            result = new VariantContextBuilder(regenotypedVC).attributes(originalVC.getAttributes()).make();
+
+            // we want to carry forward the attributes from the original VC but make sure to add the MLE-based annotations
+            final Map<String, Object> attrs = new HashMap<>(originalVC.getAttributes());
+            attrs.put(VCFConstants.MLE_ALLELE_COUNT_KEY, regenotypedVC.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
+            attrs.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, regenotypedVC.getAttribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+
+            result = new VariantContextBuilder(regenotypedVC).attributes(attrs).make();
         }
 
         // if it turned monomorphic and we don't want such sites, quit

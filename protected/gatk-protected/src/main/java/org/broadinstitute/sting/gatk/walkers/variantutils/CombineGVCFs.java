@@ -205,10 +205,23 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
         if ( VCs == null ) throw new IllegalArgumentException("The list of VariantContexts cannot be null");
 
         for ( final VariantContext vc : VCs ) {
-            if ( vc.getEnd() == pos )
+            if ( isEndingContext(vc, pos) )
                 return true;
         }
         return false;
+    }
+
+    /**
+     * Does the given variant context end (in terms of reference blocks, not necessarily formally) at the given position.
+     * Note that for the purposes of this method/tool, deletions are considered to be single base events (as opposed to
+     * reference blocks), hence the check for the number of alleles (because we know there will always be a <NON_REF> allele).
+     *
+     * @param vc   the variant context
+     * @param pos  the position to query against
+     * @return true if this variant context "ends" at this position, false otherwise
+     */
+    private boolean isEndingContext(final VariantContext vc, final int pos) {
+        return vc.getNAlleles() > 2 || vc.getEnd() == pos;
     }
 
     /**
@@ -228,10 +241,8 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
                 stoppedVCs.add(vc);
 
-                // if it was ending anyways, then remove it from the future state;
-                // note that for the purposes of this method, deletions are considered to be single base events (as opposed
-                // to ref blocks), hence the check for the number of alleles (because we know there will always be a <NON_REF> allele)
-                if ( vc.getNAlleles() > 2 || vc.getEnd() == pos )
+                // if it was ending anyways, then remove it from the future state
+                if ( isEndingContext(vc, pos) )
                     state.VCs.remove(i);
             }
         }

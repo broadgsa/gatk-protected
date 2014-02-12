@@ -54,6 +54,7 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ActiveRegionBa
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
@@ -86,7 +87,8 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         if ( genotypes == null || genotypes.size() == 0 )
             return null;
 
-        int depth = 0;
+        int standardDepth = 0;
+        int ADrestrictedDepth = 0;
 
         for ( final Genotype genotype : genotypes ) {
 
@@ -101,39 +103,43 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
             // TODO --  annotations must come afterwards (so that QD can use the AD).
             if ( genotype.hasAD() ) {
                 final int[] AD = genotype.getAD();
-                int variantDepth = 0;
-                for ( int i = 1; i < AD.length; i++ )
-                    variantDepth += AD[i];
-                if ( variantDepth <= 1 )
-                    continue;
+                final int totalADdepth = (int)MathUtils.sum(AD);
+                if ( totalADdepth - AD[0] > 1 )
+                    ADrestrictedDepth += totalADdepth;
+                standardDepth += totalADdepth;
+                continue;
             }
 
             if (stratifiedContexts!= null && !stratifiedContexts.isEmpty()) {
                 final AlignmentContext context = stratifiedContexts.get(genotype.getSampleName());
                 if ( context == null )
                     continue;
-                depth += context.getBasePileup().depthOfCoverage();
+                standardDepth += context.getBasePileup().depthOfCoverage();
 
             } else if (perReadAlleleLikelihoodMap != null) {
                 final PerReadAlleleLikelihoodMap perReadAlleleLikelihoods = perReadAlleleLikelihoodMap.get(genotype.getSampleName());
                 if (perReadAlleleLikelihoods == null || perReadAlleleLikelihoods.isEmpty())
                     continue;
 
-                depth += perReadAlleleLikelihoods.getNumberOfStoredElements();
+                standardDepth += perReadAlleleLikelihoods.getNumberOfStoredElements();
             } else if ( genotype.hasDP() ) {
-                depth += genotype.getDP();
+                standardDepth += genotype.getDP();
             }
         }
 
-        if ( depth == 0 )
+        // if the AD-restricted depth is a usable value (i.e. not zero), then we should use that one going forward
+        if ( ADrestrictedDepth > 0 )
+            standardDepth = ADrestrictedDepth;
+
+        if ( standardDepth == 0 )
             return null;
 
         final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
-	// Hack: when refContext == null then we know we are coming from the HaplotypeCaller and do not want to do a
-	//  full length-based normalization (because the indel length problem is present only in the UnifiedGenotyper)
-        double QD = -10.0 * vc.getLog10PError() / ((double)depth * indelNormalizationFactor(altAlleleLength, ref != null));
+        // Hack: when refContext == null then we know we are coming from the HaplotypeCaller and do not want to do a
+        //  full length-based normalization (because the indel length problem is present only in the UnifiedGenotyper)
+        double QD = -10.0 * vc.getLog10PError() / ((double)standardDepth * indelNormalizationFactor(altAlleleLength, ref != null));
 
-	// Hack: see note in the fixTooHighQD method below
+        // Hack: see note in the fixTooHighQD method below
         QD = fixTooHighQD(QD);
 
         final Map<String, Object> map = new HashMap<>();
@@ -149,7 +155,7 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
      * @return a possitive double
      */
     private double indelNormalizationFactor(final double altAlleleLength, final boolean increaseNormalizationAsLengthIncreases) {
-	return ( increaseNormalizationAsLengthIncreases ? Math.max(altAlleleLength / 3.0, 1.0) : 1.0);
+        return ( increaseNormalizationAsLengthIncreases ? Math.max(altAlleleLength / 3.0, 1.0) : 1.0);
     }
 
     /**

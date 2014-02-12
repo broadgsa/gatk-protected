@@ -69,9 +69,6 @@ public class QualByDepthUnitTest extends WalkerTest {
 
         final List<Allele> AA = Arrays.asList(A,A);
         final List<Allele> AC = Arrays.asList(A,C);
-        final List<Allele> CC = Arrays.asList(C,C);
-        final List<Allele> AG = Arrays.asList(A,G);
-        final List<Allele> CG = Arrays.asList(C,G);
         final List<Allele> GG = Arrays.asList(G,G);
         final List<Allele> ACG = Arrays.asList(A,C,G);
 
@@ -81,6 +78,7 @@ public class QualByDepthUnitTest extends WalkerTest {
         final Genotype gGG = new GenotypeBuilder("4", GG).DP(10).AD(new int[]{1,9}).make();
 
         tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, AC).log10PError(-5).genotypes(Arrays.asList(gAC)).make(), 5.0});
+        tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, AC).log10PError(-5).genotypes(Arrays.asList(gACerror)).make(), 5.0});
         tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, AC).log10PError(-5).genotypes(Arrays.asList(gAA, gAC)).make(), 5.0});
         tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, AC).log10PError(-5).genotypes(Arrays.asList(gAC, gACerror)).make(), 5.0});
         tests.add(new Object[]{new VariantContextBuilder("test", "20", 10, 10, ACG).log10PError(-5).genotypes(Arrays.asList(gAA, gAC, gACerror, gGG)).make(), 2.5});
