@@ -89,9 +89,9 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     }
 
     VRTest lowPass = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
-            "6f029dc7d16e63e19c006613cd0a5cff",  // tranches
-            "73c7897441622c9b37376eb4f071c560",  // recal file
-            "11a28df79b92229bd317ac49a3ed0fa1"); // cut VCF
+            "41e2d951a17de433fe378bb3d9ec75d4",  // tranches
+            "04336b2453202f286da05b69e57f66ed",  // recal file
+            "d29fd0bdc1c8c3a171e10d29f7ffeaec"); // cut VCF
 
     VRTest lowPassPlusExomes = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
             validationDataLocation + "1kg_exomes_unfiltered.AFR.unfiltered.vcf",
@@ -109,7 +109,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         return new Object[][]{ {lowPassPlusExomes} };
     }
 
-    @Test(dataProvider = "VRTest", enabled = false)
+    @Test(dataProvider = "VRTest")
     public void testVariantRecalibrator(VRTest params) {
         //System.out.printf("PARAMS FOR %s is %s%n", vcf, clusterFile);
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
@@ -129,7 +129,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         executeTest("testVariantRecalibrator-"+params.inVCF, spec).getFirst();
     }
 
-    @Test(dataProvider = "VRTest",dependsOnMethods="testVariantRecalibrator", enabled = false)
+    @Test(dataProvider = "VRTest",dependsOnMethods="testVariantRecalibrator")
     public void testApplyRecalibration(VRTest params) {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b37KGReference +
