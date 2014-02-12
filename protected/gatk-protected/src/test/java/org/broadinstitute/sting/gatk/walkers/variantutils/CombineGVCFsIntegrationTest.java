@@ -139,7 +139,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         final File gVCF = executeTest("testOneHasDeletionAndTwoHasRefBlock", spec).first.get(0);
         final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
 
-        Assert.assertEquals(allVCs.size(), 2);
+        Assert.assertEquals(allVCs.size(), 3);
 
         final VariantContext first = allVCs.get(0);
         Assert.assertEquals(first.getStart(), 69772);
@@ -149,14 +149,19 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
 
         final VariantContext second = allVCs.get(1);
         Assert.assertEquals(second.getStart(), 69773);
-        Assert.assertEquals(second.getEnd(), 69783);
+        Assert.assertEquals(second.getEnd(), 69774);
         Assert.assertEquals(second.getGenotypes().size(), 2);
+
+        final VariantContext third = allVCs.get(2);
+        Assert.assertEquals(third.getStart(), 69775);
+        Assert.assertEquals(third.getEnd(), 69783);
+        Assert.assertEquals(third.getGenotypes().size(), 2);
     }
 
     @Test
     public void testMD5s() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d2a5ca67a8ef6e27854e7a439883f05d"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("aecdfa9eb32b802cd629e9f811ef15fd"));
         spec.disableShadowBCF();
         executeTest("testMD5s", spec);
     }
