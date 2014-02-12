@@ -321,6 +321,18 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         executeTest("test select from multi allelic with excludeNonVariants --" + testfile, spec);
     }
 
+    @Test
+    public void testMultiAllelicAnnotationOrdering() {
+        String testfile = privateTestDir + "multi-allelic-ordering.vcf";
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b37KGReference + " -o %s --no_cmdline_in_header " +
+                        "-sn SAMPLE-CC -sn SAMPLE-CT -sn SAMPLE-CA --excludeNonVariants --variant " + testfile,
+                1,
+                Arrays.asList("8fe7cdca8638461909262cb0769b2527")
+        );
+        executeTest("test multi allelic annotation ordering --" + testfile, spec);
+    }
+
     @Test()
     public void testFileWithoutInfoLineInHeader() {
         testFileWithoutInfoLineInHeader("testFileWithoutInfoLineInHeader", IllegalStateException.class);
