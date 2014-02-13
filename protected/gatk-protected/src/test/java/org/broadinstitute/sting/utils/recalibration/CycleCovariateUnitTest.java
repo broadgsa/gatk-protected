@@ -54,6 +54,7 @@ import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -69,6 +70,11 @@ public class CycleCovariateUnitTest {
         RAC = new RecalibrationArgumentCollection();
         covariate = new CycleCovariate();
         covariate.initialize(RAC);
+    }
+
+    @BeforeMethod
+    public void initCache() {
+        ReadCovariates.clearKeysCache();
     }
 
     @Test(enabled = true)

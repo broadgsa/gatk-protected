@@ -79,6 +79,14 @@ public class ReadCovariates {
     };
 
     /**
+     * The keys cache is only valid for a single covariate count.  Normally this will remain constant for the analysis.
+     * If running multiple analyses (or the unit test suite), it's necessary to clear the cache.
+     */
+    public static void clearKeysCache() {
+        keysCache.remove();
+    }
+
+    /**
      * Our keys, indexed by event type x read length x covariate
      */
     private final int[][][] keys;

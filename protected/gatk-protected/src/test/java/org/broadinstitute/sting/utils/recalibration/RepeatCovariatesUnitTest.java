@@ -56,6 +56,7 @@ import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -80,6 +81,11 @@ public class RepeatCovariatesUnitTest {
         rlCovariate.initialize(RAC);
         ruCovariate.initialize(RAC);
         rurlCovariate.initialize(RAC);
+    }
+
+    @BeforeMethod
+    public void initCache() {
+        ReadCovariates.clearKeysCache();
     }
 
 

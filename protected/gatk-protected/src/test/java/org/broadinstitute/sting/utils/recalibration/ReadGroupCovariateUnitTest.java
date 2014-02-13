@@ -53,6 +53,7 @@ import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -68,6 +69,11 @@ public class ReadGroupCovariateUnitTest {
         RAC = new RecalibrationArgumentCollection();
         covariate = new ReadGroupCovariate();
         covariate.initialize(RAC);
+    }
+
+    @BeforeMethod
+    public void initCache() {
+        ReadCovariates.clearKeysCache();
     }
 
     @Test(enabled = true)
