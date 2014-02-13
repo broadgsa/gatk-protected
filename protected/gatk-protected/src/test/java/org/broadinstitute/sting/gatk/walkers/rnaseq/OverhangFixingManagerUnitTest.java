@@ -46,38 +46,127 @@
 
 package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
-import org.broadinstitute.sting.WalkerTest;
-import org.testng.annotations.Test;
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
-/**
- * Created with IntelliJ IDEA.
- * User: ami
- * Date: 12/5/13
- * Time: 1:04 PM
- */
-public class SplitNCigarReadsIntegrationTests extends WalkerTest {
+public class OverhangFixingManagerUnitTest extends BaseTest {
 
-    @Test
-    // contain reads without N's, with N's and with N's and I's
-    public void testSplitWithInsertions() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T SplitNCigarReads -R " + BaseTest.b37KGReference + " -I " + BaseTest.privateTestDir + "SplitNCigarReads.integrationTest.unsplitReads.withI.bam -o %s -U ALLOW_N_CIGAR_READS", 1,
-                Arrays.asList("037c72fe1572efb63cccbe0a8dda3cb1"));
-        executeTest("test split N cigar reads with insertions", spec);
+    private CachingIndexedFastaSequenceFile referenceReader;
+    private GenomeLocParser genomeLocParser;
+
+    @BeforeClass
+    public void setup() throws FileNotFoundException {
+        referenceReader = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
+        genomeLocParser = new GenomeLocParser(referenceReader.getSequenceDictionary());
     }
 
     @Test
-    // contain reads without N's, with N's and with N's and D's, and also with more then one N element in the cigar.
-    public void testSplitWithDeletions() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T SplitNCigarReads -R " + BaseTest.b37KGReference + " -I " + BaseTest.privateTestDir + "SplitNCigarReads.integrationTest.unsplitReads.withD.bam -o %s -U ALLOW_N_CIGAR_READS", 1,
-                Arrays.asList("8472005c16353715025353d6d453faf4"));
-        executeTest("test split N cigar reads with deletions", spec);
+    public void testCleanSplices() {
+
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+
+        final int offset = 10;
+        for ( int i = 0; i < OverhangFixingManager.MAX_SPLICES_TO_KEEP + 1; i++ )
+            manager.addSplicePosition("20", offset + i, offset + 1 + i);
+
+        final List<OverhangFixingManager.Splice> splices = manager.getSplicesForTesting();
+
+        Assert.assertEquals(splices.size(), (OverhangFixingManager.MAX_SPLICES_TO_KEEP / 2) + 1);
+
+        final int minStartPos = (OverhangFixingManager.MAX_SPLICES_TO_KEEP / 2) + offset;
+
+        for ( final OverhangFixingManager.Splice splice : splices )
+            Assert.assertTrue(splice.loc.getStart() >= minStartPos);
     }
 
+    @DataProvider(name = "OverhangTest")
+    public Object[][] makeOverhangData() {
+        final List<Object[]> tests = new ArrayList<>();
+        for ( int leftRead : Arrays.asList(10, 20, 30, 40) ) {
+            for ( int rightRead : Arrays.asList(20, 30, 40, 50) ) {
+                if ( leftRead >= rightRead )
+                    continue;
+                for ( int leftSplice : Arrays.asList(10, 20, 30) ) {
+                    for ( int rightSplice : Arrays.asList(20, 30, 40) ) {
+                        if ( leftSplice >= rightSplice )
+                            continue;
 
+                        final GenomeLoc readLoc = genomeLocParser.createGenomeLoc("1", leftRead, rightRead);
+                        final GenomeLoc spliceLoc = genomeLocParser.createGenomeLoc("1", leftSplice, rightSplice);
+                        tests.add(new Object[]{readLoc, spliceLoc});
+                    }
+                }
+            }
+        }
+        return tests.toArray(new Object[][]{});
+    }
 
+    @Test(dataProvider = "OverhangTest")
+    public void testLeftOverhangs(final GenomeLoc readLoc, final GenomeLoc spliceLoc) {
+        final boolean isValidOverhang = readLoc.getStart() <= spliceLoc.getStop() &&
+                readLoc.getStop() > spliceLoc.getStop() &&
+                readLoc.getStart() > spliceLoc.getStart();
+        Assert.assertEquals(OverhangFixingManager.isLeftOverhang(readLoc, spliceLoc), isValidOverhang, readLoc + " vs. " + spliceLoc);
+    }
 
+    @Test(dataProvider = "OverhangTest")
+    public void testRightOverhangs(final GenomeLoc readLoc, final GenomeLoc spliceLoc) {
+        final boolean isValidOverhang = readLoc.getStop() >= spliceLoc.getStart() &&
+                readLoc.getStop() < spliceLoc.getStop() &&
+                readLoc.getStart() < spliceLoc.getStart();
+        Assert.assertEquals(OverhangFixingManager.isRightOverhang(readLoc, spliceLoc), isValidOverhang, readLoc + " vs. " + spliceLoc);
+    }
+
+    @DataProvider(name = "MismatchEdgeConditionTest")
+    public Object[][] makeMismatchEdgeConditionData() {
+        final List<Object[]> tests = new ArrayList<>();
+        tests.add(new Object[]{null, 1, null, 1, 0});
+        tests.add(new Object[]{null, 1, null, 1, 100});
+        tests.add(new Object[]{new byte[4], 1, null, 1, 3});
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MismatchEdgeConditionTest")
+    public void testMismatchEdgeCondition(final byte[] read, final int readStart, final byte[] ref, final int refStart, final int overhang) {
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+        Assert.assertFalse(manager.overhangingBasesMismatch(read, readStart, ref, refStart, overhang));
+    }
+
+    @DataProvider(name = "MismatchTest")
+    public Object[][] makeMismatchData() {
+        final List<Object[]> tests = new ArrayList<>();
+
+        final byte[] AAAA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A'};
+        final byte[] AAAC = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'C'};
+        final byte[] AAAAAA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'A'};
+        final byte[] AAAACA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'C', (byte)'A'};
+        final byte[] AAAACC = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'C', (byte)'C'};
+
+        tests.add(new Object[]{AAAA, 2, AAAA, 2, 2, false});
+        tests.add(new Object[]{AAAA, 2, AAAC, 2, 2, true});
+        tests.add(new Object[]{AAAAAA, 3, AAAACA, 3, 3, false});
+        tests.add(new Object[]{AAAAAA, 3, AAAACC, 3, 3, true});
+        tests.add(new Object[]{AAAAAA, 4, AAAACC, 4, 2, true});
+        tests.add(new Object[]{AAAAAA, 2, AAAACC, 2, 3, false});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MismatchTest")
+    public void testMismatch(final byte[] read, final int readStart, final byte[] ref, final int refStart, final int overhang, final boolean expected) {
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+        Assert.assertEquals(manager.overhangingBasesMismatch(read, readStart, ref, refStart, overhang), expected, new String(read) + " vs. " + new String(ref) + " @" + overhang);
+    }
 }
