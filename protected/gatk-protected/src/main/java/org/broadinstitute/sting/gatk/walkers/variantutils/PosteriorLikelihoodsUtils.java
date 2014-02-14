@@ -101,7 +101,6 @@ public class PosteriorLikelihoodsUtils {
                         GATKVariantContextUtils.GenotypeAssignmentMethod.USE_PLS_TO_ASSIGN, posteriors.get(genoIdx), vc1.getAlleles());
                 builder.attribute(VCFConstants.GENOTYPE_POSTERIORS_KEY,
                         Utils.listFromPrimitives(GenotypeLikelihoods.fromLog10Likelihoods(posteriors.get(genoIdx)).getAsPLs()));
-
             }
             newContext.add(builder.make());
         }
@@ -109,7 +108,10 @@ public class PosteriorLikelihoodsUtils {
         final List<Integer> priors = Utils.listFromPrimitives(
                 GenotypeLikelihoods.fromLog10Likelihoods(getDirichletPrior(alleleCounts, vc1.getMaxPloidy(2))).getAsPLs());
 
-        return new VariantContextBuilder(vc1).genotypes(newContext).attribute("PG",priors).make();
+        final VariantContextBuilder builder = new VariantContextBuilder(vc1).genotypes(newContext).attribute("PG", priors);
+        // add in the AC, AF, and AN attributes
+        VariantContextUtils.calculateChromosomeCounts(builder, true);
+        return builder.make();
     }
 
     /**
@@ -121,8 +123,8 @@ public class PosteriorLikelihoodsUtils {
      * @return - the posterior genotype likelihoods
      */
     protected static List<double[]> calculatePosteriorGLs(final List<double[]> genotypeLikelihoods,
-                                                       final double[] knownAlleleCountsByAllele,
-                                                       final int ploidy) {
+                                                          final double[] knownAlleleCountsByAllele,
+                                                          final int ploidy) {
         if ( ploidy != 2 ) {
             throw new IllegalStateException("Genotype posteriors not yet implemented for ploidy != 2");
         }
@@ -130,7 +132,7 @@ public class PosteriorLikelihoodsUtils {
         final double[] genotypePriorByAllele = getDirichletPrior(knownAlleleCountsByAllele,ploidy);
         final List<double[]> posteriors = new ArrayList<>(genotypeLikelihoods.size());
         for ( final double[] likelihoods : genotypeLikelihoods ) {
-            double[] posteriorLikelihoods = null;
+            double[] posteriorProbabilities = null;
 
             if ( likelihoods != null ) {
                 if ( likelihoods.length != genotypePriorByAllele.length ) {
@@ -138,16 +140,16 @@ public class PosteriorLikelihoodsUtils {
                             knownAlleleCountsByAllele.length*(knownAlleleCountsByAllele.length+1)/2,likelihoods.length));
                 }
 
-                posteriorLikelihoods = new double[genotypePriorByAllele.length];
+                posteriorProbabilities = new double[genotypePriorByAllele.length];
                 for ( int genoIdx = 0; genoIdx < likelihoods.length; genoIdx ++ ) {
-                    posteriorLikelihoods[genoIdx] = likelihoods[genoIdx] + genotypePriorByAllele[genoIdx];
+                    posteriorProbabilities[genoIdx] = likelihoods[genoIdx] + genotypePriorByAllele[genoIdx];
                 }
 
-                posteriorLikelihoods = MathUtils.toLog10(MathUtils.normalizeFromLog10(posteriorLikelihoods));
+                posteriorProbabilities = MathUtils.normalizeFromLog10(posteriorProbabilities, true);
 
             }
 
-            posteriors.add(posteriorLikelihoods);
+            posteriors.add(posteriorProbabilities);
         }
 
         return posteriors;

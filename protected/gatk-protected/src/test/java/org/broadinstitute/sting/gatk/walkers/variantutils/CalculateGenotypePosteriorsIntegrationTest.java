@@ -51,27 +51,19 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 
-/**
- * Tests LeftAlignAndTrimVariants
- */
-public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
+public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
 
-    @Test
-    public void testLeftAlignment() {
-         WalkerTestSpec spec = new WalkerTestSpec(
-                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forLeftAlignVariantsTest.vcf --no_cmdline_in_header",
-                 1,
-                 Arrays.asList("bcf05f56adbb32a47b6d6b27b327d5c2"));
-         executeTest("test left alignment", spec);
-    }
-
-    @Test
-    public void testLeftAlignmentWithTrimmingAndMultialleliecs() {
+    @Test(enabled = true)
+    public void testUsingDiscoveredAF() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --no_cmdline_in_header -trim -split",
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
+                        " -o %s" +
+                        " -R " + b37KGReference +
+                        " -L 20:10,000,000-10,100,000" +
+                        " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("d12468cf08cfd14354f781d5f42b279f"));
-        executeTest("test left alignment with trimming and hard multiple alleles", spec);
-
+                Arrays.asList("e1adedc7e1d63e384187b24b7ded4410"));
+        executeTest("testUsingDiscoveredAF", spec);
     }
+
 }
