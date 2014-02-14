@@ -56,6 +56,7 @@ import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -82,8 +83,13 @@ public class RepeatCovariatesUnitTest {
         rurlCovariate.initialize(RAC);
     }
 
+    @BeforeMethod
+    public void initCache() {
+        ReadCovariates.clearKeysCache();
+    }
 
-    @Test(enabled = true)
+
+    @Test
     public void testFindNumberOfRepetitions() {
         // First, test logic to compute number of repetitions of a substring on a given string.
         int result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "ACAC".getBytes(), true);
@@ -136,7 +142,7 @@ public class RepeatCovariatesUnitTest {
      * Build synthetic reads with random content made up of tandem repeats, record computed Repeat Unit and # repeats and see if
      * they match with read context
      */
-    @Test(enabled = false)
+    @Test
     public void testManyObservations() {
         final int NUM_UNITS = 10;
         final int MAX_REPEAT_UNIT_LENGTH = RAC.MAX_STR_UNIT_LENGTH;

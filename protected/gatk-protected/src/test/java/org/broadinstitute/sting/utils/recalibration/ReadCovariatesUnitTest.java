@@ -53,6 +53,7 @@ import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Random;
@@ -63,9 +64,14 @@ import java.util.Random;
  */
 public class ReadCovariatesUnitTest {
 
+    @BeforeMethod
+    public void init() {
+        ReadCovariates.clearKeysCache();
+    }
+
     @Test(enabled = false)
     public void testCovariateGeneration() {
-         final RecalibrationArgumentCollection RAC = new RecalibrationArgumentCollection();
+        final RecalibrationArgumentCollection RAC = new RecalibrationArgumentCollection();
         final String RGID = "id";
 
         ReadGroupCovariate rgCov = new ReadGroupCovariate();

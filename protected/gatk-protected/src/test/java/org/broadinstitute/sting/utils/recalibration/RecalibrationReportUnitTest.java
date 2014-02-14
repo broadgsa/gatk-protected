@@ -54,6 +54,7 @@ import org.broadinstitute.sting.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.*;
@@ -63,6 +64,11 @@ import java.util.*;
  * @since 4/21/12
  */
 public class RecalibrationReportUnitTest {
+    @BeforeMethod
+    public void init() {
+        ReadCovariates.clearKeysCache();
+    }
+
     private static RecalDatum createRandomRecalDatum(int maxObservations, int maxErrors) {
         final Random random = new Random();
         final int nObservations = random.nextInt(maxObservations);
@@ -71,7 +77,7 @@ public class RecalibrationReportUnitTest {
         return new RecalDatum((long)nObservations, (double)nErrors, (byte)qual);
     }
 
-    @Test(enabled = false)
+    @Test
     public void testOutput() {
         final int length = 100;
 

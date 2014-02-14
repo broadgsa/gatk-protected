@@ -53,6 +53,7 @@ import org.broadinstitute.sting.utils.recalibration.ReadCovariates;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -62,6 +63,11 @@ import java.util.EnumMap;
 import java.util.List;
 
 public final class ReadRecalibrationInfoUnitTest extends BaseTest {
+    @BeforeMethod
+    public void init() {
+        ReadCovariates.clearKeysCache();
+    }
+
     @DataProvider(name = "InfoProvider")
     public Object[][] createCombineTablesProvider() {
         List<Object[]> tests = new ArrayList<Object[]>();
@@ -74,7 +80,6 @@ public final class ReadRecalibrationInfoUnitTest extends BaseTest {
 
         return tests.toArray(new Object[][]{});
     }
-
     @Test(dataProvider = "InfoProvider")
     public void testReadInfo(final int readLength, final boolean includeIndelErrors) {
         final ReadCovariates covariates = new ReadCovariates(readLength, 2);

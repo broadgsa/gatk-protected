@@ -79,6 +79,14 @@ public class ReadCovariates {
     };
 
     /**
+     * The keys cache is only valid for a single covariate count.  Normally this will remain constant for the analysis.
+     * If running multiple analyses (or the unit test suite), it's necessary to clear the cache.
+     */
+    public static void clearKeysCache() {
+        keysCache.remove();
+    }
+
+    /**
      * Our keys, indexed by event type x read length x covariate
      */
     private final int[][][] keys;
@@ -107,6 +115,10 @@ public class ReadCovariates {
 
     /**
      * Update the keys for mismatch, insertion, and deletion for the current covariate at read offset
+     *
+     * NOTE: no checks are performed on the number of covariates, for performance reasons.  If the count increases
+     * after the keysCache has been accessed, this method will throw an ArrayIndexOutOfBoundsException.  This currently
+     * only occurs in the testing harness, and we don't anticipate that it will become a part of normal runs.
      *
      * @param mismatch the mismatch key value
      * @param insertion the insertion key value
