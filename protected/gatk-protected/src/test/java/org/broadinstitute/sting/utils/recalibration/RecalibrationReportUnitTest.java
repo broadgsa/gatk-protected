@@ -77,7 +77,7 @@ public class RecalibrationReportUnitTest {
         return new RecalDatum((long)nObservations, (double)nErrors, (byte)qual);
     }
 
-    @Test(enabled = false)
+    @Test
     public void testOutput() {
         final int length = 100;
 
