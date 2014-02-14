@@ -89,7 +89,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testHasAnnotsAsking1() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample2.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("823868a4b5b5ec2cdf080c059d04d31a"));
+                Arrays.asList("ff21ad7bb0d6bcabcee6b95d975570fc"));
         executeTest("test file has annotations, asking for annotations, #1", spec);
     }
 
@@ -97,7 +97,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testHasAnnotsAsking2() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample3.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,050,000", 1,
-                Arrays.asList("213560f395280e6a066d0b0497ce8881"));
+                Arrays.asList("cb463a56d0b5bc66940f844e56265c14"));
         executeTest("test file has annotations, asking for annotations, #2", spec);
     }
 
@@ -123,7 +123,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoAnnotsAsking1() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample2empty.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("6f873b3152db291e18e3a04fbce2e117"));
+                Arrays.asList("d57ca04b4ceb2f25b31bc0cbd88bca6b"));
         executeTest("test file doesn't have annotations, asking for annotations, #1", spec);
     }
 
@@ -131,7 +131,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoAnnotsAsking2() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,050,000", 1,
-                Arrays.asList("d8089c5874ff35a7fd7e35ebd7d3b137"));
+                Arrays.asList("9cc0cf19070d951b1979e069552810f1"));
         executeTest("test file doesn't have annotations, asking for annotations, #2", spec);
     }
 
@@ -270,7 +270,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         executeTest("Testing SnpEff annotations (unsupported version, no GATK mode)", spec);
     }
 
-    @Test
+    @Test(enabled = true)
     public void testTDTAnnotation() {
         final String MD5 = "427dfdc665359b67eff210f909ebf8a2";
         WalkerTestSpec spec = new WalkerTestSpec(
@@ -281,7 +281,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
 
-    @Test
+    @Test(enabled = true)
     public void testChromosomeCountsPed() {
         final String MD5 = "6b5cbedf4a8b3385edf128d81c8a46f2";
         WalkerTestSpec spec = new WalkerTestSpec(
@@ -291,7 +291,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         executeTest("Testing ChromosomeCounts annotation with PED file", spec);
     }
 
-    @Test
+    @Test(enabled = true)
     public void testInbreedingCoeffPed() {
         final String MD5 = "159a771c1deaeffb786097e106943893";
         WalkerTestSpec spec = new WalkerTestSpec(
@@ -358,7 +358,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         final File outputVCFNoQD = executeTest("testQualByDepth calling without QD", specNoQD).getFirst().get(0);
 
         final String baseAnn = String.format("-T VariantAnnotator -R %s -V %s", REF, outputVCFNoQD.getAbsolutePath()) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -A QualByDepth";
-        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("78b8b498fdc34e59208150caacb25b1c"));
+        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("4ccdbebcfd02be87ae5b4ad94666f011"));
         specAnn.disableShadowBCF();
         final File outputVCFAnn = executeTest("testQualByDepth re-annotation of QD", specAnn).getFirst().get(0);
 

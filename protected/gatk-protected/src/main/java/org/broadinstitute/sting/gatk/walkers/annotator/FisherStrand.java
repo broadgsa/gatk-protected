@@ -89,6 +89,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
     private static final String FS = "FS";
     private static final double MIN_PVALUE = 1E-320;
     private static final int MIN_QUAL_FOR_FILTERED_TEST = 17;
+    private static final int MIN_COUNT = 2;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -134,7 +135,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
     private int[][] getTableFromSamples( final GenotypesContext genotypes ) {
         if( genotypes == null ) { throw new IllegalArgumentException("Genotypes cannot be null."); }
 
-        final int[] sbArray = {0,0,0,0}; // forward-reverse -by- alternate-reference
+        final int[] sbArray = {0,0,0,0}; // reference-forward-reverse -by- alternate-forward-reverse
         boolean foundData = false;
 
         for( final Genotype g : genotypes ) {
@@ -144,12 +145,25 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
             foundData = true;
             final String sbbsString = (String) g.getAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME);
             final int[] data = encodeSBBS(sbbsString);
-            for( int index = 0; index < sbArray.length; index++ ) {
-                sbArray[index] += data[index];
+            if ( passesMinimumThreshold(data) ) {
+                for( int index = 0; index < sbArray.length; index++ ) {
+                    sbArray[index] += data[index];
+                }
             }
         }
 
         return ( foundData ? decodeSBBS(sbArray) : null );
+    }
+
+    /**
+     * Does this strand data array pass the minimum threshold for inclusion?
+     *
+     * @param data  the array
+     * @return true if it passes the minimum threshold, false otherwise
+     */
+    private static boolean passesMinimumThreshold(final int[] data) {
+        // the ref and alt totals must each be greater than MIN_COUNT
+        return data[0] + data[1] > MIN_COUNT && data[2] + data[3] > MIN_COUNT;
     }
 
     /**
@@ -236,7 +250,9 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
     }
 
     private Double pValueForContingencyTable(int[][] originalTable) {
-        int [][] table = copyContingencyTable(originalTable);
+        final int[][] normalizedTable = normalizeContingencyTable(originalTable);
+
+        int[][] table = copyContingencyTable(normalizedTable);
 
         double pCutoff = computePValue(table);
         //printTable(table, pCutoff);
@@ -252,7 +268,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
             }
         }
 
-        table = copyContingencyTable(originalTable);
+        table = copyContingencyTable(normalizedTable);
         while (unrotateTable(table)) {
             double pValuePiece = computePValue(table);
 
@@ -268,6 +284,32 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
         // min is necessary as numerical precision can result in pValue being slightly greater than 1.0
         return Math.min(pValue, 1.0);
+    }
+
+    // how large do we want the normalized table to be?
+    private static final double TARGET_TABLE_SIZE = 200.0;
+
+    /**
+     * Normalize the table so that the entries are not too large.
+     * Note that this method does NOT necessarily make a copy of the table being passed in!
+     *
+     * @param table  the original table
+     * @return a normalized version of the table or the original table if it is already normalized
+     */
+    private static int[][] normalizeContingencyTable(final int[][] table) {
+        final int sum = table[0][0] + table[0][1] + table[1][0] + table[1][1];
+        if ( sum <= TARGET_TABLE_SIZE * 2 )
+            return table;
+
+        final double normalizationFactor = (double)sum / TARGET_TABLE_SIZE;
+
+        final int[][] normalized = new int[2][2];
+        for ( int i = 0; i < 2; i++ ) {
+            for ( int j = 0; j < 2; j++ )
+                normalized[i][j] = (int)(table[i][j] / normalizationFactor);
+        }
+
+        return normalized;
     }
 
     private static int [][] copyContingencyTable(int [][] t) {
@@ -372,15 +414,31 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         final int[][] table = new int[2][2];
 
         for (final PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
+            final int[] myTable = new int[4];
             for (final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
                 final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
                 final GATKSAMRecord read = el.getKey();
                 final int representativeCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
-                updateTable(table, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt, representativeCount);
+                updateTable(myTable, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt, representativeCount);
             }
+            if ( passesMinimumThreshold(myTable) )
+                copyToMainTable(myTable, table);
         }
 
         return table;
+    }
+
+    /**
+     * Helper method to copy the per-sample table to the main table
+     *
+     * @param perSampleTable   per-sample table (single dimension)
+     * @param mainTable        main table (two dimensions)
+     */
+    private static void copyToMainTable(final int[] perSampleTable, final int[][] mainTable) {
+        mainTable[0][0] += perSampleTable[0];
+        mainTable[0][1] += perSampleTable[1];
+        mainTable[1][0] += perSampleTable[2];
+        mainTable[1][1] += perSampleTable[3];
     }
 
     /**
@@ -397,6 +455,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         int[][] table = new int[2][2];
 
         for ( Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
+            final int[] myTable = new int[4];
             for (PileupElement p : sample.getValue().getBasePileup()) {
 
                 if ( ! isUsableBase(p) ) // ignore deletions and bad MQ
@@ -405,8 +464,10 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
                 if ( p.getQual() < minQScoreToConsider || p.getMappingQual() < minQScoreToConsider )
                     continue;
 
-                updateTable(table, Allele.create(p.getBase(), false), p.getRead(), ref, alt, p.getRepresentativeCount());
+                updateTable(myTable, Allele.create(p.getBase(), false), p.getRead(), ref, alt, p.getRepresentativeCount());
             }
+            if ( passesMinimumThreshold(myTable) )
+                copyToMainTable(myTable, table);
         }
 
         return table;
@@ -426,13 +487,13 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
                 ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE);
     }
 
-    private static void updateTable(final int[][] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt, final int representativeCount) {
+    private static void updateTable(final int[] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt, final int representativeCount) {
 
         final boolean matchesRef = allele.equals(ref, true);
         final boolean matchesAlt = allele.equals(alt, true);
 
         if ( matchesRef || matchesAlt ) {
-            final int row = matchesRef ? 0 : 1;
+            final int offset = matchesRef ? 0 : 2;
 
             if ( read.isStrandless() ) {
 
@@ -443,14 +504,13 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
                     // (the 1 is to ensure that a strandless read always counts as an observation on both strands, even
                     // if the read is only seen once, because it's a merged read or other)
                     final int toAdd = Math.max(representativeCount / 2, 1);
-                    table[row][0] += toAdd;
-                    table[row][1] += toAdd;
+                    table[offset] += toAdd;
+                    table[offset + 1] += toAdd;
                 }
             } else {
                 // a normal read with an actual strand
                 final boolean isFW = !read.getReadNegativeStrandFlag();
-                final int column = isFW ? 0 : 1;
-                table[row][column] += representativeCount;
+                table[offset + (isFW ? 0 : 1)] += representativeCount;
             }
         }
     }
