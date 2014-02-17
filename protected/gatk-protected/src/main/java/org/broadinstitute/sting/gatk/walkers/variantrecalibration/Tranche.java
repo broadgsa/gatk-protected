@@ -124,7 +124,8 @@ public class Tranche {
         final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         final PrintStream stream = new PrintStream(bytes);
 
-        Collections.sort( tranches, new TrancheTruthSensitivityComparator() );
+        if( tranches.size() > 1 )
+            Collections.sort( tranches, new TrancheTruthSensitivityComparator() );
 
         stream.println("# Variant quality score tranches file");
         stream.println("# Version number " + CURRENT_VERSION);
