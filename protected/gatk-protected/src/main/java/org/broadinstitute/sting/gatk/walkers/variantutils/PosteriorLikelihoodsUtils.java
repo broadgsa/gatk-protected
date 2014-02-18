@@ -48,6 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.variantutils;
 
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.vcf.VCFConstants;
@@ -211,13 +212,13 @@ public class PosteriorLikelihoodsUtils {
         final int[] ac;
         //use MLEAC value...
         if ( context.hasAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY) && ! useAC ) {
-            ac = extractInts(context.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
+            ac = getAlleleCounts(VCFConstants.MLE_ALLELE_COUNT_KEY, context);
         }
-        //...unless specified by the user in useAC
+        //...unless specified by the user in useAC or unless MLEAC is absent
         else if ( context.hasAttribute(VCFConstants.ALLELE_COUNT_KEY) ) {
-            ac = extractInts(context.getAttribute(VCFConstants.ALLELE_COUNT_KEY));
+            ac = getAlleleCounts(VCFConstants.ALLELE_COUNT_KEY, context);
         }
-        //if VariantContext annotation doesn't contain AC/MLEAC then get the data from another field
+        //if VariantContext annotation doesn't contain AC or MLEAC then get the data from direct evaluation
         else {
             ac = new int[context.getAlternateAlleles().size()];
             int idx = 0;
@@ -246,6 +247,25 @@ public class PosteriorLikelihoodsUtils {
             //add the count for the current allele to the existing value in the map
             counts.put(allele,count + counts.get(allele));
         }
+    }
+
+    /**
+     * Retrieve allele count data from VariantContext using VCFkey, checks for correct number of values in VCF
+     * @param VCFkey VariantContext annotation tag of interest (should be AC or MLEAC)
+     * @param context VariantContext from which to extract the data
+     * @return int[] with allele count data
+     */
+    private static int[] getAlleleCounts(final String VCFkey, final VariantContext context) {
+        final Object alleleCountsFromVCF = context.getAttribute(VCFkey);
+        if ( alleleCountsFromVCF instanceof List ) {
+            if ( ((List) alleleCountsFromVCF).size() != context.getAlternateAlleles().size() )
+                throw new UserException(String.format("Variant does not contain the same number of MLE allele counts as alternate alleles for record at %s:%d", context.getChr(), context.getStart()));
+        }
+        else if ( alleleCountsFromVCF instanceof String || alleleCountsFromVCF instanceof Integer) {//here length is 1
+            if (context.getAlternateAlleles().size() != 1)
+                throw new UserException(String.format("Variant does not contain the same number of MLE allele counts as alternate alleles for record at %s:%d", context.getChr(), context.getStart()));
+        }
+        return extractInts(alleleCountsFromVCF);
     }
 
     /**
