@@ -229,9 +229,8 @@ public class GenotypingEngine {
 
                     VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(tracker, stratifiedReadMap, call);
 
-                    if( !emitReferenceConfidence && call.getAlleles().size() != mergedVC.getAlleles().size() ) { // some alleles were removed so reverseTrimming might be necessary!
+                    if( call.getAlleles().size() != mergedVC.getAlleles().size() )
                         annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
-                    }
 
                     // maintain the set of all called haplotypes
                     for ( final Allele calledAllele : call.getAlleles() ) {

@@ -202,9 +202,11 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
         // only re-genotype polymorphic sites
         if ( result.isVariant() ) {
-            final VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
+            VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
             if ( regenotypedVC == null )
                 return null;
+
+            regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
 
             // we want to carry forward the attributes from the original VC but make sure to add the MLE-based annotations
             final Map<String, Object> attrs = new HashMap<>(originalVC.getAttributes());
