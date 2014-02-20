@@ -84,6 +84,7 @@ public class GVCFWriter implements VariantContextWriter {
 
     /** fields updated on the fly during GVCFWriter operation */
     int nextAvailableStart = -1;
+    String contigOfNextAvailableStart = null;
     private String sampleName = null;
     private HomRefBlock currentBlock = null;
 
@@ -187,10 +188,17 @@ public class GVCFWriter implements VariantContextWriter {
      * @return a VariantContext to be emitted, or null if non is appropriate
      */
     protected VariantContext addHomRefSite(final VariantContext vc, final Genotype g) {
-        if ( nextAvailableStart != -1 && vc.getStart() <= nextAvailableStart ) {
+        if ( nextAvailableStart != -1 ) {
             // don't create blocks while the hom-ref site falls before nextAvailableStart (for deletions)
-            return null;
-        } else if ( currentBlock == null ) {
+            if ( vc.getStart() <= nextAvailableStart && vc.getChr().equals(contigOfNextAvailableStart) ) {
+                return null;
+            }
+            // otherwise, reset to non-relevant
+            nextAvailableStart = -1;
+            contigOfNextAvailableStart = null;
+        }
+
+        if ( currentBlock == null ) {
             currentBlock = createNewBlock(vc, g);
             return null;
         } else if ( currentBlock.withinBounds(g.getGQ()) ) {
@@ -302,6 +310,7 @@ public class GVCFWriter implements VariantContextWriter {
                 // g is variant, so flush the bands and emit vc
                 emitCurrentBlock();
                 nextAvailableStart = vc.getEnd();
+                contigOfNextAvailableStart = vc.getChr();
                 underlyingWriter.add(vc);
             }
         }

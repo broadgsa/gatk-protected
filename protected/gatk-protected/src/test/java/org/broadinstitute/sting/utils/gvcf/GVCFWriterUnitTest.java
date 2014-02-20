@@ -203,6 +203,37 @@ public class GVCFWriterUnitTest extends BaseTest {
     }
 
     @Test
+    public void testCrossingContigBoundaryToLowerPositionsRef() {
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+
+        writer.add(makeHomRef("20", 30, 30));
+        writer.add(makeHomRef("20", 31, 30));
+        Assert.assertEquals(mockWriter.emitted.size(), 0);
+        writer.add(makeHomRef("21", 10, 30));
+        Assert.assertEquals(mockWriter.emitted.size(), 1);
+        assertGoodVC(mockWriter.emitted.get(0), "20", 30, 31, false);
+        writer.add(makeNonRef("21", 11, 30));
+        Assert.assertEquals(mockWriter.emitted.size(), 3);
+        assertGoodVC(mockWriter.emitted.get(1), "21", 10, 10, false);
+        assertGoodVC(mockWriter.emitted.get(2), "21", 11, 11, true);
+    }
+
+    @Test
+    public void testCrossingContigBoundaryFromNonRefToLowerPositionsRef() {
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+
+        writer.add(makeNonRef("20", 20, 30));
+        Assert.assertEquals(mockWriter.emitted.size(), 1);
+        writer.add(makeHomRef("21", 10, 30));
+        Assert.assertEquals(mockWriter.emitted.size(), 1);
+        assertGoodVC(mockWriter.emitted.get(0), "20", 20, 20, true);
+        writer.add(makeNonRef("21", 11, 30));
+        Assert.assertEquals(mockWriter.emitted.size(), 3);
+        assertGoodVC(mockWriter.emitted.get(1), "21", 10, 10, false);
+        assertGoodVC(mockWriter.emitted.get(2), "21", 11, 11, true);
+    }
+
+    @Test
     public void testCrossingContigBoundaryNonRef() {
         final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
 
