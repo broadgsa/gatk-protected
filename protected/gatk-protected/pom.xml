@@ -31,8 +31,8 @@
         </dependency>
 
         <dependency>
-            <groupId>gov.nist</groupId>
-            <artifactId>Jama</artifactId>
+            <groupId>gov.nist.math</groupId>
+            <artifactId>jama</artifactId>
         </dependency>
 
         <dependency>
