@@ -63,6 +63,17 @@ import java.util.*;
  */
 public class RouteUnitTest extends BaseTest {
 
+       @Test(dataProvider="slicePrefixTestData")
+       public void testSplicePrefix(final Route<BaseVertex,BaseEdge> route) {
+           final int routeLength = route.length();
+           for (int i = 0; i < routeLength; i++) {
+               final Route<BaseVertex,BaseEdge> spliced = route.splicePrefix(i);
+               Assert.assertEquals(spliced.length(),route.length() - i);
+               final List<BaseEdge> routeEdges = route.getEdges();
+               final List<BaseEdge> expectedSlicedEdges = routeEdges.subList(i,routeLength);
+               Assert.assertEquals(spliced.getEdges(),expectedSlicedEdges);
+           }
+       }
 
        @Test(dataProvider="isSuffixTestData")
        public void testIsSuffix(final Route<BaseVertex,BaseEdge> route, final Path<BaseVertex,BaseEdge> path, final boolean expectedResult) {
@@ -71,7 +82,12 @@ public class RouteUnitTest extends BaseTest {
 
        @DataProvider(name="isSuffixTestData")
        public Iterator<Object[]> isSuffixTestData() {
-           return TEST_DATA.iterator();
+           return IS_SUFFIX_TEST_DATA.iterator();
+       }
+
+       @DataProvider(name="slicePrefixTestData")
+       public Iterator<Object[]> slicePrefixTestData() {
+           return Arrays.asList(SLICE_PREFIX_TEST_DATA).iterator();
        }
 
        private static final int[] TEST_EDGE_PAIRS1 = new int[] {
@@ -85,8 +101,6 @@ public class RouteUnitTest extends BaseTest {
                                        9,     11,
                                               11, 12,
        };
-
-
 
        private static final int[] TEST_EDGE_PAIRS = new int[] {
               1 , 2,
@@ -119,8 +133,9 @@ public class RouteUnitTest extends BaseTest {
 
     private static Map<Integer, BaseVertex> vertexByInteger = new HashMap<>();
     private static final BaseGraph<BaseVertex, BaseEdge> TEST_GRAPH = new BaseGraph<>(1, TEST_GRAPH_EDGE_FACTORY);
-    private static final List<Object[]> TEST_DATA;
+    private static final List<Object[]> IS_SUFFIX_TEST_DATA;
 
+    private static final Object[][] SLICE_PREFIX_TEST_DATA;
 
     static {
         for (int i = 0; i < TEST_EDGE_PAIRS.length; i += 2) {
@@ -156,7 +171,16 @@ public class RouteUnitTest extends BaseTest {
 
         final int numberOfPaths = allPossiblePaths.size();
         final boolean[][] isSuffix = buildIsSuffixMatrix(allPossiblePaths, numberOfPaths);
-        TEST_DATA = createTestData(allPossiblePaths,allPossibleRoutes,isSuffix);
+        IS_SUFFIX_TEST_DATA = createTestData(allPossiblePaths,allPossibleRoutes,isSuffix);
+        SLICE_PREFIX_TEST_DATA = createSlicePrefixTestData(allPossibleRoutes);
+    }
+
+    private static Object[][] createSlicePrefixTestData(List<Route<BaseVertex, BaseEdge>> allPossibleRoutes) {
+        final Object[][] result = new Object[allPossibleRoutes.size()][1];
+        final Object[] routes = allPossibleRoutes.toArray();
+        for (int i = 0; i < result.length; i++)
+            result[i][0] = routes[i];
+        return result;
     }
 
     private static boolean[][] buildIsSuffixMatrix(final List<Path<BaseVertex, BaseEdge>> allPossiblePaths, final int numberOfPaths) {

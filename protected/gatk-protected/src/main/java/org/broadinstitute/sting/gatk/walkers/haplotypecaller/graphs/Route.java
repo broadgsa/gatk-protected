@@ -277,7 +277,7 @@ public class Route<V extends BaseVertex, E extends BaseEdge> extends Path<V,E> {
             throw new IllegalArgumentException("prefix cannot be negative");
 
         final List<E> resultEdges = getEdges().subList(length,length());
-        Route<V,E> result = new Route<>(graph.getEdgeSource(resultEdges.get(0)),this);
+        Route<V,E> result = new Route<>(graph.getEdgeSource(resultEdges.get(0)),graph);
         for (final E edge : resultEdges)
             result = new Route<>(result,edge);
         return result;
