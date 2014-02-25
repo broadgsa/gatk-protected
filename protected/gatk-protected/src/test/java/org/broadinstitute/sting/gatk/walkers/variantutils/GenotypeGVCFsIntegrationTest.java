@@ -65,7 +65,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Arrays.asList("9c618890c03ee9cae1d269039fc29506"));
+                Arrays.asList("2be5f6f7e7f79841108906555d548683"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -89,7 +89,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000 --dbsnp " + b37dbSNP132, b37KGReference),
                 1,
-                Arrays.asList("27f3e4700cf836c23a9af2dc1d1bbecb"));
+                Arrays.asList("e3c7452277898fece54bf60af9588666"));
         executeTest("combineSingleSamplePipelineGVCF_addDbsnp", spec);
     }
 
@@ -99,7 +99,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -L 1:69485-69791 -o %s -R " + b37KGReference +
                 " -V " + privateTestDir + "gvcfExample1.vcf",
                 1,
-                Arrays.asList("2541e164056d5632ad7de784a9af3880"));
+                Arrays.asList("bee009201ec3ad7b4f42f913e7ef1367"));
         executeTest("testJustOneSample", spec);
     }
 
@@ -110,7 +110,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V " + privateTestDir + "gvcfExample1.vcf" +
                         " -V " + privateTestDir + "gvcfExample2.vcf",
                 1,
-                Arrays.asList("9daf9602338db9d06c075c6e9a15ee2c"));
+                Arrays.asList("67410d8ac490e3c9d19ba7a4cceaf8fb"));
         executeTest("testSamplesWithDifferentLs", spec);
     }
 }

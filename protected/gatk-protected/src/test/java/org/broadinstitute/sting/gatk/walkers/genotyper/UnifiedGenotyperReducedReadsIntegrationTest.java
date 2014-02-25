@@ -69,12 +69,12 @@ public class UnifiedGenotyperReducedReadsIntegrationTest extends WalkerTest {
 
     @Test
     public void testReducedBamSNPs() {
-        testReducedCalling("SNP", "e8de8c523751ad2fa2ee20185ba5dea7");
+        testReducedCalling("SNP", "cc0508b18028f2e84e6a42c1ff23721c");
     }
 
     @Test
     public void testReducedBamINDELs() {
-        testReducedCalling("INDEL", "0281c3f46f7b1989c37b52ab7e337293");
+        testReducedCalling("INDEL", "6fc00d5299b1bf334d39634c3409a69d");
     }
 
 
