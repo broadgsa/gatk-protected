@@ -55,7 +55,7 @@ import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.sting.utils.exceptions.UserException;
-
+import static org.broadinstitute.sting.utils.pairhmm.PairHMMModel.*;
 
 import java.util.List;
 import java.util.Map;
@@ -258,7 +258,7 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
                         relative_error = 0;
                     else
                         relative_error = Math.abs(abs_error/mLikelihoodArray[i]);
-                    if(abs_error > 1e-6 && relative_error > 1e-6)
+                    if(abs_error > 1e-5 && relative_error > 1e-5)
                     {
                         toDump = true;
                         break;

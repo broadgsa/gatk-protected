@@ -79,4 +79,9 @@ public class RandomLikelihoodCalculationEngine implements LikelihoodCalculationE
 
         return result;
     }
+
+    @Override
+    public void close() {
+    }
+
 }
