@@ -80,29 +80,37 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
     private final boolean noFpga;
 
     private final ThreadLocal<PairHMM> pairHMMThreadLocal = new ThreadLocal<PairHMM>() {
-	@Override
-	protected PairHMM initialValue() {
-	    switch (hmmType) {
-		case EXACT: return new Log10PairHMM(true);
-		case ORIGINAL: return new Log10PairHMM(false);
-		case LOGLESS_CACHING:
-		    if (noFpga || !CnyPairHMM.isAvailable())
-		      return new LoglessPairHMM();
-		    else
-			return new CnyPairHMM();
-		case VECTOR_LOGLESS_CACHING:
-		    return new VectorLoglessPairHMM();
-		case DEBUG_VECTOR_LOGLESS_CACHING:
-		    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING);
-		case ARRAY_LOGLESS:
-		    if (noFpga || !CnyPairHMM.isAvailable())
-			return new ArrayLoglessPairHMM();
-		    else
-			return new CnyPairHMM();
-		default:
-		    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
-	    }
-	}
+        @Override
+            protected PairHMM initialValue() {
+                switch (hmmType) {
+                    case EXACT: return new Log10PairHMM(true);
+                    case ORIGINAL: return new Log10PairHMM(false);
+                    case LOGLESS_CACHING:
+                                   if (noFpga || !CnyPairHMM.isAvailable())
+                                       return new LoglessPairHMM();
+                                   else
+                                       return new CnyPairHMM();
+                    case VECTOR_LOGLESS_CACHING:
+                                   try
+                                   {
+                                       return new VectorLoglessPairHMM();
+                                   }
+                                   catch(UnsatisfiedLinkError ule)
+                                   {
+                                       logger.warn("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
+                                       return new LoglessPairHMM();
+                                   }
+                    case DEBUG_VECTOR_LOGLESS_CACHING:
+                                   return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING);
+                    case ARRAY_LOGLESS:
+                                   if (noFpga || !CnyPairHMM.isAvailable())
+                                       return new ArrayLoglessPairHMM();
+                                   else
+                                       return new CnyPairHMM();
+                    default:
+                                   throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
+                }
+            }
     };
 //    Attempted to do as below, to avoid calling pairHMMThreadLocal.get() later on, but it resulted in a NullPointerException
 //    private final PairHMM pairHMM = pairHMMThreadLocal.get();
@@ -169,8 +177,9 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
     @Override
     public void close() {
         if ( likelihoodsStream != null ) likelihoodsStream.close();
-	pairHMMThreadLocal.get().close();
+        pairHMMThreadLocal.get().close();
     }
+
 
     private void writeDebugLikelihoods(final GATKSAMRecord processedRead, final Haplotype haplotype, final double log10l){
         if ( WRITE_LIKELIHOODS_TO_FILE ) {
@@ -338,7 +347,7 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
 
     private void finalizePairHMM()
     {
-	pairHMMThreadLocal.get().finalizeRegion();
+        pairHMMThreadLocal.get().finalizeRegion();
     }
 
 
@@ -358,9 +367,9 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
             map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
             stratifiedReadMap.put(sampleEntry.getKey(), map);
         }
-	
-	//Used mostly by the JNI implementation(s) to free arrays
-	finalizePairHMM();
+        
+        //Used mostly by the JNI implementation(s) to free arrays
+        finalizePairHMM();
 
         return stratifiedReadMap;
     }

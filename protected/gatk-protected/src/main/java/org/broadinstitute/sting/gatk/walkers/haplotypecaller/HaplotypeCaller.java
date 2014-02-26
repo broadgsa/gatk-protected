@@ -433,7 +433,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Hidden
     @Argument(fullName = "pair_hmm_implementation", shortName = "pairHMM", doc = "The PairHMM implementation to use for genotype likelihood calculations", required = false)
-    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING;
+    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING;
 
     @Hidden
     @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
@@ -1051,7 +1051,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         referenceConfidenceModel.close();
         //TODO remove the need to call close here for debugging, the likelihood output stream should be managed
         //TODO (open & close) at the walker, not the engine.
-	likelihoodCalculationEngine.close();
+        likelihoodCalculationEngine.close();
         logger.info("Ran local assembly on " + result + " active regions");
     }
 
