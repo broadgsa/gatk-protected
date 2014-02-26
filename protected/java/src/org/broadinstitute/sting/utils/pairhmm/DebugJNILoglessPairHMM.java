@@ -75,8 +75,9 @@ import java.io.IOException;
  */
 public class DebugJNILoglessPairHMM extends LoglessPairHMM {
 
+    private static final boolean dumpSandboxOnly = false;        //simulates ifdef
     private static final boolean debug = false;  //simulates ifdef
-    private static final boolean verify = debug || true;        //simulates ifdef
+    private static final boolean verify = !dumpSandboxOnly && (debug || true);        //simulates ifdef
     private static final boolean debug0_1 = false;       //simulates ifdef
     private static final boolean debug1 = false; //simulates ifdef
     private static final boolean debug2 = false;
@@ -134,9 +135,11 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
     public void initialize( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList,
             final int readMaxLength, final int haplotypeMaxLength ) {
         if(verify)
+        {
             super.initialize(haplotypes, perSampleReadList, readMaxLength, haplotypeMaxLength);
-        jniPairHMM.initialize(haplotypes, perSampleReadList, readMaxLength, haplotypeMaxLength);
-        haplotypeToHaplotypeListIdxMap = jniPairHMM.getHaplotypeToHaplotypeListIdxMap();
+            jniPairHMM.initialize(haplotypes, perSampleReadList, readMaxLength, haplotypeMaxLength);
+            haplotypeToHaplotypeListIdxMap = jniPairHMM.getHaplotypeToHaplotypeListIdxMap();
+        }
     }
 
     /**
@@ -145,7 +148,8 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
     @Override
     public void finalizeRegion()
     {
-        jniPairHMM.finalizeRegion();
+        if(!dumpSandboxOnly)
+            jniPairHMM.finalizeRegion();
     }
 
     /**
@@ -204,46 +208,61 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
                 ++idx;
             }
         }
-        jniPairHMM.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
-        double[] likelihoodArray = jniPairHMM.getLikelihoodArray();
-        //to compare values
-        final PerReadAlleleLikelihoodMap likelihoodMap = super.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
+        double[] likelihoodArray = null;
+        PerReadAlleleLikelihoodMap likelihoodMap  = null;
         if(verify)
         {
-            //re-order values in likelihoodArray
-            double[] tmpArray = new double[numHaplotypes];
-            idx = 0;
-            int idxInsideHaplotypeList = 0;
-            int readIdx = 0;
-            for(GATKSAMRecord read : reads)
+            jniPairHMM.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
+            likelihoodArray = jniPairHMM.getLikelihoodArray();
+            //to compare values
+            likelihoodMap = super.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
+        }
+        else
+        {
+            likelihoodMap = new PerReadAlleleLikelihoodMap();
+            likelihoodArray = new double[numTestcases];
+            for(int i=0;i<numTestcases;++i)
+                likelihoodArray[i] = -0.5;
+        }
+        if(verify || dumpSandboxOnly)
+        {
+            boolean toDump = dumpSandboxOnly ? true : false;
+            if(verify)
             {
-                for(int j=0;j<numHaplotypes;++j)
-                    tmpArray[j] = likelihoodArray[readIdx+j];
-                for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())//order is important - access in same order always
+                //re-order values in likelihoodArray
+                double[] tmpArray = new double[numHaplotypes];
+                idx = 0;
+                int idxInsideHaplotypeList = 0;
+                int readIdx = 0;
+                for(GATKSAMRecord read : reads)
                 {
-                    idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(currEntry.getValue());
-                    likelihoodArray[idx] = tmpArray[idxInsideHaplotypeList];
-                    ++idx;
+                    for(int j=0;j<numHaplotypes;++j)
+                        tmpArray[j] = likelihoodArray[readIdx+j];
+                    for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())//order is important - access in same order always
+                    {
+                        idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(currEntry.getValue());
+                        likelihoodArray[idx] = tmpArray[idxInsideHaplotypeList];
+                        ++idx;
+                    }
+                    readIdx += numHaplotypes;
                 }
-                readIdx += numHaplotypes;
-            }
-            //for floating point values, no exact equality
-            //check whether numbers are close in terms of abs_error or relative_error
-            //For very large values, relative_error is relevant
-            //For very small values, abs_error is relevant
-            boolean toDump = false;
-            for(int i=0;i<likelihoodArray.length;++i)
-            {
-                double abs_error = Math.abs(likelihoodArray[i] - mLikelihoodArray[i]);
-                double relative_error = 0;
-                if(mLikelihoodArray[i] == 0)
-                    relative_error = 0;
-                else
-                    relative_error = Math.abs(abs_error/mLikelihoodArray[i]);
-                if(abs_error > 1e-5 && relative_error > 1e-5)
+                //for floating point values, no exact equality
+                //check whether numbers are close in terms of abs_error or relative_error
+                //For very large values, relative_error is relevant
+                //For very small values, abs_error is relevant
+                for(int i=0;i<likelihoodArray.length;++i)
                 {
-                    toDump = true;
-                    break;
+                    double abs_error = Math.abs(likelihoodArray[i] - mLikelihoodArray[i]);
+                    double relative_error = 0;
+                    if(mLikelihoodArray[i] == 0)
+                        relative_error = 0;
+                    else
+                        relative_error = Math.abs(abs_error/mLikelihoodArray[i]);
+                    if(abs_error > 1e-6 && relative_error > 1e-6)
+                    {
+                        toDump = true;
+                        break;
+                    }
                 }
             }
             //if numbers are not close, then dump out the data that produced the inconsistency
@@ -251,24 +270,40 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
             {
                 idx = 0;
                 System.out.println("Dump : Java numReads "+readListSize+" numHaplotypes "+numHaplotypes);
+                boolean firstLine = true;
                 for(GATKSAMRecord read : reads)
                 {
                     byte [] overallGCP = GCPArrayMap.get(read);
+                    byte[] tmpByteArray = new byte[read.getReadBases().length];
                     for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())       //order is important - access in same order always
                     {
                         byte[] haplotypeBases = currEntry.getValue().getBases();
                         debugDump("debug_dump.txt",new String(haplotypeBases)+" ",true);
                         debugDump("debug_dump.txt",new String(read.getReadBases())+" ",true);
                         for(int k=0;k<read.getReadBases().length;++k)
-                            debugDump("debug_dump.txt",String.format("%d",(int)(read.getBaseQualities()[k]))+" ",true);
+                            tmpByteArray[k] = (byte)((int)((read.getBaseQualities())[k]) + 33);
+                        debugDump("debug_dump.txt",new String(tmpByteArray)+" ",true);
                         for(int k=0;k<read.getReadBases().length;++k)
-                            debugDump("debug_dump.txt",String.format("%d",(int)(read.getBaseInsertionQualities()[k]))+" ",true);
+                            tmpByteArray[k] = (byte)((int)((read.getBaseInsertionQualities())[k]) + 33);
+                        debugDump("debug_dump.txt",new String(tmpByteArray)+" ",true);
                         for(int k=0;k<read.getReadBases().length;++k)
-                            debugDump("debug_dump.txt",String.format("%d",(int)(read.getBaseDeletionQualities()[k]))+" ",true);
+                            tmpByteArray[k] = (byte)((int)((read.getBaseDeletionQualities())[k]) + 33);
+                        debugDump("debug_dump.txt",new String(tmpByteArray)+" ",true);
                         for(int k=0;k<read.getReadBases().length;++k)
-                            debugDump("debug_dump.txt",String.format("%d",(int)(overallGCP[k]))+" ",true);
-                        debugDump("debug_dump.txt","\n",true);
-                        debugDump("debug_results.txt",String.format("%e %e\n",mLikelihoodArray[idx],likelihoodArray[idx]),true);
+                            tmpByteArray[k] = (byte)((int)(overallGCP[k]) + 33);
+                        debugDump("debug_dump.txt",new String(tmpByteArray),true);
+                        if(firstLine)
+                        {
+                            debugDump("debug_dump.txt",String.format(" %d %d\n",readListSize, numHaplotypes), true);
+                            firstLine = false;
+                        }
+                        else
+                            debugDump("debug_dump.txt","\n",true);
+                        if(verify)
+                            debugDump("debug_results.txt",String.format("%e %e\n",mLikelihoodArray[idx],likelihoodArray[idx]),true);
+                        else
+                            if(dumpSandboxOnly)
+                                likelihoodMap.add(read, currEntry.getKey(), likelihoodArray[idx]);
                         ++idx;
                     }
                 }
