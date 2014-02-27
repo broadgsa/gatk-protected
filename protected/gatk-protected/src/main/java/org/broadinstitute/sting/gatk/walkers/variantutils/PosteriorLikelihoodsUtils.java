@@ -67,14 +67,18 @@ public class PosteriorLikelihoodsUtils {
             throw new IllegalArgumentException("EM loop for posterior GLs not yet implemented");
 
         final Map<Allele,Integer> totalAlleleCounts = new HashMap<>();
+
+        //store the allele counts for each allele in the variant priors
         for ( final VariantContext resource : resources ) {
             addAlleleCounts(totalAlleleCounts,resource,useAC);
         }
 
+        //add the allele counts from the input samples (if applicable)
         if ( useInputSamples ) {
             addAlleleCounts(totalAlleleCounts,vc1,useAC);
         }
 
+        //add zero allele counts for any reference alleles not seen in priors (if applicable)
         totalAlleleCounts.put(vc1.getReference(),totalAlleleCounts.get(vc1.getReference())+numRefSamplesFromMissingResources);
 
         // now extract the counts of the alleles present within vc1, and in order
@@ -86,6 +90,7 @@ public class PosteriorLikelihoodsUtils {
                     totalAlleleCounts.get(allele) : 0 );
         }
 
+        //parse the likelihoods for each sample's genotype
         final List<double[]> likelihoods = new ArrayList<>(vc1.getNSamples());
         for ( final Genotype genotype : vc1.getGenotypes() ) {
             likelihoods.add(genotype.hasLikelihoods() ? genotype.getLikelihoods().getAsVector() : null );
@@ -196,13 +201,24 @@ public class PosteriorLikelihoodsUtils {
         return priors;
     }
 
+    /**
+     * Parse counts for each allele
+     * @param counts - Map to store and return data
+     * @param context - line to be parsed from the input VCF file
+     * @param useAC - use allele count annotation value from VariantContext (vs. MLEAC)
+     */
     private static void addAlleleCounts(final Map<Allele,Integer> counts, final VariantContext context, final boolean useAC) {
         final int[] ac;
+        //use MLEAC value...
         if ( context.hasAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY) && ! useAC ) {
             ac = extractInts(context.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
-        } else if ( context.hasAttribute(VCFConstants.ALLELE_COUNT_KEY) ) {
+        }
+        //...unless specified by the user in useAC
+        else if ( context.hasAttribute(VCFConstants.ALLELE_COUNT_KEY) ) {
             ac = extractInts(context.getAttribute(VCFConstants.ALLELE_COUNT_KEY));
-        } else {
+        }
+        //if VariantContext annotation doesn't contain AC/MLEAC then get the data from another field
+        else {
             ac = new int[context.getAlternateAlleles().size()];
             int idx = 0;
             for ( final Allele allele : context.getAlternateAlleles() ) {
@@ -210,24 +226,33 @@ public class PosteriorLikelihoodsUtils {
             }
         }
 
+        //since the allele count for the reference allele is not given in the VCF format,
+        //calculate it from the allele number minus the total counts for alternate alleles
         for ( final Allele allele : context.getAlleles() ) {
             final int count;
             if ( allele.isReference() ) {
                 if ( context.hasAttribute(VCFConstants.ALLELE_NUMBER_KEY) ) {
-                    count = context.getAttributeAsInt(VCFConstants.ALLELE_NUMBER_KEY,-1) - (int) MathUtils.sum(ac);
+                    count = Math.max(context.getAttributeAsInt(VCFConstants.ALLELE_NUMBER_KEY,-1) - (int) MathUtils.sum(ac),0); //occasionally an MLEAC value will sneak in that's greater than the AN
                 } else {
-                    count = context.getCalledChrCount() - (int) MathUtils.sum(ac);
+                    count = Math.max(context.getCalledChrCount() - (int) MathUtils.sum(ac),0);
                 }
             } else {
                 count = ac[context.getAlternateAlleles().indexOf(allele)];
             }
+            //if this allele isn't in the map yet, add it
             if ( ! counts.containsKey(allele) ) {
                 counts.put(allele,0);
             }
+            //add the count for the current allele to the existing value in the map
             counts.put(allele,count + counts.get(allele));
         }
     }
 
+    /**
+     * Check the formatting on the Object returned by a call to VariantContext::getAttribute() and parse appropriately
+     * @param integerListContainingVCField - Object returned by a call to VariantContext::getAttribute()
+     * @return - array of ints
+     */
     public static int[] extractInts(final Object integerListContainingVCField) {
         List<Integer> mleList = null;
         if ( integerListContainingVCField instanceof List ) {
