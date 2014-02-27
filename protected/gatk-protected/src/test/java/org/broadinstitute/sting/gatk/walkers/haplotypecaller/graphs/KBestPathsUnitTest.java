@@ -53,6 +53,7 @@ import net.sf.samtools.TextCigarCodec;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
+import org.broadinstitute.sting.utils.sam.CigarUtils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -132,7 +133,7 @@ public class KBestPathsUnitTest extends BaseTest {
         Assert.assertTrue(justOne.get(0).pathsAreTheSame(best), "Best path from complete enumerate " + best + " not the same as from k = 1 search " + justOne.get(0));
     }
 
-    @Test(enabled = !DEBUG)
+    @Test(enabled = false) // No longer supported, but no longer needed.
     public void testPathFindingComplexCycle() {
         SeqGraph graph = new SeqGraph(11);
 
@@ -152,7 +153,7 @@ public class KBestPathsUnitTest extends BaseTest {
         Assert.assertEquals(paths.size(), 1, "Didn't find the expected number of paths");
     }
 
-    @Test(enabled = !DEBUG)
+    @Test(enabled = false) // No longer supported, but no longer needed.
     public void testPathFindingCycleLastNode() {
         SeqGraph graph = new SeqGraph(11);
 
@@ -539,7 +540,7 @@ public class KBestPathsUnitTest extends BaseTest {
                         String theRef = preRefString + refString + Utils.dupString(indelString1, refIndel1) + refString + Utils.dupString(indelString2, refIndel2) + refString + postRefString;
                         String theRead = refString + Utils.dupString(indelString1, refIndel1 + indelOp1 * indelSize1) + refString + Utils.dupString(indelString2, refIndel2 + indelOp2 * indelSize2) + refString;
 
-                        Cigar calculatedCigar = Path.leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
+                        Cigar calculatedCigar = CigarUtils.leftAlignCigarSequentially(AlignmentUtils.consolidateCigar(givenCigar), theRef.getBytes(), theRead.getBytes(), preRefString.length(), 0);
                         Assert.assertEquals(AlignmentUtils.consolidateCigar(calculatedCigar).toString(), AlignmentUtils.consolidateCigar(expectedCigar).toString(), "Cigar strings do not match!");
                     }
                 }
@@ -553,7 +554,7 @@ public class KBestPathsUnitTest extends BaseTest {
         final String hap = "GTCTCTCTCTCTCTCTCTCTCTATATATATATATTT";
         final Cigar originalCigar = TextCigarCodec.getSingleton().decode("18M4I12M4D2M");
 
-        final Cigar result = Path.leftAlignCigarSequentially(originalCigar, ref.getBytes(), hap.getBytes(), 0, 0);
+        final Cigar result = CigarUtils.leftAlignCigarSequentially(originalCigar, ref.getBytes(), hap.getBytes(), 0, 0);
         logger.warn("Result is " + result);
         Assert.assertEquals(originalCigar.getReferenceLength(), result.getReferenceLength(), "Reference lengths are different");
     }
