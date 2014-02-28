@@ -97,8 +97,9 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     /**
      * Return 64-bit mask representing machine capabilities
      * Bit 0 is LSB, bit 63 MSB
-     * Bit 0 represents sse4.2 availability
-     * Bit 1 represents AVX availability
+     * Bit 0 represents sse4.1 availability
+     * Bit 1 represents sse4.2 availability
+     * Bit 2 represents AVX availability
      */
     public native long jniGetMachineType();
     
@@ -125,6 +126,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                     //Useful if someone builds his/her own library and wants to override the bundled
                     //implementation without modifying the Java code
                     System.loadLibrary("VectorLoglessPairHMM");
+                    logger.info("libVectorLoglessPairHMM found in JVM library path");
                 }
                 catch(UnsatisfiedLinkError ule)
                 {
@@ -133,6 +135,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                     {
                         logger.info("libVectorLoglessPairHMM not found in JVM library path - trying to unpack from StingUtils.jar");
                         loadLibraryFromJar("/org/broadinstitute/sting/utils/pairhmm/libVectorLoglessPairHMM.so");
+                        logger.info("libVectorLoglessPairHMM unpacked successfully from StingUtils.jar");
                     }
                     catch(IOException ioe)
                     {
