@@ -116,9 +116,9 @@ public class ActiveRegionTestDataSet {
     public AssemblyResultSet assemblyResultSet() {
         if (assemblyResultSet == null) {
             final ReadThreadingGraph rtg = new ReadThreadingGraph(kmerSize);
-            rtg.addSequence("anonymous", this.getReference().getBytes(), null, true);
+            rtg.addSequence("anonymous", this.getReference().getBytes(), true);
             for (final String haplotype : this.haplotypesStrings()) {
-                rtg.addSequence("anonymous", haplotype.getBytes(), null, false);
+                rtg.addSequence("anonymous", haplotype.getBytes(), false);
             }
             rtg.buildGraphIfNecessary();
             if (rtg.hasCycles())

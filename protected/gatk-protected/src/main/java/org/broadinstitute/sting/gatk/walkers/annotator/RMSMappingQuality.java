@@ -56,7 +56,6 @@ import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnota
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
@@ -87,7 +86,7 @@ public class RMSMappingQuality extends InfoFieldAnnotation implements StandardAn
             for ( final Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
                 final AlignmentContext context = sample.getValue();
                 for ( final PileupElement p : context.getBasePileup() )
-                    fillMappingQualitiesFromPileup(p.getRead().getMappingQuality(), p.getRepresentativeCount(), qualities);
+                    fillMappingQualitiesFromPileup(p.getRead().getMappingQuality(), qualities);
             }
         }
         else if (perReadAlleleLikelihoodMap != null) {
@@ -96,7 +95,7 @@ public class RMSMappingQuality extends InfoFieldAnnotation implements StandardAn
 
             for ( final PerReadAlleleLikelihoodMap perReadLikelihoods : perReadAlleleLikelihoodMap.values() ) {
                 for ( final GATKSAMRecord read : perReadLikelihoods.getStoredElements() )
-                    fillMappingQualitiesFromPileup(read.getMappingQuality(), (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1), qualities);
+                    fillMappingQualitiesFromPileup(read.getMappingQuality(), qualities);
             }
         }
         else
@@ -106,12 +105,9 @@ public class RMSMappingQuality extends InfoFieldAnnotation implements StandardAn
         return Collections.singletonMap(getKeyNames().get(0), (Object)String.format("%.2f", rms));
     }
 
-    private static void fillMappingQualitiesFromPileup(final int mq, final int representativeCount, final List<Integer> qualities) {
+    private static void fillMappingQualitiesFromPileup(final int mq, final List<Integer> qualities) {
         if ( mq != QualityUtils.MAPPING_QUALITY_UNAVAILABLE ) {
-            if ( representativeCount == 1 )
-                qualities.add(mq);
-            else
-                qualities.addAll(Collections.nCopies(representativeCount, mq));
+            qualities.add(mq);
         }
     }
 

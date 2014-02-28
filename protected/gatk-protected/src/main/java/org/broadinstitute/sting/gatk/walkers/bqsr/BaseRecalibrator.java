@@ -61,7 +61,6 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.collections.Pair;
@@ -74,7 +73,6 @@ import org.broadinstitute.sting.utils.recalibration.covariates.Covariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -216,7 +214,6 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
         }
 
         initializeRecalibrationEngine();
-        RecalUtils.checkForInvalidRecalBams(getToolkit().getSAMFileHeaders(), getToolkit().getArguments().ALLOW_BQSR_ON_REDUCED_BAMS);
         minimumQToUse = getToolkit().getArguments().PRESERVE_QSCORES_LESS_THAN;
         referenceReader = getToolkit().getReferenceDataSource().getReference();
     }

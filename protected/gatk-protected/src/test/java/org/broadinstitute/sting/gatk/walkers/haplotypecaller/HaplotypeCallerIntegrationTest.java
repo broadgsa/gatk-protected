@@ -219,28 +219,6 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     // --------------------------------------------------------------------------------------------------------------
     //
-    // testing reduced reads
-    //
-    // --------------------------------------------------------------------------------------------------------------
-
-    @Test
-    public void HCTestReducedBam() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("12c56262ed30db1249b8d722e324357c"));
-        executeTest("HC calling on a ReducedRead BAM", spec);
-    }
-
-    @Test
-    public void testReducedBamWithReadsNotFullySpanningDeletion() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
-                Arrays.asList("1627cf5f3a97e8b73b3c095db46aef1b"));
-        executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
-    }
-
-    // --------------------------------------------------------------------------------------------------------------
-    //
     // test dbSNP annotation
     //
     // --------------------------------------------------------------------------------------------------------------

@@ -56,7 +56,6 @@ import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.util.Arrays;
@@ -90,10 +89,9 @@ public class SpanningDeletions extends InfoFieldAnnotation implements StandardAn
         int depth = 0;
         for ( Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
             for ( final PileupElement p : sample.getValue().getBasePileup() ) {
-                final int actualSampleDepth = p.getRepresentativeCount();
-                depth += actualSampleDepth;
+                depth++;
                 if ( p.isDeletion() )
-                    deletions += actualSampleDepth;
+                    deletions++;
             }
         }
         Map<String, Object> map = new HashMap<String, Object>();
