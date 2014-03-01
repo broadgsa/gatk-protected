@@ -98,7 +98,7 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
                                    }
                                    catch(UnsatisfiedLinkError ule)
                                    {
-                                       logger.info("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
+                                       logger.warn("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
                                        return new LoglessPairHMM();
                                    }
                     case DEBUG_VECTOR_LOGLESS_CACHING:

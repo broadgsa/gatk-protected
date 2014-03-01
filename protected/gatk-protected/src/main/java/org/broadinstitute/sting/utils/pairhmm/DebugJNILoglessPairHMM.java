@@ -449,21 +449,7 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
     })
     @Ensures("constantsAreInitialized")
     protected static void initializeProbabilities(final double[][] transition, final byte[] insertionGOP, final byte[] deletionGOP, final byte[] overallGCP) {
-        for (int i = 0; i < insertionGOP.length; i++) {
-            final int qualIndexGOP = Math.min(insertionGOP[i] + deletionGOP[i], Byte.MAX_VALUE);
-            transition[i+1][matchToMatch] = QualityUtils.qualToProb((byte) qualIndexGOP);
-            transition[i+1][indelToMatch] = QualityUtils.qualToProb(overallGCP[i]);
-            transition[i+1][matchToInsertion] = QualityUtils.qualToErrorProb(insertionGOP[i]);
-            transition[i+1][insertionToInsertion] = QualityUtils.qualToErrorProb(overallGCP[i]);
-            transition[i+1][matchToDeletion] = QualityUtils.qualToErrorProb(deletionGOP[i]);
-            transition[i+1][deletionToDeletion] = QualityUtils.qualToErrorProb(overallGCP[i]);
-
-            //TODO it seems that it is not always the case that matchToMatch + matchToDeletion + matchToInsertion == 1.
-            //TODO We have detected cases of 1.00002 which can cause problems downstream. This are typically masked
-            //TODO by the fact that we always add a indelToMatch penalty to all PairHMM likelihoods (~ -0.1)
-            //TODO This is in fact not well justified and although it does not have any effect (since is equally added to all
-            //TODO haplotypes likelihoods) perhaps we should just remove it eventually and fix this != 1.0 issue here.
-        }
+        PairHMMModel.qualToTransProbs(transition,insertionGOP,deletionGOP,overallGCP);
     }
 
     /**
