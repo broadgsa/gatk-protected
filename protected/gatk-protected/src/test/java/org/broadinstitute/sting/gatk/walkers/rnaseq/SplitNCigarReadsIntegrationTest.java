@@ -46,158 +46,67 @@
 
 package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.clipping.ReadClipperTestUtils;
-import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
+import org.broadinstitute.sting.WalkerTest;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
 
 /**
- *
- * Tests all possible (and valid) cigar strings that might contain any cigar elements. It uses a code that were written to test the ReadClipper walker.
- * For valid cigar sting in length 8 there are few thousands options, with N in every possible option and with more than one N (for example 1M1N1M1N1M1N2M).
- * The cigarElements array is used to provide all the possible cigar element that might be included.
- *
+ * Created with IntelliJ IDEA.
  * User: ami
- * Date: 11/14/13
- * Time: 6:49 PM
+ * Date: 12/5/13
+ * Time: 1:04 PM
  */
-public class SplitNCigarReadsUnitTest extends BaseTest {
-    final static CigarElement[] cigarElements = {
-            new CigarElement(1, CigarOperator.HARD_CLIP),
-            new CigarElement(1, CigarOperator.SOFT_CLIP),
-            new CigarElement(1, CigarOperator.INSERTION),
-            new CigarElement(1, CigarOperator.DELETION),
-            new CigarElement(1, CigarOperator.MATCH_OR_MISMATCH),
-            new CigarElement(1, CigarOperator.SKIPPED_REGION)
-    };
+public class SplitNCigarReadsIntegrationTest extends WalkerTest {
 
-    private CachingIndexedFastaSequenceFile referenceReader;
-    private GenomeLocParser genomeLocParser;
-
-    @BeforeClass
-    public void setup() throws FileNotFoundException {
-        referenceReader = new CachingIndexedFastaSequenceFile(new File(hg18Reference));
-        genomeLocParser = new GenomeLocParser(referenceReader.getSequenceDictionary());
+    @Test(enabled = false)
+    // contain reads without N's, with N's and with N's and I's
+    // TODO -- Ami: please put the bam file in the repo
+    public void testSplitWithInsertions() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "SplitNCigarReads.integrationTest.unsplitReads.withI.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("037c72fe1572efb63cccbe0a8dda3cb1"));
+        executeTest("test split N cigar reads with insertions", spec);
     }
 
-    private final class TestManager extends OverhangFixingManager {
-        public TestManager() {
-            super(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
-        }
+    @Test(enabled = false)
+    // contain reads without N's, with N's and with N's and D's, and also with more then one N element in the cigar.
+    // TODO -- Ami: please put the bam file in the repo
+    public void testSplitWithDeletions() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "SplitNCigarReads.integrationTest.unsplitReads.withD.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("8472005c16353715025353d6d453faf4"));
+        executeTest("test split N cigar reads with deletions", spec);
     }
 
-    @Test(enabled = true)
-    public void splitReadAtN() {
-        final int cigarStringLength = 10;
-        final List<Cigar> cigarList = ReadClipperTestUtils.generateCigarList(cigarStringLength,cigarElements);
-
-        // For Debugging use those lines (instead of above cigarList) to create specific read:
-        //------------------------------------------------------------------------------------
-        // final GATKSAMRecord tmpRead = GATKSAMRecord.createRandomRead(6);
-        // tmpRead.setCigarString("1M1N1M");
-
-        // final List<Cigar> cigarList = new ArrayList<>();
-        // cigarList.add(tmpRead.getCigar());
-
-        for(Cigar cigar: cigarList){
-
-            final int numOfSplits = numOfNElements(cigar.getCigarElements());
-
-            if(numOfSplits != 0 && isCigarDoesNotHaveEmptyRegionsBetweenNs(cigar)){
-
-                final TestManager manager = new TestManager();
-                GATKSAMRecord read = ReadClipperTestUtils.makeReadFromCigar(cigar);
-                SplitNCigarReads.splitNCigarRead(read, manager);
-                List<OverhangFixingManager.SplitRead> splitReads = manager.getReadsInQueueForTesting();
-                final int expectedReads = numOfSplits+1;
-                Assert.assertEquals(splitReads.size(),expectedReads,"wrong number of reads after split read with cigar: "+cigar+" at Ns [expected]: "+expectedReads+" [actual value]: "+splitReads.size());
-                final List<Integer> readLengths = consecutiveNonNElements(read.getCigar().getCigarElements());
-                int index = 0;
-                int offsetFromStart = 0;
-                for(final OverhangFixingManager.SplitRead splitRead: splitReads){
-                    int expectedLength = readLengths.get(index);
-                    Assert.assertTrue(splitRead.read.getReadLength() == expectedLength,
-                            "the "+index+" (starting with 0) split read has a wrong length.\n" +
-                            "cigar of original read: "+cigar+"\n"+
-                            "expected length: "+expectedLength+"\n"+
-                            "actual length: "+splitRead.read.getReadLength()+"\n");
-                    assertBases(splitRead.read.getReadBases(), read.getReadBases(), offsetFromStart);
-                    index++;
-                    offsetFromStart += expectedLength;
-                }
-            }
-        }
+    @Test
+    public void testSplitsWithOverhangs() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("2832abc680c6b5a0219702ad5bf22f01"));
+        executeTest("test splits with overhangs", spec);
     }
 
-    private int numOfNElements(final List<CigarElement> cigarElements){
-        int numOfNElements = 0;
-        for (CigarElement element: cigarElements){
-            if (element.getOperator() == CigarOperator.SKIPPED_REGION)
-                numOfNElements++;
-        }
-        return numOfNElements;
+    @Test
+    public void testSplitsWithOverhangsNotClipping() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --doNotFixOverhangs -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("59783610006bf7a1ccae57ee2016123b"));
+        executeTest("test splits with overhangs not clipping", spec);
     }
 
-    private static boolean isCigarDoesNotHaveEmptyRegionsBetweenNs(final Cigar cigar) {
-        boolean sawM = false;
-        boolean sawS = false;
-
-        for (CigarElement cigarElement : cigar.getCigarElements()) {
-            if (cigarElement.getOperator().equals(CigarOperator.SKIPPED_REGION)) {
-                if(!sawM && !sawS)
-                    return false;
-                sawM = false;
-                sawS = false;
-            }
-            if (cigarElement.getOperator().equals(CigarOperator.MATCH_OR_MISMATCH))
-                sawM = true;
-            if (cigarElement.getOperator().equals(CigarOperator.SOFT_CLIP))
-                sawS = true;
-
-        }
-        if(!sawS && !sawM)
-            return false;
-        return true;
+    @Test
+    public void testSplitsWithOverhangs0Mismatches() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --maxMismatchesInOverhang 0 -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("7547a5fc41ebfd1bbe62ce854b37b6ef"));
+        executeTest("test splits with overhangs 0 mismatches", spec);
     }
 
-    private List<Integer> consecutiveNonNElements(final List<CigarElement> cigarElements){
-        final LinkedList<Integer> results = new LinkedList<>();
-        int consecutiveLength = 0;
-        for(CigarElement element: cigarElements){
-            final CigarOperator op = element.getOperator();
-            if(op.equals(CigarOperator.MATCH_OR_MISMATCH) || op.equals(CigarOperator.SOFT_CLIP) || op.equals(CigarOperator.INSERTION)){
-                consecutiveLength += element.getLength();
-            }
-            else if(op.equals(CigarOperator.SKIPPED_REGION))
-            {
-                if(consecutiveLength != 0){
-                    results.addLast(consecutiveLength);
-                    consecutiveLength = 0;
-                }
-            }
-        }
-        if(consecutiveLength != 0)
-            results.addLast(consecutiveLength);
-        return results;
+    @Test
+    public void testSplitsWithOverhangs5BasesInOverhang() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --maxBasesInOverhang 5 -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("f222eb02b003c08d4a606ab1bcb7931b"));
+        executeTest("test splits with overhangs 5 bases in overhang", spec);
     }
-
-    private void assertBases(final byte[] actualBase, final byte[] expectedBase, final int startIndex) {
-        for (int i = 0; i < actualBase.length; i++) {
-            Assert.assertEquals(actualBase[i], expectedBase[startIndex + i],"unmatched bases between: "+ Arrays.toString(actualBase)+"\nand:\n"+Arrays.toString(expectedBase)+"\nat position: "+i);
-        }
-    }
-
 }
