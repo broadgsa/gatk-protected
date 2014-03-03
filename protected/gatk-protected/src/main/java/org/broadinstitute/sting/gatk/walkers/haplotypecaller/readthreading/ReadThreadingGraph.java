@@ -199,16 +199,25 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      * @param isRef is this the reference sequence?
      */
     protected void addSequence(final byte[] sequence, final boolean isRef) {
-        addSequence("anonymous", sequence, null, isRef);
+        addSequence("anonymous", sequence, isRef);
     }
 
     /**
      * Add all bases in sequence to this graph
      *
-     * @see #addSequence(String, String, byte[], int, int, int[], boolean) for full information
+     * @see #addSequence(String, String, byte[], int, int, int, boolean) for full information
      */
-    public void addSequence(final String seqName, final byte[] sequence, final int[] counts, final boolean isRef) {
-        addSequence(seqName, ANONYMOUS_SAMPLE, sequence, 0, sequence.length, counts, isRef);
+    public void addSequence(final String seqName, final byte[] sequence, final boolean isRef) {
+        addSequence(seqName, sequence, 1, isRef);
+    }
+
+    /**
+     * Add all bases in sequence to this graph
+     *
+     * @see #addSequence(String, String, byte[], int, int, int, boolean) for full information
+     */
+    public void addSequence(final String seqName, final byte[] sequence, final int count, final boolean isRef) {
+        addSequence(seqName, ANONYMOUS_SAMPLE, sequence, 0, sequence.length, count, isRef);
     }
 
     /**
@@ -216,14 +225,12 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      *
      * @param seqName a useful seqName for this read, for debugging purposes
      * @param sequence non-null sequence of bases
-     * @param counts a vector of counts for each bases, indicating how many times that base was observed in the sequence.
-     *               This allows us to support reduced reads in the ReadThreadingAssembler.  Can be null, meaning that
-     *               each base is only observed once.  If not null, must have length == sequence.length.
      * @param start the first base offset in sequence that we should use for constructing the graph using this sequence, inclusive
      * @param stop the last base offset in sequence that we should use for constructing the graph using this sequence, exclusive
+     * @param count the representative count of this sequence (to use as the weight)
      * @param isRef is this the reference sequence.
      */
-    public void addSequence(final String seqName, final String sampleName, final byte[] sequence, final int start, final int stop, final int[] counts, final boolean isRef) {
+    public void addSequence(final String seqName, final String sampleName, final byte[] sequence, final int start, final int stop, final int count, final boolean isRef) {
         // note that argument testing is taken care of in SequenceForKmers
         if ( alreadyBuilt ) throw new IllegalStateException("Graph already built");
 
@@ -235,18 +242,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         }
 
         // add the new sequence to the list of sequences for sample
-        sampleSequences.add(new SequenceForKmers(seqName, sequence, start, stop, counts, isRef));
-    }
-
-    /**
-     * Return a count appropriate for a kmer starting at kmerStart in sequence for kmers
-     *
-     * @param seqForKmers a non-null sequence for kmers object
-     * @param kmerStart the position where the kmer starts in sequence
-     * @return a count for a kmer from start -> start + kmerSize in seqForKmers
-     */
-    private int getCountGivenKmerStart(final SequenceForKmers seqForKmers, final int kmerStart) {
-        return seqForKmers.getCount(kmerStart + kmerSize - 1);
+        sampleSequences.add(new SequenceForKmers(seqName, sequence, start, stop, count, isRef));
     }
 
     /**
@@ -276,9 +272,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
         // loop over all of the bases in sequence, extending the graph by one base at each point, as appropriate
         MultiDeBruijnVertex vertex = startingVertex;
         for ( int i = uniqueStartPos + 1; i <= seqForKmers.stop - kmerSize; i++ ) {
-            final int count = getCountGivenKmerStart(seqForKmers, i);
-
-            vertex = extendChainByOne(vertex, seqForKmers.sequence, i, count, seqForKmers.isRef);
+            vertex = extendChainByOne(vertex, seqForKmers.sequence, i, seqForKmers.count, seqForKmers.isRef);
             if ( debugGraphTransformations ) vertex.addRead(seqForKmers.name);
         }
     }
@@ -683,7 +677,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
 //            logger.warn(String.format("Increasing counts for %s -> %s via %s at %d with suffix %s vs. %s",
 //                    prev, vertex, edge, offset, (char)suffix, (char)seqBase));
             if ( suffix == seqBase && (increaseCountsThroughBranches || inDegreeOf(vertex) == 1) ) {
-                edge.incMultiplicity(seqForKmers.getCount(offset));
+                edge.incMultiplicity(seqForKmers.count);
                 increaseCountsInMatchedKmers(seqForKmers, prev, originalKmer, offset-1);
             }
         }
@@ -780,7 +774,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
      * @param prevVertex a non-null vertex where sequence was last anchored in the graph
      * @param sequence the sequence we're threading through the graph
      * @param kmerStart the start of the current kmer in graph we'd like to add
-     * @param count the number of observations of this kmer in graph (can be > 1 for reduced reads)
+     * @param count the number of observations of this kmer in graph (can be > 1 for GGA)
      * @param isRef is this the reference sequence?
      * @return a non-null vertex connecting prevVertex to in the graph based on sequence
      */
@@ -819,7 +813,6 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
     protected void addRead(final GATKSAMRecord read) {
         final byte[] sequence = read.getReadBases();
         final byte[] qualities = read.getBaseQualities();
-        final int[] reducedReadCounts = read.getReducedReadCounts();  // will be null if read is not reduced
 
         int lastGood = -1; // the index of the last good base we've seen
         for( int end = 0; end <= sequence.length; end++ ) {
@@ -832,7 +825,7 @@ public class ReadThreadingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSamp
                 if ( start != -1 && len >= kmerSize ) {
                     // if the sequence is long enough to get some value out of, add it to the graph
                     final String name = read.getReadName() + "_" + start + "_" + end;
-                    addSequence(name, read.getReadGroup().getSample(), read.getReadBases(), start, end, reducedReadCounts, false);
+                    addSequence(name, read.getReadGroup().getSample(), read.getReadBases(), start, end, 1, false);
                 }
 
                 lastGood = -1; // reset the last good base

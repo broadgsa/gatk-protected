@@ -132,7 +132,7 @@ public abstract class GenotypeLikelihoodsCalculationModel implements Cloneable {
         int count = 0;
         for ( PileupElement p : pileup ) {
             if ( BaseUtils.isRegularBase( p.getBase() ) )
-                count += p.getRepresentativeCount();
+                count++;
         }
 
         return count;

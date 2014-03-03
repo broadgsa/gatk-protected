@@ -79,8 +79,8 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
         final ReadThreadingGraph assembler = new ReadThreadingGraph(11);
         final String ref   = "CATGCACTTTAAAACTTGCCTTTTTAACAAGACTTCCAGATG";
         final String alt   = "CATGCACTTTAAAACTTGCCGTTTTAACAAGACTTCCAGATG";
-        assembler.addSequence("anonymous", getBytes(ref), null, true);
-        assembler.addSequence("anonymous", getBytes(alt), null, false);
+        assembler.addSequence("anonymous", getBytes(ref), true);
+        assembler.addSequence("anonymous", getBytes(alt), false);
         assembler.buildGraphIfNecessary();
         Assert.assertNotEquals(ref.length() - 11 + 1,assembler.vertexSet().size(),"the number of vertex in the graph is the same as if there was no alternative sequence");
         Assert.assertEquals(ref.length() - 11 + 1 + 11,assembler.vertexSet().size(),"the number of vertex in the graph is not the same as if there is an alternative sequence");
@@ -178,7 +178,7 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
 
         // test that there are cycles detected for small kmer
         final ReadThreadingGraph rtgraph25 = new ReadThreadingGraph(25);
-        rtgraph25.addSequence("ref", ref.getBytes(), null, true);
+        rtgraph25.addSequence("ref", ref.getBytes(), true);
         for ( final GATKSAMRecord read : reads )
             rtgraph25.addRead(read);
         rtgraph25.buildGraphIfNecessary();
@@ -186,7 +186,7 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
 
         // test that there are no cycles detected for large kmer
         final ReadThreadingGraph rtgraph75 = new ReadThreadingGraph(75);
-        rtgraph75.addSequence("ref", ref.getBytes(), null, true);
+        rtgraph75.addSequence("ref", ref.getBytes(), true);
         for ( final GATKSAMRecord read : reads )
             rtgraph75.addRead(read);
         rtgraph75.buildGraphIfNecessary();
@@ -200,7 +200,7 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
         final byte[] ref = Utils.dupBytes((byte)'A', length);
 
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(25);
-        rtgraph.addSequence("ref", ref, null, true);
+        rtgraph.addSequence("ref", ref, true);
 
         // add reads with Ns at any position
         for ( int i = 0; i < length; i++ ) {
@@ -250,7 +250,7 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
 
         // create the graph and populate it
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize);
-        rtgraph.addSequence("ref", ref.getBytes(), null, true);
+        rtgraph.addSequence("ref", ref.getBytes(), true);
         final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(alt.getBytes(), Utils.dupBytes((byte) 30, alt.length()), alt.length() + "M");
         rtgraph.addRead(read);
         rtgraph.buildGraphIfNecessary();

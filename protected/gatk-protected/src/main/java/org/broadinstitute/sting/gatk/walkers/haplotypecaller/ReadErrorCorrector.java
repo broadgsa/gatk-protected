@@ -233,10 +233,6 @@ public class ReadErrorCorrector {
      */
     @Requires("inputRead != null")
     private GATKSAMRecord correctRead(final GATKSAMRecord inputRead) {
-        // no support for reduced reads (which shouldn't need to be error-corrected anyway!)
-        if (inputRead.isReducedRead())
-            return inputRead;
-
         // do actual correction
         boolean corrected = false;
         final byte[] correctedBases = inputRead.getReadBases();

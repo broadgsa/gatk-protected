@@ -297,13 +297,13 @@ public class ReferenceConfidenceModel {
                     if( hqSoftClips != null && p.isNextToSoftClip() ) {
                         hqSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(p.getRead(), (byte) 28));
                     }
-                    result.AD_Ref_Any[1] += p.getRepresentativeCount();
+                    result.AD_Ref_Any[1]++;
                 } else {
-                    result.AD_Ref_Any[0] += p.getRepresentativeCount();
+                    result.AD_Ref_Any[0]++;
                 }
-                result.genotypeLikelihoods[AA] += p.getRepresentativeCount() * QualityUtils.qualToProbLog10(qual);
-                result.genotypeLikelihoods[AB] += p.getRepresentativeCount() * MathUtils.approximateLog10SumLog10( QualityUtils.qualToProbLog10(qual) + MathUtils.LOG_ONE_HALF, QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD + MathUtils.LOG_ONE_HALF );
-                result.genotypeLikelihoods[BB] += p.getRepresentativeCount() * QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD;
+                result.genotypeLikelihoods[AA] += QualityUtils.qualToProbLog10(qual);
+                result.genotypeLikelihoods[AB] += MathUtils.approximateLog10SumLog10( QualityUtils.qualToProbLog10(qual) + MathUtils.LOG_ONE_HALF, QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD + MathUtils.LOG_ONE_HALF );
+                result.genotypeLikelihoods[BB] += QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD;
             }
         }
 
@@ -484,7 +484,7 @@ public class ReferenceConfidenceModel {
 
             // todo -- this code really should handle CIGARs directly instead of relying on the above tests
             if ( isReadInformativeAboutIndelsOfSize(read.getReadBases(), read.getBaseQualities(), offset, ref, pileupOffsetIntoRef, maxIndelSize) ) {
-                nInformative += p.getRepresentativeCount();
+                nInformative++;
                 if( nInformative > MAX_N_INDEL_INFORMATIVE_READS ) {
                     return MAX_N_INDEL_INFORMATIVE_READS;
                 }

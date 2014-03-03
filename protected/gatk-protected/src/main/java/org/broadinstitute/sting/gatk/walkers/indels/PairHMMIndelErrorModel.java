@@ -261,10 +261,9 @@ public class PairHMMIndelErrorModel {
                                                                         final double downsamplingFraction) {
         final int numHaplotypes = haplotypeMap.size();
 
-        final int readCounts[] = new int[pileup.getNumberOfElements()];
-        final double[][] readLikelihoods = computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, ref, eventLength, perReadAlleleLikelihoodMap, readCounts);
+        final double[][] readLikelihoods = computeGeneralReadHaplotypeLikelihoods(pileup, haplotypeMap, ref, eventLength, perReadAlleleLikelihoodMap);
         perReadAlleleLikelihoodMap.performPerAlleleDownsampling(downsamplingFraction);
-        return getDiploidHaplotypeLikelihoods(numHaplotypes, readCounts, readLikelihoods);
+        return getDiploidHaplotypeLikelihoods(numHaplotypes, readLikelihoods);
         
     }
 
@@ -295,16 +294,13 @@ public class PairHMMIndelErrorModel {
                                                                           final LinkedHashMap<Allele, Haplotype> haplotypeMap, 
                                                                           final ReferenceContext ref,
                                                                           final int eventLength, 
-                                                                          final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap,
-                                                                          final int[] readCounts) {
+                                                                          final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
         final double readLikelihoods[][] = new double[pileup.getNumberOfElements()][haplotypeMap.size()];
 
         final LinkedList<GATKSAMRecord> readList = new LinkedList<>();
         final Map<GATKSAMRecord, byte[]> readGCPArrayMap = new LinkedHashMap<>();
         int readIdx=0;
         for (PileupElement p: pileup) {
-            // > 1 when the read is a consensus read representing multiple independent observations
-            readCounts[readIdx] = p.getRepresentativeCount();
 
             // check if we've already computed likelihoods for this pileup element (i.e. for this read at this location)
             if (perReadAlleleLikelihoodMap.containsPileupElement(p)) {
@@ -499,7 +495,7 @@ public class PairHMMIndelErrorModel {
 //        return b1.length;
 //    }
 
-    private static double[] getDiploidHaplotypeLikelihoods(final int numHaplotypes, final int readCounts[], final double readLikelihoods[][]) {
+    private static double[] getDiploidHaplotypeLikelihoods(final int numHaplotypes, final double readLikelihoods[][]) {
         final double[][] haplotypeLikehoodMatrix = new double[numHaplotypes][numHaplotypes];
 
         // todo: MAD 09/26/11 -- I'm almost certain this calculation can be simplified to just a single loop without the intermediate NxN matrix
@@ -515,8 +511,7 @@ public class PairHMMIndelErrorModel {
                         continue;
                     final double li = readLikelihoods[readIdx][i];
                     final double lj = readLikelihoods[readIdx][j];
-                    final int readCount = readCounts[readIdx];
-                    haplotypeLikehoodMatrix[i][j] += readCount * (MathUtils.approximateLog10SumLog10(li, lj) + MathUtils.LOG_ONE_HALF);
+                    haplotypeLikehoodMatrix[i][j] += MathUtils.approximateLog10SumLog10(li, lj) + MathUtils.LOG_ONE_HALF;
                 }
             }
         }

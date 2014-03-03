@@ -64,7 +64,6 @@ import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
@@ -418,8 +417,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
             for (final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
                 final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
                 final GATKSAMRecord read = el.getKey();
-                final int representativeCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
-                updateTable(myTable, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt, representativeCount);
+                updateTable(myTable, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt);
             }
             if ( passesMinimumThreshold(myTable) )
                 copyToMainTable(myTable, table);
@@ -464,7 +462,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
                 if ( p.getQual() < minQScoreToConsider || p.getMappingQual() < minQScoreToConsider )
                     continue;
 
-                updateTable(myTable, Allele.create(p.getBase(), false), p.getRead(), ref, alt, p.getRepresentativeCount());
+                updateTable(myTable, Allele.create(p.getBase(), false), p.getRead(), ref, alt);
             }
             if ( passesMinimumThreshold(myTable) )
                 copyToMainTable(myTable, table);
@@ -487,7 +485,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
                 ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE);
     }
 
-    private static void updateTable(final int[] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt, final int representativeCount) {
+    private static void updateTable(final int[] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt) {
 
         final boolean matchesRef = allele.equals(ref, true);
         final boolean matchesAlt = allele.equals(alt, true);
@@ -496,21 +494,15 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
             final int offset = matchesRef ? 0 : 2;
 
             if ( read.isStrandless() ) {
-
-                // ignore strandless reduced reads because they are always on the forward strand!
-                if ( !read.isReducedRead() ) {
-
-                    // a strandless read counts as observations on both strand, at 50% weight, with a minimum of 1
-                    // (the 1 is to ensure that a strandless read always counts as an observation on both strands, even
-                    // if the read is only seen once, because it's a merged read or other)
-                    final int toAdd = Math.max(representativeCount / 2, 1);
-                    table[offset] += toAdd;
-                    table[offset + 1] += toAdd;
-                }
+                // a strandless read counts as observations on both strand, at 50% weight, with a minimum of 1
+                // (the 1 is to ensure that a strandless read always counts as an observation on both strands, even
+                // if the read is only seen once, because it's a merged read or other)
+                table[offset]++;
+                table[offset + 1]++;
             } else {
                 // a normal read with an actual strand
                 final boolean isFW = !read.getReadNegativeStrandFlag();
-                table[offset + (isFW ? 0 : 1)] += representativeCount;
+                table[offset + (isFW ? 0 : 1)]++;
             }
         }
     }

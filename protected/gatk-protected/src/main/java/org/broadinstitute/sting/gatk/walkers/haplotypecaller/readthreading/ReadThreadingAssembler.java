@@ -151,14 +151,12 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly, numPruningSamples);
 
         // add the reference sequence to the graph
-        rtgraph.addSequence("ref", refHaplotype.getBases(), null, true);
+        rtgraph.addSequence("ref", refHaplotype.getBases(), true);
 
         // add the artificial GGA haplotypes to the graph
         int hapCount = 0;
         for ( final Haplotype h : activeAlleleHaplotypes ) {
-            final int[] counts = new int[h.length()];
-            Arrays.fill(counts, GGA_MODE_ARTIFICIAL_COUNTS);
-            rtgraph.addSequence("activeAllele" + hapCount++, h.getBases(), counts, false);
+            rtgraph.addSequence("activeAllele" + hapCount++, h.getBases(), GGA_MODE_ARTIFICIAL_COUNTS, false);
         }
 
         // Next pull kmers out of every read and throw them on the graph

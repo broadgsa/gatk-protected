@@ -58,36 +58,23 @@ final class SequenceForKmers {
     final String name;
     final byte[] sequence;
     final int start, stop;
-    final private int[] counts;
+    final int count;
     final boolean isRef;
 
     /**
      * Create a new sequence for creating kmers
      */
-    SequenceForKmers(final String name, byte[] sequence, int start, int stop, int[] counts, boolean ref) {
+    SequenceForKmers(final String name, byte[] sequence, int start, int stop, int count, boolean ref) {
         if ( start < 0 ) throw new IllegalArgumentException("Invalid start " + start);
         if ( stop < start ) throw new IllegalArgumentException("Invalid stop " + stop);
         if ( sequence == null ) throw new IllegalArgumentException("Sequence is null ");
-        if ( counts != null && counts.length != sequence.length ) throw new IllegalArgumentException("Sequence and counts don't have the same length " + sequence.length + " vs " + counts.length);
+        if ( count < 1 ) throw new IllegalArgumentException("Invalid count " + count);
 
         this.name = name;
         this.sequence = sequence;
         this.start = start;
         this.stop = stop;
+        this.count = count;
         this.isRef = ref;
-        this.counts = counts;
-    }
-
-    /**
-     * Get the number of observations of the kmer starting at i in this sequence
-     *
-     * Can we > 1 because sequence may be a reduced read and therefore count as N observations
-     *
-     * @param i the offset into sequence for the start of the kmer
-     * @return a count >= 1 that indicates the number of observations of kmer starting at i in this sequence.
-     */
-    public int getCount(final int i) {
-        if ( i < 0 || i > sequence.length ) throw new ArrayIndexOutOfBoundsException("i must be >= 0 and <= " + sequence.length + " but got " + i);
-        return counts == null ? 1 : counts[i];
     }
 }
