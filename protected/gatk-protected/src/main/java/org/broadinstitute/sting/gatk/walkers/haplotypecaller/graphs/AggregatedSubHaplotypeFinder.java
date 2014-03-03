@@ -45,103 +45,150 @@
 */
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.PriorityQueue;
+
 /**
- * Trivial k-best sub-haplotype finder where the source and sink vertex are the same one.
+ * K-best sub-haplotype finder that selects the best solutions out of a collection of sub-haplotype finders.
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-class EmptyPathHaplotypeFinderNode implements KBestSubHaplotypeFinder {
+class AggregatedSubHaplotypeFinder implements KBestSubHaplotypeFinder {
 
     /**
-     * Caches the only solution returned by this finder.
+     * Collection of subFinders that provided the actual solutions.
      */
-    private final KBestHaplotype singleHaplotypePath;
+    private final Collection<? extends KBestSubHaplotypeFinder> subFinders;
 
     /**
-     * Constructs a new empty k-best haplotype finder.
+     *  Flag indicating whether the sub-finders have been processed or not.
+     */
+    private boolean processedSubFinders = false;
+
+    /**
+     * Holds the number of k-best solution that this finder would ever return.
+     */
+    private int count = 0;
+
+    /**
+     * Holds the best {@code i} paths to the sink so far calculated where {@code i+1} is the length of this list.
      *
-     * @param graph the search graph.
-     * @param vertex the source and sink vertex of the only solution returned by this finder.
+     * <p>As more results are requested the array will grow. All positions and solutions are
+     * calculated up to {@code i}</p>.
      */
-    public EmptyPathHaplotypeFinderNode(final SeqGraph graph, final SeqVertex vertex) {
-        singleHaplotypePath = new MyBestHaplotypePath(graph,vertex);
+    private ArrayList<KBestHaplotype> rankedSubHaplotype;
+
+    /**
+     * Priority queue with next best haplotype solution from each sub-finder; previous ones are
+     * already part {@link #rankedSubHaplotype}.
+     */
+    private PriorityQueue<MyKBestHaplotypeResult> nextBestSubHaplotypes;
+
+    /**
+     * Creates a new aggregated sub-haplotype finder given its sub-finders.
+     * @param finders set of sub-finders.
+     */
+    public AggregatedSubHaplotypeFinder(final Collection<? extends KBestSubHaplotypeFinder> finders) {
+        if (finders == null) throw new IllegalArgumentException("finder collection cannot be null");
+        this.subFinders = finders;
     }
 
     @Override
     public int getCount() {
-        return 1;
+        processSubFindersIfNeeded();
+        return count;
+    }
+
+    private void processSubFindersIfNeeded() {
+        if (processedSubFinders) return;
+
+        long count = 0;
+        nextBestSubHaplotypes = new PriorityQueue<>(subFinders.size());
+        for (final KBestSubHaplotypeFinder finder : subFinders) {
+            final int finderCount = finder.getCount();
+            if (finderCount == 0) continue;
+            count += finderCount;
+            nextBestSubHaplotypes.add(new MyKBestHaplotypeResult(finder,0));
+        }
+
+        this.count = (int) Math.min(Integer.MAX_VALUE,count);
+
+        rankedSubHaplotype = new ArrayList<>(10);
+        processedSubFinders = true;
     }
 
     @Override
     public KBestHaplotype getKBest(int k) {
-        if (k < 0)
-            throw new IllegalArgumentException("k cannot be negative");
-        if (k > 0)
-            throw new IllegalArgumentException("k cannot greater than the possible haplotype count");
-        return singleHaplotypePath;
+        if (k < 0) throw new IllegalArgumentException("k cannot be negative");
+        processSubFindersIfNeeded();
+        if (k >= count) throw new IllegalArgumentException("k cannot be equal or greater than the count");
+        if (k < rankedSubHaplotype.size())
+            return rankedSubHaplotype.get(k);
+
+        rankedSubHaplotype.ensureCapacity(k+1);
+        for (int i = rankedSubHaplotype.size(); i <= k; i++) {
+            // since k < possibleHaplotypeCount is guarantee no to be empty.
+            if (nextBestSubHaplotypes.isEmpty())
+                throw new IllegalStateException("what the heck " + k + " " + count);
+            final MyKBestHaplotypeResult nextResult = nextBestSubHaplotypes.remove();
+            nextResult.rank = i;
+            rankedSubHaplotype.add(nextResult);
+            final int subRank = nextResult.result.rank();
+
+            // if there is no further solution from the same child we cannot add another solution from that child.
+            if (subRank + 1 >= nextResult.subFinder.getCount())
+                continue;
+            nextBestSubHaplotypes.add(new MyKBestHaplotypeResult(nextResult.subFinder, subRank + 1));
+        }
+        return rankedSubHaplotype.get(k);
     }
 
     /**
-     * Custom extension of {@link KBestHaplotype} that implements the single solution behaviour.
+     * Custom implementation of {@link KBestHaplotype} to encapsulate sub-finder results.
      */
-    private class MyBestHaplotypePath extends KBestHaplotype {
+    private class MyKBestHaplotypeResult extends KBestHaplotype {
 
-        /**
-         * The solution's only vertex.
-         */
-        private final SeqVertex vertex;
+        private KBestSubHaplotypeFinder subFinder;
 
-        /**
-         * The search graph.
-         */
-        private final SeqGraph graph;
+        private final KBestHaplotype result;
 
-        /**
-         * Whether the vertex is a reference vertex.
-         *
-         * <p>Initialize lazily.</p>
-         */
-        private Boolean isReference;
+        private int rank;
 
-        /**
-         * Constructs a new empty k-best haplotype solution.
-         *
-         * @param graph the search graph.
-         * @param vertex the source and sink vertex of the only solution returned by the outer finder.
-         */
-        public MyBestHaplotypePath(final SeqGraph graph, final SeqVertex vertex) {
-            this.vertex = vertex;
-            this.graph = graph;
+        private MyKBestHaplotypeResult(final KBestSubHaplotypeFinder finder, final int rank) {
+            this.subFinder = finder;
+            this.result = finder.getKBest(rank);
+            this.rank = -1;
         }
 
         @Override
         public SeqGraph graph() {
-            return graph;
+            return result.graph();
         }
 
         @Override
         public int score() {
-            return 0;
-        }
-
-        @Override
-        public int rank() {
-            return 0;
-        }
-
-        @Override
-        protected SeqVertex head() {
-            return vertex;
-        }
-
-        @Override
-        protected KBestHaplotype tail() {
-            return null;
+            return result.score();
         }
 
         @Override
         public boolean isReference() {
-            return (isReference != null) ? isReference: (isReference = graph.isReferenceNode(vertex));
+            return result.isReference();
+        }
+
+        @Override
+        public int rank() {
+            return rank;
+        }
+
+        @Override
+        protected SeqVertex head() {
+            return result.head();
+        }
+
+        @Override
+        protected KBestHaplotype tail() {
+            return result.tail();
         }
     }
 }

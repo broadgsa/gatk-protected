@@ -56,49 +56,131 @@ import java.util.*;
  */
 public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implements Iterable<KBestHaplotype>  {
 
-
+    /**
+     * The search graph.
+     */
     private final SeqGraph graph;
-    protected Map<SeqVertex,KBestSubHaplotypeFinder> nodeBySource;
 
-    protected SeqVertex sink;
-    protected SeqVertex source;
+    /**
+     * Map of sub-haplotype finder by their source vertex.
+     */
+    protected Map<SeqVertex,KBestSubHaplotypeFinder> finderByVertex;
+
+    /**
+     * Possible haplotype sink vertices.
+     */
+    protected Set<SeqVertex> sinks;
+
+    /**
+     * Possible haplotype source vertices.
+     */
+    protected Set<SeqVertex> sources;
+
+    /**
+     * The top finder.
+     *
+     * <p>If there is only a single source vertex, its finder is the top finder. However whent there
+     * is more than one possible source, we create a composite finder that alternates between individual source vertices
+     * for their best haplotypes.</p>
+     */
+    private final KBestSubHaplotypeFinder topFinder;
 
     /**
      * Constructs a new best haplotypes finder.
      *
      * @param graph the seq-graph to search.
      * @param source the source vertex for all haplotypes.
-     * @param sink the sink vertex for all haplotypes.
+     * @param sink sink vertices for all haplotypes.
      *
      * @throws IllegalArgumentException if <ul>
      *     <li>any of {@code graph}, {@code source} or {@code sink} is {@code null} or</li>
-     *     <li>either {@code source} or {@code sink} is not a vertex of {@code graph}'s.</li>
+     *     <li>either {@code source} or {@code sink} is not a vertex in {@code graph}.</li>
      * </ul>
      */
     public KBestHaplotypeFinder(final SeqGraph graph, final SeqVertex source, final SeqVertex sink) {
-        if (graph == null) throw new IllegalArgumentException("graph cannot be null");
-        if (source == null) throw new IllegalArgumentException("source cannot be null");
-        if (sink == null) throw new IllegalArgumentException("sink cannot be null");
-        if (!graph.containsVertex(source)) throw new IllegalArgumentException("source does not belong to the graph");
-        if (!graph.containsVertex(sink)) throw new IllegalArgumentException("sink does not belong to the graph");
-        //TODO dealing with cycles here due to a bug in some of the graph transformations that produces cycles.
-        //TODO Once that is solve, the conditional above should be removed in order the save time:
-        //this.graph = graph;
-        if (new CycleDetector<>(graph).detectCycles())
-            this.graph = removeCycles(graph,source,sink);
-        else
-            this.graph = graph;
-        nodeBySource = new HashMap<>(graph.vertexSet().size());
-        this.sink = sink;
-        this.source = source;
+        this(graph,Collections.singleton(source),Collections.singleton(sink));
     }
 
-    private static SeqGraph removeCycles(final SeqGraph original, final SeqVertex source, final SeqVertex sink) {
+    /**
+     * Constructs a new best haplotypes finder.
+     *
+     * @param graph the seq-graph to search.
+     * @param sources source vertices for all haplotypes.
+     * @param sinks sink vertices for all haplotypes.
+     *
+     * @throws IllegalArgumentException if <ul>
+     *     <li>any of {@code graph}, {@code sources} or {@code sinks} is {@code null} or</li>
+     *     <li>any of {@code sources}' or any {@code sinks}' member is not a vertex in {@code graph}.</li>
+     * </ul>
+     */
+    public KBestHaplotypeFinder(final SeqGraph graph, final Set<SeqVertex> sources, final Set<SeqVertex> sinks) {
+        if (graph == null) throw new IllegalArgumentException("graph cannot be null");
+        if (sources == null) throw new IllegalArgumentException("source cannot be null");
+        if (sinks == null) throw new IllegalArgumentException("sink cannot be null");
+        if (!graph.containsAllVertices(sources)) throw new IllegalArgumentException("source does not belong to the graph");
+        if (!graph.containsAllVertices(sinks)) throw new IllegalArgumentException("sink does not belong to the graph");
+
+        //TODO dealing with cycles here due to a bug in some of the graph transformations that produces cycles.
+        //TODO Once that is solve, the if-else below should be substituted by a throw if there is any cycles,
+        //TODO just the line commented out below if you want to trade early-bug-fail for speed.
+        //this.graph = graph;
+        this.graph = new CycleDetector<>(graph).detectCycles() ? removeCycles(graph,sources,sinks) : graph;
+
+        finderByVertex = new HashMap<>(this.graph.vertexSet().size());
+        this.sinks = sinks;
+        this.sources = sources;
+        if (sinks.size() == 0 || sources.size() == 0)
+            topFinder = DeadEndKBestSubHaplotypeFinder.INSTANCE;
+        else if (sources.size() == 1)
+            topFinder = createVertexFinder(sources.iterator().next());
+        else
+            topFinder = createAggregatedFinder();
+    }
+
+    /**
+     * Constructs a new best haplotype finder.
+     * <p>
+     *     It will consider all source and sink vertex when looking for haplotypes.
+     * </p>
+     *
+     * @param graph the seq-graph to search for the best haplotypes.
+     */
+    public KBestHaplotypeFinder(SeqGraph graph) {
+        this(graph,graph.getSources(),graph.getSinks());
+    }
+
+    /**
+     * Creates an aggregated recursive finder to try all possible source vertices.
+     *
+     * @return never {@code null}.
+     */
+    private KBestSubHaplotypeFinder createAggregatedFinder() {
+        final List<KBestSubHaplotypeFinder> sourceFinders = new ArrayList<>(sources.size());
+        for (final SeqVertex source : sources)
+            sourceFinders.add(createVertexFinder(source));
+        return new AggregatedSubHaplotypeFinder(sourceFinders);
+    }
+
+    /**
+     * Removes edges that produces cycles and also dead vertices that do not lead to any sink vertex.
+     *
+     * @param original graph to modify.
+     * @param sources considered source vertices.
+     * @param sinks considered sink vertices.
+     * @return never {@code null}.
+     */
+    private static SeqGraph removeCycles(final SeqGraph original, final Set<SeqVertex> sources, final Set<SeqVertex> sinks) {
         final Set<BaseEdge> edgesToRemove = new HashSet<>(original.edgeSet().size());
         final Set<SeqVertex> vertexToRemove = new HashSet<>(original.vertexSet().size());
 
-        if (!findGuiltyVerticesAndEdgesToRemoveCycles(original, source, sink, edgesToRemove, vertexToRemove, new HashSet<SeqVertex>(original.vertexSet().size())))
-            throw new IllegalStateException("could not find any path from the source vertex to the sink vertex: " + source + " -> " + sink);
+        boolean foundSomePath = false;
+        for (final SeqVertex source : sources)
+            foundSomePath = findGuiltyVerticesAndEdgesToRemoveCycles(original, source, sinks, edgesToRemove,
+                    vertexToRemove, new HashSet<SeqVertex>(original.vertexSet().size())) | foundSomePath;
+
+        if (!foundSomePath)
+            throw new IllegalStateException("could not find any path from the source vertex to the sink vertex after removing cycles: "
+                    + Arrays.toString(sources.toArray()) + " => " + Arrays.toString(sinks.toArray()));
 
         if (edgesToRemove.isEmpty() && vertexToRemove.isEmpty())
             throw new IllegalStateException("cannot find a way to remove the cycles");
@@ -109,13 +191,30 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
         return result;
     }
 
-    private static boolean findGuiltyVerticesAndEdgesToRemoveCycles(final SeqGraph graph, final SeqVertex currentVertex, final SeqVertex sink,
-                                                                    final Set<BaseEdge> edgesToRemove, final Set<SeqVertex> verticesToRemove,
+    /**
+     * Recursive call that looks for edges and vertices that need to be removed to get rid of cycles.
+     *
+     * @param graph the original graph.
+     * @param currentVertex current search vertex.
+     * @param sinks considered sink vertices.
+     * @param edgesToRemove collection  of edges that need to be removed in order to get rid of cycles.
+     * @param verticesToRemove collection of vertices that can be removed.
+     * @param parentVertices collection of vertices that preceded the {@code currentVertex}; i.e. the it can be
+     *                       reached from those vertices using edges existing in {@code graph}.
+     *
+     * @return {@code true} to indicate that the some sink vertex is reachable by {@code currentVertex},
+     *  {@code false} otherwise.
+     */
+    private static boolean findGuiltyVerticesAndEdgesToRemoveCycles(final SeqGraph graph,
+                                                                    final SeqVertex currentVertex,
+                                                                    final Set<SeqVertex> sinks,
+                                                                    final Set<BaseEdge> edgesToRemove,
+                                                                    final Set<SeqVertex> verticesToRemove,
                                                                     final Set<SeqVertex> parentVertices) {
-        if (currentVertex.equals(sink)) return true;
+        if (sinks.contains(currentVertex)) return true;
 
         final Set<BaseEdge> outgoingEdges = graph.outgoingEdgesOf(currentVertex);
-        boolean reachsSink = false;
+        boolean reachesSink = false;
         parentVertices.add(currentVertex);
 
         for (final BaseEdge edge : outgoingEdges) {
@@ -123,31 +222,28 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
             if (parentVertices.contains(child))
                 edgesToRemove.add(edge);
             else {
-              final boolean childReachSink = findGuiltyVerticesAndEdgesToRemoveCycles(graph, child, sink, edgesToRemove, verticesToRemove, parentVertices);
-              reachsSink = reachsSink || childReachSink;
+              final boolean childReachSink = findGuiltyVerticesAndEdgesToRemoveCycles(graph, child, sinks,
+                      edgesToRemove, verticesToRemove, parentVertices);
+              reachesSink = reachesSink || childReachSink;
             }
         }
         parentVertices.remove(currentVertex);
-        if (!reachsSink) verticesToRemove.add(currentVertex);
-        return reachsSink;
+        if (!reachesSink) verticesToRemove.add(currentVertex);
+        return reachesSink;
     }
-
 
     @Override
     public KBestHaplotype get(int index) {
-        final KBestSubHaplotypeFinder sourceNode = createNode(source);
         if (index < 0 || index >= size())
             throw new IndexOutOfBoundsException();
-        return sourceNode.getKBest(index);
+        return topFinder.getKBest(index);
     }
 
     @Override
     public Iterator<KBestHaplotype> iterator() {
-        final KBestSubHaplotypeFinder sourceFinder = createNode(source);
-
         return new Iterator<KBestHaplotype>() {
             private int nextK = 0;
-            private final int maxK = sourceFinder.getCount();
+            private final int maxK = topFinder.getCount();
 
 
             @Override
@@ -158,7 +254,7 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
             @Override
             public KBestHaplotype next() {
                 if (nextK >= maxK) throw new NoSuchElementException();
-                return sourceFinder.getKBest(nextK++);
+                return topFinder.getKBest(nextK++);
             }
 
             @Override
@@ -170,7 +266,7 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
 
     @Override
     public int size() {
-        return createNode(source).getCount();
+        return topFinder.getCount();
     }
 
     /**
@@ -183,12 +279,10 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
      * @return never {@code null}, but perhaps a iterator that return no haplotype.
      */
     public Iterator<KBestHaplotype> iterator(final int k) {
-        final KBestSubHaplotypeFinder sourceFinder = createNode(source);
 
         return new Iterator<KBestHaplotype>() {
             private int nextK = 0;
-            private final int maxK = Math.min(sourceFinder.getCount(), k);
-
+            private final int maxK = Math.min(size(), k);
 
             @Override
             public boolean hasNext() {
@@ -198,7 +292,7 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
             @Override
             public KBestHaplotype next() {
                 if (nextK >= maxK) throw new NoSuchElementException();
-                return sourceFinder.getKBest(nextK++);
+                return topFinder.getKBest(nextK++);
             }
 
             @Override
@@ -208,38 +302,51 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
         };
     }
 
-    protected KBestSubHaplotypeFinder createNode(final SeqVertex source) {
-        KBestSubHaplotypeFinder node = nodeBySource.get(source);
+    /**
+     * Creates a finder from a vertex.
+     *
+     * @param source the source vertex for the finder.
+     *
+     * @return never {@code null}, perhaps a finder that returns no haplotypes though.
+     */
+    protected KBestSubHaplotypeFinder createVertexFinder(final SeqVertex source) {
+        KBestSubHaplotypeFinder node = finderByVertex.get(source);
         if (node == null) {
-            if (source.equals(sink))
-                node = new EmptyPathHaplotypeFinderNode(graph,sink);
+            if (sinks.contains(source))
+                node = new EmptyPathHaplotypeFinderNode(graph,source);
             else {
                 final Set<BaseEdge> outgoingEdges = graph.outgoingEdgesOf(source);
                 if (outgoingEdges.isEmpty())
                     node = DeadEndKBestSubHaplotypeFinder.INSTANCE;
                 else {
-                    final Map<BaseEdge,KBestSubHaplotypeFinder> undeadChildren = createChildrenNodes(outgoingEdges);
-                    if (undeadChildren.isEmpty())
-                        node = DeadEndKBestSubHaplotypeFinder.INSTANCE;
-                    else
-                        node = new RecursiveSubHaplotypeFinder(graph,source,undeadChildren);
-
+                    final Map<BaseEdge,KBestSubHaplotypeFinder> undeadChildren = createChildrenFinders(outgoingEdges);
+                    node = undeadChildren.isEmpty() ? DeadEndKBestSubHaplotypeFinder.INSTANCE :
+                            new RecursiveSubHaplotypeFinder(source,undeadChildren);
                 }
             }
-            nodeBySource.put(source,node);
+            finderByVertex.put(source, node);
         }
         return node;
     }
 
-    private Map<BaseEdge, KBestSubHaplotypeFinder> createChildrenNodes(Set<BaseEdge> baseEdges) {
+    /**
+     * Creates finder for target vertices of a collection of edges.
+     * <p>
+     *     This peculiar signature is convenient for when we want to create finders for the children of a vertex.
+     * </p>
+     *
+     * @param baseEdges target collection of edges.
+     *
+     * @return never {@code null}, perhaps an empty map if there is no children with valid paths to any sink for this
+     *  finder.
+     */
+    private Map<BaseEdge, KBestSubHaplotypeFinder> createChildrenFinders(Set<BaseEdge> baseEdges) {
         final Map<BaseEdge,KBestSubHaplotypeFinder> result = new LinkedHashMap<>(baseEdges.size());
-        for (final BaseEdge edge : baseEdges)
-            result.put(edge,createNode(graph.getEdgeTarget(edge)));
-        final Iterator<Map.Entry<BaseEdge,KBestSubHaplotypeFinder>> childrenIterator = result.entrySet().iterator();
-        while (childrenIterator.hasNext())
-            if (childrenIterator.next().getValue().getCount() == 0)
-                childrenIterator.remove();
+        for (final BaseEdge edge : baseEdges) {
+            final KBestSubHaplotypeFinder targetFinder = createVertexFinder(graph.getEdgeTarget(edge));
+            if (targetFinder.getCount() == 0) continue;
+            result.put(edge, targetFinder);
+        }
         return result;
     }
-
 }

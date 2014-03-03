@@ -46,10 +46,11 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
-import net.sf.samtools.Cigar;
 import net.sf.samtools.TextCigarCodec;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.KBestHaplotype;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.KBestHaplotypeFinder;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
@@ -57,7 +58,8 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DanglingChainMergingGraphUnitTest extends BaseTest {
 
@@ -235,7 +237,7 @@ public class DanglingChainMergingGraphUnitTest extends BaseTest {
         // confirm that we created the appropriate bubble in the graph only if expected
         rtgraph.cleanNonRefPaths();
         final SeqGraph seqGraph = rtgraph.convertToSequenceGraph();
-        List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(seqGraph, seqGraph.getReferenceSourceVertex(), seqGraph.getReferenceSinkVertex());
+        final List<KBestHaplotype> paths = new KBestHaplotypeFinder(seqGraph, seqGraph.getReferenceSourceVertex(), seqGraph.getReferenceSinkVertex());
         Assert.assertEquals(paths.size(), shouldBeMerged ? 2 : 1);
     }
 }

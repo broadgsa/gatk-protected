@@ -695,4 +695,21 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
     public BaseGraph<V,E> subsetToRefSource() {
         return subsetToNeighbors(getReferenceSourceVertex(), 10);
     }
+
+    /**
+     * Checks whether the graph contains all the vertices in a collection.
+     *
+     * @param vertices the vertices to check.
+     *
+     * @throws IllegalArgumentException if {@code vertices} is {@code null}.
+     *
+     * @return {@code true} if all the vertices in the input collection are present in this graph.
+     * Also if the input collection is empty. Otherwise it returns {@code false}.
+     */
+    public boolean containsAllVertices(final Collection<? extends V> vertices) {
+        if (vertices == null) throw new IllegalArgumentException("the input vertices collection cannot be null");
+        for (final V vertex : vertices)
+            if (!containsVertex(vertex)) return false;
+        return true;
+    }
 }

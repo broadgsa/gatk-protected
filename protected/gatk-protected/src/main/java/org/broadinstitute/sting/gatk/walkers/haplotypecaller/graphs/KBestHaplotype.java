@@ -52,7 +52,7 @@ import org.broadinstitute.sting.utils.haplotype.Haplotype;
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public abstract class KBestHaplotype {
+public abstract class KBestHaplotype implements Comparable<KBestHaplotype> {
 
     /**
      * Returns the original graph searched.
@@ -144,6 +144,18 @@ public abstract class KBestHaplotype {
     }
 
     /**
+     * Compares k-best haplotypes based on the score where the one with larger score comes first (descending orther).
+     *
+     * @param other the other haplotype to compare to.
+     * @return {@code -1} if the current score is larger than {@code other}'s, {@code 0} if they are the same, {@code 1}
+     * if {@code other}'s score is larger.
+     */
+    public int compareTo(final KBestHaplotype other) {
+        if (other == null) throw new IllegalArgumentException("the other object cannot be null");
+        return - 1 * (score() - other.score());
+    }
+
+    /**
      * The first vertex on the haplotype path.
      *
      * @return never {@code null}.
@@ -156,6 +168,4 @@ public abstract class KBestHaplotype {
      * @return {@code null} if there are no more vertices in the solution path a part from the one returned by {@link #head}.
      */
     protected abstract KBestHaplotype tail();
-
-
 }

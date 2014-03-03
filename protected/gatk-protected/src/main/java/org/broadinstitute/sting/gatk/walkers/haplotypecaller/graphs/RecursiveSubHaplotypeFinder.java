@@ -46,18 +46,18 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
-import java.util.PriorityQueue;
 
 /**
 * General recursive sub-haplotype finder.
 * <p>
-*   Provides the k-best sub-haplotypes looking into the outgoing set of vertices (that contain at least one solution).
+*   Provides the k-best sub-haplotypes from a vertex provided map between outgoing edges and its target finders
 * </p>
 * <p>
-*  This is done efficiently by keeping an priority-queue on best subhaplotype solutions and pulling them on demand
+*  This is done efficiently by keeping an priority-queue on best sub-haplotype solutions and pulling them on demand
 *  as needed.
-*  </p>
+* </p>
 * <p>
 *  Solutions are cached for repeated retrieval so that we save compute at vertices that share sub-haplotypes
 *     (share descendant vertices). This aspect is controlled by {@link KBestSubHaplotypeFinder} that instantiate
@@ -67,34 +67,7 @@ import java.util.PriorityQueue;
 *
 * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
 */
-class RecursiveSubHaplotypeFinder implements KBestSubHaplotypeFinder {
-
-    private final SeqGraph graph;
-
-    private final SeqVertex vertex;
-
-    private final Map<BaseEdge,KBestSubHaplotypeFinder> children;
-
-    private boolean childrenWereProcessed = false;
-
-    /**
-     * Holds the number of possible paths from this source node vertex to the sink vertex.
-     *
-     * <p>Updated by {@link #processChildrenIfNeeded()}</p>
-     */
-    private int possibleHaplotypeCount;
-
-    /**
-     * Holds the best {@code i} paths to the sink so far calculated where {@code i+1} is the length of rankedResults.
-     *
-     * <p>As more results are requested the array will grow. All positions and solutions are calculated up to {@code i}</p>.
-     */
-    private ArrayList<KBestHaplotype> rankedResults;
-
-    /**
-     * Priority queue with best sub-haplotype solutions that haven't been calculated and cached on {@link #rankedResults} yet.
-     */
-    private PriorityQueue<ChildKBestSubHaplotype> nextChildrenKBestHaplotypePath;
+class RecursiveSubHaplotypeFinder extends AggregatedSubHaplotypeFinder {
 
     /**
      * Creates a recursive sub-haplotype finder give the target graph, first vertex and all possible outgoing edges
@@ -104,113 +77,73 @@ class RecursiveSubHaplotypeFinder implements KBestSubHaplotypeFinder {
      * are outgoing edges from {@code vertex} on {@code graph} and that the value sub-haplotype resolver have as
      * the first vertex the adjacent vertex through that key edge.</p>
      *
-     * @param graph the search graph.
      * @param vertex first vertex for all sub-haplotype solutions provided by this finder
      * @param children map from outgoing edge to the corresponding sub-sub-haplotype finder.
      */
-    public RecursiveSubHaplotypeFinder(final SeqGraph graph, final SeqVertex vertex,
+    public RecursiveSubHaplotypeFinder(final SeqVertex vertex,
                                        final Map<BaseEdge, KBestSubHaplotypeFinder> children) {
-        if (vertex == null) throw new IllegalArgumentException("the vertex provided cannot be null");
-        if (graph == null) throw new IllegalArgumentException("the graph provided cannot be null");
-        this.vertex = vertex;
-        this.children = children;
-        this.graph = graph;
+        super(createChildFinderCollection(vertex, children));
     }
 
-    @Override
-    public int getCount() {
-        processChildrenIfNeeded();
-        return possibleHaplotypeCount;
+    private static Collection<EdgeSubHaplotypeFinder> createChildFinderCollection(final SeqVertex vertex, final Map<BaseEdge,KBestSubHaplotypeFinder> finders) {
+        if (finders == null) throw new IllegalArgumentException("the edge to child map cannot be null");
+        final Collection<EdgeSubHaplotypeFinder> result = new ArrayList<>(finders.size());
+        for (final Map.Entry<BaseEdge,KBestSubHaplotypeFinder> e : finders.entrySet())
+            result.add(new EdgeSubHaplotypeFinder(vertex,e.getKey(), e.getValue()));
+        return result;
     }
 
-    /**
-     * Process children and initialize structures if not done before.
-     */
-    private void processChildrenIfNeeded() {
-        if (childrenWereProcessed) return;
-        long possibleHaplotypeCount = 0;
+    private static class EdgeSubHaplotypeFinder implements KBestSubHaplotypeFinder {
 
-        nextChildrenKBestHaplotypePath = new PriorityQueue<>(children.size());
+        private final KBestSubHaplotypeFinder childFinder;
 
-        for (final Map.Entry<BaseEdge,KBestSubHaplotypeFinder> entry : children.entrySet()) {
-            final KBestSubHaplotypeFinder child = entry.getValue();
-            final BaseEdge edge = entry.getKey();
-            final int childPossibleHaplotypePathCount = child.getCount();
-            if (childPossibleHaplotypePathCount != 0) // paranoia check, should not happen at this point.
-                nextChildrenKBestHaplotypePath.add(new ChildKBestSubHaplotype(-1,edge,child,0));
-            possibleHaplotypeCount += childPossibleHaplotypePathCount;
+        private final SeqVertex vertex;
+
+        private final BaseEdge edge;
+
+        private EdgeSubHaplotypeFinder(final SeqVertex vertex, final BaseEdge edge, final KBestSubHaplotypeFinder childFinder) {
+            this.childFinder = childFinder;
+            this.edge = edge;
+            this.vertex = vertex;
         }
 
-        // Just make sure we won't incur in overflow here for very large graphs; who is ever going to ask for more than 2G paths!!!)
-        this.possibleHaplotypeCount = (int) Math.min(Integer.MAX_VALUE,possibleHaplotypeCount);
-
-        // 10 is a bit arbitrary as it is difficult to anticipate what would be the number of requested
-        // best sub-haplotypes for any node. It shouldn't be too large so that it does not waste space
-        // but not too small so that there is no need to resize when just a few best solutions are requested.
-        rankedResults = new ArrayList<>(Math.min(this.possibleHaplotypeCount,10));
-
-        childrenWereProcessed = true;
-    }
-
-    @Override
-    public KBestHaplotype getKBest(int k) {
-        if (k < 0)
-            throw new IllegalArgumentException("the rank requested cannot be negative");
-        processChildrenIfNeeded();
-        if (k >= possibleHaplotypeCount)
-            throw new IllegalArgumentException("the rank requested cannot be equal or greater to the number of possible haplotypes");
-        if (rankedResults.size() > k)
-            return rankedResults.get(k);
-
-        rankedResults.ensureCapacity(k+1);
-        for (int i = rankedResults.size(); i <= k; i++) {
-            // since k < possibleHaplotypeCount is guarantee no to be empty.
-            if (nextChildrenKBestHaplotypePath.isEmpty())
-                throw new IllegalStateException("what the heck " + k + " " + possibleHaplotypeCount);
-            final ChildKBestSubHaplotype nextResult = nextChildrenKBestHaplotypePath.remove();
-            nextResult.rank = i;
-            rankedResults.add(nextResult);
-            final int childRank = nextResult.subpath.rank();
-            final KBestSubHaplotypeFinder child = nextResult.child;
-
-            // if there is no further solution from the same child we cannot add another solution from that child.
-            if (childRank + 1 >= nextResult.child.getCount())
-                continue;
-            nextChildrenKBestHaplotypePath.add(new ChildKBestSubHaplotype(-1,nextResult.edge, child, childRank + 1));
+        @Override
+        public int getCount() {
+            return childFinder.getCount();
         }
-        return rankedResults.get(k);
+
+        @Override
+        public KBestHaplotype getKBest(int k) {
+            return new ChildKBestSubHaplotype(vertex,edge,childFinder.getKBest(k));
+        }
     }
 
     /**
      * Custom extension of the {@link KBestHaplotype} used for solutions generated by this class.
+     *
+     * <p>
+     *     These by delegating on the encapsulated solution from outgoing edge's finder by adding
+     *     the edge score and prefixing this outer finder
+     *     source vertex.
+     * </p>
      */
-    private class ChildKBestSubHaplotype extends KBestHaplotype implements Comparable<ChildKBestSubHaplotype>{
+    private static class ChildKBestSubHaplotype extends KBestHaplotype {
+
         private final int score;
-        private int rank;
-        private final KBestSubHaplotypeFinder child;
-        private final BaseEdge edge;
-        private final KBestHaplotype subpath;
+        private final KBestHaplotype child;
+        private final SeqVertex vertex;
         private final boolean isReference;
 
-        public ChildKBestSubHaplotype(final int rank, final BaseEdge edge,
-                                      final KBestSubHaplotypeFinder child, final int childRank) {
+        public ChildKBestSubHaplotype(final SeqVertex vertex, final BaseEdge edge, final KBestHaplotype child) {
+            this.score = edge.getMultiplicity() + child.score();
+            this.vertex = vertex;
             this.child = child;
-            this.edge = edge;
-            this.rank = rank;
-            this.subpath = child.getKBest(childRank);
-            this.score = edge.getMultiplicity() + subpath.score();
-            this.isReference = edge.isRef() && subpath.isReference();
+            this.isReference = edge.isRef() && child.isReference();
         }
 
         @Override
         public SeqGraph graph() {
-            return graph;
-        }
-
-        @Override
-        public int compareTo(final ChildKBestSubHaplotype other) {
-            if (other == null) throw new IllegalArgumentException("the other object cannot be null");
-            return - Integer.compare(this.score,other.score);
+            return child.graph();
         }
 
         @Override
@@ -220,9 +153,8 @@ class RecursiveSubHaplotypeFinder implements KBestSubHaplotypeFinder {
 
         @Override
         public int rank() {
-            return rank;
+            return child.rank();
         }
-
 
         @Override
         protected SeqVertex head() {
@@ -231,7 +163,7 @@ class RecursiveSubHaplotypeFinder implements KBestSubHaplotypeFinder {
 
         @Override
         protected KBestHaplotype tail() {
-            return subpath;
+            return child;
         }
 
         @Override

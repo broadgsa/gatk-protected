@@ -59,13 +59,14 @@ import java.io.File;
 import java.util.*;
 
 public class ReadThreadingAssemblerUnitTest extends BaseTest {
+
     private final static boolean DEBUG = false;
 
     private static class TestAssembler {
         final ReadThreadingAssembler assembler;
 
         Haplotype refHaplotype;
-        final List<GATKSAMRecord> reads = new LinkedList<GATKSAMRecord>();
+        final List<GATKSAMRecord> reads = new LinkedList<>();
 
         private TestAssembler(final int kmerSize) {
             this.assembler = new ReadThreadingAssembler(100000, Arrays.asList(kmerSize));
@@ -102,11 +103,11 @@ public class ReadThreadingAssemblerUnitTest extends BaseTest {
     private void assertSingleBubble(final TestAssembler assembler, final String one, final String two) {
         final SeqGraph graph = assembler.assemble();
         graph.simplifyGraph();
-        List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(graph);
+        final List<KBestHaplotype> paths = new KBestHaplotypeFinder(graph);
         Assert.assertEquals(paths.size(), 2);
-        final Set<String> expected = new HashSet<String>(Arrays.asList(one, two));
-        for ( final Path<SeqVertex,BaseEdge> path : paths ) {
-            final String seq = new String(path.getBases());
+        final Set<String> expected = new HashSet<>(Arrays.asList(one, two));
+        for ( final KBestHaplotype path : paths ) {
+            final String seq = new String(path.bases());
             Assert.assertTrue(expected.contains(seq));
             expected.remove(seq);
         }
@@ -169,7 +170,7 @@ public class ReadThreadingAssemblerUnitTest extends BaseTest {
         Assert.assertNotNull(graph.getReferenceSourceVertex());
         Assert.assertNotNull(graph.getReferenceSinkVertex());
 
-        final List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(graph);
+        final List<KBestHaplotype> paths = new KBestHaplotypeFinder(graph);
         Assert.assertEquals(paths.size(), 2);
     }
 
@@ -226,11 +227,10 @@ public class ReadThreadingAssemblerUnitTest extends BaseTest {
         assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(read2), false);
 
         final SeqGraph graph = assembler.assemble();
-        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<SeqVertex,BaseEdge>();
-        final List<Path<SeqVertex,BaseEdge>> paths = pathFinder.getKBestPaths(graph);
+        final List<KBestHaplotype> paths = new KBestHaplotypeFinder(graph);
         Assert.assertEquals(paths.size(), 2);
-        final byte[] refPath = paths.get(0).getBases().length == ref.length() ? paths.get(0).getBases() : paths.get(1).getBases();
-        final byte[] altPath = paths.get(0).getBases().length == ref.length() ? paths.get(1).getBases() : paths.get(0).getBases();
+        final byte[] refPath = paths.get(0).bases().length == ref.length() ? paths.get(0).bases() : paths.get(1).bases();
+        final byte[] altPath = paths.get(0).bases().length == ref.length() ? paths.get(1).bases() : paths.get(0).bases();
         Assert.assertEquals(refPath, ReadThreadingGraphUnitTest.getBytes(ref));
         Assert.assertEquals(altPath, ReadThreadingGraphUnitTest.getBytes(read1));
     }

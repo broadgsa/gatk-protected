@@ -68,5 +68,4 @@ interface KBestSubHaplotypeFinder {
      * @return never {@code null}.
      */
     public abstract KBestHaplotype getKBest(int k);
-
 }

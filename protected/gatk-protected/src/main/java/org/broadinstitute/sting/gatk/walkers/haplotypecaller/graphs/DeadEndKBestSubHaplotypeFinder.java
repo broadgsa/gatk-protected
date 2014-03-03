@@ -46,9 +46,9 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 /**
- * Represent a trivial k-best sub haplotype finder with no solutions.
+ * Represents a trivial k-best sub haplotype finder with no solutions.
  *
- * <p>To be used at vertices that do not have any valid path to the requested sink node</p>
+ * <p>To be used at vertices that do not have any valid path to the requested sink vertices</p>
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
