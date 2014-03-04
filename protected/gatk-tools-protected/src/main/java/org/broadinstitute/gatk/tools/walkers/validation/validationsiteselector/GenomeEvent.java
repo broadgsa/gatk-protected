@@ -44,11 +44,11 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.validation.validationsiteselector;
+package org.broadinstitute.gatk.tools.walkers.validation.validationsiteselector;
 
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -77,7 +77,7 @@ public class GenomeEvent implements Comparable {
     }
     public int compareTo(final Object o) {
         if (!(o instanceof GenomeEvent))
-            throw new ReviewedStingException("BUG: comparing variant context with non-VC object");
+            throw new ReviewedGATKException("BUG: comparing variant context with non-VC object");
 
         GenomeEvent otherEvent = (GenomeEvent)o;
 

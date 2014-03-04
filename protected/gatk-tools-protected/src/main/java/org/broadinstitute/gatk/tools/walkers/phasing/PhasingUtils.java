@@ -44,16 +44,16 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.phasing;
+package org.broadinstitute.gatk.tools.walkers.phasing;
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.StringUtil;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
@@ -188,10 +188,10 @@ class PhasingUtils {
         GenomeLoc loc2 = GATKVariantContextUtils.getLocation(genomeLocParser, vc2);
 
         if (!loc1.onSameContig(loc2))
-            throw new ReviewedStingException("Can only merge vc1, vc2 if on the same chromosome");
+            throw new ReviewedGATKException("Can only merge vc1, vc2 if on the same chromosome");
 
         if (!loc1.isBefore(loc2))
-            throw new ReviewedStingException("Can only merge if vc1 is BEFORE vc2");
+            throw new ReviewedGATKException("Can only merge if vc1 is BEFORE vc2");
 
         if (vc1.isFiltered() || vc2.isFiltered())
             return false;
@@ -243,7 +243,7 @@ class PhasingUtils {
             return new PhaseAndQuality(gt1); // maintain the phase of gt1
 
         if (!gt1.isHom())
-            throw new ReviewedStingException("alleleSegregationIsKnown(gt1, gt2) implies: gt2.genotypesArePhased() || gt2.isHom() || gt1.isHom()");
+            throw new ReviewedGATKException("alleleSegregationIsKnown(gt1, gt2) implies: gt2.genotypesArePhased() || gt2.isHom() || gt1.isHom()");
 
         /* We're dealing with: gt1.isHom(), gt2.isHet(), !gt2.genotypesArePhased(); so, the merged (het) Genotype is not phased relative to the previous Genotype
 

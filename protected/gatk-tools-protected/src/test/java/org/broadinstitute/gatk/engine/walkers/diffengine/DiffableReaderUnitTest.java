@@ -44,13 +44,17 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diffengine;
+package org.broadinstitute.gatk.engine.walkers.diffengine;
 
 
 // the imports for unit testing.
 
 
-import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.gatk.utils.BaseTest;
+import org.broadinstitute.gatk.engine.walkers.diffengine.DiffElement;
+import org.broadinstitute.gatk.engine.walkers.diffengine.DiffEngine;
+import org.broadinstitute.gatk.engine.walkers.diffengine.DiffNode;
+import org.broadinstitute.gatk.engine.walkers.diffengine.DiffableReader;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.variantcontext.Allele;
 import org.testng.Assert;

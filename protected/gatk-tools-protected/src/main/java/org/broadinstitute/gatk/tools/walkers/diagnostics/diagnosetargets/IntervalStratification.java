@@ -44,13 +44,13 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.diagnostics.diagnosetargets;
+package org.broadinstitute.gatk.tools.walkers.diagnostics.diagnosetargets;
 
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 
 import java.util.*;
 
@@ -103,7 +103,7 @@ final class IntervalStratification extends AbstractStratification {
             SampleStratification sampleStratification = (SampleStratification) samples.get(sample);
 
             if (sampleStratification == null)
-                throw new ReviewedStingException(String.format("Trying to add locus statistics to a sample (%s) that doesn't exist in the Interval.", sample));
+                throw new ReviewedGATKException(String.format("Trying to add locus statistics to a sample (%s) that doesn't exist in the Interval.", sample));
 
             sampleStratification.addLocus(context.getLocation(), samplePileup);
         }

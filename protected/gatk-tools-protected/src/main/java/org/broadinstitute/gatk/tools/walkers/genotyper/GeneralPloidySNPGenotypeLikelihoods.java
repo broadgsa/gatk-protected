@@ -44,18 +44,18 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 
 import htsjdk.samtools.SAMUtils;
-import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACset;
-import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACset;
+import org.broadinstitute.gatk.utils.BaseUtils;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.pileup.PileupElement;
+import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import htsjdk.variant.variantcontext.Allele;
 
 import java.util.ArrayList;
@@ -101,7 +101,7 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
         Allele refAllele = alleles.get(0);
         //sanity check: by construction, first allele should ALWAYS be the reference alleles
         if (!refAllele.isReference())
-            throw new ReviewedStingException("BUG: First allele in list passed to GeneralPloidySNPGenotypeLikelihoods should be reference!");
+            throw new ReviewedGATKException("BUG: First allele in list passed to GeneralPloidySNPGenotypeLikelihoods should be reference!");
 
         refByte = refAllele.getBases()[0];  // by construction, first allele in list is always ref!
 

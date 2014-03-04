@@ -44,10 +44,10 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.phasing;
+package org.broadinstitute.gatk.tools.walkers.phasing;
 
-import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.BaseUtils;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 
@@ -57,9 +57,9 @@ class SNPallelePair extends AllelePair {
         super(gt);
 
         if (getTopAllele().getBases().length != 1)
-            throw new ReviewedStingException("LOGICAL ERROR: SNPallelePair may not contain non-SNP site!");
+            throw new ReviewedGATKException("LOGICAL ERROR: SNPallelePair may not contain non-SNP site!");
         if (getBottomAllele().getBases().length != 1)
-            throw new ReviewedStingException("LOGICAL ERROR: SNPallelePair may not contain non-SNP site!");
+            throw new ReviewedGATKException("LOGICAL ERROR: SNPallelePair may not contain non-SNP site!");
     }
 
     public byte getTopBase() {
@@ -85,7 +85,7 @@ class SNPallelePair extends AllelePair {
         else if (BaseUtils.basesAreEqual(base, botBase))
             return topBase;
         else
-            throw new ReviewedStingException("LOGICAL ERROR: base MUST match either TOP or BOTTOM!");
+            throw new ReviewedGATKException("LOGICAL ERROR: base MUST match either TOP or BOTTOM!");
     }
 
     public static byte getSingleBase(byte[] bases) {

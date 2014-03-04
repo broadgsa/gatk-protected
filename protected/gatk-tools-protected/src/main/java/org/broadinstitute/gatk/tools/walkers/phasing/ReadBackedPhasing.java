@@ -44,32 +44,32 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.phasing;
+package org.broadinstitute.gatk.tools.walkers.phasing;
 
-import org.broadinstitute.sting.commandline.Argument;
-import org.broadinstitute.sting.commandline.ArgumentCollection;
-import org.broadinstitute.sting.commandline.Hidden;
-import org.broadinstitute.sting.commandline.Output;
-import org.broadinstitute.sting.gatk.CommandLineGATK;
-import org.broadinstitute.sting.gatk.arguments.StandardVariantContextInputArgumentCollection;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.filters.MappingQualityZeroFilter;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.*;
-import org.broadinstitute.sting.utils.help.HelpConstants;
-import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.HasGenomeLocation;
-import org.broadinstitute.sting.utils.SampleUtils;
+import org.broadinstitute.gatk.engine.walkers.*;
+import org.broadinstitute.gatk.utils.commandline.Argument;
+import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
+import org.broadinstitute.gatk.utils.commandline.Hidden;
+import org.broadinstitute.gatk.utils.commandline.Output;
+import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
+import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.engine.filters.MappingQualityZeroFilter;
+import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.BaseUtils;
+import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.HasGenomeLocation;
+import org.broadinstitute.gatk.utils.SampleUtils;
 import htsjdk.variant.vcf.*;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.gatk.utils.pileup.PileupElement;
+import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
@@ -77,7 +77,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
 import java.io.*;
 import java.util.*;
 
-import static org.broadinstitute.sting.utils.variant.GATKVCFUtils.getVCFHeadersFromRods;
+import static org.broadinstitute.gatk.utils.variant.GATKVCFUtils.getVCFHeadersFromRods;
 
 /**
  * Walks along all variant ROD loci, caching a user-defined window of VariantContext sites, and then finishes phasing them when they go out of range (using upstream and downstream reads).
@@ -441,7 +441,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
                             Genotype prevHetGenotype = phaseWindow.phaseRelativeToGenotype();
                             SNPallelePair prevAllelePair = new SNPallelePair(prevHetGenotype);
                             if (!prevHetGenotype.hasAnyAttribute(HP_KEY))
-                                throw new ReviewedStingException("Internal error: missing haplotype markings for previous genotype, even though we put it there...");
+                                throw new ReviewedGATKException("Internal error: missing haplotype markings for previous genotype, even though we put it there...");
                             String[] prevPairNames = (String[]) prevHetGenotype.getAnyAttribute(HP_KEY);
 
                             String[] curPairNames = ensurePhasing(allelePair, prevAllelePair, prevPairNames, pr.haplotype);
@@ -548,7 +548,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
 
         public PhasingWindow(VariantAndReads vr, String sample, List<GenotypeAndReadBases> prevHetGenotypes, int goBackFromEndOfPrevHets) {
             if (prevHetGenotypes.isEmpty() || goBackFromEndOfPrevHets >= prevHetGenotypes.size()) // no previous sites against which to phase
-                throw new ReviewedStingException("Should never get empty set of previous sites to phase against");
+                throw new ReviewedGATKException("Should never get empty set of previous sites to phase against");
 
             // Include these previously phased sites in the phasing computation:
             List<GenotypeAndReadBases> listHetGenotypes = new LinkedList<GenotypeAndReadBases>(prevHetGenotypes);
@@ -1102,7 +1102,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
 
     public static String[] ensurePhasing(SNPallelePair curAllelePair, SNPallelePair prevAllelePair, String[] prevPairNames, Haplotype hap) {
         if (hap.size() < 2)
-            throw new ReviewedStingException("LOGICAL ERROR: Only considering haplotypes of length > 2!");
+            throw new ReviewedGATKException("LOGICAL ERROR: Only considering haplotypes of length > 2!");
 
         String[] curPairNames = prevPairNames;
 
@@ -1441,7 +1441,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         private Haplotype complement(Haplotype hap) {
             int numSites = SNPallelePairs.length;
             if (hap.size() != numSites)
-                throw new ReviewedStingException("INTERNAL ERROR: hap.size() != numSites");
+                throw new ReviewedGATKException("INTERNAL ERROR: hap.size() != numSites");
 
             // Take the other base at EACH position of the Haplotype:
             byte[] complementBases = new byte[numSites];

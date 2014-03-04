@@ -44,13 +44,13 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
+package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
-import org.broadinstitute.sting.gatk.walkers.genotyper.GeneralPloidyGenotypeLikelihoods;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GeneralPloidyGenotypeLikelihoods;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
@@ -306,7 +306,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 //        final int dim2 = GenotypeLikelihoods.numLikelihoods(numAlleles, ploidy2);
 //
 //        if (dim1 != originalPool.getLength() || dim2 != yy.length)
-//            throw new ReviewedStingException("BUG: Inconsistent vector length");
+//            throw new ReviewedGATKException("BUG: Inconsistent vector length");
 //
 //        if (ploidy2 == 0)
 //            return;
@@ -367,7 +367,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         // sanity check
         int totalAltK = set.getACsum();
         if (newPloidy != totalAltK)
-            throw new ReviewedStingException("BUG: inconsistent sizes of set.getACsum and passed ploidy values");
+            throw new ReviewedGATKException("BUG: inconsistent sizes of set.getACsum and passed ploidy values");
 
         totalAltK -= set.getACcounts().getCounts()[0];
         // totalAltK has sum of alt alleles of conformation now

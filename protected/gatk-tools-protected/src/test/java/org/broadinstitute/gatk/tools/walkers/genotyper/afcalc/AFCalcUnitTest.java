@@ -44,14 +44,14 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
+package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import org.apache.commons.lang.ArrayUtils;
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotypingEngine;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.gatk.utils.BaseTest;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.Utils;
 import htsjdk.variant.variantcontext.*;
 import org.testng.Assert;
 import org.testng.annotations.BeforeSuite;

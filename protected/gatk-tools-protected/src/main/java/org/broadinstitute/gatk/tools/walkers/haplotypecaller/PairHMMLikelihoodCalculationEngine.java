@@ -44,21 +44,21 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import htsjdk.samtools.SAMUtils;
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.pairhmm.*;
-import org.broadinstitute.sting.utils.recalibration.covariates.RepeatCovariate;
-import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.haplotype.Haplotype;
+import org.broadinstitute.gatk.utils.pairhmm.*;
+import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatCovariate;
+import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatLengthCovariate;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import htsjdk.variant.variantcontext.*;
 
 import java.io.File;
@@ -586,7 +586,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
 //    }
 //
 //    /**
-//     * Find the haplotype that isRef(), or @throw ReviewedStingException if one isn't found
+//     * Find the haplotype that isRef(), or @throw ReviewedGATKException if one isn't found
 //     * @param haplotypes non-null list of haplotypes
 //     * @return the reference haplotype
 //     */
@@ -594,7 +594,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
 //        for( final Haplotype h : haplotypes ) {
 //            if( h.isReference() ) return h;
 //        }
-//        throw new ReviewedStingException( "No reference haplotype found in the list of haplotypes!" );
+//        throw new ReviewedGATKException( "No reference haplotype found in the list of haplotypes!" );
 //    }
 
     // --------------------------------------------------------------------------------

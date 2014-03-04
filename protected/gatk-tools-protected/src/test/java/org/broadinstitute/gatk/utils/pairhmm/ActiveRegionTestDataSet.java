@@ -44,22 +44,22 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.pairhmm;
+package org.broadinstitute.gatk.utils.pairhmm;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import org.apache.commons.math.distribution.ExponentialDistribution;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResult;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResultSet;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Civar;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadThreadingGraph;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.AssemblyResult;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.AssemblyResultSet;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.Civar;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.ReadThreadingGraph;
+import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.haplotype.Haplotype;
+import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.util.*;
 import java.util.regex.Matcher;

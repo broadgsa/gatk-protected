@@ -44,41 +44,41 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.indels;
+package org.broadinstitute.gatk.tools.walkers.indels;
 
 import htsjdk.samtools.*;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.Feature;
-import org.broadinstitute.sting.commandline.*;
-import org.broadinstitute.sting.gatk.CommandLineGATK;
-import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
-import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.BAQMode;
-import org.broadinstitute.sting.gatk.walkers.ReadWalker;
-import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.smithwaterman.Parameters;
-import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.baq.BAQ;
-import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.StingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
-import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
-import org.broadinstitute.sting.utils.help.HelpConstants;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.NWaySAMFileWriter;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.sting.utils.text.TextFormattingUtils;
-import org.broadinstitute.sting.utils.text.XReadLines;
+import org.broadinstitute.gatk.utils.commandline.*;
+import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
+import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
+import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.engine.walkers.BAQMode;
+import org.broadinstitute.gatk.engine.walkers.ReadWalker;
+import org.broadinstitute.gatk.utils.BaseUtils;
+import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.smithwaterman.Parameters;
+import org.broadinstitute.gatk.utils.smithwaterman.SWPairwiseAlignment;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.baq.BAQ;
+import org.broadinstitute.gatk.utils.collections.Pair;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.sam.NWaySAMFileWriter;
+import org.broadinstitute.gatk.utils.sam.ReadUtils;
+import org.broadinstitute.gatk.utils.text.TextFormattingUtils;
+import org.broadinstitute.gatk.utils.text.XReadLines;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import java.io.File;
@@ -191,7 +191,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
      * The realigned bam file.
      */
     @Output(required=false, doc="Output bam", defaultToStdout=false)
-    protected StingSAMFileWriter writer = null;
+    protected GATKSAMFileWriter writer = null;
     protected ConstrainedMateFixingManager manager = null;
     protected SAMFileWriter writerToUse = null;
 
@@ -372,7 +372,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
                  fname_map.put(fields[0],fields[1]);
              }
         } catch (IOException e) {
-            throw new StingException("I/O Error while reading input-output map file "+N_WAY_OUT+": "+e.getMessage());
+            throw new GATKException("I/O Error while reading input-output map file "+N_WAY_OUT+": "+e.getMessage());
         }
        return fname_map;
     }
@@ -472,9 +472,9 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         if ( NO_PG_TAG ) return null;
 
         final SAMProgramRecord programRecord = new SAMProgramRecord(PROGRAM_RECORD_NAME);
-        final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("StingText");
+        final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("GATKText");
         try {
-            final String version = headerInfo.getString("org.broadinstitute.sting.gatk.version");
+            final String version = headerInfo.getString("org.broadinstitute.gatk.tools.version");
             programRecord.setProgramVersion(version);
         } catch (MissingResourceException e) {
             // this is left empty on purpose (perhaps Andrey knows why?)
@@ -588,7 +588,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
                 currentInterval = intervals.hasNext() ? intervals.next() : null;
 
             } while ( currentInterval != null && (readLoc == null || currentInterval.isBefore(readLoc)) );
-        } catch (ReviewedStingException e) {
+        } catch (ReviewedGATKException e) {
             throw new UserException.MissortedFile(new File(intervalsFile.getSource()), " *** Are you sure that your interval file is sorted? If not, you must use the --targetIntervalsAreNotSorted argument. ***", e);
         }
         sawReadInCurrentInterval = false;

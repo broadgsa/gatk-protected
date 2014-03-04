@@ -44,9 +44,9 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.phasing;
+package org.broadinstitute.gatk.tools.walkers.phasing;
 
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 
 import java.util.Iterator;
 
@@ -75,7 +75,7 @@ class CardinalityCounter implements Iterator<int[]>, Iterable<int[]> {
 
     public int[] next() {
         if (!hasNext())
-            throw new ReviewedStingException("CANNOT iterate past end!");
+            throw new ReviewedGATKException("CANNOT iterate past end!");
 
         // Copy the assignment to be returned:
         int[] nextList = new int[valList.length];

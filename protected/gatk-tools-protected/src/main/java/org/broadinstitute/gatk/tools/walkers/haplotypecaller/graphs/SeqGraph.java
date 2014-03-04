@@ -44,7 +44,7 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
+package org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
@@ -302,7 +302,7 @@ public class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
     protected SeqVertex mergeLinearChainVertices(final List<SeqVertex> vertices) {
         final List<byte[]> seqs = new LinkedList<byte[]>();
         for ( SeqVertex v : vertices ) seqs.add(v.getSequence());
-        final byte[] seqsCat = org.broadinstitute.sting.utils.Utils.concat(seqs.toArray(new byte[][]{}));
+        final byte[] seqsCat = org.broadinstitute.gatk.utils.Utils.concat(seqs.toArray(new byte[][]{}));
         return new SeqVertex( seqsCat );
     }
 

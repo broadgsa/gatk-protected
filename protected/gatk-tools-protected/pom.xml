@@ -3,25 +3,31 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.broadinstitute.sting</groupId>
-        <artifactId>sting-aggregator</artifactId>
+        <groupId>org.broadinstitute.gatk</groupId>
+        <artifactId>gatk-aggregator</artifactId>
         <version>3.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
-    <artifactId>gatk-protected</artifactId>
+    <artifactId>gatk-tools-protected</artifactId>
     <packaging>jar</packaging>
-    <name>GATK Protected</name>
+    <name>GATK Tools Protected</name>
 
     <properties>
-        <sting.basedir>${project.basedir}/../..</sting.basedir>
-        <sting.packagetests.artifactId>gatk-package</sting.packagetests.artifactId>
+        <gatk.basedir>${project.basedir}/../..</gatk.basedir>
+        <gatk.packagetests.artifactId>gatk-package-distribution</gatk.packagetests.artifactId>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>gatk-framework</artifactId>
+            <artifactId>gatk-engine</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-tools-public</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -42,17 +48,12 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>gatk-framework</artifactId>
+            <artifactId>gatk-tools-public</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>com.google.caliper</groupId>
             <artifactId>caliper</artifactId>
@@ -108,10 +109,10 @@
 
     <profiles>
         <profile>
-            <id>private</id>
+            <id>private-testdata</id>
             <activation>
                 <file>
-                    <exists>${basedir}/../../private/gatk-private/pom.xml</exists>
+                    <exists>${basedir}/../../private/pom.xml</exists>
                 </file>
             </activation>
             <build>

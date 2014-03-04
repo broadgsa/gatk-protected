@@ -44,17 +44,17 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.samtools.SAMUtils;
-import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACcounts;
-import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACset;
-import org.broadinstitute.sting.utils.MathUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACcounts;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACset;
+import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.collections.Pair;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 
@@ -124,7 +124,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
             Arrays.fill(log10Likelihoods, MIN_LIKELIHOOD);
         } else {
             if (logLikelihoods.length != likelihoodDim)
-                throw new ReviewedStingException("BUG: inconsistent parameters when creating GeneralPloidyGenotypeLikelihoods object");
+                throw new ReviewedGATKException("BUG: inconsistent parameters when creating GeneralPloidyGenotypeLikelihoods object");
 
             log10Likelihoods = logLikelihoods; //.clone(); // is clone needed?
         }
@@ -192,7 +192,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
             if (restrictSumTo > 0) {
                 // check that desired vector is valid
                 if (MathUtils.sum(stateVector) != restrictSumTo)
-                    throw new ReviewedStingException("BUG: initial state vector nor compatible with sum iterator");
+                    throw new ReviewedGATKException("BUG: initial state vector nor compatible with sum iterator");
 
                 final int numAlleles = currentState.length;
                 final int ploidy = restrictSumTo;
@@ -200,7 +200,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
                 linearIndex = GeneralPloidyGenotypeLikelihoods.getLinearIndex(stateVector, numAlleles, ploidy);
             }
             else
-                throw new ReviewedStingException("BUG: Not supported");
+                throw new ReviewedGATKException("BUG: Not supported");
 
         }
         public void next() {

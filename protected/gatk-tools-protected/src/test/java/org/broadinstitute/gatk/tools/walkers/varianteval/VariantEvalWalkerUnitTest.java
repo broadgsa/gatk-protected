@@ -44,20 +44,20 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.varianteval;
+package org.broadinstitute.gatk.tools.walkers.varianteval;
 
 
 // the imports for unit testing.
 
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.varianteval.evaluators.VariantEvaluator;
-import org.broadinstitute.sting.gatk.walkers.varianteval.stratifications.VariantStratifier;
-import org.broadinstitute.sting.gatk.walkers.varianteval.stratifications.manager.StratificationManager;
-import org.broadinstitute.sting.gatk.walkers.varianteval.util.EvaluationContext;
-import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.gatk.utils.BaseTest;
+import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.tools.walkers.varianteval.evaluators.VariantEvaluator;
+import org.broadinstitute.gatk.tools.walkers.varianteval.stratifications.VariantStratifier;
+import org.broadinstitute.gatk.tools.walkers.varianteval.stratifications.manager.StratificationManager;
+import org.broadinstitute.gatk.tools.walkers.varianteval.util.EvaluationContext;
+import org.broadinstitute.gatk.utils.Utils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;

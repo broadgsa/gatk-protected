@@ -44,15 +44,15 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.bqsr;
+package org.broadinstitute.gatk.tools.walkers.bqsr;
 
 import com.google.java.contract.Requires;
 import htsjdk.tribble.Feature;
-import org.broadinstitute.sting.commandline.*;
-import org.broadinstitute.sting.gatk.report.GATKReportTable;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.exceptions.StingException;
-import org.broadinstitute.sting.utils.recalibration.RecalUtils;
+import org.broadinstitute.gatk.utils.commandline.*;
+import org.broadinstitute.gatk.engine.report.GATKReportTable;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
+import org.broadinstitute.gatk.utils.recalibration.RecalUtils;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -407,7 +407,7 @@ public class RecalibrationArgumentCollection implements Cloneable {
         try {
             return (RecalibrationArgumentCollection) super.clone();
         } catch (CloneNotSupportedException e) {
-            throw new StingException("Unreachable code clone not supported thrown when the class "
+            throw new GATKException("Unreachable code clone not supported thrown when the class "
                     + this.getClass().getName() + " is cloneable ",e);
         }
     }

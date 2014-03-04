@@ -44,14 +44,14 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
+package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.classloader.PluginManager;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.classloader.PluginManager;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 
 import java.lang.reflect.Constructor;
 import java.util.LinkedList;
@@ -247,7 +247,7 @@ public class AFCalcFactory {
             Constructor c = afClass.getDeclaredConstructor(int.class, int.class, int.class);
             return (AFCalc)c.newInstance(args);
         } catch (Exception e) {
-            throw new ReviewedStingException("Could not instantiate AFCalc " + calc, e);
+            throw new ReviewedGATKException("Could not instantiate AFCalc " + calc, e);
         }
     }
 

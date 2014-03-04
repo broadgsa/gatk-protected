@@ -44,10 +44,10 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
+package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
@@ -58,7 +58,7 @@ import java.util.*;
 abstract class ExactAFCalc extends AFCalc {
     protected static final int HOM_REF_INDEX = 0;  // AA likelihoods are always first
     /**
-     * Sorts {@link org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first.
+     * Sorts {@link org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
 
@@ -68,7 +68,7 @@ abstract class ExactAFCalc extends AFCalc {
         }
     };
     /**
-     * Sorts {@link org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first but make sure that
+     * Sorts {@link org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first but make sure that
      * NON_REF alleles are place are last.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_NON_REF_THEN_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
@@ -83,7 +83,7 @@ abstract class ExactAFCalc extends AFCalc {
         }
     };
     /**
-     * Sorts {@link org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with lower alternative allele index are first regardless of
+     * Sorts {@link org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with lower alternative allele index are first regardless of
      * the likelihood sum.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_INDEX_COMPARATOR = new Comparator<LikelihoodSum>() {

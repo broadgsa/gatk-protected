@@ -44,12 +44,12 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
+package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.exceptions.StingException;
-import org.broadinstitute.sting.utils.text.XReadLines;
-import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
+import org.broadinstitute.gatk.utils.text.XReadLines;
+import org.broadinstitute.gatk.utils.BaseTest;
 import org.testng.annotations.Test;
 import org.testng.Assert;
 
@@ -89,7 +89,7 @@ public final class VariantGaussianMixtureModelUnitTest extends BaseTest {
                 }
             }
         } catch (FileNotFoundException e) {
-            throw new StingException("foo", e);
+            throw new GATKException("foo", e);
         }
 
         return vd;

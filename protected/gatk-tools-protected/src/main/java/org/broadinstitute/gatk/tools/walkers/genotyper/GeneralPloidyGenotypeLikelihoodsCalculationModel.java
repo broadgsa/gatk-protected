@@ -44,21 +44,21 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.collections.Pair;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
@@ -180,11 +180,11 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
             final double topLogGL = mlACPair.second;
 
             if (sampleData.GL.getAlleles().size() != allAlleles.size())
-                throw new ReviewedStingException("BUG: inconsistent size of alleles!");
+                throw new ReviewedGATKException("BUG: inconsistent size of alleles!");
 
             // ref allele is always first in array list
             if (sampleData.GL.alleles.get(0).isNonReference())
-                throw new ReviewedStingException("BUG: first allele in list is not reference!");
+                throw new ReviewedGATKException("BUG: first allele in list is not reference!");
 
             double refGL = sampleData.GL.getLikelihoods()[REFERENCE_IDX];
 
@@ -219,7 +219,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
                                          final List<Allele> allAllelesToUse,
                                          final boolean useBAQedPileup,
                                          final GenomeLocParser locParser,
-                                         final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                         final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
 
         HashMap<String, ErrorModel> perLaneErrorModels = getPerLaneErrorModels(tracker, ref, contexts);
         if (perLaneErrorModels == null && UAC.referenceSampleName != null)
@@ -357,7 +357,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
                                                                                final boolean useBQAedPileup,
                                                                                final ReferenceContext ref,
                                                                                final boolean ignoreLaneInformation,
-                                                                               final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap);
+                                                                               final org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap);
 
     protected abstract List<Allele> getInitialAllelesToUse(final RefMetaDataTracker tracker,
                                                            final ReferenceContext ref,

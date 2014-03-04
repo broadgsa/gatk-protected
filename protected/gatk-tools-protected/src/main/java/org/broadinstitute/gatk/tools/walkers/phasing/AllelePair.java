@@ -44,9 +44,9 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.phasing;
+package org.broadinstitute.gatk.tools.walkers.phasing;
 
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 
@@ -59,7 +59,7 @@ public class AllelePair {
 
     public AllelePair(Genotype gt) {
         if (gt.getPloidy() != 2)
-            throw new ReviewedStingException("AllelePair must have ploidy of 2! incoming gt was"+gt.toBriefString());
+            throw new ReviewedGATKException("AllelePair must have ploidy of 2! incoming gt was"+gt.toBriefString());
 
         this.top = gt.getAllele(0);
         this.bottom = gt.getAllele(1);

@@ -43,13 +43,13 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import com.google.caliper.Param;
 import com.google.caliper.SimpleBenchmark;
-import org.broadinstitute.sting.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.sting.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.sting.utils.pairhmm.PairHMM;
+import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
+import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
+import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
 
 import java.util.Collections;
 import java.util.Random;
@@ -62,7 +62,7 @@ import java.util.Random;
  * To change this template use File | Settings | File Templates.
  */
 public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
-// ./private/shell/googleCaliperCommand.csh org.broadinstitute.sting.gatk.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
+// ./private/shell/googleCaliperCommand.csh org.broadinstitute.gatk.tools.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
 
 //    @Param({"10", "25"})
     @Param({"10"})

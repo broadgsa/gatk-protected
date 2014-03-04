@@ -43,17 +43,17 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.exceptions.StingException;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.pairhmm.FlexibleHMM;
-import org.broadinstitute.sting.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.SeqGraph;
+import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.haplotype.Haplotype;
+import org.broadinstitute.gatk.utils.pairhmm.FlexibleHMM;
+import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -151,7 +151,7 @@ public class GraphBasedLikelihoodCalculationEngine implements ReadLikelihoodCalc
                 pw.close();
                 fw.close();
             } catch (Exception ex) {
-                throw new StingException("", ex);
+                throw new GATKException("", ex);
             }
         }
     }

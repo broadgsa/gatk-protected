@@ -44,9 +44,9 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.phasing;
+package org.broadinstitute.gatk.tools.walkers.phasing;
 
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -70,12 +70,12 @@ class Haplotype extends BaseArray implements Cloneable {
         super(baseArr.bases);
 
         if (baseArr.getNonNullIndices().length != baseArr.bases.length)
-            throw new ReviewedStingException("Should NEVER call Haplotype ctor with null bases!");
+            throw new ReviewedGATKException("Should NEVER call Haplotype ctor with null bases!");
     }
 
     public void updateBase(int index, Byte base) {
         if (base == null) {
-            throw new ReviewedStingException("Internal error: CANNOT have null for a missing Haplotype base!");
+            throw new ReviewedGATKException("Internal error: CANNOT have null for a missing Haplotype base!");
         }
         super.updateBase(index, base);
     }

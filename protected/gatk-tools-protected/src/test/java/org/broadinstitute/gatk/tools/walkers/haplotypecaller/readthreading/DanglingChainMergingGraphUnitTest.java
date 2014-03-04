@@ -44,16 +44,16 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
+package org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading;
 
 import htsjdk.samtools.TextCigarCodec;
-import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.KBestHaplotype;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.KBestHaplotypeFinder;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.BaseTest;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.KBestHaplotype;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.KBestHaplotypeFinder;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.SeqGraph;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;

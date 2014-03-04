@@ -44,11 +44,11 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.phasing;
+package org.broadinstitute.gatk.tools.walkers.phasing;
 
-import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.BaseUtils;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 
 import java.util.Arrays;
 
@@ -94,7 +94,7 @@ class PhasingRead extends BaseArray {
 
         int sz = this.bases.length;
         if (sz != hap.bases.length)
-            throw new ReviewedStingException("Read and Haplotype should have same length to be compared!");
+            throw new ReviewedGATKException("Read and Haplotype should have same length to be compared!");
 
         // Technically, this HAS NO EFFECT since it is multiplied in for ALL haplotype pairs, but do so for completeness:
         score.timesEqual(mappingProb);

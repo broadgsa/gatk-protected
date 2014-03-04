@@ -44,16 +44,16 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.ExactACset;
-import org.broadinstitute.sting.gatk.walkers.indels.PairHMMIndelErrorModel;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACset;
+import org.broadinstitute.gatk.tools.walkers.indels.PairHMMIndelErrorModel;
+import org.broadinstitute.gatk.utils.haplotype.Haplotype;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.pileup.PileupElement;
+import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.Allele;
 
 import java.util.*;
@@ -73,7 +73,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
     double[][] readHaplotypeLikelihoods;
 
     final byte refBase;
-    final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap;
+    final org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap;
 
     public GeneralPloidyIndelGenotypeLikelihoods(final List<Allele> alleles,
                                                  final double[] logLikelihoods,
@@ -83,7 +83,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
                                                  final PairHMMIndelErrorModel pairModel,
                                                  final LinkedHashMap<Allele, Haplotype> haplotypeMap,
                                                  final ReferenceContext referenceContext,
-                                                 final org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
+                                                 final org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
         super(alleles, logLikelihoods, ploidy, perLaneErrorModels, ignoreLaneInformation);
         this.pairModel = pairModel;
         this.haplotypeMap = haplotypeMap;
@@ -204,7 +204,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
             }
 
             if (refAllele == null)
-                throw new ReviewedStingException("BUG: no ref alleles in passed in allele list!");
+                throw new ReviewedGATKException("BUG: no ref alleles in passed in allele list!");
 
             // count number of elements in pileup
             for (PileupElement elt : pileup) {

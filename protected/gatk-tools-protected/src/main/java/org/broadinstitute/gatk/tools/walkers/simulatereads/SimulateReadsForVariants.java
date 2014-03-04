@@ -44,30 +44,32 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.simulatereads;
+package org.broadinstitute.gatk.tools.walkers.simulatereads;
 
 import cern.jet.random.Poisson;
 import cern.jet.random.engine.MersenneTwister;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
-import org.broadinstitute.sting.commandline.*;
-import org.broadinstitute.sting.gatk.CommandLineGATK;
-import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
-import org.broadinstitute.sting.gatk.arguments.StandardVariantContextInputArgumentCollection;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.*;
-import org.broadinstitute.sting.utils.*;
-import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.engine.walkers.Reference;
+import org.broadinstitute.gatk.engine.walkers.RodWalker;
+import org.broadinstitute.gatk.engine.walkers.Window;
+import org.broadinstitute.gatk.utils.commandline.*;
+import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
+import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
+import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.*;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.*;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.text.TextFormattingUtils;
-import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
-import org.broadinstitute.sting.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.text.TextFormattingUtils;
+import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.gatk.utils.help.HelpConstants;
+import htsjdk.variant.vcf.VCFConstants;
 
 import java.util.*;
 
@@ -107,7 +109,7 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
      * The simulated reads will be written to a BAM file.
      */
     @Output(doc="Reads corresponding to variants", required=true)
-    protected StingSAMFileWriter readWriter;
+    protected GATKSAMFileWriter readWriter;
     /**
      * Use this argument to set the desired target read depth. See the readSamplingMode argument for options that
      * determine whether coverage distribution will be exactly this value or an approximation.
@@ -213,8 +215,8 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
 
         final SAMProgramRecord programRecord = new SAMProgramRecord(PROGRAM_RECORD_NAME);
         if ( !NO_PG_TAG ) {
-            final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("StingText");
-            programRecord.setProgramVersion(headerInfo.getString("org.broadinstitute.sting.gatk.version"));
+            final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("GATKText");
+            programRecord.setProgramVersion(headerInfo.getString("org.broadinstitute.gatk.tools.version"));
             programRecord.setCommandLine(getToolkit().createApproximateCommandLineArgumentString(getToolkit(), this));
         }
         header.setProgramRecords(Arrays.asList(programRecord));

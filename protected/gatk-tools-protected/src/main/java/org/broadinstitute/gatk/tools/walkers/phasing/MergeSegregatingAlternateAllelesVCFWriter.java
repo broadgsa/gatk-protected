@@ -44,18 +44,18 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.phasing;
+package org.broadinstitute.gatk.tools.walkers.phasing;
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
 import htsjdk.variant.variantcontext.*;
 
 import java.io.File;
@@ -154,7 +154,7 @@ class MergeSegregatingAlternateAllelesVCFWriter implements VariantContextWriter 
             logger.debug("NOT Waiting to merge...");
 
             if (!filteredVcfrList.isEmpty())
-                throw new ReviewedStingException("filteredVcfrList should be empty if not waiting to merge a vc!");
+                throw new ReviewedGATKException("filteredVcfrList should be empty if not waiting to merge a vc!");
 
             if (curVcIsNotFiltered) { // still need to wait before can release vc
                 logger.debug("Waiting for new variant " + GATKVariantContextUtils.getLocation(genomeLocParser, vc));
@@ -225,7 +225,7 @@ class MergeSegregatingAlternateAllelesVCFWriter implements VariantContextWriter 
     private void stopWaitingToMerge() {
         if (vcfrWaitingToMerge == null) {
             if (!filteredVcfrList.isEmpty())
-                throw new ReviewedStingException("filteredVcfrList should be empty if not waiting to merge a vc!");
+                throw new ReviewedGATKException("filteredVcfrList should be empty if not waiting to merge a vc!");
             return;
         }
 
@@ -402,7 +402,7 @@ class MergeSegregatingAlternateAllelesVCFWriter implements VariantContextWriter 
                             if (containsRefAllele(site1Alleles) && containsRefAllele(site2Alleles)) {
                                 logger.debug("HET-HET for " + samp + " at " + GATKVariantContextUtils.getLocation(genomeLocParser, vc1) + ", " + GATKVariantContextUtils.getLocation(genomeLocParser, vc2));
                                 if (logger.isDebugEnabled() && !(gt1.isHet() && gt2.isHet()))
-                                    throw new ReviewedStingException("Since !gt1.isHomRef() && !gt2.isHomRef(), yet both have ref alleles, they BOTH must be hets!");
+                                    throw new ReviewedGATKException("Since !gt1.isHomRef() && !gt2.isHomRef(), yet both have ref alleles, they BOTH must be hets!");
 
                                 // There's the potential to only have REF-ALT, ALT-REF (CHet), or possibly ALT-ALT together (MNP)
                                 boolean hasMNP = false;

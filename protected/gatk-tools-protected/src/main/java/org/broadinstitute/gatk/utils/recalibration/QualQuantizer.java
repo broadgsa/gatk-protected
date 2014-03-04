@@ -44,17 +44,17 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.recalibration;
+package org.broadinstitute.gatk.utils.recalibration;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Invariant;
 import com.google.java.contract.Requires;
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.report.GATKReport;
-import org.broadinstitute.sting.gatk.report.GATKReportTable;
-import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.engine.report.GATKReport;
+import org.broadinstitute.gatk.engine.report.GATKReportTable;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -139,9 +139,9 @@ public class QualQuantizer {
         this.minInterestingQual = minInterestingQual;
 
         // some sanity checking
-        if ( Collections.min(nObservationsPerQual) < 0 ) throw new ReviewedStingException("Quality score histogram has negative values at: " + Utils.join(", ", nObservationsPerQual));
-        if ( nLevels < 0 ) throw new ReviewedStingException("nLevels must be >= 0");
-        if ( minInterestingQual < 0 ) throw new ReviewedStingException("minInterestingQual must be >= 0");
+        if ( Collections.min(nObservationsPerQual) < 0 ) throw new ReviewedGATKException("Quality score histogram has negative values at: " + Utils.join(", ", nObservationsPerQual));
+        if ( nLevels < 0 ) throw new ReviewedGATKException("nLevels must be >= 0");
+        if ( minInterestingQual < 0 ) throw new ReviewedGATKException("minInterestingQual must be >= 0");
 
         // actually run the quantizer
         this.quantizedIntervals = quantize();
@@ -272,7 +272,7 @@ public class QualQuantizer {
             final QualInterval right = this.compareTo(toMerge) < 0 ? toMerge : this;
 
             if ( left.qEnd + 1 != right.qStart )
-                throw new ReviewedStingException("Attempting to merge non-contiguous intervals: left = " + left + " right = " + right);
+                throw new ReviewedGATKException("Attempting to merge non-contiguous intervals: left = " + left + " right = " + right);
 
             final long nCombinedObs = left.nObservations + right.nObservations;
             final long nCombinedErr = left.nErrors + right.nErrors;
@@ -415,7 +415,7 @@ public class QualQuantizer {
         }
 
         if ( Collections.min(map) == Byte.MIN_VALUE )
-            throw new ReviewedStingException("quantized quality score map contains an un-initialized value");
+            throw new ReviewedGATKException("quantized quality score map contains an un-initialized value");
 
         return map;
     }

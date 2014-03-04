@@ -44,15 +44,15 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.recalibration;
+package org.broadinstitute.gatk.utils.recalibration;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import org.apache.commons.math.MathException;
 import org.apache.commons.math.stat.inference.ChiSquareTestImpl;
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.utils.collections.Pair;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.collections.Pair;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -320,11 +320,11 @@ public class RecalDatumNode<T extends RecalDatum> {
 
                 // make sure things are reasonable and fail early if not
                 if (Double.isInfinite(penalty) || Double.isNaN(penalty))
-                    throw new ReviewedStingException("chi2 value is " + chi2PValue + " at " + getRecalDatum());
+                    throw new ReviewedGATKException("chi2 value is " + chi2PValue + " at " + getRecalDatum());
 
                 return penalty;
             } catch ( MathException e ) {
-                throw new ReviewedStingException("Failed in calculating chi2 value", e);
+                throw new ReviewedGATKException("Failed in calculating chi2 value", e);
             }
         }
     }

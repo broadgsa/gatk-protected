@@ -44,15 +44,15 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
+package org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading;
 
 import com.google.java.contract.Ensures;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
-import org.broadinstitute.sting.utils.sam.AlignmentUtils;
-import org.broadinstitute.sting.utils.smithwaterman.*;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
+import org.broadinstitute.gatk.utils.smithwaterman.*;
 import org.jgrapht.EdgeFactory;
 
 import java.util.*;

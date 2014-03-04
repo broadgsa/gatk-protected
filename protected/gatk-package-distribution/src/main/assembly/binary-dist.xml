@@ -7,15 +7,15 @@
     <dependencySets>
         <dependencySet>
             <includes>
-                <include>org.broadinstitute.sting:gatk-package</include>
+                <include>org.broadinstitute.gatk:gatk-package-distribution</include>
             </includes>
-            <outputFileNameMapping>${sting.binary-dist.name}.${artifact.extension}</outputFileNameMapping>
+            <outputFileNameMapping>${gatk.binary-dist.name}.${artifact.extension}</outputFileNameMapping>
         </dependencySet>
         <dependencySet>
             <outputDirectory>resources</outputDirectory>
             <unpack>true</unpack>
             <includes>
-                <include>org.broadinstitute.sting:gatk-framework:tar.bz2:example-resources</include>
+                <include>org.broadinstitute.gatk:gatk-engine:tar.bz2:example-resources</include>
             </includes>
         </dependencySet>
     </dependencySets>

@@ -3,34 +3,39 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.broadinstitute.sting</groupId>
-        <artifactId>sting-aggregator</artifactId>
+        <groupId>org.broadinstitute.gatk</groupId>
+        <artifactId>gatk-aggregator</artifactId>
         <version>3.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
-    <artifactId>queue-package</artifactId>
+    <artifactId>gatk-queue-package-distribution</artifactId>
     <packaging>jar</packaging>
-    <name>Queue Package</name>
+    <name>GATK Queue Package Distribution</name>
 
     <properties>
-        <sting.basedir>${project.basedir}/../..</sting.basedir>
-        <sting.unpack.phase>prepare-package</sting.unpack.phase>
-        <sting.shade.phase>package</sting.shade.phase>
-        <sting.binary-dist.name>Queue</sting.binary-dist.name>
-        <app.main.class>org.broadinstitute.sting.queue.QCommandLine</app.main.class>
+        <gatk.basedir>${project.basedir}/../..</gatk.basedir>
+        <gatk.unpack.phase>prepare-package</gatk.unpack.phase>
+        <gatk.shade.phase>package</gatk.shade.phase>
+        <gatk.binary-dist.name>Queue</gatk.binary-dist.name>
+        <app.main.class>org.broadinstitute.gatk.queue.QCommandLine</app.main.class>
     </properties>
 
     <dependencies>
         <!-- Queue -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>queue-framework</artifactId>
+            <artifactId>gatk-queue</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>gatk-package</artifactId>
+            <artifactId>gatk-package-distribution</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-queue-extensions-distribution</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- Scala -->
@@ -75,41 +80,29 @@
         <!-- Required for binary-dist assembly, excluded by shade -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>gatk-framework</artifactId>
+            <artifactId>gatk-engine</artifactId>
             <version>${project.version}</version>
             <classifier>example-resources</classifier>
             <type>tar.bz2</type>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>queue-framework</artifactId>
+            <artifactId>gatk-queue-extensions-public</artifactId>
             <version>${project.version}</version>
             <classifier>example-resources</classifier>
             <type>tar.bz2</type>
         </dependency>
 
+        <!-- Test dependencies to run for for serial tests -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>queue-framework</artifactId>
+            <artifactId>gatk-queue</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>gatk-framework</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
-            <scope>test</scope>
-        </dependency>
-
+        <!-- Transitive dependencies for the serial test artifacts above -->
         <dependency>
             <groupId>com.google.caliper</groupId>
             <artifactId>caliper</artifactId>
@@ -126,9 +119,9 @@
                     <execution>
                         <id>unit-tests</id>
                         <configuration>
-                            <skip>${sting.serialunittests.skipped}</skip>
+                            <skip>${gatk.serialunittests.skipped}</skip>
                             <dependenciesToScan>
-                                <scan>org.broadinstitute.sting:.*</scan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
                             </dependenciesToScan>
                         </configuration>
                     </execution>
@@ -142,36 +135,36 @@
                     <execution>
                         <id>integration-tests</id>
                         <configuration>
-                            <skip>${sting.serialintegrationtests.skipped}</skip>
+                            <skip>${gatk.serialintegrationtests.skipped}</skip>
                             <dependenciesToScan>
-                                <scan>org.broadinstitute.sting:.*</scan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
                             </dependenciesToScan>
                         </configuration>
                     </execution>
                     <execution>
                         <id>queue-tests</id>
                         <configuration>
-                            <skip>${sting.serialqueuetests.skipped}</skip>
+                            <skip>${gatk.serialqueuetests.skipped}</skip>
                             <dependenciesToScan>
-                                <scan>org.broadinstitute.sting:.*</scan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
                             </dependenciesToScan>
                         </configuration>
                     </execution>
                     <execution>
                         <id>large-scale-tests</id>
                         <configuration>
-                            <skip>${sting.seriallargescaletests.skipped}</skip>
+                            <skip>${gatk.seriallargescaletests.skipped}</skip>
                             <dependenciesToScan>
-                                <scan>org.broadinstitute.sting:.*</scan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
                             </dependenciesToScan>
                         </configuration>
                     </execution>
                     <execution>
                         <id>knowledge-base-tests</id>
                         <configuration>
-                            <skip>${sting.serialknowledgebasetests.skipped}</skip>
+                            <skip>${gatk.serialknowledgebasetests.skipped}</skip>
                             <dependenciesToScan>
-                                <scan>org.broadinstitute.sting:.*</scan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
                             </dependenciesToScan>
                         </configuration>
                     </execution>
@@ -184,7 +177,7 @@
                 <executions>
                     <execution>
                         <id>unpack-direct-dependencies</id>
-                        <phase>${sting.unpack.phase}</phase>
+                        <phase>${gatk.unpack.phase}</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -194,8 +187,8 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>sting-executable</id>
-                        <phase>${sting.shade.phase}</phase>
+                        <id>gatk-executable</id>
+                        <phase>${gatk.shade.phase}</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -206,7 +199,7 @@
                 <executions>
                     <execution>
                         <id>binary-dist</id>
-                        <phase>${sting.shade.phase}</phase>
+                        <phase>${gatk.shade.phase}</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -217,11 +210,11 @@
                 <executions>
                     <execution>
                         <id>link-binary-jar</id>
-                        <phase>${sting.shade.phase}</phase>
+                        <phase>${gatk.shade.phase}</phase>
                     </execution>
                     <execution>
                         <id>link-git-release</id>
-                        <phase>${sting.shade.phase}</phase>
+                        <phase>${gatk.shade.phase}</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -246,35 +239,19 @@
 
     <profiles>
         <profile>
-            <id>private</id>
+            <id>private-testdata</id>
             <activation>
                 <file>
-                    <exists>${basedir}/../../private/queue-private/pom.xml</exists>
+                    <exists>${basedir}/../../private/pom.xml</exists>
                 </file>
             </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>${project.groupId}</groupId>
-                    <artifactId>queue-private</artifactId>
-                    <version>${project.version}</version>
-                    <optional>true</optional>
-                </dependency>
-                <dependency>
-                    <groupId>${project.groupId}</groupId>
-                    <artifactId>queue-private</artifactId>
-                    <version>${project.version}</version>
-                    <type>test-jar</type>
-                    <scope>test</scope>
-                    <optional>true</optional>
-                </dependency>
-            </dependencies>
             <build>
                 <plugins>
-                    <!-- TODO: All tests require access to private. For now. -->
                     <plugin>
                         <groupId>com.pyx4j</groupId>
                         <artifactId>maven-junction-plugin</artifactId>
                         <executions>
+                            <!-- TODO: All tests require access to private. For now. -->
                             <execution>
                                 <id>link-private-testdata</id>
                                 <phase>process-test-resources</phase>
@@ -300,13 +277,13 @@
             <id>packagetests-enabled</id>
             <activation>
                 <property>
-                    <name>sting.packagetests.enabled</name>
+                    <name>gatk.packagetests.enabled</name>
                     <value>true</value>
                 </property>
             </activation>
             <properties>
-                <sting.unpack.phase>none</sting.unpack.phase>
-                <sting.shade.phase>none</sting.shade.phase>
+                <gatk.unpack.phase>none</gatk.unpack.phase>
+                <gatk.shade.phase>none</gatk.shade.phase>
             </properties>
         </profile>
     </profiles>

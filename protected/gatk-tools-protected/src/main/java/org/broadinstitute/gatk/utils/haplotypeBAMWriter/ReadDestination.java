@@ -44,13 +44,13 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.utils.haplotypeBAMWriter;
+package org.broadinstitute.gatk.utils.haplotypeBAMWriter;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMReadGroupRecord;
-import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -94,7 +94,7 @@ public abstract class ReadDestination {
         /**
          * Create a ReadDestination that writes to a BAM file
          */
-        public ToBAM(final StingSAMFileWriter stingSAMWriter, final SAMFileHeader header, final String readGroupID) {
+        public ToBAM(final GATKSAMFileWriter stingSAMWriter, final SAMFileHeader header, final String readGroupID) {
             super(header, readGroupID);
             if ( stingSAMWriter == null ) throw new IllegalArgumentException("writer cannot be null");
 

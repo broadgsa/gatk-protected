@@ -44,10 +44,10 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 
 import java.util.Arrays;
 
@@ -75,7 +75,7 @@ public class ProbabilityVector {
         int maxValIdx = MathUtils.maxElementIndex(vec);
         double maxv = vec[maxValIdx];
         if (maxv > 0.0)
-            throw new ReviewedStingException("BUG: Attempting to create a log-probability vector with positive elements");
+            throw new ReviewedGATKException("BUG: Attempting to create a log-probability vector with positive elements");
 
         if (compressRange) {
             minVal = getMinIdx(vec, maxValIdx);

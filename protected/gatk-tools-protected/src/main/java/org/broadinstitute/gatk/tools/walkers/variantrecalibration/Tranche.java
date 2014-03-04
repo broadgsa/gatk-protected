@@ -44,11 +44,11 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
+package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.text.XReadLines;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.text.XReadLines;
 
 import java.io.*;
 import java.util.*;
@@ -91,10 +91,10 @@ public class Tranche {
             throw new UserException("Target FDR is unreasonable " + ts);
 
         if ( numKnown < 0 || numNovel < 0)
-            throw new ReviewedStingException("Invalid tranche - no. variants is < 0 : known " + numKnown + " novel " + numNovel);
+            throw new ReviewedGATKException("Invalid tranche - no. variants is < 0 : known " + numKnown + " novel " + numNovel);
 
         if ( name == null )
-            throw new ReviewedStingException("BUG -- name cannot be null");
+            throw new ReviewedGATKException("BUG -- name cannot be null");
     }
 
     private double getTruthSensitivity() {

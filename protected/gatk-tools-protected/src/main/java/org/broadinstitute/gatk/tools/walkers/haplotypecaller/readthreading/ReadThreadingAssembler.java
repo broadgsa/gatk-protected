@@ -44,15 +44,15 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
+package org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResult;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.LocalAssemblyEngine;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
-import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.AssemblyResult;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.LocalAssemblyEngine;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.*;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.haplotype.Haplotype;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.io.File;
 import java.util.Arrays;
