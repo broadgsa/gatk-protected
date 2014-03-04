@@ -46,6 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
+import net.sf.samtools.Cigar;
+import net.sf.samtools.TextCigarCodec;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.Utils;
@@ -77,6 +79,7 @@ public class DanglingChainMergingGraphUnitTest extends BaseTest {
         tests.add(new Object[]{"AAAAA", "CA", "1M3D2M", false, 1});                    // very little data
         tests.add(new Object[]{"AAAAAAA", "CAAAAAC", "8M", true, -1});                 // ends in mismatch
         tests.add(new Object[]{"AAAAAA", "CGAAAACGAA", "1M2I4M2I2M", false, 0});       // alignment is too complex
+        tests.add(new Object[]{"AAAAA", "XXXXX", "1M5I", false, -1});                  // insertion
 
         return tests.toArray(new Object[][]{});
     }
@@ -144,7 +147,15 @@ public class DanglingChainMergingGraphUnitTest extends BaseTest {
         }
     }
 
-    @Test(enabled = true)
+    @Test
+    public void testWholeTailIsInsertion() {
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(10);
+        final ReadThreadingGraph.DanglingChainMergeHelper result = new ReadThreadingGraph.DanglingChainMergeHelper(null, null, "AXXXXX".getBytes(), "AAAAAA".getBytes(), new TextCigarCodec().decode("5I1M"));
+        final int mergeResult = rtgraph.mergeDanglingTail(result);
+        Assert.assertEquals(mergeResult, 0);
+    }
+
+    @Test
     public void testGetBasesForPath() {
 
         final int kmerSize = 4;

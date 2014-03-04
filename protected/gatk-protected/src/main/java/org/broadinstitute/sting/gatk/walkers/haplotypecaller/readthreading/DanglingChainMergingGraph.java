@@ -97,7 +97,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
     /**
      * Class to keep track of the important dangling chain merging data
      */
-    protected final class DanglingChainMergeHelper {
+    protected static final class DanglingChainMergeHelper {
         final List<MultiDeBruijnVertex> danglingPath, referencePath;
         final byte[] danglingPathString, referencePathString;
         final Cigar cigar;
@@ -222,7 +222,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         if ( numElements == 0 || numElements > MAX_CIGAR_COMPLEXITY )
             return false;
 
-        // the last element must be an M
+        // the first element must be an M
         if ( requireFirstElementM && elements.get(0).getOperator() != CigarOperator.M )
             return false;
 
@@ -263,6 +263,12 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         final boolean mustHandleLeadingDeletionCase =  firstElementIsDeletion && (elements.get(0).getLength() + matchingSuffix == lastRefIndex + 1);
         final int refIndexToMerge = lastRefIndex - matchingSuffix + 1 + (mustHandleLeadingDeletionCase ? 1 : 0);
 
+        // another edge condition occurs here: if Smith-Waterman places the whole tail into an insertion then it will try to
+        // merge back to the LCA, which results in a cycle in the graph.  So we do not want to merge in such a case.
+        if ( refIndexToMerge == 0 )
+            return 0;
+
+        // it's safe to merge now
         addEdge(danglingTailMergeResult.danglingPath.get(altIndexToMerge), danglingTailMergeResult.referencePath.get(refIndexToMerge), ((MyEdgeFactory)getEdgeFactory()).createEdge(false, 1));
 
         return 1;
