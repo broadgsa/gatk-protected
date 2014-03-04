@@ -66,14 +66,6 @@ public class DeBruijnVertex extends BaseVertex {
     }
 
     /**
-     * For testing purposes only
-     * @param sequence
-     */
-    protected DeBruijnVertex( final String sequence ) {
-        this(sequence.getBytes());
-    }
-
-    /**
      * Get the kmer size for this DeBruijnVertex
      * @return integer >= 1
      */

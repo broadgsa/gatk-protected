@@ -278,6 +278,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="The number of samples that must pass the minPuning factor in order for the path to be kept", required = false)
     protected int numPruningSamples = 1;
 
+    /**
+     * This mode is currently experimental and should only be used in the RNA-seq calling pipeline.
+     */
+    @Advanced
+    @Argument(fullName="recoverDanglingHeads", shortName="recoverDanglingHeads", doc="Should we enable dangling head recovery in the read threading assembler?", required = false)
+    protected boolean recoverDanglingHeads = false;
+
     @Hidden
     @Argument(fullName="dontRecoverDanglingTails", shortName="dontRecoverDanglingTails", doc="Should we disable dangling tail recovery in the read threading assembler?", required = false)
     protected boolean dontRecoverDanglingTails = false;
@@ -452,7 +459,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler for only this graph size", required = false)
     protected boolean debugGraphTransformations = false;
 
-    @Hidden
+    @Advanced
     @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="If specified, we will not analyze soft clipped bases in the reads", required = false)
     protected boolean dontUseSoftClippedBases = false;
 
@@ -634,6 +641,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         assemblyEngine.setDebugGraphTransformations(debugGraphTransformations);
         assemblyEngine.setAllowCyclesInKmerGraphToGeneratePaths(allowCyclesInKmerGraphToGeneratePaths);
         assemblyEngine.setRecoverDanglingTails(!dontRecoverDanglingTails);
+        assemblyEngine.setRecoverDanglingHeads(recoverDanglingHeads);
         assemblyEngine.setMinBaseQualityToUseInAssembly(MIN_BASE_QUALTY_SCORE);
 
         MIN_TAIL_QUALITY = (byte)(MIN_BASE_QUALTY_SCORE - 1);

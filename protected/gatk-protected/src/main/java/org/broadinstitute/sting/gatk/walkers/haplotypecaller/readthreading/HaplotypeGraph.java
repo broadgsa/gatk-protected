@@ -391,10 +391,9 @@ public class HaplotypeGraph extends ReadThreadingGraph {
             graphWriter.println("}");
     }
 
-
     @Override
-    public Pair<MultiDeBruijnVertex,Integer> findStart(final SequenceForKmers seqForKmers) {
-        return getOrCreateKmerVertex(seqForKmers.sequence, 0, true);
+    protected int findStart(final SequenceForKmers seqForKmers) {
+        return 0;
     }
 
     /**
