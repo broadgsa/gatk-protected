@@ -86,17 +86,29 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
                 case EXACT: return new Log10PairHMM(true);
                 case ORIGINAL: return new Log10PairHMM(false);
                 case LOGLESS_CACHING:
-                    if (noFpga || !CnyPairHMM.isAvailable())
-                        return new LoglessPairHMM();
-                    else
-                        return new CnyPairHMM();
+                               if (noFpga || !CnyPairHMM.isAvailable())
+                                   return new LoglessPairHMM();
+                               else
+                                   return new CnyPairHMM();
+                case VECTOR_LOGLESS_CACHING:
+                               try
+                               {
+                                   return new VectorLoglessPairHMM();
+                               }
+                               catch(UnsatisfiedLinkError ule)
+                               {
+                                   logger.warn("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
+                                   return new LoglessPairHMM();
+                               }
+                case DEBUG_VECTOR_LOGLESS_CACHING:
+                               return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING);
                 case ARRAY_LOGLESS:
-                    if (noFpga || !CnyPairHMM.isAvailable())
-                        return new ArrayLoglessPairHMM();
-                    else
-                        return new CnyPairHMM();
+                               if (noFpga || !CnyPairHMM.isAvailable())
+                                   return new ArrayLoglessPairHMM();
+                               else
+                                   return new CnyPairHMM();
                 default:
-                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
+                               throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
             }
         }
     };
@@ -164,7 +176,9 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
 
     public void close() {
         if ( likelihoodsStream != null ) likelihoodsStream.close();
+        pairHMMThreadLocal.get().close();
     }
+
 
     private void writeDebugLikelihoods(final GATKSAMRecord processedRead, final Haplotype haplotype, final double log10l){
         if ( WRITE_LIKELIHOODS_TO_FILE ) {
@@ -327,7 +341,13 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         }
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMMThreadLocal.get().initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+        pairHMMThreadLocal.get().initialize(haplotypes, perSampleReadList, X_METRIC_LENGTH, Y_METRIC_LENGTH);
+    }
+
+    private void finalizePairHMM()
+    {
+        pairHMMThreadLocal.get().finalizeRegion();
+>>>>>>> d968ca6... Added vectorized PairHMM implementation by Mohammad and Mustafa into the Maven build of GATK.
     }
 
 
@@ -347,6 +367,8 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
             map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
             stratifiedReadMap.put(sampleEntry.getKey(), map);
         }
+        //Used mostly by the JNI implementation(s) to free arrays
+        finalizePairHMM();
 
         return stratifiedReadMap;
     }
