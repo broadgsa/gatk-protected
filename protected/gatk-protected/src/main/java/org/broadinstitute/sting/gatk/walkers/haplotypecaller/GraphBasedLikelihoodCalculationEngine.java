@@ -155,4 +155,8 @@ public class GraphBasedLikelihoodCalculationEngine implements LikelihoodCalculat
             }
         }
     }
+
+    @Override
+    public void close() {
+    }
 }
