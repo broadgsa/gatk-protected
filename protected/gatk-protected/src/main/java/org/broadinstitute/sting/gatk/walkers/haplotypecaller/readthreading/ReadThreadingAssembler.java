@@ -151,14 +151,12 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly, numPruningSamples);
 
         // add the reference sequence to the graph
-        rtgraph.addSequence("ref", refHaplotype.getBases(), null, true);
+        rtgraph.addSequence("ref", refHaplotype.getBases(), true);
 
         // add the artificial GGA haplotypes to the graph
         int hapCount = 0;
         for ( final Haplotype h : activeAlleleHaplotypes ) {
-            final int[] counts = new int[h.length()];
-            Arrays.fill(counts, GGA_MODE_ARTIFICIAL_COUNTS);
-            rtgraph.addSequence("activeAllele" + hapCount++, h.getBases(), counts, false);
+            rtgraph.addSequence("activeAllele" + hapCount++, h.getBases(), GGA_MODE_ARTIFICIAL_COUNTS, false);
         }
 
         // Next pull kmers out of every read and throw them on the graph
@@ -188,9 +186,10 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         // tails that we'll ultimately just trim away anyway, as the dangling tail edges have weight of 1
         rtgraph.pruneLowWeightChains(pruneFactor);
 
-        // look at all chains in the graph that terminate in a non-ref node (dangling sinks) and see if
+        // look at all chains in the graph that terminate in a non-ref node (dangling sources and sinks) and see if
         // we can recover them by merging some N bases from the chain back into the reference
         if ( recoverDanglingTails ) rtgraph.recoverDanglingTails(pruneFactor);
+        if ( recoverDanglingHeads ) rtgraph.recoverDanglingHeads(pruneFactor);
 
         // remove all heading and trailing paths
         if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();

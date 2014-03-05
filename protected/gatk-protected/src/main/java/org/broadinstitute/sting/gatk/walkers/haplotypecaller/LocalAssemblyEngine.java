@@ -86,6 +86,7 @@ public abstract class LocalAssemblyEngine {
     protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
     protected boolean debugGraphTransformations = false;
     protected boolean recoverDanglingTails = true;
+    protected boolean recoverDanglingHeads = true;
 
     protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
     protected int pruneFactor = 2;
@@ -455,5 +456,13 @@ public abstract class LocalAssemblyEngine {
 
     public void setRecoverDanglingTails(boolean recoverDanglingTails) {
         this.recoverDanglingTails = recoverDanglingTails;
+    }
+
+    public boolean isRecoverDanglingHeads() {
+        return recoverDanglingHeads;
+    }
+
+    public void setRecoverDanglingHeads(boolean recoverDanglingHeads) {
+        this.recoverDanglingHeads = recoverDanglingHeads;
     }
 }

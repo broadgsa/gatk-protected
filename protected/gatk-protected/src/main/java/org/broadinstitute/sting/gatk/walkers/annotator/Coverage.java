@@ -57,9 +57,6 @@ import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.variant.vcf.VCFConstants;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.util.Arrays;
@@ -98,10 +95,7 @@ public class Coverage extends InfoFieldAnnotation implements StandardAnnotation,
                 return null;
 
             for (PerReadAlleleLikelihoodMap maps : perReadAlleleLikelihoodMap.values() ) {
-                for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
-                    final GATKSAMRecord read = el.getKey();
-                    depth += (read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1);
-                }
+                depth += maps.getLikelihoodReadMap().size();
             }
         }
         else

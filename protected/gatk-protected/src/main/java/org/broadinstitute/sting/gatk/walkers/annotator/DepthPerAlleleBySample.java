@@ -60,7 +60,6 @@ import org.broadinstitute.variant.vcf.VCFStandardHeaderLines;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypeBuilder;
@@ -119,7 +118,7 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
         final ReadBackedPileup pileup = stratifiedContext.getBasePileup();
         for ( final PileupElement p : pileup ) {
             if ( alleleCounts.containsKey(p.getBase()) )
-                alleleCounts.put(p.getBase(), alleleCounts.get(p.getBase())+p.getRepresentativeCount());
+                alleleCounts.put(p.getBase(), alleleCounts.get(p.getBase())+1);
         }
 
         // we need to add counts in the correct order
@@ -146,8 +145,7 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
             if (! a.isInformative() ) continue; // read is non-informative
             final GATKSAMRecord read = el.getKey();
             final int prevCount = alleleCounts.get(a.getMostLikelyAllele());
-            final int incCount = read.isReducedRead() ? read.getReducedCount(ReadUtils.getReadCoordinateForReferenceCoordinateUpToEndOfRead(read, vc.getStart(), ReadUtils.ClippingTail.RIGHT_TAIL)) : 1;
-            alleleCounts.put(a.getMostLikelyAllele(), prevCount + incCount);
+            alleleCounts.put(a.getMostLikelyAllele(), prevCount + 1);
         }
 
         final int[] counts = new int[alleleCounts.size()];

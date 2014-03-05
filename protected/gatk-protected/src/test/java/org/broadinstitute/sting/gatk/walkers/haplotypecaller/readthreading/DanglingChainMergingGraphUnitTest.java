@@ -46,192 +46,196 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
+import net.sf.samtools.Cigar;
+import net.sf.samtools.TextCigarCodec;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.util.*;
 
-public class ReadThreadingAssemblerUnitTest extends BaseTest {
-    private final static boolean DEBUG = false;
+public class DanglingChainMergingGraphUnitTest extends BaseTest {
 
-    private static class TestAssembler {
-        final ReadThreadingAssembler assembler;
+    public static byte[] getBytes(final String alignment) {
+        return alignment.replace("-","").getBytes();
+    }
 
-        Haplotype refHaplotype;
-        final List<GATKSAMRecord> reads = new LinkedList<GATKSAMRecord>();
+    @DataProvider(name = "DanglingTails")
+    public Object[][] makeDanglingTailsData() {
+        List<Object[]> tests = new ArrayList<>();
 
-        private TestAssembler(final int kmerSize) {
-            this.assembler = new ReadThreadingAssembler(100000, Arrays.asList(kmerSize));
-            assembler.setJustReturnRawGraph(true);
-            assembler.setPruneFactor(0);
-        }
+        // add 1M to the expected CIGAR because it includes the previous (common) base too
+        tests.add(new Object[]{"AAAAAAAAAA", "CAAA", "5M", true, 3});                  // incomplete haplotype
+        tests.add(new Object[]{"AAAAAAAAAA", "CAAAAAAAAAA", "1M1I10M", true, 10});     // insertion
+        tests.add(new Object[]{"CCAAAAAAAAAA", "AAAAAAAAAA", "1M2D10M", true, 10});    // deletion
+        tests.add(new Object[]{"AAAAAAAA", "CAAAAAAA", "9M", true, 7});                // 1 snp
+        tests.add(new Object[]{"AAAAAAAA", "CAAGATAA", "9M", true, 2});                // several snps
+        tests.add(new Object[]{"AAAAA", "C", "1M4D1M", false, -1});                    // funky SW alignment
+        tests.add(new Object[]{"AAAAA", "CA", "1M3D2M", false, 1});                    // very little data
+        tests.add(new Object[]{"AAAAAAA", "CAAAAAC", "8M", true, -1});                 // ends in mismatch
+        tests.add(new Object[]{"AAAAAA", "CGAAAACGAA", "1M2I4M2I2M", false, 0});       // alignment is too complex
+        tests.add(new Object[]{"AAAAA", "XXXXX", "1M5I", false, -1});                  // insertion
 
-        public void addSequence(final byte[] bases, final boolean isRef) {
-            if ( isRef ) {
-                refHaplotype = new Haplotype(bases, true);
-            } else {
-                final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(bases, Utils.dupBytes((byte)30,bases.length), bases.length + "M");
-                reads.add(read);
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "DanglingTails")
+    public void testDanglingTails(final String refEnd,
+                                  final String altEnd,
+                                  final String cigar,
+                                  final boolean cigarIsGood,
+                                  final int mergePointDistanceFromSink) {
+
+        final int kmerSize = 15;
+
+        // construct the haplotypes
+        final String commonPrefix = "AAAAAAAAAACCCCCCCCCCGGGGGGGGGGTTTTTTTTTT";
+        final String ref = commonPrefix + refEnd;
+        final String alt = commonPrefix + altEnd;
+
+        // create the graph and populate it
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize);
+        rtgraph.addSequence("ref", ref.getBytes(), true);
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(alt.getBytes(), Utils.dupBytes((byte) 30, alt.length()), alt.length() + "M");
+        rtgraph.addRead(read);
+        rtgraph.buildGraphIfNecessary();
+
+        // confirm that we have just a single dangling tail
+        MultiDeBruijnVertex altSink = null;
+        for ( final MultiDeBruijnVertex v : rtgraph.vertexSet() ) {
+            if ( rtgraph.isSink(v) && !rtgraph.isReferenceNode(v) ) {
+                Assert.assertTrue(altSink == null, "We found more than one non-reference sink");
+                altSink = v;
             }
         }
 
-        public SeqGraph assemble() {
-            assembler.removePathsNotConnectedToRef = false; // needed to pass some of the tests
-            assembler.setRecoverDanglingTails(false); // needed to pass some of the tests
-            assembler.setDebugGraphTransformations(true);
-            final SeqGraph graph = assembler.assemble(reads, refHaplotype, Collections.<Haplotype>emptyList()).get(0).getGraph();
-            if ( DEBUG ) graph.printGraph(new File("test.dot"), 0);
-            return graph;
+        Assert.assertTrue(altSink != null, "We did not find a non-reference sink");
+
+        // confirm that the SW alignment agrees with our expectations
+        final ReadThreadingGraph.DanglingChainMergeHelper result = rtgraph.generateCigarAgainstDownwardsReferencePath(altSink, 0);
+
+        if ( result == null ) {
+            Assert.assertFalse(cigarIsGood);
+            return;
+        }
+
+        Assert.assertTrue(cigar.equals(result.cigar.toString()), "SW generated cigar = " + result.cigar.toString());
+
+        // confirm that the goodness of the cigar agrees with our expectations
+        Assert.assertEquals(rtgraph.cigarIsOkayToMerge(result.cigar, false, true), cigarIsGood);
+
+        // confirm that the tail merging works as expected
+        if ( cigarIsGood ) {
+            final int mergeResult = rtgraph.mergeDanglingTail(result);
+            Assert.assertTrue(mergeResult == 1 || mergePointDistanceFromSink == -1);
+
+            // confirm that we created the appropriate edge
+            if ( mergePointDistanceFromSink >= 0 ) {
+                MultiDeBruijnVertex v = altSink;
+                for ( int i = 0; i < mergePointDistanceFromSink; i++ ) {
+                    if ( rtgraph.inDegreeOf(v) != 1 )
+                        Assert.fail("Encountered vertex with multiple edges");
+                    v = rtgraph.getEdgeSource(rtgraph.incomingEdgeOf(v));
+                }
+                Assert.assertTrue(rtgraph.outDegreeOf(v) > 1);
+            }
         }
     }
 
-    private void assertLinearGraph(final TestAssembler assembler, final String seq) {
-        final SeqGraph graph = assembler.assemble();
-        graph.simplifyGraph();
-        Assert.assertEquals(graph.vertexSet().size(), 1);
-        Assert.assertEquals(graph.vertexSet().iterator().next().getSequenceString(), seq);
+    @Test
+    public void testWholeTailIsInsertion() {
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(10);
+        final ReadThreadingGraph.DanglingChainMergeHelper result = new ReadThreadingGraph.DanglingChainMergeHelper(null, null, "AXXXXX".getBytes(), "AAAAAA".getBytes(), new TextCigarCodec().decode("5I1M"));
+        final int mergeResult = rtgraph.mergeDanglingTail(result);
+        Assert.assertEquals(mergeResult, 0);
     }
 
-    private void assertSingleBubble(final TestAssembler assembler, final String one, final String two) {
-        final SeqGraph graph = assembler.assemble();
-        graph.simplifyGraph();
-        List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(graph);
-        Assert.assertEquals(paths.size(), 2);
-        final Set<String> expected = new HashSet<String>(Arrays.asList(one, two));
-        for ( final Path<SeqVertex,BaseEdge> path : paths ) {
-            final String seq = new String(path.getBases());
-            Assert.assertTrue(expected.contains(seq));
-            expected.remove(seq);
+    @Test
+    public void testGetBasesForPath() {
+
+        final int kmerSize = 4;
+        final String testString = "AATGGGGCAATACTA";
+
+        final ReadThreadingGraph graph = new ReadThreadingGraph(kmerSize);
+        graph.addSequence(testString.getBytes(), true);
+        graph.buildGraphIfNecessary();
+
+        final List<MultiDeBruijnVertex> vertexes = new ArrayList<>();
+        MultiDeBruijnVertex v = graph.getReferenceSourceVertex();
+        while ( v != null ) {
+            vertexes.add(v);
+            v = graph.getNextReferenceVertex(v);
         }
+
+        final String result = new String(graph.getBasesForPath(vertexes, false));
+        Assert.assertEquals(result, testString);
     }
 
-    @Test(enabled = ! DEBUG)
-    public void testRefCreation() {
-        final String ref = "ACGTAACCGGTT";
-        final TestAssembler assembler = new TestAssembler(3);
-        assembler.addSequence(ref.getBytes(), true);
-        assertLinearGraph(assembler, ref);
+    @DataProvider(name = "DanglingHeads")
+    public Object[][] makeDanglingHeadsData() {
+        List<Object[]> tests = new ArrayList<>();
+
+        // add 1M to the expected CIGAR because it includes the last (common) base too
+        tests.add(new Object[]{"XXXXXXXAACCGGTTACGT", "AAYCGGTTACGT", "8M", true});        // 1 snp
+        tests.add(new Object[]{"XXXAACCGGTTACGT", "XAAACCGGTTACGT", "7M", false});         // 1 snp
+        tests.add(new Object[]{"XXXXXXXAACCGGTTACGT", "XAACGGTTACGT", "4M1D4M", false});   // deletion
+        tests.add(new Object[]{"XXXXXXXAACCGGTTACGT", "AYYCGGTTACGT", "8M", true});        // 2 snps
+        tests.add(new Object[]{"XXXXXXXAACCGGTTACGTAA", "AYCYGGTTACGTAA", "9M", true});    // 2 snps
+        tests.add(new Object[]{"XXXXXXXAACCGGTTACGT", "AYCGGTTACGT", "7M", true});         // very little data
+        tests.add(new Object[]{"XXXXXXXAACCGGTTACGT", "YCCGGTTACGT", "6M", true});         // begins in mismatch
+
+        return tests.toArray(new Object[][]{});
     }
 
-    @Test(enabled = ! DEBUG)
-    public void testRefNonUniqueCreation() {
-        final String ref = "GAAAAT";
-        final TestAssembler assembler = new TestAssembler(3);
-        assembler.addSequence(ref.getBytes(), true);
-        assertLinearGraph(assembler, ref);
-    }
+    @Test(dataProvider = "DanglingHeads")
+    public void testDanglingHeads(final String ref,
+                                  final String alt,
+                                  final String cigar,
+                                  final boolean shouldBeMerged) {
 
-    @Test(enabled = ! DEBUG)
-    public void testRefAltCreation() {
-        final TestAssembler assembler = new TestAssembler(3);
-        final String ref = "ACAACTGA";
-        final String alt = "ACAGCTGA";
-        assembler.addSequence(ref.getBytes(), true);
-        assembler.addSequence(alt.getBytes(), false);
-        assertSingleBubble(assembler, ref, alt);
-    }
+        final int kmerSize = 5;
 
-    @Test(enabled = ! DEBUG)
-    public void testPartialReadsCreation() {
-        final TestAssembler assembler = new TestAssembler(3);
-        final String ref  = "ACAACTGA";
-        final String alt1 = "ACAGCT";
-        final String alt2 =    "GCTGA";
-        assembler.addSequence(ref.getBytes(), true);
-        assembler.addSequence(alt1.getBytes(), false);
-        assembler.addSequence(alt2.getBytes(), false);
-        assertSingleBubble(assembler, ref, "ACAGCTGA");
-    }
+        // create the graph and populate it
+        final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize);
+        rtgraph.addSequence("ref", ref.getBytes(), true);
+        final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(alt.getBytes(), Utils.dupBytes((byte) 30, alt.length()), alt.length() + "M");
+        rtgraph.addRead(read);
+        rtgraph.buildGraphIfNecessary();
 
-    @Test(enabled = ! DEBUG)
-    public void testMismatchInFirstKmer() {
-        final TestAssembler assembler = new TestAssembler(3);
-        final String ref = "ACAACTGA";
-        final String alt =   "AGCTGA";
-        assembler.addSequence(ref.getBytes(), true);
-        assembler.addSequence(alt.getBytes(), false);
+        // confirm that we have just a single dangling head
+        MultiDeBruijnVertex altSource = null;
+        for ( final MultiDeBruijnVertex v : rtgraph.vertexSet() ) {
+            if ( rtgraph.isSource(v) && !rtgraph.isReferenceNode(v) ) {
+                Assert.assertTrue(altSource == null, "We found more than one non-reference source");
+                altSource = v;
+            }
+        }
 
-        final SeqGraph graph = assembler.assemble();
-        graph.simplifyGraph();
-        graph.removeSingletonOrphanVertices();
-        final Set<SeqVertex> sources = graph.getSources();
-        final Set<SeqVertex> sinks = graph.getSinks();
+        Assert.assertTrue(altSource != null, "We did not find a non-reference source");
 
-        Assert.assertEquals(sources.size(), 1);
-        Assert.assertEquals(sinks.size(), 1);
-        Assert.assertNotNull(graph.getReferenceSourceVertex());
-        Assert.assertNotNull(graph.getReferenceSinkVertex());
+        // confirm that the SW alignment agrees with our expectations
+        final ReadThreadingGraph.DanglingChainMergeHelper result = rtgraph.generateCigarAgainstUpwardsReferencePath(altSource, 0);
 
-        final List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(graph);
-        Assert.assertEquals(paths.size(), 2);
-    }
+        if ( result == null ) {
+            Assert.assertFalse(shouldBeMerged);
+            return;
+        }
 
-    @Test(enabled = ! DEBUG)
-    public void testStartInMiddle() {
-        final TestAssembler assembler = new TestAssembler(3);
-        final String ref  = "CAAAATG";
-        final String read =   "AAATG";
-        assembler.addSequence(ref.getBytes(), true);
-        assembler.addSequence(read.getBytes(), false);
-        assertLinearGraph(assembler, ref);
-    }
+        Assert.assertTrue(cigar.equals(result.cigar.toString()), "SW generated cigar = " + result.cigar.toString());
 
-    @Test(enabled = ! DEBUG)
-    public void testStartInMiddleWithBubble() {
-        final TestAssembler assembler = new TestAssembler(3);
-        final String ref  = "CAAAATGGGG";
-        final String read =   "AAATCGGG";
-        assembler.addSequence(ref.getBytes(), true);
-        assembler.addSequence(read.getBytes(), false);
-        assertSingleBubble(assembler, ref, "CAAAATCGGG");
-    }
+        // confirm that the tail merging works as expected
+        final int mergeResult = rtgraph.mergeDanglingHead(result);
+        Assert.assertTrue(mergeResult > 0 || !shouldBeMerged);
 
-    @Test(enabled = ! DEBUG)
-    public void testNoGoodStarts() {
-        final TestAssembler assembler = new TestAssembler(3);
-        final String ref  = "CAAAATGGGG";
-        final String read =   "AAATCGGG";
-        assembler.addSequence(ref.getBytes(), true);
-        assembler.addSequence(read.getBytes(), false);
-        assertSingleBubble(assembler, ref, "CAAAATCGGG");
-    }
-
-
-    @Test(enabled = !DEBUG)
-    public void testCreateWithBasesBeforeRefSource() {
-        final TestAssembler assembler = new TestAssembler(3);
-        final String ref  =  "ACTG";
-        final String read =   "CTGGGACT";
-        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(ref), true);
-        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(read), false);
-        assertLinearGraph(assembler, "ACTGGGACT");
-    }
-
-    @Test(enabled = !DEBUG)
-    public void testSingleIndelAsDoubleIndel3Reads() {
-        final TestAssembler assembler = new TestAssembler(25);
-        // The single indel spans two repetitive structures
-        final String ref   = "GTTTTTCCTAGGCAAATGGTTTCTATAAAATTATGTGTGTGTGTCTCTCTCTGTGTGTGTGTGTGTGTGTGTGTGTATACCTAATCTCACACTCTTTTTTCTGG";
-        final String read1 = "GTTTTTCCTAGGCAAATGGTTTCTATAAAATTATGTGTGTGTGTCTCT----------GTGTGTGTGTGTGTGTGTATACCTAATCTCACACTCTTTTTTCTGG";
-        final String read2 = "GTTTTTCCTAGGCAAATGGTTTCTATAAAATTATGTGTGTGTGTCTCT----------GTGTGTGTGTGTGTGTGTATACCTAATCTCACACTCTTTTTTCTGG";
-        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(ref), true);
-        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(read1), false);
-        assembler.addSequence(ReadThreadingGraphUnitTest.getBytes(read2), false);
-
-        final SeqGraph graph = assembler.assemble();
-        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<SeqVertex,BaseEdge>();
-        final List<Path<SeqVertex,BaseEdge>> paths = pathFinder.getKBestPaths(graph);
-        Assert.assertEquals(paths.size(), 2);
-        final byte[] refPath = paths.get(0).getBases().length == ref.length() ? paths.get(0).getBases() : paths.get(1).getBases();
-        final byte[] altPath = paths.get(0).getBases().length == ref.length() ? paths.get(1).getBases() : paths.get(0).getBases();
-        Assert.assertEquals(refPath, ReadThreadingGraphUnitTest.getBytes(ref));
-        Assert.assertEquals(altPath, ReadThreadingGraphUnitTest.getBytes(read1));
+        // confirm that we created the appropriate bubble in the graph only if expected
+        rtgraph.cleanNonRefPaths();
+        final SeqGraph seqGraph = rtgraph.convertToSequenceGraph();
+        List<Path<SeqVertex,BaseEdge>> paths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(seqGraph, seqGraph.getReferenceSourceVertex(), seqGraph.getReferenceSinkVertex());
+        Assert.assertEquals(paths.size(), shouldBeMerged ? 2 : 1);
     }
 }

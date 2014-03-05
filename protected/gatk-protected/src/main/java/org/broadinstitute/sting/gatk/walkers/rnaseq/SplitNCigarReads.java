@@ -47,30 +47,28 @@
 package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
 import net.sf.samtools.*;
+import org.broadinstitute.sting.commandline.Advanced;
 import org.broadinstitute.sting.commandline.Argument;
+import org.broadinstitute.sting.commandline.Hidden;
 import org.broadinstitute.sting.commandline.Output;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
-import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
-import org.broadinstitute.sting.gatk.iterators.ReadTransformersMode;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.BAQMode;
 import org.broadinstitute.sting.gatk.walkers.DataSource;
 import org.broadinstitute.sting.gatk.walkers.ReadWalker;
 import org.broadinstitute.sting.gatk.walkers.Requires;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.clipping.ReadClipper;
 import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.sam.CigarUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.io.PrintStream;
-import java.util.*;
+import java.io.FileNotFoundException;
 
 /**
  *
@@ -88,119 +86,138 @@ import java.util.*;
 
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_DATA, extraDocs = {CommandLineGATK.class} )
 @Requires({DataSource.READS, DataSource.REFERENCE})
-public class SplitNCigarReads extends ReadWalker<List<GATKSAMRecord>, SAMFileWriter> {
+public class SplitNCigarReads extends ReadWalker<GATKSAMRecord, OverhangFixingManager> {
+
+    // The name that will go in the @PG tag
+    public static final String PROGRAM_RECORD_NAME = "GATK SplitNCigarReads";
+
 
     @Output(doc="Write output to this BAM filename instead of STDOUT")
-    StingSAMFileWriter out;
-
-    @Argument(required = false)
-    PrintStream splitPositionsOutput = System.out;
-
-    @Argument(fullName="outputAsBED", shortName="bed", doc="Output as BED file", required=false)
-    boolean outputAsBED = false;
-
-    @Argument(fullName="printSplitPositions", shortName="splitPosition", doc="print the split positions", required=false)
-    boolean printSplitPositions = false;
-
-    public static final String PROGRAM_RECORD_NAME = "GATK SplitNCigarReads";   // The name that will go in the @PG tag
-   // public static SplitPositions splitPositions = null;
-    public static String results = "";
+    protected StingSAMFileWriter writer;
 
     /**
-     * The initialize function.
+     * For expert users only!  To minimize memory consumption you can lower this number, but then the tool may skip
+     * overhang fixing in regions with too much coverage.  Just make sure to give Java enough memory!  4Gb should be
+     * enough with the default value.
      */
+    @Advanced
+    @Argument(fullName="maxReadsInMemory", shortName="maxInMemory", doc="max reads allowed to be kept in memory at a time by the BAM writer", required=false)
+    protected int MAX_RECORDS_IN_MEMORY = 150000;
+
+    /**
+     * If there are more than this many mismatches within the overhang regions, the whole overhang will get hard-clipped out.
+     * It is still possible in some cases that the overhang could get clipped if the number of mismatches do not exceed this
+     * value, e.g. if most of the overhang mismatches.
+     */
+    @Advanced
+    @Argument(fullName="maxMismatchesInOverhang", shortName="maxMismatches", doc="max number of mismatches allowed in the overhang", required=false)
+    protected int MAX_MISMATCHES_IN_OVERHANG = 1;
+
+    /**
+     * If there are more than this many bases in the overhang, we won't try to hard-clip them out
+     */
+    @Advanced
+    @Argument(fullName="maxBasesInOverhang", shortName="maxOverhang", doc="max number of bases allowed in the overhang", required=false)
+    protected int MAX_BASES_TO_CLIP = 40;
+
+    @Argument(fullName="doNotFixOverhangs", shortName="doNotFixOverhangs", doc="do not have the walker hard-clip overhanging sections of the reads", required=false)
+    protected boolean doNotFixOverhangs = false;
+
+    @Hidden
+    @Argument(fullName = "no_pg_tag", shortName = "npt", doc = "Necessary for integration tests", required = false)
+    protected boolean NO_PG_TAG = false;
+
+    /**
+     * This stores all of the already-split reads and manages any processing (e.g. clipping overhangs) that happens to them.
+     * It will emit reads to the underlying writer as needed so we don't need to worry about any of that in this class.
+     */
+    protected OverhangFixingManager overhangManager;
+
+
+    @Override
     public void initialize() {
         final GenomeAnalysisEngine toolkit = getToolkit();
 
-        final boolean preSorted = false;
-        if (getToolkit() != null) {
-            Utils.setupWriter(out, toolkit, toolkit.getSAMFileHeader(), preSorted, this, PROGRAM_RECORD_NAME);
+        if ( !NO_PG_TAG ) {
+            // we don't want to assume that reads will be written in order by the manager because in deep, deep pileups it won't work
+            Utils.setupWriter(writer, toolkit, toolkit.getSAMFileHeader(), false, this, PROGRAM_RECORD_NAME);
         }
-        out.setPresorted(preSorted);
-      //  splitPositions = new SplitPositions();
+
+        try {
+            final CachingIndexedFastaSequenceFile referenceReader = new CachingIndexedFastaSequenceFile(toolkit.getArguments().referenceFile);
+            overhangManager = new OverhangFixingManager(writer, toolkit.getGenomeLocParser(), referenceReader, MAX_RECORDS_IN_MEMORY, MAX_MISMATCHES_IN_OVERHANG, MAX_BASES_TO_CLIP, doNotFixOverhangs);
+        }
+        catch (FileNotFoundException ex) {
+            throw new UserException.CouldNotReadInputFile(toolkit.getArguments().referenceFile, ex);
+        }
     }
 
-    /**
-     * The reads map function.
-     *
-     * @param ref  the reference bases that correspond to our read, if a reference was provided
-     * @param read the read itself, as a GATKSAMRecord
-     *
-     * @return a list of split read if there are N's in the cigar string, or the read itself.
-     */
-    public List<GATKSAMRecord> map(final ReferenceContext ref,final GATKSAMRecord read,final RefMetaDataTracker metaDataTracker) {
-          return splitNCigarRead(read);
+    @Override
+    public GATKSAMRecord map(final ReferenceContext ref, final GATKSAMRecord read, final RefMetaDataTracker metaDataTracker) {
+          return read;
+    }
+
+    @Override
+    public OverhangFixingManager reduceInit() {
+        return overhangManager;
+    }
+
+    @Override
+    public OverhangFixingManager reduce(final GATKSAMRecord read, final OverhangFixingManager manager) {
+        splitNCigarRead(read, manager);
+        return manager;
+    }
+
+    @Override
+    public void onTraversalDone(final OverhangFixingManager manager) {
+        manager.close();
     }
 
     /**
      * Goes through the cigar string of the read and create new reads for each consecutive non-N elements (while hard clipping the rest of the read).
      * For example: for a read with cigar '1H2M2D1M2N1M2I1N1M2S' 3 new reads will be created with cigar strings: 1H2M2D1M, 1M2I and 1M2S
      *
-     * @param read the read to split, as a GATKSAMRecord
-     * @return a list of split read if there are N's in the cigar string, or the read itself.
+     * @param read     the read to split
+     * @param manager  the output manager
      */
+    public static void splitNCigarRead(final GATKSAMRecord read, final OverhangFixingManager manager) {
+        final int numCigarElements = read.getCigar().numCigarElements();
 
-    public static List<GATKSAMRecord> splitNCigarRead(final GATKSAMRecord read){
-        final List<GATKSAMRecord> splitReads = new ArrayList<>();
         int firstCigarIndex = 0;
-        for (int i = 0; i < read.getCigar().numCigarElements(); i ++){
+        for ( int i = 0; i < numCigarElements; i++ ) {
             final CigarElement cigarElement = read.getCigar().getCigarElement(i);
-            if(cigarElement.getOperator() == CigarOperator.N){
-                final boolean addToSplitPositions = true;
-                splitReads.add(splitReadBasedOnCigar(read,firstCigarIndex,i, addToSplitPositions));
+            if (cigarElement.getOperator() == CigarOperator.N) {
+                manager.addRead(splitReadBasedOnCigar(read, firstCigarIndex, i, manager));
                 firstCigarIndex = i+1;
             }
         }
-        //if there are no N's in the read
-        if (firstCigarIndex == 0)
-            splitReads.add(read);
 
+        // if there are no N's in the read
+        if (firstCigarIndex == 0) {
+            manager.addRead(read);
+        }
         //add the last section of the read: from the last N to the the end of the read
         // (it will be done for all the usual cigar string that does not end with N)
-        else if(firstCigarIndex < read.getCigar().numCigarElements()){
-            final boolean addToSplitPositions = false;
-            splitReads.add(splitReadBasedOnCigar(read,firstCigarIndex,read.getCigar().numCigarElements(), addToSplitPositions));
+        else if (firstCigarIndex < numCigarElements) {
+            manager.addRead(splitReadBasedOnCigar(read, firstCigarIndex, numCigarElements, null));
         }
-        return splitReads;
-    }
-
-
-    /**
-     * reduceInit is called once before any calls to the map function.  We use it here to setup the splitPositionsOutput
-     * bam file, if it was specified on the command line
-     *
-     * @return SAMFileWriter, set to the BAM splitPositionsOutput file if the command line option was set, null otherwise
-     */
-    public SAMFileWriter reduceInit() {
-        return out;
     }
 
     /**
-     * given a read and a splitPositionsOutput location, reduce by emitting the read
+     * Pull out an individual split position for a read
      *
-     * @param reads   the split reads itself
-     * @param output the splitPositionsOutput source
-     * @return the SAMFileWriter, so that the next reduce can emit to the same source
+     * @param read               the read being split
+     * @param cigarStartIndex    the index of the first cigar element to keep
+     * @param cigarEndIndex      the index of the last cigar element to keep
+     * @param forSplitPositions  the manager for keeping track of split positions; can be null
+     * @return a non-null read representing the section of the original read being split out
      */
-    public SAMFileWriter reduce(final List<GATKSAMRecord> reads,final SAMFileWriter output ) {
-        for (final GATKSAMRecord read: reads)
-            output.addAlignment(read);
-        return output;
-    }
-
-    public void onTraversalDone(SAMFileWriter readResult) {
-        super.onTraversalDone(readResult);
-        if(printSplitPositions)
-            splitPositionsOutput.println(results);
-    //        splitPositionsOutput.println(splitPositions);
-
-    }
-    private static GATKSAMRecord splitReadBasedOnCigar(final GATKSAMRecord read, final int cigarStartIndex, final int cigarEndIndex, final boolean addToSplitPositions){
+    private static GATKSAMRecord splitReadBasedOnCigar(final GATKSAMRecord read, final int cigarStartIndex, final int cigarEndIndex, final OverhangFixingManager forSplitPositions) {
         int cigarFirstIndex = cigarStartIndex;
         int cigarSecondIndex = cigarEndIndex;
 
-        //in case a section of the read is end or start with D (for example the first section in 1M1D1N1M is 1M1D), we should trim this cigar element
-        // it can be if, but it was kept as while to make sure the code can work with Cigar string that were not "cleaned"
+        //in case a section of the read ends or starts with D (for example the first section in 1M1D1N1M is 1M1D), we should trim this cigar element
+        // it can be 'if', but it was kept as 'while' to make sure the code can work with Cigar strings that were not "cleaned"
         while(read.getCigar().getCigarElement(cigarFirstIndex).getOperator().equals(CigarOperator.D))
             cigarFirstIndex++;
         while(read.getCigar().getCigarElement(cigarSecondIndex-1).getOperator().equals(CigarOperator.D))
@@ -213,54 +230,13 @@ public class SplitNCigarReads extends ReadWalker<List<GATKSAMRecord>, SAMFileWri
         final int startRefIndex = read.getOriginalAlignmentStart() + CigarUtils.countRefBasesBasedOnCigar(read,0,cigarFirstIndex); //goes through the prefix of the cigar (up to cigarStartIndex) and move the reference index.
         final int stopRefIndex = startRefIndex + CigarUtils.countRefBasesBasedOnCigar(read,cigarFirstIndex,cigarSecondIndex)-1; //goes through a consecutive non-N section of the cigar (up to cigarEndIndex) and move the reference index.
 
-        if(addToSplitPositions){
-            final int splitPosition = startRefIndex + CigarUtils.countRefBasesBasedOnCigar(read,cigarFirstIndex,cigarEndIndex);  //we use cigarEndIndex instead of cigarSecondIndex so we won't take into account the D's at the end.
+        if ( forSplitPositions != null ) {
             final String contig = read.getReferenceName();
-//            results += String.format("%s:%d-%d\n", contig, splitPosition, splitPosition );
-//            splitPositions.addSplitPosition(contig,splitPosition);
+            final int splitStart = startRefIndex + CigarUtils.countRefBasesBasedOnCigar(read,cigarFirstIndex,cigarEndIndex);  //we use cigarEndIndex instead of cigarSecondIndex so we won't take into account the D's at the end.
+            final int splitEnd = splitStart + read.getCigar().getCigarElement(cigarEndIndex).getLength() - 1;
+            forSplitPositions.addSplicePosition(contig, splitStart, splitEnd);
         }
 
         return ReadClipper.hardClipToRegionIncludingClippedBases(read, startRefIndex, stopRefIndex);
-
     }
-
-    private class SplitPosition {
-        public final String contig;
-        public final int start;
-        public final int end;
-
-        public SplitPosition(final String c, final int position) {
-            contig = c;
-            start = position;
-            end = position;
-        }
-    }
-
-
-   private class SplitPositions {
-        private final HashSet<SplitPosition> splitPositions;
-
-        public SplitPositions() {
-            splitPositions = new HashSet<>();
-        }
-
-        public void addSplitPosition(final String contig, final int position) {
-            final SplitPosition newSplitPosition = new SplitPosition(contig, position);
-            splitPositions.add(newSplitPosition);
-        }
-
-        public String toString() {
-            String result = ""; // = "Contig\tstart\tstop\n";
-
-            for (SplitPosition position: splitPositions) {
-                if (outputAsBED)
-                    result += String.format("%s\t%d\t%d\n", position.contig, position.start-1, position.end );
-                else
-                    result += String.format("%s:%d-%d\n", position.contig, position.start, position.end );
-            }
-            return result;
-        }
-    }
-
-
 }

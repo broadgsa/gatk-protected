@@ -140,11 +140,10 @@ public class ErrorModel  {
             Allele refAllele = refSampleVC.getReference();
 
             if ( refSampleVC.isIndel()) {
-                final int readCounts[] = new int[refSamplePileup.getNumberOfElements()];
                 //perReadLikelihoods = new double[readCounts.length][refSampleVC.getAlleles().size()];
                 final int eventLength = IndelGenotypeLikelihoodsCalculationModel.getEventLength(refSampleVC.getAlleles());
                 if (!haplotypeMap.isEmpty())
-                    perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, perReadAlleleLikelihoodMap, readCounts);
+                    perReadLikelihoods = pairModel.computeGeneralReadHaplotypeLikelihoods(refSamplePileup,haplotypeMap,refContext, eventLength, perReadAlleleLikelihoodMap);
             }
             int idx = 0;
             for (PileupElement refPileupElement : refSamplePileup) {

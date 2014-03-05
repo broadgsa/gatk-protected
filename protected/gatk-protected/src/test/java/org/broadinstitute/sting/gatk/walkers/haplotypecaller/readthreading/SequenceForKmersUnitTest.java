@@ -55,26 +55,12 @@ public class SequenceForKmersUnitTest extends BaseTest {
     @Test
     public void testNoCount() {
         final byte[] seq = "ACGT".getBytes();
-        final SequenceForKmers sk = new SequenceForKmers("foo", seq, 0, seq.length, null, true);
+        final SequenceForKmers sk = new SequenceForKmers("foo", seq, 0, seq.length, 1, true);
         Assert.assertEquals(sk.name, "foo");
         Assert.assertEquals(sk.sequence, seq);
         Assert.assertEquals(sk.start, 0);
         Assert.assertEquals(sk.stop, seq.length);
+        Assert.assertEquals(sk.count, 1);
         Assert.assertEquals(sk.isRef, true);
-        for ( int i = 0; i < seq.length; i++ )
-            Assert.assertEquals(sk.getCount(i), 1);
-    }
-
-    @Test
-    public void testWithCounts() {
-        final int len = 256;
-        final int[] counts = new int[len];
-        for ( int i = 0; i < len; i++ ) counts[i] = i;
-        final byte[] seq = Utils.dupBytes((byte)'A', len);
-
-        final SequenceForKmers sk = new SequenceForKmers("foo", seq, 0, seq.length, counts, true);
-
-        for ( int i = 0; i < seq.length; i++ )
-            Assert.assertEquals(sk.getCount(i), i);
     }
 }

@@ -59,7 +59,6 @@ import org.broadinstitute.sting.utils.pairhmm.*;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatCovariate;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.variant.variantcontext.*;
 
 import java.io.File;
@@ -433,8 +432,7 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
                     for( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> entry : stratifiedReadMap.get(sample).getLikelihoodReadMap().entrySet() ) {
                         // Compute log10(10^x1/2 + 10^x2/2) = log10(10^x1+10^x2)-log10(2)
                         // First term is approximated by Jacobian log with table lookup.
-                        haplotypeLikelihood += ReadUtils.getMeanRepresentativeReadCount( entry.getKey() ) *
-                                ( MathUtils.approximateLog10SumLog10(entry.getValue().get(iii_allele), entry.getValue().get(jjj_allele)) + MathUtils.LOG_ONE_HALF );
+                        haplotypeLikelihood += ( MathUtils.approximateLog10SumLog10(entry.getValue().get(iii_allele), entry.getValue().get(jjj_allele)) + MathUtils.LOG_ONE_HALF );
                     }
                 }
                 haplotypeLikelihoodMatrix[iii][jjj] = haplotypeLikelihood;

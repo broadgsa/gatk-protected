@@ -44,39 +44,129 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
+package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
+import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.UnvalidatingGenomeLoc;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-/**
- * GenomeLocs are very useful objects to keep track of genomic locations and perform set operations
- * with them.
- *
- * However, GenomeLocs are bound to strict validation through the GenomeLocParser and cannot
- * be created easily for small tasks that do not require the rigors of the GenomeLocParser validation
- *
- * UnvalidatingGenomeLoc is a simple utility to create GenomeLocs without going through the parser. Should
- * only be used outside of the engine.
- *
- * User: carneiro
- * Date: 10/16/12
- * Time: 2:07 PM
- */
-public class FinishedGenomeLoc extends UnvalidatingGenomeLoc {
-    private boolean finished;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-    public FinishedGenomeLoc(final String contigName, final int contigIndex, final int start, final int stop, final boolean finished) {
-        super(contigName, contigIndex, start, stop);
-        this.finished = finished;
+public class OverhangFixingManagerUnitTest extends BaseTest {
+
+    private CachingIndexedFastaSequenceFile referenceReader;
+    private GenomeLocParser genomeLocParser;
+
+    @BeforeClass
+    public void setup() throws FileNotFoundException {
+        referenceReader = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
+        genomeLocParser = new GenomeLocParser(referenceReader.getSequenceDictionary());
     }
 
-    public FinishedGenomeLoc(final GenomeLoc loc, final boolean finished) {
-        super(loc.getContig(), loc.getContigIndex(), loc.getStart(), loc.getStop());
-        this.finished = finished;
+    @Test
+    public void testCleanSplices() {
+
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+
+        final int offset = 10;
+        for ( int i = 0; i < OverhangFixingManager.MAX_SPLICES_TO_KEEP + 1; i++ )
+            manager.addSplicePosition("20", offset + i, offset + 1 + i);
+
+        final List<OverhangFixingManager.Splice> splices = manager.getSplicesForTesting();
+
+        Assert.assertEquals(splices.size(), (OverhangFixingManager.MAX_SPLICES_TO_KEEP / 2) + 1);
+
+        final int minStartPos = (OverhangFixingManager.MAX_SPLICES_TO_KEEP / 2) + offset;
+
+        for ( final OverhangFixingManager.Splice splice : splices )
+            Assert.assertTrue(splice.loc.getStart() >= minStartPos);
     }
 
-    public boolean isFinished() {
-        return finished;
+    @DataProvider(name = "OverhangTest")
+    public Object[][] makeOverhangData() {
+        final List<Object[]> tests = new ArrayList<>();
+        for ( int leftRead : Arrays.asList(10, 20, 30, 40) ) {
+            for ( int rightRead : Arrays.asList(20, 30, 40, 50) ) {
+                if ( leftRead >= rightRead )
+                    continue;
+                for ( int leftSplice : Arrays.asList(10, 20, 30) ) {
+                    for ( int rightSplice : Arrays.asList(20, 30, 40) ) {
+                        if ( leftSplice >= rightSplice )
+                            continue;
+
+                        final GenomeLoc readLoc = genomeLocParser.createGenomeLoc("1", leftRead, rightRead);
+                        final GenomeLoc spliceLoc = genomeLocParser.createGenomeLoc("1", leftSplice, rightSplice);
+                        tests.add(new Object[]{readLoc, spliceLoc});
+                    }
+                }
+            }
+        }
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "OverhangTest")
+    public void testLeftOverhangs(final GenomeLoc readLoc, final GenomeLoc spliceLoc) {
+        final boolean isValidOverhang = readLoc.getStart() <= spliceLoc.getStop() &&
+                readLoc.getStop() > spliceLoc.getStop() &&
+                readLoc.getStart() > spliceLoc.getStart();
+        Assert.assertEquals(OverhangFixingManager.isLeftOverhang(readLoc, spliceLoc), isValidOverhang, readLoc + " vs. " + spliceLoc);
+    }
+
+    @Test(dataProvider = "OverhangTest")
+    public void testRightOverhangs(final GenomeLoc readLoc, final GenomeLoc spliceLoc) {
+        final boolean isValidOverhang = readLoc.getStop() >= spliceLoc.getStart() &&
+                readLoc.getStop() < spliceLoc.getStop() &&
+                readLoc.getStart() < spliceLoc.getStart();
+        Assert.assertEquals(OverhangFixingManager.isRightOverhang(readLoc, spliceLoc), isValidOverhang, readLoc + " vs. " + spliceLoc);
+    }
+
+    @DataProvider(name = "MismatchEdgeConditionTest")
+    public Object[][] makeMismatchEdgeConditionData() {
+        final List<Object[]> tests = new ArrayList<>();
+        tests.add(new Object[]{null, 1, null, 1, 0});
+        tests.add(new Object[]{null, 1, null, 1, 100});
+        tests.add(new Object[]{new byte[4], 1, null, 1, 3});
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MismatchEdgeConditionTest")
+    public void testMismatchEdgeCondition(final byte[] read, final int readStart, final byte[] ref, final int refStart, final int overhang) {
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+        Assert.assertFalse(manager.overhangingBasesMismatch(read, readStart, ref, refStart, overhang));
+    }
+
+    @DataProvider(name = "MismatchTest")
+    public Object[][] makeMismatchData() {
+        final List<Object[]> tests = new ArrayList<>();
+
+        final byte[] AAAA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A'};
+        final byte[] AAAC = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'C'};
+        final byte[] AAAAAA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'A'};
+        final byte[] AAAACA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'C', (byte)'A'};
+        final byte[] AAAACC = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'C', (byte)'C'};
+
+        tests.add(new Object[]{AAAA, 2, AAAA, 2, 2, false});
+        tests.add(new Object[]{AAAA, 2, AAAC, 2, 2, true});
+        tests.add(new Object[]{AAAAAA, 3, AAAACA, 3, 3, false});
+        tests.add(new Object[]{AAAAAA, 3, AAAACC, 3, 3, true});
+        tests.add(new Object[]{AAAAAA, 4, AAAACC, 4, 2, true});
+        tests.add(new Object[]{AAAAAA, 2, AAAACC, 2, 3, false});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MismatchTest")
+    public void testMismatch(final byte[] read, final int readStart, final byte[] ref, final int refStart, final int overhang, final boolean expected) {
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+        Assert.assertEquals(manager.overhangingBasesMismatch(read, readStart, ref, refStart, overhang), expected, new String(read) + " vs. " + new String(ref) + " @" + overhang);
     }
 }

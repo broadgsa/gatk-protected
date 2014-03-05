@@ -44,65 +44,69 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
+package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-
-/*
- * Copyright (c) 2009 The Broad Institute
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- */
+import org.broadinstitute.sting.WalkerTest;
+import org.testng.annotations.Test;
+import java.util.Arrays;
 
 /**
- * Created by IntelliJ IDEA.
- * User: depristo
- * Date: 4/10/11
- * Time: 8:49 AM
- *
- * A general interface for ReadCompressors.  Read compressors have the following semantics:
- *
- * The accept a stream of reads, in order, and after each added read returns a compressed stream
- * of reads for emission.  This stream of reads is a "reduced" representation of the total stream
- * of reads.  The actual compression approach is left up to the implementing class.
+ * Created with IntelliJ IDEA.
+ * User: ami
+ * Date: 12/5/13
+ * Time: 1:04 PM
  */
-public interface Compressor {
-    /**
-     * Adds the read to the compressor.  The returned iteratable collection of
-     * reads represents the incremental compressed output.
-     * @param read the next uncompressed read in the input stream to the compressor
-     * @return an iterator over the incrementally available compressed reads
-     */
-    @Requires("read != null")
-    @Ensures("result != null")
-    Iterable<GATKSAMRecord> addAlignment(GATKSAMRecord read);
+public class SplitNCigarReadsIntegrationTest extends WalkerTest {
 
-    /**
-     * Must be called after the last read has been added to finalize the compressor state
-     * and return the last compressed reads from the compressor.
-     * @return an iterator over the final compressed reads of this compressor
-     */
-    @Ensures("result != null")
-    Iterable<GATKSAMRecord> close();
+    @Test(enabled = false)
+    // contain reads without N's, with N's and with N's and I's
+    // TODO -- Ami: please put the bam file in the repo
+    public void testSplitWithInsertions() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "SplitNCigarReads.integrationTest.unsplitReads.withI.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("037c72fe1572efb63cccbe0a8dda3cb1"));
+        executeTest("test split N cigar reads with insertions", spec);
+    }
+
+    @Test(enabled = false)
+    // contain reads without N's, with N's and with N's and D's, and also with more then one N element in the cigar.
+    // TODO -- Ami: please put the bam file in the repo
+    public void testSplitWithDeletions() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "SplitNCigarReads.integrationTest.unsplitReads.withD.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("8472005c16353715025353d6d453faf4"));
+        executeTest("test split N cigar reads with deletions", spec);
+    }
+
+    @Test
+    public void testSplitsWithOverhangs() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("2832abc680c6b5a0219702ad5bf22f01"));
+        executeTest("test splits with overhangs", spec);
+    }
+
+    @Test
+    public void testSplitsWithOverhangsNotClipping() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --doNotFixOverhangs -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("59783610006bf7a1ccae57ee2016123b"));
+        executeTest("test splits with overhangs not clipping", spec);
+    }
+
+    @Test
+    public void testSplitsWithOverhangs0Mismatches() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --maxMismatchesInOverhang 0 -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("7547a5fc41ebfd1bbe62ce854b37b6ef"));
+        executeTest("test splits with overhangs 0 mismatches", spec);
+    }
+
+    @Test
+    public void testSplitsWithOverhangs5BasesInOverhang() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --maxBasesInOverhang 5 -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("f222eb02b003c08d4a606ab1bcb7931b"));
+        executeTest("test splits with overhangs 5 bases in overhang", spec);
+    }
 }

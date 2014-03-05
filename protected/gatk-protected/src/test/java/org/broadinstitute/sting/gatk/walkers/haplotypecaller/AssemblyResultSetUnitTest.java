@@ -171,7 +171,7 @@ public class AssemblyResultSetUnitTest extends BaseTest
 
         final ReadThreadingGraph rtg = new ReadThreadingGraph(10);
         for (final Haplotype h : haplotypes)
-            rtg.addSequence("seq-" + Math.abs(h.hashCode()), h.getBases(), null, h.isReference());
+            rtg.addSequence("seq-" + Math.abs(h.hashCode()), h.getBases(), h.isReference());
         final SeqGraph seqGraph = rtg.convertToSequenceGraph();
         final AssemblyResult ar = new AssemblyResult(AssemblyResult.Status.ASSEMBLED_SOME_VARIATION,seqGraph);
         ar.setThreadingGraph(rtg);
