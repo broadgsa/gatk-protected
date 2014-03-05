@@ -236,8 +236,7 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
         return !(p.isDeletion() ||
                  p.getMappingQual() == 0 ||
                  p.getMappingQual() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE ||
-                 ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE || // need the unBAQed quality score here
-                 p.getRead().isReducedRead() );
+                 ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE); // need the unBAQed quality score here
     }
 
     /**
@@ -249,8 +248,7 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
      */
     protected boolean isUsableRead(final GATKSAMRecord read, final int refLoc) {
         return !( read.getMappingQuality() == 0 ||
-                read.getMappingQuality() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE ||
-                read.isReducedRead() );
+                read.getMappingQuality() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE );
     }
 
     /**

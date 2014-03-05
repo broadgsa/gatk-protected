@@ -54,8 +54,9 @@ import net.sf.samtools.CigarOperator;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.sam.CigarUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -86,6 +87,7 @@ public abstract class LocalAssemblyEngine {
     protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
     protected boolean debugGraphTransformations = false;
     protected boolean recoverDanglingTails = true;
+    protected boolean recoverDanglingHeads = true;
 
     protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
     protected int pruneFactor = 2;
@@ -219,12 +221,13 @@ public abstract class LocalAssemblyEngine {
             final SeqVertex source = graph.getReferenceSourceVertex();
             final SeqVertex sink = graph.getReferenceSinkVertex();
             if ( source == null || sink == null ) throw new IllegalArgumentException("Both source and sink cannot be null but got " + source + " and sink " + sink + " for graph "+ graph);
-
-            final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<>(allowCyclesInKmerGraphToGeneratePaths);
-            for ( final Path<SeqVertex,BaseEdge> path : pathFinder.getKBestPaths(graph, numBestHaplotypesPerGraph, source, sink) ) {
-                Haplotype h = new Haplotype( path.getBases() );
+            final KBestHaplotypeFinder haplotypeFinder = new KBestHaplotypeFinder(graph,source,sink);
+            final Iterator<KBestHaplotype> bestHaplotypes = haplotypeFinder.iterator(numBestHaplotypesPerGraph);
+            while (bestHaplotypes.hasNext()) {
+                final KBestHaplotype kBestHaplotype = bestHaplotypes.next();
+                final Haplotype h = kBestHaplotype.haplotype();
                 if( !returnHaplotypes.contains(h) ) {
-                    final Cigar cigar = path.calculateCigar(refHaplotype.getBases());
+                    final Cigar cigar = CigarUtils.calculateCigar(refHaplotype.getBases(),h.getBases());
 
                     if ( cigar == null ) {
                         // couldn't produce a meaningful alignment of haplotype to reference, fail quietly
@@ -238,12 +241,11 @@ public abstract class LocalAssemblyEngine {
                     } else if( cigar.getReferenceLength() != refHaplotype.getCigar().getReferenceLength() ) { // SW failure
                         throw new IllegalStateException("Smith-Waterman alignment failure. Cigar = " + cigar + " with reference length "
                                 + cigar.getReferenceLength() + " but expecting reference length of " + refHaplotype.getCigar().getReferenceLength()
-                                + " ref = " + refHaplotype + " path " + new String(path.getBases()));
+                                + " ref = " + refHaplotype + " path " + new String(h.getBases()));
                     }
 
                     h.setCigar(cigar);
                     h.setAlignmentStartHapwrtRef(activeRegionStart);
-                    h.setScore(path.getScore());
                     h.setGenomeLocation(activeRegionWindow);
                     returnHaplotypes.add(h);
                     assemblyResultSet.add(h, assemblyResultByGraph.get(graph));
@@ -455,5 +457,13 @@ public abstract class LocalAssemblyEngine {
 
     public void setRecoverDanglingTails(boolean recoverDanglingTails) {
         this.recoverDanglingTails = recoverDanglingTails;
+    }
+
+    public boolean isRecoverDanglingHeads() {
+        return recoverDanglingHeads;
+    }
+
+    public void setRecoverDanglingHeads(boolean recoverDanglingHeads) {
+        this.recoverDanglingHeads = recoverDanglingHeads;
     }
 }

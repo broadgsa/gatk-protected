@@ -44,64 +44,69 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
+package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
-import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
-import it.unimi.dsi.fastutil.objects.ObjectSortedSet;
-import org.broadinstitute.sting.utils.*;
-
-import java.util.Collection;
-
+import org.broadinstitute.sting.WalkerTest;
+import org.testng.annotations.Test;
+import java.util.Arrays;
 
 /**
- * A stash of regions that must be kept uncompressed in all samples
- *
- * In general, these are regions that were kept uncompressed by a tumor sample and we want to force
- * all other samples (normals and/or tumors) to also keep these regions uncompressed
- *
- * User: carneiro
- * Date: 10/15/12
- * Time: 4:08 PM
+ * Created with IntelliJ IDEA.
+ * User: ami
+ * Date: 12/5/13
+ * Time: 1:04 PM
  */
-public class CompressionStash extends ObjectAVLTreeSet<FinishedGenomeLoc> {
-    public CompressionStash() {
-        super();
+public class SplitNCigarReadsIntegrationTest extends WalkerTest {
+
+    @Test(enabled = false)
+    // contain reads without N's, with N's and with N's and I's
+    // TODO -- Ami: please put the bam file in the repo
+    public void testSplitWithInsertions() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "SplitNCigarReads.integrationTest.unsplitReads.withI.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("037c72fe1572efb63cccbe0a8dda3cb1"));
+        executeTest("test split N cigar reads with insertions", spec);
     }
 
-    /**
-     * Adds a UnvalidatingGenomeLoc to the stash and merges it with any overlapping (and contiguous) existing loc
-     * in the stash.
-     *
-     * @param insertLoc the new loc to be inserted
-     * @return true if the loc, or it's merged version, wasn't present in the list before.
-     */
-    @Override
-    public boolean add(final FinishedGenomeLoc insertLoc) {
-        ObjectSortedSet<FinishedGenomeLoc> removedLocs = new ObjectAVLTreeSet<FinishedGenomeLoc>();
-        for (FinishedGenomeLoc existingLoc : this) {
-            if (existingLoc.isPast(insertLoc)) {
-                break;                                          // if we're past the loc we're done looking for overlaps.
-            }
-            if (existingLoc.equals(insertLoc)) {
-                return false;                                   // if this loc was already present in the stash, we don't need to insert it.
-            }
-            if (existingLoc.contiguousP(insertLoc)) {
-                removedLocs.add(existingLoc);                   // list the original loc for merging
-            }
-        }
-
-        this.removeAll(removedLocs);                            // remove all locs that will be merged
-        removedLocs.add(insertLoc);                             // add the new loc to the list of locs that will be merged
-
-        return super.add(new FinishedGenomeLoc(GenomeLoc.merge(removedLocs), insertLoc.isFinished()));
+    @Test(enabled = false)
+    // contain reads without N's, with N's and with N's and D's, and also with more then one N element in the cigar.
+    // TODO -- Ami: please put the bam file in the repo
+    public void testSplitWithDeletions() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "SplitNCigarReads.integrationTest.unsplitReads.withD.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("8472005c16353715025353d6d453faf4"));
+        executeTest("test split N cigar reads with deletions", spec);
     }
 
-    @Override
-    public boolean addAll(Collection<? extends FinishedGenomeLoc> locs) {
-        boolean result = false;
-        for (final FinishedGenomeLoc loc : locs) {
-            result |= this.add(loc);
-        }
-        return result;
+    @Test
+    public void testSplitsWithOverhangs() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("2832abc680c6b5a0219702ad5bf22f01"));
+        executeTest("test splits with overhangs", spec);
+    }
+
+    @Test
+    public void testSplitsWithOverhangsNotClipping() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --doNotFixOverhangs -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("59783610006bf7a1ccae57ee2016123b"));
+        executeTest("test splits with overhangs not clipping", spec);
+    }
+
+    @Test
+    public void testSplitsWithOverhangs0Mismatches() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --maxMismatchesInOverhang 0 -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("7547a5fc41ebfd1bbe62ce854b37b6ef"));
+        executeTest("test splits with overhangs 0 mismatches", spec);
+    }
+
+    @Test
+    public void testSplitsWithOverhangs5BasesInOverhang() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads --maxBasesInOverhang 5 -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
+                Arrays.asList("f222eb02b003c08d4a606ab1bcb7931b"));
+        executeTest("test splits with overhangs 5 bases in overhang", spec);
     }
 }

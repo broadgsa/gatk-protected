@@ -89,7 +89,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "96f299a5cf411900b8eda3845c3ce465");
+        HCTest(NA12878_BAM, "", "c208ef58d464465c68b5c26501122ad7");
     }
 
     @Test
@@ -99,7 +99,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedSingleSample() {
-        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "83fe0694621bc1e0240f6f79eb6d6999");
+        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "049ba1794a1ce2b15566bb1e9431fccf");
     }
 
     @Test
@@ -219,28 +219,6 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     // --------------------------------------------------------------------------------------------------------------
     //
-    // testing reduced reads
-    //
-    // --------------------------------------------------------------------------------------------------------------
-
-    @Test
-    public void HCTestReducedBam() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "bamExample.ReducedRead.ADAnnotation.bam -o %s -L 1:67,225,396-67,288,518", 1,
-                Arrays.asList("12c56262ed30db1249b8d722e324357c"));
-        executeTest("HC calling on a ReducedRead BAM", spec);
-    }
-
-    @Test
-    public void testReducedBamWithReadsNotFullySpanningDeletion() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "reduced.readNotFullySpanningDeletion.bam -o %s -L 1:167871297", 1,
-                Arrays.asList("1627cf5f3a97e8b73b3c095db46aef1b"));
-        executeTest("test calling on a ReducedRead BAM where the reads do not fully span a deletion", spec);
-    }
-
-    // --------------------------------------------------------------------------------------------------------------
-    //
     // test dbSNP annotation
     //
     // --------------------------------------------------------------------------------------------------------------
@@ -249,7 +227,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("0864904254b2fa757991f8c2dac4932d"));
+                Arrays.asList("0998be22d7af4372247f5a0338f9446b"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -266,7 +244,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGSGraphBased() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("df1f9410d23a550a143531ac0891f1dc"));
+                Arrays.asList("1aeed297a3cb41940d83eac499a2ce07"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -306,7 +284,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestConservativePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model CONSERVATIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,000,000-10,300,000", 1,
-                Arrays.asList("616cc63d5a78765145914457dec475b0"));
+                Arrays.asList("dcb38cb9280f2c3059a09d323db1c633"));
         executeTest("HC calling with conservative indel error modeling on WGS intervals", spec);
     }
 

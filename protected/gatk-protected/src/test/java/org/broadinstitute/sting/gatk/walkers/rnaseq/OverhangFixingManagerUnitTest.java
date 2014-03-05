@@ -44,65 +44,129 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.compression.reducereads;
+package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-/*
- * Copyright (c) 2009 The Broad Institute
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- */
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * Created by IntelliJ IDEA.
- * User: depristo
- * Date: 4/10/11
- * Time: 8:49 AM
- *
- * A general interface for ReadCompressors.  Read compressors have the following semantics:
- *
- * The accept a stream of reads, in order, and after each added read returns a compressed stream
- * of reads for emission.  This stream of reads is a "reduced" representation of the total stream
- * of reads.  The actual compression approach is left up to the implementing class.
- */
-public interface Compressor {
-    /**
-     * Adds the read to the compressor.  The returned iteratable collection of
-     * reads represents the incremental compressed output.
-     * @param read the next uncompressed read in the input stream to the compressor
-     * @return an iterator over the incrementally available compressed reads
-     */
-    @Requires("read != null")
-    @Ensures("result != null")
-    Iterable<GATKSAMRecord> addAlignment(GATKSAMRecord read);
+public class OverhangFixingManagerUnitTest extends BaseTest {
 
-    /**
-     * Must be called after the last read has been added to finalize the compressor state
-     * and return the last compressed reads from the compressor.
-     * @return an iterator over the final compressed reads of this compressor
-     */
-    @Ensures("result != null")
-    Iterable<GATKSAMRecord> close();
+    private CachingIndexedFastaSequenceFile referenceReader;
+    private GenomeLocParser genomeLocParser;
+
+    @BeforeClass
+    public void setup() throws FileNotFoundException {
+        referenceReader = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
+        genomeLocParser = new GenomeLocParser(referenceReader.getSequenceDictionary());
+    }
+
+    @Test
+    public void testCleanSplices() {
+
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+
+        final int offset = 10;
+        for ( int i = 0; i < OverhangFixingManager.MAX_SPLICES_TO_KEEP + 1; i++ )
+            manager.addSplicePosition("20", offset + i, offset + 1 + i);
+
+        final List<OverhangFixingManager.Splice> splices = manager.getSplicesForTesting();
+
+        Assert.assertEquals(splices.size(), (OverhangFixingManager.MAX_SPLICES_TO_KEEP / 2) + 1);
+
+        final int minStartPos = (OverhangFixingManager.MAX_SPLICES_TO_KEEP / 2) + offset;
+
+        for ( final OverhangFixingManager.Splice splice : splices )
+            Assert.assertTrue(splice.loc.getStart() >= minStartPos);
+    }
+
+    @DataProvider(name = "OverhangTest")
+    public Object[][] makeOverhangData() {
+        final List<Object[]> tests = new ArrayList<>();
+        for ( int leftRead : Arrays.asList(10, 20, 30, 40) ) {
+            for ( int rightRead : Arrays.asList(20, 30, 40, 50) ) {
+                if ( leftRead >= rightRead )
+                    continue;
+                for ( int leftSplice : Arrays.asList(10, 20, 30) ) {
+                    for ( int rightSplice : Arrays.asList(20, 30, 40) ) {
+                        if ( leftSplice >= rightSplice )
+                            continue;
+
+                        final GenomeLoc readLoc = genomeLocParser.createGenomeLoc("1", leftRead, rightRead);
+                        final GenomeLoc spliceLoc = genomeLocParser.createGenomeLoc("1", leftSplice, rightSplice);
+                        tests.add(new Object[]{readLoc, spliceLoc});
+                    }
+                }
+            }
+        }
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "OverhangTest")
+    public void testLeftOverhangs(final GenomeLoc readLoc, final GenomeLoc spliceLoc) {
+        final boolean isValidOverhang = readLoc.getStart() <= spliceLoc.getStop() &&
+                readLoc.getStop() > spliceLoc.getStop() &&
+                readLoc.getStart() > spliceLoc.getStart();
+        Assert.assertEquals(OverhangFixingManager.isLeftOverhang(readLoc, spliceLoc), isValidOverhang, readLoc + " vs. " + spliceLoc);
+    }
+
+    @Test(dataProvider = "OverhangTest")
+    public void testRightOverhangs(final GenomeLoc readLoc, final GenomeLoc spliceLoc) {
+        final boolean isValidOverhang = readLoc.getStop() >= spliceLoc.getStart() &&
+                readLoc.getStop() < spliceLoc.getStop() &&
+                readLoc.getStart() < spliceLoc.getStart();
+        Assert.assertEquals(OverhangFixingManager.isRightOverhang(readLoc, spliceLoc), isValidOverhang, readLoc + " vs. " + spliceLoc);
+    }
+
+    @DataProvider(name = "MismatchEdgeConditionTest")
+    public Object[][] makeMismatchEdgeConditionData() {
+        final List<Object[]> tests = new ArrayList<>();
+        tests.add(new Object[]{null, 1, null, 1, 0});
+        tests.add(new Object[]{null, 1, null, 1, 100});
+        tests.add(new Object[]{new byte[4], 1, null, 1, 3});
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MismatchEdgeConditionTest")
+    public void testMismatchEdgeCondition(final byte[] read, final int readStart, final byte[] ref, final int refStart, final int overhang) {
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+        Assert.assertFalse(manager.overhangingBasesMismatch(read, readStart, ref, refStart, overhang));
+    }
+
+    @DataProvider(name = "MismatchTest")
+    public Object[][] makeMismatchData() {
+        final List<Object[]> tests = new ArrayList<>();
+
+        final byte[] AAAA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A'};
+        final byte[] AAAC = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'C'};
+        final byte[] AAAAAA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'A'};
+        final byte[] AAAACA = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'C', (byte)'A'};
+        final byte[] AAAACC = new byte[]{(byte)'A', (byte)'A', (byte)'A', (byte)'A', (byte)'C', (byte)'C'};
+
+        tests.add(new Object[]{AAAA, 2, AAAA, 2, 2, false});
+        tests.add(new Object[]{AAAA, 2, AAAC, 2, 2, true});
+        tests.add(new Object[]{AAAAAA, 3, AAAACA, 3, 3, false});
+        tests.add(new Object[]{AAAAAA, 3, AAAACC, 3, 3, true});
+        tests.add(new Object[]{AAAAAA, 4, AAAACC, 4, 2, true});
+        tests.add(new Object[]{AAAAAA, 2, AAAACC, 2, 3, false});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+    @Test(dataProvider = "MismatchTest")
+    public void testMismatch(final byte[] read, final int readStart, final byte[] ref, final int refStart, final int overhang, final boolean expected) {
+        final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
+        Assert.assertEquals(manager.overhangingBasesMismatch(read, readStart, ref, refStart, overhang), expected, new String(read) + " vs. " + new String(ref) + " @" + overhang);
+    }
 }

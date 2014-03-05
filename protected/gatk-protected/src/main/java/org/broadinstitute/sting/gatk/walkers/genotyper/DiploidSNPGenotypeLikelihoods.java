@@ -187,18 +187,6 @@ public class DiploidSNPGenotypeLikelihoods implements Cloneable {
         if ( qual == 0 )
             return 0;
 
-        if ( elt.getRead().isReducedRead() ) {
-            // reduced read representation
-            if ( BaseUtils.isRegularBase( obsBase )) {
-                int representativeCount = elt.getRepresentativeCount();
-                add(obsBase, qual, (byte)0, (byte)0, representativeCount); // fast calculation of n identical likelihoods
-                return representativeCount; // we added nObs bases here
-            }
-
-            // odd bases or deletions => don't use them
-            return 0;
-        }
-
         return add(obsBase, qual, (byte)0, (byte)0, 1);
     }
 

@@ -46,8 +46,6 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
-import org.broadinstitute.sting.gatk.walkers.compression.reducereads.*;
-import org.broadinstitute.sting.gatk.walkers.compression.reducereads.BaseCounts;
 import org.broadinstitute.sting.utils.MannWhitneyU;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -122,13 +120,15 @@ public class RankSumUnitTest {
 
         final List<Integer> dist2 = new ArrayList<>(distribution2);
         if ( numToReduceIn2 > 0 ) {
-            final org.broadinstitute.sting.gatk.walkers.compression.reducereads.BaseCounts counts = new BaseCounts();
+            int counts = 0;
+            int quals = 0;
+
             for ( int i = 0; i < numToReduceIn2; i++ ) {
-                final int value = dist2.remove(0);
-                counts.incr(BaseIndex.A, (byte)value, 0, false);
+                counts++;
+                quals += dist2.remove(0);
             }
 
-            final int qual = (int)counts.averageQualsOfBase(BaseIndex.A);
+            final int qual = quals / counts;
             for ( int i = 0; i < numToReduceIn2; i++ )
                 dist2.add(qual);
         }

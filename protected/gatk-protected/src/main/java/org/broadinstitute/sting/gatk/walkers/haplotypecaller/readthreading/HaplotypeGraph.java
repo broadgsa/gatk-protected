@@ -239,14 +239,14 @@ public class HaplotypeGraph extends ReadThreadingGraph {
         super(kmerSize);
         referenceHaplotype = findReferenceHaplotypeOrFail(haplotypes);
         this.haplotypes = new LinkedHashSet<>(haplotypes);
-        addSequence("anonymous", referenceHaplotype.getBases(), null, true);
+        addSequence("anonymous", referenceHaplotype.getBases(), true);
         for (final Haplotype h : haplotypes) {
             if (h.isReference())
                 continue;
             if (h.length() < kmerSize) {
                 Utils.warnUser(logger, "haplotype shorter than kmerSize " + h.length() + " < " + kmerSize + " will be dropped");
             } else
-                addSequence("anonymous", h.getBases(), null, false);
+                addSequence("anonymous", h.getBases(), false);
 
         }
         buildGraphIfNecessary();
@@ -391,10 +391,9 @@ public class HaplotypeGraph extends ReadThreadingGraph {
             graphWriter.println("}");
     }
 
-
     @Override
-    public Pair<MultiDeBruijnVertex,Integer> findStart(final SequenceForKmers seqForKmers) {
-        return getOrCreateKmerVertex(seqForKmers.sequence, 0, true);
+    protected int findStart(final SequenceForKmers seqForKmers) {
+        return 0;
     }
 
     /**
