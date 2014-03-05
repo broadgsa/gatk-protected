@@ -61,7 +61,7 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
 
     @DataProvider(name = "PrefixSuffixData")
     public Object[][] makePrefixSuffixData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        final List<Object[]> tests = new ArrayList<>();
 
         tests.add(new Object[]{Arrays.asList("A", "C"), 0, 0});
         tests.add(new Object[]{Arrays.asList("C", "C"), 1, 0});
@@ -91,7 +91,7 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
 
     @Test(dataProvider = "PrefixSuffixData")
     public void testPrefixSuffix(final List<String> strings, int expectedPrefixLen, int expectedSuffixLen) {
-        final List<byte[]> bytes = new ArrayList<byte[]>();
+        final List<byte[]> bytes = new ArrayList<>();
         int min = Integer.MAX_VALUE;
         for ( final String s : strings ) {
             bytes.add(s.getBytes());
@@ -107,7 +107,7 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
 
     @Test(dataProvider = "PrefixSuffixData")
     public void testPrefixSuffixVertices(final List<String> strings, int expectedPrefixLen, int expectedSuffixLen) {
-        final List<SeqVertex> v = new ArrayList<SeqVertex>();
+        final List<SeqVertex> v = new ArrayList<>();
         for ( final String s : strings ) {
             v.add(new SeqVertex(s));
         }
@@ -127,19 +127,18 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
     public void testSplitter(final List<String> strings, int expectedPrefixLen, int expectedSuffixLen) {
         final SeqGraph graph = new SeqGraph(11);
 
-        final List<SeqVertex> v = new ArrayList<SeqVertex>();
+        final List<SeqVertex> v = new ArrayList<>();
         for ( final String s : strings ) {
             v.add(new SeqVertex(s));
         }
 
-        graph.addVertices(v.toArray(new SeqVertex[]{}));
+        graph.addVertices(v.toArray(new SeqVertex[v.size()]));
 
         final String expectedPrefix = strings.get(0).substring(0, expectedPrefixLen);
         final String expectedSuffix = strings.get(0).substring(strings.get(0).length() - expectedSuffixLen);
 
         final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(graph, v);
         splitter.split();
-//        splitter.splitGraph.printGraph(new File(Utils.join("_", strings) + ".dot"), 0);
 
         Assert.assertEquals(splitter.prefixV.getSequenceString(), expectedPrefix);
         Assert.assertEquals(splitter.suffixV.getSequenceString(), expectedSuffix);
@@ -158,7 +157,7 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
 
     @DataProvider(name = "CompleteCycleData")
     public Object[][] makeCompleteCycleData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        List<Object[]> tests = new ArrayList<>();
 
         for ( final boolean hasTop : Arrays.asList(true, false) ) {
             for ( final boolean hasBot : Arrays.asList(true, false) ) {
@@ -207,11 +206,11 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
         int edgeWeight = 1;
         final SeqVertex top = hasTop ? new SeqVertex("AAAAAAAA") : null;
         final SeqVertex bot = hasBot ? new SeqVertex("GGGGGGGG") : null;
-        final List<SeqVertex> v = new ArrayList<SeqVertex>();
+        final List<SeqVertex> v = new ArrayList<>();
         for ( final String s : strings ) {
             v.add(new SeqVertex(s));
         }
-        graph.addVertices(v.toArray(new SeqVertex[]{}));
+        graph.addVertices(v.toArray(new SeqVertex[v.size()]));
         final SeqVertex first = v.get(0);
 
         if ( hasTop ) {
@@ -226,10 +225,10 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
                 graph.addEdge(vi, bot, new BaseEdge(vi == first, edgeWeight++));
         }
 
-        final Set<String> haplotypes = new HashSet<String>();
-        final List<Path<SeqVertex,BaseEdge>> originalPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths((SeqGraph)graph.clone());
-        for ( final Path<SeqVertex,BaseEdge> path : originalPaths )
-            haplotypes.add(new String(path.getBases()));
+        final Set<String> haplotypes = new HashSet<>();
+        final List<KBestHaplotype> originalPaths = new KBestHaplotypeFinder((SeqGraph) graph.clone(),graph.getSources(),graph.getSinks());
+        for ( final KBestHaplotype path : originalPaths )
+            haplotypes.add(new String(path.bases()));
 
         final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(graph, v);
         splitter.split();
@@ -238,22 +237,22 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
         splitter.updateGraph(top, bot);
         if ( PRINT_GRAPHS ) graph.printGraph(new File(Utils.join("_", strings) + ".updated.dot"), 0);
 
-        final List<Path<SeqVertex,BaseEdge>> splitPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(graph);
-        for ( final Path<SeqVertex,BaseEdge> path : splitPaths ) {
-            final String h = new String(path.getBases());
+        final List<KBestHaplotype> splitPaths = new KBestHaplotypeFinder(graph,graph.getSources(),graph.getSinks());
+        for ( final KBestHaplotype path : splitPaths ) {
+            final String h = new String(path.bases());
             Assert.assertTrue(haplotypes.contains(h), "Failed to find haplotype " + h);
         }
 
         if ( splitPaths.size() == originalPaths.size() ) {
             for ( int i = 0; i < originalPaths.size(); i++ ) {
-                Assert.assertTrue(splitPaths.get(i).equalScoreAndSequence(originalPaths.get(i)), "Paths not equal " + splitPaths.get(i) + " vs. original " + originalPaths.get(i));
+                Assert.assertTrue(splitPaths.get(i).path().equalScoreAndSequence(originalPaths.get(i).path()), "Paths not equal " + splitPaths.get(i) + " vs. original " + originalPaths.get(i));
             }
         }
     }
 
     @DataProvider(name = "MeetsMinSequenceData")
     public Object[][] makeMeetsMinSequenceData() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        final List<Object[]> tests = new ArrayList<>();
 
         final boolean prefixBiased = SharedVertexSequenceSplitter.prefersPrefixMerging();
         tests.add(new Object[]{Arrays.asList("AC", "AC"), 0, true, true});
@@ -280,9 +279,9 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
 
         final SeqVertex top = new SeqVertex("AAAAAAAA");
         final SeqVertex bot = new SeqVertex("GGGGGGGG");
-        final List<SeqVertex> v = new ArrayList<SeqVertex>();
+        final List<SeqVertex> v = new ArrayList<>();
         for ( final String s : mids ) { v.add(new SeqVertex(s)); }
-        graph.addVertices(v.toArray(new SeqVertex[]{}));
+        graph.addVertices(v.toArray(new SeqVertex[v.size()]));
         graph.addVertices(top, bot);
         for ( final SeqVertex vi : v ) { graph.addEdge(top, vi); graph.addEdge(vi, bot); }
 

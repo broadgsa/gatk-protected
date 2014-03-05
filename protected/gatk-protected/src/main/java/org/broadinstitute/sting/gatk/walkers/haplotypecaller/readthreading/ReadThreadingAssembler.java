@@ -73,7 +73,6 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
     private final boolean dontIncreaseKmerSizesForCycles;
     private final int numPruningSamples;
-    private boolean requireReasonableNumberOfPaths = false;
     protected boolean removePathsNotConnectedToRef = true;
     private boolean justReturnRawGraph = false;
 
@@ -207,22 +206,10 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         initialSeqGraph.cleanNonRefPaths(); // TODO -- I don't this is possible by construction
 
         final AssemblyResult cleaned = cleanupSeqGraph(initialSeqGraph);
-        final AssemblyResult.Status status = cleaned.getStatus() == AssemblyResult.Status.ASSEMBLED_SOME_VARIATION && requireReasonableNumberOfPaths && !reasonableNumberOfPaths(cleaned.getGraph()) ? AssemblyResult.Status.FAILED : cleaned.getStatus();
+        final AssemblyResult.Status status = cleaned.getStatus();
         final AssemblyResult result = new AssemblyResult(status, cleaned.getGraph());
         result.setThreadingGraph(rtgraph);
         return result;
-    }
-
-    /**
-     * Did we find a reasonable number of paths in this graph?
-     * @param graph
-     * @return
-     */
-    private boolean reasonableNumberOfPaths(final SeqGraph graph) {
-        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<>(false);
-        final List<Path<SeqVertex,BaseEdge>> allPaths = pathFinder.getKBestPaths(graph, 100000);
-        logger.info("Found " + allPaths.size() + " paths through " + graph + " with maximum " + maxAllowedPathsForReadThreadingAssembler);
-        return allPaths.size() <= maxAllowedPathsForReadThreadingAssembler;
     }
 
     @Override

@@ -50,16 +50,19 @@ import net.sf.samtools.Cigar;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMTag;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Path;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
+import org.broadinstitute.sting.utils.sam.CigarUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.smithwaterman.SWPairwiseAlignment;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A BAMWriter that aligns reads to haplotypes and emits their best alignments to a BAM file
@@ -220,7 +223,7 @@ public abstract class HaplotypeBAMWriter {
 
         try {
             // compute the smith-waterman alignment of read -> haplotype
-            final SWPairwiseAlignment swPairwiseAlignment = new SWPairwiseAlignment(haplotype.getBases(), originalRead.getReadBases(), Path.NEW_SW_PARAMETERS);
+            final SWPairwiseAlignment swPairwiseAlignment = new SWPairwiseAlignment(haplotype.getBases(), originalRead.getReadBases(), CigarUtils.NEW_SW_PARAMETERS);
             //swPairwiseAlignment.printAlignment(haplotype.getBases(), originalRead.getReadBases());
             if ( swPairwiseAlignment.getAlignmentStart2wrt1() == -1 )
                 // sw can fail (reasons not clear) so if it happens just don't write the read

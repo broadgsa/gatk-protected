@@ -212,8 +212,7 @@ public class ReadThreadingGraphUnitTest extends BaseTest {
         rtgraph.buildGraphIfNecessary();
 
         final SeqGraph graph = rtgraph.convertToSequenceGraph();
-        final KBestPaths<SeqVertex,BaseEdge> pathFinder = new KBestPaths<>(false);
-        Assert.assertEquals(pathFinder.getKBestPaths(graph, length, graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex()).size(), 1);
+        Assert.assertEquals(new KBestHaplotypeFinder(graph, graph.getReferenceSourceVertex(), graph.getReferenceSinkVertex()).size(), 1);
     }
 
 // TODO -- update to use determineKmerSizeAndNonUniques directly
