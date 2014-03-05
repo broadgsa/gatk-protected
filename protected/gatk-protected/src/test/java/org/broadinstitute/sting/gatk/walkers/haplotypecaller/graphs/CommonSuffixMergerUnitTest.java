@@ -137,19 +137,20 @@ public class CommonSuffixMergerUnitTest extends BaseTest {
     public static void assertSameHaplotypes(final String name, final SeqGraph actual, final SeqGraph original) {
         try {
             final Set<String> haplotypes = new HashSet<String>();
-            final List<Path<SeqVertex,BaseEdge>> originalPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(original);
-            for ( final Path<SeqVertex,BaseEdge> path : originalPaths )
-                haplotypes.add(new String(path.getBases()));
+            final List<KBestHaplotype> originalKBestHaplotypes = new KBestHaplotypeFinder(original,original.getSources(),original.getSinks());
+            final List<KBestHaplotype> actualKBestHaplotypes = new KBestHaplotypeFinder(actual,actual.getSources(),actual.getSinks());
 
-            final List<Path<SeqVertex,BaseEdge>> splitPaths = new KBestPaths<SeqVertex,BaseEdge>().getKBestPaths(actual);
-            for ( final Path<SeqVertex,BaseEdge> path : splitPaths ) {
-                final String h = new String(path.getBases());
+            for (final KBestHaplotype kbh : originalKBestHaplotypes)
+                haplotypes.add(new String(kbh.bases()));
+
+            for ( final KBestHaplotype kbh : actualKBestHaplotypes ) {
+                final String h = new String(kbh.bases());
                 Assert.assertTrue(haplotypes.contains(h), "Failed to find haplotype " + h);
             }
 
-            if ( splitPaths.size() == originalPaths.size() ) {
-                for ( int i = 0; i < originalPaths.size(); i++ ) {
-                    Assert.assertTrue(splitPaths.get(i).equalSequence(originalPaths.get(i)), "Paths not equal " + splitPaths.get(i) + " vs. original " + originalPaths.get(i));
+            if ( actualKBestHaplotypes.size() == originalKBestHaplotypes.size() ) {
+                for ( int i = 0; i < originalKBestHaplotypes.size(); i++ ) {
+                    Assert.assertTrue(actualKBestHaplotypes.get(i).haplotype().getBaseString().equals(originalKBestHaplotypes.get(i).haplotype().getBaseString()), "Paths not equal " + actualKBestHaplotypes.get(i).haplotype() + " vs. original " + originalKBestHaplotypes.get(i).haplotype());
                 }
             }
         } catch ( AssertionError e ) {
