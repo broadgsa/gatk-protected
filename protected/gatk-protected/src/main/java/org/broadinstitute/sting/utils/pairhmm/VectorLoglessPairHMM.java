@@ -133,9 +133,9 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                     //Could not load from Java's library path - try unpacking from jar
                     try
                     {
-                        logger.info("libVectorLoglessPairHMM not found in JVM library path - trying to unpack from StingUtils.jar");
+                        logger.debug("libVectorLoglessPairHMM not found in JVM library path - trying to unpack from StingUtils.jar");
                         loadLibraryFromJar("/org/broadinstitute/sting/utils/pairhmm/libVectorLoglessPairHMM.so");
-                        logger.info("libVectorLoglessPairHMM unpacked successfully from StingUtils.jar");
+                        logger.debug("libVectorLoglessPairHMM unpacked successfully from StingUtils.jar");
                     }
                     catch(IOException ioe)
                     {
@@ -269,7 +269,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
      * The file from JAR is copied into system temporary directory and then loaded. The temporary file is deleted after exiting.
      * Method uses String as filename because the pathname is "abstract", not system-dependent.
      * 
-     * @param filename The filename inside JAR as absolute path (beginning with '/'), e.g. /package/File.ext
+     * @param path The filename inside JAR as absolute path (beginning with '/'), e.g. /package/File.ext
      * @throws IOException If temporary file creation or read/write operation fails
      * @throws IllegalArgumentException If source file (param path) does not exist
      * @throws IllegalArgumentException If the path is not absolute or if the filename is shorter than three characters (restriction of {@see File#createTempFile(java.lang.String, java.lang.String)}).
