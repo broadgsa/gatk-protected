@@ -86,30 +86,31 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
                 case EXACT: return new Log10PairHMM(true);
                 case ORIGINAL: return new Log10PairHMM(false);
                 case LOGLESS_CACHING:
-                               if (noFpga || !CnyPairHMM.isAvailable())
-                                   return new LoglessPairHMM();
-                               else
-                                   return new CnyPairHMM();
+                    if (noFpga || !CnyPairHMM.isAvailable())
+                        return new LoglessPairHMM();
+                    else
+                        return new CnyPairHMM();
                 case VECTOR_LOGLESS_CACHING:
-                               try
-                               {
-                                   return new VectorLoglessPairHMM();
-                               }
-                               catch(UnsatisfiedLinkError ule)
-                               {
-                                   logger.warn("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
-                                   return new LoglessPairHMM();
-                               }
+                    try
+                    {
+                        return new VectorLoglessPairHMM();
+                    }
+                    catch(UnsatisfiedLinkError ule)
+                    {
+                        logger.warn("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
+                        return new LoglessPairHMM();
+                    }
                 case DEBUG_VECTOR_LOGLESS_CACHING:
-                               return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING);
+                    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING);
                 case ARRAY_LOGLESS:
-                               if (noFpga || !CnyPairHMM.isAvailable())
-                                   return new ArrayLoglessPairHMM();
-                               else
-                                   return new CnyPairHMM();
+                    if (noFpga || !CnyPairHMM.isAvailable())
+                        return new ArrayLoglessPairHMM();
+                    else
+                        return new CnyPairHMM();
                 default:
-                               throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
+                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
             }
+        }
     };
 //    Attempted to do as below, to avoid calling pairHMMThreadLocal.get() later on, but it resulted in a NullPointerException
 //    private final PairHMM pairHMM = pairHMMThreadLocal.get();
@@ -178,7 +179,6 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         if ( likelihoodsStream != null ) likelihoodsStream.close();
         pairHMMThreadLocal.get().close();
     }
-
 
     private void writeDebugLikelihoods(final GATKSAMRecord processedRead, final Haplotype haplotype, final double log10l){
         if ( WRITE_LIKELIHOODS_TO_FILE ) {
@@ -330,8 +330,8 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         int X_METRIC_LENGTH = 0;
         for( final Map.Entry<String, List<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
             for( final GATKSAMRecord read : sample.getValue() ) {
-               final int readLength = read.getReadLength();
-               if( readLength > X_METRIC_LENGTH ) { X_METRIC_LENGTH = readLength; }
+                final int readLength = read.getReadLength();
+                if( readLength > X_METRIC_LENGTH ) { X_METRIC_LENGTH = readLength; }
             }
         }
         int Y_METRIC_LENGTH = 0;
@@ -360,7 +360,7 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         // Add likelihoods for each sample's reads to our stratifiedReadMap
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new LinkedHashMap<>();
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
-             // evaluate the likelihood of the reads given those haplotypes
+            // evaluate the likelihood of the reads given those haplotypes
             final PerReadAlleleLikelihoodMap map = computeReadLikelihoods(haplotypes, sampleEntry.getValue());
 
             map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
