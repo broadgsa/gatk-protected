@@ -227,7 +227,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("0998be22d7af4372247f5a0338f9446b"));
+                Arrays.asList("7c3254ead383e2b9a51b242f6de2a5b2"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -244,7 +244,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGSGraphBased() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("1aeed297a3cb41940d83eac499a2ce07"));
+                Arrays.asList("eda8f91091fe462205d687ec49fc61e7"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -276,7 +276,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestAggressivePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model AGGRESSIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,000,000-10,300,000", 1,
-                Arrays.asList("f426f4c2986e1dea8f3f55951ef8e013"));
+                Arrays.asList("73c52372a1a80f052ea2b728ee17bf22"));
         executeTest("HC calling with aggressive indel error modeling on WGS intervals", spec);
     }
 
@@ -284,7 +284,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestConservativePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model CONSERVATIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,000,000-10,300,000", 1,
-                Arrays.asList("dcb38cb9280f2c3059a09d323db1c633"));
+                Arrays.asList("4e10d49b8af23d5ef3a28cb702d10a4b"));
         executeTest("HC calling with conservative indel error modeling on WGS intervals", spec);
     }
 
@@ -298,4 +298,25 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testGraphBasedNoSuchEdgeBugFix", spec);
     }
+
+    @Test
+    public void testLackSensitivityDueToBadHaplotypeSelectionFix() {
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header ",
+                b37KGReferenceWithDecoy, privateTestDir + "hc-lack-sensitivity.bam", privateTestDir + "hc-lack-sensitivity.interval_list",
+                HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("e2e6647f7c96e91aeead7301017dc800"));
+        spec.disableShadowBCF();
+        executeTest("testLackSensitivityDueToBadHaplotypeSelectionFix", spec);
+    }
+
+    @Test
+    public void testBadLikelihoodsDueToBadHaplotypeSelectionFix() {
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header ",
+                hg19RefereneWithChrPrefixInChromosomeNames, privateTestDir + "bad-likelihoods.bam", privateTestDir + "bad-likelihoods.interval_list",
+                HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("cbda30145523bf05e0413157f1a00b3e"));
+        spec.disableShadowBCF();
+        executeTest("testBadLikelihoodsDueToBadHaplotypeSelectionFix", spec);
+    }
+
 }

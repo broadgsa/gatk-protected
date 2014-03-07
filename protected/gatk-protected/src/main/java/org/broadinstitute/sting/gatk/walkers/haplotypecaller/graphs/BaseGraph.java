@@ -52,6 +52,7 @@ import com.google.java.contract.Requires;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.jgrapht.EdgeFactory;
+import org.jgrapht.alg.CycleDetector;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
 import java.io.File;
@@ -144,6 +145,39 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
             if ( isSink(v) )
                 set.add(v);
         return set;
+    }
+
+    /**
+     * Convert this kmer graph to a simple sequence graph.
+     *
+     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
+     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
+     *
+     * @return a newly allocated SequenceGraph
+     */
+    public SeqGraph convertToSequenceGraph() {
+
+        final SeqGraph seqGraph = new SeqGraph(kmerSize);
+        final Map<V, SeqVertex> vertexMap = new HashMap<>();
+
+
+        // create all of the equivalent seq graph vertices
+        for ( final V dv : vertexSet() ) {
+            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
+            sv.setAdditionalInfo(dv.additionalInfo());
+            vertexMap.put(dv, sv);
+            seqGraph.addVertex(sv);
+        }
+
+        // walk through the nodes and connect them to their equivalent seq vertices
+        for( final E e : edgeSet() ) {
+            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
+            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
+            //logger.info("Adding edge " + seqInV + " -> " + seqOutV);
+            seqGraph.addEdge(seqInV, seqOutV, new BaseEdge(e.isRef(), e.getMultiplicity()));
+        }
+
+        return seqGraph;
     }
 
     /**
@@ -711,5 +745,14 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
         for (final V vertex : vertices)
             if (!containsVertex(vertex)) return false;
         return true;
+    }
+
+    /**
+     * Checks for the presence of directed cycles in the graph.
+     *
+     * @return {@code true} if the graph has cycles, {@code false} otherwise.
+     */
+    public boolean hasCycles() {
+        return new CycleDetector<>(this).detectCycles();
     }
 }

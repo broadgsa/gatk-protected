@@ -45,8 +45,13 @@
 */
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
+import org.broadinstitute.sting.utils.collections.Pair;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.jgrapht.alg.CycleDetector;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.*;
 
 /**
@@ -233,7 +238,7 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
     }
 
     @Override
-    public KBestHaplotype get(int index) {
+    public KBestHaplotype get(final int index) {
         if (index < 0 || index >= size())
             throw new IndexOutOfBoundsException();
         return topFinder.getKBest(index);
@@ -305,28 +310,28 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
     /**
      * Creates a finder from a vertex.
      *
-     * @param source the source vertex for the finder.
+     * @param vertex the source vertex for the finder.
      *
      * @return never {@code null}, perhaps a finder that returns no haplotypes though.
      */
-    protected KBestSubHaplotypeFinder createVertexFinder(final SeqVertex source) {
-        KBestSubHaplotypeFinder node = finderByVertex.get(source);
-        if (node == null) {
-            if (sinks.contains(source))
-                node = new EmptyPathHaplotypeFinderNode(graph,source);
+    protected KBestSubHaplotypeFinder createVertexFinder(final SeqVertex vertex) {
+        KBestSubHaplotypeFinder finder = finderByVertex.get(vertex);
+        if (finder == null) {
+            if (sinks.contains(vertex))
+                finder = new EmptyPathHaplotypeFinderNode(graph,vertex);
             else {
-                final Set<BaseEdge> outgoingEdges = graph.outgoingEdgesOf(source);
+                final Set<BaseEdge> outgoingEdges = graph.outgoingEdgesOf(vertex);
                 if (outgoingEdges.isEmpty())
-                    node = DeadEndKBestSubHaplotypeFinder.INSTANCE;
+                    finder = DeadEndKBestSubHaplotypeFinder.INSTANCE;
                 else {
                     final Map<BaseEdge,KBestSubHaplotypeFinder> undeadChildren = createChildrenFinders(outgoingEdges);
-                    node = undeadChildren.isEmpty() ? DeadEndKBestSubHaplotypeFinder.INSTANCE :
-                            new RecursiveSubHaplotypeFinder(source,undeadChildren);
+                    finder = undeadChildren.isEmpty() ? DeadEndKBestSubHaplotypeFinder.INSTANCE :
+                            new RecursiveSubHaplotypeFinder(graph,vertex,undeadChildren);
                 }
             }
-            finderByVertex.put(source, node);
+            finderByVertex.put(vertex, finder);
         }
-        return node;
+        return finder;
     }
 
     /**
@@ -340,7 +345,7 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
      * @return never {@code null}, perhaps an empty map if there is no children with valid paths to any sink for this
      *  finder.
      */
-    private Map<BaseEdge, KBestSubHaplotypeFinder> createChildrenFinders(Set<BaseEdge> baseEdges) {
+    private Map<BaseEdge, KBestSubHaplotypeFinder> createChildrenFinders(final Set<BaseEdge> baseEdges) {
         final Map<BaseEdge,KBestSubHaplotypeFinder> result = new LinkedHashMap<>(baseEdges.size());
         for (final BaseEdge edge : baseEdges) {
             final KBestSubHaplotypeFinder targetFinder = createVertexFinder(graph.getEdgeTarget(edge));
@@ -348,5 +353,157 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
             result.put(edge, targetFinder);
         }
         return result;
+    }
+
+    /**
+     * Print a DOT representation of search graph.
+     *
+     * @param out character stream printer where to print the DOT representation to.
+     *
+     * @throws IllegalArgumentException if {@code out} is {@code null}.
+     */
+    public void printDOT(final PrintWriter out) {
+        if (out == null)
+            throw new IllegalArgumentException("the out writer cannot be null");
+        out.println("digraph {");
+        out.println("    rankdir = LR");
+        out.println("    node [shape=box, margin=0.01]");
+        out.println("    subgraph cluster_dummy { style = invis; x [label=\"\",shape=none,margin=0] }");
+        final StringBuilder referenceCluster = new StringBuilder(1000);
+
+        referenceCluster.append("    subgraph cluster_ref {\n");
+        referenceCluster.append("        node [penwidth=2]\n");
+        for (final KBestSubHaplotypeFinder finder : finderByVertex.values() ) {
+            final String id = finder.id();
+            final String line = String.format("    %s [label=<%s>]",id,finder.label());
+            if (finder.isReference())
+                referenceCluster.append("    ").append(line).append('\n');
+            else
+                out.println(line);
+        }
+        referenceCluster.append("    }");
+        out.println(referenceCluster.toString());
+
+        for (final KBestSubHaplotypeFinder finder : finderByVertex.values())
+            for (final Pair<? extends KBestSubHaplotypeFinder,String> subFinderLabel : finder.subFinderLabels()) {
+                final KBestSubHaplotypeFinder subFinder = subFinderLabel.getFirst();
+
+                final String edgeLabel = subFinderLabel.getSecond();
+                out.println(String.format("    %s -> %s [label=%s]",finder.id(),subFinder.id(),edgeLabel));
+            }
+        out.println("}");
+    }
+
+    /**
+     * Print a DOT representation of search graph.
+     *
+     * @param file file where to print the DOT representation to.
+     *
+     * @throws IllegalArgumentException if {@code file} is {@code null}.
+     * @throws FileNotFoundException if {@code file} cannot be created or written.
+     * @throws IllegalStateException if there was some trouble when writing the DOT representation.
+     */
+    public void printDOT(final File file) throws FileNotFoundException {
+        if (file == null)
+            throw new IllegalArgumentException("the output file cannot be null");
+        final PrintWriter out = new PrintWriter(file);
+        printDOT(out);
+        if (out.checkError())
+            throw new IllegalStateException("error occurred while writing k-best haplotype search graph into file '"
+                    + file.getAbsolutePath() + "'");
+        out.close();
+    }
+
+    /**
+     * Print a DOT representation of search graph.
+     *
+     * @param fileName name of the file where to print the DOT representation to.
+     *
+     * @throws IllegalArgumentException if {@code fileName} is {@code null}.
+     * @throws FileNotFoundException if no file named {@code fileName} cannot be created or written.
+     * @throws IllegalStateException if there was some trouble when writing the DOT representation.
+     */
+    @SuppressWarnings("unused") // Available for debugging purposes.
+    public void printDOTFile(final String fileName) throws FileNotFoundException {
+        printDOT(new File(fileName));
+    }
+
+    /**
+     * Get the score of a give sequence of bases
+     *
+     * @param bases the base sequence.
+     *
+     * @return {@link Double#NaN} if there is no score for the sequence, i.e. there is no such a haplotype accessible
+     *   throw this finder.
+     */
+    public double score(final byte[] bases) {
+        return topFinder.score(bases,0,bases.length);
+    }
+
+    /**
+     * Get the score of a give sequence of bases
+     *
+     * @param haplotype the haplotype.
+     *
+     * @return {@link Double#NaN} if there is no score for the sequence, i.e. there is no such a haplotype accessible
+     *   throw this finder.
+     */
+    public double score(final Haplotype haplotype) {
+        return score(haplotype.getBases());
+    }
+
+
+    /**
+     * Returns a unique list of haplotypes solutions.
+     * <p>
+     *     The result will not contain more than one haplotype with the same base sequence. The solution of the best
+     *     score is returned.
+     * </p>
+     * <p>
+     *     This makes sense when there are more than one possible path through the graph to create the same haplotype.
+     * </p>
+     * <p>
+     *     The resulting list is sorted by the score with more likely haplotype search results first.
+     * </p>
+     *
+     * @param maxSize maximum number of unique results to return.
+     *
+     * @throws IllegalArgumentException if {@code maxSize} is negative.
+     *
+     * @return never {@code null}, perhaps an empty list.
+     */
+    public List<KBestHaplotype> unique(final int maxSize) {
+        if (maxSize < 0) throw new IllegalArgumentException("maxSize cannot be negative");
+        final int requiredCapacity = Math.min(maxSize,size());
+        final Set<Haplotype> haplotypes = new HashSet<>(requiredCapacity);
+        int resultSize = 0;
+        final List<KBestHaplotype> result = new ArrayList<>(requiredCapacity);
+        for (final KBestHaplotype kbh : this) {
+            if (haplotypes.add(kbh.haplotype())) {
+                result.add(kbh);
+                if (resultSize == maxSize) break;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns a unique list of haplotypes solutions.
+     *
+     * <p>
+     *     The result will not contain more than one haplotype with the same base sequence. The solution of the best
+     *     score is returned.
+     * </p>
+     * <p>
+     *     This makes sense when there are more than one possible path through the graph to create the same haplotype.
+     * </p>
+     * <p>
+     *     The resulting list is sorted by the score with more likely haplotype search results first.
+     * </p>
+     *
+     * @return never {@code null}, perhaps an empty list.
+     */
+    public List<KBestHaplotype> unique() {
+        return unique(size());
     }
 }

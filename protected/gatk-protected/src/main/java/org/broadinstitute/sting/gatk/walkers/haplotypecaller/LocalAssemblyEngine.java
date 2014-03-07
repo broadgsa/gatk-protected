@@ -213,16 +213,18 @@ public abstract class LocalAssemblyEngine {
                                             final Map<SeqGraph,AssemblyResult> assemblyResultByGraph, final AssemblyResultSet assemblyResultSet) {
         // add the reference haplotype separately from all the others to ensure that it is present in the list of haplotypes
         final Set<Haplotype> returnHaplotypes = new LinkedHashSet<>();
-        returnHaplotypes.add( refHaplotype );
 
         final int activeRegionStart = refHaplotype.getAlignmentStartHapwrtRef();
+        final ArrayList<KBestHaplotypeFinder> finders = new ArrayList<>(graphs.size());
 
         for( final SeqGraph graph : graphs ) {
             final SeqVertex source = graph.getReferenceSourceVertex();
             final SeqVertex sink = graph.getReferenceSinkVertex();
             if ( source == null || sink == null ) throw new IllegalArgumentException("Both source and sink cannot be null but got " + source + " and sink " + sink + " for graph "+ graph);
             final KBestHaplotypeFinder haplotypeFinder = new KBestHaplotypeFinder(graph,source,sink);
+            finders.add(haplotypeFinder);
             final Iterator<KBestHaplotype> bestHaplotypes = haplotypeFinder.iterator(numBestHaplotypesPerGraph);
+
             while (bestHaplotypes.hasNext()) {
                 final KBestHaplotype kBestHaplotype = bestHaplotypes.next();
                 final Haplotype h = kBestHaplotype.haplotype();
@@ -256,9 +258,19 @@ public abstract class LocalAssemblyEngine {
             }
         }
 
-
-        if ( returnHaplotypes.size() < returnHaplotypes.size() )
-            logger.info("Found " + returnHaplotypes.size() + " candidate haplotypes of " + returnHaplotypes.size() + " possible combinations to evaluate every read against at " + refLoc);
+        // Make sure that the ref haplotype is amongst the return haplotypes and calculate its score as
+        // the first returned by any finder.
+        if (!returnHaplotypes.contains(refHaplotype)) {
+            double refScore = Double.NaN;
+            for (final KBestHaplotypeFinder finder : finders) {
+                final double candidate = finder.score(refHaplotype);
+                if (Double.isNaN(candidate)) continue;
+                refScore = candidate;
+                break;
+            }
+            refHaplotype.setScore(refScore);
+            returnHaplotypes.add(refHaplotype);
+        }
 
         if( debug ) {
             if( returnHaplotypes.size() > 1 ) {

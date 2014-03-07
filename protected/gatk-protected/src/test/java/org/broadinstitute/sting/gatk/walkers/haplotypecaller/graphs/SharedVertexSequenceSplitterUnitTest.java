@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.testng.Assert;
@@ -226,28 +227,34 @@ public class SharedVertexSequenceSplitterUnitTest extends BaseTest {
         }
 
         final Set<String> haplotypes = new HashSet<>();
-        final List<KBestHaplotype> originalPaths = new KBestHaplotypeFinder((SeqGraph) graph.clone(),graph.getSources(),graph.getSinks());
+        final KBestHaplotypeFinder originalPaths = new KBestHaplotypeFinder((SeqGraph) graph.clone(),graph.getSources(),graph.getSinks());
         for ( final KBestHaplotype path : originalPaths )
             haplotypes.add(new String(path.bases()));
 
         final SharedVertexSequenceSplitter splitter = new SharedVertexSequenceSplitter(graph, v);
         splitter.split();
-        if ( PRINT_GRAPHS ) graph.printGraph(new File(Utils.join("_", strings) + ".original.dot"), 0);
-        if ( PRINT_GRAPHS ) splitter.splitGraph.printGraph(new File(Utils.join("_", strings) + ".split.dot"), 0);
+        if ( PRINT_GRAPHS ) graph.printGraph(new File(Utils.join("_", strings) + "_" + hasTop + "_" + hasBot + ".original.dot"), 0);
+        if ( PRINT_GRAPHS ) splitter.splitGraph.printGraph(new File(Utils.join("_", strings) + "_" + hasTop + "_" + hasBot + ".split.dot"), 0);
         splitter.updateGraph(top, bot);
-        if ( PRINT_GRAPHS ) graph.printGraph(new File(Utils.join("_", strings) + ".updated.dot"), 0);
+        if ( PRINT_GRAPHS ) graph.printGraph(new File(Utils.join("_", strings) + "_" + hasTop + "_" + hasBot + ".updated.dot"), 0);
 
-        final List<KBestHaplotype> splitPaths = new KBestHaplotypeFinder(graph,graph.getSources(),graph.getSinks());
+        final KBestHaplotypeFinder splitPaths = new KBestHaplotypeFinder(graph,graph.getSources(),graph.getSinks());
         for ( final KBestHaplotype path : splitPaths ) {
             final String h = new String(path.bases());
             Assert.assertTrue(haplotypes.contains(h), "Failed to find haplotype " + h);
         }
 
-        if ( splitPaths.size() == originalPaths.size() ) {
-            for ( int i = 0; i < originalPaths.size(); i++ ) {
-                Assert.assertTrue(splitPaths.get(i).path().equalScoreAndSequence(originalPaths.get(i).path()), "Paths not equal " + splitPaths.get(i) + " vs. original " + originalPaths.get(i));
-            }
-        }
+
+        final List<byte[]> sortedOriginalPaths = new ArrayList<>(originalPaths.size());
+        for (final KBestHaplotype kbh : originalPaths.unique())
+            sortedOriginalPaths.add(kbh.bases());
+        Collections.sort(sortedOriginalPaths, BaseUtils.BASES_COMPARATOR);
+        final List<byte[]> sortedSplitPaths = new ArrayList<>(splitPaths.size());
+        for (final KBestHaplotype kbh : splitPaths.unique())
+            sortedSplitPaths.add(kbh.bases());
+        Collections.sort(sortedSplitPaths, BaseUtils.BASES_COMPARATOR);
+
+        Assert.assertEquals(sortedSplitPaths,sortedOriginalPaths,Utils.join("_", strings) + "_" + hasTop + "_" + hasBot);
     }
 
     @DataProvider(name = "MeetsMinSequenceData")
