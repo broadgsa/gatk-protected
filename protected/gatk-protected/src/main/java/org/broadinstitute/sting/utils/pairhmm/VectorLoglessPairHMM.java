@@ -154,6 +154,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     //Hold the mapping between haplotype and index in the list of Haplotypes passed to initialize
     //Use this mapping in computeLikelihoods to find the likelihood value corresponding to a given Haplotype
     private HashMap<Haplotype,Integer> haplotypeToHaplotypeListIdxMap = new HashMap<Haplotype,Integer>();
+    private JNIHaplotypeDataHolderClass[] mHaplotypeDataArray;
     @Override
     public HashMap<Haplotype, Integer> getHaplotypeToHaplotypeListIdxMap() { return haplotypeToHaplotypeListIdxMap; }
     
@@ -166,17 +167,17 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     public void initialize( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList,
             final int readMaxLength, final int haplotypeMaxLength ) {
         int numHaplotypes = haplotypes.size();
-        JNIHaplotypeDataHolderClass[] haplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
+        mHaplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
         int idx = 0;
         haplotypeToHaplotypeListIdxMap.clear();
         for(final Haplotype currHaplotype : haplotypes)
         {
-            haplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
-            haplotypeDataArray[idx].haplotypeBases = currHaplotype.getBases();
+            mHaplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
+            mHaplotypeDataArray[idx].haplotypeBases = currHaplotype.getBases();
             haplotypeToHaplotypeListIdxMap.put(currHaplotype, idx);
             ++idx;
         }
-        jniInitializeHaplotypes(numHaplotypes, haplotypeDataArray);
+        jniInitializeHaplotypes(numHaplotypes, mHaplotypeDataArray);
     }
     /**
      * Tell JNI to release arrays - really important if native code is directly accessing Java memory, if not
@@ -227,8 +228,8 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         //for(reads)
         //   for(haplotypes)
         //       compute_full_prob()
-        jniComputeLikelihoods(readListSize, numHaplotypes, readDataArray, null, mLikelihoodArray, 12);
-
+        jniComputeLikelihoods(readListSize, numHaplotypes, readDataArray, mHaplotypeDataArray, mLikelihoodArray, 12);
+        
         final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
         idx = 0;
         int idxInsideHaplotypeList = 0;
