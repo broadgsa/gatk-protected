@@ -358,7 +358,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         final File outputVCFNoQD = executeTest("testQualByDepth calling without QD", specNoQD).getFirst().get(0);
 
         final String baseAnn = String.format("-T VariantAnnotator -R %s -V %s", REF, outputVCFNoQD.getAbsolutePath()) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -A QualByDepth";
-        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("d9304563b1152a6eee6221a016692cf9"));
+        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("388200d107fb47326df78a971a52698f"));
         specAnn.disableShadowBCF();
         final File outputVCFAnn = executeTest("testQualByDepth re-annotation of QD", specAnn).getFirst().get(0);
 
