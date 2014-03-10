@@ -44,51 +44,20 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.pairhmm;
 
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
 
-import java.util.List;
-import java.util.Map;
+import java.util.HashMap;
+
 
 /**
- * Common interface for assembly-haplotype vs reads likelihood engines.
+ * Created with IntelliJ IDEA.
+ * User: rpoplin, carneiro
+ * Date: 10/16/12
  */
-public interface LikelihoodCalculationEngine {
-
-    enum Implementation {
-        /**
-         * Classic full pair-hmm all haplotypes vs all reads.
-         */
-        PairHMM,
-
-        /**
-         * Graph-base likelihoods.
-         */
-        GraphBased,
-
-        /**
-         * Random likelihoods, used to establish a baseline benchmark for other meaningful implementations.
-         */
-        Random
-    }
-
-
-    /**
-     * Calculates the likelihood of reads across many samples evaluated against haplotypes resulting from the
-     * active region assembly process.
-     *
-     * @param assemblyResultSet the input assembly results.
-     * @param perSampleReadList the input read sets stratified per sample.
-     *
-     * @throws NullPointerException if either parameter is {@code null}.
-     *
-     * @return never {@code null}, and with at least one entry for input sample (keys in {@code perSampleReadList}.
-     *    The value maps can be potentially empty though.
-     */
-    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(AssemblyResultSet assemblyResultSet,
-                               Map<String, List<GATKSAMRecord>> perSampleReadList);
-
-    public void close();
+public abstract class JNILoglessPairHMM extends LoglessPairHMM {
+    public abstract HashMap<Haplotype, Integer> getHaplotypeToHaplotypeListIdxMap();
+    protected long setupTime = 0;
+    
 }

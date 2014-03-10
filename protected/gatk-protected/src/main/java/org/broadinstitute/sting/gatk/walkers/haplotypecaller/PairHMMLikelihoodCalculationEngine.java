@@ -90,6 +90,18 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
                         return new LoglessPairHMM();
                     else
                         return new CnyPairHMM();
+                case VECTOR_LOGLESS_CACHING:
+                    try
+                    {
+                        return new VectorLoglessPairHMM();
+                    }
+                    catch(UnsatisfiedLinkError ule)
+                    {
+                        logger.debug("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
+                        return new LoglessPairHMM();
+                    }
+                case DEBUG_VECTOR_LOGLESS_CACHING:
+                    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING);
                 case ARRAY_LOGLESS:
                     if (noFpga || !CnyPairHMM.isAvailable())
                         return new ArrayLoglessPairHMM();
@@ -162,9 +174,12 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         }
     }
 
+    @Override
     public void close() {
         if ( likelihoodsStream != null ) likelihoodsStream.close();
+        pairHMMThreadLocal.get().close();
     }
+
 
     private void writeDebugLikelihoods(final GATKSAMRecord processedRead, final Haplotype haplotype, final double log10l){
         if ( WRITE_LIKELIHOODS_TO_FILE ) {
@@ -316,8 +331,8 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         int X_METRIC_LENGTH = 0;
         for( final Map.Entry<String, List<GATKSAMRecord>> sample : perSampleReadList.entrySet() ) {
             for( final GATKSAMRecord read : sample.getValue() ) {
-               final int readLength = read.getReadLength();
-               if( readLength > X_METRIC_LENGTH ) { X_METRIC_LENGTH = readLength; }
+                final int readLength = read.getReadLength();
+                if( readLength > X_METRIC_LENGTH ) { X_METRIC_LENGTH = readLength; }
             }
         }
         int Y_METRIC_LENGTH = 0;
@@ -327,7 +342,12 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         }
 
         // initialize arrays to hold the probabilities of being in the match, insertion and deletion cases
-        pairHMMThreadLocal.get().initialize(X_METRIC_LENGTH, Y_METRIC_LENGTH);
+        pairHMMThreadLocal.get().initialize(haplotypes, perSampleReadList, X_METRIC_LENGTH, Y_METRIC_LENGTH);
+    }
+
+    private void finalizePairHMM()
+    {
+        pairHMMThreadLocal.get().finalizeRegion();
     }
 
 
@@ -341,12 +361,14 @@ public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculation
         // Add likelihoods for each sample's reads to our stratifiedReadMap
         final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new LinkedHashMap<>();
         for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
-             // evaluate the likelihood of the reads given those haplotypes
+            // evaluate the likelihood of the reads given those haplotypes
             final PerReadAlleleLikelihoodMap map = computeReadLikelihoods(haplotypes, sampleEntry.getValue());
 
             map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
             stratifiedReadMap.put(sampleEntry.getKey(), map);
         }
+        //Used mostly by the JNI implementation(s) to free arrays
+        finalizePairHMM();
 
         return stratifiedReadMap;
     }
