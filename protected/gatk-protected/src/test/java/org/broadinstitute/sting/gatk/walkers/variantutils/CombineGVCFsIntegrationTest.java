@@ -165,4 +165,12 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testMD5s", spec);
     }
+
+    @Test
+    public void testBasepairResolution() throws Exception {
+        final String cmd = baseTestString(" -L 1:69485-69791 --convertToBasePairResolution");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("a068fb2c35cdd14df1e8f1f92f4114b4"));
+        spec.disableShadowBCF();
+        executeTest("testBasepairResolution", spec);
+    }
 }

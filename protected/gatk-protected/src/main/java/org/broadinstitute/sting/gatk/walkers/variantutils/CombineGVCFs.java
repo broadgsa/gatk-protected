@@ -134,6 +134,9 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     @Output(doc="File to which the combined gVCF should be written")
     protected VariantContextWriter vcfWriter = null;
 
+    @Argument(fullName="convertToBasePairResolution", shortName="bpResolution", doc = "If specified, convert banded gVCFs to all-sites gVCFs", required=false)
+    protected boolean USE_BP_RESOLUTION = false;
+
     private GenomeLocParser genomeLocParser;
 
     public void initialize() {
@@ -176,7 +179,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
             previousState.VCs.addAll(startingStates.VCs);
         }
 
-        if ( containsEndingContext(previousState.VCs, currentPos) ) {
+        if ( USE_BP_RESOLUTION || containsEndingContext(previousState.VCs, currentPos) ) {
             endPreviousStates(previousState, currentPos, startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N');
         }
 
@@ -289,7 +292,8 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
         // attributes
         final Map<String, Object> attrs = new HashMap<>(1);
-        attrs.put(VCFConstants.END_KEY, Integer.toString(end));
+        if ( !USE_BP_RESOLUTION )
+            attrs.put(VCFConstants.END_KEY, Integer.toString(end));
 
         // genotypes
         final GenotypesContext genotypes = GenotypesContext.create();
