@@ -247,7 +247,7 @@ public class VariantDataManager {
             logger.warn( "WARNING: Training with very few variant sites! Please check the model reporting PDF to ensure the quality of the model is reliable." );
         } else if( trainingData.size() > VRAC.MAX_NUM_TRAINING_DATA ) {
             logger.warn( "WARNING: Very large training set detected. Downsampling to " + VRAC.MAX_NUM_TRAINING_DATA + " training variants." );
-            Collections.shuffle(trainingData);
+            Collections.shuffle(trainingData, GenomeAnalysisEngine.getRandomGenerator());
             return trainingData.subList(0, VRAC.MAX_NUM_TRAINING_DATA);
         }
         return trainingData;
@@ -295,13 +295,13 @@ public class VariantDataManager {
 
     public List<VariantDatum> getRandomDataForPlotting( final int numToAdd, final List<VariantDatum> trainingData, final List<VariantDatum> antiTrainingData, final List<VariantDatum> evaluationData ) {
         final List<VariantDatum> returnData = new ExpandingArrayList<>();
-        Collections.shuffle(trainingData);
-        Collections.shuffle(antiTrainingData);
-        Collections.shuffle(evaluationData);
+        Collections.shuffle(trainingData, GenomeAnalysisEngine.getRandomGenerator());
+        Collections.shuffle(antiTrainingData, GenomeAnalysisEngine.getRandomGenerator());
+        Collections.shuffle(evaluationData, GenomeAnalysisEngine.getRandomGenerator());
         returnData.addAll(trainingData.subList(0, Math.min(numToAdd, trainingData.size())));
         returnData.addAll(antiTrainingData.subList(0, Math.min(numToAdd, antiTrainingData.size())));
         returnData.addAll(evaluationData.subList(0, Math.min(numToAdd, evaluationData.size())));
-        Collections.shuffle(returnData);
+        Collections.shuffle(returnData, GenomeAnalysisEngine.getRandomGenerator());
         return returnData;
     }
 
