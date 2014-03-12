@@ -117,6 +117,10 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     //The constructor is called only once inside PairHMMLikelihoodCalculationEngine
     public VectorLoglessPairHMM() {
         super();
+
+        logger.warn("WARNING: the VectorLoglessPairHMM is an experimental implementation still under active development. " +
+                    "Use at your own risk!");
+
         synchronized(isVectorLoglessPairHMMLibraryLoaded) {
             //Load the library and initialize the FieldIDs
             if(!isVectorLoglessPairHMMLibraryLoaded) {
