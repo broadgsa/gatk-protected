@@ -53,13 +53,10 @@ import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.sting.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.QualityUtils;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
@@ -81,7 +78,7 @@ import java.util.*;
  * <h3>Caveat</h3>
  * <p>The Fisher Strand test may not be calculated for certain complex indel cases or for multi-allelic sites.</p>
  */
-public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+public class FisherStrand extends StrandBiasTest implements StandardAnnotation, ActiveRegionBasedAnnotation {
     private final static boolean ENABLE_DEBUGGING = false;
     private final static Logger logger = Logger.getLogger(FisherStrand.class);
 
@@ -100,7 +97,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
             return null;
 
         if ( vc.hasGenotypes() ) {
-            final int[][] tableFromPerSampleAnnotations = getTableFromSamples( vc.getGenotypes() );
+            final int[][] tableFromPerSampleAnnotations = getTableFromSamples( vc.getGenotypes(), MIN_COUNT );
             if ( tableFromPerSampleAnnotations != null ) {
               return pValueForBestTable(tableFromPerSampleAnnotations, null);
             }
@@ -116,53 +113,14 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         else if (stratifiedPerReadAlleleLikelihoodMap != null) {
             // either SNP with no alignment context, or indels: per-read likelihood map needed
             final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc);
-//            logger.info("VC " + vc);
-//            printTable(table, 0.0);
+            //logger.info("VC " + vc);
+            //printTable(table, 0.0);
             return pValueForBestTable(table, null);
         }
         else
             // for non-snp variants, we  need per-read likelihoods.
             // for snps, we can get same result from simple pileup
             return null;
-    }
-
-    /**
-     * Create the FisherStrand table by retrieving the per-sample strand bias annotation and adding them together
-     * @param genotypes the genotypes from which to pull out the per-sample strand bias annotation
-     * @return the table used for the FisherStrand p-value calculation, will be null if none of the genotypes contain the per-sample SB annotation
-     */
-    private int[][] getTableFromSamples( final GenotypesContext genotypes ) {
-        if( genotypes == null ) { throw new IllegalArgumentException("Genotypes cannot be null."); }
-
-        final int[] sbArray = {0,0,0,0}; // reference-forward-reverse -by- alternate-forward-reverse
-        boolean foundData = false;
-
-        for( final Genotype g : genotypes ) {
-            if( g.isNoCall() || ! g.hasAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME) )
-                continue;
-
-            foundData = true;
-            final String sbbsString = (String) g.getAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME);
-            final int[] data = encodeSBBS(sbbsString);
-            if ( passesMinimumThreshold(data) ) {
-                for( int index = 0; index < sbArray.length; index++ ) {
-                    sbArray[index] += data[index];
-                }
-            }
-        }
-
-        return ( foundData ? decodeSBBS(sbArray) : null );
-    }
-
-    /**
-     * Does this strand data array pass the minimum threshold for inclusion?
-     *
-     * @param data  the array
-     * @return true if it passes the minimum threshold, false otherwise
-     */
-    private static boolean passesMinimumThreshold(final int[] data) {
-        // the ref and alt totals must each be greater than MIN_COUNT
-        return data[0] + data[1] > MIN_COUNT && data[2] + data[3] > MIN_COUNT;
     }
 
     /**
@@ -190,7 +148,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
      * @param pValue
      * @return a hash map from FS -> phred-scaled pValue
      */
-    private Map<String, Object> annotationForOneTable(final double pValue) {
+    protected Map<String, Object> annotationForOneTable(final double pValue) {
         final Object value = String.format("%.3f", QualityUtils.phredScaleErrorRate(Math.max(pValue, MIN_PVALUE))); // prevent INFINITYs
         return Collections.singletonMap(FS, value);
     }
@@ -218,36 +176,6 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
         list.add(table[1][1]);
         return list;
     }
-
-    /**
-     * Helper function to parse the genotype annotation into the SB annotation array
-     * @param string the string that is returned by genotype.getAnnotation("SB")
-     * @return the array used by the per-sample Strand Bias annotation
-     */
-    private static int[] encodeSBBS( final String string ) {
-        final int[] array = new int[4];
-        final StringTokenizer tokenizer = new StringTokenizer(string, ",", false);
-        for( int index = 0; index < 4; index++ ) {
-            array[index] = Integer.parseInt(tokenizer.nextToken());
-        }
-        return array;
-    }
-
-    /**
-     * Helper function to turn the  SB annotation array into the FisherStrand table
-     * @param array the array used by the per-sample Strand Bias annotation
-     * @return the table used by the FisherStrand annotation
-     */
-    private static int[][] decodeSBBS( final int[] array ) {
-        if(array.length != 4) { throw new IllegalArgumentException("Expecting a length = 4 strand bias array."); }
-        final int[][] table = new int[2][2];
-        table[0][0] = array[0];
-        table[0][1] = array[1];
-        table[1][0] = array[2];
-        table[1][1] = array[3];
-        return table;
-    }
-
     private Double pValueForContingencyTable(int[][] originalTable) {
         final int[][] normalizedTable = normalizeContingencyTable(originalTable);
 
@@ -419,7 +347,7 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
                 final GATKSAMRecord read = el.getKey();
                 updateTable(myTable, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt);
             }
-            if ( passesMinimumThreshold(myTable) )
+            if ( passesMinimumThreshold(myTable, MIN_COUNT) )
                 copyToMainTable(myTable, table);
         }
 
@@ -464,7 +392,8 @@ public class FisherStrand extends InfoFieldAnnotation implements StandardAnnotat
 
                 updateTable(myTable, Allele.create(p.getBase(), false), p.getRead(), ref, alt);
             }
-            if ( passesMinimumThreshold(myTable) )
+
+            if ( passesMinimumThreshold( myTable, MIN_COUNT ) )
                 copyToMainTable(myTable, table);
         }
 
