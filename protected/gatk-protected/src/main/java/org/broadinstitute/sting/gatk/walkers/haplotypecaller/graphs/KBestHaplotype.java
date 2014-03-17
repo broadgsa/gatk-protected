@@ -68,7 +68,7 @@ public abstract class KBestHaplotype implements Comparable<KBestHaplotype> {
      *
      * @return 0 or greater.
      */
-    public abstract int score();
+    public abstract double score();
 
     /**
      * Indicates whether this result is the reference haplotype.
@@ -122,6 +122,8 @@ public abstract class KBestHaplotype implements Comparable<KBestHaplotype> {
     public Haplotype haplotype() {
         if (haplotype != null) return haplotype;
         haplotype = new Haplotype(bases(),isReference());
+        if (score() > 0)
+            throw new IllegalStateException("score cannot be greater than 0: " + score());
         haplotype.setScore(score());
         return haplotype;
     }
@@ -152,7 +154,35 @@ public abstract class KBestHaplotype implements Comparable<KBestHaplotype> {
      */
     public int compareTo(final KBestHaplotype other) {
         if (other == null) throw new IllegalArgumentException("the other object cannot be null");
-        return - 1 * (score() - other.score());
+        return - Double.compare(score(), other.score());
+    }
+
+    @Override
+    public int hashCode() {
+        return haplotype().hashCode();
+    }
+
+    @Override
+    public boolean equals(final Object other) {
+        return other == null ? false: (other instanceof KBestHaplotype ? equals((KBestHaplotype)other) : false);
+    }
+
+    @Override
+    public String toString() {
+        return haplotype().toString() + " Score = "  + score();
+    }
+
+    /**
+     * Checks whether both solutions are equal.
+     * <p>
+     *     Both solutions are considered equal when the underlying haplotypes are equal. The path on the respective
+     *     graph might deffer though.
+     * </p>
+     *
+     * @return {@code true} iff both haplotypes are the same (considering the ref state).
+     */
+    protected boolean equals(final KBestHaplotype other) {
+       return haplotype().equals(other.haplotype(),false);
     }
 
     /**

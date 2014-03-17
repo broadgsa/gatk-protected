@@ -49,20 +49,24 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 import java.util.PriorityQueue;
 
 /**
- * edge class for connecting nodes in the graph that tracks some per-sample information
- *
+ * Edge class for connecting nodes in the graph that tracks some per-sample information.
+ * <p>
  * This class extends BaseEdge with the additional functionality of tracking the maximum
  * multiplicity seen within any single sample.  The workflow for using this class is:
- *
- * MultiSampleEdge e = new MultiSampleEdge(ref, 1)
- * e.incMultiplicity(1)              // total is 2, per sample is 2, max per sample is 1
- * e.getPruningMultiplicity()        // = 1
- * e.flushSingleSampleMultiplicity() // total is 2, per sample is 0, max per sample is 2
- * e.getPruningMultiplicity()        // = 2
- * e.incMultiplicity(3)              // total is 5, per sample is 3, max per sample is 2
- * e.getPruningMultiplicity()        // = 2
- * e.flushSingleSampleMultiplicity() // total is 5, per sample is 0, max per sample is 3
- * e.getPruningMultiplicity()        // = 3
+ * </p>
+ * <pre>
+ * {@code
+ *      MultiSampleEdge e = new MultiSampleEdge(ref, 1)
+ *      e.incMultiplicity(1)              // total is 2, per sample is 2, max per sample is 1
+ *      e.getPruningMultiplicity()        // = 1
+ *      e.flushSingleSampleMultiplicity() // total is 2, per sample is 0, max per sample is 2
+ *      e.getPruningMultiplicity()        // = 2
+ *      e.incMultiplicity(3)              // total is 5, per sample is 3, max per sample is 2
+ *      e.getPruningMultiplicity()        // = 2
+ *      e.flushSingleSampleMultiplicity() // total is 5, per sample is 0, max per sample is 3
+ *      e.getPruningMultiplicity()        // = 3
+ * }
+ * </pre>
  */
 public class MultiSampleEdge extends BaseEdge {
     private int currentSingleSampleMultiplicity;

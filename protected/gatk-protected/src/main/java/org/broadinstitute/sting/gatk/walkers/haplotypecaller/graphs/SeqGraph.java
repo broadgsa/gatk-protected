@@ -291,16 +291,9 @@ public class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
         final SeqVertex addedVertex = mergeLinearChainVertices(linearChain);
         addVertex(addedVertex);
 
-        final Set<BaseEdge> inEdges = incomingEdgesOf(first);
-        final Set<BaseEdge> outEdges = outgoingEdgesOf(last);
-
-        final int nEdges = inEdges.size() + outEdges.size();
-        int sharedWeightAmongEdges = nEdges == 0 ? 0 : sumEdgeWeightAlongChain(linearChain) / nEdges;
-        final BaseEdge inc = new BaseEdge(false, sharedWeightAmongEdges); // template to make .add function call easy
-
         // update the incoming and outgoing edges to point to the new vertex
-        for( final BaseEdge edge : outEdges ) { addEdge(addedVertex, getEdgeTarget(edge), edge.copy().add(inc)); }
-        for( final BaseEdge edge : inEdges )  { addEdge(getEdgeSource(edge), addedVertex, edge.copy().add(inc)); }
+        for( final BaseEdge edge : outgoingEdgesOf(last) ) { addEdge(addedVertex, getEdgeTarget(edge), edge.copy()); }
+        for( final BaseEdge edge : incomingEdgesOf(first) )  { addEdge(getEdgeSource(edge), addedVertex, edge.copy()); }
 
         removeAllVertices(linearChain);
         return true;
@@ -311,29 +304,6 @@ public class SeqGraph extends BaseGraph<SeqVertex, BaseEdge> {
         for ( SeqVertex v : vertices ) seqs.add(v.getSequence());
         final byte[] seqsCat = org.broadinstitute.sting.utils.Utils.concat(seqs.toArray(new byte[][]{}));
         return new SeqVertex( seqsCat );
-    }
-
-    /**
-     * Get the sum of the edge weights on a linear chain of at least 2 elements
-     *
-     * @param chain a linear chain of vertices with at least 2 vertices
-     * @return the sum of the multiplicities along all edges connecting vertices within the chain
-     */
-    @Requires({"chain != null", "chain.size() >= 2"})
-    private int sumEdgeWeightAlongChain(final LinkedList<SeqVertex> chain) {
-        int sum = 0;
-        SeqVertex prev = null;
-
-        for ( final SeqVertex v : chain ) {
-            if ( prev != null ) {
-                final BaseEdge e = getEdge(prev, v);
-                if ( e == null ) throw new IllegalStateException("Something wrong with the linear chain, got a null edge between " + prev + " and " + v);
-                sum += e.getMultiplicity();
-            }
-            prev = v;
-        }
-
-        return sum;
     }
 
     /**
