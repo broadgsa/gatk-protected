@@ -62,28 +62,33 @@ public class PosteriorLikelihoodsUtils {
                                                        final int numRefSamplesFromMissingResources,
                                                        final double globalFrequencyPriorDirichlet,
                                                        final boolean useInputSamples,
-                                                       final boolean useEM,
-                                                       final boolean useAC) {
-        if ( useEM )
-            throw new IllegalArgumentException("EM loop for posterior GLs not yet implemented");
+                                                       final boolean useAC,
+                                                       final boolean calcMissing) {
 
         final Map<Allele,Integer> totalAlleleCounts = new HashMap<>();
+        boolean nonSNPprior = false;
+        if (vc1 == null) throw new IllegalArgumentException("VariantContext vc1 is null");
+        final boolean nonSNPeval = !vc1.isSNP();
+        final double[] alleleCounts = new double[vc1.getNAlleles()];
 
-        //store the allele counts for each allele in the variant priors
-        for ( final VariantContext resource : resources ) {
-            addAlleleCounts(totalAlleleCounts,resource,useAC);
+        if(!nonSNPeval)
+        {
+            //store the allele counts for each allele in the variant priors
+            for ( final VariantContext resource : resources ) {
+                if( !resource.isSNP()) nonSNPprior = true;
+                addAlleleCounts(totalAlleleCounts,resource,useAC);
+            }
+
+            //add the allele counts from the input samples (if applicable)
+            if ( useInputSamples ) {
+                addAlleleCounts(totalAlleleCounts,vc1,useAC);
+            }
+
+            //add zero allele counts for any reference alleles not seen in priors (if applicable)
+            totalAlleleCounts.put(vc1.getReference(),totalAlleleCounts.get(vc1.getReference())+numRefSamplesFromMissingResources);
         }
-
-        //add the allele counts from the input samples (if applicable)
-        if ( useInputSamples ) {
-            addAlleleCounts(totalAlleleCounts,vc1,useAC);
-        }
-
-        //add zero allele counts for any reference alleles not seen in priors (if applicable)
-        totalAlleleCounts.put(vc1.getReference(),totalAlleleCounts.get(vc1.getReference())+numRefSamplesFromMissingResources);
 
         // now extract the counts of the alleles present within vc1, and in order
-        final double[] alleleCounts = new double[vc1.getNAlleles()];
         int alleleIndex = 0;
         for ( final Allele allele : vc1.getAlleles() ) {
 
@@ -91,13 +96,17 @@ public class PosteriorLikelihoodsUtils {
                     totalAlleleCounts.get(allele) : 0 );
         }
 
+
         //parse the likelihoods for each sample's genotype
         final List<double[]> likelihoods = new ArrayList<>(vc1.getNSamples());
         for ( final Genotype genotype : vc1.getGenotypes() ) {
             likelihoods.add(genotype.hasLikelihoods() ? genotype.getLikelihoods().getAsVector() : null );
         }
 
-        final List<double[]> posteriors = calculatePosteriorGLs(likelihoods,alleleCounts,vc1.getMaxPloidy(2));
+        //TODO: for now just use priors that are SNPs because indel priors will bias SNP calls
+        final boolean useFlatPriors = nonSNPeval || nonSNPprior || (resources.isEmpty() && !calcMissing);
+
+        final List<double[]> posteriors = calculatePosteriorGLs(likelihoods,alleleCounts,vc1.getMaxPloidy(2), useFlatPriors);
 
         final GenotypesContext newContext = GenotypesContext.create();
         for ( int genoIdx = 0; genoIdx < vc1.getNSamples(); genoIdx ++ ) {
@@ -112,7 +121,7 @@ public class PosteriorLikelihoodsUtils {
         }
 
         final List<Integer> priors = Utils.listFromPrimitives(
-                GenotypeLikelihoods.fromLog10Likelihoods(getDirichletPrior(alleleCounts, vc1.getMaxPloidy(2))).getAsPLs());
+                GenotypeLikelihoods.fromLog10Likelihoods(getDirichletPrior(alleleCounts, vc1.getMaxPloidy(2),useFlatPriors)).getAsPLs());
 
         final VariantContextBuilder builder = new VariantContextBuilder(vc1).genotypes(newContext).attribute("PG", priors);
         // add in the AC, AF, and AN attributes
@@ -126,16 +135,18 @@ public class PosteriorLikelihoodsUtils {
      * @param genotypeLikelihoods - the genotype likelihoods for the individual
      * @param knownAlleleCountsByAllele - the known allele counts in the population. For AC=2 AN=12 site, this is {10,2}
      * @param ploidy - the ploidy to assume
+     * @param useFlatPriors - if true, apply flat priors to likelihoods in order to calculate posterior probabilities
      * @return - the posterior genotype likelihoods
      */
     protected static List<double[]> calculatePosteriorGLs(final List<double[]> genotypeLikelihoods,
                                                           final double[] knownAlleleCountsByAllele,
-                                                          final int ploidy) {
+                                                          final int ploidy,
+                                                          final boolean useFlatPriors) {
         if ( ploidy != 2 ) {
             throw new IllegalStateException("Genotype posteriors not yet implemented for ploidy != 2");
         }
 
-        final double[] genotypePriorByAllele = getDirichletPrior(knownAlleleCountsByAllele,ploidy);
+        final double[] genotypePriorByAllele = getDirichletPrior(knownAlleleCountsByAllele,ploidy, useFlatPriors);
         final List<double[]> posteriors = new ArrayList<>(genotypeLikelihoods.size());
         for ( final double[] likelihoods : genotypeLikelihoods ) {
             double[] posteriorProbabilities = null;
@@ -164,8 +175,9 @@ public class PosteriorLikelihoodsUtils {
     // convenience function for a single genotypelikelihoods array. Just wraps.
     protected static double[] calculatePosteriorGLs(final double[] genotypeLikelihoods,
                                                  final double[] knownAlleleCountsByAllele,
-                                                 final int ploidy) {
-        return calculatePosteriorGLs(Arrays.asList(genotypeLikelihoods),knownAlleleCountsByAllele,ploidy).get(0);
+                                                 final int ploidy,
+                                                 final boolean useFlatPriors) {
+        return calculatePosteriorGLs(Arrays.asList(genotypeLikelihoods),knownAlleleCountsByAllele,ploidy, useFlatPriors).get(0);
     }
 
 
@@ -180,7 +192,7 @@ public class PosteriorLikelihoodsUtils {
      * @param ploidy - the number of chromosomes in the sample. For now restricted to 2.
      * @return - the Dirichlet-Multinomial distribution over genotype states
      */
-    protected static double[] getDirichletPrior(final double[] knownCountsByAllele, final int ploidy) {
+    protected static double[] getDirichletPrior(final double[] knownCountsByAllele, final int ploidy, final boolean useFlatPrior) {
         if ( ploidy != 2 ) {
             throw new IllegalStateException("Genotype priors not yet implemented for ploidy != 2");
         }
@@ -192,10 +204,14 @@ public class PosteriorLikelihoodsUtils {
         int priorIndex = 0;
         for ( int allele2 = 0; allele2 < knownCountsByAllele.length; allele2++ ) {
             for ( int allele1 = 0; allele1 <= allele2; allele1++) {
-                final int[] counts = new int[knownCountsByAllele.length];
-                counts[allele1] += 1;
-                counts[allele2] += 1;
-                priors[priorIndex++] = MathUtils.dirichletMultinomial(knownCountsByAllele,sumOfKnownCounts,counts,ploidy);
+                if (useFlatPrior)
+                    priors[priorIndex++] = 1.0;
+                else {
+                    final int[] counts = new int[knownCountsByAllele.length];
+                    counts[allele1] += 1;
+                    counts[allele2] += 1;
+                    priors[priorIndex++] = MathUtils.dirichletMultinomial(knownCountsByAllele,sumOfKnownCounts,counts,ploidy);
+                }
             }
         }
 

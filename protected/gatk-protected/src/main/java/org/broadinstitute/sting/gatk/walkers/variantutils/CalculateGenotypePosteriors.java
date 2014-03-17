@@ -108,6 +108,14 @@ import java.util.*;
  *  3) Per-site genotype priors added to the INFO field ("PG")
  * </p>
  *
+ * <h3>Notes</h3>
+ * <p>
+ * Currently, priors will only be applied for SNP sites in the input callset (and only those that have a SNP at the
+ * matching site in the priors VCF unless the --calculateMissingPriors flag is used).
+ * If the site is not called in the priors, flat priors will be applied. Flat priors are also applied for any non-SNP
+ * sites in the input callset.
+ * </p>
+ *
  * <h3>Examples</h3>
  * <pre>
  * Inform the genotype assignment of NA12878 using the 1000G Euro panel
@@ -180,7 +188,7 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
      */
     @Argument(fullName="numRefSamplesIfNoCall",shortName="nrs",doc="The number of homozygous reference to infer were " +
             "seen at a position where an \"other callset\" contains no site or genotype information",required=false)
-    public int numRefIfMissing = 1;
+    public int numRefIfMissing = 0;
 
     /**
      * Rather than looking for the MLEAC field first, and then falling back to AC; first look for the AC field and then
@@ -198,10 +206,14 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
           "related individuals.",required=false)
     public boolean ignoreInputSamples = false;
 
+    /**
+     * Calculate priors for missing external variants from sample data -- default behavior is to apply flat priors
+     */
+    @Argument(fullName="calculateMissingPriors",shortName="calcMissing",doc="Use discovered allele frequency in the callset for variants that do no appear in the external callset", required=false)
+    public boolean calcMissing = false;
+
     @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
-
-    private final boolean NO_EM = false;
 
     public void initialize() {
         // Get list of samples to include in the output
@@ -254,7 +266,7 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
         final int missing = supportVariants.size() - otherVCs.size();
 
         for ( VariantContext vc : vcs ) {
-            vcfWriter.add(PosteriorLikelihoodsUtils.calculatePosteriorGLs(vc, otherVCs, missing * numRefIfMissing, globalPrior, !ignoreInputSamples, NO_EM, defaultToAC));
+            vcfWriter.add(PosteriorLikelihoodsUtils.calculatePosteriorGLs(vc, otherVCs, missing * numRefIfMissing, globalPrior, !ignoreInputSamples, defaultToAC, calcMissing));
         }
 
         return 1;

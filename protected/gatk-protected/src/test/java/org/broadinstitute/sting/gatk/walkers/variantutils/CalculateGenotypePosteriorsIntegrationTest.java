@@ -56,14 +56,42 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testUsingDiscoveredAF() {
         WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header -calcMissing" +
+                        " -o %s" +
+                        " -R " + b37KGReference +
+                        " -L 20:10,000,000-10,100,000" +
+                        " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
+                1,
+                Arrays.asList("80d0eedddd215df8ab29bde908c73ca4"));
+        executeTest("testUsingDiscoveredAF", spec);
+    }
+
+    @Test(enabled = true)
+    public void testMissingPriors() {
+        WalkerTestSpec spec = new WalkerTestSpec(
                 "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
                         " -o %s" +
                         " -R " + b37KGReference +
                         " -L 20:10,000,000-10,100,000" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("e1adedc7e1d63e384187b24b7ded4410"));
-        executeTest("testUsingDiscoveredAF", spec);
+                Arrays.asList("f7653ef21b859b90d54a71ef4245ec85"));
+        executeTest("testMissingPriors", spec);
     }
+
+    @Test(enabled = true)
+    public void testInputINDELs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
+                        " -o %s" +
+                        " -R " + b37KGReference +
+                        " -L 20:10,000,000-10,100,000" +
+                        " -V " + validationDataLocation + "NA12878.Jan2013.haplotypeCaller.subset.indels.vcf" +
+                        " -VV " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
+                1,
+                Arrays.asList("6dd7dcf94bfe99ddcbd477100592db89"));
+        executeTest("testMissingPriors", spec);
+    }
+
 
 }
