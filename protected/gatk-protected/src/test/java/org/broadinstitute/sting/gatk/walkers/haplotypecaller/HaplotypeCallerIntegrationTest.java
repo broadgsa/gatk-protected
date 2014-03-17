@@ -99,12 +99,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedSingleSample() {
-        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "83fe0694621bc1e0240f6f79eb6d6999");
+        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "f87bb723bfb9b8f604db1d53624d24e3");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSample() {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "d45b2b26434dd3bd48df5a43b3d2954a");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "891295d8795c0ac894a2aec873e2a1d4");
     }
 
     @Test(enabled = false) // can't annotate the rsID's yet
@@ -244,7 +244,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGSGraphBased() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("6f6213bfc62e9cd9db56a7277ebe04e0"));
+                Arrays.asList("d2bb1a904ad419c565b00c3ac98048d1"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 

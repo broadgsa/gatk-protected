@@ -412,28 +412,28 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
         for (final GATKSAMRecord read : mayNeedAdjustment) {
             final Map<Allele, Double> existingLikelihoods = map.get(read);
             if (existingLikelihoods != null) {
-                Allele bestAllele = null;
                 double worstRelativeLikelihood = 0;
                 double bestRelativeLikelihood = Double.NEGATIVE_INFINITY;
                 for (final Map.Entry<Allele, Double> entry : map.get(read).entrySet()) {
                     final double candidateRelativeLikelihood = entry.getValue();
                     if (candidateRelativeLikelihood > bestRelativeLikelihood) {
-                        bestAllele = entry.getKey();
                         bestRelativeLikelihood = candidateRelativeLikelihood;
                     }
                     if (!Double.isInfinite(candidateRelativeLikelihood) && worstRelativeLikelihood > candidateRelativeLikelihood)
                         worstRelativeLikelihood = candidateRelativeLikelihood;
                 }
-
-                worstRelativeLikelihood += UNREPORTED_HAPLOTYPE_LIKELIHOOD_PENALTY;
-                if (bestAllele == null)
-                    throw new IllegalStateException("No best allele for read " + read.getReadName());
+                if (Double.isInfinite(bestRelativeLikelihood)) {
+                    bestRelativeLikelihood = 0;
+                    worstRelativeLikelihood = 0;
+                } else {
+                    worstRelativeLikelihood += UNREPORTED_HAPLOTYPE_LIKELIHOOD_PENALTY;
+                }
                 final double bestLikelihood = 0.0; // the best becomes zero.
                 maxAlternative.put(read, bestLikelihood);
                 for (final Map.Entry<Haplotype, Allele> entry : alleleVersions.entrySet()) {
                     final Allele a = entry.getValue();
                     final Double relativeLikelihoodO = existingLikelihoods.get(a);
-                    final double relativeLikelihood = relativeLikelihoodO == null ? worstRelativeLikelihood : relativeLikelihoodO;
+                    final double relativeLikelihood = relativeLikelihoodO == null || Double.isInfinite(relativeLikelihoodO) ? worstRelativeLikelihood : relativeLikelihoodO;
                     final double likelihood = relativeLikelihood - bestRelativeLikelihood + bestLikelihood;
                     if (likelihood > 0)
                         throw new IllegalStateException("Likelihood larger than 1 with read " + read.getReadName());
@@ -628,7 +628,7 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
 
         // Complete the read segment cost with the corresponding path bases
         for (final Route<MultiDeBruijnVertex, MultiSampleEdge> p : acrossBlockPaths) {
-            final ReadSegmentCost readSegmentCost = new ReadSegmentCost(read, p, Double.NaN);
+            final ReadSegmentCost readSegmentCost = new ReadSegmentCost(read, p, 0);
             pathBases[nextPath++] = readSegmentCost.bases = eventBlockPathBases(p, includePathEnds);
             pathSizes.add(readSegmentCost.bases.length);
             readSegmentCosts.add(readSegmentCost);
@@ -652,8 +652,6 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
                 readSegmentCost.path = new Route<>(readSegmentCost.path,appendVertex);
             addReadSegmentCost(destination,readSegmentCost);
         }
-
-
     }
 
     /**

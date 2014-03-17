@@ -62,7 +62,6 @@ import static org.broadinstitute.sting.utils.pairhmm.PairHMMModel.*;
  */
 public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
 
-
     /**
      * Initial read length capacity.
      */
@@ -88,6 +87,10 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
 
     private int maxToCol;
     private int haplotypeLength;
+
+    private double[][] logTransition;
+
+    private boolean indelToIndelIsConstant;
 
     /**
      * Returns the currently loaded read base qualities.
@@ -139,7 +142,6 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
             throw new IllegalStateException("no read was loaded onto the pairhmm calculator");
         return readGepQuals;
     }
-
 
     /**
      * Creates a new pair-hmm calculator instance give the gap continuation penalty.
@@ -374,8 +376,7 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
      */
     public void loadRead(final byte[] readBases, final byte[] readQuals, final byte[] readInsQuals, final byte[] readDelQuals, int mq) {
         // TODO This is a copy&paste from PairHMM*Engine read data preparation code.
-        // TODO It is simply to difficult to share the code without changing that class and I don't want
-        // TODO to do so for now.
+        // TODO It is simply to difficult to share the code without changing that class
         if (readBases.length != readQuals.length) throw new IllegalArgumentException("the read quality array length does not match the read base array length");
         if (readBases.length != readInsQuals.length) throw new IllegalArgumentException("the read insert quality array length does not match the read base array length");
         if (readBases.length != readDelQuals.length) throw new IllegalArgumentException("the read deletion quality length does not match the read base array length");
@@ -402,10 +403,26 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
         this.readInsQuals = readInsQuals;
         this.readDelQuals = readDelQuals;
         this.readGepQuals = overallGCP;
+
         initializeProbabilities(transition,readInsQuals, readDelQuals, overallGCP);
+        PairHMMModel.qualToTransProbsLog10(logTransition,readInsQuals,readDelQuals,overallGCP);
+
+        indelToIndelIsConstant = true;
+        for (final double d : overallGCP)
+            if (d != overallGCP[0]) {
+                indelToIndelIsConstant = false;
+                break;
+            }
+
         if (haplotypeBases != null)
             fillPriorsTable(0);
         cachedResults.clear();
+    }
+
+    @Override
+    public void initialize( final int readMaxLength, final int haplotypeMaxLength )  {
+        super.initialize(readMaxLength,haplotypeMaxLength);
+        logTransition = PairHMMModel.createTransitionMatrix(readMaxLength);
     }
 
     @Override
@@ -587,30 +604,27 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
      * Fast likelihood when the pair-hmm represents a deletion in the read.
      */
     private double calculateLocalLikelihoodDeletion(final int readStart, final int hapStart, final int hapEnd) {
-        double result = INITIAL_CONDITION;
-        if (readStart > 0) { // no penalty if at the beginning.
-            result *= transition[readStart][matchToDeletion];
-            result *=
-                    StrictMath.pow(transition[readStart][deletionToDeletion],hapEnd - hapStart - 1);
-            result *= transition[readStart][indelToMatch];
-        }
-        return StrictMath.log10(result) - INITIAL_CONDITION_LOG10;
+        if (readStart == 0 || readStart >= readBases.length) // Deletion at the beginning or end not have a cost.
+            return 0;
+        return logTransition[readStart + 1][matchToDeletion]
+                    + logTransition[readStart + 1][deletionToDeletion] * (hapEnd - hapStart - 1);
     }
-
 
     /**
      * Fast likelihood when the pair-hmm represents a insertion in the read.
      */
     private double calculateLocalLikelihoodInsertion(final int readStart, final int readEnd) {
-        double result = INITIAL_CONDITION;
-        result *= transition[readStart + 1][matchToInsertion];
-        for (int i = readStart + 1; i < readEnd; i++) {
-            result *= transition[i + 1][insertionToInsertion];
-        }
-        if (readEnd < readBases.length) {
-            result *= transition[readEnd + 1][indelToMatch];
-        }
-        return StrictMath.log10(result) - INITIAL_CONDITION_LOG10;
+        double result = logTransition[readStart + 1][matchToInsertion];
+
+        if (indelToIndelIsConstant)
+            result += logTransition[readStart + 1][insertionToInsertion] * (readEnd - readStart - 1);
+        else
+            for (int i = readStart + 1; i < readEnd; i++)
+                result += logTransition[i + 1][insertionToInsertion];
+
+        if (readEnd < readBases.length)
+            result += logTransition[readEnd + 1][indelToMatch];
+        return result;
     }
 
     /**
