@@ -284,7 +284,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestConservativePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model CONSERVATIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,000,000-10,300,000", 1,
-                Arrays.asList("7592274ecd2b5ef4624dd2ed659536ef"));
+                Arrays.asList("1b41bf83b9c249a9a5fffb1e308668c1"));
         executeTest("HC calling with conservative indel error modeling on WGS intervals", spec);
     }
 

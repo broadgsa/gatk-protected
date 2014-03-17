@@ -228,7 +228,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
 
         mLikelihoodArray = new double[readListSize*numHaplotypes];      //to store results
         if(doProfiling)
-            setupTime += (System.nanoTime() - startTime);
+            threadLocalSetupTimeDiff = (System.nanoTime() - startTime);
         //for(reads)
         //   for(haplotypes)
         //       compute_full_prob()
@@ -251,7 +251,14 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
             readIdx += numHaplotypes;
         }
         if(doProfiling)
-            computeTime += (System.nanoTime() - startTime);
+        {
+            threadLocalPairHMMComputeTimeDiff = (System.nanoTime() - startTime);
+            //synchronized(doProfiling)
+            {
+                pairHMMComputeTime += threadLocalPairHMMComputeTimeDiff;
+                pairHMMSetupTime += threadLocalSetupTimeDiff;
+            }
+        }
         return likelihoodMap;
     }
     
@@ -262,7 +269,8 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     @Override
     public void close()
     {
-        System.out.println("Time spent in setup for JNI call : "+(setupTime*1e-9));
+        if(doProfiling)
+            System.out.println("Time spent in setup for JNI call : "+(pairHMMSetupTime*1e-9));
         super.close();
         jniClose();
     }

@@ -417,7 +417,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Hidden
     @Argument(fullName = "pair_hmm_implementation", shortName = "pairHMM", doc = "The PairHMM implementation to use for genotype likelihood calculations", required = false)
-    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING;
+    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING;
 
     @Hidden
     @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
@@ -639,6 +639,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             logger.info("Using global mismapping rate of " + phredScaledGlobalReadMismappingRate + " => " + log10GlobalReadMismappingRate + " in log10 likelihood units");
         }
 
+        //static member function - set number of threads
+        PairHMM.setNumberOfThreads(getToolkit().getTotalNumberOfThreads());
         // create our likelihood calculation engine
         likelihoodCalculationEngine = createLikelihoodCalculationEngine();
 
