@@ -52,7 +52,6 @@ import org.broadinstitute.sting.gatk.walkers.haplotypecaller.Kmer;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.jgrapht.alg.CycleDetector;
 
 import java.io.File;
 import java.util.*;
@@ -88,8 +87,7 @@ public class ReadThreadingGraph extends DanglingChainMergingGraph implements Kme
     /**
      *
      */
-
-    final boolean debugGraphTransformations;
+    private final boolean debugGraphTransformations;
     final byte minBaseQualityToUseInAssembly;
 
     protected boolean increaseCountsBackwards = true;
@@ -320,13 +318,6 @@ public class ReadThreadingGraph extends DanglingChainMergingGraph implements Kme
     }
 
     /**
-     * @return true if the graph has cycles, false otherwise
-     */
-    public boolean hasCycles() {
-        return new CycleDetector<>(this).detectCycles();
-    }
-
-    /**
      * Does the graph not have enough complexity?  We define low complexity as a situation where the number
      * of non-unique kmers is more than 20% of the total number of kmers.
      *
@@ -419,39 +410,10 @@ public class ReadThreadingGraph extends DanglingChainMergingGraph implements Kme
         return counter.getKmersWithCountsAtLeast(2);
     }
 
-    /**
-     * Convert this kmer graph to a simple sequence graph.
-     *
-     * Each kmer suffix shows up as a distinct SeqVertex, attached in the same structure as in the kmer
-     * graph.  Nodes that are sources are mapped to SeqVertex nodes that contain all of their sequence
-     *
-     * @return a newly allocated SequenceGraph
-     */
-    // TODO -- should override base class method
+    @Override
     public SeqGraph convertToSequenceGraph() {
         buildGraphIfNecessary();
-
-        final SeqGraph seqGraph = new SeqGraph(kmerSize);
-        final Map<MultiDeBruijnVertex, SeqVertex> vertexMap = new HashMap<>();
-
-
-        // create all of the equivalent seq graph vertices
-        for ( final MultiDeBruijnVertex dv : vertexSet() ) {
-            final SeqVertex sv = new SeqVertex(dv.getAdditionalSequence(isSource(dv)));
-            sv.setAdditionalInfo(dv.additionalInfo());
-            vertexMap.put(dv, sv);
-            seqGraph.addVertex(sv);
-        }
-
-        // walk through the nodes and connect them to their equivalent seq vertices
-        for( final MultiSampleEdge e : edgeSet() ) {
-            final SeqVertex seqInV = vertexMap.get(getEdgeSource(e));
-            final SeqVertex seqOutV = vertexMap.get(getEdgeTarget(e));
-            //logger.info("Adding edge " + seqInV + " -> " + seqOutV);
-            seqGraph.addEdge(seqInV, seqOutV, new BaseEdge(e.isRef(), e.getMultiplicity()));
-        }
-
-        return seqGraph;
+        return super.convertToSequenceGraph();
     }
 
     private void increaseCountsInMatchedKmers(final SequenceForKmers seqForKmers,
@@ -749,15 +711,15 @@ public class ReadThreadingGraph extends DanglingChainMergingGraph implements Kme
     }
 
     private static String pathElementId(final String element) {
-        final int parentesysPos = element.indexOf('(');
+        final int openBracketPosition = element.indexOf('(');
 
-        if (parentesysPos == -1)
+        if (openBracketPosition == -1)
             return null;
 
-        final int closeParentesysPos = element.lastIndexOf(')');
-        if (closeParentesysPos == -1)
+        final int closeBracketPosition = element.lastIndexOf(')');
+        if (closeBracketPosition == -1)
             throw new IllegalArgumentException("non-closed id parantesys found in element: " + element);
-        final String result = element.substring(parentesysPos + 1,closeParentesysPos).trim();
+        final String result = element.substring(openBracketPosition + 1,closeBracketPosition).trim();
         if (result.isEmpty())
             throw new IllegalArgumentException("empty id found in element: " + element);
         return result;

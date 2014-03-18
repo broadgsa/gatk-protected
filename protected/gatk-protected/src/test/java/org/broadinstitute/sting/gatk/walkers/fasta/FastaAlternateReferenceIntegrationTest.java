@@ -47,38 +47,63 @@
 package org.broadinstitute.sting.gatk.walkers.fasta;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
 
 public class FastaAlternateReferenceIntegrationTest extends WalkerTest {
+
     @Test
-    public void testIntervals() {
+    public void testReferenceOnly() {
 
-        String md5_1 = "328d2d52cedfdc52da7d1abff487633d";
-
-        WalkerTestSpec spec1a = new WalkerTestSpec(
-                "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -L 1:10,000,100-10,000,500 -L 1:10,100,000-10,101,000 -L 1:10,900,000-10,900,001 -o %s",
-                 1,
-                 Arrays.asList(md5_1));
-        executeTest("testFastaReference", spec1a);
-
-        WalkerTestSpec spec1b = new WalkerTestSpec(
+        WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FastaReferenceMaker -R " + b36KGReference + " -L 1:10,000,100-10,000,500 -L 1:10,100,000-10,101,000 -L 1:10,900,000-10,900,001 -o %s",
                  1,
-                 Arrays.asList(md5_1));
-        executeTest("testFastaReference", spec1b);
+                 Arrays.asList("328d2d52cedfdc52da7d1abff487633d"));
+        executeTest("test FastaReference", spec);
+    }
 
-        WalkerTestSpec spec2 = new WalkerTestSpec(
+    @Test
+    public void testIndelsAndSnpMask() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + validationDataLocation + "NA12878.chr1_10mb_11mb.slx.indels.vcf4 --snpmask:vcf " + b36dbSNP129 + " -L 1:10,075,000-10,075,380 -L 1:10,093,447-10,093,847 -L 1:10,271,252-10,271,452 -o %s",
                  1,
                  Arrays.asList("ef481be9962e21d09847b8a1d4a4ff65"));
-        executeTest("testFastaAlternateReferenceIndels", spec2);
+        executeTest("test indels", spec);
+    }
 
-        WalkerTestSpec spec3 = new WalkerTestSpec(
+    @Test
+    public void testSnps() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + GATKDataLocation + "dbsnp_129_b36.vcf -L 1:10,023,400-10,023,500 -L 1:10,029,200-10,029,500 -o %s",
                  1,
                  Arrays.asList("8b6cd2e20c381f9819aab2d270f5e641"));
-        executeTest("testFastaAlternateReferenceSnps", spec3);
+        executeTest("test SNPs", spec);
+    }
+
+    @Test
+    public void testBadIupacInput() {
+
+        // cannot use 'expectedExceptions = UserException.BadInput.class' because it technically gets thrown as a RuntimeException by the engine
+        try {
+            WalkerTestSpec spec = new WalkerTestSpec(
+                    "-T FastaAlternateReferenceMaker -R " + b36KGReference + " --useIUPAC -V " + GATKDataLocation + "dbsnp_129_b36.vcf -L 1:10,023,400-10,023,500 -L 1:10,029,200-10,029,500 -o %s",
+                    1,
+                    Arrays.asList("FAILFAILFAILFAILFAILFAILFAILFAIL"));
+            executeTest("test bad input", spec);
+        } catch (Exception e) {} // do nothing
+    }
+
+    @Test
+    public void testIupac() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b37KGReference + " --useIUPAC -V " + privateTestDir + "NA12878.WGS.b37.chr20.firstMB.vcf -L 20:61050-66380 -o %s",
+                1,
+                Arrays.asList("5feb2a576ff2ed1745a007eaa36448b3"));
+        executeTest("test iupac", spec);
     }
 }

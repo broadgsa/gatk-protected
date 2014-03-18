@@ -289,6 +289,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="dontRecoverDanglingTails", shortName="dontRecoverDanglingTails", doc="Should we disable dangling tail recovery in the read threading assembler?", required = false)
     protected boolean dontRecoverDanglingTails = false;
 
+    @Advanced
+    @Argument(fullName="consensus", shortName="consensus", doc="In 1000G consensus mode. Inject all provided alleles to the assembly graph but don't forcibly genotype all of them.", required = false)
+    protected boolean consensusMode = false;
+
     // -----------------------------------------------------------------------------------------------
     // general advanced arguments to control haplotype caller behavior
     // -----------------------------------------------------------------------------------------------
@@ -575,7 +579,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // initialize the UnifiedGenotyper Engine which is used to call into the exact model
         final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
         // HC GGA mode depends critically on EMIT_ALL_SITES being set for the UG engine
-        UAC.OutputMode = SCAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
+        UAC.OutputMode = SCAC.GenotypingMode.equals(GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES)
                 ? UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES : UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
         UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
@@ -596,6 +600,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         if( UAC.CONTAMINATION_FRACTION_FILE != null ) {
             UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, UAC.CONTAMINATION_FRACTION, samples, logger));
+        }
+
+        if( SCAC.GenotypingMode.equals(GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES) && consensusMode ) {
+            throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
         }
 
         // initialize the output VCF header
@@ -878,7 +886,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 regionForGenotyping.getLocation(),
                 getToolkit().getGenomeLocParser(),
                 metaDataTracker,
-                activeAllelesToGenotype, emitReferenceConfidence() );
+                ( consensusMode ? Collections.<VariantContext>emptyList() : activeAllelesToGenotype ),
+		        emitReferenceConfidence() );
 
         // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
         if ( bamWriter != null ) {
@@ -1051,7 +1060,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         referenceConfidenceModel.close();
         //TODO remove the need to call close here for debugging, the likelihood output stream should be managed
         //TODO (open & close) at the walker, not the engine.
-        //likelihoodCalculationEngine.close();
+        likelihoodCalculationEngine.close();
         logger.info("Ran local assembly on " + result + " active regions");
     }
 

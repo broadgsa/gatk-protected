@@ -45,6 +45,11 @@
 */
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
+import org.broadinstitute.sting.utils.collections.Pair;
+
+import java.util.Collections;
+import java.util.Set;
+
 /**
  * Represents a trivial k-best sub haplotype finder with no solutions.
  *
@@ -66,6 +71,21 @@ final class DeadEndKBestSubHaplotypeFinder implements KBestSubHaplotypeFinder {
     }
 
     @Override
+    public String id() {
+        return "<DEAD>";
+    }
+
+    @Override
+    public String label() {
+        return "&lt;DEAD&gt;";
+    }
+
+    @Override
+    public Set<Pair<? extends KBestSubHaplotypeFinder, String>> subFinderLabels() {
+        return Collections.emptySet();
+    }
+
+    @Override
     public int getCount() {
         return 0;
     }
@@ -76,5 +96,19 @@ final class DeadEndKBestSubHaplotypeFinder implements KBestSubHaplotypeFinder {
             throw new IllegalArgumentException("k cannot be negative");
         else
             throw new IllegalArgumentException("k cannot be equal or greater to the haplotype count");
+    }
+
+    @Override
+    public boolean isReference() {
+        return false;
+    }
+
+    @Override
+    public double score(final byte[] bases, final int offset, final int length) {
+        if (bases == null) throw new IllegalArgumentException("bases cannot be null");
+        if (offset < 0) throw new IllegalArgumentException("the offset cannot be negative");
+        if (length < 0) throw new IllegalArgumentException("the length cannot be negative");
+        if (offset + length > bases.length) throw new IllegalArgumentException("the offset and length go beyond the array size");
+        return Double.NaN;
     }
 }

@@ -46,6 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.annotator;
 
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.utils.MannWhitneyU;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -75,9 +76,9 @@ public class RankSumUnitTest {
         makeDistribution(distribution20_40, 40, skew, observations/2);
 
         // shuffle the observations
-        Collections.shuffle(distribution20);
-        Collections.shuffle(distribution30);
-        Collections.shuffle(distribution20_40);
+        Collections.shuffle(distribution20, GenomeAnalysisEngine.getRandomGenerator());
+        Collections.shuffle(distribution30, GenomeAnalysisEngine.getRandomGenerator());
+        Collections.shuffle(distribution20_40, GenomeAnalysisEngine.getRandomGenerator());
     }
 
     private static void makeDistribution(final List<Integer> result, final int target, final int skew, final int numObservations) {

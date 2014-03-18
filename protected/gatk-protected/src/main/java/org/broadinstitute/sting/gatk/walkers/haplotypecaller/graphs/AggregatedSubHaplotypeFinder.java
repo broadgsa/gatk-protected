@@ -45,21 +45,21 @@
 */
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.PriorityQueue;
+import org.broadinstitute.sting.utils.collections.Pair;
+
+import java.util.*;
 
 /**
  * K-best sub-haplotype finder that selects the best solutions out of a collection of sub-haplotype finders.
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-class AggregatedSubHaplotypeFinder implements KBestSubHaplotypeFinder {
+class AggregatedSubHaplotypeFinder<F extends KBestSubHaplotypeFinder> implements KBestSubHaplotypeFinder {
 
     /**
      * Collection of subFinders that provided the actual solutions.
      */
-    private final Collection<? extends KBestSubHaplotypeFinder> subFinders;
+    protected final Collection<F> subFinders;
 
     /**
      *  Flag indicating whether the sub-finders have been processed or not.
@@ -89,15 +89,51 @@ class AggregatedSubHaplotypeFinder implements KBestSubHaplotypeFinder {
      * Creates a new aggregated sub-haplotype finder given its sub-finders.
      * @param finders set of sub-finders.
      */
-    public AggregatedSubHaplotypeFinder(final Collection<? extends KBestSubHaplotypeFinder> finders) {
+    public AggregatedSubHaplotypeFinder(final Collection<F> finders) {
         if (finders == null) throw new IllegalArgumentException("finder collection cannot be null");
         this.subFinders = finders;
+    }
+
+    @Override
+    public String id() {
+        final StringBuilder resultBuilder = new StringBuilder();
+        for (final KBestSubHaplotypeFinder subFinder : subFinders)
+            resultBuilder.append(subFinder.id());
+        return resultBuilder.toString();
+    }
+
+    @Override
+    public String label() {
+        return "&lt;OR&gt;";
+    }
+
+    @Override
+    public Set<Pair<? extends KBestSubHaplotypeFinder, String>> subFinderLabels() {
+        final int subFinderCount = subFinders.size();
+        final String edgeCost = String.format("%.2f",-Math.log10((double) subFinderCount));
+        final Set<Pair<? extends  KBestSubHaplotypeFinder,String>> result = new LinkedHashSet<>(subFinderCount);
+        for (final KBestSubHaplotypeFinder subFinder : subFinders)
+            result.add(new Pair<>(subFinder,edgeCost));
+        return result;
     }
 
     @Override
     public int getCount() {
         processSubFindersIfNeeded();
         return count;
+    }
+
+    @Override
+    public double score(final byte[] bases, final int offset, final int length) {
+        if (bases == null) throw new IllegalArgumentException("bases cannot be null");
+        if (offset < 0) throw new IllegalArgumentException("the offset cannot be negative");
+        if (length < 0) throw new IllegalArgumentException("the length cannot be negative");
+        if (offset + length > bases.length) throw new IllegalArgumentException("the offset and length go beyond the array size");
+        for (final KBestSubHaplotypeFinder subFinder : subFinders) {
+            final double score = subFinder.score(bases,offset,length);
+            if (!Double.isNaN(score)) return score;
+        }
+        return Double.NaN;
     }
 
     private void processSubFindersIfNeeded() {
@@ -144,6 +180,11 @@ class AggregatedSubHaplotypeFinder implements KBestSubHaplotypeFinder {
         return rankedSubHaplotype.get(k);
     }
 
+    @Override
+    public boolean isReference() {
+        return false;
+    }
+
     /**
      * Custom implementation of {@link KBestHaplotype} to encapsulate sub-finder results.
      */
@@ -167,7 +208,7 @@ class AggregatedSubHaplotypeFinder implements KBestSubHaplotypeFinder {
         }
 
         @Override
-        public int score() {
+        public double score() {
             return result.score();
         }
 

@@ -65,7 +65,6 @@ import java.util.*;
  * User: rpoplin
  * Date: 1/31/13
  */
-
 public class KBestHaplotypeFinderUnitTest extends BaseTest {
 
     @DataProvider(name = "BasicPathFindingData")
@@ -113,11 +112,11 @@ public class KBestHaplotypeFinderUnitTest extends BaseTest {
         final int expectedNumOfPaths = nStartNodes * nBranchesPerBubble * nEndNodes;
         Assert.assertEquals(paths.size(), expectedNumOfPaths, "Didn't find the expected number of paths");
 
-        int lastScore = Integer.MAX_VALUE;
+        double lastScore = 0;
         for ( final KBestHaplotype kbh : paths ) {
             final Path<SeqVertex,BaseEdge> path = kbh.path();
-            Assert.assertTrue(path.getScore() <= lastScore, "Paths out of order.   Path " + path + " has score above previous " + lastScore);
-            lastScore = path.getScore();
+            Assert.assertTrue(kbh.score() <= lastScore, "Paths out of order.   Path " + path + " has score " + path.getScore() + " above previous " + lastScore);
+            lastScore = kbh.score();
         }
 
         // get the best path, and make sure it's the same as our optimal path overall

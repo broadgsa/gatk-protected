@@ -94,6 +94,19 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "f50e0b35e2240b19b1b8b6dfa0cf9796");
+                "5ac3bfe1da1d411b52a98ef3debbd318");
     }
+
+    private void HCTestComplexConsensusMode(String bam, String args, String md5) {
+        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -consensus -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf -alleles " + validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+        executeTest("testHaplotypeCallerComplexConsensusMode: args=" + args, spec);
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleConsensusModeComplex() {
+        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538 -L 20:133041-133161 -L 20:300207-300337",
+                "61972c7c0d378e756f3b4d99aed9d0cf");
+    }
+
 }

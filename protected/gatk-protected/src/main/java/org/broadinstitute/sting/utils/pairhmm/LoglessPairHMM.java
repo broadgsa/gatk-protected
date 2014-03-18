@@ -66,7 +66,7 @@ public class LoglessPairHMM extends N2MemoryPairHMM {
     protected static final double TRISTATE_CORRECTION = 3.0;
 
 
-
+    
     /**
      * {@inheritDoc}
      */

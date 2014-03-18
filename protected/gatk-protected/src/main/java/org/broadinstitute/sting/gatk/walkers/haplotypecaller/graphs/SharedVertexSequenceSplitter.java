@@ -247,12 +247,12 @@ public class SharedVertexSequenceSplitter {
 
         if ( needPrefixNode ) {
             outer.addVertex(prefixV);
-            if ( top != null ) outer.addEdge(top, prefixV, BaseEdge.orRef(splitGraph.outgoingEdgesOf(prefixV), 0));
+            if ( top != null ) outer.addEdge(top, prefixV, BaseEdge.orRef(splitGraph.outgoingEdgesOf(prefixV), 1));
         }
 
         if ( needSuffixNode ) {
             outer.addVertex(suffixV);
-            if ( bot != null ) outer.addEdge(suffixV, bot, BaseEdge.orRef(splitGraph.incomingEdgesOf(suffixV), 0));
+            if ( bot != null ) outer.addEdge(suffixV, bot, BaseEdge.orRef(splitGraph.incomingEdgesOf(suffixV), 1));
         }
 
         if ( topForConnect != null ) {
