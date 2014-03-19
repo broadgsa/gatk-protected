@@ -301,10 +301,10 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testLackSensitivityDueToBadHaplotypeSelectionFix() {
-        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header ",
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header --maxNumHaplotypesInPopulation 16",
                 b37KGReferenceWithDecoy, privateTestDir + "hc-lack-sensitivity.bam", privateTestDir + "hc-lack-sensitivity.interval_list",
                 HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("e2e6647f7c96e91aeead7301017dc800"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("dbe5ef6ce1a9015ff4318691f5f45fda"));
         spec.disableShadowBCF();
         executeTest("testLackSensitivityDueToBadHaplotypeSelectionFix", spec);
     }
@@ -318,5 +318,4 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testBadLikelihoodsDueToBadHaplotypeSelectionFix", spec);
     }
-
 }
