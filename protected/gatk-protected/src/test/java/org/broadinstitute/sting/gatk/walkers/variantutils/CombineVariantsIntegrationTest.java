@@ -204,4 +204,17 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                 Arrays.asList("f8c014d0af7e014475a2a448dc1f9cef"));
         cvExecuteTest("combineLeavesUnfilteredRecordsUnfiltered: ", spec, false);
     }
+
+    @Test
+    public void combiningGVCFsFails() {
+        try {
+            WalkerTestSpec spec = new WalkerTestSpec(
+                    "-T CombineVariants --no_cmdline_in_header -o %s "
+                            + " -R " + b37KGReference
+                            + " -V " + privateTestDir + "gvcfExample1.vcf",
+                    1,
+                    Arrays.asList("FAILFAILFAILFAILFAILFAILFAILFAIL"));
+            executeTest("combiningGVCFsFails", spec);
+        } catch (Exception e) { } // do nothing
+    }
 }
