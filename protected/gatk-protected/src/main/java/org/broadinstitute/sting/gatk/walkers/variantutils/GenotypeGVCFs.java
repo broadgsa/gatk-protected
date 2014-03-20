@@ -121,8 +121,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
 
-    // TODO -- currently this option doesn't actually work; must fix
-    @Argument(fullName="includeNonVariants", shortName="inv", doc="Include loci found to be non-variant after the combining procedure", required=false)
+    @Argument(fullName="includeNonVariantSites", shortName="allSites", doc="Include loci found to be non-variant after genotyping", required=false)
     public boolean INCLUDE_NON_VARIANTS = false;
 
     /**
@@ -216,40 +215,67 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             result = new VariantContextBuilder(regenotypedVC).attributes(attrs).make();
         }
 
-        // if it turned monomorphic and we don't want such sites, quit
-        if ( !INCLUDE_NON_VARIANTS && result.isMonomorphicInSamples() )
-            return null;
+        // if it turned monomorphic then we either need to ignore or fix such sites
+        boolean createRefGTs = false;
+        if ( result.isMonomorphicInSamples() ) {
+            if ( !INCLUDE_NON_VARIANTS )
+                return null;
+            createRefGTs = true;
+        }
 
         // re-annotate it
         result = annotationEngine.annotateContext(tracker, ref, null, result);
 
         // fix some of the annotations
-        return new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result.getGenotypes())).make();
+        return new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, createRefGTs)).make();
     }
 
     /**
      * Cleans up genotype-level annotations that need to be updated.
      * 1. move MIN_DP to DP if present
-     * 2. remove SB is present
+     * 2. propagate DP to AD if not present
+     * 3. remove SB if present
      *
-     * @param newGs the new Genotypes to fix
+     * @param VC            the VariantContext with the Genotypes to fix
+     * @param createRefGTs  if true we will also create proper hom ref genotypes since we assume the site is monomorphic
      * @return a new set of Genotypes
      */
-    private List<Genotype> cleanupGenotypeAnnotations(final GenotypesContext newGs) {
-        final List<Genotype> recoveredGs = new ArrayList<>(newGs.size());
-        for ( final Genotype newG : newGs ) {
-            final Map<String, Object> attrs = new HashMap<>(newG.getExtendedAttributes());
+    private List<Genotype> cleanupGenotypeAnnotations(final VariantContext VC, final boolean createRefGTs) {
+        final GenotypesContext oldGTs = VC.getGenotypes();
+        final List<Genotype> recoveredGs = new ArrayList<>(oldGTs.size());
+        for ( final Genotype oldGT : oldGTs ) {
+            final Map<String, Object> attrs = new HashMap<>(oldGT.getExtendedAttributes());
 
-            final GenotypeBuilder builder = new GenotypeBuilder(newG);
+            final GenotypeBuilder builder = new GenotypeBuilder(oldGT);
+            int depth = oldGT.hasDP() ? oldGT.getDP() : 0;
 
             // move the MIN_DP to DP
-            if ( newG.hasExtendedAttribute("MIN_DP") ) {
-                builder.DP(newG.getAttributeAsInt("MIN_DP", 0));
+            if ( oldGT.hasExtendedAttribute("MIN_DP") ) {
+                depth = oldGT.getAttributeAsInt("MIN_DP", 0);
+                builder.DP(depth);
                 attrs.remove("MIN_DP");
             }
 
             // remove SB
             attrs.remove("SB");
+
+            // create AD if it's not there
+            if ( !oldGT.hasAD() && VC.isVariant() ) {
+                final int[] AD = new int[VC.getNAlleles()];
+                AD[0] = depth;
+                builder.AD(AD);
+            }
+
+            if ( createRefGTs ) {
+                final int ploidy = oldGT.getPloidy();
+                final List<Allele> refAlleles = new ArrayList<>(ploidy);
+                for ( int i = 0; i < ploidy; i++ )
+                    refAlleles.add(VC.getReference());
+                builder.alleles(refAlleles);
+
+                // also, the PLs are technically no longer usable
+                builder.noPL();
+            }
 
             recoveredGs.add(builder.noAttributes().attributes(attrs).make());
         }
