@@ -81,7 +81,7 @@ class ReadBin implements HasGenomeLocation {
         final int readStart = read.getSoftStart();
         final int readStop = read.getSoftEnd();
         if ( loc == null )
-            loc = parser.createGenomeLoc(read.getReferenceName(), readStart, readStop);
+            loc = parser.createGenomeLoc(read.getReferenceName(), readStart, Math.max(readStop, readStart)); // in case it's all an insertion
         else if ( readStop > loc.getStop() )
             loc = parser.createGenomeLoc(loc.getContig(), loc.getStart(), readStop);
 

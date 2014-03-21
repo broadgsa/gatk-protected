@@ -81,6 +81,7 @@ public class ReadBinUnitTest {
                 {"20S80M", 80},
                 {"80M20S", 1},
                 {"20S60M20S", 50},
+                {"50I", 60},
                 {"100M", 500}
         };
     }
@@ -94,7 +95,7 @@ public class ReadBinUnitTest {
     @Test(enabled = true, dataProvider = "reads")
     public void testAddingReads(String cigarString, int alignmentStart) {
         final GATKSAMRecord read = createReadAndAddToBin(cigarString, alignmentStart);
-        final GenomeLoc readLoc = parser.createGenomeLoc(read.getReferenceName(), read.getReferenceIndex(), read.getSoftStart(), read.getSoftEnd());
+        final GenomeLoc readLoc = parser.createGenomeLoc(read.getReferenceName(), read.getReferenceIndex(), read.getSoftStart(), Math.max(read.getSoftStart(), read.getSoftEnd()));
         Assert.assertEquals(readBin.getLocation(), readLoc);
         readBin.clear();
     }
