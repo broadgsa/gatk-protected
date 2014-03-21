@@ -292,7 +292,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
         // attributes
         final Map<String, Object> attrs = new HashMap<>(1);
-        if ( !USE_BP_RESOLUTION )
+        if ( !USE_BP_RESOLUTION && end != start )
             attrs.put(VCFConstants.END_KEY, Integer.toString(end));
 
         // genotypes
