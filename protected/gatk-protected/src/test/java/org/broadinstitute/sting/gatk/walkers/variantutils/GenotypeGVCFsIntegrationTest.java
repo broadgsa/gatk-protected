@@ -82,6 +82,19 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test(enabled = true)
+    public void combineSingleSamplePipelineGVCFHierarchical() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + privateTestDir + "combine.single.sample.pipeline.combined.vcf" +
+                        " -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
+                        " -V:sample2 " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
+                        " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
+                        " -L 20:10,000,000-20,000,000", b37KGReference),
+                1,
+                Arrays.asList("ba07b64d677b0c8306e71695867fd946"));
+        executeTest("combineSingleSamplePipelineGVCFHierarchical", spec);
+    }
+
+    @Test(enabled = true)
     public void combineSingleSamplePipelineGVCF_addDbsnp() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +

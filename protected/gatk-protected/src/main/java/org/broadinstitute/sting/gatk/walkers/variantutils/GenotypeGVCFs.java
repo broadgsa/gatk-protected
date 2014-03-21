@@ -251,7 +251,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
             // move the MIN_DP to DP
             if ( oldGT.hasExtendedAttribute("MIN_DP") ) {
-                depth = oldGT.getAttributeAsInt("MIN_DP", 0);
+                depth = Integer.parseInt((String)oldGT.getAnyAttribute("MIN_DP"));
                 builder.DP(depth);
                 attrs.remove("MIN_DP");
             }
