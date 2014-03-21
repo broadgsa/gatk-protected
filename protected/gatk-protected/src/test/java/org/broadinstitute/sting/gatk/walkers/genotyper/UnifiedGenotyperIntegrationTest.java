@@ -155,6 +155,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
         executeTest("test no prior 1", spec1);
 
     }
+
     @Test
     public void testUserPrior() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
@@ -175,11 +176,13 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
         executeTest("test all site PLs 1", spec1);
 
     }
+
     // --------------------------------------------------------------------------------------------------------------
     //
     // testing heterozygosity
     //
     // --------------------------------------------------------------------------------------------------------------
+
     @Test
     public void testHeterozyosity1() {
         testHeterozosity( 0.01, "6053106407e09a6aefb78395a0e22ec4" );

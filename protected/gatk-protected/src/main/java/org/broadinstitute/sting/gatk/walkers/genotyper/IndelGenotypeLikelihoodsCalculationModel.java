@@ -215,7 +215,7 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
                                                     final boolean ignoreSNPAllelesWhenGenotypingIndels) {
 
         List<Allele> alleles = new ArrayList<Allele>();
-        if (UAC.GenotypingMode == GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES) {
+        if (UAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES) {
             VariantContext vc = null;
             for (final VariantContext vc_input : tracker.getValues(UAC.alleles, ref.getLocus())) {
                 if (vc_input != null &&

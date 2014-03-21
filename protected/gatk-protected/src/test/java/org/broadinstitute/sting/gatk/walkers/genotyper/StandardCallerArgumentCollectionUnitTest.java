@@ -43,120 +43,164 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.gatk.walkers.genotyper;
 
-import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.exceptions.StingException;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.pairhmm.FlexibleHMM;
-import org.broadinstitute.sting.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import junit.framework.Assert;
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
+import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
+import org.broadinstitute.sting.gatk.walkers.haplotypecaller.HaplotypeCallerArgumentCollection;
+import org.testng.SkipException;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.PrintWriter;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Random;
 
 /**
- * Read likelihood calculation engine base on applying heuristic on the assembly graph.
+ * Checks on Caller argument collection cloning.
+ *
+ * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class GraphBasedLikelihoodCalculationEngine implements ReadLikelihoodCalculationEngine {
+public class StandardCallerArgumentCollectionUnitTest {
 
-    private static Logger logger = Logger.getLogger(GraphBasedLikelihoodCalculationEngine.class);
+    public final static List<Class<? extends StandardCallerArgumentCollection>> COLLECTION_CLASSES;
 
-    /**
-     * Gap extension penalty in Phred scale.
-     */
-    private byte gcpHMM;
-
-    /**
-     * Fast-hmm implementation reused across active regions.
-     */
-    private FlexibleHMM hmm;
-
-    /**
-     * The worst reference vs best-alternative haplotype ratio for any read. The reference haplotype likelihood
-     * is changes to meet this maximum is needed.
-     */
-    private double log10GlobalReadMismappingRate;
-
-    /**
-     * How we resolve cases in where we have haplotypes coming from different kmer sizes.
-     */
-    private HeterogeneousKmerSizeResolution heterogeneousKmerSizeResolution;
-
-    private enum DebugMode { NONE, DEBUG, EXTRA_DEBUG };
-
-    private DebugMode debugMode;
-
-    /**
-     * Creates a new likelihood engine.
-     *
-     * @param gapExtensionPenalty the gap extension penalty Phred scale.
-     * @param log10GlobalReadMismappingRate the global read mismapping rate.
-     * @param heterogeneousKmerSizeResolution who to resolve assembly with haplotypes generated from different kmerSizes.
-     * @param debug whether to output some debug messages.
-     * @param debugHaplotypeGraphAndLikelihoods whether to generate haplotype graph and likelihood files, please only use with small intervals.
-     */
-    public GraphBasedLikelihoodCalculationEngine(final int gapExtensionPenalty, final double log10GlobalReadMismappingRate,
-                                                 final HeterogeneousKmerSizeResolution heterogeneousKmerSizeResolution,
-                                                 final boolean debug, final boolean debugHaplotypeGraphAndLikelihoods) {
-        gcpHMM = (byte) gapExtensionPenalty;
-        hmm = new FastLoglessPairHMM(gcpHMM);
-        this.log10GlobalReadMismappingRate = log10GlobalReadMismappingRate;
-        this.heterogeneousKmerSizeResolution = heterogeneousKmerSizeResolution;
-        debugMode = debugHaplotypeGraphAndLikelihoods ? DebugMode.EXTRA_DEBUG : debug ? DebugMode.DEBUG : DebugMode.NONE;
+    static {
+        COLLECTION_CLASSES = new ArrayList<>();
+        COLLECTION_CLASSES.add(StandardCallerArgumentCollection.class);
+        COLLECTION_CLASSES.add(UnifiedArgumentCollection.class);
+        COLLECTION_CLASSES.add(HaplotypeCallerArgumentCollection.class);
     }
 
+    @Test(dataProvider="collectionClasses")
+    public void testParameterLessInitialization(final Class<? extends StandardCallerArgumentCollection> clazz) {
+           try {
+               clazz.newInstance();
+           } catch (final Exception ex) {
+               Assert.fail();
+           }
+    }
 
-    @Override
-    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(final AssemblyResultSet assemblyResultSet, final Map<String, List<GATKSAMRecord>> perSampleReadList) {
-        final GraphBasedLikelihoodCalculationEngineInstance graphLikelihoodEngine =
-                new GraphBasedLikelihoodCalculationEngineInstance(assemblyResultSet,
-                        hmm,log10GlobalReadMismappingRate,heterogeneousKmerSizeResolution);
-        final List<Haplotype> haplotypes = assemblyResultSet.getHaplotypeList();
-        final List<Haplotype> supportedHaplotypes = graphLikelihoodEngine.getHaplotypeList();
-        if (supportedHaplotypes.size() != haplotypes.size()) logger.warn("Some haplotypes were drop due to missing route on the graph (supported / all): " + supportedHaplotypes.size() + "/" + haplotypes.size());
-        final Map<String,PerReadAlleleLikelihoodMap> result = graphLikelihoodEngine.computeReadLikelihoods(supportedHaplotypes,
-                perSampleReadList );
-        if (debugMode != DebugMode.NONE) graphLikelihoodDebugDumps(assemblyResultSet.getRegionForGenotyping(), graphLikelihoodEngine,result);
+    @Test(dataProvider="collectionClassPairs")
+    public void testCloneTo(final Class<? extends StandardCallerArgumentCollection> fromClass, final Class<? extends StandardCallerArgumentCollection> toClass) {
+        final StandardCallerArgumentCollection fromObject;
+        try {
+            fromObject = randomArgumentCollection(fromClass);
+        } catch (final IllegalAccessException e) {
+            throw new SkipException("cannot create a random configuration");
+        } catch (final InstantiationException e) {
+            throw new SkipException("cannot create a random configuration");
+        }
+
+        final StandardCallerArgumentCollection toObject = fromObject.cloneTo(toClass);
+        Assert.assertNotNull(toObject);
+        Assert.assertEquals(toClass,toObject.getClass());
+        for (final Field field : fromClass.getFields())
+            if (!field.getDeclaringClass().isAssignableFrom(toClass))
+                continue;
+            else if (Modifier.isPrivate(field.getModifiers()))
+                continue;
+            else if (Modifier.isStatic(field.getModifiers()))
+                continue;
+            else if (Modifier.isFinal(field.getModifiers()))
+                continue;
+            else {
+                final Object fromValue, toValue;
+                try {
+                    fromValue = field.get(fromObject);
+                    toValue = field.get(toObject);
+                } catch (final Exception ex) {
+                    continue;
+                }
+
+                if (fromValue == null)
+                    Assert.assertNull(toValue);
+                else if (toValue == null)
+                    Assert.assertNull(fromValue);
+                else
+                    Assert.assertEquals(fromValue,toValue);
+            }
+    }
+
+    @DataProvider(name="collectionClasses")
+    public Object[][] collectionClasses() {
+        final Object[][] result = new Object[COLLECTION_CLASSES.size()][];
+        for (int i = 0; i < COLLECTION_CLASSES.size(); i++)
+            result[i] = new Object[] { COLLECTION_CLASSES.get(i) };
         return result;
     }
 
-    /**
-     * A few debug messages associated with the GraphBased likelihoods engine.
-     */
-    private void graphLikelihoodDebugDumps(final ActiveRegion originalActiveRegion, final GraphBasedLikelihoodCalculationEngineInstance graphLikelihoodEngine,
-                                           final Map<String, PerReadAlleleLikelihoodMap> result) {
-        if (graphLikelihoodEngine.hasCycles())
-            logger.debug("Resulting haplotype graph combining several kmer sizes has cycles");
-        else if (graphLikelihoodEngine.haplotypeGraph.hasNonReferenceEnds())
-            logger.debug("Resulting haplotype graph has ends that do not belong to the reference: " + originalActiveRegion.getLocation());
-        else if (!graphLikelihoodEngine.hasVariation())
-            logger.debug("Resulting haplotype graph does not contain any alternative haplotype path");
-        if (debugMode == DebugMode.EXTRA_DEBUG) {
-            graphLikelihoodEngine.printGraph(originalActiveRegion.getLocation() + "-" + graphLikelihoodEngine.getKmerSize() + "-haplotypeGraph.dot");
-            final SeqGraph sq = graphLikelihoodEngine.haplotypeGraph.convertToSequenceGraph();
-            sq.simplifyGraph();
-            sq.printGraph(new File(originalActiveRegion.getLocation() + "-" + graphLikelihoodEngine.getKmerSize() + "-haplotypeSeqGraph.dot"), 10000);
-            try {
-                FileWriter fw = new FileWriter(new File(originalActiveRegion.getLocation() + "-likelihoods.txt"));
-                PrintWriter pw = new PrintWriter(fw);
-                //Note: we only output the first sample likelihoods, perhaps should output all of them but for debugging this is normally what is needed.
-                pw.println(result.entrySet().iterator().next().getValue().toString());
-                pw.close();
-                fw.close();
-            } catch (Exception ex) {
-                throw new StingException("", ex);
-            }
-        }
+    @DataProvider(name="collectionClassPairs")
+    public Object[][] collectionClassPairs() {
+        final Object[][] collectionClasses = collectionClasses();
+        final Object[][] result = new Object[collectionClasses.length * collectionClasses.length][];
+        for (int i = 0; i < collectionClasses.length; i++)
+            for (int j = 0; j < collectionClasses.length; j++)
+                result[i * collectionClasses.length + j] = new Object[] { collectionClasses[i][0], collectionClasses[j][0]};
+        return result;
     }
 
-    @Override
-    public void close() {
+    public <T extends StandardCallerArgumentCollection> T randomArgumentCollection(final Class<T> clazz) throws IllegalAccessException, InstantiationException {
+        final T result = clazz.newInstance();
+        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        for (final Field field : clazz.getFields()) {
+            final int fieldModifiers = field.getModifiers();
+            if (!Modifier.isPublic(fieldModifiers))
+                continue;
+            final Class<?> fieldType = mapWrappersToPrimitives(field.getType());
+            final Object value;
+            if (fieldType.isPrimitive()) {
+                if (fieldType == Integer.TYPE)
+                    value = rnd.nextInt(100) - 50;
+                else if (fieldType == Double.TYPE)
+                    value = rnd.nextDouble() * 10;
+                else if (fieldType == Float.TYPE)
+                    value = rnd.nextFloat() * 10;
+                else if (fieldType == Boolean.TYPE)
+                    value = rnd.nextBoolean();
+                else if (fieldType == Byte.TYPE)
+                    value = (byte) rnd.nextInt(256);
+                else if (fieldType == Character.TYPE)
+                    value = (char) rnd.nextInt(256);
+                else if (fieldType == Long.TYPE)
+                    value = rnd.nextLong();
+                else if (fieldType == Short.TYPE)
+                    value = (short) rnd.nextLong();
+                else
+                    throw new IllegalStateException("unknown primitive type!!!!");
+            } else if (fieldType == String.class) {
+                value = "" + rnd.nextLong();
+            } else if (fieldType.isEnum()) {
+                value = fieldType.getEnumConstants()[rnd.nextInt(fieldType.getEnumConstants().length)];
+            } else { // Cannot handle other types in a general way.
+                value = null;
+            }
+            field.set(result,value);
+        }
+        return result;
+    }
+
+    private Class<?> mapWrappersToPrimitives(Class<?> type) {
+        if (type == Boolean.class)
+            return Boolean.TYPE;
+        else if (type == Integer.class)
+            return Integer.TYPE;
+        else if (type == Double.class)
+            return Double.TYPE;
+        else if (type == Float.class)
+            return Float.TYPE;
+        else if (type == Character.class)
+            return Character.TYPE;
+        else if (type == Short.class)
+            return Short.TYPE;
+        else if (type == Byte.class)
+            return Byte.TYPE;
+        else if (type == Long.class)
+            return Long.TYPE;
+        else
+            return type;
     }
 }

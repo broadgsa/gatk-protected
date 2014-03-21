@@ -59,7 +59,7 @@ import java.util.Random;
 /**
  * Random likelihoods generator, used for testing/benchmarking purposes.
  */
-public class RandomLikelihoodCalculationEngine implements LikelihoodCalculationEngine {
+public class RandomLikelihoodCalculationEngine implements ReadLikelihoodCalculationEngine {
 
     @Override
     public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(final AssemblyResultSet assemblyResultSet, final Map<String, List<GATKSAMRecord>> reads) {

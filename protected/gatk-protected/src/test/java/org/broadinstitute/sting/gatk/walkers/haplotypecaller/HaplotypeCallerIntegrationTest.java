@@ -152,16 +152,16 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     }
 
     private boolean containsDuplicateRecord( final File vcf, final GenomeLocParser parser ) {
-        final List<Pair<GenomeLoc, GenotypingEngine.Event>> VCs = new ArrayList<>();
+        final List<Pair<GenomeLoc, HaplotypeCallerGenotypingEngine.Event>> VCs = new ArrayList<>();
         try {
             for( final VariantContext vc :  GATKVCFUtils.readVCF(vcf).getSecond() ) {
-                VCs.add(new Pair<>(parser.createGenomeLoc(vc), new GenotypingEngine.Event(vc)));
+                VCs.add(new Pair<>(parser.createGenomeLoc(vc), new HaplotypeCallerGenotypingEngine.Event(vc)));
             }
         } catch( IOException e ) {
             throw new IllegalStateException("Somehow the temporary VCF from the integration test could not be read.");
         }
 
-        final Set<Pair<GenomeLoc, GenotypingEngine.Event>> VCsAsSet = new HashSet<>(VCs);
+        final Set<Pair<GenomeLoc, HaplotypeCallerGenotypingEngine.Event>> VCsAsSet = new HashSet<>(VCs);
         return VCsAsSet.size() != VCs.size(); // The set will remove duplicate Events.
     }
 

@@ -47,13 +47,15 @@
 package org.broadinstitute.sting.gatk.arguments;
 
 import org.broadinstitute.sting.commandline.*;
-import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
+import org.broadinstitute.sting.gatk.walkers.genotyper.OutputMode;
 import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.sting.utils.collections.DefaultHashMap;
+import org.broadinstitute.sting.utils.variant.HomoSapiens;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +68,7 @@ import java.util.Map;
  * This is pulled out so that every caller isn't exposed to the arguments from every other caller.
  */
 
-public class StandardCallerArgumentCollection {
+public class StandardCallerArgumentCollection implements Cloneable {
     /**
      * The expected heterozygosity value used to compute prior probability that a locus is non-reference.
      *
@@ -96,16 +98,16 @@ public class StandardCallerArgumentCollection {
      * which determines how many chromosomes each individual in the species carries.
      */
     @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus.  See the GATKDocs for full details on the meaning of this population genetics concept", required = false)
-    public Double heterozygosity = UnifiedGenotyperEngine.HUMAN_SNP_HETEROZYGOSITY;
+    public Double snpHeterozygosity = HomoSapiens.SNP_HETEROZYGOSITY;
 
     /**
      * This argument informs the prior probability of having an indel at a site.
      */
     @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling.  See the GATKDocs for heterozygosity for full details on the meaning of this population genetics concept", required = false)
-    public double INDEL_HETEROZYGOSITY = 1.0/8000;
+    public double indelHeterozygosity = HomoSapiens.INDEL_HETEROZYGOSITY;
 
     @Argument(fullName = "genotyping_mode", shortName = "gt_mode", doc = "Specifies how to determine the alternate alleles to use for genotyping", required = false)
-    public GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY;
+    public org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingMode genotypingMode = org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingMode.DISCOVERY;
 
     /**
      * The minimum phred-scaled Qscore threshold to separate high confidence from low confidence calls. Only genotypes with
@@ -209,22 +211,76 @@ public class StandardCallerArgumentCollection {
     @Argument(shortName = "logExactCalls", doc="x", required=false)
     public File exactCallsLog = null;
 
+    /**
+     *   Sample ploidy - equivalent to number of chromosomes per pool. In pooled experiments this should be = # of samples in pool * individual sample ploidy
+     */
+    @Argument(shortName="ploidy", fullName="sample_ploidy", doc="Ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy).", required=false)
+    public int samplePloidy = HomoSapiens.DEFAULT_PLOIDY;
+
+    @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Specifies which type of calls we should output", required = false)
+    public OutputMode outputMode = OutputMode.EMIT_VARIANTS_ONLY;
+
+    /**
+     * Advanced, experimental argument: if SNP likelihood model is specified, and if EMIT_ALL_SITES output mode is set, when we set this argument then we will also emit PLs at all sites.
+     * This will give a measure of reference confidence and a measure of which alt alleles are more plausible (if any).
+     * WARNINGS:
+     * - This feature will inflate VCF file size considerably.
+     * - All SNP ALT alleles will be emitted with corresponding 10 PL values.
+     * - An error will be emitted if EMIT_ALL_SITES is not set, or if anything other than diploid SNP model is used
+     */
+    @Advanced
+    @Argument(fullName = "allSitePLs", shortName = "allSitePLs", doc = "Annotate all sites with PLs", required = false)
+    public boolean annotateAllSitesWithPLs = false;
+
+
+    /**
+     * Creates a Standard caller argument collection with default values.
+     */
     public StandardCallerArgumentCollection() { }
 
-    // Developers must remember to add any newly added arguments to the list here as well otherwise they won't get changed from their default value!
-    public StandardCallerArgumentCollection(final StandardCallerArgumentCollection SCAC) {
-        this.alleles = SCAC.alleles;
-        this.GenotypingMode = SCAC.GenotypingMode;
-        this.heterozygosity = SCAC.heterozygosity;
-        this.INDEL_HETEROZYGOSITY = SCAC.INDEL_HETEROZYGOSITY;
-        this.MAX_ALTERNATE_ALLELES = SCAC.MAX_ALTERNATE_ALLELES;
-        this.STANDARD_CONFIDENCE_FOR_CALLING = SCAC.STANDARD_CONFIDENCE_FOR_CALLING;
-        this.STANDARD_CONFIDENCE_FOR_EMITTING = SCAC.STANDARD_CONFIDENCE_FOR_EMITTING;
-        this.CONTAMINATION_FRACTION = SCAC.CONTAMINATION_FRACTION;
-        this.CONTAMINATION_FRACTION_FILE=SCAC.CONTAMINATION_FRACTION_FILE;
-        this.exactCallsLog = SCAC.exactCallsLog;
-        this.sampleContamination=SCAC.sampleContamination;
-        this.AFmodel = SCAC.AFmodel;
-        this.inputPrior = SCAC.inputPrior;
+    /**
+     * "Casts" a caller argument collection into another type.
+     *
+     * <p>Common fields values are copied across</p>
+     * @param clazz the class of the result.
+     * @param <T> result argument collection class.
+     * @return never {@code null}.
+     */
+    public <T extends StandardCallerArgumentCollection> T cloneTo(final Class<T> clazz) {
+        // short cut: just use regular clone if it happens to be the same class.
+        if (clazz == getClass())
+            return (T) clone();
+        try {
+            final T result = clazz.newInstance();
+            for (final Field field : getClass().getFields()) {
+                // just copy common fields.
+                if (!field.getDeclaringClass().isAssignableFrom(clazz))
+                    continue;
+                final int fieldModifiers = field.getModifiers();
+                if (Modifier.isPrivate((fieldModifiers)))
+                    continue;
+                if (Modifier.isFinal(fieldModifiers))
+                    continue;
+                if (Modifier.isStatic(fieldModifiers))
+                    continue;
+                field.set(result,field.get(this));
+            }
+            return result;
+        } catch (final Exception ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    /**
+     * Creates a copy of this configuration.
+     * @return never {@code null}.
+     */
+    @Override
+    public StandardCallerArgumentCollection clone() {
+        try {
+            return (StandardCallerArgumentCollection) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new IllegalStateException("unreachable code");
+        }
     }
 }

@@ -44,147 +44,51 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.variantutils;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.broadinstitute.sting.commandline.ArgumentCollection;
-import org.broadinstitute.sting.commandline.Output;
-import org.broadinstitute.sting.gatk.CommandLineGATK;
-import org.broadinstitute.sting.gatk.arguments.StandardVariantContextInputArgumentCollection;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.RodWalker;
-import org.broadinstitute.sting.gatk.walkers.TreeReducible;
-import org.broadinstitute.sting.gatk.walkers.genotyper.*;
-import org.broadinstitute.sting.utils.SampleUtils;
-import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
-import org.broadinstitute.sting.utils.help.HelpConstants;
-import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
-import org.broadinstitute.variant.variantcontext.VariantContextUtils;
-import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Regenotypes the variants from a VCF.  VCF records must contain PLs or GLs.
- *
- * <p>
- * This tool triggers re-genotyping of the samples through the Exact Allele Frequency calculation model.  Note that this is truly the
- * mathematically correct way to select samples from a larger set (especially when calls were generated from low coverage sequencing data);
- * using the hard genotypes to select (i.e. the default mode of SelectVariants) can lead to false positives when errors are confused for
- * variants in the original genotyping.  This functionality used to comprise the --regenotype option in SelectVariants but we pulled it out
- * into its own tool for technical purposes.
- *
- * <h3>Input</h3>
- * <p>
- * A variant set to regenotype.
- * </p>
- *
- * <h3>Output</h3>
- * <p>
- * A re-genotyped VCF.
- * </p>
- *
- * <h3>Examples</h3>
- * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
- *   -T RegenotypeVariants \
- *   --variant input.vcf \
- *   -o output.vcf
- * </pre>
- *
+ * Common interface for assembly-haplotype vs reads likelihood engines.
  */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
-public class RegenotypeVariants extends RodWalker<Integer, Integer> implements TreeReducible<Integer> {
+public interface ReadLikelihoodCalculationEngine {
 
-    @ArgumentCollection protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
+    enum Implementation {
+        /**
+         * Classic full pair-hmm all haplotypes vs all reads.
+         */
+        PairHMM,
 
-    @Output(doc="File to which variants should be written")
-    protected VariantContextWriter vcfWriter = null;
+        /**
+         * Graph-base likelihoods.
+         */
+        GraphBased,
 
-    private UnifiedGenotypingEngine UG_engine = null;
-
-    public void initialize() {
-        final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
-        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Name.BOTH;
-        UAC.outputMode = OutputMode.EMIT_ALL_SITES;
-        UAC.genotypingMode = GenotypingMode.GENOTYPE_GIVEN_ALLELES;
-
-        String trackName = variantCollection.variants.getName();
-        Set<String> samples = SampleUtils.getSampleListWithVCFHeader(getToolkit(), Arrays.asList(trackName));
-        UG_engine = new UnifiedGenotypingEngine(getToolkit(), UAC, null, samples, null);
-
-        final Set<VCFHeaderLine> hInfo = new HashSet<VCFHeaderLine>();
-        hInfo.addAll(GATKVCFUtils.getHeaderFields(getToolkit(), Arrays.asList(trackName)));
-        hInfo.addAll(UnifiedGenotyper.getHeaderInfo(UAC, null, null));
-
-        vcfWriter.writeHeader(new VCFHeader(hInfo, samples));
+        /**
+         * Random likelihoods, used to establish a baseline benchmark for other meaningful implementations.
+         */
+        Random
     }
+
 
     /**
-     * Subset VC record if necessary and emit the modified record (provided it satisfies criteria for printing)
+     * Calculates the likelihood of reads across many samples evaluated against haplotypes resulting from the
+     * active region assembly process.
      *
-     * @param  tracker   the ROD tracker
-     * @param  ref       reference information
-     * @param  context   alignment info
-     * @return 1 if the record was printed to the output file, 0 if otherwise
+     * @param assemblyResultSet the input assembly results.
+     * @param perSampleReadList the input read sets stratified per sample.
+     *
+     * @throws NullPointerException if either parameter is {@code null}.
+     *
+     * @return never {@code null}, and with at least one entry for input sample (keys in {@code perSampleReadList}.
+     *    The value maps can be potentially empty though.
      */
-    @Override
-    public Integer map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
-        if ( tracker == null )
-            return 0;
+    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(AssemblyResultSet assemblyResultSet,
+                               Map<String, List<GATKSAMRecord>> perSampleReadList);
 
-        Collection<VariantContext> vcs = tracker.getValues(variantCollection.variants, context.getLocation());
-
-        if ( vcs == null || vcs.size() == 0) {
-            return 0;
-        }
-
-        for (VariantContext vc : vcs) {
-
-            if ( vc.isPolymorphicInSamples() && hasPLs(vc) ) {
-                synchronized (UG_engine) {
-                    final VariantContextBuilder builder = new VariantContextBuilder(UG_engine.calculateGenotypes(vc)).filters(vc.getFiltersMaybeNull());
-                    VariantContextUtils.calculateChromosomeCounts(builder, false);
-                    vc = builder.make();
-                }
-            }
-
-            vcfWriter.add(vc);
-        }
-
-        return 1;
-    }
-
-    private boolean hasPLs(final VariantContext vc) {
-        for ( Genotype g : vc.getGenotypes() ) {
-            if ( g.hasLikelihoods() )
-                return true;
-        }
-        return false;
-    }
-
-    @Override
-    public Integer reduceInit() { return 0; }
-
-    @Override
-    public Integer reduce(Integer value, Integer sum) { return value + sum; }
-
-    @Override
-    public Integer treeReduce(Integer lhs, Integer rhs) {
-        return lhs + rhs;
-    }
-
-    public void onTraversalDone(Integer result) {
-        logger.info(result + " records processed.");
-    }
+    public void close();
 }

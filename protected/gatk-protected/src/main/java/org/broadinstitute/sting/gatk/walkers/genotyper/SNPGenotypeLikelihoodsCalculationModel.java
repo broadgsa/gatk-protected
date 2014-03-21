@@ -59,6 +59,7 @@ import org.broadinstitute.sting.utils.baq.BAQ;
 import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.genotyper.DiploidGenotype;
+import org.broadinstitute.sting.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
@@ -76,7 +77,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
 
     protected SNPGenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
         super(UAC, logger);
-        useAlleleFromVCF = UAC.GenotypingMode == GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES;
+        useAlleleFromVCF = UAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES;
         perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
     }
 
@@ -127,7 +128,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
         if ( allAllelesToUse != null ) {
             alleles.addAll(allAllelesToUse.subList(1,allAllelesToUse.size()));   // this includes ref allele
         } else if ( useAlleleFromVCF ) {
-            final VariantContext vc = UnifiedGenotyperEngine.getVCFromAllelesRod(tracker, ref, ref.getLocus(), true, logger, UAC.alleles);
+            final VariantContext vc = GenotypingGivenAllelesUtils.composeGivenAllelesVariantContextFromRod(tracker, ref.getLocus(), true, logger, UAC.alleles);
 
             // ignore places where we don't have a SNP
             if ( vc == null || !vc.isSNP() )
@@ -145,7 +146,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
             // if there are no non-ref alleles...
             if ( alleles.size() == 1 ) {
                 // if we only want variants, then we don't need to calculate genotype likelihoods
-                if ( UAC.OutputMode == UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY )
+                if ( UAC.outputMode == OutputMode.EMIT_VARIANTS_ONLY )
                     return builder.make();
 
                 else
@@ -193,7 +194,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
             gb.PL(genotypeLikelihoods);
             gb.DP(sampleData.depth);
             if (UAC.annotateAllSitesWithPLs)
-                gb.attribute(UnifiedGenotyperEngine.PL_FOR_ALL_SNP_ALLELES_KEY,GenotypeLikelihoods.fromLog10Likelihoods(MathUtils.normalizeFromLog10(allLikelihoods, false, true)));
+                gb.attribute(UnifiedGenotypingEngine.PL_FOR_ALL_SNP_ALLELES_KEY,GenotypeLikelihoods.fromLog10Likelihoods(MathUtils.normalizeFromLog10(allLikelihoods, false, true)));
             genotypes.add(gb.make());
         }
 

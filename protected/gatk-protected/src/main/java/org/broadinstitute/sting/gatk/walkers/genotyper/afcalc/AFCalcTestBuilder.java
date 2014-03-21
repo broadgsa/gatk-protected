@@ -47,8 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.apache.commons.lang.ArrayUtils;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
+import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingEngine;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.variant.variantcontext.*;
@@ -110,9 +109,11 @@ public class AFCalcTestBuilder {
         switch ( priorType ) {
             case flat:
                 return MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
+
+            //TODO break dependency with human... avoid special reference to this species.
             case human:
                 final double[] humanPriors = new double[nPriorValues];
-                UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
+                GenotypingEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
                 return humanPriors;
             default:
                 throw new RuntimeException("Unexpected type " + priorType);

@@ -48,7 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotypingEngine;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
 import org.broadinstitute.sting.utils.Utils;
@@ -176,7 +176,7 @@ public class AFCalcUnitTest extends BaseTest {
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
             final double[] humanPriors = new double[nPriorValues];
-            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
+            UnifiedGenotypingEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
 
             for ( final double[] priors : Arrays.asList(flatPriors, humanPriors) ) { // , humanPriors) ) {
                 for ( AFCalc model : calcs ) {
@@ -588,7 +588,7 @@ public class AFCalcUnitTest extends BaseTest {
             final ArrayList<Double> inputPrior = new ArrayList<Double>();
             inputPrior.add(1.0/3);
             inputPrior.add(1.0/3);
-            UnifiedGenotyperEngine.computeAlleleFrequencyPriors(2, noPriors, 0.0,inputPrior);
+            UnifiedGenotypingEngine.computeAlleleFrequencyPriors(2, noPriors, 0.0, inputPrior);
 
             GetGLsTest cfgFlatPrior = new GetGLsTest(model, 1, Arrays.asList(AB), flatPriors, "flatPrior");
             GetGLsTest cfgNoPrior = new GetGLsTest(model, 1, Arrays.asList(AB), flatPriors, "noPrior");

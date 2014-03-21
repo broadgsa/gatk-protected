@@ -1,0 +1,503 @@
+/*
+*  By downloading the PROGRAM you agree to the following terms of use:
+*  
+*  BROAD INSTITUTE - SOFTWARE LICENSE AGREEMENT - FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+*  
+*  This Agreement is made between the Broad Institute, Inc. with a principal address at 7 Cambridge Center, Cambridge, MA 02142 (BROAD) and the LICENSEE and is effective at the date the downloading is completed (EFFECTIVE DATE).
+*  
+*  WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+*  WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+*  NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+*  
+*  1. DEFINITIONS
+*  1.1 PROGRAM shall mean copyright in the object code and source code known as GATK2 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute/GATK on the EFFECTIVE DATE.
+*  
+*  2. LICENSE
+*  2.1   Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. 
+*  The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only.  For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+*  2.2  No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD.  LICENSEE shall ensure that all of its users agree to the terms of this Agreement.  LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+*  2.3  License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.  
+*  
+*  3. OWNERSHIP OF INTELLECTUAL PROPERTY 
+*  LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies.  LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+*  Copyright 2012 Broad Institute, Inc.
+*  Notice of attribution:  The GATK2 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+*  LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+*  
+*  4. INDEMNIFICATION
+*  LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+*  
+*  5. NO REPRESENTATIONS OR WARRANTIES
+*  THE PROGRAM IS DELIVERED AS IS.  BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+*  IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+*  
+*  6. ASSIGNMENT
+*  This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+*  
+*  7. MISCELLANEOUS
+*  7.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+*  7.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+*  7.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+*  7.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested.  All notices under this Agreement shall be deemed effective upon receipt. 
+*  7.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter. 
+*  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+*  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+*/
+package org.broadinstitute.sting.gatk.walkers.genotyper;
+
+import org.apache.log4j.Logger;
+import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
+import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
+import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
+import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
+import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
+import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
+import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.AFCalcResult;
+import org.broadinstitute.sting.utils.BaseUtils;
+import org.broadinstitute.sting.utils.GenomeLocParser;
+import org.broadinstitute.sting.utils.baq.BAQ;
+import org.broadinstitute.sting.utils.classloader.PluginManager;
+import org.broadinstitute.sting.utils.exceptions.UserException;
+import org.broadinstitute.sting.utils.gga.GenotypingGivenAllelesUtils;
+import org.broadinstitute.sting.utils.pileup.PileupElement;
+import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.GenotypesContext;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+
+import java.io.PrintStream;
+import java.lang.reflect.Constructor;
+import java.util.*;
+
+/**
+ * {@link UnifiedGenotyper}'s genotyping strategy implementation.
+ */
+public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCollection> {
+
+    public static final String LOW_QUAL_FILTER_NAME = "LowQual";
+    private static final String GPSTRING = "GENERALPLOIDY";
+
+    public static final String NUMBER_OF_DISCOVERED_ALLELES_KEY = "NDA";
+    public static final String PL_FOR_ALL_SNP_ALLELES_KEY = "APL";
+
+    private static final int SNP_MODEL = 0;
+    private static final int INDEL_MODEL = 1;
+
+    // the model used for calculating genotypes
+    private ThreadLocal<Map<String, GenotypeLikelihoodsCalculationModel>> glcm;
+    private final List<GenotypeLikelihoodsCalculationModel.Name> modelsToUse = new ArrayList<>(2);
+
+
+    // the various loggers and writers
+    private final PrintStream verboseWriter;
+
+    private final GenomeLocParser genomeLocParser;
+    private final boolean BAQEnabledOnCMDLine;
+
+    // ---------------------------------------------------------------------------------------------------------
+    //
+    // Public interface functions
+    //
+    // ---------------------------------------------------------------------------------------------------------
+
+    /**
+     * Constructs a new Unified-Genotyper engine.
+     * <p>The new engine won't emmit annotations, will use the full sample set and will not produce additional verbose
+     * output</p>
+     *
+     * @param toolkit reference to the enclosing genome analysis engine.
+     * @param configuration configuration object.
+     *
+     * @throws IllegalArgumentException if either {@code toolkit} or {@code UAC} is {@code null}.
+     */
+    public UnifiedGenotypingEngine(final GenomeAnalysisEngine toolkit, final UnifiedArgumentCollection configuration) {
+        this(toolkit, configuration, null, null, null);
+    }
+
+    /**
+     * Constructs a new Unified-Genotyper engine.
+     *
+     * @param toolkit reference to the enclosing genome analysis engine.
+     * @param configuration configuration object.
+     * @param annotationEngine variant annotation engine. If {@code null}, no annotations will be processed.
+     * @param sampleNames subset of sample names to work on. If {@code null}, all it will use the {@code toolkit} full sample set.
+     * @param verboseWriter where to output additional verbose debugging information.
+     *
+     * @throws IllegalArgumentException if either {@code toolkit} or {@code UAC} is {@code null}.
+     */
+    public UnifiedGenotypingEngine(final GenomeAnalysisEngine toolkit, final UnifiedArgumentCollection configuration,
+                                   final VariantAnnotatorEngine annotationEngine,
+                                   final Set<String> sampleNames, final PrintStream verboseWriter) {
+        super(toolkit,configuration,annotationEngine,sampleNames);
+        this.BAQEnabledOnCMDLine = toolkit.getArguments().BAQMode != BAQ.CalculationMode.OFF;
+        genomeLocParser = toolkit.getGenomeLocParser();
+        // note that, because we cap the base quality by the mapping quality, minMQ cannot be less than minBQ
+
+        this.verboseWriter = verboseWriter;
+
+        determineGLModelsToUse();
+
+        // do argument checking
+        if (configuration.annotateAllSitesWithPLs) {
+            if (!modelsToUse.contains(GenotypeLikelihoodsCalculationModel.Name.SNP))
+                throw new IllegalArgumentException("Invalid genotype likelihood model specification: " +
+                        "only diploid SNP model can be used in conjunction with option allSitePLs");
+        }
+
+        glcm =  new ThreadLocal<Map<String, GenotypeLikelihoodsCalculationModel>>() {
+            @Override
+            protected Map<String,GenotypeLikelihoodsCalculationModel> initialValue() {
+                return getGenotypeLikelihoodsCalculationObject(logger,UnifiedGenotypingEngine.this.configuration);
+            }
+        };
+    }
+
+    /**
+     * Compute full calls at a given locus. Entry point for engine calls from the UnifiedGenotyper.
+     *
+     * @param tracker    the meta data tracker
+     * @param refContext the reference base
+     * @param rawContext contextual information around the locus
+     * @return the VariantCallContext object
+     */
+    public List<VariantCallContext> calculateLikelihoodsAndGenotypes(final RefMetaDataTracker tracker,
+                                                                     final ReferenceContext refContext,
+                                                                     final AlignmentContext rawContext) {
+        final List<VariantCallContext> results = new ArrayList<>(2);
+
+        final List<GenotypeLikelihoodsCalculationModel.Name> models = getGLModelsToUse(tracker, rawContext);
+
+        final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap = new HashMap<>();
+
+        if ( models.isEmpty() ) {
+            results.add(configuration.outputMode == OutputMode.EMIT_ALL_SITES && configuration.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ? emptyCallContext(tracker, refContext, rawContext) : null);
+        }
+        else {
+            for ( final GenotypeLikelihoodsCalculationModel.Name model : models ) {
+                perReadAlleleLikelihoodMap.clear();
+                final Map<String, AlignmentContext> stratifiedContexts = getFilteredAndStratifiedContexts(refContext, rawContext, model);
+                if ( stratifiedContexts == null ) {
+                    results.add(configuration.outputMode == OutputMode.EMIT_ALL_SITES && configuration.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ? emptyCallContext(tracker, refContext, rawContext) : null);
+                }
+                else {
+                    final VariantContext vc = calculateLikelihoods(tracker, refContext, stratifiedContexts, AlignmentContextUtils.ReadOrientation.COMPLETE, null, true, model, perReadAlleleLikelihoodMap);
+                    if ( vc != null )
+                        results.add(calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, true, perReadAlleleLikelihoodMap));
+// todo - uncomment if we want to also emit a null ref call (with no QUAL) if there's no evidence for REF and if EMIT_ALL_SITES is set
+//                    else if (UAC.OutputMode == OUTPUT_MODE.EMIT_ALL_SITES)
+//                        results.add(generateEmptyContext(tracker, refContext, null, rawContext));
+
+                }
+            }        
+        }
+
+        return results;
+    }
+
+    /**
+     * Compute GLs at a given locus. Entry point for engine calls from UGCalcLikelihoods.
+     *
+     * @param tracker    the meta data tracker
+     * @param refContext the reference base
+     * @param rawContext contextual information around the locus
+     * @param perReadAlleleLikelihoodMap    Map to store per-sample, per-read, per-allele likelihoods (only used for indels)
+     * @return the VariantContext object
+     */
+    public VariantContext calculateLikelihoods(final RefMetaDataTracker tracker,
+                                               final ReferenceContext refContext,
+                                               final AlignmentContext rawContext,
+                                               final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+        final List<GenotypeLikelihoodsCalculationModel.Name> models = getGLModelsToUse(tracker, rawContext);
+        if ( models.isEmpty() ) {
+            return null;
+        }
+
+        for ( final GenotypeLikelihoodsCalculationModel.Name model : models ) {
+            final Map<String, AlignmentContext> stratifiedContexts = getFilteredAndStratifiedContexts(refContext, rawContext, model);
+            // return the first valid one we encounter
+            if ( stratifiedContexts != null )
+                return calculateLikelihoods(tracker, refContext, stratifiedContexts, AlignmentContextUtils.ReadOrientation.COMPLETE, null, true, model, perReadAlleleLikelihoodMap);
+
+        }
+
+        return null;
+    }
+
+    /**
+     * Compute genotypes at a given locus. Entry point for engine calls from UGCallVariants.
+     *
+     * @param tracker    the meta data tracker
+     * @param refContext the reference base
+     * @param rawContext contextual information around the locus
+     * @param vc         the GL-annotated variant context
+     * @return the VariantCallContext object
+     */
+    public VariantCallContext calculateGenotypes(final RefMetaDataTracker tracker,
+                                                 final ReferenceContext refContext,
+                                                 final AlignmentContext rawContext,
+                                                 final VariantContext vc) {
+        final List<GenotypeLikelihoodsCalculationModel.Name> models = getGLModelsToUse(tracker, rawContext);
+        if ( models.isEmpty() ) {
+            return null;
+        }
+
+        // return the first one
+        final GenotypeLikelihoodsCalculationModel.Name model = models.get(0);
+        final Map<String, AlignmentContext> stratifiedContexts = getFilteredAndStratifiedContexts(refContext, rawContext, model);
+        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, null);
+    }
+
+    /**
+     * Compute genotypes at a given locus.
+     *
+     * @param vc         the GL-annotated variant context
+     * @return the VariantCallContext object
+     */
+    public VariantCallContext calculateGenotypes(VariantContext vc) {
+        return calculateGenotypes(null, null, null, null, vc, GenotypeLikelihoodsCalculationModel.Name.valueOf("SNP"), null);
+    }
+
+
+    // ---------------------------------------------------------------------------------------------------------
+    //
+    // Private implementation helpers
+    //
+    // ---------------------------------------------------------------------------------------------------------
+
+    // private method called by both UnifiedGenotyper and UGCalcLikelihoods entry points into the engine
+    private VariantContext calculateLikelihoods(final RefMetaDataTracker tracker,
+                                                final ReferenceContext refContext,
+                                                final Map<String, AlignmentContext> stratifiedContexts,
+                                                final AlignmentContextUtils.ReadOrientation type,
+                                                final List<Allele> alternateAllelesToUse,
+                                                final boolean useBAQedPileup,
+                                                final GenotypeLikelihoodsCalculationModel.Name model,
+                                                final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+
+        return glcm.get().get(model.name()).getLikelihoods(tracker, refContext, stratifiedContexts, type, alternateAllelesToUse, useBAQedPileup && BAQEnabledOnCMDLine, genomeLocParser, perReadAlleleLikelihoodMap);
+    }
+
+
+    public VariantCallContext calculateGenotypes(final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Name model) {
+        return calculateGenotypes(null, null, null, null, vc, model, null);
+    }
+
+    public VariantCallContext calculateGenotypes(final RefMetaDataTracker tracker,
+                                                 final ReferenceContext refContext,
+                                                 final AlignmentContext rawContext,
+                                                 final Map<String, AlignmentContext> stratifiedContexts,
+                                                 final VariantContext vc,
+                                                 final GenotypeLikelihoodsCalculationModel.Name model,
+                                                 final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, false, perReadAlleleLikelihoodMap);
+    }
+
+    @Override
+    protected boolean forceKeepAllele(final Allele allele) {
+        return configuration.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES || configuration.annotateAllSitesWithPLs;
+    }
+
+    @Override
+    public VariantCallContext calculateGenotypes(final RefMetaDataTracker tracker, final ReferenceContext refContext,
+                                                 final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
+                                                 final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Name model,
+                                                 final boolean inheritAttributesFromInputVC,
+                                                 final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+        boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
+        final VariantCallContext result = super.calculateGenotypes(tracker,refContext,rawContext,stratifiedContexts,vc,model,inheritAttributesFromInputVC,perReadAlleleLikelihoodMap);
+        if ( verboseWriter != null && !limitedContext )
+            printVerboseData(refContext.getLocus().toString(), vc, model);
+        return result;
+    }
+
+    @Override
+    protected String callSourceString() {
+        return "UG_call";
+    }
+
+    @Override
+    protected boolean forceSiteEmission() {
+        return configuration.outputMode == OutputMode.EMIT_ALL_SITES;
+    }
+
+
+    @Override
+    protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
+                                                       final AlignmentContext rawContext, final Map<String, AlignmentContext> stratifiedContexts, final RefMetaDataTracker tracker, final ReferenceContext refContext, final List<Integer> alleleCountsofMLE, final boolean bestGuessIsRef,
+                                                       final AFCalcResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
+                                                       final GenotypeLikelihoodsCalculationModel.Name model, final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+        final Map<String,Object> result = super.composeCallAttributes(inheritAttributesFromInputVC, vc,rawContext,stratifiedContexts,tracker,refContext,alleleCountsofMLE,bestGuessIsRef,
+                                    AFresult,allAllelesToUse,genotypes,model,perReadAlleleLikelihoodMap);
+
+        final boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
+
+        if ( configuration.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
+            result.put(NUMBER_OF_DISCOVERED_ALLELES_KEY, vc.getAlternateAlleles().size());
+
+        if ( configuration.COMPUTE_SLOD && !limitedContext && !bestGuessIsRef ) {
+
+            // the overall lod
+            //double overallLog10PofNull = AFresult.log10AlleleFrequencyPosteriors[0];
+            final double overallLog10PofF = AFresult.getLog10LikelihoodOfAFGT0();
+            //if ( DEBUG_SLOD ) System.out.println("overallLog10PofF=" + overallLog10PofF);
+
+            // the forward lod
+            final VariantContext vcForward = calculateLikelihoods(tracker, refContext, stratifiedContexts, AlignmentContextUtils.ReadOrientation.FORWARD, allAllelesToUse, false, model, perReadAlleleLikelihoodMap);
+            final AFCalcResult forwardAFresult = afcm.get().getLog10PNonRef(vcForward, getAlleleFrequencyPriors(model));
+            //double[] normalizedLog10Posteriors = MathUtils.normalizeFromLog10(AFresult.log10AlleleFrequencyPosteriors, true);
+            final double forwardLog10PofNull = forwardAFresult.getLog10LikelihoodOfAFEq0();
+            final double forwardLog10PofF = forwardAFresult.getLog10LikelihoodOfAFGT0();
+            //if ( DEBUG_SLOD ) System.out.println("forwardLog10PofNull=" + forwardLog10PofNull + ", forwardLog10PofF=" + forwardLog10PofF);
+
+            // the reverse lod
+            final VariantContext vcReverse = calculateLikelihoods(tracker, refContext, stratifiedContexts, AlignmentContextUtils.ReadOrientation.REVERSE, allAllelesToUse, false, model, perReadAlleleLikelihoodMap);
+            final AFCalcResult reverseAFresult = afcm.get().getLog10PNonRef(vcReverse, getAlleleFrequencyPriors(model));
+            //normalizedLog10Posteriors = MathUtils.normalizeFromLog10(AFresult.log10AlleleFrequencyPosteriors, true);
+            final double reverseLog10PofNull = reverseAFresult.getLog10LikelihoodOfAFEq0();
+            final double reverseLog10PofF = reverseAFresult.getLog10LikelihoodOfAFGT0();
+            //if ( DEBUG_SLOD ) System.out.println("reverseLog10PofNull=" + reverseLog10PofNull + ", reverseLog10PofF=" + reverseLog10PofF);
+
+            final double forwardLod = forwardLog10PofF + reverseLog10PofNull - overallLog10PofF;
+            final double reverseLod = reverseLog10PofF + forwardLog10PofNull - overallLog10PofF;
+            //if ( DEBUG_SLOD ) System.out.println("forward lod=" + forwardLod + ", reverse lod=" + reverseLod);
+
+            // strand score is max bias between forward and reverse strands
+            double strandScore = Math.max(forwardLod, reverseLod);
+            // rescale by a factor of 10
+            strandScore *= 10.0;
+            //logger.debug(String.format("SLOD=%f", strandScore));
+
+            if ( !Double.isNaN(strandScore) )
+                result.put("SB", strandScore);
+        }
+        return result;
+    }
+
+    private Map<String, AlignmentContext> getFilteredAndStratifiedContexts(ReferenceContext refContext, AlignmentContext rawContext, final GenotypeLikelihoodsCalculationModel.Name model) {
+
+        if ( !BaseUtils.isRegularBase(refContext.getBase()) )
+            return null;
+
+
+        switch (model) {
+            case INDEL:
+            case GENERALPLOIDYINDEL:
+
+                final ReadBackedPileup pileup = rawContext.getBasePileup().getMappingFilteredPileup(configuration.MIN_BASE_QUALTY_SCORE);
+                // don't call when there is no coverage
+                if ( pileup.getNumberOfElements() == 0 && configuration.outputMode != OutputMode.EMIT_ALL_SITES  )
+                    return null;
+
+                // stratify the AlignmentContext and cut by sample
+                return AlignmentContextUtils.splitContextBySampleName(pileup);
+            case SNP:
+            case GENERALPLOIDYSNP:
+
+                if ( !(configuration.outputMode == OutputMode.EMIT_ALL_SITES && configuration.genotypingMode != GenotypingMode.GENOTYPE_GIVEN_ALLELES) ) {
+                    int numDeletions = 0;
+                    for ( final PileupElement p : rawContext.getBasePileup() ) {
+                        if ( p.isDeletion() )
+                            numDeletions++;
+                    }
+                    if ( ((double) numDeletions) / ((double) rawContext.getBasePileup().depthOfCoverage()) > configuration.MAX_DELETION_FRACTION ) {
+                        return null;
+                    }
+                }
+                // stratify the AlignmentContext and cut by sample
+                return AlignmentContextUtils.splitContextBySampleName(rawContext.getBasePileup());
+            default :
+                throw new IllegalStateException("unexpected model: " + model);
+        }
+    }
+
+    protected void printVerboseData(final String pos, final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Name model) {
+        Allele refAllele = null, altAllele = null;
+        for ( Allele allele : vc.getAlleles() ) {
+            if ( allele.isReference() )
+                refAllele = allele;
+            else
+                altAllele = allele;
+        }
+
+        for (int i = 0; i <= numberOfGenomes; i++) {
+            StringBuilder AFline = new StringBuilder("AFINFO\t");
+            AFline.append(pos);
+            AFline.append('\t');
+            AFline.append(refAllele);
+            AFline.append('\t');
+            if ( altAllele != null )
+                AFline.append(altAllele);
+            else
+                AFline.append("N/A");
+            AFline.append('\t');
+            AFline.append(i).append('/').append(numberOfGenomes).append('\t');
+            AFline.append(String.format("%.2f\t", ((float) i) / numberOfGenomes));
+            AFline.append(String.format("%.8f\t", getAlleleFrequencyPriors(model)[i]));
+            verboseWriter.println(AFline.toString());
+        }
+
+        verboseWriter.println("Qscore = " + vc.getLog10PError());
+        verboseWriter.println();
+    }
+
+    private void determineGLModelsToUse() {
+        String modelPrefix = "";
+        if ( !configuration.GLmodel.name().contains(GPSTRING) && configuration.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY )
+            modelPrefix = GPSTRING;
+
+        // GGA mode => must initialize both the SNP and indel models
+        if ( configuration.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ||
+                configuration.GLmodel.name().toUpperCase().contains("BOTH") ) {
+            modelsToUse.add(GenotypeLikelihoodsCalculationModel.Name.valueOf(modelPrefix + "SNP"));
+            modelsToUse.add(GenotypeLikelihoodsCalculationModel.Name.valueOf(modelPrefix + "INDEL"));
+        }
+        else {
+            modelsToUse.add(GenotypeLikelihoodsCalculationModel.Name.valueOf(modelPrefix + configuration.GLmodel.name().toUpperCase()));
+        }
+    }
+
+    // decide whether we are currently processing SNPs, indels, neither, or both
+    private List<GenotypeLikelihoodsCalculationModel.Name> getGLModelsToUse(final RefMetaDataTracker tracker,
+                                                                             final AlignmentContext rawContext) {
+        if ( configuration.genotypingMode != GenotypingMode.GENOTYPE_GIVEN_ALLELES )
+            return modelsToUse;
+
+        if ( modelsToUse.size() != 2 )
+            throw new IllegalStateException("GGA mode assumes that we have initialized both the SNP and indel models but found " + modelsToUse);
+
+        // if we're genotyping given alleles then we need to choose the model corresponding to the variant type requested
+        final VariantContext vcInput = GenotypingGivenAllelesUtils.composeGivenAllelesVariantContextFromRod(tracker, rawContext.getLocation(), false, logger, configuration.alleles);
+
+        if ( vcInput == null ) {
+            return Collections.emptyList(); // no work to be done
+        } else if ( vcInput.isSNP() )  {
+            return Collections.singletonList(modelsToUse.get(SNP_MODEL));
+        } else if ( vcInput.isIndel() || vcInput.isMixed() ) {
+            return Collections.singletonList(modelsToUse.get(INDEL_MODEL));
+        } else {
+            return Collections.emptyList(); // No support for other types yet
+        }
+    }
+
+    private static Map<String, GenotypeLikelihoodsCalculationModel> getGenotypeLikelihoodsCalculationObject(Logger logger, UnifiedArgumentCollection UAC) {
+
+        final Map<String, GenotypeLikelihoodsCalculationModel> glcm = new HashMap<>();
+        final List<Class<? extends GenotypeLikelihoodsCalculationModel>> glmClasses = new PluginManager<GenotypeLikelihoodsCalculationModel>(GenotypeLikelihoodsCalculationModel.class).getPlugins();
+
+        for (final Class<? extends GenotypeLikelihoodsCalculationModel> glmClass : glmClasses) {
+            final String key = glmClass.getSimpleName().replaceAll("GenotypeLikelihoodsCalculationModel","").toUpperCase();
+            try {
+                final Object args[] = new Object[]{UAC,logger};
+                final Constructor c = glmClass.getDeclaredConstructor(UnifiedArgumentCollection.class, Logger.class);
+                glcm.put(key, (GenotypeLikelihoodsCalculationModel)c.newInstance(args));
+            }
+            catch (Exception e) {
+                throw new UserException("The likelihoods model provided for the -glm argument (" + UAC.GLmodel + ") is not a valid option: " + e.getMessage());
+            }
+         }
+
+        return glcm;
+    }
+
+}

@@ -78,6 +78,7 @@ import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.utils.*;
 import org.broadinstitute.sting.utils.BaseUtils;
+import org.broadinstitute.sting.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.variant.variantcontext.*;
 
 import java.util.*;
@@ -133,8 +134,8 @@ public class GeneralPloidySNPGenotypeLikelihoodsCalculationModel extends General
         final List<Allele> alleles = new ArrayList<Allele>();
         if ( allAllelesToUse != null ) {
             alleles.addAll(allAllelesToUse);
-        } else if ( UAC.GenotypingMode == GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
-            final VariantContext vc = UnifiedGenotyperEngine.getVCFromAllelesRod(tracker, ref, ref.getLocus(), true, logger, UAC.alleles);
+        } else if ( UAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ) {
+            final VariantContext vc = GenotypingGivenAllelesUtils.composeGivenAllelesVariantContextFromRod(tracker, ref.getLocus(), true, logger, UAC.alleles);
 
             // ignore places where we don't have a SNP
             if ( vc == null || !vc.isSNP() )
@@ -150,7 +151,7 @@ public class GeneralPloidySNPGenotypeLikelihoodsCalculationModel extends General
             if ( alleles.size() == 1 ) {
                 final int indexOfRefBase = BaseUtils.simpleBaseToBaseIndex(ref.getBase());
                 // if we only want variants, then we don't need to calculate genotype likelihoods
-                if ( UAC.OutputMode != UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY )
+                if ( UAC.outputMode != OutputMode.EMIT_VARIANTS_ONLY )
                     // otherwise, choose any alternate allele (it doesn't really matter)
                     alleles.add(Allele.create(BaseUtils.baseIndexToSimpleBase(indexOfRefBase == 0 ? 1 : 0)));
             }

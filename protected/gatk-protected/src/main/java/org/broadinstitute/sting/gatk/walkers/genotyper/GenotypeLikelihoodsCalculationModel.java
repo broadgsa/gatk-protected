@@ -66,30 +66,17 @@ import java.util.Map;
 /**
  * The model representing how we calculate genotype likelihoods
  */
-public abstract class GenotypeLikelihoodsCalculationModel implements Cloneable {
+public abstract class GenotypeLikelihoodsCalculationModel {
 
     public static final String DUMMY_LANE = "Lane1";
     public static final String DUMMY_SAMPLE_NAME = "DummySample1";
 
-    /*    public enum Model {
-          SNP,
-          INDEL,
-          BOTH
-      }
-    */
-    public enum Model {
+    public enum Name {
         SNP,
         INDEL,
         GENERALPLOIDYSNP,
         GENERALPLOIDYINDEL,
-        BOTH
-    }
-
-    public enum GENOTYPING_MODE {
-        /** the Unified Genotyper will choose the most likely alternate allele */
-        DISCOVERY,
-        /** only the alleles passed in from a VCF rod bound to the -alleles argument will be used for genotyping */
-        GENOTYPE_GIVEN_ALLELES
+        BOTH;
     }
 
     protected final UnifiedArgumentCollection UAC;

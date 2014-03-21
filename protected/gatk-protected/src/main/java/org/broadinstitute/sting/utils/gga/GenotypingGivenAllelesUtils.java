@@ -43,120 +43,93 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
+package org.broadinstitute.sting.utils.gga;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
-import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
-import org.broadinstitute.sting.utils.exceptions.StingException;
-import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.commandline.RodBinding;
+import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
+import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
-import org.broadinstitute.sting.utils.pairhmm.FlexibleHMM;
-import org.broadinstitute.sting.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.variant.variantcontext.Allele;
+import org.broadinstitute.variant.variantcontext.VariantContext;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
- * Read likelihood calculation engine base on applying heuristic on the assembly graph.
+ * Compendium of utils to work in GENOTYPE_GIVEN_ALLELES mode.
+ *
+ * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class GraphBasedLikelihoodCalculationEngine implements ReadLikelihoodCalculationEngine {
-
-    private static Logger logger = Logger.getLogger(GraphBasedLikelihoodCalculationEngine.class);
+public class GenotypingGivenAllelesUtils {
 
     /**
-     * Gap extension penalty in Phred scale.
+     * Composes the given allele variant-context providing information about the rods and reference location.
+     * @param tracker the meta data tracker.
+     * @param loc the query location.
+     * @param snpsOnly whether we only should consider SNP variation.
+     * @param logger where to output warnings.
+     * @param allelesBinding the target variation context binding containing the given alleles.
+     * @return never {@code null}
      */
-    private byte gcpHMM;
+    public static VariantContext composeGivenAllelesVariantContextFromRod(final RefMetaDataTracker tracker,
+                                                                          final GenomeLoc loc,
+                                                                          final boolean snpsOnly,
+                                                                          final Logger logger,
+                                                                          final RodBinding<VariantContext> allelesBinding) {
+        if ( tracker == null ) throw new IllegalArgumentException("the tracker cannot be null");
+        if ( loc == null ) throw new IllegalArgumentException("the location cannot be null");
+        if ( allelesBinding == null ) throw new IllegalArgumentException("the alleles binding cannot be null");
 
-    /**
-     * Fast-hmm implementation reused across active regions.
-     */
-    private FlexibleHMM hmm;
+        VariantContext vc = null;
 
-    /**
-     * The worst reference vs best-alternative haplotype ratio for any read. The reference haplotype likelihood
-     * is changes to meet this maximum is needed.
-     */
-    private double log10GlobalReadMismappingRate;
-
-    /**
-     * How we resolve cases in where we have haplotypes coming from different kmer sizes.
-     */
-    private HeterogeneousKmerSizeResolution heterogeneousKmerSizeResolution;
-
-    private enum DebugMode { NONE, DEBUG, EXTRA_DEBUG };
-
-    private DebugMode debugMode;
-
-    /**
-     * Creates a new likelihood engine.
-     *
-     * @param gapExtensionPenalty the gap extension penalty Phred scale.
-     * @param log10GlobalReadMismappingRate the global read mismapping rate.
-     * @param heterogeneousKmerSizeResolution who to resolve assembly with haplotypes generated from different kmerSizes.
-     * @param debug whether to output some debug messages.
-     * @param debugHaplotypeGraphAndLikelihoods whether to generate haplotype graph and likelihood files, please only use with small intervals.
-     */
-    public GraphBasedLikelihoodCalculationEngine(final int gapExtensionPenalty, final double log10GlobalReadMismappingRate,
-                                                 final HeterogeneousKmerSizeResolution heterogeneousKmerSizeResolution,
-                                                 final boolean debug, final boolean debugHaplotypeGraphAndLikelihoods) {
-        gcpHMM = (byte) gapExtensionPenalty;
-        hmm = new FastLoglessPairHMM(gcpHMM);
-        this.log10GlobalReadMismappingRate = log10GlobalReadMismappingRate;
-        this.heterogeneousKmerSizeResolution = heterogeneousKmerSizeResolution;
-        debugMode = debugHaplotypeGraphAndLikelihoods ? DebugMode.EXTRA_DEBUG : debug ? DebugMode.DEBUG : DebugMode.NONE;
-    }
-
-
-    @Override
-    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(final AssemblyResultSet assemblyResultSet, final Map<String, List<GATKSAMRecord>> perSampleReadList) {
-        final GraphBasedLikelihoodCalculationEngineInstance graphLikelihoodEngine =
-                new GraphBasedLikelihoodCalculationEngineInstance(assemblyResultSet,
-                        hmm,log10GlobalReadMismappingRate,heterogeneousKmerSizeResolution);
-        final List<Haplotype> haplotypes = assemblyResultSet.getHaplotypeList();
-        final List<Haplotype> supportedHaplotypes = graphLikelihoodEngine.getHaplotypeList();
-        if (supportedHaplotypes.size() != haplotypes.size()) logger.warn("Some haplotypes were drop due to missing route on the graph (supported / all): " + supportedHaplotypes.size() + "/" + haplotypes.size());
-        final Map<String,PerReadAlleleLikelihoodMap> result = graphLikelihoodEngine.computeReadLikelihoods(supportedHaplotypes,
-                perSampleReadList );
-        if (debugMode != DebugMode.NONE) graphLikelihoodDebugDumps(assemblyResultSet.getRegionForGenotyping(), graphLikelihoodEngine,result);
-        return result;
-    }
-
-    /**
-     * A few debug messages associated with the GraphBased likelihoods engine.
-     */
-    private void graphLikelihoodDebugDumps(final ActiveRegion originalActiveRegion, final GraphBasedLikelihoodCalculationEngineInstance graphLikelihoodEngine,
-                                           final Map<String, PerReadAlleleLikelihoodMap> result) {
-        if (graphLikelihoodEngine.hasCycles())
-            logger.debug("Resulting haplotype graph combining several kmer sizes has cycles");
-        else if (graphLikelihoodEngine.haplotypeGraph.hasNonReferenceEnds())
-            logger.debug("Resulting haplotype graph has ends that do not belong to the reference: " + originalActiveRegion.getLocation());
-        else if (!graphLikelihoodEngine.hasVariation())
-            logger.debug("Resulting haplotype graph does not contain any alternative haplotype path");
-        if (debugMode == DebugMode.EXTRA_DEBUG) {
-            graphLikelihoodEngine.printGraph(originalActiveRegion.getLocation() + "-" + graphLikelihoodEngine.getKmerSize() + "-haplotypeGraph.dot");
-            final SeqGraph sq = graphLikelihoodEngine.haplotypeGraph.convertToSequenceGraph();
-            sq.simplifyGraph();
-            sq.printGraph(new File(originalActiveRegion.getLocation() + "-" + graphLikelihoodEngine.getKmerSize() + "-haplotypeSeqGraph.dot"), 10000);
-            try {
-                FileWriter fw = new FileWriter(new File(originalActiveRegion.getLocation() + "-likelihoods.txt"));
-                PrintWriter pw = new PrintWriter(fw);
-                //Note: we only output the first sample likelihoods, perhaps should output all of them but for debugging this is normally what is needed.
-                pw.println(result.entrySet().iterator().next().getValue().toString());
-                pw.close();
-                fw.close();
-            } catch (Exception ex) {
-                throw new StingException("", ex);
+        // search for usable record
+        for ( final VariantContext rodVc : tracker.getValues(allelesBinding, loc) ) {
+            if ( rodVc != null && ! rodVc.isFiltered() && (! snpsOnly || rodVc.isSNP() )) {
+                if ( vc == null )
+                    vc = rodVc;
+                else
+                    if (logger != null)
+                        logger.warn("Multiple valid VCF records detected in the alleles input file at site "
+                            + loc + ", only considering the first record");
             }
         }
+
+        return vc;
     }
 
-    @Override
-    public void close() {
+    /**
+     * Create the list of artificial GGA-mode haplotypes by injecting each of the provided alternate alleles into the reference haplotype
+     *
+     * @param refHaplotype the reference haplotype
+     * @param givenHaplotypes the list of alternate alleles in VariantContexts
+     * @param activeRegionWindow the window containing the reference haplotype
+     *
+     * @return a non-null list of haplotypes
+     */
+    public static List<Haplotype> composeGivenHaplotypes(final Haplotype refHaplotype, final List<VariantContext> givenHaplotypes, final GenomeLoc activeRegionWindow) {
+        if (refHaplotype == null) throw new IllegalArgumentException("the reference haplotype cannot be null");
+        if (givenHaplotypes == null) throw new IllegalArgumentException("given haplotypes cannot be null");
+        if (activeRegionWindow == null) throw new IllegalArgumentException("active region window cannot be null");
+        if (activeRegionWindow.size() != refHaplotype.length()) throw new IllegalArgumentException("inconsistent reference haplotype and active region window");
+
+        final Set<Haplotype> returnHaplotypes = new LinkedHashSet<>();
+        final int activeRegionStart = refHaplotype.getAlignmentStartHapwrtRef();
+
+        for( final VariantContext compVC : givenHaplotypes ) {
+            if (!GATKVariantContextUtils.overlapsRegion(compVC, activeRegionWindow))
+                throw new IllegalArgumentException(" some variant provided does not overlap with active region window");
+            for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
+                final Haplotype insertedRefHaplotype = refHaplotype.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart());
+                if( insertedRefHaplotype != null ) { // can be null if the requested allele can't be inserted into the haplotype
+                    returnHaplotypes.add(insertedRefHaplotype);
+                }
+            }
+        }
+
+        return new ArrayList<>(returnHaplotypes);
     }
 }

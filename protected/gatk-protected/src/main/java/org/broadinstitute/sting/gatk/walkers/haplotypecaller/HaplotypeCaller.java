@@ -51,7 +51,6 @@ import net.sf.samtools.SAMFileWriter;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.arguments.DbsnpArgumentCollection;
-import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
@@ -65,10 +64,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
-import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
+import org.broadinstitute.sting.gatk.walkers.genotyper.*;
 import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
 import org.broadinstitute.sting.utils.GenomeLoc;
@@ -84,8 +80,11 @@ import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.fragments.FragmentCollection;
 import org.broadinstitute.sting.utils.fragments.FragmentUtils;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.sting.utils.gvcf.GVCFWriter;
-import org.broadinstitute.sting.utils.haplotype.*;
+import org.broadinstitute.sting.utils.haplotype.Haplotype;
+import org.broadinstitute.sting.utils.haplotype.LDMerger;
+import org.broadinstitute.sting.utils.haplotype.MergeVariantsAcrossHaplotypes;
 import org.broadinstitute.sting.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
@@ -93,7 +92,6 @@ import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.ReadUtils;
 import org.broadinstitute.sting.utils.variant.GATKVCFIndexType;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.*;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.*;
@@ -159,7 +157,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Advanced
     @Argument(fullName="likelihoodCalculationEngine",shortName="likelihoodEngine",
             doc="what likelihood calculation engine to use to calculate the relative likelihood of reads vs haplotypes",required=false)
-    protected LikelihoodCalculationEngine.Implementation likelihoodEngineImplementation = LikelihoodCalculationEngine.Implementation.PairHMM;
+    protected ReadLikelihoodCalculationEngine.Implementation likelihoodEngineImplementation = ReadLikelihoodCalculationEngine.Implementation.PairHMM;
 
     @Hidden
     @Advanced
@@ -260,7 +258,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected String[] annotationClassesToUse = { "Standard" };
 
     @ArgumentCollection
-    private StandardCallerArgumentCollection SCAC = new StandardCallerArgumentCollection();
+    private HaplotypeCallerArgumentCollection SCAC = new HaplotypeCallerArgumentCollection();
 
     // -----------------------------------------------------------------------------------------------
     // arguments to control internal behavior of the read threading assembler
@@ -297,21 +295,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // general advanced arguments to control haplotype caller behavior
     // -----------------------------------------------------------------------------------------------
 
-    /**
-     * The reference confidence mode makes it possible to emit a per-bp or summarized confidence estimate for a site being strictly homozygous-reference.
-     * See http://www.broadinstitute.org/gatk/guide/article?id=2940 for more details of how this works.
-     * Note that if you set -ERC GVCF, you also need to set -variant_index_type LINEAR and -variant_index_parameter 128000 (with those exact values!).
-     * This requirement is a temporary workaround for an issue with index compression.
-     */
-    @Advanced
-    @Argument(fullName="emitRefConfidence", shortName="ERC", doc="Mode for emitting experimental reference confidence scores", required = false)
-    protected ReferenceConfidenceMode emitReferenceConfidence = ReferenceConfidenceMode.NONE;
-
-    public enum ReferenceConfidenceMode {
-        NONE,
-        BP_RESOLUTION,
-        GVCF
-    }
 
     /**
      * The GQ partition intervals
@@ -394,10 +377,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "If specified, use additional trigger on variants found in an external alleles file", required=false)
     protected boolean USE_ALLELES_TRIGGER = false;
 
-    @Advanced
-    @Argument(fullName="useFilteredReadsForAnnotations", shortName="useFilteredReadsForAnnotations", doc = "If specified, use the contamination-filtered read maps for the purposes of annotating variants", required=false)
-    protected boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = false;
-
     /**
      * The phredScaledGlobalReadMismappingRate reflects the average global mismapping rate of all reads, regardless of their
      * mapping quality.  This term effects the probability that a read originated from the reference haplotype, regardless of
@@ -455,10 +434,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="errorCorrectKmers", shortName="errorCorrectKmers", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
     protected boolean errorCorrectKmers = false;
 
-    @Advanced
-    @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information about each triggering active region", required = false)
-    protected boolean DEBUG;
-
     @Hidden
     @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler for only this graph size", required = false)
     protected boolean debugGraphTransformations = false;
@@ -506,17 +481,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // -----------------------------------------------------------------------------------------------
 
     // the UG engines
-    private UnifiedGenotyperEngine UG_engine = null;
-    private UnifiedGenotyperEngine UG_engine_simple_genotyper = null;
+    private UnifiedGenotypingEngine activeRegionEvaluationGenotyperEngine = null;
 
     // the assembly engine
     private LocalAssemblyEngine assemblyEngine = null;
 
     // the likelihoods engine
-    private LikelihoodCalculationEngine likelihoodCalculationEngine = null;
+    private ReadLikelihoodCalculationEngine likelihoodCalculationEngine = null;
 
     // the genotyping engine
-    private GenotypingEngine genotypingEngine = null;
+    private HaplotypeCallerGenotypingEngine genotypingEngine = null;
 
     // fasta reference reader to supplement the edges of the reference sequence
     protected CachingIndexedFastaSequenceFile referenceReader;
@@ -533,7 +507,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // the minimum length of a read we'd consider using for genotyping
     private final static int MIN_READ_LENGTH = 10;
 
-    private List<String> samplesList = new ArrayList<>();
+    private List<String> samplesList;
 
     private final static Allele FAKE_REF_ALLELE = Allele.create("N", true); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
     private final static Allele FAKE_ALT_ALLELE = Allele.create("<FAKE_ALT>", false); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
@@ -553,12 +527,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public void initialize() {
         super.initialize();
 
-        if (dontGenotype && emitReferenceConfidence == ReferenceConfidenceMode.GVCF)
+        if (dontGenotype && emitReferenceConfidence())
             throw new UserException("You cannot request gVCF output and do not genotype at the same time");
 
         if ( emitReferenceConfidence() ) {
+
+            if (SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES)
+                throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and Genotyping Giving Alleles at the same time");
+
             SCAC.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
             SCAC.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
+
 
             // also, we don't need to output several of the annotations
             annotationsToExclude.add("ChromosomeCounts");
@@ -568,43 +547,35 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // but we definitely want certain other ones
             annotationsToUse.add("StrandBiasBySample");
             logger.info("Standard Emitting and Calling confidence set to 0.0 for reference-model confidence output");
+            if (!SCAC.annotateAllSitesWithPLs)
+                logger.info("All sites annotated with PLs forced to true for reference-model confidence output");
+            SCAC.annotateAllSitesWithPLs = true;
         }
 
         if ( SCAC.AFmodel == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY )
             throw new UserException.BadArgumentValue("pnrm", "HaplotypeCaller doesn't currently support " + SCAC.AFmodel);
 
-        // get all of the unique sample names
-        Set<String> samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
-        samplesList.addAll( samples );
-        // initialize the UnifiedGenotyper Engine which is used to call into the exact model
-        final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection( SCAC ); // this adapter is used so that the full set of unused UG arguments aren't exposed to the HC user
-        // HC GGA mode depends critically on EMIT_ALL_SITES being set for the UG engine
-        UAC.OutputMode = SCAC.GenotypingMode.equals(GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES)
-                ? UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES : UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
-        UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
 
-        if (emitReferenceConfidence() && !UG_engine.getUAC().annotateAllSitesWithPLs) {
-           UG_engine.getUAC().annotateAllSitesWithPLs = true;
-           logger.info("All sites annotated with PLs force to true for reference-model confidence output");
-        }
+        samplesList = new ArrayList<>(SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader()));
+        Set<String> samplesSet = new LinkedHashSet<>(samplesList);
+
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
-        UnifiedArgumentCollection simpleUAC = new UnifiedArgumentCollection(UAC);
-        simpleUAC.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
-        simpleUAC.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY;
-        simpleUAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, UAC.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
-        simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, UAC.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        final UnifiedArgumentCollection simpleUAC = SCAC.cloneTo(UnifiedArgumentCollection.class);
+        simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
+        simpleUAC.genotypingMode = GenotypingMode.DISCOVERY;
+        simpleUAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, SCAC.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, SCAC.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
-        UG_engine_simple_genotyper = new UnifiedGenotyperEngine(getToolkit(), simpleUAC, logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
+        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(getToolkit(), simpleUAC, null, samplesSet, null);
+        activeRegionEvaluationGenotyperEngine.setLogger(logger);
 
-        if( UAC.CONTAMINATION_FRACTION_FILE != null ) {
-            UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, UAC.CONTAMINATION_FRACTION, samples, logger));
-        }
+        if( SCAC.CONTAMINATION_FRACTION_FILE != null )
+            SCAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(SCAC.CONTAMINATION_FRACTION_FILE, SCAC.CONTAMINATION_FRACTION, samplesSet, logger));
 
-        if( SCAC.GenotypingMode.equals(GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES) && consensusMode ) {
+        if( SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
             throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
-        }
 
         // initialize the output VCF header
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
@@ -627,11 +598,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
-        headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotyperEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
+        headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotypingEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
 
-        initializeReferenceConfidenceModel(samples, headerInfo);
+        initializeReferenceConfidenceModel(samplesSet, headerInfo);
 
-        vcfWriter.writeHeader(new VCFHeader(headerInfo, samples));
+        vcfWriter.writeHeader(new VCFHeader(headerInfo, samplesSet));
 
         try {
             // fasta reference reader to supplement the edges of the reference sequence
@@ -645,7 +616,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
         assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);
-        assemblyEngine.setDebug(DEBUG);
+        assemblyEngine.setDebug(SCAC.DEBUG);
         assemblyEngine.setDebugGraphTransformations(debugGraphTransformations);
         assemblyEngine.setAllowCyclesInKmerGraphToGeneratePaths(allowCyclesInKmerGraphToGeneratePaths);
         assemblyEngine.setRecoverDanglingTails(!dontRecoverDanglingTails);
@@ -670,9 +641,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // create our likelihood calculation engine
         likelihoodCalculationEngine = createLikelihoodCalculationEngine();
 
-        final MergeVariantsAcrossHaplotypes variantMerger = mergeVariantsViaLD ? new LDMerger(DEBUG, 10, 1) : new MergeVariantsAcrossHaplotypes();
+        final MergeVariantsAcrossHaplotypes variantMerger = mergeVariantsViaLD ? new LDMerger(SCAC.DEBUG, 10, 1) : new MergeVariantsAcrossHaplotypes();
 
-        genotypingEngine = new GenotypingEngine( DEBUG, annotationEngine, USE_FILTERED_READ_MAP_FOR_ANNOTATIONS, variantMerger );
+        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(),SCAC, annotationEngine, null, variantMerger );
 
         if ( bamWriter != null ) {
             // we currently do not support multi-threaded BAM writing, so exception out
@@ -681,8 +652,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             haplotypeBAMWriter = HaplotypeBAMWriter.create(bamWriterType, bamWriter, getToolkit().getSAMFileHeader());
         }
 
-        trimmer.initialize(getToolkit().getGenomeLocParser(), DEBUG,
-                UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES,emitReferenceConfidence());
+        trimmer.initialize(getToolkit().getGenomeLocParser(), SCAC.DEBUG,
+                SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES,emitReferenceConfidence());
     }
 
     private void initializeReferenceConfidenceModel(final Set<String> samples, final Set<VCFHeaderLine> headerInfo) {
@@ -690,7 +661,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if ( emitReferenceConfidence() ) {
             if ( samples.size() != 1 ) throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently");
             headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
-            if ( emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
+            if ( SCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
                 // a kluge to enforce the use of this indexing strategy
                 if (getToolkit().getArguments().variant_index_type != OPTIMAL_GVCF_INDEX_TYPE ||
                         getToolkit().getArguments().variant_index_parameter != OPTIMAL_GVCF_INDEX_PARAMETER) {
@@ -711,12 +682,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      *
      * @return never {@code null}.
      */
-    private LikelihoodCalculationEngine createLikelihoodCalculationEngine() {
+    private ReadLikelihoodCalculationEngine createLikelihoodCalculationEngine() {
         switch (likelihoodEngineImplementation) {
             case PairHMM:
-                return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, DEBUG, pairHMM, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
+                return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, SCAC.DEBUG, pairHMM, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
             case GraphBased:
-                return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate,heterogeneousKmerSizeResultion,DEBUG,debugGraphTransformations);
+                return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate,heterogeneousKmerSizeResultion,SCAC.DEBUG,debugGraphTransformations);
             case Random:
                 return new RandomLikelihoodCalculationEngine();
             default:
@@ -739,35 +710,28 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // enable non primary and extended reads in the active region
     @Override
     public EnumSet<ActiveRegionReadState> desiredReadStates() {
-        if ( includeUnmappedReads ) {
+        if ( includeUnmappedReads )
             throw new UserException.BadArgumentValue("includeUnmappedReads", "is not yet functional");
-//            return EnumSet.of(
-//                    ActiveRegionReadState.PRIMARY,
-//                    ActiveRegionReadState.NONPRIMARY,
-//                    ActiveRegionReadState.EXTENDED,
-//                    ActiveRegionReadState.UNMAPPED
-//            );
-        } else
+        else
             return EnumSet.of(
                     ActiveRegionReadState.PRIMARY,
                     ActiveRegionReadState.NONPRIMARY,
-                    ActiveRegionReadState.EXTENDED
-            );
+                    ActiveRegionReadState.EXTENDED);
     }
 
     @Override
     @Ensures({"result.isActiveProb >= 0.0", "result.isActiveProb <= 1.0"})
     public ActivityProfileState isActive( final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context ) {
 
-        if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
-            final VariantContext vcFromAllelesRod = UnifiedGenotyperEngine.getVCFromAllelesRod(tracker, ref, ref.getLocus(), false, logger, UG_engine.getUAC().alleles);
+        if( SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ) {
+            final VariantContext vcFromAllelesRod = GenotypingGivenAllelesUtils.composeGivenAllelesVariantContextFromRod(tracker, ref.getLocus(), false, logger, SCAC.alleles);
             if( vcFromAllelesRod != null ) {
                 return new ActivityProfileState(ref.getLocus(), 1.0);
             }
         }
 
         if( USE_ALLELES_TRIGGER ) {
-            return new ActivityProfileState( ref.getLocus(), tracker.getValues(UG_engine.getUAC().alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
+            return new ActivityProfileState( ref.getLocus(), tracker.getValues(SCAC.alleles, ref.getLocus()).size() > 0 ? 1.0 : 0.0 );
         }
 
         if( context == null || context.getBasePileup().isEmpty() )
@@ -784,7 +748,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         final List<Allele> alleles = Arrays.asList(FAKE_REF_ALLELE , FAKE_ALT_ALLELE);
-        final VariantCallContext vcOut = UG_engine_simple_genotyper.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.SNP);
+        final VariantCallContext vcOut = activeRegionEvaluationGenotyperEngine.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Name.SNP);
         final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
 
         return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
@@ -807,27 +771,27 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // Not active so nothing to do!
             return referenceModelForNoVariation(originalActiveRegion, true);
 
-        final List<VariantContext> activeAllelesToGenotype = new ArrayList<>();
-        if( UG_engine.getUAC().GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES ) {
-            for ( final VariantContext vc : metaDataTracker.getValues(UG_engine.getUAC().alleles) ) {
+        final List<VariantContext> givenAlleles = new ArrayList<>();
+        if( SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ) {
+            for ( final VariantContext vc : metaDataTracker.getValues(SCAC.alleles) ) {
                 if ( vc.isNotFiltered() ) {
-                    activeAllelesToGenotype.add(vc); // do something with these VCs during GGA mode
+                    givenAlleles.add(vc); // do something with these VCs during GGA mode
                 }
             }
             // No alleles found in this region so nothing to do!
-            if ( activeAllelesToGenotype.isEmpty() ) { return referenceModelForNoVariation(originalActiveRegion, true); }
+            if ( givenAlleles.isEmpty() ) { return referenceModelForNoVariation(originalActiveRegion, true); }
         } else {
             // No reads here so nothing to do!
             if( originalActiveRegion.size() == 0 ) { return referenceModelForNoVariation(originalActiveRegion, true); }
         }
 
         // run the local assembler, getting back a collection of information on how we should proceed
-        final AssemblyResultSet untrimmedAssemblyResult = assembleReads(originalActiveRegion, activeAllelesToGenotype);
+        final AssemblyResultSet untrimmedAssemblyResult = assembleReads(originalActiveRegion, givenAlleles);
 
         final TreeSet<VariantContext> allVariationEvents = untrimmedAssemblyResult.getVariationEvents();
         // TODO - line bellow might be unecessary : it might be that assemblyResult will always have those alleles anyway
         // TODO - so check and remove if that is the case:
-        allVariationEvents.addAll(activeAllelesToGenotype);
+        allVariationEvents.addAll(givenAlleles);
 
         final ActiveRegionTrimmer.Result trimmingResult = trimmer.trim(originalActiveRegion,allVariationEvents);
 
@@ -877,7 +841,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         //  haplotype containing C as reference (and vice versa).  Now this is fine if all possible haplotypes are included
         //  in the genotyping, but we lose information if we select down to a few haplotypes.  [EB]
 
-        final GenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods( UG_engine,
+        final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods(
                 haplotypes,
                 stratifiedReadMap,
                 perSampleFilteredReadList,
@@ -886,7 +850,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 regionForGenotyping.getLocation(),
                 getToolkit().getGenomeLocParser(),
                 metaDataTracker,
-                ( consensusMode ? Collections.<VariantContext>emptyList() : activeAllelesToGenotype ),
+                ( consensusMode ? Collections.<VariantContext>emptyList() : givenAlleles ),
 		        emitReferenceConfidence() );
 
         // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
@@ -899,7 +863,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                     stratifiedReadMap);
         }
 
-        if( DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
+        if( SCAC.DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
 
 
         if ( emitReferenceConfidence() ) {
@@ -925,7 +889,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
     }
 
-    private boolean containsCalls(final GenotypingEngine.CalledHaplotypes calledHaplotypes) {
+    private boolean containsCalls(final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes) {
         final List<VariantContext> calls = calledHaplotypes.getCalls();
         if (calls.isEmpty()) return false;
         for (final VariantContext call : calls)
@@ -941,10 +905,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * for further HC steps
      *
      * @param activeRegion the region we should assemble
-     * @param activeAllelesToGenotype additional alleles we might need to genotype (can be empty)
+     * @param giveAlleles additional alleles we might need to genotype (can be empty)
      * @return the AssemblyResult describing how to proceed with genotyping
      */
-    protected AssemblyResultSet assembleReads(final ActiveRegion activeRegion, final List<VariantContext> activeAllelesToGenotype) {
+    protected AssemblyResultSet assembleReads(final ActiveRegion activeRegion, final List<VariantContext> giveAlleles) {
         // Create the reference haplotype which is the bases from the reference that make up the active region
         finalizeActiveRegion(activeRegion); // handle overlapping fragments, clip adapter and low qual tails
 
@@ -955,10 +919,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // Create ReadErrorCorrector object if requested - will be used within assembly engine.
         ReadErrorCorrector readErrorCorrector = null;
         if (errorCorrectReads)
-            readErrorCorrector = new ReadErrorCorrector(kmerLengthForReadErrorCorrection, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION, minObservationsForKmerToBeSolid, DEBUG, fullReferenceWithPadding);
+            readErrorCorrector = new ReadErrorCorrector(kmerLengthForReadErrorCorrection, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION, minObservationsForKmerToBeSolid, SCAC.DEBUG, fullReferenceWithPadding);
 
         try {
-            final AssemblyResultSet assemblyResultSet = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, activeAllelesToGenotype,readErrorCorrector );
+            final AssemblyResultSet assemblyResultSet = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, giveAlleles,readErrorCorrector );
             assemblyResultSet.debugDump(logger);
             return assemblyResultSet;
 
@@ -1056,7 +1020,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     @Override
     public void onTraversalDone(Integer result) {
-        if ( emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) ((GVCFWriter)vcfWriter).close(false); // GROSS -- engine forces us to close our own VCF writer since we wrapped it
+        if ( SCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) ((GVCFWriter)vcfWriter).close(false); // GROSS -- engine forces us to close our own VCF writer since we wrapped it
         referenceConfidenceModel.close();
         //TODO remove the need to call close here for debugging, the likelihood output stream should be managed
         //TODO (open & close) at the walker, not the engine.
@@ -1073,7 +1037,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private void finalizeActiveRegion( final ActiveRegion activeRegion ) {
         if (activeRegion.isFinalized()) return;
 
-        if( DEBUG ) { logger.info("Assembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
+        if( SCAC.DEBUG ) { logger.info("Assembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
 
         // Loop through the reads hard clipping the adaptor and low quality tails
         final List<GATKSAMRecord> readsToUse = new ArrayList<>(activeRegion.getReads().size());
@@ -1156,10 +1120,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     /**
      * Are we emitting a reference confidence in some form, or not?
-     * @return true if we are
+     *
+     * @return true if HC must emit reference confidence.
      */
-    private boolean emitReferenceConfidence(){
-        return emitReferenceConfidence != ReferenceConfidenceMode.NONE;
+    private boolean emitReferenceConfidence() {
+        return SCAC.emitReferenceConfidence != ReferenceConfidenceMode.NONE;
     }
 
     /**
