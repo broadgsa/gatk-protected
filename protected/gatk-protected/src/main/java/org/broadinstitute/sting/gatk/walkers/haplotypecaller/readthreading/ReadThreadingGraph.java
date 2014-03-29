@@ -66,6 +66,8 @@ public class ReadThreadingGraph extends DanglingChainMergingGraph implements Kme
     private final static boolean WRITE_GRAPH = false;
     private final static boolean DEBUG_NON_UNIQUE_CALC = false;
 
+    private boolean startThreadingOnlyAtExistingVertex = false;
+
     /** for debugging info printing */
     private static int counter = 0;
 
@@ -252,11 +254,46 @@ public class ReadThreadingGraph extends DanglingChainMergingGraph implements Kme
 
         for ( int i = seqForKmers.start; i < seqForKmers.stop - kmerSize; i++ ) {
             final Kmer kmer1 = new Kmer(seqForKmers.sequence, i, kmerSize);
-            if ( !nonUniqueKmers.contains(kmer1) )
+            if ( isThreadingStart(kmer1) )
                 return i;
         }
 
         return -1;
+    }
+
+    /**
+     * Checks whether a kmer can be the threading start based on the current threading start location policy.
+     *
+     * @see #setThreadingStartOnlyAtExistingVertex(boolean)
+     * @see #getThreadingStartOnlyAtExistingVertex()
+     *
+     * @param kmer the query kmer.
+     * @return {@code true} if we can start thread the sequence at this kmer, {@code false} otherwise.
+     */
+    protected boolean isThreadingStart(final Kmer kmer) {
+        if (kmer == null)
+            throw new IllegalArgumentException();
+        return startThreadingOnlyAtExistingVertex ? uniqueKmers.containsKey(kmer) : !nonUniqueKmers.contains(kmer);
+    }
+
+    /**
+     * Changes the threading start location policy.
+     *
+     * @param value  {@code true} if threading will start only at existing vertices in the graph, {@code false} if
+     *  it can start at any unique kmer.
+     */
+    public void setThreadingStartOnlyAtExistingVertex(final boolean value) {
+        startThreadingOnlyAtExistingVertex = value;
+    }
+
+    /**
+     * Indicates the threading start location policy.
+     *
+     * @return {@code true} if threading will start only at existing vertices in the graph, {@code false} if
+     *  it can start at any unique kmer.
+     */
+    public boolean getThreadingStartOnlyAtExistingVertex() {
+        return startThreadingOnlyAtExistingVertex;
     }
 
     /**
