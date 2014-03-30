@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.indels;
 
-import net.sf.picard.sam.SamPairUtil;
+import net.sf.samtools.SamPairUtil;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordComparator;
