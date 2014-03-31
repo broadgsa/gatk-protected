@@ -149,6 +149,8 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly, numPruningSamples);
 
+        rtgraph.setThreadingStartOnlyAtExistingVertex(!recoverDanglingHeads);
+
         // add the reference sequence to the graph
         rtgraph.addSequence("ref", refHaplotype.getBases(), true);
 
