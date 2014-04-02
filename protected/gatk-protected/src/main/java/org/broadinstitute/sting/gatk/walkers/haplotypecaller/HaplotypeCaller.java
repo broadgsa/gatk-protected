@@ -1151,7 +1151,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         for( final GATKSAMRecord read : reads ) {
             returnMap.get(read.getReadGroup().getSample()).add(read);
         }
-
         return returnMap;
     }
 

@@ -45,10 +45,10 @@
 */
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import com.google.java.contract.Requires;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.MultiSampleEdge;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.Route;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.MultiDeBruijnVertex;
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -63,7 +63,17 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 class ReadSegmentCost {
 
+    /**
+     * Reference to the path the cost makes reference to. Public and writable for convenience, notice that this is not
+     * a public class.
+     */
     public Route<MultiDeBruijnVertex, MultiSampleEdge> path;
+
+
+    /**
+     * Reference to the read the cost makes reference to. Public and writable for convenience, notice that this is not
+     * a public class.
+     */
     public GATKSAMRecord read;
 
     /**
@@ -78,23 +88,38 @@ class ReadSegmentCost {
 
     /**
      * Construct a new path cost.
+     *
      * @param read the corresponding read.
      * @param path the corresponding path.
      * @param cost initial cost estimate. Might be updated later.
      */
-    @Requires("route != null")
     public ReadSegmentCost(final GATKSAMRecord read,
-                    final Route<MultiDeBruijnVertex, MultiSampleEdge> path, double cost) {
+                    final Route<MultiDeBruijnVertex, MultiSampleEdge> path, final double cost) {
+        if (read == null)
+            throw new IllegalArgumentException("the read provided cannot be null");
+        if (path == null)
+            throw new IllegalArgumentException("the path provided cannot be null");
         this.read = read;
         this.path = path;
         setCost(cost);
     }
 
+    /**
+     * Returns the cost of a read vs a haplotype.
+     *
+     * @return a valid log10 likelihood
+     */
     public double getCost() {
         return cost;
     }
 
+    /**
+     * Changes the cost of the current path vs read combination.
+     * @param value
+     */
     public void setCost(final double value) {
+        if (!MathUtils.goodLog10Probability(value))
+            throw new IllegalArgumentException("infinite cost are not allowed");
         cost = value;
     }
 
@@ -110,7 +135,7 @@ class ReadSegmentCost {
 
     /**
      * Returns the this path-cost unique identifier.
-     * @return
+     * @return never {@code unique}.
      */
     public long uniqueId() {
         if (uniqueId == null)

@@ -45,6 +45,7 @@
 */
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
+import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
 import java.util.Comparator;
@@ -53,6 +54,10 @@ import java.util.Comparator;
  * A pair read-likelihood (cost).
  */
 public class ReadCost {
+
+    /**
+     * Reference to the read record this cost makes reference to.
+     */
     public final GATKSAMRecord read;
 
     /**
@@ -71,12 +76,11 @@ public class ReadCost {
      */
     public ReadCost(final GATKSAMRecord r, final double initialCost) {
         if (r == null) throw new NullPointerException();
-        if (Double.isNaN(initialCost) || Double.isInfinite(initialCost) || initialCost > 0)
+        if (!MathUtils.goodLog10Probability(initialCost))
             throw new IllegalArgumentException("initial cost must be a finite 0 or negative value (" + initialCost + ")");
         read = r;
         cost = initialCost;
     }
-
 
     /**
      * Comparator used to sort ReadCosts
@@ -90,15 +94,15 @@ public class ReadCost {
         }
     };
 
-
     /**
      * Add to the cost.
      * @param value value to add.
      */
     public void addCost(final double value) {
-        if (cost + value > 0)
-            throw new IllegalArgumentException("value brings cost over 0. Current cost " + cost + " value " + value);
+        final double previousCost = cost;
         cost += value;
+        if (!MathUtils.goodLog10Probability(cost))
+            throw new IllegalArgumentException("invalid log10 likelihood value (" + cost + ") after adding (" + value + ") to (" + previousCost + ")");
     }
 
     /**
@@ -108,5 +112,4 @@ public class ReadCost {
     public double getCost() {
         return cost;
     }
-
 }
