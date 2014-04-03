@@ -90,7 +90,7 @@ public class FastaAlternateReferenceIntegrationTest extends WalkerTest {
         // cannot use 'expectedExceptions = UserException.BadInput.class' because it technically gets thrown as a RuntimeException by the engine
         try {
             WalkerTestSpec spec = new WalkerTestSpec(
-                    "-T FastaAlternateReferenceMaker -R " + b36KGReference + " --useIUPAC -V " + GATKDataLocation + "dbsnp_129_b36.vcf -L 1:10,023,400-10,023,500 -L 1:10,029,200-10,029,500 -o %s",
+                    "-T FastaAlternateReferenceMaker -R " + b37KGReference + " --use_IUPAC_sample NAXXXXX -V " + privateTestDir + "NA12878.WGS.b37.chr20.firstMB.vcf -L 20:61050-66380 -o %s",
                     1,
                     Arrays.asList("FAILFAILFAILFAILFAILFAILFAILFAIL"));
             executeTest("test bad input", spec);
@@ -101,7 +101,7 @@ public class FastaAlternateReferenceIntegrationTest extends WalkerTest {
     public void testIupac() {
 
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T FastaAlternateReferenceMaker -R " + b37KGReference + " --useIUPAC -V " + privateTestDir + "NA12878.WGS.b37.chr20.firstMB.vcf -L 20:61050-66380 -o %s",
+                "-T FastaAlternateReferenceMaker -R " + b37KGReference + " --use_IUPAC_sample NA12878 -V " + privateTestDir + "NA12878.WGS.b37.chr20.firstMB.vcf -L 20:61050-66380 -o %s",
                 1,
                 Arrays.asList("5feb2a576ff2ed1745a007eaa36448b3"));
         executeTest("test iupac", spec);
