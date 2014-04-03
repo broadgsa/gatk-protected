@@ -1462,6 +1462,8 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
                     case EQ:
                     case X:
                     case I:
+                        if ( fromIndex + elementLength > actualReadBases.length )
+                            throw new UserException.MalformedBAM(read, "the CIGAR string is inconsistent with the number of bases in the read");
                         System.arraycopy(actualReadBases, fromIndex, readBases, toIndex, elementLength);
                         System.arraycopy(actualBaseQuals, fromIndex, baseQuals, toIndex, elementLength);
                         fromIndex += elementLength;

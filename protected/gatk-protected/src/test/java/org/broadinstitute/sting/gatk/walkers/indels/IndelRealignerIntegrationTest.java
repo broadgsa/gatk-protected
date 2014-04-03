@@ -47,6 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.indels;
 
 import org.broadinstitute.sting.WalkerTest;
+import org.broadinstitute.sting.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -100,7 +101,7 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
     @Test
     public void testLods() {
         HashMap<String, String> e = new HashMap<String, String>();
-        e.put( "-LOD 60", base_md5 );
+        e.put("-LOD 60", base_md5);
         e.put( "-LOD 1 --consensusDeterminationModel USE_SW",  "4bf28d3c0337682d439257874377a681" );
 
         for ( Map.Entry<String, String> entry : e.entrySet() ) {
@@ -148,7 +149,7 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
     @Test
     public void testMaxReadsInMemory() {
         HashMap<String, String> e = new HashMap<String, String>();
-        e.put( "--maxReadsInMemory 10000", base_md5 );
+        e.put("--maxReadsInMemory 10000", base_md5);
         e.put( "--maxReadsInMemory 40000", base_md5 );
 
         for ( Map.Entry<String, String> entry : e.entrySet() ) {
@@ -169,4 +170,12 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
         executeTest("test realigner nWayOut", spec1);
     }
 
+    @Test(expectedExceptions = RuntimeException.class) // because TESTNG wraps UserExceptions in RuntimeExceptions
+    public void testBadCigarString() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T IndelRealigner -R " + b37KGReference + " -I " + privateTestDir + "Realigner.error.bam -L 19:5787200-5787300 -targetIntervals 19:5787205-5787300 -o %s",
+                1,
+                Arrays.asList("FAILFAILFAILFAILFAILFAILFAILFAIL"));
+        executeTest("test bad cigar", spec);
+    }
 }
