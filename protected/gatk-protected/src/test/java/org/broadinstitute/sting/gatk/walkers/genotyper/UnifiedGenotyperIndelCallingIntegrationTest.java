@@ -168,14 +168,15 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
     //
     // --------------------------------------------------------------------------------------------------------------
 
-    final static String assessMinIndelFraction = baseCommandIndelsb37 + " -I " + validationDataLocation
-            + "978604.bam -L 1:978,586-978,626 -o %s --sites_only -rf Sample -goodSM 7377 -goodSM 22-0022 -goodSM 134 -goodSM 344029-53 -goodSM 14030";
+    final static String assessMinIndelFraction = "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R "
+            + b36KGReference + " --no_cmdline_in_header -glm INDEL -mbq 20 -I "
+            + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,500,000 -o %s";
 
     @Test
     public void testMinIndelFraction0() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 assessMinIndelFraction + " -minIndelFrac 0.0", 1,
-                Arrays.asList("af0b881d0a931f0789706f0289b72a64"));
+                Arrays.asList("0d9a3129f680c4a4f41b08154fd836a4"));
         executeTest("test minIndelFraction 0.0", spec);
     }
 
@@ -183,7 +184,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
     public void testMinIndelFraction25() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 assessMinIndelFraction + " -minIndelFrac 0.25", 1,
-                Arrays.asList("aa97a7941a861d57a3b746b3f6301eb6"));
+                Arrays.asList("e910304c25a277b63d8fa8167d4a8b88"));
         executeTest("test minIndelFraction 0.25", spec);
     }
 
@@ -191,7 +192,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
     public void testMinIndelFraction100() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 assessMinIndelFraction + " -minIndelFrac 1", 1,
-                Arrays.asList("3f07efb768e08650a7ce333edd4f9a52"));
+                Arrays.asList("83e72fd13291cec00fa5a468a2656c94"));
         executeTest("test minIndelFraction 1.0", spec);
     }
 
