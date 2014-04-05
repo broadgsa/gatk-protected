@@ -75,6 +75,7 @@ public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBased
 
     private static final String SOR = "SOR";
 
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
@@ -140,10 +141,12 @@ public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBased
         return Collections.singletonMap(SOR, value);
     }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
         return Collections.singletonList(new VCFInfoHeaderLine(SOR, 1, VCFHeaderLineType.Float, "Symmetric Odds Ratio of 2x2 contingency table to detect strand bias"));
     }
 
+    @Override
     public List<String> getKeyNames() {
         return Collections.singletonList(SOR);
     }
