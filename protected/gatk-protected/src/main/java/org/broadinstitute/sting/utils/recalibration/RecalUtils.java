@@ -501,10 +501,6 @@ public class RecalUtils {
         return covariate.getClass().getSimpleName().split("Covariate")[0];
     }
 
-    public static void outputRecalibrationReport(final RecalibrationArgumentCollection RAC, final QuantizationInfo quantizationInfo, final RecalibrationTables recalibrationTables, final Covariate[] requestedCovariates, boolean sortByCols) {
-        outputRecalibrationReport(RAC.generateReportTable(covariateNames(requestedCovariates)), quantizationInfo.generateReportTable(sortByCols), generateReportTables(recalibrationTables, requestedCovariates, sortByCols), RAC.RECAL_TABLE);
-    }
-
     /**
      * Return a human-readable string representing the used covariates
      *
@@ -518,16 +514,48 @@ public class RecalUtils {
         return Utils.join(",", names);
     }
 
-    public static void outputRecalibrationReport(final GATKReportTable argumentTable, final QuantizationInfo quantizationInfo, final RecalibrationTables recalibrationTables, final Covariate[] requestedCovariates, final PrintStream outputFile, boolean sortByCols) {
-        outputRecalibrationReport(argumentTable, quantizationInfo.generateReportTable(sortByCols), generateReportTables(recalibrationTables, requestedCovariates, sortByCols), outputFile);
+    /**
+     * Outputs the GATK report to RAC.RECAL_TABLE.
+     *
+     * @param RAC The list of shared command line arguments
+     * @param quantizationInfo Quantization info
+     * @param recalibrationTables Recalibration tables
+     * @param requestedCovariates The list of requested covariates
+     * @param sortByCols True to use GATKReportTable.TableSortingWay.SORT_BY_COLUMN, false to use GATKReportTable.TableSortingWay.DO_NOT_SORT
+     */
+    public static void outputRecalibrationReport(final RecalibrationArgumentCollection RAC, final QuantizationInfo quantizationInfo, final RecalibrationTables recalibrationTables, final Covariate[] requestedCovariates, boolean sortByCols) {
+        final GATKReport report = createRecalibrationGATKReport(RAC.generateReportTable(covariateNames(requestedCovariates)), quantizationInfo.generateReportTable(sortByCols), generateReportTables(recalibrationTables, requestedCovariates, sortByCols));
+        report.print(RAC.RECAL_TABLE);
     }
 
-    private static void outputRecalibrationReport(final GATKReportTable argumentTable, final GATKReportTable quantizationTable, final List<GATKReportTable> recalTables, final PrintStream outputFile) {
+    /**
+     * Creates a consolidated GATK report, first generating report tables. Report can then be written to a stream via GATKReport.print(PrintStream).
+     *
+     * @param argumentTable Argument table
+     * @param quantizationInfo Quantization info
+     * @param recalibrationTables Recalibration tables
+     * @param requestedCovariates The list of requested covariates
+     * @param sortByCols True to use GATKReportTable.TableSortingWay.SORT_BY_COLUMN, false to use GATKReportTable.TableSortingWay.DO_NOT_SORT
+     * @return GATK report
+     */
+    public static GATKReport createRecalibrationGATKReport(final GATKReportTable argumentTable, final QuantizationInfo quantizationInfo, final RecalibrationTables recalibrationTables, final Covariate[] requestedCovariates, final boolean sortByCols) {
+        return createRecalibrationGATKReport(argumentTable, quantizationInfo.generateReportTable(sortByCols), generateReportTables(recalibrationTables, requestedCovariates, sortByCols));
+    }
+
+    /**
+     * Creates a consolidated GATK report from the tables. Report can then be written to a stream via GATKReport.print(PrintStream).
+     *
+     * @param argumentTable Argument table
+     * @param quantizationTable Quantization Table
+     * @param recalTables Other recal tables
+     * @return GATK report
+     */
+    private static GATKReport createRecalibrationGATKReport(final GATKReportTable argumentTable, final GATKReportTable quantizationTable, final List<GATKReportTable> recalTables) {
         final GATKReport report = new GATKReport();
         report.addTable(argumentTable);
         report.addTable(quantizationTable);
         report.addTables(recalTables);
-        report.print(outputFile);
+        return report;
     }
 
     /**                                                s

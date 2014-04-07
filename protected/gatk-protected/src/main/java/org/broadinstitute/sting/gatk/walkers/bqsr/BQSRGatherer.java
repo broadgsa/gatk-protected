@@ -46,16 +46,18 @@
 
 package org.broadinstitute.sting.gatk.walkers.bqsr;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.log4j.Logger;
 import org.broadinstitute.sting.commandline.Gatherer;
+import org.broadinstitute.sting.gatk.report.GATKReport;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
 import org.broadinstitute.sting.utils.exceptions.UserException;
-import org.broadinstitute.sting.utils.recalibration.RecalUtils;
 import org.broadinstitute.sting.utils.recalibration.RecalibrationReport;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
-import java.util.List;
+import java.util.*;
 
 /**
  * User: carneiro
@@ -64,22 +66,57 @@ import java.util.List;
 
 
 public class BQSRGatherer extends Gatherer  {
-    
+
+    private static final Logger logger = Logger.getLogger(BQSRGatherer.class);
     private static final String EMPTY_INPUT_LIST = "list of inputs files is empty or there is no usable data in any input file";
     private static final String MISSING_OUTPUT_FILE = "missing output file name";
+    private static final String MISSING_READ_GROUPS = "Missing read group(s)";
 
     @Override
-    public void gather(List<File> inputs, File output) {
+    public void gather(final List<File> inputs, final File output) {
         final PrintStream outputFile;
         try {
             outputFile = new PrintStream(output);
         } catch(FileNotFoundException e) {
             throw new UserException.MissingArgument("output", MISSING_OUTPUT_FILE);
         }
+        final GATKReport report = gatherReport(inputs);
+        report.print(outputFile);
+    }
+
+    /**
+     * Gathers the input recalibration reports into a single report.
+     *
+     * @param inputs Input recalibration GATK reports
+     * @return gathered recalibration GATK report
+     */
+    public static GATKReport gatherReport(final List<File> inputs) {
+        final SortedSet<String> allReadGroups = new TreeSet<String>();
+        final LinkedHashMap<File, Set<String>> inputReadGroups = new LinkedHashMap<File, Set<String>>();
+
+        // Get the read groups from each input report
+        for (final File input : inputs) {
+            final Set<String> readGroups = RecalibrationReport.getReadGroups(input);
+            inputReadGroups.put(input, readGroups);
+            allReadGroups.addAll(readGroups);
+        }
+
+        // Log the read groups that are missing from specific inputs
+        for (Map.Entry<File, Set<String>> entry: inputReadGroups.entrySet()) {
+            final File input = entry.getKey();
+            final Set<String> readGroups = entry.getValue();
+            if (allReadGroups.size() != readGroups.size()) {
+                // Since this is not completely unexpected, more than debug, but less than a proper warning.
+                logger.info(MISSING_READ_GROUPS + ": " + input.getAbsolutePath());
+                for (final Object readGroup: CollectionUtils.subtract(allReadGroups, readGroups)) {
+                    logger.info("  " + readGroup);
+                }
+            }
+        }
 
         RecalibrationReport generalReport = null;
         for (File input : inputs) {
-            final RecalibrationReport inputReport = new RecalibrationReport(input);
+            final RecalibrationReport inputReport = new RecalibrationReport(input, allReadGroups);
             if( inputReport.isEmpty() ) { continue; }
 
             if (generalReport == null)
@@ -92,6 +129,6 @@ public class BQSRGatherer extends Gatherer  {
 
         generalReport.calculateQuantizedQualities();
 
-        generalReport.output(outputFile);
+        return generalReport.createGATKReport();
     }
 }
