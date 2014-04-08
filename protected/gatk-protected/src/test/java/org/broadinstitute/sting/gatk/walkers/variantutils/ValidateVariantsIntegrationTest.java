@@ -55,9 +55,27 @@ import java.util.Arrays;
 public class ValidateVariantsIntegrationTest extends WalkerTest {
 
     protected static final String emptyMd5 = "d41d8cd98f00b204e9800998ecf8427e";
+    protected static final String defaultRegion = "1:10001292-10001303";
 
-    public static String baseTestString(String file, String type) {
-        return "-T ValidateVariants -R " + b36KGReference + " -L 1:10001292-10001303 --variant:vcf " + privateTestDir + file + " --validationType " + type;
+
+    public static String baseTestString(final String file, String type) {
+        return baseTestString(file,type,defaultRegion,b36KGReference);
+    }
+
+    public static String baseTestString(String file, String type, String region, String reference) {
+        final String typeArgString = type.startsWith("-") ? " --validationTypeToExclude " + type.substring(1) : excludeValidationTypesButString(type);
+        return "-T ValidateVariants -R " + reference + " -L " + region + " --variant:vcf " + privateTestDir + file + typeArgString;
+    }
+
+    private static String excludeValidationTypesButString(String type) {
+        if (type == "ALL")
+            return "";
+        final ValidateVariants.ValidationType vtype = ValidateVariants.ValidationType.valueOf(type);
+        final StringBuilder sbuilder = new StringBuilder();
+        for (final ValidateVariants.ValidationType t : ValidateVariants.ValidationType.CONCRETE_TYPES)
+            if (t != vtype)
+                sbuilder.append(" --validationTypeToExclude " + t.toString());
+        return sbuilder.toString();
     }
 
     @Test
@@ -117,12 +135,11 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
 
     @Test
     public void testBadID() {
-        WalkerTestSpec spec = new WalkerTestSpec(
+        final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("validationExampleBad.vcf", "IDS") + " --dbsnp " + b36dbSNP129,
                 0,
                 UserException.FailsStrictValidation.class
         );
-
         executeTest("test bad RS ID", spec);
     }
 
@@ -151,7 +168,7 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
     @Test
     public void testNoValidation() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("validationExampleBad.vcf", "NONE"),
+                baseTestString("validationExampleBad.vcf", "-ALL"),
                 0,
                 Arrays.asList(emptyMd5)
         );
@@ -168,5 +185,19 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
         );
 
         executeTest("test validating complex events", spec);
+    }
+
+    @Test(description = "Fixes '''bug''' reported in story https://www.pivotaltracker.com/story/show/68725164")
+    public void testUnusedAlleleFix() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("validationUnusedAllelesBugFix.vcf","-ALLELES","1:1-739000",b37KGReference),0,Arrays.asList(emptyMd5));
+        executeTest("test unused allele bug fix", spec);
+    }
+
+    @Test(description = "Checks '''bug''' reported in story https://www.pivotaltracker.com/story/show/68725164")
+    public void testUnusedAlleleError() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("validationUnusedAllelesBugFix.vcf","ALLELES","1:1-739000",b37KGReference),0, UserException.FailsStrictValidation.class);
+        executeTest("test unused allele bug fix", spec);
     }
 }
