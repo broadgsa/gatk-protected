@@ -77,8 +77,12 @@ public class RecalibrationReport {
     private final int[] tempQUALarray = new int[3];
     private final int[] tempCOVarray = new int[4];
 
-    public RecalibrationReport(final File RECAL_FILE) {
-        final GATKReport report = new GATKReport(RECAL_FILE);
+    public RecalibrationReport(final File recalFile) {
+        this(recalFile, getReadGroups(recalFile));
+    }
+
+    public RecalibrationReport(final File recalFile, final SortedSet<String> allReadGroups) {
+        final GATKReport report = new GATKReport(recalFile);
 
         argumentTable = report.getTable(RecalUtils.ARGUMENT_REPORT_TABLE_TITLE);
         RAC = initializeArgumentCollectionTable(argumentTable);
@@ -104,7 +108,9 @@ public class RecalibrationReport {
         for (Covariate cov : requestedCovariates)
             cov.initialize(RAC); // initialize any covariate member variables using the shared argument collection
 
-        recalibrationTables = new RecalibrationTables(requestedCovariates, countReadGroups(report.getTable(RecalUtils.READGROUP_REPORT_TABLE_TITLE)));
+        recalibrationTables = new RecalibrationTables(requestedCovariates, allReadGroups.size());
+
+        initializeReadGroupCovariates(allReadGroups);
 
         parseReadGroupTable(report.getTable(RecalUtils.READGROUP_REPORT_TABLE_TITLE), recalibrationTables.getReadGroupTable());
 
@@ -115,16 +121,27 @@ public class RecalibrationReport {
     }
 
     /**
-     * Counts the number of unique read groups in the table
+     * Gets the unique read groups in the recal file
      *
-     * @param reportTable the GATKReport table containing data for this table
-     * @return the number of unique read groups
+     * @param recalFile the recal file as a GATK Report
+     * @return the unique read groups
      */
-    private int countReadGroups(final GATKReportTable reportTable) {
-        Set<String> readGroups = new HashSet<String>();
+    public static SortedSet<String> getReadGroups(final File recalFile) {
+        return getReadGroups(new GATKReport(recalFile));
+    }
+
+    /**
+     * Gets the unique read groups in the table
+     *
+     * @param report the GATKReport containing the table with RecalUtils.READGROUP_REPORT_TABLE_TITLE
+     * @return the unique read groups
+     */
+    private static SortedSet<String> getReadGroups(final GATKReport report) {
+        final GATKReportTable reportTable = report.getTable(RecalUtils.READGROUP_REPORT_TABLE_TITLE);
+        final SortedSet<String> readGroups = new TreeSet<String>();
         for ( int i = 0; i < reportTable.getNumRows(); i++ )
             readGroups.add(reportTable.get(i, RecalUtils.READGROUP_COLUMN_NAME).toString());
-        return readGroups.size();
+        return readGroups;
     }
 
     /**
@@ -158,6 +175,20 @@ public class RecalibrationReport {
 
     public Covariate[] getRequestedCovariates() {
         return requestedCovariates;
+    }
+
+    /**
+     * Initialize read group keys using the shared list of all the read groups.
+     *
+     * By using the same sorted set of read groups across all recalibration reports, even if
+     * one report is missing a read group, all the reports use the same read group keys.
+     *
+     * @param allReadGroups The list of all possible read groups
+     */
+    private void initializeReadGroupCovariates(final SortedSet<String> allReadGroups) {
+        for (String readGroup: allReadGroups) {
+            requestedCovariates[0].keyFromValue(readGroup);
+        }
     }
 
     /**
@@ -358,8 +389,13 @@ public class RecalibrationReport {
         quantizationInfo = new QuantizationInfo(recalibrationTables, RAC.QUANTIZING_LEVELS);
     }
 
-    public void output(PrintStream output) {
-        RecalUtils.outputRecalibrationReport(argumentTable, quantizationInfo, recalibrationTables, requestedCovariates, output, RAC.SORT_BY_ALL_COLUMNS);
+    /**
+     * Creates the recalibration report.  Report can then be written to a stream via GATKReport.print(PrintStream).
+     *
+     * @return newly created recalibration report
+     */
+    public GATKReport createGATKReport() {
+        return RecalUtils.createRecalibrationGATKReport(argumentTable, quantizationInfo, recalibrationTables, requestedCovariates, RAC.SORT_BY_ALL_COLUMNS);
     }
 
     public RecalibrationArgumentCollection getRAC() {

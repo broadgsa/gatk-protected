@@ -183,4 +183,19 @@ public class BQSRGathererUnitTest extends BaseTest {
         }
         
     }
+
+    @Test
+    public void testGatherMissingReadGroup() {
+        // TODO: This test data is NOT private but privateTestDir offers:
+        // TODO:   - Doesn't end up in protected / private github
+        // TODO:   - IS otherwise available for local debugging unlike /humgen NFS mounts
+        // Hand modified subset of problematic gather inputs submitted by George Grant
+        File input1 = new File(privateTestDir + "NA12878.rg_subset.chr1.recal_data.table");
+        File input2 = new File(privateTestDir + "NA12878.rg_subset.chrY_Plus.recal_data.table");
+
+        GATKReport report12 = BQSRGatherer.gatherReport(Arrays.asList(input1, input2));
+        GATKReport report21 = BQSRGatherer.gatherReport(Arrays.asList(input2, input1));
+
+        Assert.assertTrue(report12.equals(report21), "GATK reports are different when gathered in a different order.");
+    }
 }
