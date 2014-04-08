@@ -303,7 +303,12 @@ public class ConstrainedMateFixingManager {
                     }
 
                     // we've already seen our mate -- set the mate info and remove it from the map
-                    SamPairUtil.setMateInfo(mate.record, newRead, null);
+                    // Via Nils Homer:
+                    //   There will be two SamPairUtil.setMateInfo functions.  The default will not update the mate
+                    //   cigar tag; in fact, it will remove it if it is present.  An alternative SamPairUtil.setMateInfo
+                    //   function takes a boolean as an argument ("addMateCigar") and will add/update the mate cigar if
+                    //   set to true.  This is the one you want to use.
+                    SamPairUtil.setMateInfo(mate.record, newRead, null, true);
                     if ( reQueueMate ) waitingReads.add(mate.record);
                 }
 
