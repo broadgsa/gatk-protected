@@ -64,13 +64,16 @@ import java.util.*;
  * <p> Odds Ratios in the 2x2 contingency table below are R = (X[0][0] * X[1][1]) / (X[0][1] * X[1][0]) and its inverse
  *          + strand       - strand
  *     Ref   X[0][0]        X[0][1]
- *     Alt   X[1][0]        X[1][0]
+ *     Alt   X[1][0]        X[1][1]
  * The sum R + 1/R is used to detect a difference in strand bias for ref and for alt (the sum makes it symmetric):
  * A high value is indicative of large difference where one entry is very small compared to the others.
+ *
+ * A scale factor of refRatio/altRatio where refRatio = (max(X[0][0], X[0][1])/min(X[0][0], X[0][1])) and
+ * altRatio = (max(X[1][0], X[1][1])/min(X[1][0], X[1][1])) ensures that the annotation value is large only
  * </p>
  */
 public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBasedAnnotation {
-    private final static double AUGMENTATION_CONSTANT = 0.1;
+    private final static double AUGMENTATION_CONSTANT = 1.0;
     private static final int MIN_COUNT = 0;
 
     private static final String SOR = "SOR";
@@ -88,20 +91,20 @@ public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBased
         if ( vc.hasGenotypes() ) {
             final int[][] tableFromPerSampleAnnotations = getTableFromSamples( vc.getGenotypes(), MIN_COUNT );
             if ( tableFromPerSampleAnnotations != null ) {
-                final double ratio = symmetricOddsRatio(tableFromPerSampleAnnotations);
+                final double ratio = calculateSOR(tableFromPerSampleAnnotations);
                 return annotationForOneTable(ratio);
             }
         }
 
         if (vc.isSNP() && stratifiedContexts != null) {
             final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
-            final double ratio = symmetricOddsRatio(tableNoFiltering);
+            final double ratio = calculateSOR(tableNoFiltering);
             return annotationForOneTable(ratio);
         }
         else if (stratifiedPerReadAlleleLikelihoodMap != null) {
             // either SNP with no alignment context, or indels: per-read likelihood map needed
             final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc, MIN_COUNT);
-            final double ratio = symmetricOddsRatio(table);
+            final double ratio = calculateSOR(table);
             return annotationForOneTable(ratio);
         }
         else
@@ -111,13 +114,16 @@ public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBased
     }
 
     /**
-     * Computes the symmetric odds ratio of a table after augmentation.
+     * Computes the SOR value of a table after augmentation. Based on the symmetric odds ratio but modified to take on
+     * low values when the reference +/- read count ratio is skewed but the alt count ratio is not.  Natural log is taken
+     * to keep values within roughly the same range as other annotations.
+     *
      * Augmentation avoids quotient by zero.
      *
      * @param originalTable The table before augmentation
-     * @return the symmetric odds ratio
+     * @return the SOR annotation value
      */
-    final protected double symmetricOddsRatio(final int[][] originalTable) {
+    final protected double calculateSOR(final int[][] originalTable) {
         final double[][] augmentedTable = augmentContingencyTable(originalTable);
 
         double ratio = 0;
@@ -125,7 +131,12 @@ public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBased
         ratio += (augmentedTable[0][0] / augmentedTable[0][1]) * (augmentedTable[1][1] / augmentedTable[1][0]);
         ratio += (augmentedTable[0][1] / augmentedTable[0][0]) * (augmentedTable[1][0] / augmentedTable[1][1]);
 
-        return ratio;
+        final double refRatio = (Math.min(augmentedTable[0][0], augmentedTable[0][1])/Math.max(augmentedTable[0][0], augmentedTable[0][1]));
+        final double altRatio = (Math.min(augmentedTable[1][0], augmentedTable[1][1])/Math.max(augmentedTable[1][0], augmentedTable[1][1]));
+
+        ratio = ratio*refRatio/altRatio;
+
+        return Math.log(ratio);
     }
 
 
