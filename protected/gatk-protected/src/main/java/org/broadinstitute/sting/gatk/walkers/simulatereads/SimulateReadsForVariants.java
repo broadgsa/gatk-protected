@@ -125,6 +125,11 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
     @Argument(fullName="readLength", shortName="RL", doc="Read lengths (bp)", required=false, minValue = 1, maxValue = Integer.MAX_VALUE)
     public int readLength = 101;
     /**
+     * Use this argument to simulate events at a non-50/50 allele fraction represented in the VCF by AF (used for somatic event simulation)
+     */
+    @Argument(fullName="useAFAsAlleleFraction", shortName="AF", doc="Use AF in VCF as event allele fraction ", required=false)
+    public boolean useAFAsAlleleFraction = false;
+    /**
      * The corresponding platform identifier will be specified in the simulated read group PL tag. This setting does not
      * affect the properties of the simulated reads.
      */
@@ -237,7 +242,7 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
 
         if ( verbose ) logger.info(String.format("Generating reads for %s", vc));
 
-        generateReadsForVariant(vc, ref);
+        generateReadsForVariant(vc, ref, useAFAsAlleleFraction);
 
         return 1;
     }
@@ -289,19 +294,21 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
      *
      * @param vc         the (bi-allelic) variant context for which to generate artificial reads
      * @param ref        the original reference context
+     * @param useAFAsAlleleFraction use AF tag to indicate allele fraction
      */
-    private void generateReadsForVariant(final VariantContext vc, final ReferenceContext ref) {
+    private void generateReadsForVariant(final VariantContext vc, final ReferenceContext ref, boolean useAFAsAlleleFraction) {
 
         final int refLength = vc.getReference().getBases().length;
         final ArtificialHaplotype refHap = constructHaplotype(vc.getReference(), refLength, ref);
         final ArtificialHaplotype altHap = constructHaplotype(vc.getAlternateAllele(0), refLength, ref);
 
         int gi = 0;
+        double refAlleleFraction = (useAFAsAlleleFraction)?1-vc.getAttributeAsDouble(VCFConstants.ALLELE_FREQUENCY_KEY, 0.5):0.5f;
         for ( final Genotype g : vc.getGenotypes() ) {
             final int myDepth = sampleDepth();
             for ( int d = 0; d < myDepth; d++ ) {
 
-                final ArtificialHaplotype haplotype = chooseRefHaplotype(g) ? refHap : altHap;
+                final ArtificialHaplotype haplotype = chooseRefHaplotype(g, refAlleleFraction) ? refHap : altHap;
                 final byte[] readBases = Arrays.copyOf(haplotype.bases, readLength);
 
                 addMachineErrors(readBases, errorRate);
@@ -314,12 +321,14 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
      * Decides whether or not to choose the reference haplotype, depending on the given genotype
      *
      * @param g  the genotype of the given sample
+     * @param pReferenceGivenHet probability of choosing reference for hets
+     *
      * @return true if one should use the reference haplotype, false otherwise
      */
-    private boolean chooseRefHaplotype(final Genotype g) {
+    private boolean chooseRefHaplotype(final Genotype g, final double pReferenceGivenHet) {
         final double refP;
         if ( g.isHomRef() )     refP = 1;
-        else if ( g.isHet() )   refP = 0.5;
+        else if ( g.isHet() )   refP = pReferenceGivenHet;
         else                    refP = 0.0;
 
         return ran.nextDouble() < refP;
