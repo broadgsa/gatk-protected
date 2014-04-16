@@ -127,6 +127,7 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
     /**
      * Use this argument to simulate events at a non-50/50 allele fraction represented in the VCF by AF (used for somatic event simulation)
      */
+    @Hidden
     @Argument(fullName="useAFAsAlleleFraction", shortName="AF", doc="Use AF in VCF as event allele fraction ", required=false)
     public boolean useAFAsAlleleFraction = false;
     /**
@@ -296,14 +297,19 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
      * @param ref        the original reference context
      * @param useAFAsAlleleFraction use AF tag to indicate allele fraction
      */
-    private void generateReadsForVariant(final VariantContext vc, final ReferenceContext ref, boolean useAFAsAlleleFraction) {
+    private void generateReadsForVariant(final VariantContext vc, final ReferenceContext ref, final boolean useAFAsAlleleFraction) {
 
         final int refLength = vc.getReference().getBases().length;
         final ArtificialHaplotype refHap = constructHaplotype(vc.getReference(), refLength, ref);
         final ArtificialHaplotype altHap = constructHaplotype(vc.getAlternateAllele(0), refLength, ref);
 
+        final double refAlleleFraction = (useAFAsAlleleFraction)?1-vc.getAttributeAsDouble(VCFConstants.ALLELE_FREQUENCY_KEY, 0.5):0.5;
+
+        if (refAlleleFraction < 0.0 || refAlleleFraction > 1.0 || Double.isNaN(refAlleleFraction) || Double.isInfinite(refAlleleFraction) ) {
+            throw new UserException.MalformedVCF("Error in AF, must be between 0 and 1 but was " + refAlleleFraction);
+        }
+
         int gi = 0;
-        double refAlleleFraction = (useAFAsAlleleFraction)?1-vc.getAttributeAsDouble(VCFConstants.ALLELE_FREQUENCY_KEY, 0.5):0.5f;
         for ( final Genotype g : vc.getGenotypes() ) {
             final int myDepth = sampleDepth();
             for ( int d = 0; d < myDepth; d++ ) {
