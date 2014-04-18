@@ -134,7 +134,7 @@ public class GeneralPloidySNPGenotypeLikelihoodsCalculationModel extends General
         final List<Allele> alleles = new ArrayList<Allele>();
         if ( allAllelesToUse != null ) {
             alleles.addAll(allAllelesToUse);
-        } else if ( UAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ) {
+        } else if ( UAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES ) {
             final VariantContext vc = GenotypingGivenAllelesUtils.composeGivenAllelesVariantContextFromRod(tracker, ref.getLocus(), true, logger, UAC.alleles);
 
             // ignore places where we don't have a SNP

@@ -54,7 +54,7 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 public class UnifiedArgumentCollection extends StandardCallerArgumentCollection {
 
     @Argument(fullName = "genotype_likelihoods_model", shortName = "glm", doc = "Genotype likelihoods calculation model to employ -- SNP is the default option, while INDEL is also available for calling indels and BOTH is available for calling both together", required = false)
-    public GenotypeLikelihoodsCalculationModel.Name GLmodel = GenotypeLikelihoodsCalculationModel.Name.SNP;
+    public GenotypeLikelihoodsCalculationModel.Model GLmodel = GenotypeLikelihoodsCalculationModel.Model.SNP;
 
     /**
      * The PCR error rate is independent of the sequencing error rate, which is necessary because we cannot necessarily
@@ -186,14 +186,6 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
     @Hidden
     @Argument(shortName = "min_call_power", fullName = "min_power_threshold_for_calling", doc="The minimum confidence in the error model to make a call. Number should be between 0 (no power requirement) and 1 (maximum power required).", required = false)
     double minPower = 0.95;
-
-    @Hidden
-    @Argument(shortName = "min_depth", fullName = "min_reference_depth", doc="The minimum depth required in the reference sample in order to make a call.", required = false)
-    int minReferenceDepth = 100;
-
-    @Hidden
-    @Argument(shortName="ef", fullName="exclude_filtered_reference_sites", doc="Don't include in the analysis sites where the reference sample VCF is filtered. Default: false.", required=false)
-    boolean EXCLUDE_FILTERED_REFERENCE_SITES = false;
 
     /**
      * Create a new UAC with defaults for all UAC arguments

@@ -71,7 +71,7 @@ public abstract class GenotypeLikelihoodsCalculationModel {
     public static final String DUMMY_LANE = "Lane1";
     public static final String DUMMY_SAMPLE_NAME = "DummySample1";
 
-    public enum Name {
+    public enum Model {
         SNP,
         INDEL,
         GENERALPLOIDYSNP,

@@ -54,7 +54,7 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public enum GenotypingMode {
+public enum GenotypingOutputMode {
 
     /**
      * The genotyper will choose the most likely alternate allele

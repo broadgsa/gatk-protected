@@ -54,7 +54,7 @@ import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingEngine;
-import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingMode;
+import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingOutputMode;
 import org.broadinstitute.sting.gatk.walkers.genotyper.OutputMode;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
@@ -96,13 +96,13 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
     @Override
     protected boolean forceKeepAllele(final Allele allele) {
         return allele == GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE ||
-                configuration.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ||
+                configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES ||
                 configuration.emitReferenceConfidence != ReferenceConfidenceMode.NONE;
     }
 
     @Override
     protected boolean forceSiteEmission() {
-        return configuration.outputMode == OutputMode.EMIT_ALL_SITES || configuration.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES;
+        return configuration.outputMode == OutputMode.EMIT_ALL_SITES || configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES;
     }
 
     /**
@@ -208,8 +208,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
                 if( mergedVC == null ) { continue; }
 
-                final GenotypeLikelihoodsCalculationModel.Name calculationModel = mergedVC.isSNP()
-                        ? GenotypeLikelihoodsCalculationModel.Name.SNP : GenotypeLikelihoodsCalculationModel.Name.INDEL;
+                final GenotypeLikelihoodsCalculationModel.Model calculationModel = mergedVC.isSNP()
+                        ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL;
 
                 if (emitReferenceConfidence) {
                     final List<Allele> alleleList = new ArrayList<>();

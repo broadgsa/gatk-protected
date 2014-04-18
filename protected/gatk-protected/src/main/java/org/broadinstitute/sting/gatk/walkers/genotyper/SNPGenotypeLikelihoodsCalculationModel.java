@@ -77,7 +77,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
 
     protected SNPGenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
         super(UAC, logger);
-        useAlleleFromVCF = UAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES;
+        useAlleleFromVCF = UAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES;
         perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
     }
 

@@ -59,7 +59,7 @@ import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.sting.utils.variant.HomoSapiens;
+import org.broadinstitute.sting.utils.variant.HomoSapiensConstants;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.*;
@@ -170,7 +170,7 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
      *
      */
      @Argument(fullName="globalPrior",shortName="G",doc="The global Dirichlet prior parameters for the allele frequency",required=false)
-     public double globalPrior = HomoSapiens.SNP_HETEROZYGOSITY;
+     public double globalPrior = HomoSapiensConstants.SNP_HETEROZYGOSITY;
 
     /**
      * When a variant is not seen in a panel, whether to infer (and with what effective strength) that only reference

@@ -115,9 +115,9 @@ public class RegenotypeVariants extends RodWalker<Integer, Integer> implements T
 
     public void initialize() {
         final UnifiedArgumentCollection UAC = new UnifiedArgumentCollection();
-        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Name.BOTH;
+        UAC.GLmodel = GenotypeLikelihoodsCalculationModel.Model.BOTH;
         UAC.outputMode = OutputMode.EMIT_ALL_SITES;
-        UAC.genotypingMode = GenotypingMode.GENOTYPE_GIVEN_ALLELES;
+        UAC.genotypingOutputMode = GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES;
 
         String trackName = variantCollection.variants.getName();
         Set<String> samples = SampleUtils.getSampleListWithVCFHeader(getToolkit(), Arrays.asList(trackName));

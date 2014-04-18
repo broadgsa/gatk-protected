@@ -47,10 +47,11 @@
 package org.broadinstitute.sting.gatk.arguments;
 
 import org.broadinstitute.sting.commandline.*;
+import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingOutputMode;
 import org.broadinstitute.sting.gatk.walkers.genotyper.OutputMode;
 import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.sting.utils.collections.DefaultHashMap;
-import org.broadinstitute.sting.utils.variant.HomoSapiens;
+import org.broadinstitute.sting.utils.variant.HomoSapiensConstants;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
@@ -98,16 +99,16 @@ public class StandardCallerArgumentCollection implements Cloneable {
      * which determines how many chromosomes each individual in the species carries.
      */
     @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus.  See the GATKDocs for full details on the meaning of this population genetics concept", required = false)
-    public Double snpHeterozygosity = HomoSapiens.SNP_HETEROZYGOSITY;
+    public Double snpHeterozygosity = HomoSapiensConstants.SNP_HETEROZYGOSITY;
 
     /**
      * This argument informs the prior probability of having an indel at a site.
      */
     @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling.  See the GATKDocs for heterozygosity for full details on the meaning of this population genetics concept", required = false)
-    public double indelHeterozygosity = HomoSapiens.INDEL_HETEROZYGOSITY;
+    public double indelHeterozygosity = HomoSapiensConstants.INDEL_HETEROZYGOSITY;
 
     @Argument(fullName = "genotyping_mode", shortName = "gt_mode", doc = "Specifies how to determine the alternate alleles to use for genotyping", required = false)
-    public org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingMode genotypingMode = org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingMode.DISCOVERY;
+    public GenotypingOutputMode genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
 
     /**
      * The minimum phred-scaled Qscore threshold to separate high confidence from low confidence calls. Only genotypes with
@@ -215,7 +216,7 @@ public class StandardCallerArgumentCollection implements Cloneable {
      *   Sample ploidy - equivalent to number of chromosomes per pool. In pooled experiments this should be = # of samples in pool * individual sample ploidy
      */
     @Argument(shortName="ploidy", fullName="sample_ploidy", doc="Ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy).", required=false)
-    public int samplePloidy = HomoSapiens.DEFAULT_PLOIDY;
+    public int samplePloidy = HomoSapiensConstants.DEFAULT_PLOIDY;
 
     @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Specifies which type of calls we should output", required = false)
     public OutputMode outputMode = OutputMode.EMIT_VARIANTS_ONLY;
@@ -231,7 +232,6 @@ public class StandardCallerArgumentCollection implements Cloneable {
     @Advanced
     @Argument(fullName = "allSitePLs", shortName = "allSitePLs", doc = "Annotate all sites with PLs", required = false)
     public boolean annotateAllSitesWithPLs = false;
-
 
     /**
      * Creates a Standard caller argument collection with default values.
@@ -257,12 +257,7 @@ public class StandardCallerArgumentCollection implements Cloneable {
                 if (!field.getDeclaringClass().isAssignableFrom(clazz))
                     continue;
                 final int fieldModifiers = field.getModifiers();
-                if (Modifier.isPrivate((fieldModifiers)))
-                    continue;
-                if (Modifier.isFinal(fieldModifiers))
-                    continue;
-                if (Modifier.isStatic(fieldModifiers))
-                    continue;
+                if ((fieldModifiers & UNCOPYABLE_MODIFIER_MASK) != 0)  continue;
                 field.set(result,field.get(this));
             }
             return result;
@@ -283,4 +278,10 @@ public class StandardCallerArgumentCollection implements Cloneable {
             throw new IllegalStateException("unreachable code");
         }
     }
+
+    /**
+     * Holds a modifiers mask that identifies those fields that cannot be copied between
+     * StandardCallerArgumentCollections.
+     */
+    private final int UNCOPYABLE_MODIFIER_MASK = Modifier.PRIVATE | Modifier.STATIC | Modifier.FINAL;
 }

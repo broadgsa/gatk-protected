@@ -274,8 +274,8 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
         // warn the user for misusing EMIT_ALL_SITES
         if ( UAC.outputMode == OutputMode.EMIT_ALL_SITES &&
-                UAC.genotypingMode == GenotypingMode.DISCOVERY &&
-                UAC.GLmodel != GenotypeLikelihoodsCalculationModel.Name.SNP )
+                UAC.genotypingOutputMode == GenotypingOutputMode.DISCOVERY &&
+                UAC.GLmodel != GenotypeLikelihoodsCalculationModel.Model.SNP )
             logger.warn("WARNING: note that the EMIT_ALL_SITES option is intended only for point mutations (SNPs) in DISCOVERY mode or generally when running in GENOTYPE_GIVEN_ALLELES mode; it will by no means produce a comprehensive set of indels in DISCOVERY mode");
         
          // initialize the verbose writer

@@ -339,7 +339,7 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
         // TODO -- if we change this tool to actually validate against the called allele, then this if statement is needed;
         // TODO -- for now, though, we need to be able to validate the right allele (because we only test isVariant below) [EB]
         //if (!bamIsTruth)
-        uac.genotypingMode = GenotypingMode.GENOTYPE_GIVEN_ALLELES;
+        uac.genotypingOutputMode = GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES;
 
         if (mbq >= 0) uac.MIN_BASE_QUALTY_SCORE = mbq;
         if (deletions >= 0)
@@ -349,12 +349,12 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
         if (emitConf >= 0) uac.STANDARD_CONFIDENCE_FOR_EMITTING = emitConf;
         if (callConf >= 0) uac.STANDARD_CONFIDENCE_FOR_CALLING = callConf;
 
-        uac.GLmodel = GenotypeLikelihoodsCalculationModel.Name.SNP;
+        uac.GLmodel = GenotypeLikelihoodsCalculationModel.Model.SNP;
         snpEngine = new UnifiedGenotypingEngine(getToolkit(), uac);
 
         // Adding the INDEL calling arguments for UG
         UnifiedArgumentCollection uac_indel = uac.clone();
-        uac_indel.GLmodel = GenotypeLikelihoodsCalculationModel.Name.INDEL;
+        uac_indel.GLmodel = GenotypeLikelihoodsCalculationModel.Model.INDEL;
         indelEngine = new UnifiedGenotypingEngine(getToolkit(), uac_indel);
 
         // make sure we have callConf set to the threshold set by the UAC so we can use it later.

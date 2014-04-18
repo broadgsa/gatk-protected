@@ -130,6 +130,7 @@ import java.util.*;
  * <h3>Caveats</h3>
  * <ul>
  * <li>The system is under active and continuous development. All outputs, the underlying likelihood model, and command line arguments are likely to change often.</li>
+ * <li>Currently the -ploidy parameter only support the default 2 (diploid). Eventually one will be able to change its value for haploid and polyploid analyses.</li>
  * </ul>
  *
  * @author rpoplin
@@ -532,7 +533,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         if ( emitReferenceConfidence() ) {
 
-            if (SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES)
+            if (SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES)
                 throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and Genotyping Giving Alleles at the same time");
 
             SCAC.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
@@ -562,7 +563,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
         final UnifiedArgumentCollection simpleUAC = SCAC.cloneTo(UnifiedArgumentCollection.class);
         simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
-        simpleUAC.genotypingMode = GenotypingMode.DISCOVERY;
+        simpleUAC.genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
         simpleUAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, SCAC.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, SCAC.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
@@ -574,7 +575,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if( SCAC.CONTAMINATION_FRACTION_FILE != null )
             SCAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(SCAC.CONTAMINATION_FRACTION_FILE, SCAC.CONTAMINATION_FRACTION, samplesSet, logger));
 
-        if( SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
+        if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
             throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
 
         // initialize the output VCF header
@@ -653,7 +654,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         trimmer.initialize(getToolkit().getGenomeLocParser(), SCAC.DEBUG,
-                SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES,emitReferenceConfidence());
+                SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES,emitReferenceConfidence());
     }
 
     private void initializeReferenceConfidenceModel(final Set<String> samples, final Set<VCFHeaderLine> headerInfo) {
@@ -723,7 +724,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Ensures({"result.isActiveProb >= 0.0", "result.isActiveProb <= 1.0"})
     public ActivityProfileState isActive( final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context ) {
 
-        if( SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ) {
+        if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES ) {
             final VariantContext vcFromAllelesRod = GenotypingGivenAllelesUtils.composeGivenAllelesVariantContextFromRod(tracker, ref.getLocus(), false, logger, SCAC.alleles);
             if( vcFromAllelesRod != null ) {
                 return new ActivityProfileState(ref.getLocus(), 1.0);
@@ -748,7 +749,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         final List<Allele> alleles = Arrays.asList(FAKE_REF_ALLELE , FAKE_ALT_ALLELE);
-        final VariantCallContext vcOut = activeRegionEvaluationGenotyperEngine.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Name.SNP);
+        final VariantCallContext vcOut = activeRegionEvaluationGenotyperEngine.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.SNP);
         final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
 
         return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
@@ -772,7 +773,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             return referenceModelForNoVariation(originalActiveRegion, true);
 
         final List<VariantContext> givenAlleles = new ArrayList<>();
-        if( SCAC.genotypingMode == GenotypingMode.GENOTYPE_GIVEN_ALLELES ) {
+        if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES ) {
             for ( final VariantContext vc : metaDataTracker.getValues(SCAC.alleles) ) {
                 if ( vc.isNotFiltered() ) {
                     givenAlleles.add(vc); // do something with these VCs during GGA mode
