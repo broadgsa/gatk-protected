@@ -167,7 +167,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         vcfWriter.writeHeader(vcfHeader);
 
         // create the genotyping engine
-        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), new UnifiedArgumentCollection(),null,samples,null);
+        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), new UnifiedArgumentCollection(),samples);
 
         // collect the actual rod bindings into a list for use later
         for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )

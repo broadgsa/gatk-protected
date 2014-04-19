@@ -121,7 +121,7 @@ public class RegenotypeVariants extends RodWalker<Integer, Integer> implements T
 
         String trackName = variantCollection.variants.getName();
         Set<String> samples = SampleUtils.getSampleListWithVCFHeader(getToolkit(), Arrays.asList(trackName));
-        UG_engine = new UnifiedGenotypingEngine(getToolkit(), UAC, null, samples, null);
+        UG_engine = new UnifiedGenotypingEngine(getToolkit(), UAC, samples);
 
         final Set<VCFHeaderLine> hInfo = new HashSet<VCFHeaderLine>();
         hInfo.addAll(GATKVCFUtils.getHeaderFields(getToolkit(), Arrays.asList(trackName)));

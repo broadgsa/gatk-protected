@@ -78,7 +78,7 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
         final UnifiedArgumentCollection args = new UnifiedArgumentCollection();
         final Set<String> fakeSamples = Collections.singleton("fake");
 
-        ugEngine = new UnifiedGenotypingEngine(engine, args, null, fakeSamples, null);
+        ugEngine = new UnifiedGenotypingEngine(engine, args,fakeSamples);
     }
 
     private UnifiedGenotypingEngine getEngine() {

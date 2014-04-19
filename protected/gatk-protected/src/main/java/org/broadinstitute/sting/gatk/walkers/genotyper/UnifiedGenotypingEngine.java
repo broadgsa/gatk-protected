@@ -51,7 +51,6 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.AFCalcResult;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLocParser;
@@ -76,7 +75,6 @@ import java.util.*;
 public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCollection> {
 
     public static final String LOW_QUAL_FILTER_NAME = "LowQual";
-    private static final String GPSTRING = "GENERALPLOIDY";
 
     public static final String NUMBER_OF_DISCOVERED_ALLELES_KEY = "NDA";
     public static final String PL_FOR_ALL_SNP_ALLELES_KEY = "APL";
@@ -90,7 +88,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
 
 
     // the various loggers and writers
-    private final PrintStream verboseWriter;
+    private PrintStream verboseWriter;
 
     private final GenomeLocParser genomeLocParser;
     private final boolean BAQEnabledOnCMDLine;
@@ -112,7 +110,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
      * @throws IllegalArgumentException if either {@code toolkit} or {@code UAC} is {@code null}.
      */
     public UnifiedGenotypingEngine(final GenomeAnalysisEngine toolkit, final UnifiedArgumentCollection configuration) {
-        this(toolkit, configuration, null, null, null);
+        this(toolkit, configuration, null);
     }
 
     /**
@@ -120,26 +118,30 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
      *
      * @param toolkit reference to the enclosing genome analysis engine.
      * @param configuration configuration object.
-     * @param annotationEngine variant annotation engine. If {@code null}, no annotations will be processed.
      * @param sampleNames subset of sample names to work on. If {@code null}, all it will use the {@code toolkit} full sample set.
-     * @param verboseWriter where to output additional verbose debugging information.
      *
      * @throws IllegalArgumentException if either {@code toolkit} or {@code UAC} is {@code null}.
      */
     public UnifiedGenotypingEngine(final GenomeAnalysisEngine toolkit, final UnifiedArgumentCollection configuration,
-                                   final VariantAnnotatorEngine annotationEngine,
-                                   final Set<String> sampleNames, final PrintStream verboseWriter) {
+                                   final Set<String> sampleNames) {
 
-        super(toolkit,configuration,annotationEngine,sampleNames);
+        super(toolkit,configuration,sampleNames);
 
         this.BAQEnabledOnCMDLine = toolkit.getArguments().BAQMode != BAQ.CalculationMode.OFF;
         genomeLocParser = toolkit.getGenomeLocParser();
 
-        this.verboseWriter = verboseWriter;
-
         determineGLModelsToUse();
 
         initializeGenotypeLikelihoodsCalculationModels();
+    }
+
+    /**
+     * Changes the verbose output writer for this engine.
+     *
+     * @param writer the new writer; it can be {@code null}.
+     */
+    public void setVerboseWriter(final PrintStream writer) {
+        verboseWriter = writer;
     }
 
     /**

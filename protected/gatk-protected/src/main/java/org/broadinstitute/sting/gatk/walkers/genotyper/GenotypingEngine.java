@@ -87,7 +87,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected final Config configuration;
 
-    protected final VariantAnnotatorEngine annotationEngine;
+    protected VariantAnnotatorEngine annotationEngine;
 
     protected final int numberOfGenomes;
 
@@ -108,26 +108,49 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             return AFCalcFactory.createAFCalc(configuration, numberOfGenomes, logger);
         }
     };
-
     /**
      * Construct a new genotyper engine.
      *
      * @param toolkit reference to the genome-analysis toolkit.
      * @param configuration engine configuration object.
-     * @param annotationEngine reference to the annotation engine. If {@code null}, no annotations will be processed.
+     *
+     * @throws IllegalArgumentException if either {@code toolkit} or {@code configuration} is {@code null}.
+     */
+    protected GenotypingEngine(final GenomeAnalysisEngine toolkit, final Config configuration) {
+        this(toolkit,configuration,resolveSampleNamesFromToolkit(toolkit));
+    }
+
+    /**
+     * Resolve the sample name set to be the set of all samples passed to the tool.
+     *
+     * @param toolkit reference to the toolkit.
+     *
+     * @throws IllegalArgumentException if the {@code toolkit} is {@code null}.
+     *
+     * @return never {@code null}, but empty if there is no samples.
+     */
+    private static Set<String> resolveSampleNamesFromToolkit(final GenomeAnalysisEngine toolkit) {
+        if (toolkit == null)
+            throw new IllegalArgumentException("the toolkit cannot be null");
+        return new LinkedHashSet<>(toolkit.getSampleDB().getSampleNames());
+    }
+
+    /**
+     * Construct a new genotyper engine, on a specific subset of samples.
+     *
+     * @param toolkit reference to the genome-analysis toolkit.
+     * @param configuration engine configuration object.
      * @param sampleNames subset of sample to work on identified by their names. If {@code null}, the full toolkit
      *                    sample set will be used instead.
      *
      * @throws IllegalArgumentException if either {@code toolkit} or {@code configuration} is {@code null}.
      */
-    public GenotypingEngine(final GenomeAnalysisEngine toolkit, final Config configuration,
-                            final VariantAnnotatorEngine annotationEngine, final Set<String> sampleNames) {
+    protected GenotypingEngine(final GenomeAnalysisEngine toolkit, final Config configuration,final Set<String> sampleNames) {
         if (toolkit == null)
             throw new IllegalArgumentException("the toolkit cannot be null");
         if (configuration == null)
             throw new IllegalArgumentException("the configuration cannot be null");
         this.configuration = configuration;
-        this.annotationEngine = annotationEngine;
         logger = Logger.getLogger(getClass());
         this.toolkit = toolkit;
         this.sampleNames = sampleNames != null ? sampleNames : toolkit.getSampleDB().getSampleNames();
@@ -150,6 +173,15 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if (logger == null)
             throw new IllegalArgumentException("the logger cannot be null");
         this.logger = logger;
+    }
+
+    /**
+     * Changes the annotation engine for this genotyping-engine.
+     *
+     * @param annotationEngine the new annotation engine (can be {@code null}).
+     */
+    public void setAnnotationEngine(final VariantAnnotatorEngine annotationEngine) {
+        this.annotationEngine = annotationEngine;
     }
 
     /**
@@ -350,7 +382,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      *
      * @param conf
      * @param PofF
-     * @return {@true} iff the variant is confidently called.
+     * @return {@code true} iff the variant is confidently called.
      */
     protected final boolean confidentlyCalled(final double conf, final double PofF) {
         return conf >= configuration.STANDARD_CONFIDENCE_FOR_CALLING ||

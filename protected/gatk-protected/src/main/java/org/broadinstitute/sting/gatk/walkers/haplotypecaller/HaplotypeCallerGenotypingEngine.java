@@ -48,10 +48,8 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingEngine;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingOutputMode;
@@ -75,16 +73,36 @@ import java.util.*;
  */
 public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeCallerArgumentCollection> {
 
-    private final static Logger logger = Logger.getLogger(HaplotypeCallerGenotypingEngine.class);
-
     private final static List<Allele> NO_CALL = Collections.singletonList(Allele.NO_CALL);
 
-    private final MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
+    private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
-    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration,
-                                           final VariantAnnotatorEngine annotationEngine, final Set<String> sampleNames,
-                                           final MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger) {
-        super(toolkit,configuration,annotationEngine,sampleNames);
+    /**
+     * {@inheritDoc}
+     * @param toolkit {@inheritDoc}
+     * @param configuration {@inheritDoc}
+     */
+    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration) {
+        super(toolkit,configuration);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @param toolkit {@inheritDoc}
+     * @param configuration {@inheritDoc}
+     * @param sampleNames {@inheritDoc}
+     */
+    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final Set<String> sampleNames) {
+        super(toolkit,configuration,sampleNames);
+    }
+
+
+    /**
+     * Change the merge variant across haplotypes for this engine.
+     *
+     * @param crossHaplotypeEventMerger new merger, can be {@code null}.
+     */
+    public void setCrossHaplotypeEventMerger(final MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger) {
         this.crossHaplotypeEventMerger = crossHaplotypeEventMerger;
     }
 
@@ -227,8 +245,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
                 final Map<Allele, List<Haplotype>> alleleMapper = createAlleleMapper(mergeMap, eventMapper);
 
-                if( configuration.DEBUG ) {
-                    logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
+                if( configuration.DEBUG && logger != null ) {
+                    if (logger != null) logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
                 }
 
                 final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap(haplotypeReadMap, alleleMapper, configuration.getSampleContamination());
@@ -314,6 +332,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         //cleanUpSymbolicUnassembledEvents( haplotypes ); // We don't make symbolic alleles so this isn't needed currently
         if ( !in_GGA_mode ) {
             // run the event merger if we're not in GGA mode
+            if (crossHaplotypeEventMerger == null)
+                throw new IllegalStateException(" no variant merger was provided at set-up when needed in GGA mode");
             final boolean mergedAnything = crossHaplotypeEventMerger.merge(haplotypes, haplotypeReadMap, startPosKeySet, ref, refLoc);
             if ( mergedAnything )
                 cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events

@@ -569,7 +569,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
-        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(getToolkit(), simpleUAC, null, samplesSet, null);
+        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(getToolkit(), simpleUAC, samplesSet);
         activeRegionEvaluationGenotyperEngine.setLogger(logger);
 
         if( SCAC.CONTAMINATION_FRACTION_FILE != null )
@@ -644,7 +644,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final MergeVariantsAcrossHaplotypes variantMerger = mergeVariantsViaLD ? new LDMerger(SCAC.DEBUG, 10, 1) : new MergeVariantsAcrossHaplotypes();
 
-        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(),SCAC, annotationEngine, null, variantMerger );
+        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(),SCAC);
+        genotypingEngine.setCrossHaplotypeEventMerger(variantMerger);
+
+        genotypingEngine.setAnnotationEngine(annotationEngine);
 
         if ( bamWriter != null ) {
             // we currently do not support multi-threaded BAM writing, so exception out

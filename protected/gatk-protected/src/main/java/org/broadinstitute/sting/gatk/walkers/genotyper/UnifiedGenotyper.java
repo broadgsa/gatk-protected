@@ -283,7 +283,9 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             verboseWriter.println("AFINFO\tLOC\tREF\tALT\tMAF\tF\tAFprior\tMLE\tMAP");
 
         annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
-        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), UAC, annotationEngine,samples, verboseWriter);
+        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), UAC, samples);
+        genotypingEngine.setVerboseWriter(verboseWriter);
+        genotypingEngine.setAnnotationEngine(annotationEngine);
 
         // initialize the header
         Set<VCFHeaderLine> headerInfo = getHeaderInfo(UAC, annotationEngine, dbsnp);
