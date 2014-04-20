@@ -49,11 +49,7 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
-import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
-
-import java.util.Collections;
-import java.util.List;
 
 public class UnifiedArgumentCollection extends StandardCallerArgumentCollection {
 
@@ -101,18 +97,6 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
      */
     @Argument(fullName = "max_deletion_fraction", shortName = "deletions", doc = "Maximum fraction of reads with deletions spanning this locus for it to be callable", required = false)
     public Double MAX_DELETION_FRACTION = 0.05;
-
-    /**
-     * Advanced, experimental argument: if SNP likelihood model is specified, and if EMIT_ALL_SITES output mode is set, when we set this argument then we will also emit PLs at all sites.
-     * This will give a measure of reference confidence and a measure of which alt alleles are more plausible (if any).
-     * WARNINGS:
-     * - This feature will inflate VCF file size considerably.
-     * - All SNP ALT alleles will be emitted with corresponding 10 PL values.
-     * - An error will be emitted if EMIT_ALL_SITES is not set, or if anything other than diploid SNP model is used
-     */
-    @Advanced
-    @Argument(fullName = "allSitePLs", shortName = "allSitePLs", doc = "Annotate all sites with PLs", required = false)
-    public boolean annotateAllSitesWithPLs = false;
 
     // indel-related arguments
     /**
@@ -184,13 +168,6 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
     @Argument(shortName="refsample", fullName="reference_sample_name", doc="Reference sample name.", required=false)
     String referenceSampleName;
 
-    /*
-        Sample ploidy - equivalent to number of chromosomes per pool. In pooled experiments this should be = # of samples in pool * individual sample ploidy
-     */
-    @Argument(shortName="ploidy", fullName="sample_ploidy", doc="Plody (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy).", required=false)
-    public int samplePloidy = GATKVariantContextUtils.DEFAULT_PLOIDY;
-
-
     /**
      * The following argument are for debug-only tweaks when running generalized ploidy with a reference sample
      */
@@ -210,17 +187,6 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
     @Argument(shortName = "min_call_power", fullName = "min_power_threshold_for_calling", doc="The minimum confidence in the error model to make a call. Number should be between 0 (no power requirement) and 1 (maximum power required).", required = false)
     double minPower = 0.95;
 
-    @Hidden
-    @Argument(shortName = "min_depth", fullName = "min_reference_depth", doc="The minimum depth required in the reference sample in order to make a call.", required = false)
-    int minReferenceDepth = 100;
-
-    @Hidden
-    @Argument(shortName="ef", fullName="exclude_filtered_reference_sites", doc="Don't include in the analysis sites where the reference sample VCF is filtered. Default: false.", required=false)
-    boolean EXCLUDE_FILTERED_REFERENCE_SITES = false;
-
-    @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Specifies which type of calls we should output", required = false)
-    public UnifiedGenotyperEngine.OUTPUT_MODE OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_VARIANTS_ONLY;
-
     /**
      * Create a new UAC with defaults for all UAC arguments
      */
@@ -228,51 +194,8 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
         super();
     }
 
-    /**
-     * Create a new UAC based on the information only our in super-class scac and defaults for all UAC arguments
-     * @param scac
-     */
-    public UnifiedArgumentCollection(final StandardCallerArgumentCollection scac) {
-        super(scac);
-    }
-
-    /**
-     * Create a new UAC with all parameters having the values in uac
-     *
-     * @param uac
-     */
-    public UnifiedArgumentCollection(final UnifiedArgumentCollection uac) {
-        // Developers must remember to add any newly added arguments to the list here as well otherwise they won't get changed from their default value!
-        super(uac);
-
-        this.GLmodel = uac.GLmodel;
-        this.AFmodel = uac.AFmodel;
-        this.PCR_error = uac.PCR_error;
-        this.COMPUTE_SLOD = uac.COMPUTE_SLOD;
-        this.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED = uac.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED;
-        this.MIN_BASE_QUALTY_SCORE = uac.MIN_BASE_QUALTY_SCORE;
-        this.MAX_DELETION_FRACTION = uac.MAX_DELETION_FRACTION;
-        this.MIN_INDEL_COUNT_FOR_GENOTYPING = uac.MIN_INDEL_COUNT_FOR_GENOTYPING;
-        this.MIN_INDEL_FRACTION_PER_SAMPLE = uac.MIN_INDEL_FRACTION_PER_SAMPLE;
-        this.INDEL_GAP_OPEN_PENALTY = uac.INDEL_GAP_OPEN_PENALTY;
-        this.INDEL_GAP_CONTINUATION_PENALTY = uac.INDEL_GAP_CONTINUATION_PENALTY;
-        this.OUTPUT_DEBUG_INDEL_INFO = uac.OUTPUT_DEBUG_INDEL_INFO;
-        this.INDEL_HAPLOTYPE_SIZE = uac.INDEL_HAPLOTYPE_SIZE;
-        this.TREAT_ALL_READS_AS_SINGLE_POOL = uac.TREAT_ALL_READS_AS_SINGLE_POOL;
-        this.referenceSampleRod = uac.referenceSampleRod;
-        this.referenceSampleName = uac.referenceSampleName;
-        this.samplePloidy = uac.samplePloidy;
-        this.maxQualityScore = uac.minQualityScore;
-        this.phredScaledPrior = uac.phredScaledPrior;
-        this.minPower = uac.minPower;
-        this.minReferenceDepth = uac.minReferenceDepth;
-        this.EXCLUDE_FILTERED_REFERENCE_SITES = uac.EXCLUDE_FILTERED_REFERENCE_SITES;
-        this.IGNORE_LANE_INFO = uac.IGNORE_LANE_INFO;
-        this.pairHMM = uac.pairHMM;
-        this.OutputMode = uac.OutputMode;
-
-        this.annotateAllSitesWithPLs = uac.annotateAllSitesWithPLs;
-        // todo- arguments to remove
-        this.IGNORE_SNP_ALLELES = uac.IGNORE_SNP_ALLELES;
+    @Override
+    public UnifiedArgumentCollection clone() {
+        return (UnifiedArgumentCollection) super.clone();
     }
 }

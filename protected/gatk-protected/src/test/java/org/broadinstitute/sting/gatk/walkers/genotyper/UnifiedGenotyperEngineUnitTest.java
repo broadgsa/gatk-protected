@@ -50,7 +50,6 @@ package org.broadinstitute.sting.gatk.walkers.genotyper;
 // the imports for unit testing.
 
 
-import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.arguments.GATKArgumentCollection;
@@ -62,7 +61,6 @@ import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.VariantContextBuilder;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -70,18 +68,20 @@ import java.util.*;
 
 public class UnifiedGenotyperEngineUnitTest extends BaseTest {
     private final static double TOLERANCE = 1e-5;
-    private UnifiedGenotyperEngine ugEngine;
+    private UnifiedGenotypingEngine ugEngine;
 
     @BeforeClass
     public void setUp() throws Exception {
         final GenomeAnalysisEngine engine = new GenomeAnalysisEngine();
         engine.setArguments(new GATKArgumentCollection());
+
         final UnifiedArgumentCollection args = new UnifiedArgumentCollection();
         final Set<String> fakeSamples = Collections.singleton("fake");
-        ugEngine = new UnifiedGenotyperEngine(engine, fakeSamples, args);
+
+        ugEngine = new UnifiedGenotypingEngine(engine, args,fakeSamples);
     }
 
-    private UnifiedGenotyperEngine getEngine() {
+    private UnifiedGenotypingEngine getEngine() {
         return ugEngine;
     }
 
@@ -122,8 +122,8 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
                 alleles.add(Allele.create(Utils.dupString('A', len + 1), false));
             }
             final VariantContext vc = new VariantContextBuilder("test", "chr1", 1000, 1000, alleles).make();
-            final boolean result = ugEngine.canVCbeGenotyped(vc);
-            Assert.assertTrue(result == (vc.getNAlleles()<= GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED));
+            final boolean result = ugEngine.hasTooManyAlternativeAlleles(vc);
+            Assert.assertTrue(result == (vc.getNAlleles() > GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED));
         }
     }
 

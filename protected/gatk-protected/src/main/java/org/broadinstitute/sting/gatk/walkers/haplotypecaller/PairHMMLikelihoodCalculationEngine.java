@@ -67,7 +67,7 @@ import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.*;
 
-public class PairHMMLikelihoodCalculationEngine implements LikelihoodCalculationEngine {
+public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalculationEngine {
     private final static Logger logger = Logger.getLogger(PairHMMLikelihoodCalculationEngine.class);
 
     public static final byte BASE_QUALITY_SCORE_THRESHOLD = (byte) 18; // Base quals less than this value are squashed down to min possible qual

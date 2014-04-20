@@ -216,7 +216,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
     protected String[] annotationClassesToUse = { "Standard" };
 
     // the calculation arguments
-    private UnifiedGenotyperEngine UG_engine = null;
+    private UnifiedGenotypingEngine genotypingEngine = null;
 
     // the annotation engine
     private VariantAnnotatorEngine annotationEngine;
@@ -273,8 +273,8 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             throw new UserException.BadArgumentValue("max_alternate_alleles", "the maximum possible value is " + GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED);
 
         // warn the user for misusing EMIT_ALL_SITES
-        if ( UAC.OutputMode == UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES &&
-                UAC.GenotypingMode == GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.DISCOVERY &&
+        if ( UAC.outputMode == OutputMode.EMIT_ALL_SITES &&
+                UAC.genotypingOutputMode == GenotypingOutputMode.DISCOVERY &&
                 UAC.GLmodel != GenotypeLikelihoodsCalculationModel.Model.SNP )
             logger.warn("WARNING: note that the EMIT_ALL_SITES option is intended only for point mutations (SNPs) in DISCOVERY mode or generally when running in GENOTYPE_GIVEN_ALLELES mode; it will by no means produce a comprehensive set of indels in DISCOVERY mode");
         
@@ -283,7 +283,9 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             verboseWriter.println("AFINFO\tLOC\tREF\tALT\tMAF\tF\tAFprior\tMLE\tMAP");
 
         annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
-        UG_engine = new UnifiedGenotyperEngine(getToolkit(), UAC, logger, verboseWriter, annotationEngine, samples, UAC.samplePloidy);
+        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), UAC, samples);
+        genotypingEngine.setVerboseWriter(verboseWriter);
+        genotypingEngine.setAnnotationEngine(annotationEngine);
 
         // initialize the header
         Set<VCFHeaderLine> headerInfo = getHeaderInfo(UAC, annotationEngine, dbsnp);
@@ -318,7 +320,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             VCFStandardHeaderLines.addStandardInfoLines(headerInfo, true, VCFConstants.STRAND_BIAS_KEY);
 
         if ( UAC.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
-            headerInfo.add(new VCFInfoHeaderLine(UnifiedGenotyperEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, 1, VCFHeaderLineType.Integer, "Number of alternate alleles discovered (but not necessarily genotyped) at this site"));
+            headerInfo.add(new VCFInfoHeaderLine(UnifiedGenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, 1, VCFHeaderLineType.Integer, "Number of alternate alleles discovered (but not necessarily genotyped) at this site"));
 
         // add the pool values for each genotype
         if (UAC.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY) {
@@ -330,7 +332,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
         }
 
         if (UAC.annotateAllSitesWithPLs) {
-            headerInfo.add(new VCFFormatHeaderLine(UnifiedGenotyperEngine.PL_FOR_ALL_SNP_ALLELES_KEY, 10, VCFHeaderLineType.Integer, "Phred-scaled genotype likelihoods for all 4 possible bases regardless of whether there is statistical evidence for them. Ordering is always PL for AA AC CC GA GC GG TA TC TG TT."));
+            headerInfo.add(new VCFFormatHeaderLine(UnifiedGenotypingEngine.PL_FOR_ALL_SNP_ALLELES_KEY, 10, VCFHeaderLineType.Integer, "Phred-scaled genotype likelihoods for all 4 possible bases regardless of whether there is statistical evidence for them. Ordering is always PL for AA AC CC GA GC GG TA TC TG TT."));
         }
         VCFStandardHeaderLines.addStandardInfoLines(headerInfo, true,
                 VCFConstants.DOWNSAMPLED_KEY,
@@ -350,7 +352,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
-        headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotyperEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
+        headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotypingEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
 
         return headerInfo;
     }
@@ -364,7 +366,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
      * @return the VariantCallContext object
      */
     public List<VariantCallContext> map(RefMetaDataTracker tracker, ReferenceContext refContext, AlignmentContext rawContext) {
-        return UG_engine.calculateLikelihoodsAndGenotypes(tracker, refContext, rawContext, samples);
+        return genotypingEngine.calculateLikelihoodsAndGenotypes(tracker, refContext, rawContext);
     }
 
     public UGStatistics reduceInit() { return new UGStatistics(); }

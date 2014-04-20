@@ -104,12 +104,12 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     }
 
     @Override
-    public List<AssemblyResult> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> activeAlleleHaplotypes) {
+    public List<AssemblyResult> assemble(final List<GATKSAMRecord> reads, final Haplotype refHaplotype, final List<Haplotype> givenHaplotypes) {
         final List<AssemblyResult> results = new LinkedList<>();
 
         // first, try using the requested kmer sizes
         for ( final int kmerSize : kmerSizes ) {
-            addResult(results, createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, dontIncreaseKmerSizesForCycles));
+            addResult(results, createGraph(reads, refHaplotype, kmerSize, givenHaplotypes, dontIncreaseKmerSizesForCycles));
         }
 
         // if none of those worked, iterate over larger sizes if allowed to do so
@@ -118,7 +118,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
             int numIterations = 1;
             while ( results.isEmpty() && numIterations <= MAX_KMER_ITERATIONS_TO_ATTEMPT ) {
                 // on the last attempt we will allow low complexity graphs
-                addResult(results, createGraph(reads, refHaplotype, kmerSize, activeAlleleHaplotypes, numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT));
+                addResult(results, createGraph(reads, refHaplotype, kmerSize, givenHaplotypes, numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT));
                 kmerSize += KMER_SIZE_ITERATION_INCREASE;
                 numIterations++;
             }

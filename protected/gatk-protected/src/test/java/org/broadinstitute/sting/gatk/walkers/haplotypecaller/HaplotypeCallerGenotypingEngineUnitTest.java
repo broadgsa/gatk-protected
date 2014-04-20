@@ -74,9 +74,9 @@ import java.io.FileNotFoundException;
 import java.util.*;
 
 /**
- * Unit tests for GenotypingEngine
+ * Unit tests for {@link HaplotypeCallerGenotypingEngine}.
  */
-public class GenotypingEngineUnitTest extends BaseTest {
+public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
 
     private static ReferenceSequenceFile seq;
     private GenomeLocParser genomeLocParser;
@@ -119,11 +119,11 @@ public class GenotypingEngineUnitTest extends BaseTest {
         eventAllelesForSample.add( Allele.create("C", false) );
         eventAllelesForSample.add( Allele.create("C", false) );
 
-        if(!compareAlleleLists(eventAllelesForSample, GenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes))) {
-            logger.warn("calc alleles = " + GenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes));
+        if(!compareAlleleLists(eventAllelesForSample, HaplotypeCallerGenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes))) {
+            logger.warn("calc alleles = " + HaplotypeCallerGenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes));
             logger.warn("expected alleles = " + eventAllelesForSample);
         }
-        Assert.assertTrue(compareAlleleLists(eventAllelesForSample, GenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes)));
+        Assert.assertTrue(compareAlleleLists(eventAllelesForSample, HaplotypeCallerGenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes)));
     }
 
     @Test
@@ -169,11 +169,11 @@ public class GenotypingEngineUnitTest extends BaseTest {
         eventAllelesForSample.add( Allele.create("A", true) );
         eventAllelesForSample.add( Allele.create("T", false) );
 
-        if(!compareAlleleLists(eventAllelesForSample, GenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes))) {
-            logger.warn("calc alleles = " + GenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes));
+        if(!compareAlleleLists(eventAllelesForSample, HaplotypeCallerGenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes))) {
+            logger.warn("calc alleles = " + HaplotypeCallerGenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes));
             logger.warn("expected alleles = " + eventAllelesForSample);
         }
-        Assert.assertTrue(compareAlleleLists(eventAllelesForSample, GenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes)));
+        Assert.assertTrue(compareAlleleLists(eventAllelesForSample, HaplotypeCallerGenotypingEngine.findEventAllelesInSample(eventAlleles, haplotypeAlleles, haplotypeAllelesForSample, alleleMapper, haplotypes)));
     }
 
     private boolean compareAlleleLists(List<Allele> l1, List<Allele> l2) {
@@ -204,7 +204,7 @@ public class GenotypingEngineUnitTest extends BaseTest {
         public Map<Integer,VariantContext> calcAlignment() {
             final SWPairwiseAlignment alignment = new SWPairwiseAlignment(ref, hap);
             final Haplotype h = new Haplotype(hap, false, alignment.getAlignmentStart2wrt1(), alignment.getCigar());
-            return GenotypingEngine.generateVCsFromAlignment( h, ref, genomeLocParser.createGenomeLoc("4",1,1+ref.length), "name");
+            return HaplotypeCallerGenotypingEngine.generateVCsFromAlignment(h, ref, genomeLocParser.createGenomeLoc("4", 1, 1 + ref.length), "name");
         }
     }
 

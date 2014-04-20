@@ -52,10 +52,7 @@ import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.*;
-import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
-import org.broadinstitute.sting.gatk.walkers.genotyper.VariantCallContext;
+import org.broadinstitute.sting.gatk.walkers.genotyper.*;
 import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.help.HelpConstants;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
@@ -275,8 +272,8 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
     @Argument(fullName ="print_interesting_sites", shortName ="print_interesting", doc="Print out interesting sites to standard out", required=false)
     private boolean printInterestingSites = false;
 
-    private UnifiedGenotyperEngine snpEngine;
-    private UnifiedGenotyperEngine indelEngine;
+    private UnifiedGenotypingEngine snpEngine;
+    private UnifiedGenotypingEngine indelEngine;
     private Set<String> samples;
 
     private enum GVstatus {
@@ -336,13 +333,13 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
 
         // Filling in SNP calling arguments for UG
         UnifiedArgumentCollection uac = new UnifiedArgumentCollection();
-        uac.OutputMode = UnifiedGenotyperEngine.OUTPUT_MODE.EMIT_ALL_SITES;
+        uac.outputMode = OutputMode.EMIT_ALL_SITES;
         uac.alleles = alleles;
 
         // TODO -- if we change this tool to actually validate against the called allele, then this if statement is needed;
         // TODO -- for now, though, we need to be able to validate the right allele (because we only test isVariant below) [EB]
         //if (!bamIsTruth)
-        uac.GenotypingMode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES;
+        uac.genotypingOutputMode = GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES;
 
         if (mbq >= 0) uac.MIN_BASE_QUALTY_SCORE = mbq;
         if (deletions >= 0)
@@ -353,12 +350,12 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
         if (callConf >= 0) uac.STANDARD_CONFIDENCE_FOR_CALLING = callConf;
 
         uac.GLmodel = GenotypeLikelihoodsCalculationModel.Model.SNP;
-        snpEngine = new UnifiedGenotyperEngine(getToolkit(), uac);
+        snpEngine = new UnifiedGenotypingEngine(getToolkit(), uac);
 
         // Adding the INDEL calling arguments for UG
-        UnifiedArgumentCollection uac_indel = new UnifiedArgumentCollection(uac);
+        UnifiedArgumentCollection uac_indel = uac.clone();
         uac_indel.GLmodel = GenotypeLikelihoodsCalculationModel.Model.INDEL;
-        indelEngine = new UnifiedGenotyperEngine(getToolkit(), uac_indel);
+        indelEngine = new UnifiedGenotypingEngine(getToolkit(), uac_indel);
 
         // make sure we have callConf set to the threshold set by the UAC so we can use it later.
         callConf = uac.STANDARD_CONFIDENCE_FOR_CALLING;

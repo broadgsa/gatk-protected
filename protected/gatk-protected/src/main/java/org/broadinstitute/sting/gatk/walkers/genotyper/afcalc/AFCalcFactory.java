@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.genotyper.afcalc;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
+import org.broadinstitute.sting.gatk.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.classloader.PluginManager;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
@@ -134,7 +134,7 @@ public class AFCalcFactory {
      * @param logger an optional (can be null) logger to override the default in the model
      * @return an initialized AFCalc
      */
-    public static AFCalc createAFCalc(final UnifiedArgumentCollection UAC,
+    public static AFCalc createAFCalc(final StandardCallerArgumentCollection UAC,
                                       final int nSamples,
                                       final Logger logger) {
         final int maxAltAlleles = UAC.MAX_ALTERNATE_ALLELES;

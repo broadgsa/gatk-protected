@@ -44,85 +44,51 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.sting.gatk.walkers.genotyper;
+package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import org.apache.log4j.Logger;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
-import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
-import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
-import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
-import org.broadinstitute.sting.utils.BaseUtils;
-import org.broadinstitute.sting.utils.GenomeLocParser;
-import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.sting.utils.pileup.PileupElement;
-import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
 import java.util.List;
 import java.util.Map;
 
-
 /**
- * The model representing how we calculate genotype likelihoods
+ * Common interface for assembly-haplotype vs reads likelihood engines.
  */
-public abstract class GenotypeLikelihoodsCalculationModel {
+public interface ReadLikelihoodCalculationEngine {
 
-    public static final String DUMMY_LANE = "Lane1";
-    public static final String DUMMY_SAMPLE_NAME = "DummySample1";
+    enum Implementation {
+        /**
+         * Classic full pair-hmm all haplotypes vs all reads.
+         */
+        PairHMM,
 
-    public enum Model {
-        SNP,
-        INDEL,
-        GENERALPLOIDYSNP,
-        GENERALPLOIDYINDEL,
-        BOTH;
+        /**
+         * Graph-base likelihoods.
+         */
+        GraphBased,
+
+        /**
+         * Random likelihoods, used to establish a baseline benchmark for other meaningful implementations.
+         */
+        Random
     }
 
-    protected final UnifiedArgumentCollection UAC;
-    protected Logger logger;
 
     /**
-     * Create a new object
-     * @param logger        logger
-     * @param UAC           unified arg collection
+     * Calculates the likelihood of reads across many samples evaluated against haplotypes resulting from the
+     * active region assembly process.
+     *
+     * @param assemblyResultSet the input assembly results.
+     * @param perSampleReadList the input read sets stratified per sample.
+     *
+     * @throws NullPointerException if either parameter is {@code null}.
+     *
+     * @return never {@code null}, and with at least one entry for input sample (keys in {@code perSampleReadList}.
+     *    The value maps can be potentially empty though.
      */
-    protected GenotypeLikelihoodsCalculationModel(UnifiedArgumentCollection UAC, Logger logger) {
-        if ( logger == null || UAC == null ) throw new ReviewedStingException("Bad arguments");
-        this.UAC = UAC;
-        this.logger = logger;
-    }
+    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(AssemblyResultSet assemblyResultSet,
+                               Map<String, List<GATKSAMRecord>> perSampleReadList);
 
-     /**
-      * Can be overridden by concrete subclasses
-      *
-      * @param tracker               rod data
-      * @param ref                   reference context
-      * @param contexts              stratified alignment contexts
-      * @param contextType           stratified context type
-      * @param allAllelesToUse the alternate allele to use, null if not set
-      * @param useBAQedPileup        should we use the BAQed pileup or the raw one?
-      * @param locParser             Genome Loc Parser
-      * @return variant context where genotypes are no-called but with GLs
-      */
-     public abstract VariantContext getLikelihoods(final RefMetaDataTracker tracker,
-                                                   final ReferenceContext ref,
-                                                   final Map<String, AlignmentContext> contexts,
-                                                   final AlignmentContextUtils.ReadOrientation contextType,
-                                                   final List<Allele> allAllelesToUse,
-                                                   final boolean useBAQedPileup,
-                                                   final GenomeLocParser locParser,
-                                                   final Map<String, org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap);
-
-
-    protected int getFilteredDepth(ReadBackedPileup pileup) {
-        int count = 0;
-        for ( PileupElement p : pileup ) {
-            if ( BaseUtils.isRegularBase( p.getBase() ) )
-                count++;
-        }
-
-        return count;
-    }
-
+    public void close();
 }

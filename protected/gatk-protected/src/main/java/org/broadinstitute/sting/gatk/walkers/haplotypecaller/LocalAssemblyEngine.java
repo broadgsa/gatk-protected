@@ -55,10 +55,10 @@ import org.apache.log4j.Logger;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.activeregion.ActiveRegion;
+import org.broadinstitute.sting.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.sam.CigarUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 
 import java.io.File;
@@ -112,11 +112,7 @@ public abstract class LocalAssemblyEngine {
      * @param refHaplotype the reference haplotype
      * @return a non-null list of reads
      */
-    protected abstract List<AssemblyResult> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype, List<Haplotype> activeAlleleHaplotypes);
-
-    protected List<AssemblyResult> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype) {
-        return assemble(reads, refHaplotype, Collections.<Haplotype>emptyList());
-    }
+    protected abstract List<AssemblyResult> assemble(List<GATKSAMRecord> reads, Haplotype refHaplotype, List<Haplotype> givenHaplotypes);
 
     /**
      * Main entry point into the assembly engine. Build a set of deBruijn graphs out of the provided reference sequence and list of reads
@@ -124,7 +120,7 @@ public abstract class LocalAssemblyEngine {
      * @param refHaplotype              reference haplotype object
      * @param fullReferenceWithPadding  byte array holding the reference sequence with padding
      * @param refLoc                    GenomeLoc object corresponding to the reference sequence with padding
-     * @param activeAllelesToGenotype   the alleles to inject into the haplotypes during GGA mode
+     * @param givenAlleles   the alleles to inject into the haplotypes during GGA mode
      * @param readErrorCorrector        a ReadErrorCorrector object, if read are to be corrected before assembly. Can be null if no error corrector is to be used.
      * @return                          the resulting assembly-result-set
      */
@@ -132,7 +128,7 @@ public abstract class LocalAssemblyEngine {
                                             final Haplotype refHaplotype,
                                             final byte[] fullReferenceWithPadding,
                                             final GenomeLoc refLoc,
-                                            final List<VariantContext> activeAllelesToGenotype,
+                                            final List<VariantContext> givenAlleles,
                                             final ReadErrorCorrector readErrorCorrector) {
         if( activeRegion == null ) { throw new IllegalArgumentException("Assembly engine cannot be used with a null ActiveRegion."); }
         if( activeRegion.getExtendedLoc() == null ) { throw new IllegalArgumentException("Active region must have an extended location."); }
@@ -141,7 +137,7 @@ public abstract class LocalAssemblyEngine {
         if( pruneFactor < 0 ) { throw new IllegalArgumentException("Pruning factor cannot be negative"); }
 
         // create the list of artificial haplotypes that should be added to the graph for GGA mode
-        final List<Haplotype> activeAlleleHaplotypes = createActiveAlleleHaplotypes(refHaplotype, activeAllelesToGenotype, activeRegion.getExtendedLoc());
+        final List<Haplotype> givenHaplotypes = GenotypingGivenAllelesUtils.composeGivenHaplotypes(refHaplotype, givenAlleles, activeRegion.getExtendedLoc());
 
         // error-correct reads before clipping low-quality tails: some low quality bases might be good and we want to recover them
         final List<GATKSAMRecord> correctedReads;
@@ -165,7 +161,7 @@ public abstract class LocalAssemblyEngine {
         resultSet.add(refHaplotype);
         final Map<SeqGraph,AssemblyResult> assemblyResultByGraph = new HashMap<>();
         // create the graphs by calling our subclass assemble method
-        for ( final AssemblyResult result : assemble(correctedReads, refHaplotype, activeAlleleHaplotypes) ) {
+        for ( final AssemblyResult result : assemble(correctedReads, refHaplotype, givenHaplotypes) ) {
             if ( result.getStatus() == AssemblyResult.Status.ASSEMBLED_SOME_VARIATION ) {
                 // do some QC on the graph
                 sanityCheckGraph(result.getGraph(), refHaplotype);
@@ -183,30 +179,6 @@ public abstract class LocalAssemblyEngine {
 
         return resultSet;
     }
-
-    /**
-     * Create the list of artificial GGA-mode haplotypes by injecting each of the provided alternate alleles into the reference haplotype
-     * @param refHaplotype the reference haplotype
-     * @param activeAllelesToGenotype the list of alternate alleles in VariantContexts
-     * @param activeRegionWindow the window containing the reference haplotype
-     * @return a non-null list of haplotypes
-     */
-    private List<Haplotype> createActiveAlleleHaplotypes(final Haplotype refHaplotype, final List<VariantContext> activeAllelesToGenotype, final GenomeLoc activeRegionWindow) {
-        final Set<Haplotype> returnHaplotypes = new LinkedHashSet<>();
-        final int activeRegionStart = refHaplotype.getAlignmentStartHapwrtRef();
-
-        for( final VariantContext compVC : activeAllelesToGenotype ) {
-            for( final Allele compAltAllele : compVC.getAlternateAlleles() ) {
-                final Haplotype insertedRefHaplotype = refHaplotype.insertAllele(compVC.getReference(), compAltAllele, activeRegionStart + compVC.getStart() - activeRegionWindow.getStart(), compVC.getStart());
-                if( insertedRefHaplotype != null ) { // can be null if the requested allele can't be inserted into the haplotype
-                    returnHaplotypes.add(insertedRefHaplotype);
-                }
-            }
-        }
-
-        return new ArrayList<>(returnHaplotypes);
-    }
-
 
     @Ensures({"result.contains(refHaplotype)"})
     protected List<Haplotype> findBestPaths(final List<SeqGraph> graphs, final Haplotype refHaplotype, final GenomeLoc refLoc, final GenomeLoc activeRegionWindow,

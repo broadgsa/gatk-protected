@@ -59,7 +59,7 @@ import org.broadinstitute.sting.gatk.walkers.Window;
 import org.broadinstitute.sting.gatk.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.sting.gatk.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedArgumentCollection;
-import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotyperEngine;
+import org.broadinstitute.sting.gatk.walkers.genotyper.UnifiedGenotypingEngine;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
@@ -140,7 +140,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     public RodBinding<VariantContext> getDbsnpRodBinding() { return dbsnp.dbsnp; }
 
     // the genotyping engine
-    private UnifiedGenotyperEngine genotypingEngine;
+    private UnifiedGenotypingEngine genotypingEngine;
     // the annotation engine
     private VariantAnnotatorEngine annotationEngine;
 
@@ -167,7 +167,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         vcfWriter.writeHeader(vcfHeader);
 
         // create the genotyping engine
-        genotypingEngine = new UnifiedGenotyperEngine(getToolkit(), new UnifiedArgumentCollection(), logger, null, null, samples, GATKVariantContextUtils.DEFAULT_PLOIDY);
+        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), new UnifiedArgumentCollection(),samples);
 
         // collect the actual rod bindings into a list for use later
         for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
