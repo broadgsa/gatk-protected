@@ -61,6 +61,7 @@ import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -531,6 +532,10 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
         // Force the use of both models in GGA:
         if (configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES)
             useSNP = useINDEL = true;
+
+        // The non-general models only support Diploid so need to go to general if not the default_ploidy == 2.
+        if (configuration.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY)
+            useGeneral = true;
 
         // If annotateAllSitesWithPLs requested , SNP model must be used.
         if (!useSNP && configuration.annotateAllSitesWithPLs)
