@@ -154,8 +154,12 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         // create the annotation engine
         annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
 
+        // collect the actual rod bindings into a list for use later
+        for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
+            variants.addAll(variantCollection.getRodBindings());
+
         // take care of the VCF headers
-        final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit());
+        final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit(), variants);
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
         headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
         VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.MLE_ALLELE_COUNT_KEY, VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
@@ -167,11 +171,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         vcfWriter.writeHeader(vcfHeader);
 
         // create the genotyping engine
-        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), new UnifiedArgumentCollection(),samples);
-
-        // collect the actual rod bindings into a list for use later
-        for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
-            variants.addAll(variantCollection.getRodBindings());
+        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), new UnifiedArgumentCollection(), samples);
     }
 
     public VariantContext map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {

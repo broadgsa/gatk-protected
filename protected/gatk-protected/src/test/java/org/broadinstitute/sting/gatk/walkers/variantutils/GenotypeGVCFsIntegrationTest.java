@@ -102,7 +102,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000 --dbsnp " + b37dbSNP132, b37KGReference),
                 1,
-                Arrays.asList("91061171c480901df8f776090527c182"));
+                Arrays.asList("dc13542c71fbb4846507b0cdcc4827be"));
         executeTest("combineSingleSamplePipelineGVCF_addDbsnp", spec);
     }
 
