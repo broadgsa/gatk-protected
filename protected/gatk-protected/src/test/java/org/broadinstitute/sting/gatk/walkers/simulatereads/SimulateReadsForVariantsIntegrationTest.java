@@ -92,4 +92,17 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
                 Arrays.asList("26db391f223ead74d786006a502029d8"));
         executeTest("testPlatformTag", spec);
     }
+
+
+    @Test
+    public void testAlleleFraction() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SimulateReadsForVariants --no_pg_tag --useAFAsAlleleFraction -DP 100 -R " + b37KGReference + " -V " + publicTestDir + "forAlleleFractionSimulation.vcf -o %s",
+                1,
+                Arrays.asList("3425c807525dff71310d1517e00a4f7e"));
+        executeTest("testAlleleFraction", spec);
+
+    }
+
 }
