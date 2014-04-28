@@ -55,6 +55,8 @@ import org.broadinstitute.sting.gatk.CommandLineGATK;
 import org.broadinstitute.sting.gatk.GenomeAnalysisEngine;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
+import org.broadinstitute.sting.gatk.iterators.RNAReadTransformer;
+import org.broadinstitute.sting.gatk.iterators.ReadTransformer;
 import org.broadinstitute.sting.gatk.refdata.RefMetaDataTracker;
 import org.broadinstitute.sting.gatk.walkers.DataSource;
 import org.broadinstitute.sting.gatk.walkers.ReadWalker;
@@ -69,6 +71,8 @@ import org.broadinstitute.sting.utils.sam.CigarUtils;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 
 import java.io.FileNotFoundException;
+import java.util.Collections;
+import java.util.List;
 
 /**
  *
@@ -132,12 +136,19 @@ public class SplitNCigarReads extends ReadWalker<GATKSAMRecord, OverhangFixingMa
      * It will emit reads to the underlying writer as needed so we don't need to worry about any of that in this class.
      */
     protected OverhangFixingManager overhangManager;
+    private List<RNAReadTransformer> rnaReadTransformers = Collections.emptyList();
+
 
 
     @Override
     public void initialize() {
         final GenomeAnalysisEngine toolkit = getToolkit();
 
+        if ( getToolkit() != null ) {
+            for (final ReadTransformer transformer: getToolkit().getReadTransformers())
+                if(transformer instanceof RNAReadTransformer)                     // TODO: when a read transformer can be called directly from the command line we won't need that mechanism any more
+                    rnaReadTransformers.add((RNAReadTransformer)transformer);
+        }
         if ( !NO_PG_TAG ) {
             // we don't want to assume that reads will be written in order by the manager because in deep, deep pileups it won't work
             Utils.setupWriter(writer, toolkit, toolkit.getSAMFileHeader(), false, this, PROGRAM_RECORD_NAME);
@@ -150,11 +161,19 @@ public class SplitNCigarReads extends ReadWalker<GATKSAMRecord, OverhangFixingMa
         catch (FileNotFoundException ex) {
             throw new UserException.CouldNotReadInputFile(toolkit.getArguments().referenceFile, ex);
         }
+
+
     }
 
     @Override
     public GATKSAMRecord map(final ReferenceContext ref, final GATKSAMRecord read, final RefMetaDataTracker metaDataTracker) {
-          return read;
+        GATKSAMRecord workingRead = read;
+
+        for ( final RNAReadTransformer transformer : rnaReadTransformers ) {
+            workingRead = transformer.apply(workingRead);                    // TODO: when a read transformer can be called directly from the command line we won't need that mechanism any more
+        }
+
+        return workingRead;
     }
 
     @Override
