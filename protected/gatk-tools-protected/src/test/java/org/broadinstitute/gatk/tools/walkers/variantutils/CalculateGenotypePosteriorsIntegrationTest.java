@@ -53,6 +53,10 @@ import java.util.Arrays;
 
 public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
 
+    private static String CEUtrioFamilyFile = privateTestDir + "CEUtrio.ped";
+    private static String CEUtrioTest = privateTestDir + "CEUtrioTest.vcf";
+    private static String CEUtrioPopPriorsTest = privateTestDir + "CEUtrioPopPriorsTest.vcf";
+
     @Test(enabled = true)
     public void testUsingDiscoveredAF() {
         WalkerTestSpec spec = new WalkerTestSpec(
@@ -62,7 +66,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -L 20:10,000,000-10,100,000" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("80d0eedddd215df8ab29bde908c73ca4"));
+                Arrays.asList("75c4b1baba3071047e4629c8e81ddea1"));
         executeTest("testUsingDiscoveredAF", spec);
     }
 
@@ -75,7 +79,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -L 20:10,000,000-10,100,000" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("f7653ef21b859b90d54a71ef4245ec85"));
+                Arrays.asList("5a2d7481fc69b97033f8c3ae9c0bdd20"));
         executeTest("testMissingPriors", spec);
     }
 
@@ -87,10 +91,24 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -R " + b37KGReference +
                         " -L 20:10,000,000-10,100,000" +
                         " -V " + validationDataLocation + "NA12878.Jan2013.haplotypeCaller.subset.indels.vcf" +
-                        " -VV " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
+                        " -supporting " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("6dd7dcf94bfe99ddcbd477100592db89"));
-        executeTest("testMissingPriors", spec);
+                Arrays.asList("7876c43e9fc13723bd890b8adc5d053d"));
+        executeTest("testInputINDELs", spec);
+    }
+
+    @Test(enabled = true)
+    public void testFamilyPriors() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
+                        " -o %s" +
+                        " -R " + b37KGReference +
+                        " -ped " + CEUtrioFamilyFile +
+                        " -V " + CEUtrioTest +
+                        " -supporting " + CEUtrioPopPriorsTest,
+                1,
+                Arrays.asList("a22c81f0609c9f43578054661797395b"));
+        executeTest("testFamilyPriors", spec);
     }
 
 

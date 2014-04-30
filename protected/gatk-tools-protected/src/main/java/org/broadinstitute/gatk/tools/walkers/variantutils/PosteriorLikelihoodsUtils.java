@@ -57,6 +57,8 @@ import java.util.*;
 
 public class PosteriorLikelihoodsUtils {
 
+    private static final String PHRED_SCALED_POSTERIORS_KEY = "PP";
+
     public static VariantContext calculatePosteriorGLs(final VariantContext vc1,
                                                        final Collection<VariantContext> resources,
                                                        final int numRefSamplesFromMissingResources,
@@ -100,7 +102,36 @@ public class PosteriorLikelihoodsUtils {
         //parse the likelihoods for each sample's genotype
         final List<double[]> likelihoods = new ArrayList<>(vc1.getNSamples());
         for ( final Genotype genotype : vc1.getGenotypes() ) {
-            likelihoods.add(genotype.hasLikelihoods() ? genotype.getLikelihoods().getAsVector() : null );
+            if (!genotype.hasExtendedAttribute(PHRED_SCALED_POSTERIORS_KEY)){
+                likelihoods.add(genotype.hasLikelihoods() ? genotype.getLikelihoods().getAsVector() : null );
+
+            }
+            else {
+                Object PPfromVCF = genotype.getExtendedAttribute(PHRED_SCALED_POSTERIORS_KEY);
+                //parse the PPs into a vector of probabilities
+                if (PPfromVCF instanceof String) {
+                    final String PPstring = (String)PPfromVCF;
+                    if (PPstring.charAt(0)=='.')  //samples not in trios will have PP tag like ".,.,." after family priors are applied
+                        likelihoods.add(genotype.hasLikelihoods() ? genotype.getLikelihoods().getAsVector() : null );
+                    else {
+                        final String[] likelihoodsAsStringVector = PPstring.split(",");
+                        double[] likelihoodsAsVector = new double[likelihoodsAsStringVector.length];
+                        for ( int i = 0; i < likelihoodsAsStringVector.length; i++ ) {
+                            likelihoodsAsVector[i] = Double.parseDouble(likelihoodsAsStringVector[i])/-10.0;
+                        }
+                        likelihoods.add(likelihoodsAsVector);
+                    }
+                }
+                else {
+                    int[] likelihoodsAsInts = extractInts(PPfromVCF);
+                    double[] likelihoodsAsVector = new double[likelihoodsAsInts.length];
+                    for ( int i = 0; i < likelihoodsAsInts.length; i++ ) {
+                        likelihoodsAsVector[i] = likelihoodsAsInts[i]/-10.0;
+                    }
+                    likelihoods.add(likelihoodsAsVector);
+                }
+            }
+
         }
 
         //TODO: for now just use priors that are SNPs because indel priors will bias SNP calls
@@ -111,10 +142,11 @@ public class PosteriorLikelihoodsUtils {
         final GenotypesContext newContext = GenotypesContext.create();
         for ( int genoIdx = 0; genoIdx < vc1.getNSamples(); genoIdx ++ ) {
             final GenotypeBuilder builder = new GenotypeBuilder(vc1.getGenotype(genoIdx));
+            builder.phased(vc1.getGenotype(genoIdx).isPhased());
             if ( posteriors.get(genoIdx) != null ) {
                 GATKVariantContextUtils.updateGenotypeAfterSubsetting(vc1.getAlleles(), builder,
                         GATKVariantContextUtils.GenotypeAssignmentMethod.USE_PLS_TO_ASSIGN, posteriors.get(genoIdx), vc1.getAlleles());
-                builder.attribute(VCFConstants.GENOTYPE_POSTERIORS_KEY,
+                builder.attribute(PHRED_SCALED_POSTERIORS_KEY,
                         Utils.listFromPrimitives(GenotypeLikelihoods.fromLog10Likelihoods(posteriors.get(genoIdx)).getAsPLs()));
             }
             newContext.add(builder.make());
