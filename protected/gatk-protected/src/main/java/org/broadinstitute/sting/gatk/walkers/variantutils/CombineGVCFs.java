@@ -299,7 +299,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
         final GenotypesContext genotypes = GenotypesContext.create();
         for ( final VariantContext vc : VCs ) {
             for ( final Genotype g : vc.getGenotypes() )
-                genotypes.add(new GenotypeBuilder(g).alleles(Arrays.asList(refAllele, refAllele)).make());
+                genotypes.add(new GenotypeBuilder(g).alleles(GATKVariantContextUtils.noCallAlleles(g.getPloidy())).make());
         }
 
         return new VariantContextBuilder("", first.getChr(), start, end, Arrays.asList(refAllele, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE)).attributes(attrs).genotypes(genotypes).make();

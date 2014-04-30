@@ -323,8 +323,8 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
             final VariantContext vcStart = GATKVariantContextUtils.makeFromAlleles("test", "chr1", start, Arrays.asList("A", "C"));
             final VariantContext vcEnd = GATKVariantContextUtils.makeFromAlleles("test", "chr1", stop, Arrays.asList("A", "C"));
             final VariantContext vcMiddle = GATKVariantContextUtils.makeFromAlleles("test", "chr1", start + 2, Arrays.asList("A", "C"));
-            final VariantContext vcDel = GATKVariantContextUtils.makeFromAlleles("test", "chr1", start + 4, Arrays.asList("ACG", "A"));
-            final VariantContext vcIns = GATKVariantContextUtils.makeFromAlleles("test", "chr1", start + 8, Arrays.asList("A", "ACG"));
+            final VariantContext vcDel = GATKVariantContextUtils.makeFromAlleles("test", "chr1", start + 4, Arrays.asList("AAC", "A"));
+            final VariantContext vcIns = GATKVariantContextUtils.makeFromAlleles("test", "chr1", start + 8, Arrays.asList("G", "GCG"));
 
             final List<VariantContext> allCalls = Arrays.asList(vcStart, vcEnd, vcMiddle, vcDel, vcIns);
 
@@ -365,7 +365,19 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
             }
 
             if ( call != null ) {
-                Assert.assertEquals(refModel, call, "Should have found call " + call + " but found " + refModel + " instead");
+                if (call.isVariant() && refModel.getType() ==  VariantContext.Type.SYMBOLIC ) {
+                    //Assert.assertEquals(refModel, call, "Should have found call " + call + " but found " + refModel + " instead");
+                    Assert.assertTrue(call.getReference().length() > 1); // must be a deletion.
+                    Assert.assertTrue(call.getStart() < refModel.getStart()); // the deletion must not start at the same position
+                    Assert.assertEquals(call.getReference().getBaseString().substring(refModel.getStart() - call.getStart(),
+                                refModel.getStart() - call.getStart() + 1), refModel.getReference().getBaseString(), "" + data.getRefHap()); // the reference must be the same.
+                    Assert.assertTrue(refModel.getGenotype(0).getGQ() <= 0); // No confidence in the reference hom-ref call across the deletion
+                    Assert.assertEquals(refModel.getAlleles().size(),2); // the reference and the lonelly <NON_REF>
+                    Assert.assertEquals(refModel.getAlleles().get(1),GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                } else {
+                    Assert.assertEquals(refModel, call, "Should have found call " + call + " but found " + refModel + " instead");
+                }
+
             } else {
                 final int expectedDP = expectedDPs.get(curPos.getStart() - data.getActiveRegion().getLocation().getStart());
                 Assert.assertEquals(refModel.getStart(), loc.getStart() + i);

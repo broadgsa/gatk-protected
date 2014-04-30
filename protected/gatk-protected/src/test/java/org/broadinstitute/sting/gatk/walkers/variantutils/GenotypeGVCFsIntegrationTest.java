@@ -126,4 +126,21 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 Arrays.asList("2b0f8662be950e49911dfd2d93776712"));
         executeTest("testSamplesWithDifferentLs", spec);
     }
+
+    @Test(enabled = true)
+    public void testNoPLsException() {
+        // Test with input files with (1) 0/0 and (2) ./.
+        WalkerTestSpec spec1 = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -L 1:1115550-1115551 -o %s -R " + hg19Reference +
+                        " --variant " + privateTestDir + "combined_genotype_gvcf_exception.vcf",
+                1,
+                Arrays.asList("97bf0aad80b3992704166bbaca0cc455"));
+        WalkerTestSpec spec2 = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -L 1:1115550-1115551 -o %s -R " + hg19Reference +
+                        " --variant " + privateTestDir + "combined_genotype_gvcf_exception.nocall.vcf",
+                1,
+                Arrays.asList("97bf0aad80b3992704166bbaca0cc455"));
+        executeTest("testNoPLsException.1", spec1);
+        executeTest("testNoPLsException.2", spec2);
+    }
 }

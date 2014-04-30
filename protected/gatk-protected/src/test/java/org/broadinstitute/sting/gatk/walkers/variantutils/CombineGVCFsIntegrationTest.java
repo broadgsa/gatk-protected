@@ -76,15 +76,15 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         Assert.assertEquals(first.getStart(), 69491);
         Assert.assertEquals(first.getEnd(), 69497);
         Assert.assertEquals(first.getGenotypes().size(), 2);
-        Assert.assertTrue(first.getGenotype("NA1").isCalled());
+        Assert.assertTrue(first.getGenotype("NA1").isNoCall());
         Assert.assertTrue(first.getGenotype("NA2").isNoCall());
 
         final VariantContext second = allVCs.get(1);
         Assert.assertEquals(second.getStart(), 69498);
         Assert.assertEquals(second.getEnd(), 69506);
         Assert.assertEquals(second.getGenotypes().size(), 2);
-        Assert.assertTrue(second.getGenotype("NA1").isCalled());
-        Assert.assertTrue(second.getGenotype("NA2").isCalled());
+        Assert.assertTrue(second.getGenotype("NA1").isNoCall());
+        Assert.assertTrue(second.getGenotype("NA2").isNoCall());
     }
 
     @Test
@@ -161,7 +161,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testMD5s() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("c279e089fd15359e75867b1318cb4d50"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("1df56fdfc71729cc82ba5dbfc75a72c4"));
         spec.disableShadowBCF();
         executeTest("testMD5s", spec);
     }
@@ -169,7 +169,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBasepairResolutionOutput() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791 --convertToBasePairResolution");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("a068fb2c35cdd14df1e8f1f92f4114b4"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("9c8fc4d9e330fbe41a00b7f71a784f4e"));
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionOutput", spec);
     }
@@ -177,7 +177,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBasepairResolutionInput() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V " + privateTestDir + "gvcf.basepairResolution.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("0bd914cfa16349ee0439bfa5033a4f2a"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("6116f3c70cd5288f3e8b89b1953a1e15"));
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionInput", spec);
     }
