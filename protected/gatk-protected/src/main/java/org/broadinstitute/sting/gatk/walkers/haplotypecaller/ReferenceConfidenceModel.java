@@ -198,9 +198,7 @@ public class ReferenceConfidenceModel {
             final int offset = curPos.getStart() - refSpan.getStart();
 
             final VariantContext overlappingSite = getOverlappingVariantContext(curPos, variantCalls);
-            if ( overlappingSite != null ) {
-                // we have some overlapping site, add it to the list of positions
-                if ( overlappingSite.getStart() == curPos.getStart() )
+            if ( overlappingSite != null && overlappingSite.getStart() == curPos.getStart() ) {
                     results.add(overlappingSite);
             } else {
                 // otherwise emit a reference confidence variant context
