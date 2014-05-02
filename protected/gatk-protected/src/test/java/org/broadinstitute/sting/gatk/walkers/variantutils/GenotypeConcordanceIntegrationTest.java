@@ -60,11 +60,11 @@ public class GenotypeConcordanceIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testIndelConcordance() {
+    public void testIndelConcordanceWithSiteOutput() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("NA12878.Jan2013.haplotypeCaller.subset.indels.vcf", "NA12878.Jan2013.bestPractices.subset.indels.vcf"),
-                0,
-                Arrays.asList("e4368146ffed2c6abf8265f5fbc5875d")
+                baseTestString("NA12878.Jan2013.haplotypeCaller.subset.indels.vcf", "NA12878.Jan2013.bestPractices.subset.indels.vcf") + " -sites %s",
+                2,
+                Arrays.asList("e4368146ffed2c6abf8265f5fbc5875d","1f441f00dd4243982502722c981a1e51")
         );
 
         executeTest("test indel concordance", spec);
