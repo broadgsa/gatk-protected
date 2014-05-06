@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import net.sf.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecord;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 
 import java.lang.reflect.Array;

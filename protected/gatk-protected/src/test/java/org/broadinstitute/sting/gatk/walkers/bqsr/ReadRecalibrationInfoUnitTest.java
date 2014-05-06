@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.bqsr;
 
-import net.sf.samtools.SAMUtils;
+import htsjdk.samtools.SAMUtils;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.recalibration.EventType;
 import org.broadinstitute.sting.utils.recalibration.ReadCovariates;

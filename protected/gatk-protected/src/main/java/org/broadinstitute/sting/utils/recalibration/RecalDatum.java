@@ -74,7 +74,7 @@ package org.broadinstitute.sting.utils.recalibration;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Invariant;
 import com.google.java.contract.Requires;
-import net.sf.samtools.SAMUtils;
+import htsjdk.samtools.SAMUtils;
 import org.apache.commons.math.optimization.fitting.GaussianFunction;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;

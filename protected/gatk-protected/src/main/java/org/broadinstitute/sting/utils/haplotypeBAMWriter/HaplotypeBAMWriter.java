@@ -46,9 +46,9 @@
 
 package org.broadinstitute.sting.utils.haplotypeBAMWriter;
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMTag;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMTag;
 import org.broadinstitute.sting.gatk.io.StingSAMFileWriter;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.Utils;

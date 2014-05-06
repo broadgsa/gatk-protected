@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.utils.genotyper;
 
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Allele;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

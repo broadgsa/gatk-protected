@@ -54,7 +54,7 @@ import org.broadinstitute.sting.utils.collections.CountSet;
 import org.broadinstitute.sting.utils.haplotype.EventMap;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.haplotype.HaplotypeSizeAndBaseComparator;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContext;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

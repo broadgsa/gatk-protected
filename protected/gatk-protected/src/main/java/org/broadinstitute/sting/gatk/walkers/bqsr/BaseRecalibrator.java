@@ -46,10 +46,10 @@
 
 package org.broadinstitute.sting.gatk.walkers.bqsr;
 
-import net.sf.picard.reference.IndexedFastaSequenceFile;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.SAMFileHeader;
-import org.broad.tribble.Feature;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.tribble.Feature;
 import org.broadinstitute.sting.commandline.Advanced;
 import org.broadinstitute.sting.commandline.Argument;
 import org.broadinstitute.sting.commandline.ArgumentCollection;

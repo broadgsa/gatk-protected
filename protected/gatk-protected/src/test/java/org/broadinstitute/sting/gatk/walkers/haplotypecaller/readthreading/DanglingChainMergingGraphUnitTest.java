@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading;
 
-import net.sf.samtools.TextCigarCodec;
+import htsjdk.samtools.TextCigarCodec;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.KBestHaplotype;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.KBestHaplotypeFinder;

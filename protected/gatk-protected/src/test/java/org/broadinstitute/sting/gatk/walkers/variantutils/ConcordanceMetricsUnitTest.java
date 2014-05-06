@@ -46,17 +46,17 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
-import net.sf.picard.reference.ReferenceSequenceFile;
-import org.broad.tribble.readers.PositionalBufferedStream;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.collections.Pair;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;
-import org.broadinstitute.variant.variantcontext.*;
-import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFHeader;
+import htsjdk.variant.variantcontext.*;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFHeader;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;

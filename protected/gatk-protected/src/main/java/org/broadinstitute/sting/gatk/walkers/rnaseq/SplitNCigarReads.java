@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
-import net.sf.samtools.*;
+import htsjdk.samtools.*;
 import org.broadinstitute.sting.commandline.Advanced;
 import org.broadinstitute.sting.commandline.Argument;
 import org.broadinstitute.sting.commandline.Hidden;

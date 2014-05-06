@@ -47,8 +47,8 @@
 package org.broadinstitute.sting.utils.recalibration;
 
 import com.google.java.contract.Ensures;
-import net.sf.samtools.SAMTag;
-import net.sf.samtools.SAMUtils;
+import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SAMUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;

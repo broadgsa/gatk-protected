@@ -52,7 +52,7 @@ import org.broadinstitute.sting.gatk.walkers.genotyper.OutputMode;
 import org.broadinstitute.sting.gatk.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.sting.utils.collections.DefaultHashMap;
 import org.broadinstitute.sting.utils.variant.HomoSapiensConstants;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContext;
 
 import java.io.File;
 import java.lang.reflect.Field;

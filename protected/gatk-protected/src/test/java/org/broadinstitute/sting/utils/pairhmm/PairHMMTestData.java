@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.utils.pairhmm;
 
-import net.sf.samtools.SAMUtils;
+import htsjdk.samtools.SAMUtils;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.text.XReadLines;
 

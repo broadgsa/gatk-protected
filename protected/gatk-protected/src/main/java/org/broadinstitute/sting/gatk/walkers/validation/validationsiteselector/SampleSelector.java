@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.validation.validationsiteselector;
 
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContext;
 import java.util.TreeSet;
 
 

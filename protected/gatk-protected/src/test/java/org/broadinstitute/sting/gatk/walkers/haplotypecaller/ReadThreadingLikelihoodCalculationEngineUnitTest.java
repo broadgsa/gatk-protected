@@ -57,7 +57,7 @@ import org.broadinstitute.sting.utils.pairhmm.FlexibleHMM;
 import org.broadinstitute.sting.utils.pairhmm.PairHMM;
 import org.broadinstitute.sting.utils.sam.ClippedGATKSAMRecord;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Allele;
 import org.testng.Assert;
 import org.testng.Reporter;
 import org.testng.SkipException;

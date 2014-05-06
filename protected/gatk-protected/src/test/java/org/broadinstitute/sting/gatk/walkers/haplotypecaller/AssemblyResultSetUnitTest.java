@@ -45,7 +45,7 @@
 */
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
-import net.sf.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileHeader;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs.SeqGraph;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.readthreading.ReadThreadingGraph;
