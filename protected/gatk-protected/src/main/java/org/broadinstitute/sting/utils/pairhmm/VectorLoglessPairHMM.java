@@ -118,9 +118,6 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     public VectorLoglessPairHMM() {
         super();
 
-        logger.warn("WARNING: the VectorLoglessPairHMM is an experimental implementation still under active development. " +
-                    "Use at your own risk!");
-
         synchronized(isVectorLoglessPairHMMLibraryLoaded) {
             //Load the library and initialize the FieldIDs
             if(!isVectorLoglessPairHMMLibraryLoaded) {
@@ -147,7 +144,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                         throw ule;
                     }
                 }
-
+                logger.info("Using vectorized implementation of PairHMM");
                 isVectorLoglessPairHMMLibraryLoaded = true;
                 jniInitializeClassFieldsAndMachineMask(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, enableAll);        //need to do this only once
             }
