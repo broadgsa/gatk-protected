@@ -101,7 +101,12 @@ public class LoglessPairHMM extends N2MemoryPairHMM {
         for (int i = 1; i < paddedReadLength; i++) {
             // +1 here is because hapStartIndex is 0-based, but our matrices are 1 based
             for (int j = hapStartIndex+1; j < paddedHaplotypeLength; j++) {
-                updateCell(i, j, prior[i][j], transition[i]);
+                //Inlined the code from updateCell - helps JIT to detect hotspots and produce good native code
+                matchMatrix[i][j] = prior[i][j] * ( matchMatrix[i - 1][j - 1] * transition[i][matchToMatch] +
+                        insertionMatrix[i - 1][j - 1] * transition[i][indelToMatch] +
+                        deletionMatrix[i - 1][j - 1] * transition[i][indelToMatch] );
+                insertionMatrix[i][j] = matchMatrix[i - 1][j] * transition[i][matchToInsertion] + insertionMatrix[i - 1][j] * transition[i][insertionToInsertion];
+                deletionMatrix[i][j] = matchMatrix[i][j - 1] * transition[i][matchToDeletion] + deletionMatrix[i][j - 1] * transition[i][deletionToDeletion];
             }
         }
 
