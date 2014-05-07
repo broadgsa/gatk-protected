@@ -135,7 +135,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
         VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
-        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
         metrics.update(eval,truth);
         Assert.assertEquals(eval.getGenotype("test1_sample2").getType().ordinal(), 2);
         Assert.assertEquals(truth.getGenotype("test1_sample2").getType().ordinal(),1);
@@ -185,7 +185,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
         VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
-        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
         metrics.update(eval,truth);
         Assert.assertEquals(eval.getGenotype("test1_sample2").getType().ordinal(), 2);
         Assert.assertEquals(truth.getGenotype("test1_sample2").getType().ordinal(),2);
@@ -205,7 +205,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         codec = new VCFCodec();
         evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
         compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
-        metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
         metrics.update(eval,truth);
         Assert.assertEquals(eval.getGenotype("test1_sample2").getType().ordinal(), 2);
         Assert.assertEquals(truth.getGenotype("test1_sample2").getType().ordinal(),2);
@@ -260,7 +260,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
         VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
-        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
         metrics.update(eval,truth);
         Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample1").getnMismatchingAlt(),1);
         Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample2").getTable()[2][1],0);
@@ -313,7 +313,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
         VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
-        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
         metrics.update(eval,truth);
         Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample2").getnMismatchingAlt(),0);
         Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample2").getTable()[2][1],0);
@@ -362,7 +362,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
         VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
-        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
         metrics.update(eval,truth);
         Assert.assertTrue(eval.getGenotype("test1_sample2").getType().equals(GenotypeType.UNAVAILABLE));
         Assert.assertEquals(metrics.getGenotypeConcordance("test1_sample2").getnMismatchingAlt(),0);
@@ -516,7 +516,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_2_HEADER))));
         VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_2_HEADER))));
-        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
 
         for ( Pair<VariantContext,VariantContext> contextPair : data ) {
             VariantContext eval = contextPair.getFirst();
@@ -550,7 +550,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
         VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_1_HEADER))));
-        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
         int[][] table = metrics.getOverallGenotypeConcordance().getTable();
         // set up the table
         table[0] = new int[] {30, 12, 7, 5, 6, 0};
@@ -585,8 +585,8 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_3_HEADER_1))));
         VCFHeader disjointCompHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_3_HEADER_2))));
         VCFHeader overlapCompHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_3_HEADER_3))));
-        ConcordanceMetrics disjointMetrics = new ConcordanceMetrics(evalHeader,disjointCompHeader,false);
-        ConcordanceMetrics overlapMetrics = new ConcordanceMetrics(evalHeader,overlapCompHeader,false);
+        ConcordanceMetrics disjointMetrics = new ConcordanceMetrics(evalHeader,disjointCompHeader,null);
+        ConcordanceMetrics overlapMetrics = new ConcordanceMetrics(evalHeader,overlapCompHeader,null);
 
         // test what happens if you put in disjoint sets and start making requests
         Assert.assertEquals(0,disjointMetrics.getPerSampleGenotypeConcordance().size());
@@ -716,7 +716,7 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         VCFCodec codec = new VCFCodec();
         VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_2_HEADER))));
         VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_2_HEADER))));
-        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,false);
+        ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
 
         List<Pair<VariantContext,VariantContext>> data = getData7();
 
