@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import net.sf.samtools.Cigar;
+import htsjdk.samtools.Cigar;
 import org.broadinstitute.sting.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.Test;

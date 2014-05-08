@@ -48,9 +48,9 @@ package org.broadinstitute.sting.utils.pairhmm;
 
 import com.google.caliper.Param;
 import com.google.caliper.SimpleBenchmark;
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.TextCigarCodec;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.TextCigarCodec;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 

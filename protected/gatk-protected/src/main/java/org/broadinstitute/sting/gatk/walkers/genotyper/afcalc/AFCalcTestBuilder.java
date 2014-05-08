@@ -50,7 +50,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypingEngine;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.Utils;
-import org.broadinstitute.variant.variantcontext.*;
+import htsjdk.variant.variantcontext.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;

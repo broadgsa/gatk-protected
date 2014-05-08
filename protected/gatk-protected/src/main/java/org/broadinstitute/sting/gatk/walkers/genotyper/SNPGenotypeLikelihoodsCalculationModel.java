@@ -63,7 +63,7 @@ import org.broadinstitute.sting.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileupImpl;
-import org.broadinstitute.variant.variantcontext.*;
+import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
 

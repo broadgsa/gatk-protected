@@ -48,7 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import net.sf.samtools.SAMUtils;
+import htsjdk.samtools.SAMUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.sting.utils.QualityUtils;
@@ -59,7 +59,7 @@ import org.broadinstitute.sting.utils.pairhmm.*;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatCovariate;
 import org.broadinstitute.sting.utils.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.*;
+import htsjdk.variant.variantcontext.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;

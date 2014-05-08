@@ -46,7 +46,7 @@
 
 package org.broadinstitute.sting.utils.smithwaterman;
 
-import net.sf.samtools.TextCigarCodec;
+import htsjdk.samtools.TextCigarCodec;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;

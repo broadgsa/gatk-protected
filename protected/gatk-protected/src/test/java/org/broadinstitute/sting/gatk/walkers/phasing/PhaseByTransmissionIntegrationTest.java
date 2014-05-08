@@ -46,10 +46,10 @@
 
 package org.broadinstitute.sting.gatk.walkers.phasing;
 
-import org.broad.tribble.readers.LineIterator;
-import org.broad.tribble.readers.PositionalBufferedStream;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.sting.WalkerTest;
-import org.broadinstitute.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFCodec;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

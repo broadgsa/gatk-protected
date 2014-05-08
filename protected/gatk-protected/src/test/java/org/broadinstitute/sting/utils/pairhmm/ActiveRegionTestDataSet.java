@@ -46,9 +46,9 @@
 
 package org.broadinstitute.sting.utils.pairhmm;
 
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import org.apache.commons.math.distribution.ExponentialDistribution;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResult;
 import org.broadinstitute.sting.gatk.walkers.haplotypecaller.AssemblyResultSet;

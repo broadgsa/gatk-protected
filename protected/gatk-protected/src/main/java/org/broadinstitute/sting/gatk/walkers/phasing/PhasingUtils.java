@@ -46,15 +46,15 @@
 
 package org.broadinstitute.sting.gatk.walkers.phasing;
 
-import net.sf.picard.reference.ReferenceSequenceFile;
-import net.sf.samtools.util.StringUtil;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.util.StringUtil;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFConstants;
 import org.broadinstitute.sting.utils.exceptions.ReviewedStingException;
-import org.broadinstitute.variant.variantcontext.*;
+import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
 

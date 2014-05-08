@@ -46,12 +46,12 @@
 
 package org.broadinstitute.sting.gatk.walkers.variantutils;
 
-import org.broad.tribble.readers.PositionalBufferedStream;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import org.broadinstitute.sting.utils.SampleUtils;
-import org.broadinstitute.variant.vcf.VCFCodec;
-import org.broadinstitute.variant.vcf.VCFHeader;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
-import org.broadinstitute.variant.vcf.VCFUtils;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

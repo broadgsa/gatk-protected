@@ -46,8 +46,8 @@
 
 package org.broadinstitute.sting.gatk.walkers.rnaseq;
 
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMRecordCoordinateComparator;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMRecordCoordinateComparator;
 import org.apache.log4j.Logger;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;

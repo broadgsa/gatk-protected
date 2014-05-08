@@ -47,10 +47,10 @@
 package org.broadinstitute.sting.utils.gvcf;
 
 import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.variant.variantcontext.Allele;
-import org.broadinstitute.variant.variantcontext.Genotype;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeaderLine;
 
 import java.util.ArrayList;
 import java.util.List;

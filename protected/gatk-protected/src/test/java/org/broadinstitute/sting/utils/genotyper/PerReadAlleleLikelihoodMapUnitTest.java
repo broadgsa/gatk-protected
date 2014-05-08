@@ -46,9 +46,9 @@
 
 package org.broadinstitute.sting.utils.genotyper;
 
-import net.sf.samtools.*;
+import htsjdk.samtools.*;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.sting.utils.BaseUtils;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
@@ -59,7 +59,7 @@ import java.util.Map;
 import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import net.sf.picard.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.fasta.CachingIndexedFastaSequenceFile;

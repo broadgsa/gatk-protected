@@ -48,7 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.variantutils;
 
 import org.broadinstitute.sting.WalkerTest;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
-import org.broadinstitute.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContext;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

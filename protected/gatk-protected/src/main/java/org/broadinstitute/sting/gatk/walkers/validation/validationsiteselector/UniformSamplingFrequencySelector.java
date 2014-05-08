@@ -48,9 +48,9 @@ package org.broadinstitute.sting.gatk.walkers.validation.validationsiteselector;
 
 import org.broadinstitute.sting.utils.GenomeLocParser;
 import org.broadinstitute.sting.utils.MathUtils;
-import org.broadinstitute.variant.vcf.VCFConstants;
-import org.broadinstitute.variant.variantcontext.VariantContext;
-import org.broadinstitute.variant.variantcontext.VariantContextUtils;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;

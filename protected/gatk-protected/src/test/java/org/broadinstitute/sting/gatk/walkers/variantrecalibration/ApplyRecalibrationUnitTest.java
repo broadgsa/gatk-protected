@@ -48,7 +48,7 @@ package org.broadinstitute.sting.gatk.walkers.variantrecalibration;
 
 import junit.framework.Assert;
 import org.broadinstitute.sting.BaseTest;
-import org.broadinstitute.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFConstants;
 import org.testng.annotations.Test;
 
 /**

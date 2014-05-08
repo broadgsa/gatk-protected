@@ -50,7 +50,7 @@ import org.apache.log4j.Logger;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContextUtils;
 import org.broadinstitute.sting.gatk.walkers.Walker;
-import org.broadinstitute.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Allele;
 
 import java.util.*;
 import static org.testng.Assert.assertEquals;

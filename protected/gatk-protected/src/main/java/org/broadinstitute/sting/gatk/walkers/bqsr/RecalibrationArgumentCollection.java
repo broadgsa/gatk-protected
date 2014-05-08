@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.bqsr;
 
 import com.google.java.contract.Requires;
-import org.broad.tribble.Feature;
+import htsjdk.tribble.Feature;
 import org.broadinstitute.sting.commandline.*;
 import org.broadinstitute.sting.gatk.report.GATKReportTable;
 import org.broadinstitute.sting.utils.Utils;

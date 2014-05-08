@@ -49,7 +49,7 @@ package org.broadinstitute.sting.utils.pairhmm;
 import org.broadinstitute.sting.utils.haplotype.Haplotype;
 import org.broadinstitute.sting.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
-import org.broadinstitute.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Allele;
 
 import java.io.File;
 import java.lang.reflect.Field;

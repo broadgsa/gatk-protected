@@ -46,10 +46,10 @@
 
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
-import net.sf.samtools.Cigar;
-import net.sf.samtools.CigarElement;
-import net.sf.samtools.CigarOperator;
-import net.sf.samtools.TextCigarCodec;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.TextCigarCodec;
 import org.broadinstitute.sting.BaseTest;
 import org.broadinstitute.sting.utils.Utils;
 import org.broadinstitute.sting.utils.sam.AlignmentUtils;

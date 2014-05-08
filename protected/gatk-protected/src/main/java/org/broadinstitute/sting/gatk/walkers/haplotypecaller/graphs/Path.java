@@ -47,7 +47,7 @@
 package org.broadinstitute.sting.gatk.walkers.haplotypecaller.graphs;
 
 import com.google.java.contract.Ensures;
-import net.sf.samtools.Cigar;
+import htsjdk.samtools.Cigar;
 import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.sting.utils.sam.CigarUtils;
 
