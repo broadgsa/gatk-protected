@@ -134,9 +134,9 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                     //Could not load from Java's library path - try unpacking from jar
                     try
                     {
-                        logger.debug("libVectorLoglessPairHMM not found in JVM library path - trying to unpack from StingUtils.jar");
-                        loadLibraryFromJar("/org/broadinstitute/sting/utils/pairhmm/libVectorLoglessPairHMM.so");
-                        logger.debug("libVectorLoglessPairHMM unpacked successfully from StingUtils.jar");
+                        logger.debug("libVectorLoglessPairHMM not found in JVM library path - trying to unpack from GATK jar file");
+                        loadLibraryFromJar("/org/broadinstitute/gatk/utils/pairhmm/libVectorLoglessPairHMM.so");
+                        logger.info("libVectorLoglessPairHMM unpacked successfully from GATK jar file");
                     }
                     catch(IOException ioe)
                     {
