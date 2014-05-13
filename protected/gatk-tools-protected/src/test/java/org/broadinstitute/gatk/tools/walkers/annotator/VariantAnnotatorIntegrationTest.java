@@ -348,17 +348,41 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
     @Test
     public void testQualByDepth() throws IOException {
+
+        /*
+        NOTE: Currently, no HC tests explicitly set their PairHMM implementation, such that outputs may vary depending
+        on the underlying system. You may run into this test failing due to one of many PairHMM versions activating.
+
+        Specifically for this test, the site chr 20:10130722 seems to vary in the HC calculated QUAL and QD. This has
+        NOTHING to do with a problem in the VariantAnnotator, and is an issue with the way PairHMM is used in tests.
+
+        According to Karthik, things to look for in the logs that may help indicate that the failure is NOT something
+        you changed, but the PairHMM switching on you:
+
+        - Using un-vectorized C++ implementation of PairHMM
+        - Using AVX accelerated implementation of PairHMM
+        - Using SSE4.1 accelerated implementation of PairHMM
+        - libVectorLoglessPairHMM unpacked successfully from GATK jar file
+        - Using vectorized implementation of PairHMM
+        - (Nothing, which I think means another implementation is being used)
+
+        Upon any failures in any HC related tests for now, your best bet is to contact Mauricio to make sure that
+        everything still looks ok.
+
+        TODO: Stabilize the PairHMM from arbitrarily running different versions.
+         */
+
         final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(""));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("b6e8ffdab100b0ea1f8cb89e6e29a9ed"));
         final File outputVCF = executeTest("testQualByDepth", spec).getFirst().get(0);
 
         final String baseNoQD = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -XA QualByDepth";
-        final WalkerTestSpec specNoQD = new WalkerTestSpec(baseNoQD, 1, Arrays.asList(""));
+        final WalkerTestSpec specNoQD = new WalkerTestSpec(baseNoQD, 1, Arrays.asList("23785ea79ac6945d086cbf5613885881"));
         specNoQD.disableShadowBCF();
         final File outputVCFNoQD = executeTest("testQualByDepth calling without QD", specNoQD).getFirst().get(0);
 
         final String baseAnn = String.format("-T VariantAnnotator -R %s -V %s", REF, outputVCFNoQD.getAbsolutePath()) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -A QualByDepth";
-        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("214799b5d1c0809f042c557155ea6e13"));
+        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("4ccdbebcfd02be87ae5b4ad94666f011"));
         specAnn.disableShadowBCF();
         final File outputVCFAnn = executeTest("testQualByDepth re-annotation of QD", specAnn).getFirst().get(0);
 
