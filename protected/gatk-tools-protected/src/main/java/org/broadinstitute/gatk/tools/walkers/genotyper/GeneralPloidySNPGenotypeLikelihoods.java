@@ -291,8 +291,8 @@ public class GeneralPloidySNPGenotypeLikelihoods extends GeneralPloidyGenotypeLi
                     continue;
                 final double acc[] = new double[ACset.getACcounts().getCounts().length];
                 for (int k=0; k < acc.length; k++ )
-                    acc[k] = qualLikelihoodCache[BaseUtils.simpleBaseToBaseIndex(alleleList.get(k).getBases()[0])][BaseUtils.simpleBaseToBaseIndex(obsBase)][qual] +MathUtils.log10Cache[ACset.getACcounts().getCounts()[k]]
-                            - LOG10_PLOIDY;
+                    acc[k] = qualLikelihoodCache[BaseUtils.simpleBaseToBaseIndex(alleleList.get(k).getBases()[0])][BaseUtils.simpleBaseToBaseIndex(obsBase)][qual] +
+                            MathUtils.Log10Cache.get(ACset.getACcounts().getCounts()[k]) - LOG10_PLOIDY;
                 p1 += MathUtils.log10sumLog10(acc);
             }
         }

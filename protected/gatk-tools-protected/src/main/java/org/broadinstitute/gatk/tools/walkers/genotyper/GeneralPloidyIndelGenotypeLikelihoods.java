@@ -247,7 +247,7 @@ public class GeneralPloidyIndelGenotypeLikelihoods extends GeneralPloidyGenotype
             for (int i=0; i < readHaplotypeLikelihoods.length; i++) {
                 double acc[] = new double[alleleList.size()];
                 for (int k=0; k < acc.length; k++ )
-                    acc[k] = readHaplotypeLikelihoods[i][k] + MathUtils.log10Cache[currentCnt[k]]-LOG10_PLOIDY;
+                    acc[k] = readHaplotypeLikelihoods[i][k] + MathUtils.Log10Cache.get(currentCnt[k])-LOG10_PLOIDY;
                 p1 += MathUtils.log10sumLog10(acc);
             }
 

@@ -150,19 +150,19 @@ class OriginalDiploidExactAFCalc extends DiploidExactAFCalc {
 
                 for ( int j=1; j <= numSamples; j++ ) {
                     final double[] gl = genotypeLikelihoods.get(j);
-                    final double logDenominator = MathUtils.log10Cache[2*j] + MathUtils.log10Cache[2*j-1];
+                    final double logDenominator = MathUtils.Log10Cache.get(2*j) + MathUtils.Log10Cache.get(2*j-1);
 
                     double aa = Double.NEGATIVE_INFINITY;
                     double ab = Double.NEGATIVE_INFINITY;
                     if (k < 2*j-1)
-                        aa = MathUtils.log10Cache[2*j-k] + MathUtils.log10Cache[2*j-k-1] + kMinus0[j-1] + gl[0];
+                        aa = MathUtils.Log10Cache.get(2*j-k) + MathUtils.Log10Cache.get(2*j-k-1) + kMinus0[j-1] + gl[0];
 
                     if (k < 2*j)
-                        ab = MathUtils.log10Cache[2*k] + MathUtils.log10Cache[2*j-k]+ kMinus1[j-1] + gl[1];
+                        ab = MathUtils.Log10Cache.get(2*k) + MathUtils.Log10Cache.get(2*j-k)+ kMinus1[j-1] + gl[1];
 
                     double log10Max;
                     if (k > 1) {
-                        final double bb = MathUtils.log10Cache[k] + MathUtils.log10Cache[k-1] + kMinus2[j-1] + gl[2];
+                        final double bb = MathUtils.Log10Cache.get(k) + MathUtils.Log10Cache.get(k-1) + kMinus2[j-1] + gl[2];
                         log10Max = MathUtils.approximateLog10SumLog10(aa, ab, bb);
                     } else {
                         // we know we aren't considering the BB case, so we can use an optimized log10 function
