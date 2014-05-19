@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.broadinstitute.gatk</groupId>
+        <artifactId>gatk-aggregator</artifactId>
+        <version>3.2-SNAPSHOT</version>
+        <relativePath>../..</relativePath>
+    </parent>
+
+    <artifactId>gatk-package-distribution</artifactId>
+    <packaging>jar</packaging>
+    <name>GATK Package Distribution</name>
+
+    <properties>
+        <gatk.basedir>${project.basedir}/../..</gatk.basedir>
+        <gatk.unpack.phase>prepare-package</gatk.unpack.phase>
+        <gatk.shade.phase>package</gatk.shade.phase>
+        <app.main.class>org.broadinstitute.gatk.engine.CommandLineGATK</app.main.class>
+        <gatk.binary-dist.name>GenomeAnalysisTK</gatk.binary-dist.name>
+    </properties>
+
+    <dependencies>
+        <!-- Package everything in org.broadinstitute.gatk -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-utils</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-engine</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-tools-public</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-tools-protected</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Tribble codecs & the variant package (VCF, BCF, and VariantContext) -->
+        <dependency>
+            <groupId>samtools</groupId>
+            <artifactId>htsjdk</artifactId>
+        </dependency>
+        <!-- Workaround - depend on the logger impl required by JEXL -->
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+        </dependency>
+        <!-- Workaround - depend on commons-httpclient to prevent shade from eliminating IgnoreCookiesSpec class -->
+        <dependency>
+            <groupId>commons-httpclient</groupId>
+            <artifactId>commons-httpclient</artifactId>
+        </dependency>
+        <!-- Required for binary-dist assembly, excluded by shade -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-engine</artifactId>
+            <version>${project.version}</version>
+            <classifier>example-resources</classifier>
+            <type>tar.bz2</type>
+        </dependency>
+
+        <!-- Test dependencies to run for for serial tests -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-tools-public</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>gatk-tools-protected</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Transitive dependencies for the serial test artifacts above -->
+        <dependency>
+            <groupId>com.google.caliper</groupId>
+            <artifactId>caliper</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unit-tests</id>
+                        <configuration>
+                            <skip>${gatk.serialunittests.skipped}</skip>
+                            <dependenciesToScan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
+                            </dependenciesToScan>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-tests</id>
+                        <configuration>
+                            <skip>${gatk.serialintegrationtests.skipped}</skip>
+                            <dependenciesToScan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
+                            </dependenciesToScan>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>queue-tests</id>
+                        <configuration>
+                            <skip>${gatk.serialqueuetests.skipped}</skip>
+                            <dependenciesToScan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
+                            </dependenciesToScan>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>large-scale-tests</id>
+                        <configuration>
+                            <skip>${gatk.seriallargescaletests.skipped}</skip>
+                            <dependenciesToScan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
+                            </dependenciesToScan>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>knowledge-base-tests</id>
+                        <configuration>
+                            <skip>${gatk.serialknowledgebasetests.skipped}</skip>
+                            <dependenciesToScan>
+                                <scan>org.broadinstitute.gatk:.*</scan>
+                            </dependenciesToScan>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-direct-dependencies</id>
+                        <phase>${gatk.unpack.phase}</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>gatk-executable</id>
+                        <phase>${gatk.shade.phase}</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>binary-dist</id>
+                        <phase>${gatk.shade.phase}</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>com.pyx4j</groupId>
+                <artifactId>maven-junction-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>link-binary-jar</id>
+                        <phase>${gatk.shade.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>link-git-release</id>
+                        <phase>${gatk.shade.phase}</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-install</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>install-package</id>
+                        <phase>install</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>private-testdata</id>
+            <activation>
+                <file>
+                    <exists>${basedir}/../../private/pom.xml</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <!-- TODO: All tests require access to private. For now. -->
+                    <plugin>
+                        <groupId>com.pyx4j</groupId>
+                        <artifactId>maven-junction-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>link-private-testdata</id>
+                                <phase>process-test-resources</phase>
+                            </execution>
+                            <execution>
+                                <id>unlink-private-testdata</id>
+                                <phase>clean</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>packagetests-enabled</id>
+            <activation>
+                <property>
+                    <name>gatk.packagetests.enabled</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <gatk.unpack.phase>none</gatk.unpack.phase>
+                <gatk.shade.phase>none</gatk.shade.phase>
+            </properties>
+        </profile>
+    </profiles>
+
+</project>

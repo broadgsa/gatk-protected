@@ -3,22 +3,40 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.broadinstitute.sting</groupId>
-        <artifactId>sting-root</artifactId>
+        <groupId>org.broadinstitute.gatk</groupId>
+        <artifactId>gatk-root</artifactId>
         <version>3.2-SNAPSHOT</version>
-        <relativePath>../public/sting-root</relativePath>
+        <relativePath>../public/gatk-root</relativePath>
     </parent>
 
-    <artifactId>sting-protected</artifactId>
+    <artifactId>gatk-aggregator-protected</artifactId>
     <packaging>pom</packaging>
-    <name>Sting Protected</name>
+    <name>GATK Aggregator Protected</name>
 
     <modules>
-        <module>gatk-protected</module>
+        <module>gatk-tools-protected</module>
+        <module>gatk-package-distribution</module>
+        <!-- queue optionally enabled as profiles -->
     </modules>
 
     <properties>
-        <sting.basedir>${project.basedir}/..</sting.basedir>
+        <gatk.basedir>${project.basedir}/..</gatk.basedir>
     </properties>
+
+    <profiles>
+        <!-- Allow queue to be disabled. -->
+        <profile>
+            <id>queue</id>
+            <activation>
+                <property>
+                    <name>!disable.queue</name>
+                </property>
+            </activation>
+            <modules>
+                <module>gatk-queue-extensions-distribution</module>
+                <module>gatk-queue-package-distribution</module>
+            </modules>
+        </profile>
+    </profiles>
 
 </project>
