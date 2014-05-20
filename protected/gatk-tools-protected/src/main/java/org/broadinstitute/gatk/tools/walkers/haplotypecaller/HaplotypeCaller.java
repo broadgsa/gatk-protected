@@ -311,7 +311,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * B <= X < C
      * X >= C
      *
-     * The default bands with (1, 10, 20, 30, 40, 50) give the following GQ blocks:
+     * For example, specifying bands as (1, 10, 20, 30, 40, 50) give the following GQ blocks:
      *
      * [0, 0]
      * (0, 10]
