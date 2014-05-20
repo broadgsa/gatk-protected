@@ -78,16 +78,16 @@ public class SWPairwiseAlignmentUnitTest extends BaseTest {
 
         final String ref1     = "AAAGACTACTG";
         final String read1    = "AACGGACACTG";
-        tests.add(new Object[]{ref1, read1, 5.0, -10.0, -22.0, -1.2, 1, "2M2I3M1D4M"});
-        tests.add(new Object[]{ref1, read1, 20.0, -5.0, -30.0, -2.2, 0, "11M"});
+        tests.add(new Object[]{ref1, read1, 5.0, -10.0, -22.0, -1.2, 0.0001, 1,  "2M2I3M1D4M"});
+        tests.add(new Object[]{ref1, read1, 20.0, -5.0, -30.0, -2.2, 0.0001, 0, "11M"});
 
         return tests.toArray(new Object[][]{});
     }
 
     @Test(dataProvider = "OddNoAlignment", enabled = true)
-    public void testOddNoAlignment(final String reference, final String read, final double match, final double mismatch, final double gap, final double gap_extend,
+    public void testOddNoAlignment(final String reference, final String read, final double match, final double mismatch, final double gap, final double gap_extend, final double epsilon,
                                    final int expectedStart, final String expectedCigar) {
-        final SWPairwiseAlignment sw = new SWPairwiseAlignment(reference.getBytes(), read.getBytes(), match, mismatch, gap, gap_extend);
+        final SWPairwiseAlignment sw = new SWPairwiseAlignment(reference.getBytes(), read.getBytes(), match, mismatch, gap, gap_extend, epsilon);
         Assert.assertEquals(sw.getAlignmentStart2wrt1(), expectedStart);
         Assert.assertEquals(sw.getCigar().toString(), expectedCigar);
     }

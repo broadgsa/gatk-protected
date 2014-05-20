@@ -44,12 +44,12 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.utils.smithwaterman;
+package org.broadinstitute.sting.utils.smithwaterman;
 
 import htsjdk.samtools.TextCigarCodec;
-import org.broadinstitute.gatk.utils.BaseTest;
-import org.broadinstitute.gatk.utils.Utils;
-import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
+import org.broadinstitute.sting.BaseTest;
+import org.broadinstitute.sting.utils.Utils;
+import org.broadinstitute.sting.utils.sam.AlignmentUtils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -104,7 +104,7 @@ public class GlobalEdgeGreedySWPairwiseAlignmentUnitTest extends BaseTest {
         Assert.assertEquals(sw.getCigar().toString(), "47M419D31M");
     }
 
-    public static final Parameters params = new Parameters(20.0, -10.0, -26.0, -1.1);
+    public static final Parameters params = new Parameters(20.0, -10.0, -26.0, -1.1,0.00001);
     @DataProvider(name = "SWData")
     public Object[][] makeSWData() {
         List<Object[]> tests = new ArrayList<Object[]>();
@@ -241,7 +241,7 @@ public class GlobalEdgeGreedySWPairwiseAlignmentUnitTest extends BaseTest {
 
     @Test(dataProvider = "SWData", enabled = !DEBUG)
     public void testSW(final String seq1, final String seq2, final String expectedCigar) {
-        final GlobalEdgeGreedySWPairwiseAlignment alignment = new GlobalEdgeGreedySWPairwiseAlignment(seq1.getBytes(), seq2.getBytes(), new Parameters(5.0, -5.0, -25.0, -1.0));
+        final GlobalEdgeGreedySWPairwiseAlignment alignment = new GlobalEdgeGreedySWPairwiseAlignment(seq1.getBytes(), seq2.getBytes(), new Parameters(5.0, -5.0, -25.0, -1.0, 0.00001));
         Assert.assertEquals(alignment.getCigar(), AlignmentUtils.consolidateCigar(TextCigarCodec.getSingleton().decode(expectedCigar)));
     }
 
@@ -253,7 +253,7 @@ public class GlobalEdgeGreedySWPairwiseAlignmentUnitTest extends BaseTest {
         final String ref = "A";
         final String alt = "C";
 
-        final GlobalEdgeGreedySWPairwiseAlignment sw = new GlobalEdgeGreedySWPairwiseAlignment(ref.getBytes(), alt.getBytes(), new Parameters(5.0, -5.0, -25.0, -1.0));
+        final GlobalEdgeGreedySWPairwiseAlignment sw = new GlobalEdgeGreedySWPairwiseAlignment(ref.getBytes(), alt.getBytes(), new Parameters(5.0, -5.0, -25.0, -1.0, 0.00001));
         Assert.assertEquals(sw.getCigar().toString(), "1M");
     }
 }
