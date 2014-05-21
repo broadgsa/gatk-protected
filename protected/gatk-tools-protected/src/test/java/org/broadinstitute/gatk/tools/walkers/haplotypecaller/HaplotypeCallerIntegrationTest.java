@@ -162,7 +162,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         }
 
         final Set<Pair<GenomeLoc, HaplotypeCallerGenotypingEngine.Event>> VCsAsSet = new HashSet<>(VCs);
-        return VCsAsSet.size() != VCs.size(); // The set will remove duplicate Events.
+        return VCsAsSet.size() != VCs.size(); // The se will remove duplicate Events.
     }
 
 
@@ -309,7 +309,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         executeTest("testLackSensitivityDueToBadHaplotypeSelectionFix", spec);
     }
 
-    @Test(priority= -3)
+    @Test
     public void testMissingKeyAlternativeHaplotypesBugFix() {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header ",
                 b37KGReferenceWithDecoy, privateTestDir + "lost-alt-key-hap.bam", privateTestDir + "lost-alt-key-hap.interval_list");
@@ -328,7 +328,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         executeTest("testBadLikelihoodsDueToBadHaplotypeSelectionFix", spec);
     }
 
-    @Test(priority = -100)
+    @Test
     public void testDifferentIndelLocationsDueToSWExactDoubleComparisonsFix() {
         final String SHORT_INTERVAL = "12:7342264-7342464";
         final String LONG_INTERVAL = "12:7342270-7342824";
