@@ -71,28 +71,52 @@ public class VariantRecalibratorArgumentCollection {
         if( input.equals("BOTH") ) { return Mode.BOTH; }
         throw new ReviewedGATKException("VariantRecalibrator mode string is unrecognized, input = " + input);
     }
-
-    @Argument(fullName = "mode", shortName = "mode", doc = "Recalibration mode to employ: 1.) SNP for recalibrating only SNPs (emitting indels untouched in the output VCF); 2.) INDEL for indels (emitting SNPs untouched in the output VCF); and 3.) BOTH for recalibrating both SNPs and indels simultaneously (for testing purposes only, not recommended for general use).", required = false)
+    /**
+     * Use either SNP for recalibrating only SNPs (emitting indels untouched in the output VCF) or INDEL for indels (emitting SNPs untouched in the output VCF). There is also a BOTH option for recalibrating both SNPs and indels simultaneously, but this is meant for testing purposes only and should not be used in actual analyses.
+     */
+    @Argument(fullName = "mode", shortName = "mode", doc = "Recalibration mode to employ", required = true)
     public VariantRecalibratorArgumentCollection.Mode MODE = VariantRecalibratorArgumentCollection.Mode.SNP;
 
+    /**
+     * This parameter determines the maximum number of Gaussians that should be used when building a positive model
+     * using the variational Bayes algorithm.
+     */
     @Advanced
-    @Argument(fullName="maxGaussians", shortName="mG", doc="The maximum number of Gaussians for the positive model to try during variational Bayes algorithm.", required=false)
+    @Argument(fullName="maxGaussians", shortName="mG", doc="Max number of Gaussians for the positive model", required=false)
     public int MAX_GAUSSIANS = 8;
 
+    /**
+     * This parameter determines the maximum number of Gaussians that should be used when building a negative model
+     * using the variational Bayes algorithm. The actual maximum used is the smaller value between the mG and mNG
+     * arguments, meaning that if -mG is smaller than -mNG, -mG will be used for both. Note that this number should
+     * be small (e.g. 4) to achieve the best results.
+     */
     @Advanced
-    @Argument(fullName="maxNegativeGaussians", shortName="mNG", doc="The maximum number of Gaussians for the negative model to try during variational Bayes algorithm.  The actual maximum used is the min of the mG and mNG arguments.  Note that this number should be small (like 4) to achieve the best results", required=false)
+    @Argument(fullName="maxNegativeGaussians", shortName="mNG", doc="Max number of Gaussians for the negative model", required=false)
     public int MAX_GAUSSIANS_FOR_NEGATIVE_MODEL = 2;
 
+    /**
+     * This parameter determines the maximum number of VBEM iterations to be performed in the variational Bayes algorithm.
+     * The procedure will normally end when convergence is detected.
+     */
     @Advanced
-    @Argument(fullName="maxIterations", shortName="mI", doc="The maximum number of VBEM iterations to be performed in variational Bayes algorithm. Procedure will normally end when convergence is detected.", required=false)
+    @Argument(fullName="maxIterations", shortName="mI", doc="Maximum number of VBEM iterations", required=false)
     public int MAX_ITERATIONS = 150;
 
+    /**
+     * This parameter determines the number of k-means iterations to perform in order to initialize the means of
+     * the Gaussians in the Gaussian mixture model.
+     */
     @Advanced
-    @Argument(fullName="numKMeans", shortName="nKM", doc="The number of k-means iterations to perform in order to initialize the means of the Gaussians in the Gaussian mixture model.", required=false)
+    @Argument(fullName="numKMeans", shortName="nKM", doc="Number of k-means iterations", required=false)
     public int NUM_KMEANS_ITERATIONS = 100;
 
+    /**
+     * If a variant has annotations more than -std standard deviations away from mean, it won't be used for building
+     * the Gaussian mixture model.
+     */
     @Advanced
-    @Argument(fullName="stdThreshold", shortName="std", doc="If a variant has annotations more than -std standard deviations away from mean then don't use it for building the Gaussian mixture model.", required=false)
+    @Argument(fullName="stdThreshold", shortName="std", doc="Annotation value divergence threshold (number of standard deviations from the means) ", required=false)
     public double STD_THRESHOLD = 10.0;
 
     @Advanced
@@ -107,16 +131,26 @@ public class VariantRecalibratorArgumentCollection {
     @Argument(fullName="priorCounts", shortName="priorCounts", doc="The number of prior counts to use in the variational Bayes algorithm.", required=false)
     public double PRIOR_COUNTS = 20.0;
 
+    /**
+     * The number of variants to use in building the Gaussian mixture model. Training sets larger than this will be randomly downsampled.
+     */
     @Advanced
-    @Argument(fullName="maxNumTrainingData", shortName="maxNumTrainingData", doc="Maximum number of training data to be used in building the Gaussian mixture model. Training sets large than this will be randomly downsampled.", required=false)
+    @Argument(fullName="maxNumTrainingData", shortName="maxNumTrainingData", doc="Maximum number of training data", required=false)
     protected int MAX_NUM_TRAINING_DATA = 2500000;
 
+    /**
+     * This parameter determines the minimum number of variants that will be selected from the list of worst scoring
+     * variants to use for building the Gaussian mixture model of bad variants.
+     */
     @Advanced
-    @Argument(fullName="minNumBadVariants", shortName="minNumBad", doc="The minimum number of worst scoring variants to use when building the Gaussian mixture model of bad variants.", required=false)
+    @Argument(fullName="minNumBadVariants", shortName="minNumBad", doc="Minimum number of bad variants", required=false)
     public int MIN_NUM_BAD_VARIANTS = 1000;
 
+    /**
+     * Variants scoring lower than this threshold will be used to build the Gaussian model of bad variants.
+     */
     @Advanced
-    @Argument(fullName="badLodCutoff", shortName="badLodCutoff", doc="The LOD score below which to be used when building the Gaussian mixture model of bad variants.", required=false)
+    @Argument(fullName="badLodCutoff", shortName="badLodCutoff", doc="LOD score cutoff for selecting bad variants", required=false)
     public double BAD_LOD_CUTOFF = -5.0;
 
     /////////////////////////////

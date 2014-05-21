@@ -101,8 +101,38 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * Call SNPs and indels simultaneously via local de-novo assembly of haplotypes in an active region. Haplotypes are evaluated using an affine gap penalty Pair HMM.
+ * Call SNPs and indels simultaneously via local re-assembly of haplotypes in an active region.
  *
+ * <p>The basic operation of the HaplotypeCaller proceeds as follows:   </p>
+ *
+ * <br />
+ * <h4>1. Define active regions </h4>
+ *
+ * <p>The program determines which regions of the genome it needs to operate on, based on the presence of significant
+ * evidence for variation.</p>
+ *
+ * <br />
+ * <h4>2. Determine haplotypes by re-assembly of the active region </h4>
+ *
+ * <p>For each ActiveRegion, the program builds a De Bruijn-like graph to reassemble the ActiveRegion, and identifies
+ * what are the possible haplotypes present in the data. The program then realigns each haplotype against the reference
+ * haplotype using the Smith-Waterman algorithm in order to identify potentially variant sites. </p>
+ *
+ * <br />
+ * <h4>3. Determine likelihoods of the haplotypes given the read data </h4>
+ *
+ * <p>For each ActiveRegion, the program performs a pairwise alignment of each read against each haplotype using the
+ * PairHMM algorithm. This produces a matrix of likelihoods of haplotypes given the read data. These likelihoods are
+ * then marginalized to obtain the likelihoods of alleles for each potentially variant site given the read data.   </p>
+ *
+ * <br />
+ * <h4>4. Assign sample genotypes </h4>
+ *
+ * <p>For each potentially variant site, the program applies Bayes’ rule, using the likelihoods of alleles given the
+ * read data to calculate the likelihoods of each genotype per sample given the read data observed for that
+ * sample. The most likely genotype is then assigned to the sample.    </p>
+ *
+ * <br />
  * <h3>Input</h3>
  * <p>
  * Input bam file(s) from which to make calls
@@ -114,23 +144,71 @@ import java.util.*;
  * </p>
  *
  * <h3>Examples</h3>
+ *
+ * <p>These are example commands that show how to run HaplotypeCaller for typical use cases. Square brackets ("[ ]")
+ * indicate optional arguments. Note that parameter values shown here may not be the latest recommended; see the
+ * Best Practices documentation for detailed recommendations. </p>
+ *
+ * <br />
+ * <h4>Single-sample all-sites calling on DNAseq (for GVCF-based cohort analysis workflow)</h4>
+ * <p>
+ * <pre>
+ *   java
+ *     -jar GenomeAnalysisTK.jar
+ *     -T HaplotypeCaller
+ *     -R reference/human_g1k_v37.fasta
+ *     -I sample1.bam \
+ *     --emitRefConfidence GVCF \
+ *     --variant_index_type LINEAR \
+ *     --variant_index_parameter 128000
+ *     [--dbsnp dbSNP.vcf] \
+ *     [-L targets.interval_list] \
+ *     -o output.raw.snps.indels.g.vcf
+ * </pre>
+ * </p>
+ *
+ * <h4>Variant-only calling on DNAseq</h4>
+ * <p>
  * <pre>
  *   java
  *     -jar GenomeAnalysisTK.jar
  *     -T HaplotypeCaller
  *     -R reference/human_g1k_v37.fasta
  *     -I sample1.bam [-I sample2.bam ...] \
- *     --dbsnp dbSNP.vcf \
- *     -stand_call_conf [50.0] \
- *     -stand_emit_conf 10.0 \
- *     [-L targets.interval_list]
+ *     [--dbsnp dbSNP.vcf] \
+ *     [-stand_call_conf 30] \
+ *     [-stand_emit_conf 10] \
+ *     [-L targets.interval_list] \
  *     -o output.raw.snps.indels.vcf
  * </pre>
+ * </p>
+ *
+ * <h4>Variant-only calling on RNAseq</h4>
+ * <p>
+ * <pre>
+ *   java
+ *     -jar GenomeAnalysisTK.jar
+ *     -T HaplotypeCaller
+ *     -R reference/human_g1k_v37.fasta
+ *     -I sample1.bam \
+ *     -recoverDanglingHeads \
+ *     -dontUseSoftClippedBases \
+ *     [--dbsnp dbSNP.vcf] \
+ *     -stand_call_conf 20 \
+ *     -stand_emit_conf 20 \
+ *     -o output.raw.snps.indels.vcf
+ * </pre>
+ * </p>
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>The system is under active and continuous development. All outputs, the underlying likelihood model, and command line arguments are likely to change often.</li>
- * <li>Currently the -ploidy parameter only support the default 2 (diploid). Eventually one will be able to change its value for haploid and polyploid analyses.</li>
+ * <li>Currently the -ploidy parameter only support the default 2 (diploid). Eventually it will be possible to change
+ * its value in order to analyze data from non-diploid organisms.</li>
+ * <li>We have not yet fully tested the interaction between the GVCF-based calling or the multisample calling and the
+ * RNAseq-specific functionalities.
+ * Use those in combination at your own risk.</li>
+ * <li>Many users have reported issues running HaplotypeCaller with the -nct argument, so we recommend using Queue to
+ * parallelize HaplotypeCaller instead of multithreading.</li>
  * </ul>
  *
  * @author rpoplin
@@ -473,9 +551,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected int minObservationsForKmerToBeSolid = 20;
 
     /**
-     * Which PCR indel error model should we use when calculating likelihoods?  If NONE is selected, then the default base
-     * insertion/deletion qualities will be used (or taken from the read if generated through the BaseRecalibrator).
-     * VERY IMPORTANT: when using PCR-free sequencing data we definitely recommend setting this argument to NONE.
+     * When calculating the likelihood of variants, we can try to correct for PCR errors that cause indel artifacts.
+     * The correction is based on the reference context, and acts specifically around repetitive sequences that tend
+     * to cause PCR errors). The variant likelihoods are penalized in increasing scale as the context around a
+     * putative indel is more repetitive (e.g. long homopolymer). The correction can be disabling by specifying
+     * '-pcrModel NONE'; in that case the default base insertion/deletion qualities will be used (or taken from the
+     * read if generated through the BaseRecalibrator). <b>VERY IMPORTANT: when using PCR-free sequencing data we
+     * definitely recommend setting this argument to NONE</b>.
      */
     @Advanced
     @Argument(fullName = "pcr_indel_model", shortName = "pcrModel", doc = "The PCR indel model to use", required = false)

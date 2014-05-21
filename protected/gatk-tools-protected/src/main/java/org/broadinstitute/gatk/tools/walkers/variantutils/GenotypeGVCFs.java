@@ -78,14 +78,14 @@ import java.util.*;
  * Genotypes any number of gVCF files that were produced by the Haplotype Caller into a single joint VCF file.
  *
  * <p>
- * GenotypeGVCFs merges gVCF records that were produced as part of the "single sample discovery" pipeline using
- * the '-ERC GVCF' mode of the Haplotype Caller.  This tool performs the multi-sample joint aggregation
+ * GenotypeGVCFs merges gVCF records that were produced as part of the reference model-based variant discovery pipeline (see documentation for more details) using
+ * the '-ERC GVCF' or '-ERC BP_RESOLUTION' mode of the HaplotypeCaller.  This tool performs the multi-sample joint aggregation
  * step and merges the records together in a sophisticated manner.
  *
  * At all positions of the target, this tool will combine all spanning records, produce correct genotype likelihoods,
  * re-genotype the newly merged record, and then re-annotate it.
  *
- * Note that this tool cannot work with just any gVCF files - they must have been produced with the Haplotype Caller,
+ * Note that this tool cannot work with just any gVCF files - they must have been produced with the HaplotypeCaller,
  * which uses a sophisticated reference model to produce accurate genotype likelihoods for every position in the target.
  *
  * <h3>Input</h3>
@@ -109,7 +109,7 @@ import java.util.*;
  * </pre>
  *
  */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 @Reference(window=@Window(start=-10,stop=10))
 public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
 
@@ -137,8 +137,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "GenotypeSummaries"}));
 
     /**
-     * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
-     * dbSNP is not used in any way for the calculations themselves.
+     * The rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate. Note that dbSNP is not used in any way for the calculations themselves.
      */
     @ArgumentCollection
     protected DbsnpArgumentCollection dbsnp = new DbsnpArgumentCollection();
