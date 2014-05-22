@@ -346,7 +346,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         Assert.assertFalse(lineIteratorAnn.hasNext());
     }
 
-    @Test
+    @Test(enabled = false)
     public void testQualByDepth() throws IOException {
 
         /*
@@ -373,16 +373,16 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
          */
 
         final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("b6e8ffdab100b0ea1f8cb89e6e29a9ed"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("707be4798b1e14e3d6827a49104be120"));
         final File outputVCF = executeTest("testQualByDepth", spec).getFirst().get(0);
 
         final String baseNoQD = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -XA QualByDepth";
-        final WalkerTestSpec specNoQD = new WalkerTestSpec(baseNoQD, 1, Arrays.asList("23785ea79ac6945d086cbf5613885881"));
+        final WalkerTestSpec specNoQD = new WalkerTestSpec(baseNoQD, 1, Arrays.asList("7e582b422a5de47706daefaae17b8245"));
         specNoQD.disableShadowBCF();
         final File outputVCFNoQD = executeTest("testQualByDepth calling without QD", specNoQD).getFirst().get(0);
 
         final String baseAnn = String.format("-T VariantAnnotator -R %s -V %s", REF, outputVCFNoQD.getAbsolutePath()) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -A QualByDepth";
-        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("4ccdbebcfd02be87ae5b4ad94666f011"));
+        final WalkerTestSpec specAnn = new WalkerTestSpec(baseAnn, 1, Arrays.asList("cc4e2b12872b2b25ab1c106516b2ac6a"));
         specAnn.disableShadowBCF();
         final File outputVCFAnn = executeTest("testQualByDepth re-annotation of QD", specAnn).getFirst().get(0);
 
