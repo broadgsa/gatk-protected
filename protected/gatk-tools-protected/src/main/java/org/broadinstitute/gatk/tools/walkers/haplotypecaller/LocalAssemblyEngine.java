@@ -188,6 +188,7 @@ public abstract class LocalAssemblyEngine {
 
         final int activeRegionStart = refHaplotype.getAlignmentStartHapwrtRef();
         final ArrayList<KBestHaplotypeFinder> finders = new ArrayList<>(graphs.size());
+        int failedCigars = 0;
 
         for( final SeqGraph graph : graphs ) {
             final SeqVertex source = graph.getReferenceSourceVertex();
@@ -201,10 +202,10 @@ public abstract class LocalAssemblyEngine {
                 final KBestHaplotype kBestHaplotype = bestHaplotypes.next();
                 final Haplotype h = kBestHaplotype.haplotype();
                 if( !returnHaplotypes.contains(h) ) {
-                    final Cigar cigar = CigarUtils.calculateCigar(refHaplotype.getBases(), h.getBases());
+                    final Cigar cigar = CigarUtils.calculateCigar(refHaplotype.getBases(),h.getBases());
 
                     if ( cigar == null ) {
-                        // couldn't produce a meaningful alignment of haplotype to reference, fail quietly
+                        failedCigars++; // couldn't produce a meaningful alignment of haplotype to reference, fail quietly
                         continue;
                     } else if( cigar.isEmpty() ) {
                         throw new IllegalStateException("Smith-Waterman alignment failure. Cigar = " + cigar + " with reference length " + cigar.getReferenceLength() +
@@ -243,6 +244,9 @@ public abstract class LocalAssemblyEngine {
             refHaplotype.setScore(refScore);
             returnHaplotypes.add(refHaplotype);
         }
+
+        if (failedCigars != 0)
+            logger.debug(String.format("failed to align some haplotypes (%d) back to the reference (loc=%s); these will be ignored.",failedCigars,refLoc.toString()));
 
         if( debug ) {
             if( returnHaplotypes.size() > 1 ) {

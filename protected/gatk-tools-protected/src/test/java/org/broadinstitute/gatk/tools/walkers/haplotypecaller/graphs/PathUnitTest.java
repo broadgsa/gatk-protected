@@ -64,17 +64,4 @@ public class PathUnitTest extends BaseTest {
         final Cigar cigar = path.calculateCigar(ref.getBytes());
         Assert.assertNull(cigar, "Should have failed gracefully");
     }
-
-    @Test(enabled = true)
-    public void testAlignReallyLongDeletion2() {
-        final String ref = "CGGCTAATTTTTGTATTTTTAGTAGAGACAGGGTTTCACCATGTTGGCCAGGCTGGTCTTGAACTCCTGACCTCAGGTGATCCACTCGCCTCGGTCTCCCAAAGTGTTGGGATTACAGGCATGAACCACTGCACCTGGCCTAGTGTTTGGGAAAACTATACTAGGAAAAGAATAGTTGCTTTAAGTCATTCTTTGATTATTCTGAGAATTGGCATATAGCTGCCATTATAACCTACTTTTGCTAAATATAATAATAATAATCATTATTTTTATTTTTTGAGACAGGGTCTTGTTTTGTCACCCCGGCTGGAGTGAAGTGGCGCAATCTCGGCTCACTGCAACCTCCACCTCCGGGTGCAAGCAATTCTCCTGCCTCAGCCTCTTGAGTAGCTAGGATTACAGGCACAAGCCATCATGCCCAGCTAATTTTTGTATTTTTAGTAGAGACAGGGTTTCACCATGTTGGTCAGGCTGGTCTTGAACTCCTGACCTCAGGT";
-        final String hap = "CGGCTAATTTTTGTATTTTTAGTAGAGACAGGGTTTCACCATGTTGGTCAGGCTGGTCTTGAACTCCTGACCTCAGGT";
-
-        final SeqGraph graph = new SeqGraph(11);
-        final SeqVertex v = new SeqVertex(hap);
-        graph.addVertex(v);
-        final Path<SeqVertex,BaseEdge> path = new Path<SeqVertex,BaseEdge>(v, graph);
-        final Cigar cigar = path.calculateCigar(ref.getBytes());
-        Assert.assertEquals(cigar.toString(), "48M419D30M");
-    }
 }

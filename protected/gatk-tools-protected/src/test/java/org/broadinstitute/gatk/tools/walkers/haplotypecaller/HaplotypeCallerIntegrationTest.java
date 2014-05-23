@@ -162,7 +162,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         }
 
         final Set<Pair<GenomeLoc, HaplotypeCallerGenotypingEngine.Event>> VCsAsSet = new HashSet<>(VCs);
-        return VCsAsSet.size() != VCs.size(); // The set will remove duplicate Events.
+        return VCsAsSet.size() != VCs.size(); // The se will remove duplicate Events.
     }
 
 
@@ -309,7 +309,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         executeTest("testLackSensitivityDueToBadHaplotypeSelectionFix", spec);
     }
 
-    @Test(priority= -3)
+    @Test
     public void testMissingKeyAlternativeHaplotypesBugFix() {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header ",
                 b37KGReferenceWithDecoy, privateTestDir + "lost-alt-key-hap.bam", privateTestDir + "lost-alt-key-hap.interval_list");
@@ -326,6 +326,30 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("0f6384c8e170840ef1490d262ac2e06e"));
         spec.disableShadowBCF();
         executeTest("testBadLikelihoodsDueToBadHaplotypeSelectionFix", spec);
+    }
+
+    @Test
+    public void testDifferentIndelLocationsDueToSWExactDoubleComparisonsFix() {
+        final String SHORT_INTERVAL = "12:7342264-7342464";
+        final String LONG_INTERVAL = "12:7342270-7342824";
+        final String TEST_BAM = privateTestDir + "sw_epsilon_test.bam";
+        final String REFERENCE = b37KGReference;
+        final String DBSNP = b37dbSNP138;
+        final String commandLineWithoutInterval = String.format("-T HaplotypeCaller -I %s -R %s -D %s "
+                + "-variant_index_type  LINEAR -variant_index_parameter 128000 --no_cmdline_in_header "
+                + "-stand_call_conf 10.0 -stand_emit_conf 10.0",TEST_BAM,REFERENCE,DBSNP);
+
+        final String commandLineShortInterval = commandLineWithoutInterval + " -L " + SHORT_INTERVAL;
+        final String commandLineLongInterval = commandLineWithoutInterval + " -L " + LONG_INTERVAL;
+
+        //README: update MD5s accordingly when needed
+        // but please make sure that both outputs get the same variant,
+        // alleles all with DBSNP ids
+        // We test here that change in active region size does not have an effect in placement of indels.
+        final WalkerTestSpec shortSpec = new WalkerTestSpec(commandLineShortInterval + " -o %s",Arrays.asList("f5de88bb1a1911eb5e6540a59f1517e2"));
+        executeTest("testDifferentIndelLocationsDueToSWExactDoubleComparisonsFix::shortInterval",shortSpec);
+        final WalkerTestSpec longSpec = new WalkerTestSpec(commandLineLongInterval + " -o %s",Arrays.asList("fb957604f506fe9a62138943bd82543e"));
+        executeTest("testDifferentIndelLocationsDueToSWExactDoubleComparisonsFix::longInterval",longSpec);
     }
 
 

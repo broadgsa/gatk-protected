@@ -329,7 +329,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     // fraction of mismatches that need to no longer mismatch for a column to be considered cleaned
     private static final double MISMATCH_COLUMN_CLEANED_FRACTION = 0.75;
 
-    private final static Parameters swParameters = new Parameters(30.0, -10.0, -10.0, -2.0);
+    private final static Parameters swParameters = new Parameters(30.0, -10.0, -10.0, -2.0,0.0001);
 
     // reference base padding size
     // TODO -- make this a command-line argument if the need arises
@@ -472,9 +472,9 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         if ( NO_PG_TAG ) return null;
 
         final SAMProgramRecord programRecord = new SAMProgramRecord(PROGRAM_RECORD_NAME);
-        final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("GATKText");
+        final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("StingText");
         try {
-            final String version = headerInfo.getString("org.broadinstitute.gatk.tools.version");
+            final String version = headerInfo.getString("org.broadinstitute.sting.gatk.version");
             programRecord.setProgramVersion(version);
         } catch (MissingResourceException e) {
             // this is left empty on purpose (perhaps Andrey knows why?)

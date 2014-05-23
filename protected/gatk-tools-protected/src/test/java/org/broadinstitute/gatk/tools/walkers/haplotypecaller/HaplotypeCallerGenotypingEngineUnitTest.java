@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
  */
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
@@ -61,9 +62,9 @@ import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.smithwaterman.Parameters;
 import org.broadinstitute.gatk.utils.smithwaterman.SWPairwiseAlignment;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -202,9 +203,13 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         }
         
         public Map<Integer,VariantContext> calcAlignment() {
-            final SWPairwiseAlignment alignment = new SWPairwiseAlignment(ref, hap);
+            final SWPairwiseAlignment alignment = new SWPairwiseAlignment(ref, hap, new Parameters(1.0,-1.0/3.0,-1 - 1./3., -1./3.,0.00001));
             final Haplotype h = new Haplotype(hap, false, alignment.getAlignmentStart2wrt1(), alignment.getCigar());
             return HaplotypeCallerGenotypingEngine.generateVCsFromAlignment(h, ref, genomeLocParser.createGenomeLoc("4", 1, 1 + ref.length), "name");
+        }
+
+        public String toString() {
+            return "REF:" + new String(ref) + ",ALT:" + new String(hap);
         }
     }
 
@@ -280,7 +285,7 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
             logger.warn("calc map = " + calculatedMap);
             logger.warn("expected map = " + expectedMap);
         }
-        Assert.assertTrue(compareVCMaps(calculatedMap, expectedMap));
+        Assert.assertTrue(compareVCMaps(calculatedMap, expectedMap),"" + cfg);
     }
 
     @Test(dataProvider="AddMiscellaneousDataProvider", enabled=false)
