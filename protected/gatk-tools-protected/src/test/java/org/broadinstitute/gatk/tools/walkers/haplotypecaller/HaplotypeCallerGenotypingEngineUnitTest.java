@@ -203,7 +203,7 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         }
         
         public Map<Integer,VariantContext> calcAlignment() {
-            final SWPairwiseAlignment alignment = new SWPairwiseAlignment(ref, hap, new Parameters(1.0,-1.0/3.0,-1 - 1./3., -1./3.,0.00001));
+            final SWPairwiseAlignment alignment = new SWPairwiseAlignment(ref, hap, new Parameters(3,-1,-4, -1));
             final Haplotype h = new Haplotype(hap, false, alignment.getAlignmentStart2wrt1(), alignment.getCigar());
             return HaplotypeCallerGenotypingEngine.generateVCsFromAlignment(h, ref, genomeLocParser.createGenomeLoc("4", 1, 1 + ref.length), "name");
         }

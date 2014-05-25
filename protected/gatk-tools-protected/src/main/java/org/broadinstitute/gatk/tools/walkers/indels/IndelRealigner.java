@@ -329,7 +329,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
     // fraction of mismatches that need to no longer mismatch for a column to be considered cleaned
     private static final double MISMATCH_COLUMN_CLEANED_FRACTION = 0.75;
 
-    private final static Parameters swParameters = new Parameters(30.0, -10.0, -10.0, -2.0,0.0001);
+    private final static Parameters swParameters = new Parameters(30, -10, -10, -2);
 
     // reference base padding size
     // TODO -- make this a command-line argument if the need arises

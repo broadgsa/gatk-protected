@@ -339,18 +339,18 @@ public class HaplotypeResolver extends RodWalker<Integer, Integer> {
         return overlap;
     }
 
-    private static final double SW_MATCH = 4.0;
-    private static final double SW_MISMATCH = -10.0;
-    private static final double SW_GAP = -25.0;
-    private static final double SW_GAP_EXTEND = -1.3;
-    private static final double SW_EPSILON = 0.00001;
+    private static final int SW_MATCH = 40;
+    private static final int SW_MISMATCH = -100;
+    private static final int SW_GAP = -250;
+    private static final int SW_GAP_EXTEND = -13;
+
     private void resolveByHaplotype(final ReferenceContext refContext) {
 
         final byte[] source1Haplotype = generateHaplotype(sourceVCs1, refContext);
         final byte[] source2Haplotype = generateHaplotype(sourceVCs2, refContext);
 
-        final SWPairwiseAlignment swConsensus1 = new SWPairwiseAlignment( refContext.getBases(), source1Haplotype, SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND, SW_EPSILON );
-        final SWPairwiseAlignment swConsensus2 = new SWPairwiseAlignment( refContext.getBases(), source2Haplotype, SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND, SW_EPSILON );
+        final SWPairwiseAlignment swConsensus1 = new SWPairwiseAlignment( refContext.getBases(), source1Haplotype, SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
+        final SWPairwiseAlignment swConsensus2 = new SWPairwiseAlignment( refContext.getBases(), source2Haplotype, SW_MATCH, SW_MISMATCH, SW_GAP, SW_GAP_EXTEND );
 
         // protect against SW failures
         if( swConsensus1.getCigar().toString().contains("S") || swConsensus1.getCigar().getReferenceLength() < 20 ||
