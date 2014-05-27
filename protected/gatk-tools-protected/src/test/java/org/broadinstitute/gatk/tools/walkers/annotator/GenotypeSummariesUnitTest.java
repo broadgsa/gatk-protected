@@ -77,10 +77,8 @@ public class GenotypeSummariesUnitTest {
         final GenotypeSummaries GS = new GenotypeSummaries();
         final Map<String,Object> resultMap = GS.annotate(null, null, null, null, testVC, null);
 
-        Assert.assertEquals(2, resultMap.get(GenotypeSummaries.CCC)); // 2 called chromosomes
         Assert.assertEquals(1, resultMap.get(GenotypeSummaries.NCC)); // 1 no-called called sample
         Assert.assertEquals(30.0, Double.parseDouble((String)resultMap.get(GenotypeSummaries.GQ_MEAN)), 1E-4); // mean GQ is 30
         Assert.assertFalse(resultMap.containsKey(GenotypeSummaries.GQ_STDDEV)); // no stddev with only one data point
-        Assert.assertTrue(resultMap.containsKey(GenotypeSummaries.HWP));
     }
 }
