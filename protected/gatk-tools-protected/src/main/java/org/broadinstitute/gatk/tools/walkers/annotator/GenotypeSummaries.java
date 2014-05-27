@@ -89,9 +89,7 @@ public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegi
             return null;
 
         final Map<String,Object> returnMap = new HashMap<>();
-        returnMap.put(CCC, vc.getCalledChrCount());
         returnMap.put(NCC, vc.getNoCallCount());
-        returnMap.put(HWP, String.format("%.4f", GATKVariantContextUtils.computeHardyWeinbergPvalue(vc)));
 
         final MathUtils.RunningAverage average = new MathUtils.RunningAverage();
         for( final Genotype g : vc.getGenotypes() ) {
