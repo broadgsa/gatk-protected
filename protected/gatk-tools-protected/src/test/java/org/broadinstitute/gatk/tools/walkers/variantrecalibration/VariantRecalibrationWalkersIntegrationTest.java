@@ -126,7 +126,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile %s" +
                         " -tranchesFile %s",
                 Arrays.asList(params.recalMD5, params.tranchesMD5));
-        executeTest("testVariantRecalibrator-"+params.inVCF, spec).getFirst();
+        final List<File> outputFiles = executeTest("testVariantRecalibrator-"+params.inVCF, spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     @Test(dataProvider = "VRTest",dependsOnMethods="testVariantRecalibrator")
@@ -142,7 +143,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
         spec.disableShadowBCF(); // TODO -- enable when we support symbolic alleles
-        executeTest("testApplyRecalibration-"+params.inVCF, spec);
+        final List<File> outputFiles = executeTest("testApplyRecalibration-"+params.inVCF, spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     @Test(dataProvider = "VRAggregateTest")
@@ -163,7 +165,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile %s" +
                         " -tranchesFile %s",
                 Arrays.asList(params.recalMD5, params.tranchesMD5));
-        executeTest("testVariantRecalibratorAggregate-"+params.inVCF, spec).getFirst();
+        final List<File> outputFiles = executeTest("testVariantRecalibratorAggregate-"+params.inVCF, spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     @Test(dataProvider = "VRAggregateTest",dependsOnMethods="testVariantRecalibratorAggregate")
@@ -179,7 +182,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
         spec.disableShadowBCF(); // TODO -- enable when we support symbolic alleles
-        executeTest("testApplyRecalibrationAggregate-"+params.inVCF, spec);
+        final List<File> outputFiles = executeTest("testApplyRecalibrationAggregate-"+params.inVCF, spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     VRTest bcfTest = new VRTest(privateTestDir + "vqsr.bcf_test.snps.unfiltered.bcf",
@@ -212,7 +216,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                 2,
                 Arrays.asList("bcf", "txt"),
                 Arrays.asList(params.recalMD5, params.tranchesMD5));
-        executeTest("testVariantRecalibrator-"+params.inVCF, spec).getFirst();
+        final List<File> outputFiles = executeTest("testVariantRecalibrator-"+params.inVCF, spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     @Test(dataProvider = "VRBCFTest", dependsOnMethods="testVariantRecalibratorWithBCF")
@@ -228,7 +233,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
         spec.disableShadowBCF();
-        executeTest("testApplyRecalibration-"+params.inVCF, spec);
+        final List<File> outputFiles = executeTest("testApplyRecalibration-"+params.inVCF, spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
 
@@ -266,7 +272,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile %s" +
                         " -tranchesFile %s",
                 Arrays.asList(params.recalMD5, params.tranchesMD5));
-        executeTest("testVariantRecalibratorIndel-"+params.inVCF, spec).getFirst();
+        final List<File> outputFiles = executeTest("testVariantRecalibratorIndel-"+params.inVCF, spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     @Test(dataProvider = "VRIndelTest",dependsOnMethods="testVariantRecalibratorIndel")
@@ -283,7 +290,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
         spec.disableShadowBCF(); // has to be disabled because the input VCF is missing LowQual annotation
-        executeTest("testApplyRecalibrationIndel-" + params.inVCF, spec);
+        final List<File> outputFiles = executeTest("testApplyRecalibrationIndel-" + params.inVCF, spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     @Test
@@ -299,7 +307,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -tranchesFile " + privateTestDir + "VQSR.mixedTest.tranches" +
                         " -recalFile " + privateTestDir + "VQSR.mixedTest.recal",
                 Arrays.asList("03a0ed00af6aac76d39e569f90594a02"));
-        executeTest("testApplyRecalibrationSnpAndIndelTogether", spec);
+        final List<File> outputFiles = executeTest("testApplyRecalibrationSnpAndIndelTogether", spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     @Test(enabled = true)
@@ -317,12 +326,19 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
 
         final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(""));
         spec.disableShadowBCF();
-        final File VCF = executeTest("testApplyRecalibrationSnpAndIndelTogether", spec).first.get(0);
-
+        final List<File> outputFiles = executeTest("testApplyRecalibrationSnpAndIndelTogether", spec).getFirst();
+        setPDFsForDeletion(outputFiles);
+        final File VCF = outputFiles.get(0);
         for( final VariantContext VC : GATKVCFUtils.readAllVCs(VCF, new VCFCodec()).getSecond() ) {
             if( VC != null ) {
                 Assert.assertTrue(VC.isNotFiltered()); // there should only be unfiltered records in the output VCF file
             }
+        }
+    }
+
+    private void setPDFsForDeletion( final List<File> walkerOutputFiles ) {
+        for ( final File outputFile : walkerOutputFiles ) {
+            new File(outputFile.getAbsolutePath() + ".pdf").deleteOnExit();
         }
     }
 }
