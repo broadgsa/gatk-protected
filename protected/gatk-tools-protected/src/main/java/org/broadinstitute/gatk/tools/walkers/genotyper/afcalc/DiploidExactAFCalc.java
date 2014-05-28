@@ -56,6 +56,9 @@ import htsjdk.variant.variantcontext.VariantContext;
 import java.util.*;
 
 public abstract class DiploidExactAFCalc extends ExactAFCalc {
+
+    private static final double LOG10_OF_2 = MathUtils.Log10Cache.get(2);
+
     public DiploidExactAFCalc(final int nSamples, final int maxAltAlleles, final int ploidy) {
         super(nSamples, maxAltAlleles, ploidy);
         if ( ploidy != 2 ) throw new IllegalArgumentException("ploidy must be two for DiploidExactAFCalc and subclasses but saw " + ploidy);
@@ -247,11 +250,11 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
 
             if ( totalK < 2*j-1 ) {
                 final double[] gl = genotypeLikelihoods.get(j);
-                final double conformationValue = MathUtils.log10Cache[2*j-totalK] + MathUtils.log10Cache[2*j-totalK-1] + set.getLog10Likelihoods()[j-1] + gl[HOM_REF_INDEX];
+                final double conformationValue = MathUtils.Log10Cache.get(2*j-totalK) + MathUtils.Log10Cache.get(2*j-totalK-1) + set.getLog10Likelihoods()[j-1] + gl[HOM_REF_INDEX];
                 set.getLog10Likelihoods()[j] = MathUtils.approximateLog10SumLog10(set.getLog10Likelihoods()[j], conformationValue);
             }
 
-            final double logDenominator = MathUtils.log10Cache[2*j] + MathUtils.log10Cache[2*j-1];
+            final double logDenominator = MathUtils.Log10Cache.get(2*j) + MathUtils.Log10Cache.get(2*j-1);
             set.getLog10Likelihoods()[j] = set.getLog10Likelihoods()[j] - logDenominator;
         }
 
@@ -303,19 +306,19 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
 
         // the AX het case
         if ( alleles.alleleIndex1 == 0 )
-            return MathUtils.log10Cache[2*ACcounts[alleles.alleleIndex2-1]] + MathUtils.log10Cache[2*j-totalK];
+            return MathUtils.Log10Cache.get(2*ACcounts[alleles.alleleIndex2-1]) + MathUtils.Log10Cache.get(2*j-totalK);
 
         final int k_i = ACcounts[alleles.alleleIndex1-1];
 
         // the hom var case (e.g. BB, CC, DD)
         final double coeff;
         if ( alleles.alleleIndex1 == alleles.alleleIndex2 ) {
-            coeff = MathUtils.log10Cache[k_i] + MathUtils.log10Cache[k_i - 1];
+            coeff = MathUtils.Log10Cache.get(k_i) + MathUtils.Log10Cache.get(k_i - 1);
         }
         // the het non-ref case (e.g. BC, BD, CD)
         else {
             final int k_j = ACcounts[alleles.alleleIndex2-1];
-            coeff = MathUtils.log10Cache[2] + MathUtils.log10Cache[k_i] + MathUtils.log10Cache[k_j];
+            coeff = LOG10_OF_2 + MathUtils.Log10Cache.get(k_i) + MathUtils.Log10Cache.get(k_j);
         }
 
         return coeff;

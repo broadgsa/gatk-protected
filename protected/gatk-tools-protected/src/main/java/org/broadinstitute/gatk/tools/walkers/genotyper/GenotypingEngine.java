@@ -155,6 +155,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         this.toolkit = toolkit;
         this.sampleNames = sampleNames != null ? sampleNames : toolkit.getSampleDB().getSampleNames();
         numberOfGenomes = this.sampleNames.size() * configuration.samplePloidy;
+        MathUtils.Log10Cache.ensureCacheContains(numberOfGenomes * 2);
         log10AlleleFrequencyPriorsSNPs = computeAlleleFrequencyPriors(numberOfGenomes,
                 configuration.snpHeterozygosity,configuration.inputPrior);
         log10AlleleFrequencyPriorsIndels = computeAlleleFrequencyPriors(numberOfGenomes,
