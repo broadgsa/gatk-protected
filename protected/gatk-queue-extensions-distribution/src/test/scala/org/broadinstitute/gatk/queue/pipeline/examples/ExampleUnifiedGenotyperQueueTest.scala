@@ -50,8 +50,11 @@ import org.testng.annotations.{DataProvider, Test}
 import org.broadinstitute.gatk.queue.pipeline.{QueueTest, QueueTestSpec}
 import org.broadinstitute.gatk.utils.BaseTest
 
+/*
+ * TODO: Tests are all currently disabled until we fix the paths to use the qscript directory, or as a patch the gatk.basedir as a passed in variable.
+ */
 class ExampleUnifiedGenotyperQueueTest {
-  @Test(timeOut=36000000)
+  @Test(timeOut=36000000, enabled=false)
   def testUnifiedGenotyper() {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper"
@@ -73,7 +76,7 @@ class ExampleUnifiedGenotyperQueueTest {
       Array("vcf_intervals", BaseTest.validationDataLocation + "intervalTest.1.vcf")
     ).asInstanceOf[Array[Array[Object]]]
 
-  @Test(dataProvider = "ugIntervals", timeOut=36000000)
+  @Test(dataProvider = "ugIntervals", timeOut=36000000, enabled=false)
   def testUnifiedGenotyperWithIntervals(intervalsName: String, intervalsPath: String) {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper_with_" + intervalsName
@@ -86,7 +89,7 @@ class ExampleUnifiedGenotyperQueueTest {
     QueueTest.executeTest(spec)
   }
 
-  @Test(timeOut=36000000)
+  @Test(timeOut=36000000, enabled=false)
   def testUnifiedGenotyperNoGCOpt() {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper_no_gc_opt"
@@ -102,7 +105,7 @@ class ExampleUnifiedGenotyperQueueTest {
   @DataProvider(name="resMemReqParams")
   def getResMemReqParam = Array(Array("mem_free"), Array("virtual_free")).asInstanceOf[Array[Array[Object]]]
 
-  @Test(dataProvider = "resMemReqParams", timeOut=36000000)
+  @Test(dataProvider = "resMemReqParams", timeOut=36000000, enabled=false)
   def testUnifiedGenotyperResMemReqParam(reqParam: String) {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper_" + reqParam
@@ -115,7 +118,7 @@ class ExampleUnifiedGenotyperQueueTest {
     QueueTest.executeTest(spec)
   }
 
-  @Test(timeOut=36000000)
+  @Test(timeOut=36000000, enabled=false)
   def testUnifiedGenotyperLogDirectory() {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper_with_log_directory"
