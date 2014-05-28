@@ -63,7 +63,7 @@ public class VCFStreamingIntegrationTest extends WalkerTest {
     @Test
     public void testSimpleVCFStreaming() throws IOException {
         // Create a FIFO.  This seems to be the only way to create an interprocess FIFO in Java (java.nio.Pipe is intraprocess only).
-        File tmpFifo = File.createTempFile("vcfstreaming","");
+        File tmpFifo = createTempFile("vcfstreaming", "");
         Runtime.getRuntime().exec(new String[] {"mkfifo",tmpFifo.getAbsolutePath()});
 
 
@@ -93,7 +93,7 @@ public class VCFStreamingIntegrationTest extends WalkerTest {
     @Test
     public void testVCFStreamingChain() throws IOException {
         // Create a FIFO.  This seems to be the only way to create an interprocess FIFO in Java (java.nio.Pipe is intraprocess only).
-        File tmpFifo = File.createTempFile("vcfstreaming","");
+        File tmpFifo = createTempFile("vcfstreaming","");
         Runtime.getRuntime().exec(new String[] {"mkfifo",tmpFifo.getAbsolutePath()});
 
         String testFile = privateTestDir + "yri.trio.gatk.ug.head.vcf";
