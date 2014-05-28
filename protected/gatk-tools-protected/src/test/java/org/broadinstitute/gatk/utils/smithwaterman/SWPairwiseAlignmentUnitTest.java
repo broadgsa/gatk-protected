@@ -46,6 +46,10 @@
 
 package org.broadinstitute.gatk.utils.smithwaterman;
 
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import org.broadinstitute.gatk.utils.sam.CigarUtils;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -78,16 +82,16 @@ public class SWPairwiseAlignmentUnitTest extends BaseTest {
 
         final String ref1     = "AAAGACTACTG";
         final String read1    = "AACGGACACTG";
-        tests.add(new Object[]{ref1, read1, 5.0, -10.0, -22.0, -1.2, 0.0001, 1,  "2M2I3M1D4M"});
-        tests.add(new Object[]{ref1, read1, 20.0, -5.0, -30.0, -2.2, 0.0001, 0, "11M"});
+        tests.add(new Object[]{ref1, read1, 50, -100, -220, -12, 1,  "2M2I3M1D4M"});
+        tests.add(new Object[]{ref1, read1, 200, -50, -300, -22, 0, "11M"});
 
         return tests.toArray(new Object[][]{});
     }
 
     @Test(dataProvider = "OddNoAlignment", enabled = true)
-    public void testOddNoAlignment(final String reference, final String read, final double match, final double mismatch, final double gap, final double gap_extend, final double epsilon,
+    public void testOddNoAlignment(final String reference, final String read, final int match, final int mismatch, final int gap, final int gap_extend,
                                    final int expectedStart, final String expectedCigar) {
-        final SWPairwiseAlignment sw = new SWPairwiseAlignment(reference.getBytes(), read.getBytes(), match, mismatch, gap, gap_extend, epsilon);
+        final SWPairwiseAlignment sw = new SWPairwiseAlignment(reference.getBytes(), read.getBytes(), match, mismatch, gap, gap_extend);
         Assert.assertEquals(sw.getAlignmentStart2wrt1(), expectedStart);
         Assert.assertEquals(sw.getCigar().toString(), expectedCigar);
     }
@@ -117,4 +121,46 @@ public class SWPairwiseAlignmentUnitTest extends BaseTest {
         Assert.assertEquals(sw.getAlignmentStart2wrt1(), expectedStart);
         Assert.assertEquals(sw.getCigar().toString(), expectedCigar);
     }
+
+    @Test(enabled = true)
+    public void  testForIdenticalAlignmentsWithDifferingFlankLengths() {
+        //This test is designed to ensure that the indels are correctly placed
+        //if the region flanking these indels is extended by a varying amount.
+        //It checks for problems caused by floating point rounding leading to different
+        //paths being selected.
+
+        //Create two versions of the same sequence with different flanking regions.
+        byte[] paddedRef="GCGTCGCAGTCTTAAGGCCCCGCCTTTTCAGACAGCTTCCGCTGGGCCTGGGCCGCTGCGGGGCGGTCACGGCCCCTTTAAGCCTGAGCCCCGCCCCCTGGCTCCCCGCCCCCTCTTCTCCCCTCCCCCAAGCCAGCACCTGGTGCCCCGGCGGGTCGTGCGGCGCGGCGCTCCGCGGTGAGCGCCTGACCCCGAGGGGGCCCGGGGCCGCGTCCCTGGGCCCTCCCCACCCTTGCGGTGGCCTCGCGGGTCCCAGGGGCGGGGCTGGAGCGGCAGCAGGGCCGGGGAGATGGGCGGTGGGGAGCGCGGGAGGGACCGGGCCGAGCCGGGGGAAGGGCTCCGGTGACT".getBytes();
+        byte[] paddedHap="GCGTCGCAGTCTTAAGGCCCCGCCTTTTCAGACAGCTTCCGCTGGGCCTGGGCCGCTGCGGGGCGGTCACGGCCCCTTTAAGCCTGAGCCCCGCCCCCTGGCTCCCCGCCCCCTCTTCTCCCCTCCCCCAAGCCAGCACCTGGTGCCCCGGCGGGTCGTGCGGCGCGGCGCTCCGCGGTGAGCGCCTGACCCCGA--GGGCC---------------GGGCCCTCCCCACCCTTGCGGTGGCCTCGCGGGTCCCAGGGGCGGGGCTGGAGCGGCAGCAGGGCCGGGGAGATGGGCGGTGGGGAGCGCGGGAGGGACCGGGCCGAGCCGGGGGAAGGGCTCCGGTGACT".replace("-","").getBytes();
+        byte[] notPaddedRef=                                                                           "CTTTAAGCCTGAGCCCCGCCCCCTGGCTCCCCGCCCCCTCTTCTCCCCTCCCCCAAGCCAGCACCTGGTGCCCCGGCGGGTCGTGCGGCGCGGCGCTCCGCGGTGAGCGCCTGACCCCGAGGGGGCCCGGGGCCGCGTCCCTGGGCCCTCCCCACCCTTGCGGTGGCCTCGCGGGTCCCAGGGGCGGGGCTGGAGCGGCAGCAGGGCCGGGGAGATGGGCGGTGGGGAGCGCGGGAGGGA".getBytes();
+        byte[] notPaddedHap=                                                                           "CTTTAAGCCTGAGCCCCGCCCCCTGGCTCCCCGCCCCCTCTTCTCCCCTCCCCCAAGCCAGCACCTGGTGCCCCGGCGGGTCGTGCGGCGCGGCGCTCCGCGGTGAGCGCCTGACCCCGA---------GGGCC--------GGGCCCTCCCCACCCTTGCGGTGGCCTCGCGGGTCCCAGGGGCGGGGCTGGAGCGGCAGCAGGGCCGGGGAGATGGGCGGTGGGGAGCGCGGGAGGGA".replace("-","").getBytes();
+        //a simplified version of the getCigar routine in the haplotype caller to align these
+        final String SW_PAD = "NNNNNNNNNN";
+        final String paddedsRef = SW_PAD + new String(paddedRef) + SW_PAD;
+        final String paddedsHap = SW_PAD + new String(paddedHap) + SW_PAD;
+        final String notPaddedsRef = SW_PAD + new String(notPaddedRef) + SW_PAD;
+        final String notpaddedsHap = SW_PAD + new String(notPaddedHap) + SW_PAD;
+        final SmithWaterman paddedAlignment = new SWPairwiseAlignment( paddedsRef.getBytes(), paddedsHap.getBytes(), CigarUtils.NEW_SW_PARAMETERS );
+        final SmithWaterman notPaddedAlignment = new SWPairwiseAlignment( notPaddedsRef.getBytes(), notpaddedsHap.getBytes(), CigarUtils.NEW_SW_PARAMETERS );
+        //Now verify that the two sequences have the same alignment and not match positions.
+        Cigar rawPadded = paddedAlignment.getCigar();
+        Cigar notPadded= notPaddedAlignment.getCigar();
+        List<CigarElement> paddedC=rawPadded.getCigarElements();
+        List<CigarElement> notPaddedC=notPadded.getCigarElements();
+        Assert.assertEquals(paddedC.size(),notPaddedC.size());
+        for(int i=0;i<notPaddedC.size();i++)
+        {
+            CigarElement pc=paddedC.get(i);
+            CigarElement npc=notPaddedC.get(i);
+            if(pc.getOperator()== CigarOperator.M && npc.getOperator()==CigarOperator.M)
+            {
+                continue;
+            }
+            int l1=pc.getLength();
+            int l2=npc.getLength();
+            Assert.assertEquals(l1,l2);
+            Assert.assertEquals(pc.getOperator(),npc.getOperator());
+        }
+    }
+
 }
