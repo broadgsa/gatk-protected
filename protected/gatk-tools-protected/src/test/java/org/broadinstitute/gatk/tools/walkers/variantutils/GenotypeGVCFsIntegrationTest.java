@@ -57,6 +57,10 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         return "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + ref + args;
     }
 
+    private static String baseBPResolutionString(String args) {
+        return baseTestString(" -V " + privateTestDir + "gvcf.basepairResolution.vcf " + args, b37KGReference);
+    }
+
     @Test(enabled = true)
     public void combineSingleSamplePipelineGVCF() {
         WalkerTestSpec spec = new WalkerTestSpec(
@@ -142,5 +146,32 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 Arrays.asList("1dda31e020086a4c5643571fbccd40ba"));
         executeTest("testNoPLsException.1", spec1);
         executeTest("testNoPLsException.2", spec2);
+    }
+
+    @Test
+    public void testNDA() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseBPResolutionString("-nda"),
+                1,
+                Arrays.asList("715ef2c2f954b91aad8606188ed1b6c5"));
+        executeTest("testNDA", spec);
+    }
+
+    @Test
+    public void testMaxAltAlleles() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseBPResolutionString("-maxAltAlleles 1"),
+                1,
+                Arrays.asList("8973ec01a29e53cd4181f9d8662d9284"));
+        executeTest("testMaxAltAlleles", spec);
+    }
+
+    @Test
+    public void testStandardConf() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseBPResolutionString("-stand_call_conf 300 -stand_emit_conf 100"),
+                1,
+                Arrays.asList("502ed8ce40c461158520076dd02cc29c"));
+        executeTest("testStandardConf", spec);
     }
 }

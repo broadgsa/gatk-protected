@@ -48,6 +48,8 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
@@ -79,6 +81,7 @@ import java.util.*;
  */
 public abstract class GenotypingEngine<Config extends StandardCallerArgumentCollection> {
 
+    public static final String NUMBER_OF_DISCOVERED_ALLELES_KEY = "NDA";
     public static final String LOW_QUAL_FILTER_NAME = "LowQual";
 
     protected Logger logger;
@@ -154,12 +157,12 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         logger = Logger.getLogger(getClass());
         this.toolkit = toolkit;
         this.sampleNames = sampleNames != null ? sampleNames : toolkit.getSampleDB().getSampleNames();
-        numberOfGenomes = this.sampleNames.size() * configuration.samplePloidy;
+        numberOfGenomes = this.sampleNames.size() * configuration.genotypeArgs.samplePloidy;
         MathUtils.Log10Cache.ensureCacheContains(numberOfGenomes * 2);
         log10AlleleFrequencyPriorsSNPs = computeAlleleFrequencyPriors(numberOfGenomes,
-                configuration.snpHeterozygosity,configuration.inputPrior);
+                configuration.genotypeArgs.snpHeterozygosity,configuration.genotypeArgs.inputPrior);
         log10AlleleFrequencyPriorsIndels = computeAlleleFrequencyPriors(numberOfGenomes,
-                configuration.indelHeterozygosity,configuration.inputPrior);
+                configuration.genotypeArgs.indelHeterozygosity,configuration.genotypeArgs.inputPrior);
         genomeLocParser = toolkit.getGenomeLocParser();
     }
 
@@ -174,6 +177,13 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if (logger == null)
             throw new IllegalArgumentException("the logger cannot be null");
         this.logger = logger;
+    }
+
+    public Set<VCFInfoHeaderLine> getAppropriateVCFInfoHeaders() {
+        Set<VCFInfoHeaderLine> headerInfo = new HashSet<>();
+        if ( configuration.genotypeArgs.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
+            headerInfo.add(new VCFInfoHeaderLine(UnifiedGenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, 1, VCFHeaderLineType.Integer, "Number of alternate alleles discovered (but not necessarily genotyped) at this site"));
+        return headerInfo;
     }
 
     /**
@@ -273,7 +283,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             builder.filter(LOW_QUAL_FILTER_NAME);
 
         // create the genotypes
-        final GenotypesContext genotypes = afcm.get().subsetAlleles(vc, outputAlleles, true,configuration.samplePloidy);
+        final GenotypesContext genotypes = afcm.get().subsetAlleles(vc, outputAlleles, true,configuration.genotypeArgs.samplePloidy);
         builder.genotypes(genotypes);
 
         // *** note that calculating strand bias involves overwriting data structures, so we do that last
@@ -356,7 +366,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         boolean siteIsMonomorphic = true;
         for (final Allele alternativeAllele : alleles) {
             if (alternativeAllele.isReference()) continue;
-            final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(alternativeAllele, configuration.STANDARD_CONFIDENCE_FOR_EMITTING);
+            final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(alternativeAllele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING);
             final boolean toOutput = isPlausible || forceKeepAllele(alternativeAllele);
 
             siteIsMonomorphic &= ! isPlausible;
@@ -386,9 +396,9 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @return {@code true} iff the variant is confidently called.
      */
     protected final boolean confidentlyCalled(final double conf, final double PofF) {
-        return conf >= configuration.STANDARD_CONFIDENCE_FOR_CALLING ||
+        return conf >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ||
                 (configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES
-                        && QualityUtils.phredScaleErrorRate(PofF) >= configuration.STANDARD_CONFIDENCE_FOR_CALLING);
+                        && QualityUtils.phredScaleErrorRate(PofF) >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING);
     }
 
     /**
@@ -401,10 +411,10 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         switch (model) {
             case SNP:
             case GENERALPLOIDYSNP:
-                return configuration.snpHeterozygosity;
+                return configuration.genotypeArgs.snpHeterozygosity;
             case INDEL:
             case GENERALPLOIDYINDEL:
-                return configuration.indelHeterozygosity;
+                return configuration.genotypeArgs.indelHeterozygosity;
             default:
                 throw new IllegalArgumentException("Unexpected GenotypeCalculationModel " + model);
         }
@@ -504,7 +514,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             log10POfRef += estimateLog10ReferenceConfidenceForOneSample(depth, theta);
         }
 
-        return new VariantCallContext(vc, QualityUtils.phredScaleLog10CorrectRate(log10POfRef) >= configuration.STANDARD_CONFIDENCE_FOR_CALLING, false);
+        return new VariantCallContext(vc, QualityUtils.phredScaleLog10CorrectRate(log10POfRef) >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING, false);
     }
 
     protected final double[] getAlleleFrequencyPriors( final GenotypeLikelihoodsCalculationModel.Model model ) {
@@ -643,12 +653,12 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected final boolean passesEmitThreshold(double conf, boolean bestGuessIsRef) {
         return (configuration.outputMode == OutputMode.EMIT_ALL_CONFIDENT_SITES || !bestGuessIsRef) &&
-                conf >= Math.min(configuration.STANDARD_CONFIDENCE_FOR_CALLING,
-                        configuration.STANDARD_CONFIDENCE_FOR_EMITTING);
+                conf >= Math.min(configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING,
+                        configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING);
     }
 
     protected final boolean passesCallThreshold(double conf) {
-        return conf >= configuration.STANDARD_CONFIDENCE_FOR_CALLING;
+        return conf >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING;
     }
 
     protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
@@ -672,6 +682,10 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             final ArrayList<Double> MLEfrequencies = calculateMLEAlleleFrequencies(alleleCountsofMLE, genotypes);
             attributes.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, MLEfrequencies);
         }
+
+        if ( configuration.genotypeArgs.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
+            attributes.put(NUMBER_OF_DISCOVERED_ALLELES_KEY, vc.getAlternateAlleles().size());
+
 
         return attributes;
     }

@@ -71,13 +71,6 @@ public class UnifiedArgumentCollection extends StandardCallerArgumentCollection 
     public boolean COMPUTE_SLOD = false;
 
     /**
-     * Depending on the value of the --max_alternate_alleles argument, we may genotype only a fraction of the alleles being sent on for genotyping.
-     * Using this argument instructs the genotyper to annotate (in the INFO field) the number of alternate alleles that were originally discovered at the site.
-     */
-    @Argument(fullName = "annotateNDA", shortName = "nda", doc = "If provided, we will annotate records with the number of alternate alleles that were discovered (but not necessarily genotyped) at a given site", required = false)
-    public boolean ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED = false;
-
-    /**
      * The PairHMM implementation to use for -glm INDEL genotype likelihood calculations. The various implementations balance a tradeoff of accuracy and runtime.
      */
     @Argument(fullName = "pair_hmm_implementation", shortName = "pairHMM", doc = "The PairHMM implementation to use for -glm INDEL genotype likelihood calculations", required = false)

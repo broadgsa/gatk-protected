@@ -259,7 +259,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
             }
 
             // create the GenotypeLikelihoods object
-            final GeneralPloidyGenotypeLikelihoods GL = getPoolGenotypeLikelihoodObject(allAlleles, null, UAC.samplePloidy, perLaneErrorModels, useBAQedPileup, ref, UAC.IGNORE_LANE_INFO, perReadAlleleLikelihoodMap.get(sample.getKey()));
+            final GeneralPloidyGenotypeLikelihoods GL = getPoolGenotypeLikelihoodObject(allAlleles, null, UAC.genotypeArgs.samplePloidy, perLaneErrorModels, useBAQedPileup, ref, UAC.IGNORE_LANE_INFO, perReadAlleleLikelihoodMap.get(sample.getKey()));
             // actually compute likelihoods
             final int nGoodBases = GL.add(pileup, UAC);
             if ( nGoodBases > 0 )

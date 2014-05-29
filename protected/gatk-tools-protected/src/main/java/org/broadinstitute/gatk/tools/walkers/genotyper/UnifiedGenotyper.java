@@ -269,7 +269,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, UAC.CONTAMINATION_FRACTION, samples, logger));
 
         // check for a bad max alleles value
-        if ( UAC.MAX_ALTERNATE_ALLELES > GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
+        if ( UAC.genotypeArgs.MAX_ALTERNATE_ALLELES > GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
             throw new UserException.BadArgumentValue("max_alternate_alleles", "the maximum possible value is " + GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED);
 
         // warn the user for misusing EMIT_ALL_SITES
@@ -289,6 +289,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
         // initialize the header
         Set<VCFHeaderLine> headerInfo = getHeaderInfo(UAC, annotationEngine, dbsnp);
+        headerInfo.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
 
         // invoke initialize() method on each of the annotation classes, allowing them to add their own header lines
         // and perform any necessary initialization/validation steps
@@ -319,11 +320,8 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
         if ( UAC.COMPUTE_SLOD )
             VCFStandardHeaderLines.addStandardInfoLines(headerInfo, true, VCFConstants.STRAND_BIAS_KEY);
 
-        if ( UAC.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
-            headerInfo.add(new VCFInfoHeaderLine(UnifiedGenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, 1, VCFHeaderLineType.Integer, "Number of alternate alleles discovered (but not necessarily genotyped) at this site"));
-
         // add the pool values for each genotype
-        if (UAC.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY) {
+        if (UAC.genotypeArgs.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY) {
             headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Integer, "Maximum likelihood expectation (MLE) for the alternate allele count, in the same order as listed, for each individual sample"));
             headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Maximum likelihood expectation (MLE) for the alternate allele fraction, in the same order as listed, for each individual sample"));
         }

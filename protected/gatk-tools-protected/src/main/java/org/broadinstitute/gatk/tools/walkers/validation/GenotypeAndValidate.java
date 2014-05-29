@@ -346,8 +346,8 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
             uac.MAX_DELETION_FRACTION = deletions;
         else
             uac.MAX_DELETION_FRACTION = 1.0;
-        if (emitConf >= 0) uac.STANDARD_CONFIDENCE_FOR_EMITTING = emitConf;
-        if (callConf >= 0) uac.STANDARD_CONFIDENCE_FOR_CALLING = callConf;
+        if (emitConf >= 0) uac.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = emitConf;
+        if (callConf >= 0) uac.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = callConf;
 
         uac.GLmodel = GenotypeLikelihoodsCalculationModel.Model.SNP;
         snpEngine = new UnifiedGenotypingEngine(getToolkit(), uac);
@@ -358,7 +358,7 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
         indelEngine = new UnifiedGenotypingEngine(getToolkit(), uac_indel);
 
         // make sure we have callConf set to the threshold set by the UAC so we can use it later.
-        callConf = uac.STANDARD_CONFIDENCE_FOR_CALLING;
+        callConf = uac.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING;
     }
 
     //---------------------------------------------------------------------------------------------------------------

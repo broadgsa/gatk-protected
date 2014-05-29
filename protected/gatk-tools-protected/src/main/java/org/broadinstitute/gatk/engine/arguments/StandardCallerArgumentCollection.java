@@ -51,14 +51,13 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingOutputMode;
 import org.broadinstitute.gatk.tools.walkers.genotyper.OutputMode;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.gatk.utils.collections.DefaultHashMap;
-import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -70,100 +69,18 @@ import java.util.Map;
  */
 
 public class StandardCallerArgumentCollection implements Cloneable {
-    /**
-     * The expected heterozygosity value used to compute prior probability that a locus is non-reference.
-     *
-     * The default priors are for provided for humans:
-     *
-     * het = 1e-3
-     *
-     * which means that the probability of N samples being hom-ref at a site is:
-     *
-     * 1 - sum_i_2N (het / i)
-     *
-     * Note that heterozygosity as used here is the population genetics concept:
-     *
-     * http://en.wikipedia.org/wiki/Zygosity#Heterozygosity_in_population_genetics
-     *
-     * That is, a hets value of 0.01 implies that two randomly chosen chromosomes from the population of organisms
-     * would differ from each other (one being A and the other B) at a rate of 1 in 100 bp.
-     *
-     * Note that this quantity has nothing to do with the likelihood of any given sample having a heterozygous genotype,
-     * which in the GATK is purely determined by the probability of the observed data P(D | AB) under the model that there
-     * may be a AB het genotype.  The posterior probability of this AB genotype would use the het prior, but the GATK
-     * only uses this posterior probability in determining the prob. that a site is polymorphic.  So changing the
-     * het parameters only increases the chance that a site will be called non-reference across all samples, but
-     * doesn't actually change the output genotype likelihoods at all, as these aren't posterior probabilities at all.
-     *
-     * The quantity that changes whether the GATK considers the possibility of a het genotype at all is the ploidy,
-     * which determines how many chromosomes each individual in the species carries.
-     */
-    @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus.  See the GATKDocs for full details on the meaning of this population genetics concept", required = false)
-    public Double snpHeterozygosity = HomoSapiensConstants.SNP_HETEROZYGOSITY;
 
-    /**
-     * This argument informs the prior probability of having an indel at a site.
-     */
-    @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling.  See the GATKDocs for heterozygosity for full details on the meaning of this population genetics concept", required = false)
-    public double indelHeterozygosity = HomoSapiensConstants.INDEL_HETEROZYGOSITY;
+    @ArgumentCollection
+    public GenotypeCalculationArgumentCollection genotypeArgs = new GenotypeCalculationArgumentCollection();
 
     @Argument(fullName = "genotyping_mode", shortName = "gt_mode", doc = "Specifies how to determine the alternate alleles to use for genotyping", required = false)
     public GenotypingOutputMode genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
-
-    /**
-     * The minimum phred-scaled Qscore threshold to separate high confidence from low confidence calls. Only genotypes with
-     * confidence >= this threshold are emitted as called sites. A reasonable threshold is 30 for high-pass calling (this
-     * is the default).
-     */
-    @Argument(fullName = "standard_min_confidence_threshold_for_calling", shortName = "stand_call_conf", doc = "The minimum phred-scaled confidence threshold at which variants should be called", required = false)
-    public double STANDARD_CONFIDENCE_FOR_CALLING = 30.0;
-
-    /**
-     * This argument allows you to emit low quality calls as filtered records.
-     */
-    @Argument(fullName = "standard_min_confidence_threshold_for_emitting", shortName = "stand_emit_conf", doc = "The minimum phred-scaled confidence threshold at which variants should be emitted (and filtered with LowQual if less than the calling threshold)", required = false)
-    public double STANDARD_CONFIDENCE_FOR_EMITTING = 30.0;
 
     /**
      * When the UnifiedGenotyper is put into GENOTYPE_GIVEN_ALLELES mode it will genotype the samples using only the alleles provide in this rod binding
      */
     @Input(fullName="alleles", shortName = "alleles", doc="The set of alleles at which to genotype when --genotyping_mode is GENOTYPE_GIVEN_ALLELES", required=false)
     public RodBinding<VariantContext> alleles;
-
-    /**
-     * If there are more than this number of alternate alleles presented to the genotyper (either through discovery or GENOTYPE_GIVEN ALLELES),
-     * then only this many alleles will be used.  Note that genotyping sites with many alternate alleles is both CPU and memory intensive and it
-     * scales exponentially based on the number of alternate alleles.  Unless there is a good reason to change the default value, we highly recommend
-     * that you not play around with this parameter.
-     *
-     * As of GATK 2.2 the genotyper can handle a very large number of events, so the default maximum has been increased to 6.
-     */
-    @Advanced
-    @Argument(fullName = "max_alternate_alleles", shortName = "maxAltAlleles", doc = "Maximum number of alternate alleles to genotype", required = false)
-    public int MAX_ALTERNATE_ALLELES = 6;
-
-    /**
-     * By default, the prior specified with the argument --heterozygosity/-hets is used for variant discovery at a particular locus, using an infinite sites model,
-     * see e.g. Waterson (1975) or Tajima (1996).
-     * This model asserts that the probability of having a population of k variant sites in N chromosomes is proportional to theta/k, for 1=1:N
-     *
-     * There are instances where using this prior might not be desireable, e.g. for population studies where prior might not be appropriate,
-     * as for example when the ancestral status of the reference allele is not known.
-     * By using this argument, user can manually specify priors to be used for calling as a vector for doubles, with the following restriciotns:
-     * a) User must specify 2N values, where N is the number of samples.
-     * b) Only diploid calls supported.
-     * c) Probability values are specified in double format, in linear space.
-     * d) No negative values allowed.
-     * e) Values will be added and Pr(AC=0) will be 1-sum, so that they sum up to one.
-     * f) If user-defined values add to more than one, an error will be produced.
-     *
-     * If user wants completely flat priors, then user should specify the same value (=1/(2*N+1)) 2*N times,e.g.
-     *   -inputPrior 0.33 -inputPrior 0.33
-     * for the single-sample diploid case.
-     */
-    @Advanced
-    @Argument(fullName = "input_prior", shortName = "inputPrior", doc = "Input prior for calls", required = false)
-    public List<Double> inputPrior = Collections.emptyList();
 
     /**
      * If this fraction is greater is than zero, the caller will aggressively attempt to remove contamination through biased down-sampling of reads.
@@ -212,12 +129,6 @@ public class StandardCallerArgumentCollection implements Cloneable {
     @Argument(shortName = "logExactCalls", doc="x", required=false)
     public File exactCallsLog = null;
 
-    /**
-     *   Sample ploidy - equivalent to number of chromosomes per pool. In pooled experiments this should be = # of samples in pool * individual sample ploidy
-     */
-    @Argument(shortName="ploidy", fullName="sample_ploidy", doc="Ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy).", required=false)
-    public int samplePloidy = HomoSapiensConstants.DEFAULT_PLOIDY;
-
     @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Specifies which type of calls we should output", required = false)
     public OutputMode outputMode = OutputMode.EMIT_VARIANTS_ONLY;
 
@@ -258,7 +169,12 @@ public class StandardCallerArgumentCollection implements Cloneable {
                     continue;
                 final int fieldModifiers = field.getModifiers();
                 if ((fieldModifiers & UNCOPYABLE_MODIFIER_MASK) != 0)  continue;
-                field.set(result,field.get(this));
+                //Use the clone() method if appropriate
+                if (Cloneable.class.isAssignableFrom(field.getType())) {
+                    Method clone = field.getType().getMethod("clone");
+                    field.set(result, clone.invoke(field.get(this)));
+                } else
+                    field.set(result,field.get(this));
             }
             return result;
         } catch (final Exception ex) {
@@ -273,7 +189,9 @@ public class StandardCallerArgumentCollection implements Cloneable {
     @Override
     public StandardCallerArgumentCollection clone() {
         try {
-            return (StandardCallerArgumentCollection) super.clone();
+            StandardCallerArgumentCollection cloned = (StandardCallerArgumentCollection) super.clone();
+            cloned.genotypeArgs = genotypeArgs.clone();
+            return cloned;
         } catch (CloneNotSupportedException e) {
             throw new IllegalStateException("unreachable code");
         }
