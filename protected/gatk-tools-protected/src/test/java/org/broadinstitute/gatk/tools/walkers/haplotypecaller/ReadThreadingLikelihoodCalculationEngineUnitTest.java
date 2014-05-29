@@ -46,8 +46,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.HaplotypeGraph;
-import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
@@ -57,18 +57,11 @@ import org.broadinstitute.gatk.utils.pairhmm.FlexibleHMM;
 import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
 import org.broadinstitute.gatk.utils.sam.ClippedGATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 import org.testng.Assert;
-import org.testng.Reporter;
 import org.testng.SkipException;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.*;
 
 /**
@@ -85,29 +78,6 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
 //    private static FastHMM hmm = new MLLog10PairHMM((byte)10); // new FastLoglessPairHMM((byte)10);
 
     private static FlexibleHMM hmm = new FastLoglessPairHMM((byte)10);
-
-    // for debugging purposes:
-    private static final boolean DUMP_LIKELIHOODS = false;
-    private PrintWriter likelihoodDumpWriter = null;
-    private File likelihoodDumpFile = null;
-
-
-    @BeforeClass
-    private void setUp() throws IOException {
-       if (DUMP_LIKELIHOODS) {
-           likelihoodDumpFile = File.createTempFile("rtlce-test", ".txt");
-           Reporter.log("Dumping Likelihoods in file '" + likelihoodDumpFile + "'",true);
-           likelihoodDumpWriter = new PrintWriter(likelihoodDumpFile);//new FileWriter(f));
-       }
-    }
-
-    @AfterClass
-    private void tearDown() throws IOException {
-        if (DUMP_LIKELIHOODS) {
-            likelihoodDumpWriter.close();
-            Reporter.log("Dumped Likelihoods in file '" + likelihoodDumpFile + "'", true);
-        }
-    }
 
     @Test(dataProvider="activeRegionTestDataSets",enabled=false)
     public void testActiveRegionsDataSet(final ActiveRegionTestDataSet as, final int kmerSize, final int readLength, final String variation, final int readCount, final int regionSize, final byte bq, final byte iq, final byte dq) {
@@ -156,7 +126,6 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
         final double loglessDiff = loglessA1Lk - loglessA2Lk;
         final double graphDiff = graphA1Lk - graphA2Lk;
         final double epsilon = calculateEpsilon(graphDiff,loglessDiff);
-        dumpLikelihoods(read,loglessA1Lk,loglessA2Lk,graphA1Lk,graphA2Lk,read.getReadString() + " " + a1.getBaseString() + " " + a2.getBaseString());
         Assert.assertEquals(graphDiff,loglessDiff,epsilon,String.format("Delta(%f,%f) = %f > %f",graphDiff,loglessDiff,Math.abs(graphDiff - loglessDiff),epsilon));
 
     }
@@ -252,11 +221,6 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
         return false;
     }
 
-    private void dumpLikelihoods(final GATKSAMRecord read, final Double loglessA1lk, final Double loglessA2lk, final Double a1lk, final Double a2lk, final String hapString) {
-        if (!DUMP_LIKELIHOODS) return;
-        likelihoodDumpWriter.println(Utils.join("\t","" + loglessA1lk,"" + loglessA2lk,"" + a1lk,"" + a2lk,read.getReadName(),read.getReadString(),hapString));
-        likelihoodDumpWriter.flush();
-    }
 
     @DataProvider(name="readLikekihoodRatioTestData")
     public Iterator<Object[]> readLikelihoodRatioTestDataSets() {

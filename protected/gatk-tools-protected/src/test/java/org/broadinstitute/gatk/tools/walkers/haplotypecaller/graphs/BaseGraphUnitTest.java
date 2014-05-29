@@ -273,16 +273,14 @@ public class BaseGraphUnitTest extends BaseTest {
 
     @Test
     public void testPrintEmptyGraph() throws Exception {
-        final File tmp = File.createTempFile("tmp", "dot");
-        tmp.deleteOnExit();
+        final File tmp = createTempFile("tmp", "dot");
         new SeqGraph(11).printGraph(tmp, 10);
         new TestGraph().printGraph(tmp, 10);
     }
 
     @Test
     public void testComplexGraph() throws Exception {
-        final File tmp = File.createTempFile("tmp", "dot");
-        tmp.deleteOnExit();
+        final File tmp = createTempFile("tmp", "dot");
         graph.printGraph(tmp, 10);
     }
 

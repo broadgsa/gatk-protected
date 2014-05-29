@@ -54,7 +54,10 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 import static org.testng.Assert.assertTrue;
 
@@ -119,9 +122,8 @@ public class AnalyzeCovariatesIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testPdfGeneration()
             throws IOException {
-        final File pdfFile = File.createTempFile("ACTest",".pdf");
+        final File pdfFile = createTempFile("ACTest", ".pdf");
         pdfFile.delete();
-        pdfFile.deleteOnExit();
 
         final List<String> md5 = Collections.emptyList();
         final WalkerTestSpec spec = new WalkerTestSpec(
@@ -144,10 +146,8 @@ public class AnalyzeCovariatesIntegrationTest extends WalkerTest {
             final String description)
             throws IOException  {
 
-        final File pdfFile = File.createTempFile("ACTest",".pdf");
-        pdfFile.deleteOnExit();
-        final List<String> md5 = Collections.emptyList();
         final File afterFile = new File(TEST_DATA_DIR,afterFileName);
+        afterFile.deleteOnExit();
         final WalkerTestSpec spec = new WalkerTestSpec(
                 buildCommandLine(null,"%s",true,true,afterFile),
                 1,UserException.IncompatibleRecalibrationTableParameters.class);
@@ -258,16 +258,8 @@ public class AnalyzeCovariatesIntegrationTest extends WalkerTest {
             final boolean useBQSRFile, final boolean useBeforeFile, final boolean useAfterFile)
             throws IOException {
 
-        final File csvFile = useCsvFile ? File.createTempFile("ACTest",".csv") : null;
-        final File pdfFile = usePdfFile ? File.createTempFile("ACTest",".pdf") : null;
-
-        if (csvFile != null) {
-            csvFile.deleteOnExit();
-        }
-
-        if (pdfFile != null) {
-            pdfFile.deleteOnExit();
-        }
+        final File csvFile = useCsvFile ? createTempFile("ACTest",".csv") : null;
+        final File pdfFile = usePdfFile ? createTempFile("ACTest",".pdf") : null;
 
         return buildCommandLine(csvFile == null ? null : csvFile.toString(),
                 pdfFile == null ? null : pdfFile.toString(),
