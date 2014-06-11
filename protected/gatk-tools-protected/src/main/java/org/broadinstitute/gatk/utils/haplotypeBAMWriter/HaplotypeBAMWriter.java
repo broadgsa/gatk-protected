@@ -78,7 +78,6 @@ public abstract class HaplotypeBAMWriter {
     private long uniqueNameCounter = 1;
 
     protected final static String READ_GROUP_ID = "ArtificialHaplotype";
-    protected final static String HAPLOTYPE_TAG = "HC";
 
     private final ReadDestination output;
     private boolean writeHaplotypesAsWell = true;
@@ -173,108 +172,10 @@ public abstract class HaplotypeBAMWriter {
     /**
      * Write out read aligned to haplotype to the BAM file
      *
-     * Aligns reads the haplotype, and then projects this alignment of read -> hap onto the reference
-     * via the alignment of haplotype (via its getCigar) method.
-     *
      * @param originalRead the read we want to write aligned to the reference genome
-     * @param haplotype the haplotype that the read should be aligned to, before aligning to the reference
-     * @param referenceStart the start of the reference that haplotype is aligned to.  Provides global coordinate frame.
-     * @param isInformative true if the read is differentially informative for one of the haplotypes
      */
-    protected void writeReadAgainstHaplotype(final GATKSAMRecord originalRead,
-                                             final Haplotype haplotype,
-                                             final int referenceStart,
-                                             final boolean isInformative) {
-        if( onlyRealignInformativeReads && !isInformative ) {
-            if( originalRead != null ) {
-                output.add(originalRead);
-            }
-        } else if (haplotype == null) {
-            output.add(originalRead);
-            return;
-        } else {
-            final GATKSAMRecord alignedToRef = createReadAlignedToRef(originalRead, haplotype, referenceStart, isInformative);
-            if ( alignedToRef != null ) {
-                output.add(alignedToRef);
-            } else {
-                output.add(originalRead);
-            }
-        }
-    }
-
-    /**
-     * Aligns reads the haplotype, and then projects this alignment of read -> hap onto the reference
-     * via the alignment of haplotype (via its getCigar) method.
-     *
-     * @param originalRead the read we want to write aligned to the reference genome
-     * @param haplotype the haplotype that the read should be aligned to, before aligning to the reference
-     * @param referenceStart the start of the reference that haplotype is aligned to.  Provides global coordinate frame.
-     * @param isInformative true if the read is differentially informative for one of the haplotypes
-     * @return a GATKSAMRecord aligned to reference, or null if no meaningful alignment is possible
-     */
-    protected GATKSAMRecord createReadAlignedToRef(final GATKSAMRecord originalRead,
-                                                   final Haplotype haplotype,
-                                                   final int referenceStart,
-                                                   final boolean isInformative) {
-        if ( originalRead == null ) throw new IllegalArgumentException("originalRead cannot be null");
-        if ( haplotype == null ) throw new IllegalArgumentException("haplotype cannot be null");
-        if ( haplotype.getCigar() == null ) throw new IllegalArgumentException("Haplotype cigar not set " + haplotype);
-        if ( referenceStart < 1 ) throw new IllegalArgumentException("reference start much be >= 1 but got " + referenceStart);
-
-        try {
-            // compute the smith-waterman alignment of read -> haplotype
-            final SWPairwiseAlignment swPairwiseAlignment = new SWPairwiseAlignment(haplotype.getBases(), originalRead.getReadBases(), CigarUtils.NEW_SW_PARAMETERS);
-            //swPairwiseAlignment.printAlignment(haplotype.getBases(), originalRead.getReadBases());
-            if ( swPairwiseAlignment.getAlignmentStart2wrt1() == -1 )
-                // sw can fail (reasons not clear) so if it happens just don't write the read
-                return null;
-            final Cigar swCigar = AlignmentUtils.consolidateCigar(swPairwiseAlignment.getCigar());
-
-            // since we're modifying the read we need to clone it
-            final GATKSAMRecord read = (GATKSAMRecord)originalRead.clone();
-
-            addHaplotypeTag(read, haplotype);
-
-            // uninformative reads are set to zero mapping quality to enhance visualization
-            if ( !isInformative )
-                read.setMappingQuality(0);
-
-            // compute here the read starts w.r.t. the reference from the SW result and the hap -> ref cigar
-            final Cigar extendedHaplotypeCigar = haplotype.getConsolidatedPaddedCigar(1000);
-            final int readStartOnHaplotype = AlignmentUtils.calcFirstBaseMatchingReferenceInCigar(extendedHaplotypeCigar, swPairwiseAlignment.getAlignmentStart2wrt1());
-            final int readStartOnReference = referenceStart + haplotype.getAlignmentStartHapwrtRef() + readStartOnHaplotype;
-            read.setAlignmentStart(readStartOnReference);
-
-            // compute the read -> ref alignment by mapping read -> hap -> ref from the
-            // SW of read -> hap mapped through the given by hap -> ref
-            final Cigar haplotypeToRef = AlignmentUtils.trimCigarByBases(extendedHaplotypeCigar, swPairwiseAlignment.getAlignmentStart2wrt1(), extendedHaplotypeCigar.getReadLength() - 1);
-            final Cigar readToRefCigarRaw = AlignmentUtils.applyCigarToCigar(swCigar, haplotypeToRef);
-            final Cigar readToRefCigarClean = AlignmentUtils.cleanUpCigar(readToRefCigarRaw);
-            final Cigar readToRefCigar = AlignmentUtils.leftAlignIndel(readToRefCigarClean, haplotype.getBases(),
-                    originalRead.getReadBases(), swPairwiseAlignment.getAlignmentStart2wrt1(), 0, true);
-
-            read.setCigar(readToRefCigar);
-
-            if ( readToRefCigar.getReadLength() != read.getReadLength() )
-                throw new IllegalStateException("Cigar " + readToRefCigar + " with read length " + readToRefCigar.getReadLength()
-                        + " != read length " + read.getReadLength() + " for read " + read.format() + "\nhapToRef " + haplotypeToRef + " length " + haplotypeToRef.getReadLength() + "/" + haplotypeToRef.getReferenceLength()
-                        + "\nreadToHap " + swCigar + " length " + swCigar.getReadLength() + "/" + swCigar.getReferenceLength());
-
-            return read;
-        } catch ( CloneNotSupportedException e ) {
-            throw new IllegalStateException("GATKSAMRecords should support clone but this one does not " + originalRead);
-        }
-    }
-
-    /**
-     * Add a haplotype tag to the read based on haplotype
-     *
-     * @param read the read to add the tag to
-     * @param haplotype the haplotype that gives rises to read
-     */
-    private void addHaplotypeTag(final GATKSAMRecord read, final Haplotype haplotype) {
-        // add a tag to the read that indicates which haplotype it best aligned to.  It's a uniquish integer
-        read.setAttribute(HAPLOTYPE_TAG, haplotype.hashCode());
+    protected void writeReadAgainstHaplotype(final GATKSAMRecord originalRead) {
+        output.add(originalRead);
     }
 
     /**
@@ -309,7 +210,7 @@ public abstract class HaplotypeBAMWriter {
         record.setCigar(AlignmentUtils.consolidateCigar(haplotype.getCigar()));
         record.setMappingQuality(isAmongBestHaplotypes ? 60 : 0);
         record.setReadName("HC" + uniqueNameCounter++);
-        addHaplotypeTag(record, haplotype);
+        record.setAttribute(AlignmentUtils.HAPLOTYPE_TAG, haplotype.hashCode());
         record.setReadUnmappedFlag(false);
         record.setReferenceIndex(paddedRefLoc.getContigIndex());
         record.setAttribute(SAMTag.RG.toString(), READ_GROUP_ID);

@@ -55,15 +55,12 @@ import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
-import org.broadinstitute.gatk.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
-import org.broadinstitute.gatk.utils.haplotypeBAMWriter.ReadDestination;
 import org.broadinstitute.gatk.utils.locusiterator.LocusIteratorByState;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -89,7 +86,6 @@ public class ReferenceConfidenceModel {
 
     private final GenomeLocParser genomeLocParser;
     private final Set<String> samples;
-    private final SAMFileHeader header; // TODO -- really shouldn't depend on this
     private final int indelInformativeDepthIndelSize;
 
     private final static boolean WRITE_DEBUGGING_BAM = false;
@@ -117,7 +113,6 @@ public class ReferenceConfidenceModel {
 
         this.genomeLocParser = genomeLocParser;
         this.samples = samples;
-        this.header = header;
         this.indelInformativeDepthIndelSize = indelInformativeDepthIndelSize;
 
         if ( WRITE_DEBUGGING_BAM ) {
@@ -326,24 +321,13 @@ public class ReferenceConfidenceModel {
         if ( stratifiedReadMap == null ) throw new IllegalArgumentException("stratifiedReadMap cannot be null");
         if ( stratifiedReadMap.size() != 1 ) throw new IllegalArgumentException("stratifiedReadMap must contain exactly one sample but it contained " + stratifiedReadMap.size());
 
-        List<GATKSAMRecord> realignedReads;
-
-        if( calledHaplotypes.size() == 1 ) { // only contains ref haplotype so an optimization is to just trust the alignments to the reference haplotype as provided by the aligner
-            realignedReads = activeRegion.getReads();
-        } else {
-            final ReadDestination.ToList realignedReadsDest = new ReadDestination.ToList(header, "FOO");
-            final HaplotypeBAMWriter writer = HaplotypeBAMWriter.create(HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES, realignedReadsDest);
-            writer.setWriteHaplotypesAsWell(false); // don't write out reads for the haplotypes, as we only want the realigned reads themselves
-            writer.setOnlyRealignInformativeReads(true);
-            writer.writeReadsAlignedToHaplotypes(calledHaplotypes, paddedReferenceLoc, stratifiedReadMap);
-            realignedReads = ReadUtils.sortReadsByCoordinate(realignedReadsDest.getReads());
-        }
+        final List<GATKSAMRecord> reads = activeRegion.getReads();
 
         if ( debuggingWriter != null )
-            for ( final GATKSAMRecord read : realignedReads )
+            for ( final GATKSAMRecord read : reads )
                 debuggingWriter.addAlignment(read);
 
-        final LocusIteratorByState libs = new LocusIteratorByState(realignedReads.iterator(), LocusIteratorByState.NO_DOWNSAMPLING,
+        final LocusIteratorByState libs = new LocusIteratorByState(reads.iterator(), LocusIteratorByState.NO_DOWNSAMPLING,
                 true, genomeLocParser, samples, false);
 
         final List<ReadBackedPileup> pileups = new LinkedList<>();

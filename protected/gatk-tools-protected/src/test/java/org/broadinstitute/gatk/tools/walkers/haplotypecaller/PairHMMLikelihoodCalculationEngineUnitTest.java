@@ -132,7 +132,7 @@ public class PairHMMLikelihoodCalculationEngineUnitTest extends BaseTest {
     @Test(dataProvider = "PcrErrorModelTestProvider", enabled = true)
     public void createPcrErrorModelTest(final String repeat, final int repeatLength) {
 
-        final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte)0, false,
+        final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte)0,
                 PairHMM.HMM_IMPLEMENTATION.ORIGINAL, 0.0, true,
                 PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.CONSERVATIVE);
 
