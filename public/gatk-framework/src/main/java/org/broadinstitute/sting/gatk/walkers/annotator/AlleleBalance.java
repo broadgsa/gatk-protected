@@ -63,8 +63,8 @@ public class AlleleBalance extends InfoFieldAnnotation {
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
-        if ( stratifiedContexts.size() == 0 )
-            return null;
+        //if ( stratifiedContexts.size() == 0 )
+        //    return null;
 
         if ( !vc.isBiallelic() )
             return null;
@@ -78,55 +78,46 @@ public class AlleleBalance extends InfoFieldAnnotation {
         double weightHet = 0.0;
         double overallNonDiploid = 0.0;
         for ( Genotype genotype : genotypes ) {
-            // we care only about het calls
-
-            AlignmentContext context = stratifiedContexts.get(genotype.getSampleName());
-            if ( context == null )
-                continue;
-
-            final ReadBackedPileup pileup = context.getBasePileup();
+            
             if ( vc.isSNP() ) {
-                final String bases = new String(pileup.getBases());
-                if ( bases.length() == 0 )
-                    return null;
-
-                double pTrue = 1.0 - Math.pow(10.0,genotype.getLog10PError());
+            
+            	final int[] counts = genotype.getAD();
+            	// If AD was not calculated, we can't continue
+            	if(counts == null)
+            		continue;
+            	
+            	final int n_allele = counts.length;
+            	int count_sum = 0;
+            	for(int i=0; i<n_allele; i++){
+            		count_sum += counts[i];
+            	}
+                double pTrue = 1.0 - Math.pow(10.0,-genotype.getGQ() / (double) 10 );
                 if ( genotype.isHet() ) {
-                    final char refChr = vc.getReference().toString().charAt(0);
-                    final char altChr = vc.getAlternateAllele(0).toString().charAt(0);
-
-                    final int refCount = MathUtils.countOccurrences(refChr, bases);
-                    final int altCount = MathUtils.countOccurrences(altChr, bases);
-                    final int otherCount = bases.length()-refCount-altCount;
-
+                	
+                	final int otherCount = count_sum - (counts[0] + counts[1]);
                     // sanity check
-                    if ( refCount + altCount == 0 )
+                    if ( counts[0] + counts[1] == 0 )
                         continue;
 
                     // weight the allele balance by genotype quality so that e.g. mis-called homs don't affect the ratio too much
-                    ratioHet += pTrue * ((double)refCount / (double)(refCount + altCount));
+                    ratioHet += pTrue * ((double)counts[0] / (double)(counts[0] + counts[1]));
                     weightHet += pTrue;
-                    overallNonDiploid += ( (double) otherCount )/(bases.length()*genotypes.size());
+                    overallNonDiploid += ( (double) otherCount )/((double) count_sum*genotypes.size());
                 } else if ( genotype.isHom() ) {
-                    char alleleChr;
-                    if ( genotype.isHomRef() ) {
-                        alleleChr = vc.getReference().toString().charAt(0);
-                    } else {
-                        alleleChr = vc.getAlternateAllele(0).toString().charAt(0);
-                    }
-                    final int alleleCount = MathUtils.countOccurrences(alleleChr,bases);
+                	final int alleleIdx = genotype.isHomRef() ?  0 : 1 ;
+                    final int alleleCount = counts[alleleIdx];
                     int bestOtherCount = 0;
-                    for ( char b : BASES ) {
-                        if ( b == alleleChr )
-                            continue;
-                        int count = MathUtils.countOccurrences(b,bases);
-                        if ( count > bestOtherCount )
-                            bestOtherCount = count;
+                    for(int i=0; i<n_allele; i++){
+                    	if( i == alleleIdx )
+                    		continue;
+                    	if( counts[i] > bestOtherCount )
+                    		bestOtherCount = counts[i];
                     }
-                    final int otherCount = bases.length() - alleleCount;
-                    ratioHom += pTrue*( (double) alleleCount)/(alleleCount+bestOtherCount);
+                    
+                    final int otherCount = count_sum - alleleCount;
+                    ratioHom += pTrue*( (double) alleleCount)/((double) (alleleCount+bestOtherCount));
                     weightHom += pTrue;
-                    overallNonDiploid += ((double ) otherCount)/(bases.length()*genotypes.size());
+                    overallNonDiploid += ((double ) otherCount)/((double) count_sum*genotypes.size());
                 }
                 // Allele Balance for indels was not being computed correctly (since there was no allele matching).  Instead of
                 // prolonging the life of imperfect code, I've decided to delete it.  If someone else wants to try again from
