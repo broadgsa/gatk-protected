@@ -255,6 +255,20 @@
                 </property>
             </activation>
             <properties>
+                <gatk.jar.phase>none</gatk.jar.phase>
+                <gatk.unpack.phase>none</gatk.unpack.phase>
+                <gatk.shade.phase>none</gatk.shade.phase>
+            </properties>
+        </profile>
+        <profile>
+            <id>gsadev</id>
+            <activation>
+                <property>
+                    <name>gsadev</name>
+                </property>
+            </activation>
+            <properties>
+                <gatk.jar.phase>none</gatk.jar.phase>
                 <gatk.unpack.phase>none</gatk.unpack.phase>
                 <gatk.shade.phase>none</gatk.shade.phase>
             </properties>
