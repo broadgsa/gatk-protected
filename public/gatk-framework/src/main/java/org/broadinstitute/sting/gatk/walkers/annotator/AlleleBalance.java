@@ -35,6 +35,7 @@ import org.broadinstitute.sting.utils.MathUtils;
 import org.broadinstitute.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.variant.variantcontext.Allele;
 import org.broadinstitute.variant.variantcontext.Genotype;
 import org.broadinstitute.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.variant.variantcontext.VariantContext;
@@ -55,8 +56,6 @@ import java.util.Map;
  */
 public class AlleleBalance extends InfoFieldAnnotation {
 
-
-    char[] BASES = {'A','C','G','T'};
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
@@ -81,20 +80,20 @@ public class AlleleBalance extends InfoFieldAnnotation {
             
             if ( vc.isSNP() ) {
             
-            	final int[] counts = genotype.getAD();
-            	// If AD was not calculated, we can't continue
-            	if(counts == null)
-            		continue;
-            	
-            	final int n_allele = counts.length;
-            	int count_sum = 0;
-            	for(int i=0; i<n_allele; i++){
-            		count_sum += counts[i];
-            	}
+                final int[] counts = getCounts(genotype, stratifiedContexts, vc);
+                // If AD was not calculated, we can't continue
+                if(counts == null)
+                    continue;
+                
+                final int n_allele = counts.length;
+                int count_sum = 0;
+                for(int i=0; i<n_allele; i++){
+                    count_sum += counts[i];
+                }
                 double pTrue = 1.0 - Math.pow(10.0,-genotype.getGQ() / (double) 10 );
                 if ( genotype.isHet() ) {
-                	
-                	final int otherCount = count_sum - (counts[0] + counts[1]);
+                    
+                    final int otherCount = count_sum - (counts[0] + counts[1]);
                     // sanity check
                     if ( counts[0] + counts[1] == 0 )
                         continue;
@@ -104,16 +103,15 @@ public class AlleleBalance extends InfoFieldAnnotation {
                     weightHet += pTrue;
                     overallNonDiploid += ( (double) otherCount )/((double) count_sum*genotypes.size());
                 } else if ( genotype.isHom() ) {
-                	final int alleleIdx = genotype.isHomRef() ?  0 : 1 ;
+                    final int alleleIdx = genotype.isHomRef() ?  0 : 1 ;
                     final int alleleCount = counts[alleleIdx];
                     int bestOtherCount = 0;
                     for(int i=0; i<n_allele; i++){
-                    	if( i == alleleIdx )
-                    		continue;
-                    	if( counts[i] > bestOtherCount )
-                    		bestOtherCount = counts[i];
+                        if( i == alleleIdx )
+                            continue;
+                        if( counts[i] > bestOtherCount )
+                            bestOtherCount = counts[i];
                     }
-                    
                     final int otherCount = count_sum - alleleCount;
                     ratioHom += pTrue*( (double) alleleCount)/((double) (alleleCount+bestOtherCount));
                     weightHom += pTrue;
@@ -142,6 +140,58 @@ public class AlleleBalance extends InfoFieldAnnotation {
         return map;
     }
 
+    /**
+     * Provide a centralized method of getting the number of reads per allele, 
+     * depending on the input given.  Will use the following (in order of preference):
+     * - genotype.getAD()
+     * - reads from an AlignmentContext
+     * - reads from a PerReadAlleleLikelihoodMap (Not yet implemented) 
+     * 
+     * 
+     * @param genotype The genotype of interest
+     * @param stratifiedContexts A mapping 
+     * @param vc
+     * @return
+     */
+    private int[] getCounts(final Genotype genotype, 
+                            final Map<String, AlignmentContext> stratifiedContexts, 
+                            final VariantContext vc){
+    	
+    	// Can't do anything without a genotype here
+    	if(genotype == null)
+    		return null;
+    	
+        int[] retVal = genotype.getAD();
+        AlignmentContext context = null;
+        
+        if ( retVal == null && stratifiedContexts != null && 
+        		(context = stratifiedContexts.get(genotype.getSampleName())) != null){
+            // If we get to this point, the getAD() function returned no information
+            // about AlleleDepth by Sample - perhaps it wasn't annotated?
+            // In that case, let's try to build it up using the algorithm that
+            // was here in v 3.1-1 and earlier
+        	// Also, b/c of the assignment check in the if statement above,
+        	// we know we have a valid AlignmentContext for this sample!
+        	
+        	final ReadBackedPileup pileup = context.getBasePileup();
+        	final String bases = new String(pileup.getBases());
+        	List<Allele> alleles = vc.getAlleles();
+        	final int n_allele = alleles.size();
+        	retVal = new int[n_allele];
+        	
+        	// Calculate the depth for each allele, under the assumption that 
+        	// the allele is a single base
+        	int i=0;
+        	for(Allele a : alleles){
+        		retVal[i] = MathUtils.countOccurrences(a.toString().charAt(0), bases);
+        		i++;
+        	}
+            
+        }
+            
+        return retVal;
+               
+    }
 
     public List<String> getKeyNames() { return Arrays.asList("ABHet","ABHom","OND"); }
 
