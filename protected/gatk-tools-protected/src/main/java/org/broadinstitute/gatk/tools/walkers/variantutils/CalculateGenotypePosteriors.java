@@ -46,12 +46,15 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.engine.samples.Sample;
+import org.broadinstitute.gatk.engine.samples.Trio;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
@@ -60,7 +63,7 @@ import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
-import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
 
@@ -90,7 +93,11 @@ import java.util.*;
  *
  * <h3>Input</h3>
  * <p>
- * A VCF with genotype likelihoods, and optionally genotypes, AC/AN fields, or MLEAC/AN fields
+ *     <ul>
+ *         <li>A VCF with genotype likelihoods, and optionally genotypes, AC/AN fields, or MLEAC/AN fields</li>
+ *         <li>(Optional) A PED pedigree file containing the description of the individuals relationships.</li>
+ *     </ul>
+ *
  * </p>
  *
  * <p>
@@ -103,9 +110,10 @@ import java.util.*;
  * <h3>Output</h3>
  * <p>
  * A new VCF with:
- *  1) Genotype posteriors added to the genotype fields ("GP")
+ *  1) Genotype posteriors added to the genotype fields ("PP")
  *  2) Genotypes and GQ assigned according to these posteriors
  *  3) Per-site genotype priors added to the INFO field ("PG")
+ *  4) (Optional) Per-site, per-trio transmission probabilities given as Phred-scaled probability of all genotypes in the trio being correct, added to the genotype fields ("TP")
  * </p>
  *
  * <h3>Notes</h3>
@@ -123,7 +131,7 @@ import java.util.*;
  *   -R ref.fasta \
  *   -T CalculateGenotypePosteriors \
  *   -V NA12878.wgs.HC.vcf \
- *   -VV 1000G_EUR.genotypes.combined.vcf \
+ *   -supporting 1000G_EUR.genotypes.combined.vcf \
  *   -o NA12878.wgs.HC.posteriors.vcf \
  *
  * Refine the genotypes of a large panel based on the discovered allele frequency
@@ -147,10 +155,19 @@ import java.util.*;
  * java -Xmx2g -jar GenomeAnalysisTK.jar \
  *   -R ref.fasta \
  *   -T CalculateGenotypePosteriors \
- *   -VV external.panel.vcf \
+ *   -supporting external.panel.vcf \
  *   -V input.vcf \
  *   -o output.withPosteriors.vcf
  *   --numRefSamplesIfNoCall 100
+ *   
+ * Apply only family priors to a callset
+ * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ *   -R ref.fasta \
+ *   -T CalculateGenotypePosteriors \
+ *   -V input.vcf \
+ *   --skipPopulationPriors
+ *   -ped family.ped
+ *   -o output.withPosteriors.vcf 
  *
  * </pre>
  *
@@ -168,7 +185,7 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
      * Supporting external panels. Allele counts from these panels (taken from AC,AN or MLEAC,AN or raw genotypes) will
      * be used to inform the frequency distribution underying the genotype priors.
      */
-    @Input(fullName="supporting", shortName = "VV", doc="Other callsets to use in generating genotype posteriors", required=false)
+    @Input(fullName="supporting", shortName = "supporting", doc="Other callsets to use in generating genotype posteriors", required=false)
     public List<RodBinding<VariantContext>> supportVariants = new ArrayList<RodBinding<VariantContext>>();
 
     /**
@@ -179,6 +196,14 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
      */
      @Argument(fullName="globalPrior",shortName="G",doc="The global Dirichlet prior parameters for the allele frequency",required=false)
      public double globalPrior = HomoSapiensConstants.SNP_HETEROZYGOSITY;
+
+    /**
+     * The mutation prior -- i.e. the probability that a new mutation occurs. Sensitivity analysis on known de novo 
+     * mutations suggests a default value of 10^-6.
+     *
+     */
+    @Argument(fullName="deNovoPrior",shortName="DNP",doc="The de novo mutation prior",required=false)
+    public double deNovoPrior = 1e-6;
 
     /**
      * When a variant is not seen in a panel, whether to infer (and with what effective strength) that only reference
@@ -212,14 +237,42 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
     @Argument(fullName="calculateMissingPriors",shortName="calcMissing",doc="Use discovered allele frequency in the callset for variants that do no appear in the external callset", required=false)
     public boolean calcMissing = false;
 
+    /**
+     * Skip application of population-based priors
+     */
+    @Argument(fullName="skipPopulationPriors",shortName="skipPop",doc="Skip application of population-based priors", required=false)
+    public boolean skipPopulationPriors = false;
+
+    /**
+     * Skip application of family-based priors.  Note: if pedigree file is absent, family-based priors will be skipped.
+     */
+    @Argument(fullName="skipFamilyPriors",shortName="skipFam",doc="Skip application of family-based priors", required=false)
+    public boolean skipFamilyPriors = false;
+
     @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
+
+    private final String TRANSMISSION_PROBABILITY_TAG_NAME = "TP";
+    private final String PHRED_SCALED_POSTERIORS_KEY = "PP";
+
+    private FamilyLikelihoodsUtils famUtils = new FamilyLikelihoodsUtils();
 
     public void initialize() {
         // Get list of samples to include in the output
         final List<String> rodNames = Arrays.asList(variantCollection.variants.getName());
 
         final Map<String,VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit(), rodNames);
+
+        final Set<String> vcfSamples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
+
+        //Get the trios from the families passed as ped
+        if (!skipFamilyPriors){
+            final Set<Trio> trios = getSampleDB().getTrios();
+            if(trios.size()<1) {
+                logger.info("No PED file passed or no *non-skipped* trios found in PED file. Skipping family priors.");
+                skipFamilyPriors = true;
+            }
+        }
 
         if ( vcfRods.size() > 1 )
             throw new IllegalStateException("Somehow more than one variant was bound?");
@@ -241,15 +294,18 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
             }
         }
 
-        final TreeSet<String> vcfSamples = new TreeSet<>(SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE));
-
         // Initialize VCF header
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
-        headerLines.add(new VCFFormatHeaderLine(VCFConstants.GENOTYPE_POSTERIORS_KEY, VCFHeaderLineCount.G, VCFHeaderLineType.Integer, "Posterior Genotype Likelihoods"));
+        headerLines.add(new VCFFormatHeaderLine(PHRED_SCALED_POSTERIORS_KEY, VCFHeaderLineCount.G, VCFHeaderLineType.Integer, "Phred-scaled Posterior Genotype Probabilities"));
         headerLines.add(new VCFInfoHeaderLine("PG", VCFHeaderLineCount.G, VCFHeaderLineType.Integer, "Genotype Likelihood Prior"));
+        if (!skipFamilyPriors)
+            headerLines.add(new VCFFormatHeaderLine(TRANSMISSION_PROBABILITY_TAG_NAME, 1, VCFHeaderLineType.Integer, "Phred score of the genotype combination and phase given that the genotypes are correct"));
         headerLines.add(new VCFHeaderLine("source", "CalculateGenotypePosteriors"));
 
         vcfWriter.writeHeader(new VCFHeader(headerLines, vcfSamples));
+
+        Map<String,Set<Sample>> families = this.getSampleDB().getFamilies(vcfSamples);
+        famUtils.initialize(deNovoPrior, vcfSamples, families);
     }
 
     public Integer reduceInit() { return 0; }
@@ -265,12 +321,30 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
 
         final int missing = supportVariants.size() - otherVCs.size();
 
-        for ( VariantContext vc : vcs ) {
-            vcfWriter.add(PosteriorLikelihoodsUtils.calculatePosteriorGLs(vc, otherVCs, missing * numRefIfMissing, globalPrior, !ignoreInputSamples, defaultToAC, calcMissing));
-        }
+            for ( final VariantContext vc : vcs ) {
+                VariantContext vc_familyPriors,vc_bothPriors;
+
+                //do family priors first (if applicable)
+                final VariantContextBuilder builder = new VariantContextBuilder(vc);
+                //only compute family priors for biallelelic sites
+                if (!skipFamilyPriors && vc.isBiallelic()){
+                    GenotypesContext gc = famUtils.calculatePosteriorGLs(vc);
+                    builder.genotypes(gc);
+                }
+                vc_familyPriors = builder.make();
+
+                if (!skipPopulationPriors)
+                    vc_bothPriors = PosteriorLikelihoodsUtils.calculatePosteriorGLs(vc_familyPriors, otherVCs, missing * numRefIfMissing, globalPrior, !ignoreInputSamples, defaultToAC, calcMissing);
+                else {
+                    final VariantContextBuilder builder2 = new VariantContextBuilder(vc_familyPriors);
+                    vc_bothPriors = builder2.make();
+                }
+                vcfWriter.add(vc_bothPriors);
+            }
 
         return 1;
     }
 
     public Integer reduce(Integer l, Integer r) { return r + l; }
 }
+
