@@ -75,9 +75,6 @@ import java.util.*;
  */
 public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCollection> {
 
-    public static final String LOW_QUAL_FILTER_NAME = "LowQual";
-
-    public static final String NUMBER_OF_DISCOVERED_ALLELES_KEY = "NDA";
     public static final String PL_FOR_ALL_SNP_ALLELES_KEY = "APL";
 
     private static final int SNP_MODEL = 0;
@@ -362,9 +359,6 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
 
         final boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
 
-        if ( configuration.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
-            result.put(NUMBER_OF_DISCOVERED_ALLELES_KEY, vc.getAlternateAlleles().size());
-
         if ( configuration.COMPUTE_SLOD && !limitedContext && !bestGuessIsRef ) {
             final double strandScore = calculateSLOD(stratifiedContexts, tracker, refContext, AFresult, allAllelesToUse, model, perReadAlleleLikelihoodMap);
             if ( !Double.isNaN(strandScore) )
@@ -534,7 +528,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
             useSNP = useINDEL = true;
 
         // The non-general models only support Diploid so need to go to general if not the default_ploidy == 2.
-        if (configuration.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY)
+        if (configuration.genotypeArgs.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY)
             useGeneral = true;
 
         // If annotateAllSitesWithPLs requested , SNP model must be used.

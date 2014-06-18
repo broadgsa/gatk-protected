@@ -46,6 +46,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
@@ -124,6 +126,9 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     @Argument(fullName="includeNonVariantSites", shortName="allSites", doc="Include loci found to be non-variant after genotyping", required=false)
     public boolean INCLUDE_NON_VARIANTS = false;
 
+    @ArgumentCollection
+    public GenotypeCalculationArgumentCollection genotypeArgs = new GenotypeCalculationArgumentCollection();
+
     /**
      * Which annotations to recompute for the combined output VCF file.
      */
@@ -151,27 +156,32 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
 
     public void initialize() {
-        // create the annotation engine
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
-
         // collect the actual rod bindings into a list for use later
         for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
             variants.addAll(variantCollection.getRodBindings());
 
-        // take care of the VCF headers
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit(), variants);
+        final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
+        // create the genotyping engine
+        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), createUAC(), samples);
+        // create the annotation engine
+        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
+
+        // take care of the VCF headers
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
         headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
+        headerLines.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
+        // add the pool values for each genotype
+        if (genotypeArgs.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY) {
+            headerLines.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Integer, "Maximum likelihood expectation (MLE) for the alternate allele count, in the same order as listed, for each individual sample"));
+            headerLines.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Maximum likelihood expectation (MLE) for the alternate allele fraction, in the same order as listed, for each individual sample"));
+        }
         VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.MLE_ALLELE_COUNT_KEY, VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
             VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
-        final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
         final VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
         vcfWriter.writeHeader(vcfHeader);
-
-        // create the genotyping engine
-        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), new UnifiedArgumentCollection(), samples);
     }
 
     public VariantContext map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
@@ -211,6 +221,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             final Map<String, Object> attrs = new HashMap<>(originalVC.getAttributes());
             attrs.put(VCFConstants.MLE_ALLELE_COUNT_KEY, regenotypedVC.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
             attrs.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, regenotypedVC.getAttribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+            if (regenotypedVC.hasAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY))
+                attrs.put(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, regenotypedVC.getAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY));
 
             result = new VariantContextBuilder(regenotypedVC).attributes(attrs).make();
         }
@@ -280,6 +292,16 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             recoveredGs.add(builder.noAttributes().attributes(attrs).make());
         }
         return recoveredGs;
+    }
+
+    /**
+     * Creates a UnifiedArgumentCollection with appropriate values filled in from the arguments in this walker
+     * @return a complete UnifiedArgumentCollection
+     */
+    private UnifiedArgumentCollection createUAC() {
+        UnifiedArgumentCollection uac = new UnifiedArgumentCollection();
+        uac.genotypeArgs = genotypeArgs.clone();
+        return uac;
     }
 
     public VariantContextWriter reduceInit() {

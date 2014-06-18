@@ -99,7 +99,7 @@ public class GeneralPloidySNPGenotypeLikelihoodsCalculationModel extends General
                                                                                final ReferenceContext ref,
                                                                                final boolean ignoreLaneInformation,
                                                                                final org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap){
-        return new GeneralPloidySNPGenotypeLikelihoods(alleles, null, UAC.samplePloidy, perLaneErrorModels, useBQAedPileup, UAC.IGNORE_LANE_INFO);
+        return new GeneralPloidySNPGenotypeLikelihoods(alleles, null, UAC.genotypeArgs.samplePloidy, perLaneErrorModels, useBQAedPileup, UAC.IGNORE_LANE_INFO);
     }
 
     protected List<Allele> getInitialAllelesToUse(final RefMetaDataTracker tracker,

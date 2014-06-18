@@ -137,17 +137,17 @@ public class AFCalcFactory {
     public static AFCalc createAFCalc(final StandardCallerArgumentCollection UAC,
                                       final int nSamples,
                                       final Logger logger) {
-        final int maxAltAlleles = UAC.MAX_ALTERNATE_ALLELES;
-        if ( ! UAC.AFmodel.usableForParams(UAC.samplePloidy, maxAltAlleles) ) {
-            logger.info("Requested ploidy " + UAC.samplePloidy + " maxAltAlleles " + maxAltAlleles + " not supported by requested model " + UAC.AFmodel + " looking for an option");
+        final int maxAltAlleles = UAC.genotypeArgs.MAX_ALTERNATE_ALLELES;
+        if ( ! UAC.AFmodel.usableForParams(UAC.genotypeArgs.samplePloidy, maxAltAlleles) ) {
+            logger.info("Requested ploidy " + UAC.genotypeArgs.samplePloidy + " maxAltAlleles " + maxAltAlleles + " not supported by requested model " + UAC.AFmodel + " looking for an option");
             final List<Calculation> supportingCalculations = new LinkedList<Calculation>();
             for ( final Calculation calc : Calculation.values() ) {
-                if ( calc.usableForParams(UAC.samplePloidy, maxAltAlleles) )
+                if ( calc.usableForParams(UAC.genotypeArgs.samplePloidy, maxAltAlleles) )
                     supportingCalculations.add(calc);
             }
 
             if ( supportingCalculations.isEmpty() )
-                throw new UserException("no AFCalculation model found that supports ploidy of " + UAC.samplePloidy + " and max alt alleles " + maxAltAlleles);
+                throw new UserException("no AFCalculation model found that supports ploidy of " + UAC.genotypeArgs.samplePloidy + " and max alt alleles " + maxAltAlleles);
             else if ( supportingCalculations.size() > 1 )
                 logger.debug("Warning, multiple supporting AFCalcs found " + Utils.join(",", supportingCalculations) + " choosing first arbitrarily");
             else
@@ -155,7 +155,7 @@ public class AFCalcFactory {
             logger.info("Selecting model " + UAC.AFmodel);
         }
 
-        final AFCalc calc = createAFCalc(UAC.AFmodel, nSamples, UAC.MAX_ALTERNATE_ALLELES, UAC.samplePloidy);
+        final AFCalc calc = createAFCalc(UAC.AFmodel, nSamples, maxAltAlleles, UAC.genotypeArgs.samplePloidy);
 
         if ( logger != null ) calc.setLogger(logger);
         if ( UAC.exactCallsLog != null ) calc.enableProcessLog(UAC.exactCallsLog);

@@ -536,8 +536,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             if (SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES)
                 throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and Genotyping Giving Alleles at the same time");
 
-            SCAC.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
-            SCAC.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
+            SCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
+            SCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
 
 
             // also, we don't need to output several of the annotations
@@ -564,8 +564,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final UnifiedArgumentCollection simpleUAC = SCAC.cloneTo(UnifiedArgumentCollection.class);
         simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
         simpleUAC.genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
-        simpleUAC.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, SCAC.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
-        simpleUAC.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, SCAC.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, SCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, SCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
@@ -578,11 +578,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
             throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
 
+        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(),SCAC);
         // initialize the output VCF header
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
         Set<VCFHeaderLine> headerInfo = new HashSet<>();
 
+        headerInfo.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
         // all annotation fields from VariantAnnotatorEngine
         headerInfo.addAll(annotationEngine.getVCFAnnotationDescriptions());
         // all callers need to add these standard annotation header lines
@@ -646,7 +648,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final MergeVariantsAcrossHaplotypes variantMerger = mergeVariantsViaLD ? new LDMerger(SCAC.DEBUG, 10, 1) : new MergeVariantsAcrossHaplotypes();
 
-        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(),SCAC);
         genotypingEngine.setCrossHaplotypeEventMerger(variantMerger);
 
         genotypingEngine.setAnnotationEngine(annotationEngine);
