@@ -356,4 +356,17 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
 
         executeTest(name, spec);
     }
+
+    @Test
+    public void testInvalidJexl() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants" +
+                        " -R "+b37KGReference +
+                        " -V "+privateTestDir+"ac0.vcf" +
+                        " -select 'vc.getGenotype(\"FAKE_SAMPLE\").isHomRef()'" +
+                        " -o %s",
+                1,
+                UserException.class);
+        executeTest("InvalidJexl", spec);
+    }
 }
