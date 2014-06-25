@@ -69,7 +69,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Arrays.asList("51bf72a5eb3b2592d319072e4ce26c92"));
+                Arrays.asList("e61d4cbfd21f102c2e6c0bd56cb68312"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -94,7 +94,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Arrays.asList("46044467b366db1c15a48a429b7c2291"));
+                Arrays.asList("1c553decc3f9fe1d752137a7f34d7e4e"));
         executeTest("combineSingleSamplePipelineGVCFHierarchical", spec);
     }
 
@@ -106,7 +106,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000 --dbsnp " + b37dbSNP132, b37KGReference),
                 1,
-                Arrays.asList("52655b4a693bc79e1029e47276a2653b"));
+                Arrays.asList("e6952f19e692091332809c59069a1eab"));
         executeTest("combineSingleSamplePipelineGVCF_addDbsnp", spec);
     }
 
@@ -116,7 +116,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -L 1:69485-69791 -o %s -R " + b37KGReference +
                 " -V " + privateTestDir + "gvcfExample1.vcf",
                 1,
-                Arrays.asList("6fe339b17f4e5621e849d842c64a6e42"));
+                Arrays.asList("b18ddcf828227c07f1b38d99c91f6e09"));
         executeTest("testJustOneSample", spec);
     }
 
@@ -127,7 +127,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V " + privateTestDir + "gvcfExample1.vcf" +
                         " -V " + privateTestDir + "gvcfExample2.vcf",
                 1,
-                Arrays.asList("aad7bda0f3c60689b61e87d641b62856"));
+                Arrays.asList("a453f2e15b20f8cf0edadb998cb883d5"));
         executeTest("testSamplesWithDifferentLs", spec);
     }
 

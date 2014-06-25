@@ -93,8 +93,8 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
      * @return true if it passes the minimum threshold, false otherwise
      */
     protected static boolean passesMinimumThreshold(final int[] data, final int minCount) {
-        // the ref and alt totals must each be greater than MIN_COUNT
-        return data[0] + data[1] > minCount && data[2] + data[3] > minCount;
+        // the ref and alt totals must be greater than MIN_COUNT
+        return data[0] + data[1] + data[2] + data[3] > minCount;
     }
 
     /**
