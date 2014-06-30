@@ -88,22 +88,9 @@ class CalledHaplotypeBAMWriter extends HaplotypeBAMWriter {
 
         writeHaplotypesAsReads(calledHaplotypes, calledHaplotypes, paddedReferenceLoc);
 
-        // we need to remap the Alleles back to the Haplotypes; inefficient but unfortunately this is a requirement currently
-        final Map<Allele, Haplotype> alleleToHaplotypeMap = new HashMap<>(haplotypes.size());
-        for ( final Haplotype haplotype : calledHaplotypes ) {
-            alleleToHaplotypeMap.put(Allele.create(haplotype.getBases()), haplotype);
-        }
-
-        // the set of all alleles that were actually called
-        final Set<Allele> allelesOfCalledHaplotypes = alleleToHaplotypeMap.keySet();
-
-        // next, output the interesting reads for each sample aligned against one of the called haplotypes
         for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-            for ( final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : readAlleleLikelihoodMap.getLikelihoodReadMap().entrySet() ) {
-                final MostLikelyAllele bestAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(entry.getValue(), allelesOfCalledHaplotypes);
-                final Haplotype haplotype = alleleToHaplotypeMap.get(bestAllele.getMostLikelyAllele());
-                if (haplotype == null) continue;
-                writeReadAgainstHaplotype(entry.getKey(), haplotype, paddedReferenceLoc.getStart(), bestAllele.isInformative());
+            for ( final GATKSAMRecord read : readAlleleLikelihoodMap.getLikelihoodReadMap().keySet() ) {
+                writeReadAgainstHaplotype(read);
             }
         }
     }

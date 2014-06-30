@@ -692,7 +692,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private ReadLikelihoodCalculationEngine createLikelihoodCalculationEngine() {
         switch (likelihoodEngineImplementation) {
             case PairHMM:
-                return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, SCAC.DEBUG, pairHMM, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
+                return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, pairHMM, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
             case GraphBased:
                 return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate,heterogeneousKmerSizeResultion,SCAC.DEBUG,debugGraphTransformations);
             case Random:
@@ -839,8 +839,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final Map<String,List<GATKSAMRecord>> reads = splitReadsBySample( regionForGenotyping.getReads() );
 
         // Calculate the likelihoods: CPU intesive part.
-        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap =
-                likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,reads);
+        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,reads);
+
+        // Realign all the reads to the most likely haplotype for use by the annotations
+        for( final Map.Entry<String, PerReadAlleleLikelihoodMap> entry : stratifiedReadMap.entrySet() ) {
+            entry.getValue().realignReadsToMostLikelyHaplotype(haplotypes, assemblyResult.getPaddedReferenceLoc());
+        }
 
         // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
         //  was a bad interaction between that selection and the marginalization that happens over each event when computing

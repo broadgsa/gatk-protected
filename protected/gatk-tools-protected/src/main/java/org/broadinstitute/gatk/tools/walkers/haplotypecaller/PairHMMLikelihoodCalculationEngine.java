@@ -74,7 +74,6 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
 
     private final byte constantGCP;
     private final double log10globalReadMismappingRate;
-    private final boolean DEBUG;
 
     private final PairHMM.HMM_IMPLEMENTATION hmmType;
     private final boolean noFpga;
@@ -141,7 +140,6 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
      * Create a new PairHMMLikelihoodCalculationEngine using provided parameters and hmm to do its calculations
      *
      * @param constantGCP the gap continuation penalty to use with the PairHMM
-     * @param debug should we emit debugging information during the calculation?
      * @param hmmType the type of the HMM to use
      * @param log10globalReadMismappingRate the global mismapping probability, in log10(prob) units.  A value of
      *                                      -3 means that the chance that a read doesn't actually belong at this
@@ -153,10 +151,9 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
      *                                      assigned a likelihood of -13.
      * @param noFpga disable FPGA acceleration
      */
-    public PairHMMLikelihoodCalculationEngine( final byte constantGCP, final boolean debug, final PairHMM.HMM_IMPLEMENTATION hmmType, final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
+    public PairHMMLikelihoodCalculationEngine( final byte constantGCP, final PairHMM.HMM_IMPLEMENTATION hmmType, final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
         this.hmmType = hmmType;
         this.constantGCP = constantGCP;
-        this.DEBUG = debug;
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
         this.noFpga = noFpga;
         this.pcrErrorModel = pcrErrorModel;
@@ -373,21 +370,6 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
         return stratifiedReadMap;
     }
 
-
-    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
-
-        // Add likelihoods for each sample's reads to our stratifiedReadMap
-        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = new LinkedHashMap<>();
-        for( final Map.Entry<String, List<GATKSAMRecord>> sampleEntry : perSampleReadList.entrySet() ) {
-            // evaluate the likelihood of the reads given those haplotypes
-            final PerReadAlleleLikelihoodMap map = computeReadLikelihoods(haplotypes, sampleEntry.getValue());
-
-            map.filterPoorlyModelledReads(EXPECTED_ERROR_RATE_PER_BASE);
-            stratifiedReadMap.put(sampleEntry.getKey(), map);
-        }
-
-        return stratifiedReadMap;
-    }
 
     private PerReadAlleleLikelihoodMap computeReadLikelihoods( final List<Haplotype> haplotypes, final List<GATKSAMRecord> reads) {
 

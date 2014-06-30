@@ -254,12 +254,12 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                 if (emitReferenceConfidence) addMiscellaneousAllele(alleleReadMap);
 
                 final GenotypesContext genotypes = calculateGLsForThisEvent( alleleReadMap, mergedVC );
-                final VariantContext call = calculateGenotypes(null,null,null,null,new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel, false,null);
+                final VariantContext call = calculateGenotypes(null, null, null, null, new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel, false, null);
                 if( call != null ) {
                     final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( configuration.USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
                             convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, emptyDownSamplingMap ) );
                     if (emitReferenceConfidence) addMiscellaneousAllele(alleleReadMap_annotations);
-                    final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = filterToOnlyOverlappingReads( genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call );
+                    final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = addFilteredReadList(genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call, true);
 
                     VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(tracker, stratifiedReadMap, call);
 
@@ -285,7 +285,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * Add the <NON_REF> allele
      * @param stratifiedReadMap target per-read-allele-likelihood-map.
      */
-    public static Map<String, PerReadAlleleLikelihoodMap>  addMiscellaneousAllele(final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+    public static Map<String, PerReadAlleleLikelihoodMap> addMiscellaneousAllele(final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
         final Allele miscellanoeusAllele = GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE;
         for (Map.Entry<String, PerReadAlleleLikelihoodMap> perSample : stratifiedReadMap.entrySet()) {
             for (Map.Entry<GATKSAMRecord, Map<Allele, Double>> perRead : perSample.getValue().getLikelihoodReadMap().entrySet()) {
@@ -430,19 +430,20 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         return genotypes;
     }
 
-    private static Map<String, PerReadAlleleLikelihoodMap> filterToOnlyOverlappingReads( final GenomeLocParser parser,
-                                                                                         final Map<String, PerReadAlleleLikelihoodMap> perSampleReadMap,
-                                                                                         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
-                                                                                         final VariantContext call ) {
+    private static Map<String, PerReadAlleleLikelihoodMap> addFilteredReadList(final GenomeLocParser parser,
+                                                                               final Map<String, PerReadAlleleLikelihoodMap> perSampleReadMap,
+                                                                               final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
+                                                                               final VariantContext call,
+                                                                               final boolean requireOverlap) {
 
         final Map<String, PerReadAlleleLikelihoodMap> returnMap = new LinkedHashMap<>();
-        final GenomeLoc callLoc = parser.createGenomeLoc(call);
+        final GenomeLoc callLoc = ( requireOverlap ? parser.createGenomeLoc(call) : null );
         for( final Map.Entry<String, PerReadAlleleLikelihoodMap> sample : perSampleReadMap.entrySet() ) {
             final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
 
             for( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> mapEntry : sample.getValue().getLikelihoodReadMap().entrySet() ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
-                if( callLoc.overlapsP(parser.createGenomeLoc(mapEntry.getKey())) ) { // BUGBUG: This uses alignment start and stop, NOT soft start and soft end...
+                if( !requireOverlap || callLoc.overlapsP(parser.createGenomeLocUnclipped(mapEntry.getKey())) ) {
                     for( final Map.Entry<Allele,Double> alleleDoubleEntry : mapEntry.getValue().entrySet() ) {
                         likelihoodMap.add(mapEntry.getKey(), alleleDoubleEntry.getKey(), alleleDoubleEntry.getValue());
                     }
@@ -452,7 +453,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
             for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
                 // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
-                if( callLoc.overlapsP(parser.createGenomeLoc(read)) ) {
+                if( !requireOverlap || callLoc.overlapsP(parser.createGenomeLocUnclipped(read)) ) {
                     for( final Allele allele : call.getAlleles() ) {
                         likelihoodMap.add(read, allele, 0.0);
                     }
