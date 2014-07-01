@@ -151,7 +151,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testNoPrior() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -stand_call_conf 10 -inputPrior 0.33333 -inputPrior 0.33333", 1,
-                Arrays.asList("9ee4f1ee1827a6726bfac1220a6a7c40"));
+                Arrays.asList("7ac60bdc355d97c0939e644b58de47d7"));
         executeTest("test no prior 1", spec1);
 
     }
@@ -169,7 +169,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void emitPLsAtAllSites() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 --output_mode EMIT_ALL_SITES -allSitePLs", 1,
-                Arrays.asList("85dee5da72c4154e130527c4e6329c07"));
+                Arrays.asList("552aced1b1ef7e4a554223f4719f9560"));
         // GDA: TODO: BCF encoder/decoder doesn't seem to support non-standard values in genotype fields. IE even if there is a field defined in FORMAT and in the header the BCF2 encoder will still fail
         spec1.disableShadowBCF();
 
