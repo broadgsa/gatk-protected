@@ -324,7 +324,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                                                                     final List<VariantContext> activeAllelesToGenotype) {
         final boolean in_GGA_mode = !activeAllelesToGenotype.isEmpty();
 
-        // Using the cigar from each called haplotype figure out what events need to be written out in a VCF file
+        // Using the cigar from each called haplotype to figure out what events need to be written out in a VCF file
         final TreeSet<Integer> startPosKeySet = EventMap.buildEventMapsForHaplotypes(haplotypes, ref, refLoc, configuration.DEBUG);
 
         if ( in_GGA_mode ) startPosKeySet.clear();
@@ -338,8 +338,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             if ( mergedAnything )
                 cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events
         }
-
-        if ( in_GGA_mode ) {
+        else {
             for( final VariantContext compVC : activeAllelesToGenotype ) {
                 startPosKeySet.add( compVC.getStart() );
             }
