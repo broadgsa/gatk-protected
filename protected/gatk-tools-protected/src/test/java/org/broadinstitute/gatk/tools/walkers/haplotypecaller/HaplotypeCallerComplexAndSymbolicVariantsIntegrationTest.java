@@ -94,7 +94,7 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "fb9f244c09ac6781e2a984e90e0cd340");
+                "40ef4d4188d326ca0d4e29f4de4b53ff");
     }
 
     private void HCTestComplexConsensusMode(String bam, String args, String md5) {
@@ -106,7 +106,7 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleConsensusModeComplex() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538 -L 20:133041-133161 -L 20:300207-300337",
-                "23dab7ca085f13b3b23954a94630d04d");
+                "e328436354bdf7604d987c6e2c9172eb");
     }
 
 }

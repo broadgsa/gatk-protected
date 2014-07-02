@@ -285,8 +285,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected boolean recoverDanglingHeads = false;
 
     @Hidden
-    @Argument(fullName="recoverDanglingTails", shortName="recoverDanglingTails", doc="Should we enable dangling tail recovery in the read threading assembler?", required = false)
-    protected boolean recoverDanglingTails = false;
+    @Argument(fullName="doNotRecoverDanglingTails", shortName="doNotRecoverDanglingTails", doc="Should we disable dangling tail recovery in the read threading assembler?", required = false)
+    protected boolean doNotRecoverDanglingTails = false;
 
     @Advanced
     @Argument(fullName="consensus", shortName="consensus", doc="In 1000G consensus mode. Inject all provided alleles to the assembly graph but don't forcibly genotype all of them.", required = false)
@@ -622,7 +622,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         assemblyEngine.setDebug(SCAC.DEBUG);
         assemblyEngine.setDebugGraphTransformations(debugGraphTransformations);
         assemblyEngine.setAllowCyclesInKmerGraphToGeneratePaths(allowCyclesInKmerGraphToGeneratePaths);
-        assemblyEngine.setRecoverDanglingTails(recoverDanglingTails);
+        assemblyEngine.setRecoverDanglingTails(!doNotRecoverDanglingTails);
         assemblyEngine.setRecoverDanglingHeads(recoverDanglingHeads);
         assemblyEngine.setMinBaseQualityToUseInAssembly(MIN_BASE_QUALTY_SCORE);
 
