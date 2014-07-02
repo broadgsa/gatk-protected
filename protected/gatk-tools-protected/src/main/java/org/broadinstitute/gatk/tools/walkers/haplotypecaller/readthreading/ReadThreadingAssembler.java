@@ -72,6 +72,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     private final int maxAllowedPathsForReadThreadingAssembler;
 
     private final boolean dontIncreaseKmerSizesForCycles;
+    private final boolean allowNonUniqueKmersInRef;
     private final int numPruningSamples;
     protected boolean removePathsNotConnectedToRef = true;
     private boolean justReturnRawGraph = false;
@@ -81,16 +82,17 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
         this(DEFAULT_NUM_PATHS_PER_GRAPH, Arrays.asList(25));
     }
 
-    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes, final boolean dontIncreaseKmerSizesForCycles, final int numPruningSamples) {
+    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes, final boolean dontIncreaseKmerSizesForCycles, final boolean allowNonUniqueKmersInRef, final int numPruningSamples) {
         super(maxAllowedPathsForReadThreadingAssembler);
         this.kmerSizes = kmerSizes;
         this.maxAllowedPathsForReadThreadingAssembler = maxAllowedPathsForReadThreadingAssembler;
         this.dontIncreaseKmerSizesForCycles = dontIncreaseKmerSizesForCycles;
+        this.allowNonUniqueKmersInRef = allowNonUniqueKmersInRef;
         this.numPruningSamples = numPruningSamples;
     }
 
-    public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes) {
-        this(maxAllowedPathsForReadThreadingAssembler, kmerSizes, true, 1);
+    protected ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes) {
+        this(maxAllowedPathsForReadThreadingAssembler, kmerSizes, true, true, 1);
     }
 
     /** for testing purposes */
@@ -109,7 +111,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
         // first, try using the requested kmer sizes
         for ( final int kmerSize : kmerSizes ) {
-            addResult(results, createGraph(reads, refHaplotype, kmerSize, givenHaplotypes, dontIncreaseKmerSizesForCycles));
+            addResult(results, createGraph(reads, refHaplotype, kmerSize, givenHaplotypes, dontIncreaseKmerSizesForCycles, allowNonUniqueKmersInRef));
         }
 
         // if none of those worked, iterate over larger sizes if allowed to do so
@@ -118,7 +120,8 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
             int numIterations = 1;
             while ( results.isEmpty() && numIterations <= MAX_KMER_ITERATIONS_TO_ATTEMPT ) {
                 // on the last attempt we will allow low complexity graphs
-                addResult(results, createGraph(reads, refHaplotype, kmerSize, givenHaplotypes, numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT));
+                final boolean lastAttempt = numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT;
+                addResult(results, createGraph(reads, refHaplotype, kmerSize, givenHaplotypes, lastAttempt, lastAttempt));
                 kmerSize += KMER_SIZE_ITERATION_INCREASE;
                 numIterations++;
             }
@@ -135,16 +138,23 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
      * @param kmerSize         kmer size
      * @param activeAlleleHaplotypes the GGA haplotypes to inject into the graph
      * @param allowLowComplexityGraphs if true, do not check for low-complexity graphs
+     * @param allowNonUniqueKmersInRef if true, do not fail if the reference has non-unique kmers
      * @return sequence graph or null if one could not be created (e.g. because it contains cycles or too many paths or is low complexity)
      */
     protected AssemblyResult createGraph(final List<GATKSAMRecord> reads,
                                          final Haplotype refHaplotype,
                                          final int kmerSize,
                                          final List<Haplotype> activeAlleleHaplotypes,
-                                         final boolean allowLowComplexityGraphs) {
+                                         final boolean allowLowComplexityGraphs,
+                                         final boolean allowNonUniqueKmersInRef) {
         if ( refHaplotype.length() < kmerSize ) {
             // happens in cases where the assembled region is just too small
             return new AssemblyResult(AssemblyResult.Status.FAILED, null);
+        }
+
+        if ( !allowNonUniqueKmersInRef && !ReadThreadingGraph.determineNonUniqueKmers(new SequenceForKmers("ref", refHaplotype.getBases(), 0, refHaplotype.getBases().length, 1, true), kmerSize).isEmpty() ) {
+            if ( debug ) logger.info("Not using kmer size of " + kmerSize + " in read threading assembler because reference contains non-unique kmers");
+            return null;
         }
 
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly, numPruningSamples);

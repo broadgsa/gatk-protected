@@ -260,15 +260,39 @@ public class BaseGraph<V extends BaseVertex, E extends BaseEdge> extends Default
     /**
      * Traverse the graph and get the next reference vertex if it exists
      * @param v the current vertex, can be null
-     * @return  the next reference vertex if it exists
+     * @return  the next reference vertex if it exists, otherwise null
      */
     public V getNextReferenceVertex( final V v ) {
+        return getNextReferenceVertex(v, false, Collections.<MultiSampleEdge>emptyList());
+    }
+
+    /**
+     * Traverse the graph and get the next reference vertex if it exists
+     * @param v the current vertex, can be null
+     * @param allowNonRefPaths if true, allow sub-paths that are non-reference if there is only a single outgoing edge
+     * @param blacklistedEdges edges to ignore in the traversal down; useful to exclude the non-reference dangling paths
+     * @return the next vertex (but not necessarily on the reference path if allowNonRefPaths is true) if it exists, otherwise null
+     */
+    public V getNextReferenceVertex( final V v, final boolean allowNonRefPaths, final Collection<MultiSampleEdge> blacklistedEdges ) {
         if( v == null ) { return null; }
-        for( final E edgeToTest : outgoingEdgesOf(v) ) {
+
+        // variable must be mutable because outgoingEdgesOf is an immutable collection
+        Set<E> edges = outgoingEdgesOf(v);
+
+        for( final E edgeToTest : edges ) {
             if( edgeToTest.isRef() ) {
                 return getEdgeTarget(edgeToTest);
             }
         }
+
+        // if we got here, then we aren't on a reference path
+        if ( allowNonRefPaths ) {
+            edges = new HashSet<>(edges);  // edges was immutable
+            edges.removeAll(blacklistedEdges);
+            if ( edges.size() == 1 )
+                return getEdgeTarget(edges.iterator().next());
+        }
+
         return null;
     }
 
