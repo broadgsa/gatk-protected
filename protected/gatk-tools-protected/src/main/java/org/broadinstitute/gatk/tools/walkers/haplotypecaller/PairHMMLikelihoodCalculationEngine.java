@@ -274,7 +274,6 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
         // a new read/allele map, to contain the uncapped reads, haplotypes, and potentially the capped reference log10ls
         final PerReadAlleleLikelihoodMap processedReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
 
-        Allele refAllele = null;
         final int numReads = reads.size();
         for (int readIndex = 0; readIndex < numReads; readIndex++) {
 
@@ -283,33 +282,30 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
             final GATKSAMRecord originalRead = reads.get(readIndex);
             final GATKSAMRecord processedRead = processedReads.get(readIndex);
 
-            // keep track of the reference likelihood and the best non-ref likelihood
-            double refLog10l = Double.NEGATIVE_INFINITY;
             double bestNonReflog10L = Double.NEGATIVE_INFINITY;
 
-            for ( Allele allele : alleleHaplotypeMap.keySet() ) {
+            for ( final Allele allele : alleleHaplotypeMap.keySet() ) {
                 final double log10l = perReadAlleleLikelihoodMap.getLikelihoodAssociatedWithReadAndAllele(processedRead, allele);
                 final Haplotype haplotype = alleleHaplotypeMap.get(allele);
                 if ( haplotype.isNonReference() )
                     bestNonReflog10L = Math.max(bestNonReflog10L, log10l);
-                else {
-                    refAllele = allele;
-                    refLog10l = log10l;
-                }
                 writeDebugLikelihoods(processedRead, haplotype, log10l);
 
                 // add the ORIGINAL (non-capped) read to the final map, along with the current haplotype and associated log10l
                 processedReadAlleleLikelihoodMap.add(originalRead, allele, log10l);
             }
 
-            // ensure that the reference haplotype is no worse than the best non-ref haplotype minus the global
+            // ensure that any haplotype is no worse than the best non-ref haplotype minus the global
             // mismapping rate.  This protects us from the case where the assembly has produced haplotypes
             // that are very divergent from reference, but are supported by only one read.  In effect
-            // we capping how badly scoring the reference can be for any read by the chance that the read
+            // we capping how badly scoring any haplotype can be for any read by the chance that the read
             // itself just doesn't belong here
-            final double worstRefLog10Allowed = bestNonReflog10L + log10globalReadMismappingRate;
-            if ( refLog10l < (worstRefLog10Allowed) ) {
-                processedReadAlleleLikelihoodMap.add(originalRead, refAllele, worstRefLog10Allowed);
+            final double worstAllowedLog10l = bestNonReflog10L + log10globalReadMismappingRate;
+            for ( final Allele allele : alleleHaplotypeMap.keySet() ) {
+                final double log10l = perReadAlleleLikelihoodMap.getLikelihoodAssociatedWithReadAndAllele(processedRead, allele);
+                if( log10l < worstAllowedLog10l ) {
+                    processedReadAlleleLikelihoodMap.add(originalRead, allele, worstAllowedLog10l);
+                }
             }
         }
         return processedReadAlleleLikelihoodMap;

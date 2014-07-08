@@ -385,8 +385,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * from another location in the genome.  Suppose a read has many mismatches from the reference, say like 5, but
      * has a very high mapping quality of 60.  Without this parameter, the read would contribute 5 * Q30 evidence
      * in favor of its 5 mismatch haplotype compared to reference, potentially enough to make a call off that single
-     * read for all of these events.  With this parameter set to Q30, though, the maximum evidence against the reference
-     * that this (and any) read could contribute against reference is Q30.
+     * read for all of these events.  With this parameter set to Q30, though, the maximum evidence against any haplotype
+     * that this (and any) read could contribute is Q30.
      *
      * Set this term to any negative number to turn off the global mapping rate
      */

@@ -74,6 +74,7 @@ import java.util.*;
 public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeCallerArgumentCollection> {
 
     private final static List<Allele> NO_CALL = Collections.singletonList(Allele.NO_CALL);
+    private final static int ALLELE_EXTENSION = 2;
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
@@ -170,7 +171,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * @param activeRegionWindow                     Active window
      * @param genomeLocParser                        GenomeLocParser
      * @param activeAllelesToGenotype                Alleles to genotype
-     * @param emitReferenceConfidence whether we should add a &lt;NON_REF&gt; alternative allele to the result variation contexts.
+     * @param emitReferenceConfidence                whether we should add a <NON_REF></NON_REF> alternative allele to the result variation contexts.
      *
      * @return                                       A CalledHaplotypes object containing a list of VC's with genotyped events and called haplotypes
      *
@@ -249,7 +250,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                     if (logger != null) logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
                 }
 
-                final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap(haplotypeReadMap, alleleMapper, configuration.getSampleContamination());
+                final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap(haplotypeReadMap, alleleMapper, configuration.getSampleContamination(), genomeLocParser, mergedVC);
 
                 if (emitReferenceConfidence) addMiscellaneousAllele(alleleReadMap);
 
@@ -257,7 +258,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                 final VariantContext call = calculateGenotypes(null, null, null, null, new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel, false, null);
                 if( call != null ) {
                     final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( configuration.USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
-                            convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, emptyDownSamplingMap ) );
+                            convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, emptyDownSamplingMap, genomeLocParser, null ) );
                     if (emitReferenceConfidence) addMiscellaneousAllele(alleleReadMap_annotations);
                     final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = addFilteredReadList(genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call, true);
 
@@ -489,10 +490,23 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         haplotypes.removeAll(haplotypesToRemove);
     }
 
-    // BUGBUG: ugh, too complicated
+    /**
+     * The reads, partioned by haplotype, must now be partioned by alleles.
+     * That is, some alleles are supported by multiple haplotypes and we marginalize over them by taking the max likelihood.
+     * In addition we subset down to only reads which overlap the alleles (plus a small extension)
+     * @param haplotypeReadMap                  Map from reads -> (haplotypes, likelihoods)
+     * @param alleleMapper                      Map from alleles -> list of haplotypes which support that allele
+     * @param perSampleDownsamplingFraction     Map from samples -> downsampling fraction
+     * @param genomeLocParser                   a genome loc parser
+     * @param eventsToGenotype                  the alleles to genotype in a single VariantContext, will be null if we don't want to require overlap
+     * @return                                  Map from reads -> (alleles, likelihoods)
+     */
     protected Map<String, PerReadAlleleLikelihoodMap> convertHaplotypeReadMapToAlleleReadMap( final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
                                                                                               final Map<Allele, List<Haplotype>> alleleMapper,
-                                                                                              final Map<String,Double> perSampleDownsamplingFraction ) {
+                                                                                              final Map<String,Double> perSampleDownsamplingFraction,
+                                                                                              final GenomeLocParser genomeLocParser,
+                                                                                              final VariantContext eventsToGenotype) {
+        final GenomeLoc callLoc = ( eventsToGenotype != null ? genomeLocParser.createGenomeLoc(eventsToGenotype) : null );
 
         final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = new LinkedHashMap<>();
         for( final Map.Entry<String, PerReadAlleleLikelihoodMap> haplotypeReadMapEntry : haplotypeReadMap.entrySet() ) { // for each sample
@@ -500,13 +514,15 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             for( final Map.Entry<Allele, List<Haplotype>> alleleMapperEntry : alleleMapper.entrySet() ) { // for each output allele
                 final List<Haplotype> mappedHaplotypes = alleleMapperEntry.getValue();
                 for( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> readEntry : haplotypeReadMapEntry.getValue().getLikelihoodReadMap().entrySet() ) { // for each read
-                    double maxLikelihood = Double.NEGATIVE_INFINITY;
-                    for( final Map.Entry<Allele,Double> alleleDoubleEntry : readEntry.getValue().entrySet() ) { // for each input allele
-                        if( mappedHaplotypes.contains( new Haplotype(alleleDoubleEntry.getKey())) ) { // exact match of haplotype base string
-                            maxLikelihood = Math.max( maxLikelihood, alleleDoubleEntry.getValue() );
+                    if( eventsToGenotype == null || callLoc.overlapsP(genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLocUnclipped(readEntry.getKey()), ALLELE_EXTENSION)) ) { // make sure the read overlaps
+                        double maxLikelihood = Double.NEGATIVE_INFINITY;
+                        for( final Map.Entry<Allele,Double> alleleDoubleEntry : readEntry.getValue().entrySet() ) { // for each input allele
+                            if( mappedHaplotypes.contains( new Haplotype(alleleDoubleEntry.getKey())) ) { // exact match of haplotype base string
+                                maxLikelihood = Math.max( maxLikelihood, alleleDoubleEntry.getValue() );
+                            }
                         }
+                        perReadAlleleLikelihoodMap.add(readEntry.getKey(), alleleMapperEntry.getKey(), maxLikelihood);
                     }
-                    perReadAlleleLikelihoodMap.add(readEntry.getKey(), alleleMapperEntry.getKey(), maxLikelihood);
                 }
             }
             perReadAlleleLikelihoodMap.performPerAlleleDownsampling(perSampleDownsamplingFraction.get(haplotypeReadMapEntry.getKey())); // perform contamination downsampling
