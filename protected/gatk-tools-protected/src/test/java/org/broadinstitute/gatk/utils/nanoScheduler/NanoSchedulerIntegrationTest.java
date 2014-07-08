@@ -78,7 +78,7 @@ public class NanoSchedulerIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 buildCommandLine(
                         "-T UnifiedGenotyper -R " + b37KGReference,
-                        "--no_cmdline_in_header -G",
+                        "--no_cmdline_in_header -G none",
                         //"--dbsnp " + b37dbSNP132,
                         "-I " + privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam",
                         "-L 20:10,000,000-10,100,000",

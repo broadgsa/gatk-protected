@@ -133,7 +133,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * Which annotations to recompute for the combined output VCF file.
      */
     @Advanced
-    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute", required=false)
+    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute.  The single value 'none' removes the default annotations", required=false)
     protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "GenotypeSummaries"}));
 
     /**

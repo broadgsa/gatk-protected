@@ -71,7 +71,7 @@ public class HaplotypeCallerParallelIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T HaplotypeCaller --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I "
                         + privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam -o %s " +
-                        " -L 20:10,000,000-10,100,000 -G none -A -contamination 0.0 -nct " + nct, 1,
+                        " -L 20:10,000,000-10,100,000 -G none -A none -contamination 0.0 -nct " + nct, 1,
                 Arrays.asList(md5));
         executeTest("HC test parallel HC with NCT with nct " + nct, spec);
     }
