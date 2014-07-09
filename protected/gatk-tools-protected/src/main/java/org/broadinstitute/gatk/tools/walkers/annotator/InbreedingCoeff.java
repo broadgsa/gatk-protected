@@ -46,6 +46,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
@@ -78,6 +79,7 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
     private static final int MIN_SAMPLES = 10;
     private static final String INBREEDING_COEFFICIENT_KEY_NAME = "InbreedingCoeff";
     private Set<String> founderIds;
+    private int sampleCount;
 
     @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
@@ -89,51 +91,69 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
         //If available, get the founder IDs and cache them. the IC will only be computed on founders then.
         if(founderIds == null && walker != null)
             founderIds =  ((Walker)walker).getSampleDB().getFounderIds();
-        return calculateIC(vc);
+        return makeCoeffAnnotation(vc);
     }
 
-    private Map<String, Object> calculateIC(final VariantContext vc) {
-        final GenotypesContext genotypes = (founderIds == null || founderIds.isEmpty()) ? vc.getGenotypes() : vc.getGenotypes(founderIds);
-        if (genotypes == null || genotypes.size() < MIN_SAMPLES || !vc.isVariant())
-            return null;
+    protected double calculateIC(final VariantContext vc, final GenotypesContext genotypes) {
+
+        final boolean doMultiallelicMapping = !vc.isBiallelic();
 
         int idxAA = 0, idxAB = 1, idxBB = 2;
-
-        if (!vc.isBiallelic()) {
-            // for non-bliallelic case, do test with most common alt allele.
-            // Get then corresponding indices in GL vectors to retrieve GL of AA,AB and BB.
-            final int[] idxVector = vc.getGLIndecesOfAlternateAllele(vc.getAltAlleleWithHighestAlleleCount());
-            idxAA = idxVector[0];
-            idxAB = idxVector[1];
-            idxBB = idxVector[2];
-        }
 
         double refCount = 0.0;
         double hetCount = 0.0;
         double homCount = 0.0;
-        int N = 0; // number of samples that have likelihoods
+        sampleCount = 0; // number of samples that have likelihoods
+
         for ( final Genotype g : genotypes ) {
-            if ( g.isNoCall() || !g.hasLikelihoods() )
-                continue;
-
-            if (g.getPloidy() != 2) // only work for diploid samples
-                continue;
-
-            N++;
+            if ( g.isCalled() && g.hasLikelihoods() && g.getPloidy() == 2)  // only work for diploid samples
+                sampleCount++;
             final double[] normalizedLikelihoods = MathUtils.normalizeFromLog10( g.getLikelihoods().getAsVector() );
+            if (doMultiallelicMapping)
+            {
+                if (g.isHetNonRef()) {
+                    //all likelihoods go to homCount
+                    homCount += 1;
+                    continue;
+                }
+
+                //get alternate allele for each sample
+                final Allele a1 = g.getAllele(0);
+                final Allele a2 = g.getAllele(1);
+                if (a2.isNonReference()) {
+                    final int[] idxVector = vc.getGLIndecesOfAlternateAllele(a2);
+                    idxAA = idxVector[0];
+                    idxAB = idxVector[1];
+                    idxBB = idxVector[2];
+                }
+                //I expect hets to be reference first, but there are no guarantees (e.g. phasing)
+                else if (a1.isNonReference()) {
+                    final int[] idxVector = vc.getGLIndecesOfAlternateAllele(a1);
+                    idxAA = idxVector[0];
+                    idxAB = idxVector[1];
+                    idxBB = idxVector[2];
+                }
+            }
+
             refCount += normalizedLikelihoods[idxAA];
             hetCount += normalizedLikelihoods[idxAB];
             homCount += normalizedLikelihoods[idxBB];
         }
 
-        if( N < MIN_SAMPLES ) {
-            return null;
-        }
-
         final double p = ( 2.0 * refCount + hetCount ) / ( 2.0 * (refCount + hetCount + homCount) ); // expected reference allele frequency
         final double q = 1.0 - p; // expected alternative allele frequency
-        final double F = 1.0 - ( hetCount / ( 2.0 * p * q * (double)N ) ); // inbreeding coefficient
+        final double F = 1.0 - ( hetCount / ( 2.0 * p * q * (double) sampleCount) ); // inbreeding coefficient
 
+        return F;
+    }
+
+    protected Map<String, Object> makeCoeffAnnotation(final VariantContext vc) {
+        final GenotypesContext genotypes = (founderIds == null || founderIds.isEmpty()) ? vc.getGenotypes() : vc.getGenotypes(founderIds);
+        if (genotypes == null || genotypes.size() < MIN_SAMPLES || !vc.isVariant())
+            return null;
+        double F = calculateIC(vc, genotypes);
+        if (sampleCount < MIN_SAMPLES)
+            return null;
         return Collections.singletonMap(getKeyNames().get(0), (Object)String.format("%.4f", F));
     }
 

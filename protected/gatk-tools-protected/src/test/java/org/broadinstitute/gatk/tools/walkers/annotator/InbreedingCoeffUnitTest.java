@@ -44,83 +44,97 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.genotyper;
+package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import htsjdk.variant.variantcontext.*;
+import org.testng.Assert;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
-public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
+/**
+ * Created with IntelliJ IDEA.
+ * User: gauthier
+ * Date: 7/10/14
+ */
+public class InbreedingCoeffUnitTest {
+    private static double DELTA_PRECISION = 0.001;
+    Allele Aref, T, C, G, Cref, ATC, ATCATC;
 
-    private final static String baseCommand = "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b36KGReference + " --no_cmdline_in_header -glm BOTH -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
+    @BeforeSuite
+    public void setup() {
+        // alleles
+        Aref = Allele.create("A", true);
+        Cref = Allele.create("C", true);
+        T = Allele.create("T");
+        C = Allele.create("C");
+        G = Allele.create("G");
+        ATC = Allele.create("ATC");
+        ATCATC = Allele.create("ATCATC");
+    }
 
-    // --------------------------------------------------------------------------------------------------------------
-    //
-    // testing normal calling
-    //
-    // --------------------------------------------------------------------------------------------------------------
-    @Test
-    public void testMultiSamplePilot1() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000", 1,
-                Arrays.asList("058b54cff14527485c7b1ab035ebb6c4"));
-        executeTest("test MultiSample Pilot1", spec);
+    private Genotype makeGwithPLs(String sample, Allele a1, Allele a2, double[] pls) {
+        Genotype gt = new GenotypeBuilder(sample, Arrays.asList(a1, a2)).PL(pls).make();
+        if ( pls != null && pls.length > 0 ) {
+            Assert.assertNotNull(gt.getPL());
+            Assert.assertTrue(gt.getPL().length > 0);
+            for ( int i : gt.getPL() ) {
+                Assert.assertTrue(i >= 0);
+            }
+            Assert.assertNotEquals(Arrays.toString(gt.getPL()),"[0]");
+        }
+        return gt;
+    }
+
+    private Genotype makeG(String sample, Allele a1, Allele a2) {
+        return GenotypeBuilder.create(sample, Arrays.asList(a1, a2));
+    }
+
+    private Genotype makeG(String sample, Allele a1, Allele a2, int... pls) {
+        return new GenotypeBuilder(sample, Arrays.asList(a1, a2)).PL(pls).make();
+    }
+
+    private VariantContext makeVC(String source, List<Allele> alleles, Genotype... genotypes) {
+        int start = 10;
+        int stop = start; // alleles.contains(ATC) ? start + 3 : start;
+        return new VariantContextBuilder(source, "1", start, stop, alleles).genotypes(Arrays.asList(genotypes)).filters(null).make();
     }
 
     @Test
-    public void testWithAllelesPassedIn1() {
-        WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
-                baseCommand + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "allelesForUG.vcf -I " + validationDataLocation + "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,025,000", 1,
-                Arrays.asList("ebfcc3dd8c1788929cb50050c5d456df"));
-        executeTest("test MultiSample Pilot2 with alleles passed in", spec1);
-    }
+    public void testInbreedingCoeffForMultiallelicVC() {
+        //make sure that compound gets (with no ref) don't add to het count
+        VariantContext test1 = makeVC("1",Arrays.asList(Aref,T,C),
+                makeG("s1",Aref,T,2530,0,7099,366,3056,14931),
+                makeG("s2",T,T,7099,2530,0,7099,366,3056,14931),
+                makeG("s3",T,C,7099,2530,7099,3056,0,14931),
+                makeG("s4",Aref,T,2530,0,7099,366,3056,14931),
+                makeG("s5",T,T,7099,2530,0,7099,366,3056,14931),
+                makeG("s6",Aref,T,2530,0,7099,366,3056,14931),
+                makeG("s7",T,T,7099,2530,0,7099,366,3056,14931),
+                makeG("s8",Aref,T,2530,0,7099,366,3056,14931),
+                makeG("s9",T,T,7099,2530,0,7099,366,3056,14931),
+                makeG("s10",Aref,T,2530,0,7099,366,3056,14931));
 
-    @Test
-    public void testWithAllelesPassedIn2() {
-        WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
-                baseCommand + " --output_mode EMIT_ALL_SITES --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "allelesForUG.vcf -I " + validationDataLocation + "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,025,000", 1,
-                Arrays.asList("3e646003c5b93da80c7d8e5d0ff2ee4e"));
-        executeTest("test MultiSample Pilot2 with alleles passed in and emitting all sites", spec2);
-    }
+        final double ICresult1 = new InbreedingCoeff().calculateIC(test1, test1.getGenotypes());
+        Assert.assertEquals(ICresult1, -0.3333333, DELTA_PRECISION, "Pass");
 
-    @Test
-    public void testSingleSamplePilot2() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,100,000", 1,
-                Arrays.asList("75503fce7521378f8c2170094aff29df"));
-        executeTest("test SingleSample Pilot2", spec);
-    }
+        //make sure that hets with different alternate alleles all get counted
+        VariantContext test2 = makeVC("2", Arrays.asList(Aref,T,C),
+            makeG("s1",Aref,C,4878,1623,11297,0,7970,8847),
+            makeG("s2",Aref,T,2530,0,7099,366,3056,14931),
+            makeG("s3",Aref,T,3382,0,6364,1817,5867,12246),
+            makeG("s4",Aref,T,2488,0,9110,3131,9374,12505),
+            makeG("s5",Aref,C,4530,2006,18875,0,6847,23949),
+            makeG("s6",Aref,T,5325,0,18692,389,16014,24570),
+            makeG("s7",Aref,T,2936,0,29743,499,21979,38630),
+            makeG("s8",Aref,T,6902,0,8976,45,5844,9061),
+            makeG("s9",Aref,T,5732,0,10876,6394,11408,17802),
+            makeG("s10",Aref,T,2780,0,25045,824,23330,30939));
 
-    @Test
-    public void testMultipleSNPAlleles() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH --dbsnp " + b37dbSNP129 + " -I " + privateTestDir + "multiallelic.snps.bam -o %s -L " + privateTestDir + "multiallelic.snps.intervals", 1,
-                Arrays.asList("120270ddf48dfd461f756c89ea1ab074"));
-        executeTest("test Multiple SNP alleles", spec);
-    }
-
-    @Test
-    public void testBadRead() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH -I " + privateTestDir + "badRead.test.bam -o %s -L 1:22753424-22753464", 1,
-                Arrays.asList("d915535c1458733f09f82670092fcab6"));
-        executeTest("test bad read", spec);
-    }
-
-    @Test
-    public void testReverseTrim() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam -o %s -L 20:10289124 -L 20:10090289", 1,
-                Arrays.asList("bc5a143868e3ad3acc9bb7c09798cdf2"));
-        executeTest("test reverse trim", spec);
-    }
-
-    @Test
-    public void testMismatchedPLs() {
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + privateTestDir + "mismatchedPLs.bam -o %s -L 1:24020341", 1,
-                Arrays.asList("02fd6357bd1082115822c8a931cbb6a3"));
-        executeTest("test mismatched PLs", spec);
+        final double ICresult2 = new InbreedingCoeff().calculateIC(test2, test2.getGenotypes());
+        Assert.assertEquals(ICresult2, -1.0, DELTA_PRECISION, "Pass");
     }
 }
