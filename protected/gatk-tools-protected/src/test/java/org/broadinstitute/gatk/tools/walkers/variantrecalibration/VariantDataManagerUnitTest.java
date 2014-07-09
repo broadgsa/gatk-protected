@@ -48,11 +48,12 @@ package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.broadinstitute.gatk.utils.BaseTest;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Arrays;
 
 /**
  * Created with IntelliJ IDEA.
@@ -109,7 +110,7 @@ public class VariantDataManagerUnitTest extends BaseTest {
             meanVector[iii] = vdm.mean(iii, true);
         }
         final List<Integer> order = vdm.calculateSortOrder(meanVector);
-        Assert.assertArrayEquals(new int[]{2,1,0}, ArrayUtils.toPrimitive(order.toArray(new Integer[order.size()])));
+        Assert.assertTrue(Arrays.equals(new int[]{2,1,0}, ArrayUtils.toPrimitive(order.toArray(new Integer[order.size()]))));
     }
 
     @Test
