@@ -46,10 +46,10 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
-import junit.framework.Assert;
 import org.broadinstitute.gatk.utils.BaseTest;
 import htsjdk.variant.vcf.VCFConstants;
 import org.testng.annotations.Test;
+import org.testng.Assert;
 
 /**
  * Created with IntelliJ IDEA.

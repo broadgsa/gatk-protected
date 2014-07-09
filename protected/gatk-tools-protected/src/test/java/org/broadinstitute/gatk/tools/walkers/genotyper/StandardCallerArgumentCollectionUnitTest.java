@@ -45,13 +45,13 @@
 */
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import junit.framework.Assert;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCallerArgumentCollection;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import org.testng.Assert;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
