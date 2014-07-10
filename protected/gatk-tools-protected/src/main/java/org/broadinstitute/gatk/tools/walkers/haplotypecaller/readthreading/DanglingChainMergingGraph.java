@@ -315,13 +315,13 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      */
     protected DanglingChainMergeHelper generateCigarAgainstDownwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor) {
 
-        // find the lowest common ancestor path between vertex and the reference sink if available
-        final List<MultiDeBruijnVertex> altPath = findPathUpwardsToLowestCommonAncestorOfReference(vertex, pruneFactor);
+        // find the lowest common ancestor path between this vertex and the diverging master path if available
+        final List<MultiDeBruijnVertex> altPath = findPathUpwardsToLowestCommonAncestor(vertex, pruneFactor);
         if ( altPath == null || isRefSource(altPath.get(0)) || altPath.size() < MIN_DANGLING_TAIL_LENGTH )
             return null;
 
         // now get the reference path from the LCA
-        final List<MultiDeBruijnVertex> refPath = getReferencePath(altPath.get(0), TraversalDirection.downwards);
+        final List<MultiDeBruijnVertex> refPath = getReferencePath(altPath.get(0), TraversalDirection.downwards, Arrays.asList(incomingEdgeOf(altPath.get(1))));
 
         // create the Smith-Waterman strings to use
         final byte[] refBases = getBasesForPath(refPath, false);
@@ -348,7 +348,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
             return null;
 
         // now get the reference path from the LCA
-        final List<MultiDeBruijnVertex> refPath = getReferencePath(altPath.get(0), TraversalDirection.upwards);
+        final List<MultiDeBruijnVertex> refPath = getReferencePath(altPath.get(0), TraversalDirection.upwards, Collections.<MultiSampleEdge>emptyList());
 
         // create the Smith-Waterman strings to use
         final byte[] refBases = getBasesForPath(refPath, true);
@@ -360,19 +360,19 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
     }
 
     /**
-     * Finds the path upwards in the graph from this vertex to the reference sequence, including the lowest common ancestor vertex.
+     * Finds the path upwards in the graph from this vertex to the first diverging node, including that (lowest common ancestor) vertex.
      * Note that nodes are excluded if their pruning weight is less than the pruning factor.
      *
      * @param vertex   the original vertex
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
-     * @return the path if it can be determined or null if this vertex either doesn't merge onto the reference path or
+     * @return the path if it can be determined or null if this vertex either doesn't merge onto another path or
      *  has an ancestor with multiple incoming edges before hitting the reference path
      */
-    protected List<MultiDeBruijnVertex> findPathUpwardsToLowestCommonAncestorOfReference(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected List<MultiDeBruijnVertex> findPathUpwardsToLowestCommonAncestor(final MultiDeBruijnVertex vertex, final int pruneFactor) {
         final LinkedList<MultiDeBruijnVertex> path = new LinkedList<>();
 
         MultiDeBruijnVertex v = vertex;
-        while ( ! isReferenceNode(v) && inDegreeOf(v) == 1 ) {
+        while ( inDegreeOf(v) == 1 && outDegreeOf(v) < 2 ) {
             final MultiSampleEdge edge = incomingEdgeOf(v);
             // if it has too low a weight, don't use it (or previous vertexes) for the path
             if ( edge.getPruningMultiplicity() < pruneFactor )
@@ -384,7 +384,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         }
         path.addFirst(v);
 
-        return isReferenceNode(v) ? path : null;
+        return outDegreeOf(v) > 1 ? path : null;
     }
 
     /**
@@ -426,17 +426,19 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      *
      * @param start   the reference vertex to start from
      * @param direction describes which direction to move in the graph (i.e. down to the reference sink or up to the source)
+     * @param blacklistedEdges edges to ignore in the traversal down; useful to exclude the non-reference dangling paths
      * @return the path (non-null, non-empty)
      */
-    protected List<MultiDeBruijnVertex> getReferencePath(final MultiDeBruijnVertex start, final TraversalDirection direction) {
-        if ( ! isReferenceNode(start) ) throw new IllegalArgumentException("Cannot construct the reference path from a vertex that is not on that path");
+    protected List<MultiDeBruijnVertex> getReferencePath(final MultiDeBruijnVertex start,
+                                                         final TraversalDirection direction,
+                                                         final Collection<MultiSampleEdge> blacklistedEdges) {
 
         final List<MultiDeBruijnVertex> path = new ArrayList<>();
 
         MultiDeBruijnVertex v = start;
         while ( v != null ) {
             path.add(v);
-            v = (direction == TraversalDirection.downwards ? getNextReferenceVertex(v) : getPrevReferenceVertex(v));
+            v = (direction == TraversalDirection.downwards ? getNextReferenceVertex(v, true, blacklistedEdges) : getPrevReferenceVertex(v));
         }
 
         return path;

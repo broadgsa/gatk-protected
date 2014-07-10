@@ -274,6 +274,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected boolean dontIncreaseKmerSizesForCycles = false;
 
     @Advanced
+    @Argument(fullName="allowNonUniqueKmersInRef", shortName="allowNonUniqueKmersInRef", doc="Should we allow graphs which have non-unique kmers in the reference?", required = false)
+    protected boolean allowNonUniqueKmersInRef = false;
+
+    @Advanced
     @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="The number of samples that must pass the minPuning factor in order for the path to be kept", required = false)
     protected int numPruningSamples = 1;
 
@@ -615,7 +619,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         // create and setup the assembler
-        assemblyEngine = new ReadThreadingAssembler(maxNumHaplotypesInPopulation, kmerSizes, dontIncreaseKmerSizesForCycles, numPruningSamples);
+        assemblyEngine = new ReadThreadingAssembler(maxNumHaplotypesInPopulation, kmerSizes, dontIncreaseKmerSizesForCycles, allowNonUniqueKmersInRef, numPruningSamples);
 
         assemblyEngine.setErrorCorrectKmers(errorCorrectKmers);
         assemblyEngine.setPruneFactor(MIN_PRUNE_FACTOR);

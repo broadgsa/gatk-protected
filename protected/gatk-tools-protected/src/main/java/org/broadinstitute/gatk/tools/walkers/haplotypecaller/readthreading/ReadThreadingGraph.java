@@ -435,7 +435,7 @@ public class ReadThreadingGraph extends DanglingChainMergingGraph implements Kme
      * @param kmerSize the size of the kmers
      * @return a non-null collection of non-unique kmers in sequence
      */
-    private Collection<Kmer> determineNonUniqueKmers(final SequenceForKmers seqForKmers, final int kmerSize) {
+    static protected Collection<Kmer> determineNonUniqueKmers(final SequenceForKmers seqForKmers, final int kmerSize) {
         // count up occurrences of kmers within each read
         final KMerCounter counter = new KMerCounter(kmerSize);
         final int stopPosition = seqForKmers.stop - kmerSize;
