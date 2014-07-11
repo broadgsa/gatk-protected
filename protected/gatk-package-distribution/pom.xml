@@ -58,6 +58,18 @@
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
         </dependency>
+        <!--
+        Some cofoja annotations (ex: PreconditionError) are ONLY in used tests.
+        They are not picked up by shade, not required during normal runs, but are important for tests to avoid
+        the cryptic ArrayStoreExceptions. See also: http://bugs.java.com/view_bug.do?bug_id=7183985
+        If added as scope test, they are not included during runtime compilation.
+        So, as a workaround, could configure shade to just include the classes, but our
+        standard operating procedure so far has been to include classes as full artifacts.
+        -->
+        <dependency>
+            <groupId>com.google.code.cofoja</groupId>
+            <artifactId>cofoja</artifactId>
+        </dependency>
         <!-- Required for binary-dist assembly, excluded by shade -->
         <dependency>
             <groupId>${project.groupId}</groupId>
