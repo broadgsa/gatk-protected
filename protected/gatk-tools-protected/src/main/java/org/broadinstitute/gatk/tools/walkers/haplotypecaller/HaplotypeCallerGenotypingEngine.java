@@ -78,13 +78,16 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
+    private final boolean tryPhysicalPhasing;
+
     /**
      * {@inheritDoc}
      * @param toolkit {@inheritDoc}
      * @param configuration {@inheritDoc}
      */
-    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration) {
+    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final boolean tryPhysicalPhasing) {
         super(toolkit,configuration);
+        this.tryPhysicalPhasing = tryPhysicalPhasing;
     }
 
     /**
@@ -95,6 +98,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      */
     public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final Set<String> sampleNames) {
         super(toolkit,configuration,sampleNames);
+        tryPhysicalPhasing = false;
     }
 
 
@@ -279,7 +283,179 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             }
         }
 
-        return new CalledHaplotypes(returnCalls, calledHaplotypes);
+        final List<VariantContext> phasedCalls = tryPhysicalPhasing ? phaseCalls(returnCalls, calledHaplotypes) : returnCalls;
+        return new CalledHaplotypes(phasedCalls, calledHaplotypes);
+    }
+
+    /**
+     * Tries to phase the individual alleles based on pairwise comparisons to the other alleles based on all called haplotypes
+     *
+     * @param calls             the list of called alleles
+     * @param calledHaplotypes  the set of haplotypes used for calling
+     * @return a non-null list which represents the possibly phased version of the calls
+     */
+    protected List<VariantContext> phaseCalls(final List<VariantContext> calls, final Set<Haplotype> calledHaplotypes) {
+
+        // construct a mapping from alternate allele to the set of haplotypes that contain that allele
+        final Map<VariantContext, Set<Haplotype>> haplotypeMap = constructHaplotypeMapping(calls, calledHaplotypes);
+
+        // construct a mapping from call to phase set ID
+        final Map<VariantContext, Integer> phaseSetMapping = new HashMap<>();
+        final int uniqueCounterEndValue = constructPhaseSetMapping(calls, haplotypeMap, phaseSetMapping);
+
+        // we want to establish (potential) *groups* of phased variants, so we need to be smart when looking at pairwise phasing partners
+        return constructPhaseGroups(calls, phaseSetMapping, uniqueCounterEndValue);
+    }
+
+    /**
+     * Construct the mapping from alternate allele to the set of haplotypes that contain that allele
+     *
+     * @param originalCalls    the original unphased calls
+     * @param calledHaplotypes  the set of haplotypes used for calling
+     * @return non-null Map
+     */
+    protected static Map<VariantContext, Set<Haplotype>> constructHaplotypeMapping(final List<VariantContext> originalCalls,
+                                                                                   final Set<Haplotype> calledHaplotypes) {
+        final Map<VariantContext, Set<Haplotype>> haplotypeMap = new HashMap<>(originalCalls.size());
+        for ( final VariantContext call : originalCalls ) {
+            // don't try to phase if there is not exactly 1 alternate allele
+            if ( ! isBiallelic(call) ) {
+                haplotypeMap.put(call, Collections.<Haplotype>emptySet());
+                continue;
+            }
+
+            // keep track of the haplotypes that contain this particular alternate allele
+            final Set<Haplotype> hapsWithAllele = new HashSet<>();
+            final Allele alt = call.getAlternateAllele(0);
+
+            for ( final Haplotype h : calledHaplotypes ) {
+                for ( final VariantContext event : h.getEventMap().getVariantContexts() ) {
+                    if ( event.getStart() == call.getStart() && event.getAlternateAlleles().contains(alt) )
+                        hapsWithAllele.add(h);
+                }
+            }
+            haplotypeMap.put(call, hapsWithAllele);
+        }
+
+        return haplotypeMap;
+    }
+
+
+    /**
+     * Construct the mapping from call (variant context) to phase set ID
+     *
+     * @param originalCalls    the original unphased calls
+     * @param haplotypeMap     mapping from alternate allele to the set of haplotypes that contain that allele
+     * @param phaseSetMapping  the map to populate in this method
+     * @return the next incremental unique index
+     */
+    protected static int constructPhaseSetMapping(final List<VariantContext> originalCalls,
+                                                  final Map<VariantContext, Set<Haplotype>> haplotypeMap,
+                                                  final Map<VariantContext, Integer> phaseSetMapping) {
+
+        final int numCalls = originalCalls.size();
+        int uniqueCounter = 0;
+
+        // use the haplotype mapping to connect variants that are always present on the same haplotypes
+        for ( int i = 0; i < numCalls - 1; i++ ) {
+            final VariantContext call = originalCalls.get(i);
+            final Set<Haplotype> haplotypesWithCall = haplotypeMap.get(call);
+            if ( haplotypesWithCall.isEmpty() )
+                continue;
+
+            for ( int j = i+1; j < numCalls; j++ ) {
+                final VariantContext comp = originalCalls.get(j);
+                final Set<Haplotype> haplotypesWithComp = haplotypeMap.get(comp);
+
+                // if the variants are in phase, record that fact
+                if ( haplotypesWithCall.size() == haplotypesWithComp.size() && haplotypesWithCall.containsAll(haplotypesWithComp) ) {
+                    // if it's part of an existing group, use that group's unique ID
+                    if ( phaseSetMapping.containsKey(call) ) {
+                        phaseSetMapping.put(comp, phaseSetMapping.get(call));
+                    // otherwise, create a new group
+                    } else {
+                        phaseSetMapping.put(call, uniqueCounter);
+                        phaseSetMapping.put(comp, uniqueCounter);
+                        uniqueCounter++;
+                    }
+                }
+            }
+        }
+
+        return uniqueCounter;
+    }
+
+    /**
+     * Assemble the phase groups together and update the original calls accordingly
+     *
+     * @param originalCalls    the original unphased calls
+     * @param phaseSetMapping  mapping from call (variant context) to phase group ID
+     * @param indexTo          last index (exclusive) of phase group IDs
+     * @return a non-null list which represents the possibly phased version of the calls
+     */
+    protected static List<VariantContext> constructPhaseGroups(final List<VariantContext> originalCalls,
+                                                               final Map<VariantContext, Integer> phaseSetMapping,
+                                                               final int indexTo) {
+        final List<VariantContext> phasedCalls = new ArrayList<>(originalCalls);
+
+        // if we managed to find any phased groups, update the VariantContexts
+        for ( int count = 0; count < indexTo; count++ ) {
+            // get all of the (indexes of the) calls that belong in this group (keeping them in the original order)
+            final List<Integer> indexes = new ArrayList<>();
+            for ( int index = 0; index < originalCalls.size(); index++ ) {
+                final VariantContext call = originalCalls.get(index);
+                if ( phaseSetMapping.containsKey(call) && phaseSetMapping.get(call) == count )
+                    indexes.add(index);
+            }
+            if ( indexes.size() < 2 )
+                throw new IllegalStateException("Somehow we have a group of phased variants that has fewer than 2 members");
+
+            // create a unique ID based on the leftmost one
+            final String uniqueID = createUniqueID(originalCalls.get(indexes.get(0)));
+
+            // update the VCs
+            for ( final int index : indexes ) {
+                final VariantContext phasedCall = phaseVC(originalCalls.get(index), uniqueID);
+                phasedCalls.set(index, phasedCall);
+            }
+        }
+
+        return phasedCalls;
+    }
+
+    /**
+     * Is this variant bi-allelic?  This implementation is very much specific to this class so shouldn't be pulled out into a generalized place.
+     *
+     * @param vc the variant context
+     * @return true if this variant context is bi-allelic, ignoring the NON-REF symbolic allele, false otherwise
+     */
+    private static boolean isBiallelic(final VariantContext vc) {
+        return vc.isBiallelic() || (vc.getNAlleles() == 3 && vc.getAlternateAlleles().contains(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE));
+    }
+
+    /**
+     * Create a unique identifier given the variant context
+     *
+     * @param vc   the variant context
+     * @return non-null String
+     */
+    private static String createUniqueID(final VariantContext vc) {
+        return String.format("%d_%s_%s", vc.getStart(), vc.getReference().getDisplayString(), vc.getAlternateAllele(0).getDisplayString());
+        // return base + "_0," + base + "_1";
+    }
+
+    /**
+     * Add physical phase information to the provided variant context
+     *
+     * @param vc   the variant context
+     * @param ID   the ID to use
+     * @return phased non-null variant context
+     */
+    private static VariantContext phaseVC(final VariantContext vc, final String ID) {
+        final List<Genotype> phasedGenotypes = new ArrayList<>();
+        for ( final Genotype g : vc.getGenotypes() )
+            phasedGenotypes.add(new GenotypeBuilder(g).attribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_KEY, ID).make());
+        return new VariantContextBuilder(vc).genotypes(phasedGenotypes).make();
     }
 
     /**

@@ -495,6 +495,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="If specified, we will merge variants together into block substitutions that are in strong local LD", required = false)
     protected boolean mergeVariantsViaLD = false;
 
+    @Advanced
+    @Argument(fullName="tryPhysicalPhasing", shortName="tryPhysicalPhasing", doc="If specified, we will add physical (read-based) phasing information", required = false)
+    protected boolean tryPhysicalPhasing = false;
+
+    public static final String HAPLOTYPE_CALLER_PHASING_KEY = "HCP";
+
     // -----------------------------------------------------------------------------------------------
     // arguments for debugging / developing the haplotype caller
     // -----------------------------------------------------------------------------------------------
@@ -671,7 +677,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
             throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
 
-        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(),SCAC);
+        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(), SCAC, tryPhysicalPhasing);
         // initialize the output VCF header
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
@@ -691,6 +697,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 VCFConstants.GENOTYPE_QUALITY_KEY,
                 VCFConstants.DEPTH_KEY,
                 VCFConstants.GENOTYPE_PL_KEY);
+
+        if ( tryPhysicalPhasing )
+            headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_KEY, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Physical phasing information, each unique ID within a given sample (but not across samples) connects alternate alleles as occurring on the same haplotype"));
 
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
