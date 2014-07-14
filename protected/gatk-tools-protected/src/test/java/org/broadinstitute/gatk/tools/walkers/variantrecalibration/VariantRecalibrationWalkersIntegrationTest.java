@@ -124,6 +124,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -an QD -an HaplotypeScore -an HRun" +
                         " --trustAllPolymorphic" + // for speed
                         " -recalFile %s" +
+                        " -mode SNP" +
                         " -tranchesFile %s",
                 Arrays.asList(params.recalMD5, params.tranchesMD5));
         final List<File> outputFiles = executeTest("testVariantRecalibrator-"+params.inVCF, spec).getFirst();
@@ -139,6 +140,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " --no_cmdline_in_header" +
                         " -input " + params.inVCF +
                         " -U LENIENT_VCF_PROCESSING -o %s" +
+                        " -mode SNP" +
                         " -tranchesFile " + getMd5DB().getMD5FilePath(params.tranchesMD5, null) +
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
@@ -163,6 +165,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -an QD -an HaplotypeScore -an MQ" +
                         " --trustAllPolymorphic" + // for speed
                         " -recalFile %s" +
+                        " -mode SNP" +
                         " -tranchesFile %s",
                 Arrays.asList(params.recalMD5, params.tranchesMD5));
         final List<File> outputFiles = executeTest("testVariantRecalibratorAggregate-"+params.inVCF, spec).getFirst();
@@ -178,6 +181,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " --no_cmdline_in_header" +
                         " -input " + params.inVCF +
                         " -U LENIENT_VCF_PROCESSING -o %s" +
+                        " -mode SNP" +
                         " -tranchesFile " + getMd5DB().getMD5FilePath(params.tranchesMD5, null) +
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
@@ -212,6 +216,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -an QD -an ReadPosRankSum -an FS -an InbreedingCoeff " + // floats value
                         " -mG 2 "+
                         " -recalFile %s" +
+                        " -mode SNP" +
                         " -tranchesFile %s",
                 2,
                 Arrays.asList("bcf", "txt"),
@@ -229,6 +234,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " --no_cmdline_in_header" +
                         " -input " + params.inVCF +
                         " -U LENIENT_VCF_PROCESSING -o %s" +
+                        " -mode SNP" +
                         " -tranchesFile " + getMd5DB().getMD5FilePath(params.tranchesMD5, null) +
                         " -recalFile " + getMd5DB().getMD5FilePath(params.recalMD5, null),
                 Arrays.asList(params.cutVCFMD5));
