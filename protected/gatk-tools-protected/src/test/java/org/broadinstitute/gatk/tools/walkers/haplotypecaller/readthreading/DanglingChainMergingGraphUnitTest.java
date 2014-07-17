@@ -174,8 +174,10 @@ public class DanglingChainMergingGraphUnitTest extends BaseTest {
             v = graph.getNextReferenceVertex(v);
         }
 
-        final String result = new String(graph.getBasesForPath(vertexes, false));
-        Assert.assertEquals(result, testString);
+        final String resultForTails = new String(graph.getBasesForPath(vertexes, false));
+        Assert.assertEquals(resultForTails, testString.substring(kmerSize-1));
+        final String resultForHeads = new String(graph.getBasesForPath(vertexes, true));
+        Assert.assertEquals(resultForHeads, "GTAAGGGCAATACTA");  // because the source node will be reversed
     }
 
     @DataProvider(name = "DanglingHeads")

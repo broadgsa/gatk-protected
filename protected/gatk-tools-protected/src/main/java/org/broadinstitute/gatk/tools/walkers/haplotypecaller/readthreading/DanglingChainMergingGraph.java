@@ -448,18 +448,18 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * The base sequence for the given path.
      *
      * @param path the list of vertexes that make up the path
-     * @param reverseIfSource if true and if we encounter a source node, then reverse the character sequence for that node
+     * @param expandSource if true and if we encounter a source node, then expand (and reverse) the character sequence for that node
      * @return  non-null sequence of bases corresponding to the given path
      */
     @Ensures({"result != null"})
-    public byte[] getBasesForPath(final List<MultiDeBruijnVertex> path, final boolean reverseIfSource) {
+    public byte[] getBasesForPath(final List<MultiDeBruijnVertex> path, final boolean expandSource) {
         if ( path == null ) throw new IllegalArgumentException("Path cannot be null");
 
         final StringBuilder sb = new StringBuilder();
         for ( final MultiDeBruijnVertex v : path ) {
-            if ( isSource(v) ) {
+            if ( expandSource && isSource(v) ) {
                 final String seq = v.getSequenceString();
-                sb.append(reverseIfSource ? new StringBuilder(seq).reverse().toString() : seq);
+                sb.append(new StringBuilder(seq).reverse().toString());
             } else {
                 sb.append((char)v.getSuffix());
             }
