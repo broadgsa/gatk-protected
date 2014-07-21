@@ -65,15 +65,17 @@ public class PosteriorLikelihoodsUtils {
                                                        final double globalFrequencyPriorDirichlet,
                                                        final boolean useInputSamples,
                                                        final boolean useAC,
-                                                       final boolean calcMissing) {
+                                                       final boolean useACoff) {
 
         final Map<Allele,Integer> totalAlleleCounts = new HashMap<>();
         boolean nonSNPprior = false;
         if (vc1 == null) throw new IllegalArgumentException("VariantContext vc1 is null");
         final boolean nonSNPeval = !vc1.isSNP();
         final double[] alleleCounts = new double[vc1.getNAlleles()];
+        //only use discovered allele count if there are at least 10 samples
+        final boolean useDiscoveredAC = !useACoff && vc1.getNSamples() >= 10;
 
-        if(!nonSNPeval)
+        if(vc1.isSNP())
         {
             //store the allele counts for each allele in the variant priors
             for ( final VariantContext resource : resources ) {
@@ -111,7 +113,7 @@ public class PosteriorLikelihoodsUtils {
                 //parse the PPs into a vector of probabilities
                 if (PPfromVCF instanceof String) {
                     final String PPstring = (String)PPfromVCF;
-                    if (PPstring.charAt(0)=='.')  //samples not in trios will have PP tag like ".,.,." after family priors are applied
+                    if (PPstring.charAt(0)=='.')  //samples not in trios will have PP tag like ".,.,." if family priors are applied
                         likelihoods.add(genotype.hasLikelihoods() ? genotype.getLikelihoods().getAsVector() : null );
                     else {
                         final String[] likelihoodsAsStringVector = PPstring.split(",");
@@ -135,7 +137,7 @@ public class PosteriorLikelihoodsUtils {
         }
 
         //TODO: for now just use priors that are SNPs because indel priors will bias SNP calls
-        final boolean useFlatPriors = nonSNPeval || nonSNPprior || (resources.isEmpty() && !calcMissing);
+        final boolean useFlatPriors = nonSNPeval || nonSNPprior || (resources.isEmpty() && !useDiscoveredAC);
 
         final List<double[]> posteriors = calculatePosteriorGLs(likelihoods,alleleCounts,vc1.getMaxPloidy(2), useFlatPriors);
 
