@@ -75,15 +75,25 @@ import java.util.*;
 
 
 /**
- * Phred-scaled p-value using Fisher's Exact Test to detect strand bias
+ * Strand bias estimated using Fisher's Exact Test
  *
- * <p>Phred-scaled p-value using Fisher's Exact Test to detect strand bias (the variation
- * being seen on only the forward or only the reverse strand) in the reads. More bias is
- * indicative of false positive calls.
- * </p>
+ * <p>Strand bias is a type of sequencing bias in which one DNA strand is favored over the other, which can result in incorrect evaluation of the amount of evidence observed for one allele vs. the other. The FisherStrand annotation is one of several methods that aims to evaluate whether there is strand bias in the data. It uses Fisher's Exact Test to determine if there is strand bias between forward and reverse strands for the reference or alternate allele.”</p>
+ * <p>The output is a Phred-scaled p-value. The higher the output value, the more likely there is to be bias. More bias is indicative of false positive calls.</p>
  *
- * <h3>Caveat</h3>
- * <p>The Fisher Strand test may not be calculated for certain complex indel cases or for multi-allelic sites.</p>
+ * <h3>Statistical notes</h3>
+ * <p>See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this application of Fisher's Exact Test.</p>
+ *
+ * <h3>Caveats</h3>
+ * <ul>
+ *     <li>The FisherStrand test may not be calculated for certain complex indel cases or for multi-allelic sites.</li>
+ *     <li>FisherStrand is best suited for low coverage situations. For testing strand bias in higher coverage situations, see the StrandOddsRatio annotation.</li>
+ * </ul>
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_StrandBiasBySample.php">StrandBiasBySample</a></b> outputs counts of read depth per allele for each strand orientation.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php">StrandOddsRatio</a></b> is an updated form of FisherStrand that uses a symmetric odds ratio calculation.</li>
+ * </ul>
+ *
  */
 public class FisherStrand extends StrandBiasTest implements StandardAnnotation, ActiveRegionBasedAnnotation {
     private final static boolean ENABLE_DEBUGGING = false;

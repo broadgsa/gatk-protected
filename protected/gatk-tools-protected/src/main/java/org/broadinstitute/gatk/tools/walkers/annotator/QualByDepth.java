@@ -71,10 +71,21 @@ import htsjdk.variant.variantcontext.VariantContext;
 import java.util.*;
 
 /**
- * Variant confidence (from the QUAL field) / unfiltered depth of non-reference samples.  Note that the QD is also normalized by event length.
+ * Variant confidence normalized by unfiltered depth of variant samples
  *
- * Low scores are indicative of false positive calls and artifacts.  Note that QualByDepth requires sequencing
- * reads associated with the samples with polymorphic genotypes.
+ * <p>This annotation puts the variant confidence QUAL score in perspective by normalizing for the amount of coverage available. Because each read contributes a little to the QUAL score, variants in regions with deep coverage can have artificially inflated QUAL scores, giving the impression that the call is supported by more evidence than it really is. To compensate for this, we normalize the variant confidence by depth, which gives us a more objective picture of how well supported the call is.</p>
+ *
+ * <h3>Statistical notes</h3>
+ * <p>The calculation only takes into account coverage from samples genotyped as having the variant allele(s). This removes the influence of any homozygous-reference samples that might be present in the same cohort, which would otherwise penalize the call unfairly.</p>
+ *
+ * <h3>Caveats</h3>
+ * <p>This annotation can only be calculated for sites for which at least one sample was genotyped as carrying a variant allele.</p>
+ *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_Coverage.php">Coverage</a></b> gives the filtered depth of coverage for each sample and the unfiltered depth across all samples.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_DepthPerAlleleBySample.php">DepthPerAlleleBySample</a></b> calculates depth of coverage for each allele per sample (AD).</li>
+ * </ul>
  */
 public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 //    private final static Logger logger = Logger.getLogger(QualByDepth.class);

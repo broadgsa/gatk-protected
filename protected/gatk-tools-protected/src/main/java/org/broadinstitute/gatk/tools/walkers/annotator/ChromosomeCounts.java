@@ -70,15 +70,21 @@ import java.util.*;
 
 
 /**
- * Allele counts and frequency for each ALT allele and total number of alleles in called genotypes
+ * Counts and frequency of alleles in called genotypes
  *
- * <p>This annotation tool outputs the following:
+ * <p>This annotation outputs the following:</p>
  *
  *     <ul>
- *     <li>Allele count in genotypes, for each ALT allele, in the same order as listed</li>
- *     <li>Allele Frequency, for each ALT allele, in the same order as listed</li>
- *     <li>Total number of alleles in called genotypes</li>
- * </ul></p>
+ *     <li>Number of times each ALT allele is represented, in the same order as listed (AC)</li>
+ *     <li>Frequency of each ALT allele, in the same order as listed (AF)</li>
+ *     <li>Total number of alleles in called genotypes (AN)</li>
+ * </ul>
+ * <h3>Example</h3>
+ * <pre>AC=1;AF=0.500;AN=2</pre>
+ * <p>This set of annotations, relating to a heterozygous call(0/1) means there is 1 alternate allele in the genotype. The corresponding allele frequency is 0.5 because there is 1 alternate allele and 1 reference allele in the genotype.
+ * The total number of alleles in the genotype should be equivalent to the ploidy of the sample.</p>
+ *
+
  */
 public class ChromosomeCounts extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 

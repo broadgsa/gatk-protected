@@ -75,12 +75,10 @@ import java.util.Map;
 /**
  * GC content of the reference around the given site
  *
- * <p>The GC content is the number of GC bases relative to the total number of bases (# GC bases / # all bases) around this site on the reference.</p>
+ * <p>The GC content is the number of GC bases relative to the total number of bases (# GC bases / # all bases) around this site on the reference. Some sequencing technologies have trouble with high GC content because of the stronger bonds of G-C nucleotide pairs, so high GC values tend to be associated with low coverage depth and lower confidence calls.</p>
  *
  * <h3>Caveat</h3>
- * <p>The window size used to calculate the GC content around the site is set by the tool used for annotation
- * (currently UnifiedGenotyper, HaplotypeCaller or VariantAnnotator). See the Technical Document for each tool
- * to find out what window size they use.</p>
+ * <p>The window size used to calculate the GC content around the site is determined by the tool used for annotation (UnifiedGenotyper, HaplotypeCaller or VariantAnnotator). See the <a href="https://www.broadinstitute.org/gatk/guide/tooldocs/">Tool Documentation</a> for each of these tools to find out what window size they use.</p>
  */
 public class GCContent extends InfoFieldAnnotation {
 

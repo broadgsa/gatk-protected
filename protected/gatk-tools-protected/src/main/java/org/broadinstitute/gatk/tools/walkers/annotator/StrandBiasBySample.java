@@ -66,10 +66,29 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import java.util.*;
 
 /**
- * Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias
- * User: rpoplin
- * Date: 8/28/13
+ * Number of forward and reverse reads that support REF and ALT alleles
+ *
+ * <p>Strand bias is a type of sequencing bias in which one DNA strand is favored over the other, which can result in incorrect evaluation of the amount of evidence observed for one allele vs. the other. The StrandBiasBySample annotation is produces read counts per allele and per strand that are used by other annotation modules (FisherStrand and StrandOddsRatio) to estimate strand bias using statistical approaches.
+ *
+ * <p>This annotation produces 4 values, corresponding to the number of reads that support the following (in that order):</p>
+ * <ul>
+ *     <li>the reference allele on the forward strand</li>
+ *     <li>the reference allele on the reverse strand</li>
+ *     <li>the alternate allele on the forward strand</li>
+ *     <li>the alternate allele on the reverse strand</li>
+ * </ul>
+ *
+ * <h3>Example</h3>
+ * <pre>GT:AD:GQ:PL:SB  0/1:53,51:99:1758,0,1835:23,30,33,18</pre>
+ * <p>In this example, the reference allele is supported by 23 forward reads and 30 reverse reads, the alternate allele is supported by 33 forward reads and 18 reverse reads.</p>
+ *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_FisherStrand.php">FisherStrand</a></b> uses Fisher's Exact Test to evaluate strand bias.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php">StrandOddsRatio</a></b> is an updated form of FisherStrand that uses a symmetric odds ratio calculation.</li>
+ * </ul>
  */
+
 
 public class StrandBiasBySample extends GenotypeAnnotation {
 

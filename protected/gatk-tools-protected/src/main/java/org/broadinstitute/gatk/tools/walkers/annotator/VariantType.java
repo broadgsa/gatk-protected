@@ -65,10 +65,9 @@ import htsjdk.variant.variantcontext.VariantContext;
 import java.util.*;
 
 /**
- * Assigns a roughly correct category of the variant type (SNP, MNP, insertion, deletion, etc.)
+ * General category of variant
  *
- * <p>This tool assigns a roughly correct category of the variant type (SNP, MNP, insertion, deletion, etc.).
- * It also specifies whether the variant is multiallelic (>2 alleles).</p>
+ * <p>This annotation assigns a roughly correct category of the variant type (SNP, MNP, insertion, deletion, etc.). It also specifies whether the variant is multiallelic (>2 alleles).</p>
  */
 public class VariantType extends InfoFieldAnnotation {
 

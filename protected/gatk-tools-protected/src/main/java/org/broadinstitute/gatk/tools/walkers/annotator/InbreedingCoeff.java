@@ -72,12 +72,16 @@ import java.util.*;
 
 
 /**
- * Likelihood-based (using PL field) test for the inbreeding among samples.
+ * Likelihood-based test for the inbreeding among samples
  *
- * A continuous generalization of the Hardy-Weinberg test for disequilibrium that works
- * well with limited coverage per sample.  See the 1000 Genomes Phase I release for
- * more information.  Note that the Inbreeding Coefficient can only be calculated for
- * cohorts containing at least 10 founder samples.
+ * <p>This annotation estimates whether there is evidence of inbreeding in a population. The higher the score, the higher the chance that there is inbreeding.</p>
+ *
+ * <h3>Statistical notes</h3>
+ * <p>The calculation is a continuous generalization of the Hardy-Weinberg test for disequilibrium that works well with limited coverage per sample. The output is a Phred-scaled p-value derived from running the HW test for disequilibrium with PL values. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
+ *
+ * <h3>Caveats</h3>
+ * <h4>Note that the Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</h4>
+ *
  */
 public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 

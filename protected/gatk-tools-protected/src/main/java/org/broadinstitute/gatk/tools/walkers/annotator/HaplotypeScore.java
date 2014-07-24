@@ -78,9 +78,13 @@ import java.io.Serializable;
 import java.util.*;
 
 /**
- * Consistency of the site with two (and only two) segregating haplotypes. Higher scores
- * are indicative of regions with bad alignments, often leading to artifactual SNP and indel calls.
- * Note that the Haplotype Score is only calculated for sites with read coverage.
+ * Consistency of the site with strictly two segregating haplotypes
+ *
+ * <p>For diploid organisms, barring chromosomal abnormalities, we expect that any given sample has no more than 2 segregating haplotypes at a given site. If there is evidence for more
+ * than 2 segregating haplotypes, the read data should be considered suspect and the evidence artifactual. Higher scores are indicative of regions with bad alignments, typically leading to artifactual SNP and indel calls.</p>
+ *
+ * <h3>Caveats</h3>
+ * <p>HaplotypeCaller does not output this annotation because it already evaluates haplotype segregation internally. This annotation is only informative (and available) for variants called by Unified Genotyper.</p>
  */
 public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
     private final static boolean DEBUG = false;

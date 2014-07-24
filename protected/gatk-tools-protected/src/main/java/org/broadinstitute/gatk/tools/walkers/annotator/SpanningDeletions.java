@@ -70,9 +70,16 @@ import java.util.Map;
 
 
 /**
- * Fraction of reads containing spanning deletions at this site
+ * Fraction of reads containing spanning deletions
  *
- * <p>Note that this annotation is currently not compatible with HaplotypeCaller.</p>
+ * <p>The presence of many reads with deletions spanning a given site is often an indication that a variant call made at that site is in fact a false positive. This annotation counts the number of reads that contain deletions spanning the site divided by the total number of reads that cover the site.</p>
+ *
+ * <h3>Caveats</h3>
+ * <ul>
+ *     <li>This annotation is not compatible with HaplotypeCaller; its purpose is to compensate for the UnifiedGenotyper's inability to integrate SNPs and indels in the same model (unlike HaplotypeCaller)</li>
+ *     <li>By default, the UnifiedGenotyper will not call variants where the fraction of spanning deletions is above a certain threshold. This threshold can be adjusted using the `--max_deletion_fraction` argument.</li>
+ * </ul>
+ *
  */
 public class SpanningDeletions extends InfoFieldAnnotation implements StandardAnnotation {
 

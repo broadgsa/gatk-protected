@@ -62,12 +62,16 @@ import java.util.*;
 
 
 /**
- * U-based z-approximation from the Mann-Whitney Rank Sum Test for base qualities
+ * Rank Sum Test of REF vs. ALT base quality scores
  *
- * <p>This tool calculates the u-based z-approximation from the Mann-Whitney Rank Sum Test for base qualities(ref bases vs. bases of the alternate allele).</p>
+ * <p>This variant-level annotation tests compares the base qualities of the data supporting the reference allele with those supporting the alternate allele. The ideal result is a value close to zero, which indicates there is little to no difference. A negative value indicates that the bases supporting the alternate allele have lower quality scores than those supporting the reference allele. Conversely, a positive value indicates that the bases supporting the alternate allele have higher quality scores than those supporting the reference allele. Finding a statistically significant difference either way suggests that the sequencing process may have been biased or affected by an artifact.</p>
+ *
+ * <h3>Statistical notes</h3>
+ * <p>The value output for this annotation is the u-based z-approximation from the Mann-Whitney-Wilcoxon Rank Sum Test for base qualities (bases supporting REF vs. bases supporting ALT). See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of the ranksum test.</p>
  *
  * <h3>Caveat</h3>
  * <p>The base quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
+ *
  */
 public class BaseQualityRankSumTest extends RankSumTest implements StandardAnnotation {
     @Override
