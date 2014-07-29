@@ -95,6 +95,7 @@ import org.broadinstitute.gatk.utils.variant.GATKVCFIndexType;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
@@ -613,6 +614,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     public void initialize() {
         super.initialize();
+
+        if (SCAC.genotypeArgs.samplePloidy != HomoSapiensConstants.DEFAULT_PLOIDY)
+            throw new UserException.BadArgumentValue("-ploidy", "" + SCAC.genotypeArgs.samplePloidy + "; currently HaplotypeCaller only supports diploid sample analysis (-ploidy 2)");
 
         if (dontGenotype && emitReferenceConfidence())
             throw new UserException("You cannot request gVCF output and do not genotype at the same time");
