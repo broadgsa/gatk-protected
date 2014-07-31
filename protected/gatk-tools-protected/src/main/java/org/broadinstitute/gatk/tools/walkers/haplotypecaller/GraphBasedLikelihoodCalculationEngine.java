@@ -119,9 +119,12 @@ public class GraphBasedLikelihoodCalculationEngine implements ReadLikelihoodCalc
                         hmm,log10GlobalReadMismappingRate,heterogeneousKmerSizeResolution);
         final List<Haplotype> haplotypes = assemblyResultSet.getHaplotypeList();
         final List<Haplotype> supportedHaplotypes = graphLikelihoodEngine.getHaplotypeList();
-        if (supportedHaplotypes.size() != haplotypes.size())
+        final ReadLikelihoods<Haplotype> result = graphLikelihoodEngine.computeReadLikelihoods(supportedHaplotypes, samples, perSampleReadList);
+        if (supportedHaplotypes.size() != haplotypes.size()) {
             logger.warn("Some haplotypes were drop due to missing route on the graph (supported / all): " + supportedHaplotypes.size() + "/" + haplotypes.size());
-        final ReadLikelihoods<Haplotype> result = graphLikelihoodEngine.computeReadLikelihoods(supportedHaplotypes,samples,perSampleReadList);
+            result.addMissingAlleles(haplotypes,Double.NEGATIVE_INFINITY);
+        }
+
         if (debugMode != DebugMode.NONE) graphLikelihoodDebugDumps(assemblyResultSet.getRegionForGenotyping(), graphLikelihoodEngine,result);
         return result;
     }

@@ -275,11 +275,22 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
         // Modify the read qualities by applying the PCR error model and capping the minimum base,insertion,deletion qualities
         final List<GATKSAMRecord> processedReads = modifyReadQualities(likelihoods.reads());
 
+        final Map<GATKSAMRecord,byte[]> gapContinuationPenalties = buildGapContinuationPenalties(processedReads,constantGCP);
         // Run the PairHMM to calculate the log10 likelihood of each (processed) reads' arising from each haplotype
-        pairHMMThreadLocal.get().computeLikelihoods(likelihoods,processedReads,constantGCP);
+        pairHMMThreadLocal.get().computeLikelihoods(likelihoods,processedReads,gapContinuationPenalties);
 
         if (WRITE_LIKELIHOODS_TO_FILE)
             writeDebugLikelihoods(likelihoods);
+    }
+
+    private Map<GATKSAMRecord, byte[]> buildGapContinuationPenalties(final List<GATKSAMRecord> processedReads, final byte gcp) {
+        final Map<GATKSAMRecord,byte[]> result = new HashMap<>(processedReads.size());
+        for (final GATKSAMRecord read : processedReads) {
+            final byte[] readGcpArray = new byte[read.getReadLength()];
+            Arrays.fill(readGcpArray,gcp);
+            result.put(read,readGcpArray);
+        }
+        return result;
     }
 
     private void writeDebugLikelihoods(final ReadLikelihoods.Matrix<Haplotype> likelihoods) {

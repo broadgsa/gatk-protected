@@ -46,26 +46,16 @@
 
 package org.broadinstitute.gatk.utils.pairhmm;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
-import org.broadinstitute.gatk.utils.QualityUtils;
-
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 
+import java.io.*;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 //For loading library from jar
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 
 /**
  * Created with IntelliJ IDEA.
@@ -154,7 +144,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     private native void jniInitializeHaplotypes(final int numHaplotypes,  JNIHaplotypeDataHolderClass[] haplotypeDataArray);
     //Hold the mapping between haplotype and index in the list of Haplotypes passed to initialize
     //Use this mapping in computeLikelihoods to find the likelihood value corresponding to a given Haplotype
-    private HashMap<Haplotype,Integer> haplotypeToHaplotypeListIdxMap = new HashMap<Haplotype,Integer>();
+    private HashMap<Haplotype,Integer> haplotypeToHaplotypeListIdxMap = new HashMap<>();
     private JNIHaplotypeDataHolderClass[] mHaplotypeDataArray;
     @Override
     public HashMap<Haplotype, Integer> getHaplotypeToHaplotypeListIdxMap() { return haplotypeToHaplotypeListIdxMap; }
@@ -204,22 +194,23 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
      * {@inheritDoc}
      */
     @Override
-    public PerReadAlleleLikelihoodMap computeLikelihoods( final List<GATKSAMRecord> reads, final Map<Allele, Haplotype> alleleHaplotypeMap, final Map<GATKSAMRecord, byte[]> GCPArrayMap ) {
+    public void computeLikelihoods( final ReadLikelihoods.Matrix<Haplotype> likelihoods, final List<GATKSAMRecord> processedReads, final Map<GATKSAMRecord,byte[]> gcp ) {
+        if (processedReads.isEmpty())
+            return;
         if(doProfiling)
             startTime = System.nanoTime();
-        int readListSize = reads.size();
-        int numHaplotypes = alleleHaplotypeMap.size();
-        int numTestcases = readListSize*numHaplotypes;
+        int readListSize = processedReads.size();
+        int numHaplotypes = likelihoods.alleleCount();
         JNIReadDataHolderClass[] readDataArray = new JNIReadDataHolderClass[readListSize];
         int idx = 0;
-        for(GATKSAMRecord read : reads)
+        for(GATKSAMRecord read : processedReads)
         {
             readDataArray[idx] = new JNIReadDataHolderClass();
             readDataArray[idx].readBases = read.getReadBases();
             readDataArray[idx].readQuals = read.getBaseQualities();
             readDataArray[idx].insertionGOP = read.getBaseInsertionQualities();
             readDataArray[idx].deletionGOP = read.getBaseDeletionQualities();
-            readDataArray[idx].overallGCP = GCPArrayMap.get(read);
+            readDataArray[idx].overallGCP = gcp.get(read);
             ++idx;
         }
 
@@ -230,20 +221,18 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         //   for(haplotypes)
         //       compute_full_prob()
         jniComputeLikelihoods(readListSize, numHaplotypes, readDataArray, mHaplotypeDataArray, mLikelihoodArray, 12);
-        
-        final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
-        idx = 0;
-        int idxInsideHaplotypeList = 0;
+
         int readIdx = 0;
-        for(GATKSAMRecord read : reads)
+        for(int r = 0; r < readListSize; r++)
         {
-            for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())//order is important - access in same order always
-            {
+            int hapIdx = 0;
+            for (final Haplotype haplotype : likelihoods.alleles()) {
+
                 //Since the order of haplotypes in the List<Haplotype> and alleleHaplotypeMap is different,
                 //get idx of current haplotype in the list and use this idx to get the right likelihoodValue
-                idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(currEntry.getValue());
-                likelihoodMap.add(read, currEntry.getKey(), mLikelihoodArray[readIdx + idxInsideHaplotypeList]);
-                ++idx;
+                final int idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(haplotype);
+                likelihoods.set(hapIdx,r,mLikelihoodArray[readIdx + idxInsideHaplotypeList]);
+                ++hapIdx;
             }
             readIdx += numHaplotypes;
         }
@@ -256,7 +245,6 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                 pairHMMSetupTime += threadLocalSetupTimeDiff;
             }
         }
-        return likelihoodMap;
     }
     
     /**

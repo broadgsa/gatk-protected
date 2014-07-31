@@ -47,11 +47,13 @@
 package org.broadinstitute.gatk.tools.walkers.indels;
 
 import com.google.java.contract.Ensures;
+import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.clipping.ReadClipper;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pairhmm.ArrayLoglessPairHMM;
 import org.broadinstitute.gatk.utils.pairhmm.Log10PairHMM;
@@ -61,12 +63,8 @@ import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
-import htsjdk.variant.variantcontext.Allele;
 
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 
 
 public class PairHMMIndelErrorModel {
@@ -297,10 +295,8 @@ public class PairHMMIndelErrorModel {
                                                                           final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap) {
         final double readLikelihoods[][] = new double[pileup.getNumberOfElements()][haplotypeMap.size()];
 
-        final LinkedList<GATKSAMRecord> readList = new LinkedList<>();
-        final Map<GATKSAMRecord, byte[]> readGCPArrayMap = new LinkedHashMap<>();
         int readIdx=0;
-        for (PileupElement p: pileup) {
+        for (final PileupElement p: pileup) {
 
             // check if we've already computed likelihoods for this pileup element (i.e. for this read at this location)
             if (perReadAlleleLikelihoodMap.containsPileupElement(p)) {
@@ -439,28 +435,31 @@ public class PairHMMIndelErrorModel {
 
                     // Create a new read based on the current one, but with trimmed bases/quals, for use in the HMM
                     final GATKSAMRecord processedRead = GATKSAMRecord.createQualityModifiedRead(read, readBases, readQuals, baseInsertionQualities, baseDeletionQualities);
-                    readList.add(processedRead);
 
                     // Pack the shortened read and its associated gap-continuation-penalty array into a map, as required by PairHMM
-                    readGCPArrayMap.put(processedRead,contextLogGapContinuationProbabilities);
+                    final Map<GATKSAMRecord,byte[]> readGCPArrayMap = Collections.singletonMap(processedRead,contextLogGapContinuationProbabilities);
 
                     // Create a map of alleles to a new set of haplotypes, whose bases have been trimmed to the appropriate genomic locations
                     final Map<Allele, Haplotype> trimmedHaplotypeMap = trimHaplotypes(haplotypeMap, startLocationInRefForHaplotypes, stopLocationInRefForHaplotypes, ref);
 
+                    // Apparently more than one allele can map to the same haplotype after trimming
+                    final Set<Haplotype> distinctHaplotypesSet = new LinkedHashSet<>(trimmedHaplotypeMap.values());
+                    final List<Haplotype> distinctHaplotypesList = Arrays.asList(distinctHaplotypesSet.toArray(new Haplotype[distinctHaplotypesSet.size()]));
                     // Get the likelihoods for our clipped read against each of our trimmed haplotypes.
-                    final PerReadAlleleLikelihoodMap singleReadRawLikelihoods = pairHMM.computeLikelihoods(readList, trimmedHaplotypeMap, readGCPArrayMap);
+                    final ReadLikelihoods<Haplotype> rl = new ReadLikelihoods<>(
+
+                            Collections.singletonList("DUMMY_SAMPLE"),distinctHaplotypesList,Collections.singletonMap("DUMMY_SAMPLE",Collections.singletonList(processedRead)));
+                    final ReadLikelihoods.Matrix<Haplotype> dummySampleLikelihoods = rl.sampleMatrix(0);
+                    pairHMM.computeLikelihoods(rl.sampleMatrix(0), Collections.singletonList(processedRead), readGCPArrayMap);
 
                     // Pack the original pilup element, each allele, and each associated log10 likelihood into a final map, and add each likelihood to the array
-                    for (Allele a: trimmedHaplotypeMap.keySet()){
-                        double readLikelihood = singleReadRawLikelihoods.getLikelihoodAssociatedWithReadAndAllele(processedRead, a);
-                        perReadAlleleLikelihoodMap.add(p, a, readLikelihood);
+                    for (final Allele a: trimmedHaplotypeMap.keySet()){
+                        final Haplotype h = trimmedHaplotypeMap.get(a);
+                        final int hIndex = rl.alleleIndex(h);
+                        final double readLikelihood = dummySampleLikelihoods.get(hIndex,0);
                         readLikelihoods[readIdx][j++] = readLikelihood;
+                        perReadAlleleLikelihoodMap.add(read,a,readLikelihood);
                     }
-                    // The readList for sending to the HMM should only ever contain 1 read, as each must be clipped individually
-                    readList.remove(processedRead);
-
-                    // The same is true for the read/GCP-array map
-                    readGCPArrayMap.remove(processedRead);
                 }
             }
             readIdx++;

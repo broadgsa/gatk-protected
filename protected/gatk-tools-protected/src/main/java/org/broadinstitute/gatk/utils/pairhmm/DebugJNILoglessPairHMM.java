@@ -49,23 +49,21 @@ package org.broadinstitute.gatk.utils.pairhmm;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import org.broadinstitute.gatk.utils.QualityUtils;
-
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
-import static org.broadinstitute.gatk.utils.pairhmm.PairHMMModel.*;
 
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.BufferedWriter;
-import java.util.Map;
-import java.util.HashMap;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.broadinstitute.gatk.utils.pairhmm.PairHMMModel.*;
 
 
 /**
@@ -156,10 +154,10 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
      * {@inheritDoc}
      */
     @Override
-    public PerReadAlleleLikelihoodMap computeLikelihoods( final List<GATKSAMRecord> reads, final Map<Allele, Haplotype> alleleHaplotypeMap, final Map<GATKSAMRecord, byte[]> GCPArrayMap ) {
+    public void computeLikelihoods( final ReadLikelihoods.Matrix<Haplotype> likelihoods, final List<GATKSAMRecord> processedReads, final Map<GATKSAMRecord, byte[]> GCPArrayMap ) {
         // (re)initialize the pairHMM only if necessary
-        final int readMaxLength = verify ? findMaxReadLength(reads) : 0;
-        final int haplotypeMaxLength = verify ? findMaxHaplotypeLength(alleleHaplotypeMap) : 0;
+        final int readMaxLength = verify ? findMaxReadLength(processedReads) : 0;
+        final int haplotypeMaxLength = verify ? findMaxHaplotypeLength(likelihoods.alleles()) : 0;
         if(verify)
         {
             if (!initialized || readMaxLength > maxReadLength || haplotypeMaxLength > maxHaplotypeLength)
@@ -167,15 +165,15 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
             if ( ! initialized )
                 throw new IllegalStateException("Must call initialize before calling jniComputeLikelihoods in debug/verify mode");
         }
-        int readListSize = reads.size();
-        int numHaplotypes = alleleHaplotypeMap.size();
+        int readListSize = processedReads.size();
+        int numHaplotypes = likelihoods.alleleCount();
         int numTestcases = readListSize*numHaplotypes;
         if(debug0_1)
             System.out.println("Java numReads "+readListSize+" numHaplotypes "+numHaplotypes);
         int idx = 0;
-        for(GATKSAMRecord read : reads)
+        for(final GATKSAMRecord read : processedReads)
         {
-            byte [] overallGCP = GCPArrayMap.get(read);
+            final byte [] overallGCP = GCPArrayMap.get(read);
             if(debug0_1)
                 System.out.println("Java read length "+read.getReadBases().length);
             if(debug3)
@@ -195,9 +193,9 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
         if(verify)
         {
             idx = 0;
-            for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())       //order is important - access in same order always
+            for (final Haplotype h : likelihoods.alleles())       //order is important - access in same order always
             {
-                byte[] haplotypeBases = currEntry.getValue().getBases();
+                byte[] haplotypeBases = h.getBases();
                 if(debug0_1)
                     System.out.println("Java haplotype length "+haplotypeBases.length);
                 if(debug3)
@@ -212,10 +210,10 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
         PerReadAlleleLikelihoodMap likelihoodMap  = null;
         if(verify)
         {
-            jniPairHMM.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
+            jniPairHMM.computeLikelihoods(likelihoods, processedReads, GCPArrayMap);
             likelihoodArray = jniPairHMM.getLikelihoodArray();
             //to compare values
-            likelihoodMap = super.computeLikelihoods(reads, alleleHaplotypeMap, GCPArrayMap);
+            super.computeLikelihoods(likelihoods, processedReads, GCPArrayMap);
         }
         else
         {
@@ -234,13 +232,13 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
                 idx = 0;
                 int idxInsideHaplotypeList = 0;
                 int readIdx = 0;
-                for(GATKSAMRecord read : reads)
+                for(final GATKSAMRecord read : processedReads)
                 {
                     for(int j=0;j<numHaplotypes;++j)
                         tmpArray[j] = likelihoodArray[readIdx+j];
-                    for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())//order is important - access in same order always
+                    for (final Haplotype haplotype : likelihoods.alleles())//order is important - access in same order always
                     {
-                        idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(currEntry.getValue());
+                        idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(haplotype);
                         likelihoodArray[idx] = tmpArray[idxInsideHaplotypeList];
                         ++idx;
                     }
@@ -271,13 +269,13 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
                 idx = 0;
                 System.out.println("Dump : Java numReads "+readListSize+" numHaplotypes "+numHaplotypes);
                 boolean firstLine = true;
-                for(GATKSAMRecord read : reads)
+                for(final GATKSAMRecord read : processedReads)
                 {
                     byte [] overallGCP = GCPArrayMap.get(read);
                     byte[] tmpByteArray = new byte[read.getReadBases().length];
-                    for (Map.Entry<Allele, Haplotype>  currEntry : alleleHaplotypeMap.entrySet())       //order is important - access in same order always
+                    for (final Haplotype haplotype : likelihoods.alleles())       //order is important - access in same order always
                     {
-                        byte[] haplotypeBases = currEntry.getValue().getBases();
+                        byte[] haplotypeBases = haplotype.getBases();
                         debugDump("debug_dump.txt",new String(haplotypeBases)+" ",true);
                         debugDump("debug_dump.txt",new String(read.getReadBases())+" ",true);
                         for(int k=0;k<read.getReadBases().length;++k)
@@ -303,7 +301,7 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
                             debugDump("debug_results.txt",String.format("%e %e\n",mLikelihoodArray[idx],likelihoodArray[idx]),true);
                         else
                             if(dumpSandboxOnly)
-                                likelihoodMap.add(read, currEntry.getKey(), likelihoodArray[idx]);
+                                likelihoods.set(likelihoods.alleleIndex(haplotype),likelihoods.readIndex(read), likelihoodArray[idx]);
                         ++idx;
                     }
                 }
@@ -314,7 +312,6 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
         //if(numComputeLikelihoodCalls == 5)
         //jniPairHMM.close();
         //System.exit(0);
-        return likelihoodMap;
     }
 
     //Used to test parts of the compute kernel separately    

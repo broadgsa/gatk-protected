@@ -46,10 +46,10 @@
 
 package org.broadinstitute.gatk.utils.pairhmm;
 
-import org.broadinstitute.gatk.utils.haplotype.Haplotype;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.haplotype.Haplotype;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -192,47 +192,42 @@ public final class CnyPairHMM extends PairHMM implements BatchPairHMM {
      * {@inheritDoc}
      */
     @Override
-    public PerReadAlleleLikelihoodMap computeLikelihoods(final List<GATKSAMRecord> reads, final Map<Allele, Haplotype> alleleHaplotypeMap, final Map<GATKSAMRecord, byte[]> GCPArrayMap){
+    public void computeLikelihoods(final ReadLikelihoods.Matrix<Haplotype> likelihoods, final List<GATKSAMRecord> processedReads, final Map<GATKSAMRecord,byte[]> gcp){
 
         // initialize the pairHMM if necessary
         if (! initialized) {
-            int readMaxLength = findMaxReadLength(reads);
-            int haplotypeMaxLength = findMaxHaplotypeLength(alleleHaplotypeMap);
+            int readMaxLength = findMaxReadLength(processedReads);
+            int haplotypeMaxLength = findMaxHaplotypeLength(likelihoods.alleles());
             initialize(readMaxLength, haplotypeMaxLength);
         }
 
         // Pass the read bases/quals, and the haplotypes as a list into the HMM
-        performBatchAdditions(reads, alleleHaplotypeMap, GCPArrayMap);
+        performBatchAdditions(processedReads, likelihoods.alleles(), gcp);
 
-        // Get the log10-likelihoods for each read/haplotype ant pack into the results map
-        final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
-        collectLikelihoodResults(reads, alleleHaplotypeMap, likelihoodMap);
-
-        return likelihoodMap;
+        // Get the log10-likelihoods for each read/haplotype ant pack into the read-likelihoods matrix.
+        collectLikelihoodResults(likelihoods);
     }
 
-    private void collectLikelihoodResults(List<GATKSAMRecord> reads, Map<Allele, Haplotype> alleleHaplotypeMap, PerReadAlleleLikelihoodMap likelihoodMap) {
-        for(final GATKSAMRecord read : reads){
-            final double[] likelihoods = batchGetResult();
-            int jjj = 0;
-            for (Allele allele : alleleHaplotypeMap.keySet()){
-                final double log10l = likelihoods[jjj];
-                likelihoodMap.add(read, allele, log10l);
-                jjj++;
-            }
+    private void collectLikelihoodResults(ReadLikelihoods.Matrix<Haplotype> likelihoods) {
+        final int numHaplotypes = likelihoods.alleleCount();
+        final int numReads = likelihoods.readCount();
+        for(int r = 0; r < numReads; r++) {
+            final double[] likelihoodValues = batchGetResult();
+
+            for (int h = 0; h < numHaplotypes; h++)
+                likelihoods.set(h,r, likelihoodValues[h]);
         }
     }
 
-    private void performBatchAdditions(List<GATKSAMRecord> reads, Map<Allele, Haplotype> alleleHaplotypeMap, Map<GATKSAMRecord, byte[]> GCPArrayMap) {
-        final List<Haplotype> haplotypeList = getHaplotypeList(alleleHaplotypeMap);
+    private void performBatchAdditions(final List<GATKSAMRecord> reads, final List<Haplotype> haplotypes, Map<GATKSAMRecord,byte[]> gcp) {
         for(final GATKSAMRecord read : reads){
             final byte[] readBases = read.getReadBases();
             final byte[] readQuals = read.getBaseQualities();
             final byte[] readInsQuals = read.getBaseInsertionQualities();
             final byte[] readDelQuals = read.getBaseDeletionQualities();
-            final byte[] overallGCP = GCPArrayMap.get(read);
+            final byte[] overallGCP = gcp.get(read);
 
-            batchAdd(haplotypeList, readBases, readQuals, readInsQuals, readDelQuals, overallGCP);
+            batchAdd(haplotypes, readBases, readQuals, readInsQuals, readDelQuals, overallGCP);
         }
     }
 

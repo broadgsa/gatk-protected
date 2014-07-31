@@ -389,6 +389,55 @@ public class ReadLikelihoodsUnitTest
 
 
     @Test(dataProvider = "dataSets")
+    public void testAddMissingAlleles(final String[] samples, final Allele[] alleles, final Map<String,List<GATKSAMRecord>> reads) {
+        final ReadLikelihoods<Allele> original = new ReadLikelihoods<>(Arrays.asList(samples), Arrays.asList(alleles), reads);
+        final double[][][] originalLikelihoods = fillWithRandomLikelihoods(samples,alleles,original);
+        final ReadLikelihoods<Allele> result = original.clone();
+
+        // If all the alleles pass are present in the read-likelihoods collection there is no change.
+        result.addMissingAlleles(result.alleles(),Double.NEGATIVE_INFINITY);
+        testLikelihoodMatrixQueries(samples,result,originalLikelihoods);
+
+        // If the allele list passed is empty there is no effect.
+        result.addMissingAlleles(Collections.EMPTY_LIST,Double.NEGATIVE_INFINITY);
+        testLikelihoodMatrixQueries(samples,result,originalLikelihoods);
+
+        final Allele newOne;
+        final Allele newTwo;
+        final Allele newThree;
+
+        // We add a single missing.
+        result.addMissingAlleles(Arrays.asList(newOne = Allele.create("ACCCCCAAAATTTAAAGGG".getBytes(),false)),-12345.6);
+        Assert.assertEquals(original.alleleCount() + 1, result.alleleCount());
+
+        // We add too more amongst exisisting alleles:
+        result.addMissingAlleles(Arrays.asList(newTwo = Allele.create("ATATATTATATTAATATT".getBytes(), false),result.allele(1),
+                result.allele(0),newThree = Allele.create("TGTGTGTATTG".getBytes(),false),Allele.create("ACCCCCAAAATTTAAAGGG".getBytes(),false)),-6.54321);
+
+        Assert.assertEquals(original.alleleCount()+3,result.alleleCount());
+
+        final List<Allele> expectedAlleles = new ArrayList<>(original.alleles());
+        expectedAlleles.add(newOne); expectedAlleles.add(newTwo); expectedAlleles.add(newThree);
+
+        Assert.assertEquals(result.alleles(),expectedAlleles);
+
+        final double[][][] newLikelihoods = new double[originalLikelihoods.length][][];
+        for (int s = 0; s < samples.length; s++) {
+            newLikelihoods[s] = Arrays.copyOf(originalLikelihoods[s],originalLikelihoods[s].length + 3);
+            final int sampleReadCount = original.sampleReadCount(s);
+            final int originalAlleleCount = originalLikelihoods[s].length;
+            newLikelihoods[s][originalAlleleCount] = new double[sampleReadCount];
+            Arrays.fill(newLikelihoods[s][originalAlleleCount],-12345.6);
+            newLikelihoods[s][originalAlleleCount+1] = new double[sampleReadCount];
+            Arrays.fill(newLikelihoods[s][originalAlleleCount+1],-6.54321);
+            newLikelihoods[s][originalAlleleCount+2] = new double[sampleReadCount];
+            Arrays.fill(newLikelihoods[s][originalAlleleCount+2],-6.54321);
+        }
+            testLikelihoodMatrixQueries(samples,result,newLikelihoods);
+    }
+
+
+    @Test(dataProvider = "dataSets")
     public void testAddNonRefAllele(final String[] samples, final Allele[] alleles, final Map<String,List<GATKSAMRecord>> reads) {
         final ReadLikelihoods<Allele> original = new ReadLikelihoods<>(Arrays.asList(samples), Arrays.asList(alleles), reads);
         final double[][][] originalLikelihoods = fillWithRandomLikelihoods(samples,alleles,original);
@@ -480,7 +529,8 @@ public class ReadLikelihoodsUnitTest
             {Allele.create("A",true), Allele.create("T"), Allele.create("C")},
             {Allele.create("A",true)},
             {Allele.create("ATTTA"), Allele.create("A",true)},
-            {Allele.create("A"), Allele.create("AT",true)}
+            {Allele.create("A"), Allele.create("AT",true)},
+                    {Allele.create("A",false), Allele.create("AT",false)},
     };
 
     @DataProvider(name="marginalizationDataSets")

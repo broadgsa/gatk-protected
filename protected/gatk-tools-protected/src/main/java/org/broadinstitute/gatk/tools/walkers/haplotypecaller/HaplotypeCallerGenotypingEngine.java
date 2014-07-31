@@ -338,7 +338,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             if (newList.size() == 0)
                 continue;
             overlappingFilteredReads.put(sample,newList);
-        } return overlappingFilteredReads;
+        }
+        return overlappingFilteredReads;
     }
 
     /**
@@ -496,7 +497,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     @Requires({"haplotypes.size() >= eventsAtThisLoc.size() + 1"})
     @Ensures({"result.size() == eventsAtThisLoc.size() + 1"})
-    protected static Map<Event, List<Haplotype>> createEventMapper( final int loc, final List<VariantContext> eventsAtThisLoc, final List<Haplotype> haplotypes ) {
+    protected static Map<Event, List<Haplotype>> createEventMapper( final int loc, final List<VariantContext> eventsAtThisLoc, final List<Haplotype> haplotypes) {
 
         final Map<Event, List<Haplotype>> eventMapper = new LinkedHashMap<>(eventsAtThisLoc.size()+1);
         final Event refEvent = new Event(null);
