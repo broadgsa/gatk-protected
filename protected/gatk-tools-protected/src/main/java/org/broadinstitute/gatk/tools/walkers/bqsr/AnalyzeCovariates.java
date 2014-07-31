@@ -70,9 +70,9 @@ import java.util.Map;
 
 
 /**
- * Tool to analyze and evaluate base recalibration ables.
+ * Tool to analyze and evaluate base recalibration tables.
  * <p/>
- * For now it generates a plot report to assess the quality of a recalibration.
+ * It generates plots to assess the quality of a recalibration run.
  *
  * <h3>Input</h3>
  *
@@ -188,7 +188,7 @@ import java.util.Map;
  *      ... other options \
  *      -o secondpass.table
  *
- * # Finally generate the plots report and also keep a copy of the csv (optional).
+ * # Finally generate the plots and also keep a copy of the csv (optional).
  * java -jar GenomeAnalysisTK.jar \
  *      -T AnalyzeCovariates \
  *      -R myrefernce.fasta \
