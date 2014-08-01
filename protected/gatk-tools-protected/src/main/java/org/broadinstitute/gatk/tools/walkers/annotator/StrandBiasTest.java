@@ -46,9 +46,17 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.pileup.PileupElement;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.util.*;
 
@@ -85,6 +93,122 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
 
         return ( foundData ? decodeSBBS(sbArray) : null );
     }
+
+    /**
+     Allocate and fill a 2x2 strand contingency table.  In the end, it'll look something like this:
+     *             fw      rc
+     *   allele1   #       #
+     *   allele2   #       #
+     * @return a 2x2 contingency table
+     */
+    protected static int[][] getSNPContingencyTable(final Map<String, AlignmentContext> stratifiedContexts,
+                                                  final Allele ref,
+                                                  final Allele alt,
+                                                  final int minQScoreToConsider,
+                                                  final int minCount ) {
+        int[][] table = new int[2][2];
+
+        for ( Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
+            final int[] myTable = new int[4];
+            for (PileupElement p : sample.getValue().getBasePileup()) {
+
+                if ( ! isUsableBase(p) ) // ignore deletions and bad MQ
+                    continue;
+
+                if ( p.getQual() < minQScoreToConsider || p.getMappingQual() < minQScoreToConsider )
+                    continue;
+
+                updateTable(myTable, Allele.create(p.getBase(), false), p.getRead(), ref, alt);
+            }
+
+            if ( passesMinimumThreshold( myTable, minCount ) )
+                copyToMainTable(myTable, table);
+        }
+
+        return table;
+    }
+
+    /**
+     Allocate and fill a 2x2 strand contingency table.  In the end, it'll look something like this:
+     *             fw      rc
+     *   allele1   #       #
+     *   allele2   #       #
+     * @return a 2x2 contingency table
+     */
+    public static int[][] getContingencyTable( final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
+                                               final VariantContext vc,
+                                               final int minCount) {
+        if( stratifiedPerReadAlleleLikelihoodMap == null ) { throw new IllegalArgumentException("stratifiedPerReadAlleleLikelihoodMap cannot be null"); }
+        if( vc == null ) { throw new IllegalArgumentException("input vc cannot be null"); }
+
+        final Allele ref = vc.getReference();
+        final Allele alt = vc.getAltAlleleWithHighestAlleleCount();
+        final int[][] table = new int[2][2];
+
+        for (final PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
+            final int[] myTable = new int[4];
+            for (final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
+                final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+                final GATKSAMRecord read = el.getKey();
+                updateTable(myTable, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt);
+            }
+            if ( passesMinimumThreshold(myTable, minCount) )
+                copyToMainTable(myTable, table);
+        }
+
+        return table;
+    }
+
+    /**
+     * Helper method to copy the per-sample table to the main table
+     *
+     * @param perSampleTable   per-sample table (single dimension)
+     * @param mainTable        main table (two dimensions)
+     */
+    private static void copyToMainTable(final int[] perSampleTable, final int[][] mainTable) {
+        mainTable[0][0] += perSampleTable[0];
+        mainTable[0][1] += perSampleTable[1];
+        mainTable[1][0] += perSampleTable[2];
+        mainTable[1][1] += perSampleTable[3];
+    }
+
+
+    /**
+     * Can the base in this pileup element be used in comparative tests?
+     *
+     * @param p the pileup element to consider
+     *
+     * @return true if this base is part of a meaningful read for comparison, false otherwise
+     */
+    private static boolean isUsableBase(final PileupElement p) {
+        return !( p.isDeletion() ||
+                p.getMappingQual() == 0 ||
+                p.getMappingQual() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE ||
+                ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE);
+    }
+
+    private static void updateTable(final int[] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt) {
+
+        final boolean matchesRef = allele.equals(ref, true);
+        final boolean matchesAlt = allele.equals(alt, true);
+
+        if ( matchesRef || matchesAlt ) {
+            final int offset = matchesRef ? 0 : 2;
+
+            if ( read.isStrandless() ) {
+                // a strandless read counts as observations on both strand, at 50% weight, with a minimum of 1
+                // (the 1 is to ensure that a strandless read always counts as an observation on both strands, even
+                // if the read is only seen once, because it's a merged read or other)
+                table[offset]++;
+                table[offset + 1]++;
+            } else {
+                // a normal read with an actual strand
+                final boolean isFW = !read.getReadNegativeStrandFlag();
+                table[offset + (isFW ? 0 : 1)]++;
+            }
+        }
+    }
+
     /**
      * Does this strand data array pass the minimum threshold for inclusion?
      *

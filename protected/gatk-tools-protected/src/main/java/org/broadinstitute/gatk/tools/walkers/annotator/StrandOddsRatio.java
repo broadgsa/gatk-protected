@@ -92,7 +92,22 @@ public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBased
                 return annotationForOneTable(ratio);
             }
         }
-        return null;
+
+        if (vc.isSNP() && stratifiedContexts != null) {
+            final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
+            final double ratio = symmetricOddsRatio(tableNoFiltering);
+            return annotationForOneTable(ratio);
+        }
+        else if (stratifiedPerReadAlleleLikelihoodMap != null) {
+            // either SNP with no alignment context, or indels: per-read likelihood map needed
+            final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc, MIN_COUNT);
+            final double ratio = symmetricOddsRatio(table);
+            return annotationForOneTable(ratio);
+        }
+        else
+            // for non-snp variants, we  need per-read likelihoods.
+            // for snps, we can get same result from simple pileup
+            return null;
     }
 
     /**
