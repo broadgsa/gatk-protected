@@ -320,7 +320,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * Which annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available annotations.
      */
     @Advanced
-    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
+    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls.  The single value 'none' removes the default annotations", required=false)
     protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"ClippingRankSumTest", "DepthPerSampleHC"}));
 
     /**
@@ -334,7 +334,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     /**
      * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
      */
-    @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
+    @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls.  The single value 'none' removes the default group", required=false)
     protected String[] annotationClassesToUse = { "Standard" };
 
     @ArgumentCollection
