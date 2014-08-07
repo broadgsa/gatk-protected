@@ -108,6 +108,8 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
         for ( final Genotype g : genotypes ) {
             if ( g.isCalled() && g.hasLikelihoods() && g.getPloidy() == 2)  // only work for diploid samples
                 sampleCount++;
+            else
+                continue;
             final double[] normalizedLikelihoods = MathUtils.normalizeFromLog10( g.getLikelihoods().getAsVector() );
             if (doMultiallelicMapping)
             {
