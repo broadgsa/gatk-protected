@@ -82,7 +82,7 @@ public class StrandBiasBySample extends GenotypeAnnotation {
         if ( ! isAppropriateInput(alleleLikelihoodMap, g) )
             return;
 
-        final int[][] table = FisherStrand.getContingencyTable(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc);
+        final int[][] table = FisherStrand.getContingencyTable(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc, 0);
 
         gb.attribute(STRAND_BIAS_BY_SAMPLE_KEY_NAME, FisherStrand.getContingencyArray(table));
     }
