@@ -262,7 +262,7 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
                    dataSet = (ActiveRegionTestDataSet) params[0];
                    if (INTRODUCE_READ_ERRORS) dataSet.introduceErrors(new Random(13));
                    graphEngine = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(),hmm,Double.NEGATIVE_INFINITY, HeterogeneousKmerSizeResolution.COMBO_MAX);
-                   graphLks = graphEngine.computeReadLikelihoods(dataSet.haplotypeList(),Collections.singletonMap("anonymous",dataSet.readList())).get("anonymous");
+                   graphLks = graphEngine.computeReadLikelihoods(dataSet.haplotypeList(),Collections.singletonList("anonymous"),Collections.singletonMap("anonymous",dataSet.readList())).toPerReadAlleleLikelihoodMap(0);
 
                    // clip reads at the anchors.
                    final Map<GATKSAMRecord,GATKSAMRecord> clippedReads = anchorClippedReads(graphEngine.getHaplotypeGraph(),dataSet.readList());
@@ -272,7 +272,7 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
                        clippedReadList.add(clippedReads.containsKey(r) ? clippedReads.get(r) : r);
                    }
 
-                   loglessLks = fullPairHMM.computeReadLikelihoods(dataSet.assemblyResultSet(),Collections.singletonMap("anonymous",clippedReadList)).get("anonymous");
+                   loglessLks = fullPairHMM.computeReadLikelihoods(dataSet.assemblyResultSet(),Collections.singletonList("anonymous"),Collections.singletonMap("anonymous",clippedReadList)).toPerReadAlleleLikelihoodMap(0);
 
                    // Change clipped by unclipped in the resulting likelihood map.
                    for (final GATKSAMRecord r : clippedReads.keySet()) {
