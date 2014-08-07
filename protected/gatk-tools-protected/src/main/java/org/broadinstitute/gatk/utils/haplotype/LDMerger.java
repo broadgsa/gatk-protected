@@ -49,12 +49,15 @@ package org.broadinstitute.gatk.utils.haplotype;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.TreeSet;
 
 /**
  * Merges VariantContexts in a series of haplotypes according to their pairwise LD
@@ -94,19 +97,19 @@ public class LDMerger extends MergeVariantsAcrossHaplotypes {
      * Merge as many events among the haplotypes as possible based on pairwise LD among variants
      *
      * @param haplotypes a list of haplotypes whose events we want to merge
-     * @param haplotypeReadMap map from sample name -> read likelihoods for each haplotype
+     * @param readLikelihoods map from sample name -> read likelihoods for each haplotype
      * @param startPosKeySet a set of starting positions of all events among the haplotypes
      * @param ref the reference bases
      * @param refLoc the span of the reference bases
      */
     @Override
     public boolean merge( final List<Haplotype> haplotypes,
-                          final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                          final ReadLikelihoods<Haplotype> readLikelihoods,
                           final TreeSet<Integer> startPosKeySet,
                           final byte[] ref,
                           final GenomeLoc refLoc ) {
         if ( haplotypes == null ) throw new IllegalArgumentException("haplotypes cannot be null");
-        if ( haplotypeReadMap == null ) throw new IllegalArgumentException("haplotypeReadMap cannot be null");
+        if ( readLikelihoods == null ) throw new IllegalArgumentException("readLikelihoods cannot be null");
         if ( startPosKeySet == null ) throw new IllegalArgumentException("startPosKeySet cannot be null");
         if ( ref == null ) throw new IllegalArgumentException("ref cannot be null");
         if ( refLoc == null ) throw new IllegalArgumentException("refLoc cannot be null");
@@ -114,8 +117,8 @@ public class LDMerger extends MergeVariantsAcrossHaplotypes {
 
         if( startPosKeySet.size() <= 1 ) { return false; }
 
-        final int nSamples = haplotypeReadMap.keySet().size();
-        final HaplotypeLDCalculator r2Calculator = new HaplotypeLDCalculator(haplotypes, haplotypeReadMap);
+        final int nSamples = readLikelihoods.sampleCount();
+        final HaplotypeLDCalculator r2Calculator = new HaplotypeLDCalculator(haplotypes, readLikelihoods);
         boolean somethingWasMerged = false;
         boolean mapWasUpdated = true;
         while( mapWasUpdated ) {
@@ -207,7 +210,7 @@ public class LDMerger extends MergeVariantsAcrossHaplotypes {
      * @param haplotypes our haplotypes
      * @param thisStart the starting position of the first event to merge
      * @param nextStart the starting position of the next event to merge
-     * @return
+     * @return never {@code null}.
      */
     private LDMergeData getPairOfEventsToMerge(final List<Haplotype> haplotypes, final int thisStart, final int nextStart) {
         final LDMergeData mergeData = new LDMergeData();

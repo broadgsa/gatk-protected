@@ -47,11 +47,10 @@
 package org.broadinstitute.gatk.utils.haplotype;
 
 import com.google.java.contract.Requires;
+import htsjdk.variant.variantcontext.VariantContext;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.PairHMMLikelihoodCalculationEngine;
 import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 
 import java.util.*;
 
@@ -66,7 +65,7 @@ import java.util.*;
  */
 public class HaplotypeLDCalculator {
     private final List<Haplotype> haplotypes;
-    private final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap;
+    private final ReadLikelihoods<Haplotype> readLikelihoods;
     private List<Map<Haplotype, Double>> haplotypeLikelihoodsPerSample = null;
 
     // linear contigency table with table[0] == [0][0], table[1] = [0][1], table[2] = [1][0], table[3] = [1][1]
@@ -75,14 +74,15 @@ public class HaplotypeLDCalculator {
     /**
      * For testing
      */
+    @SuppressWarnings("unchecked")
     protected HaplotypeLDCalculator() {
         haplotypes = Collections.emptyList();
-        haplotypeReadMap = Collections.emptyMap();
+        readLikelihoods = new ReadLikelihoods<>((List<String>)Collections.EMPTY_LIST, (List<Haplotype>)Collections.EMPTY_LIST, Collections.EMPTY_MAP);
     }
 
-    public HaplotypeLDCalculator(List<Haplotype> haplotypes, Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap) {
+    public HaplotypeLDCalculator(final List<Haplotype> haplotypes, final ReadLikelihoods<Haplotype> haplotypeReadMap) {
         this.haplotypes = haplotypes;
-        this.haplotypeReadMap = haplotypeReadMap;
+        this.readLikelihoods = haplotypeReadMap;
     }
 
     /**
@@ -94,13 +94,13 @@ public class HaplotypeLDCalculator {
     private void buildHaplotypeLikelihoodsPerSampleIfNecessary() {
         if ( haplotypeLikelihoodsPerSample == null ) {
             // do the lazy computation
-            final Set<String> samples = haplotypeReadMap.keySet();
-            haplotypeLikelihoodsPerSample = new LinkedList<Map<Haplotype, Double>>();
+            final Set<String> samples = new LinkedHashSet<>(readLikelihoods.samples());
+            haplotypeLikelihoodsPerSample = new LinkedList<>();
             for( final String sample : samples ) {
-                final Map<Haplotype, Double> map = new HashMap<Haplotype, Double>(haplotypes.size());
+                final Map<Haplotype, Double> map = new HashMap<>(haplotypes.size());
                 for( final Haplotype h : haplotypes ) {
                     // count up the co-occurrences of the events for the R^2 calculation
-                    final double haplotypeLikelihood = PairHMMLikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, haplotypeReadMap, Collections.singletonList(Allele.create(h, true)), false)[0][0];
+                    final double haplotypeLikelihood = PairHMMLikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, readLikelihoods, Collections.singletonList(h), false)[0][0];
                     map.put(h, haplotypeLikelihood);
                 }
                 haplotypeLikelihoodsPerSample.add(map);
@@ -162,7 +162,7 @@ public class HaplotypeLDCalculator {
      *
      * The probability is just p11_22 / (p11_22 + p hets)
      *
-     * @table linear contigency table with table[0] == [0][0], table[1] = [0][1], table[2] = [1][0], table[3] = [1][1]
+     * @param table linear contigency table with table[0] == [0][0], table[1] = [0][1], table[2] = [1][0], table[3] = [1][1]
      *      doesn't have to be normalized as this function does the normalization internally
      * @return the real space probability that the data is phased
      */

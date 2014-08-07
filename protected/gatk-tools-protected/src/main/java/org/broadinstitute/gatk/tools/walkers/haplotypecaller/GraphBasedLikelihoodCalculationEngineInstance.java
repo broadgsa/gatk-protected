@@ -57,6 +57,7 @@ import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.CountSet;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pairhmm.FlexibleHMM;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
@@ -215,6 +216,7 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
      *
      * @return {@code true} iff so.
      */
+    @SuppressWarnings("unused")
     public boolean hasVariation() {
         return hasVariation;
     }
@@ -231,27 +233,24 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
      * @return never {@code null}, and with at least one entry for input sample (keys in {@code perSampleReadList}.
      *    The value maps can be potentially empty though.
      */
-    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(
-            final List<Haplotype> haplotypes,
+    public ReadLikelihoods<Haplotype> computeReadLikelihoods(final List<Haplotype> haplotypes, final List<String> samples,
             final Map<String, List<GATKSAMRecord>> perSampleReadList) {
         // General preparation on the input haplotypes:
-        Collections.sort(haplotypes, Haplotype.ALPHANUMERICAL_COMPARATOR);
-        final Map<Haplotype, Allele> alleleVersions = new LinkedHashMap<>(haplotypes.size());
-        for (final Haplotype haplotype : haplotypes)
-            alleleVersions.put(haplotype, Allele.create(haplotype,haplotype.isReference()));
+        final ReadLikelihoods<Haplotype> result = new ReadLikelihoods<>(samples, haplotypes, perSampleReadList);
+        final List<Haplotype> sortedHaplotypes = new ArrayList<>(haplotypes);
+        Collections.sort(sortedHaplotypes, Haplotype.ALPHANUMERICAL_COMPARATOR);
 
         // The actual work:
-        final HashMap<String, PerReadAlleleLikelihoodMap> result = new HashMap<>(perSampleReadList.size());
-        for (final Map.Entry<String, List<GATKSAMRecord>> e : perSampleReadList.entrySet()) {
-            final String sample = e.getKey();
-            final List<GATKSAMRecord> reads = e.getValue();
-            final Set<GATKSAMRecord> mayNeedAdjustment = new HashSet<>(reads.size());
+        final int sampleCount = result.sampleCount();
+        for (int s = 0; s < sampleCount; s++) {
+            final List<GATKSAMRecord> sampleReads = result.sampleReads(s);
+
             // Get the cost/likelihood of each read at relevant subpaths on the tree:
-            final Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> costsByEndingVertex = calculatePathCostsByRead(reads, mayNeedAdjustment);
+            final Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> costsByEndingVertex = calculatePathCostsByRead(sampleReads);
             // Create the resulting per-read maps:
-            final PerReadAlleleLikelihoodMap prallm = calculatePerReadAlleleLikelihoodMap(haplotypes, costsByEndingVertex, alleleVersions);
-            result.put(sample, prallm);
+            calculatePerReadAlleleLikelihoodMap(costsByEndingVertex,result.sampleMatrix(s) );
         }
+        result.normalizeLikelihoods(true,log10globalReadMismappingRate);
         logger.debug("Likelihood analysis summary: reads anchored " + anchoredReads + "/" + (anchoredReads + nonAnchoredReads) + "");
         return result;
     }
@@ -263,8 +262,7 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
      * @param fileName name of the output file.
      */
     public void printGraph(final String fileName) {
-        if (haplotypeGraph != null)
-            haplotypeGraph.printGraph(fileName);
+        haplotypeGraph.printGraph(fileName);
     }
 
     /**
@@ -281,36 +279,24 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
      *
      * @return {@code true} iff so.
      */
+    @SuppressWarnings("unused")
     public boolean hasCycles() {
-        // It is set to null if it contained cycles.
-        return haplotypeGraph == null;
+        return haplotypeGraph.hasCycles();
     }
 
 
     /**
      * Builds the result per-read allele likelihood map.
      *
-     * @param haplotypes          haplotypes to process.
-     * @param costsEndingByVertex Read vs haplotype graph subpaths cost indexed by ending vertex.
-     * @param alleleVersions      map between haplotypes and the corresponding allele.
-     * @return never {@code null} although perhaps empty.
+     * @param costsEndingByVertex Read vs haplotype graph sub-paths cost indexed by ending vertex.
+     * @param likelihoods matrix where to set the likelihoods where the first index in the haplotype's and the second
+     *                    the read.
      */
-    protected PerReadAlleleLikelihoodMap calculatePerReadAlleleLikelihoodMap(
-            final Collection<Haplotype> haplotypes,
-            final Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> costsEndingByVertex, final Map<Haplotype, Allele> alleleVersions) {
-
-        final PerReadAlleleLikelihoodMap result = new PerReadAlleleLikelihoodMap();
-        if (haplotypeGraph == null)
-            return result;
-        final Map<GATKSAMRecord, Double> maxAlleleLogLk = new HashMap<>(anchoredReads + nonAnchoredReads + 10);
-        final Set<Haplotype> supportedHaplotypes = new LinkedHashSet<>(haplotypeGraph.getHaplotypes());
-        supportedHaplotypes.retainAll(haplotypes);
-        for (final Haplotype haplotype : supportedHaplotypes)
-            calculatePerReadAlleleLikelihoodMapHaplotypeProcessing(haplotype, alleleVersions, result, maxAlleleLogLk, costsEndingByVertex);
-
-        makeLikelihoodAdjustment(alleleVersions, result, maxAlleleLogLk.keySet(), maxAlleleLogLk);
-        applyGlobalReadMismappingRate(alleleVersions, result, maxAlleleLogLk);
-        return result;
+    protected void calculatePerReadAlleleLikelihoodMap(final Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> costsEndingByVertex,
+                                                       final ReadLikelihoods.Matrix<Haplotype> likelihoods) {
+        final int alleleCount = likelihoods.alleleCount();
+        for (int h = 0; h < alleleCount; h++)
+            calculatePerReadAlleleLikelihoodMapHaplotypeProcessing(h, likelihoods, costsEndingByVertex);
     }
 
     /**
@@ -322,25 +308,24 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
      * "likelihood".
      * </p>
      *
-     * @param haplotype                 the target haplotype
-     * @param alleleVersions            allele version of the haplotypes. These are the ones to be used in the final output.
-     * @param result                    target where to add the read-vs-haplotype likelihoods.
-     * @param maxAlleleLogLk   where to place the maximum likelihood achieve on any haplotype for each read.
+     * @param haplotypeIndex                 the target haplotype index in the {@code likelihoods} matrix.
+     * @param likelihoods               matrix of likelihoods.
      * @param costsEndingByVertex       read costs assorted by their end vertex.
      */
-    private void calculatePerReadAlleleLikelihoodMapHaplotypeProcessing(final Haplotype haplotype,
-                                                                        final Map<Haplotype, Allele> alleleVersions,
-                                                                        final PerReadAlleleLikelihoodMap result,
-                                                                        final Map<GATKSAMRecord, Double> maxAlleleLogLk,
+    private void calculatePerReadAlleleLikelihoodMapHaplotypeProcessing(final int haplotypeIndex,
+                                                                        final ReadLikelihoods.Matrix<Haplotype> likelihoods,
                                                                         final Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> costsEndingByVertex) {
+        final Haplotype haplotype = likelihoods.allele(haplotypeIndex);
         final HaplotypeRoute haplotypeRoute = haplotypeGraph.getHaplotypeRoute(haplotype);
         final Set<MultiDeBruijnVertex> haplotypeVertices = haplotypeRoute.vertexSet();
         final Map<GATKSAMRecord, ReadCost> readCostByRead = new HashMap<>();
         final Set<MultiDeBruijnVertex> visitedVertices = new HashSet<>(haplotypeVertices.size());
         final List<MultiSampleEdge> edgeList = haplotypeRoute.getEdges();
+
         MultiDeBruijnVertex currentVertex = haplotypeRoute.getFirstVertex();
         Route<MultiDeBruijnVertex, MultiSampleEdge> pathSoFar = new Route<>(currentVertex, haplotypeGraph);
         final Iterator<MultiSampleEdge> edgeIterator = edgeList.iterator();
+
         while (true) {
             visitedVertices.add(currentVertex);
             final Set<ReadSegmentCost> finishingAtElementCostSet = costsEndingByVertex.get(currentVertex);
@@ -351,15 +336,12 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
             currentVertex = pathSoFar.getLastVertex();
         }
 
-        final List<ReadCost> readCosts = new ArrayList<>(readCostByRead.values());
-        Collections.sort(readCosts, ReadCost.COMPARATOR);
-        for (final ReadCost rc : readCosts)
-            result.add(rc.read, alleleVersions.get(haplotype), rc.getCost());
-
-        for (final ReadCost rc : readCosts) {
-            final Double currentMax = maxAlleleLogLk.get(rc.read);
-            if (currentMax == null || currentMax < rc.getCost())
-                maxAlleleLogLk.put(rc.read, rc.getCost());
+        int readIndex = 0;
+        for (final GATKSAMRecord read : likelihoods.reads()) {
+            final ReadCost rc = readCostByRead.get(read);
+            //if (rc != null)
+            likelihoods.set(haplotypeIndex,readIndex,rc == null ? Double.NEGATIVE_INFINITY : rc.getCost());
+            readIndex++;
         }
     }
 
@@ -444,33 +426,6 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
     }
 
     /**
-     * Makes sure that the reference allele likelihood is not too much smaller that the best alternative allele.
-     * The justification of this constraint is explained in
-     * {@link PairHMMLikelihoodCalculationEngine#computeDiploidHaplotypeLikelihoods}.
-     *
-     * @param alleleVersions            correspondence between input haplotypes and output alleles.
-     * @param result                    the target result map.
-     * @param maxAlleleLogLk for each read indicates the likelihood of the best alternative allele.
-     */
-    private void applyGlobalReadMismappingRate(final Map<Haplotype, Allele> alleleVersions,
-                                               final PerReadAlleleLikelihoodMap result,
-                                               final Map<GATKSAMRecord, Double> maxAlleleLogLk) {
-        if (!Double.isNaN(log10globalReadMismappingRate) && !Double.isInfinite(log10globalReadMismappingRate)) {
-            final Allele referenceAllele = alleleVersions.get(haplotypeGraph.getReferenceHaplotype());
-            for (final Map.Entry<GATKSAMRecord, Map<Allele, Double>> entry : result.getLikelihoodReadMap().entrySet()) {
-                final GATKSAMRecord read = entry.getKey();
-                final Map<Allele, Double> likelihoods = entry.getValue();
-                final Double maxLogLk = maxAlleleLogLk.get(read);
-                if (maxAlleleLogLk == null) continue;
-                final Double referenceLogLk = likelihoods.get(referenceAllele);
-                final Double minReferenceLogLk = maxLogLk + log10globalReadMismappingRate;
-                if (referenceLogLk == null || referenceLogLk < minReferenceLogLk)
-                    likelihoods.put(referenceAllele, minReferenceLogLk);
-            }
-        }
-    }
-
-    /**
      * Calculates path costs for a set of reads.
      * <p/>
      * <p>
@@ -479,17 +434,16 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
      * likelihood (cost) of traversing a possible path across the event block using that read.
      * </p>
      *
-     * @param reads             reads to analyze.
-     * @param mayNeedAdjustment set where to add reads whose likelihood might need adjustment.
+     * @param reads reads to analyze.
      * @return never {@code null}.
      */
     protected Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> calculatePathCostsByRead(
-            final List<GATKSAMRecord> reads, final Set<GATKSAMRecord> mayNeedAdjustment) {
+            final List<GATKSAMRecord> reads) {
         final Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> result = new HashMap<>(reads.size());
         if (!hasVariation)
             return Collections.emptyMap();
         for (final GATKSAMRecord r : reads) {
-            calculatePathCostsByRead(r, mayNeedAdjustment, result);
+            calculatePathCostsByRead(r, result);
         }
         return result;
     }
@@ -498,10 +452,9 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
      * Calculates path cost for a single read.
      *
      * @param read              target read.
-     * @param mayNeedAdjustment set where to add read whose likelihood might need adjustment.
      * @param result       map where to add the result.
      */
-    private void calculatePathCostsByRead(final GATKSAMRecord read, final Set<GATKSAMRecord> mayNeedAdjustment,
+    private void calculatePathCostsByRead(final GATKSAMRecord read,
                                           final Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> result) {
 
         final ReadAnchoring anchoring = new ReadAnchoring(read,haplotypeGraph);
@@ -510,14 +463,11 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
         if (!anchoring.isAnchoredSomewhere()) {
             defaultToRegularPairHMM(anchoring, result);
             nonAnchoredReads++;
-            return;
+        } else {
+            calculateReadSegmentCosts(anchoring, hmm, result);
+            if (!anchoring.isPerfectAnchoring()) danglingEndPathCosts(anchoring, hmm, result);
+            anchoredReads++;
         }
-
-        calculateReadSegmentCosts(anchoring, hmm, result);
-
-        if (!anchoring.isPerfectAnchoring()) danglingEndPathCosts(anchoring, hmm, result);
-        mayNeedAdjustment.add(read);
-        anchoredReads++;
     }
 
     /**

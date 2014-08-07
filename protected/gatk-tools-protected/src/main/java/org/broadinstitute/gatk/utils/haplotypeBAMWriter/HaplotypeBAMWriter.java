@@ -46,22 +46,18 @@
 
 package org.broadinstitute.gatk.utils.haplotypeBAMWriter;
 
-import htsjdk.samtools.Cigar;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMTag;
 import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.Utils;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
-import org.broadinstitute.gatk.utils.sam.CigarUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import org.broadinstitute.gatk.utils.smithwaterman.SWPairwiseAlignment;
 
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -155,17 +151,17 @@ public abstract class HaplotypeBAMWriter {
      * @param paddedReferenceLoc the span of the based reference here
      * @param bestHaplotypes a list of the best (a subset of all) haplotypes that actually went forward into genotyping
      * @param calledHaplotypes a list of the haplotypes at where actually called as non-reference
-     * @param stratifiedReadMap a map from sample -> likelihoods for each read for each of the best haplotypes
+     * @param readLikelihoods a map from sample -> likelihoods for each read for each of the best haplotypes
      */
     public abstract void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
                                                        final GenomeLoc paddedReferenceLoc,
                                                        final Collection<Haplotype> bestHaplotypes,
                                                        final Set<Haplotype> calledHaplotypes,
-                                                       final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap);
+                                                       final ReadLikelihoods<Haplotype> readLikelihoods);
 
     public void writeReadsAlignedToHaplotypes(final Collection<Haplotype> haplotypes,
                                               final GenomeLoc paddedReferenceLoc,
-                                              final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+                                              final ReadLikelihoods<Haplotype> stratifiedReadMap) {
         writeReadsAlignedToHaplotypes(haplotypes, paddedReferenceLoc, haplotypes, new HashSet<>(haplotypes), stratifiedReadMap);
     }
 
@@ -210,7 +206,7 @@ public abstract class HaplotypeBAMWriter {
         record.setCigar(AlignmentUtils.consolidateCigar(haplotype.getCigar()));
         record.setMappingQuality(isAmongBestHaplotypes ? 60 : 0);
         record.setReadName("HC" + uniqueNameCounter++);
-        record.setAttribute(AlignmentUtils.HAPLOTYPE_TAG, haplotype.hashCode());
+        record.setAttribute(AlignmentUtils.HAPLOTYPE_TAG,haplotype.hashCode());
         record.setReadUnmappedFlag(false);
         record.setReferenceIndex(paddedRefLoc.getContigIndex());
         record.setAttribute(SAMTag.RG.toString(), READ_GROUP_ID);
