@@ -408,7 +408,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="GVCFGQBands", shortName="GQB", doc="Emit experimental reference confidence scores", required = false)
-    protected List<Integer> GVCFGQBands = Arrays.asList(5, 20, 60);
+    protected List<Integer> GVCFGQBands = new ArrayList<Integer>(70) {{
+        for (int i=1; i<=60; ++i) add(i);
+        add(70); add(80); add(90); add(99);
+    }};
 
     /**
      * This parameter determines the maximum size of an indel considered as potentially segregating in the
