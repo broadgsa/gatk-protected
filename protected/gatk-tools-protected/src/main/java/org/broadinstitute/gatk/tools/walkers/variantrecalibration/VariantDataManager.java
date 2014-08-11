@@ -340,12 +340,15 @@ public class VariantDataManager {
     private static double decodeAnnotation( final String annotationKey, final VariantContext vc, final boolean jitter ) {
         double value;
 
+        final double LOG_OF_TWO = 0.6931472;
+
         try {
             value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
             if( Double.isInfinite(value) ) { value = Double.NaN; }
             if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
             if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
             if( jitter && annotationKey.equalsIgnoreCase("InbreedingCoeff") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("SOR") && MathUtils.compareDoubles(value, LOG_OF_TWO, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
         } catch( Exception e ) {
             value = Double.NaN; // The VQSR works with missing data by marginalizing over the missing dimension when evaluating the Gaussian mixture model
         }
