@@ -447,8 +447,8 @@ public class PairHMMIndelErrorModel {
                     final List<Haplotype> distinctHaplotypesList = Arrays.asList(distinctHaplotypesSet.toArray(new Haplotype[distinctHaplotypesSet.size()]));
                     // Get the likelihoods for our clipped read against each of our trimmed haplotypes.
                     final ReadLikelihoods<Haplotype> rl = new ReadLikelihoods<>(
-
                             Collections.singletonList("DUMMY_SAMPLE"),distinctHaplotypesList,Collections.singletonMap("DUMMY_SAMPLE",Collections.singletonList(processedRead)));
+
                     final ReadLikelihoods.Matrix<Haplotype> dummySampleLikelihoods = rl.sampleMatrix(0);
                     pairHMM.computeLikelihoods(rl.sampleMatrix(0), Collections.singletonList(processedRead), readGCPArrayMap);
 
@@ -458,7 +458,7 @@ public class PairHMMIndelErrorModel {
                         final int hIndex = rl.alleleIndex(h);
                         final double readLikelihood = dummySampleLikelihoods.get(hIndex,0);
                         readLikelihoods[readIdx][j++] = readLikelihood;
-                        perReadAlleleLikelihoodMap.add(read,a,readLikelihood);
+                        perReadAlleleLikelihoodMap.add(p,a,readLikelihood);
                     }
                 }
             }
