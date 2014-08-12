@@ -183,7 +183,7 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
         return list;
     }
 
-    private Double pValueForContingencyTable(int[][] originalTable) {
+    public static Double pValueForContingencyTable(int[][] originalTable) {
         final int[][] normalizedTable = normalizeContingencyTable(originalTable);
 
         int[][] table = copyContingencyTable(normalizedTable);
