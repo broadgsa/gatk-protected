@@ -48,9 +48,12 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.samtools.SAMFileHeader;
 import org.broadinstitute.gatk.utils.BaseTest;
-import org.broadinstitute.gatk.utils.*;
+import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.UnvalidatingGenomeLoc;
+import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
@@ -285,7 +288,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
             data.getActiveRegion().add(data.makeRead(0, data.getRefLength()));
         }
 
-        final Map<String, PerReadAlleleLikelihoodMap> likelihoods = HaplotypeCaller.createDummyStratifiedReadMap(data.getRefHap(), new ArrayList<>(samples), data.getActiveRegion());
+        final ReadLikelihoods<Haplotype> likelihoods = HaplotypeCaller.createDummyStratifiedReadMap(data.getRefHap(), new ArrayList<>(samples), data.getActiveRegion());
 
         final List<Integer> expectedDPs = Collections.nCopies(data.getActiveRegion().getLocation().size(), nReads);
         final List<VariantContext> contexts = model.calculateRefConfidence(data.getRefHap(), haplotypes, data.getPaddedRefLoc(), data.getActiveRegion(), likelihoods, calls);
@@ -302,7 +305,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                 final List<VariantContext> calls = Collections.emptyList();
 
                 data.getActiveRegion().add(data.makeRead(start, readLen));
-                final Map<String, PerReadAlleleLikelihoodMap> likelihoods = HaplotypeCaller.createDummyStratifiedReadMap(data.getRefHap(), new ArrayList<>(samples), data.getActiveRegion());
+                final ReadLikelihoods<Haplotype> likelihoods = HaplotypeCaller.createDummyStratifiedReadMap(data.getRefHap(), new ArrayList<>(samples), data.getActiveRegion());
 
                 final List<Integer> expectedDPs = new ArrayList<>(Collections.nCopies(data.getActiveRegion().getLocation().size(), 0));
                 for ( int i = start; i < readLen + start; i++ ) expectedDPs.set(i, 1);
@@ -337,7 +340,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                         data.getActiveRegion().add(data.makeRead(0, data.getRefLength()));
                     }
 
-                    final Map<String, PerReadAlleleLikelihoodMap> likelihoods = HaplotypeCaller.createDummyStratifiedReadMap(data.getRefHap(), new ArrayList<>(samples), data.getActiveRegion());
+                    final ReadLikelihoods<Haplotype> likelihoods = HaplotypeCaller.createDummyStratifiedReadMap(data.getRefHap(), new ArrayList<>(samples), data.getActiveRegion());
 
                     final List<Integer> expectedDPs = Collections.nCopies(data.getActiveRegion().getLocation().size(), nReads);
                     final List<VariantContext> contexts = model.calculateRefConfidence(data.getRefHap(), haplotypes, data.getPaddedRefLoc(), data.getActiveRegion(), likelihoods, calls);

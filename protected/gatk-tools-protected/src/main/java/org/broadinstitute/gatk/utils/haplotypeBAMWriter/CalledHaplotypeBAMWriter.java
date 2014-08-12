@@ -47,15 +47,11 @@
 package org.broadinstitute.gatk.utils.haplotypeBAMWriter;
 
 import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -82,16 +78,15 @@ class CalledHaplotypeBAMWriter extends HaplotypeBAMWriter {
                                               final GenomeLoc paddedReferenceLoc,
                                               final Collection<Haplotype> bestHaplotypes,
                                               final Set<Haplotype> calledHaplotypes,
-                                              final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+                                              final ReadLikelihoods<Haplotype> readLikelihoods) {
         if ( calledHaplotypes.isEmpty() ) // only write out called haplotypes
             return;
 
         writeHaplotypesAsReads(calledHaplotypes, calledHaplotypes, paddedReferenceLoc);
 
-        for ( final PerReadAlleleLikelihoodMap readAlleleLikelihoodMap : stratifiedReadMap.values() ) {
-            for ( final GATKSAMRecord read : readAlleleLikelihoodMap.getLikelihoodReadMap().keySet() ) {
+        final int sampleCount = readLikelihoods.sampleCount();
+        for (int s = 0; s < sampleCount; s++)
+            for (final GATKSAMRecord read : readLikelihoods.sampleReads(s))
                 writeReadAgainstHaplotype(read);
-            }
-        }
     }
 }

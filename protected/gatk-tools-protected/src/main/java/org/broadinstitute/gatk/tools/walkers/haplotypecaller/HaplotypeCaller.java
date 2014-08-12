@@ -48,7 +48,9 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import htsjdk.samtools.SAMFileWriter;
-import org.broadinstitute.gatk.utils.commandline.*;
+import htsjdk.variant.variantcontext.*;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
@@ -75,11 +77,12 @@ import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.gatk.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.gatk.utils.clipping.ReadClipper;
+import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.gatk.utils.fragments.FragmentCollection;
 import org.broadinstitute.gatk.utils.fragments.FragmentUtils;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.gvcf.GVCFWriter;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
@@ -89,12 +92,10 @@ import org.broadinstitute.gatk.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFIndexType;
-import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
 import java.io.FileNotFoundException;
@@ -932,12 +933,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final Map<String,List<GATKSAMRecord>> reads = splitReadsBySample( regionForGenotyping.getReads() );
 
         // Calculate the likelihoods: CPU intesive part.
-        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,reads);
+        final ReadLikelihoods<Haplotype> readLikelihoods =
+                likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,samplesList,reads);
 
-        // Realign all the reads to the most likely haplotype for use by the annotations
-        for( final Map.Entry<String, PerReadAlleleLikelihoodMap> entry : stratifiedReadMap.entrySet() ) {
-            entry.getValue().realignReadsToMostLikelyHaplotype(haplotypes, assemblyResult.getPaddedReferenceLoc());
-        }
+        // Realign reads to their best haplotype.
+        final Map<GATKSAMRecord,GATKSAMRecord> readRealignments = realignReadsToTheirBestHaplotype(readLikelihoods, assemblyResult.getPaddedReferenceLoc());
+        readLikelihoods.changeReads(readRealignments);
 
         // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
         //  was a bad interaction between that selection and the marginalization that happens over each event when computing
@@ -947,7 +948,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods(
                 haplotypes,
-                stratifiedReadMap,
+                readLikelihoods,
                 perSampleFilteredReadList,
                 assemblyResult.getFullReferenceWithPadding(),
                 assemblyResult.getPaddedReferenceLoc(),
@@ -964,7 +965,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                     assemblyResult.getPaddedReferenceLoc(),
                     haplotypes,
                     calledHaplotypes.getCalledHaplotypes(),
-                    stratifiedReadMap);
+                    readLikelihoods);
         }
 
         if( SCAC.DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
@@ -982,15 +983,36 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 // output variant containing region.
                 result.addAll(referenceConfidenceModel.calculateRefConfidence(assemblyResult.getReferenceHaplotype(),
                         calledHaplotypes.getCalledHaplotypes(), assemblyResult.getPaddedReferenceLoc(), regionForGenotyping,
-                        stratifiedReadMap, calledHaplotypes.getCalls()));
+                        readLikelihoods, calledHaplotypes.getCalls()));
                 // output right-flanking non-variant section:
                 if (trimmingResult.hasRightFlankingRegion())
                     result.addAll(referenceModelForNoVariation(trimmingResult.nonVariantRightFlankRegion(),false));
                 return result;
             }
-        } else {
+        } else
             return calledHaplotypes.getCalls();
+    }
+
+    /**
+     * Returns a map with the original read as a key and the realigned read as the value.
+     * <p>
+     *     Missing keys or equivalent key and value pairs mean that the read was not realigned.
+     * </p>
+     * @return never {@code null}
+     */
+    private Map<GATKSAMRecord,GATKSAMRecord> realignReadsToTheirBestHaplotype(final ReadLikelihoods<Haplotype> originalReadLikelihoods, final GenomeLoc paddedReferenceLoc) {
+
+        final Collection<ReadLikelihoods<Haplotype>.BestAllele> bestAlleles = originalReadLikelihoods.bestAlleles();
+        final Map<GATKSAMRecord,GATKSAMRecord> result = new HashMap<>(bestAlleles.size());
+
+        for (final ReadLikelihoods<Haplotype>.BestAllele bestAllele : bestAlleles) {
+            final GATKSAMRecord originalRead = bestAllele.read;
+            final Haplotype bestHaplotype = bestAllele.allele;
+            final boolean isInformative = bestAllele.isInformative();
+            final GATKSAMRecord realignedRead = AlignmentUtils.createReadAlignedToRef(originalRead,bestHaplotype,paddedReferenceLoc.getStart(),isInformative);
+            result.put(originalRead,realignedRead);
         }
+        return result;
     }
 
     private boolean containsCalls(final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes) {
@@ -1086,22 +1108,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * @param region the active region containing reads
      * @return a map from sample -> PerReadAlleleLikelihoodMap that maps each read to ref
      */
-    public static Map<String, PerReadAlleleLikelihoodMap> createDummyStratifiedReadMap(final Haplotype refHaplotype,
-                                                                                       final List<String> samples,
-                                                                                       final ActiveRegion region) {
-        final Allele refAllele = Allele.create(refHaplotype, true);
+    public static ReadLikelihoods<Haplotype> createDummyStratifiedReadMap(final Haplotype refHaplotype,
+                                                                          final List<String> samples,
+                                                                          final ActiveRegion region) {
+        return new ReadLikelihoods<>(samples, Collections.singletonList(refHaplotype),
+                splitReadsBySample(samples, region.getReads()));
 
-        final Map<String, PerReadAlleleLikelihoodMap> map = new LinkedHashMap<>(1);
-        for ( final Map.Entry<String, List<GATKSAMRecord>> entry : splitReadsBySample(samples, region.getReads()).entrySet() ) {
-            final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
-            for ( final GATKSAMRecord read : entry.getValue() ) {
-                likelihoodMap.add(read, refAllele, 0.0);
-            }
-            map.put(entry.getKey(), likelihoodMap);
-        }
-
-        return map;
     }
+
 
     //---------------------------------------------------------------------------------------------------------------
     //

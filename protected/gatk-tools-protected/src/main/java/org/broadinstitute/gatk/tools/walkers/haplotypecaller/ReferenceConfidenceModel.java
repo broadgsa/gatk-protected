@@ -47,13 +47,16 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.samtools.*;
+import htsjdk.variant.variantcontext.*;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFSimpleHeaderLine;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.locusiterator.LocusIteratorByState;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
@@ -62,9 +65,6 @@ import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFSimpleHeaderLine;
 
 import java.io.File;
 import java.util.*;
@@ -86,6 +86,7 @@ public class ReferenceConfidenceModel {
 
     private final GenomeLocParser genomeLocParser;
     private final Set<String> samples;
+    private final SAMFileHeader header; // TODO -- really shouldn't depend on this
     private final int indelInformativeDepthIndelSize;
 
     private final static boolean WRITE_DEBUGGING_BAM = false;
@@ -113,6 +114,7 @@ public class ReferenceConfidenceModel {
 
         this.genomeLocParser = genomeLocParser;
         this.samples = samples;
+        this.header = header;
         this.indelInformativeDepthIndelSize = indelInformativeDepthIndelSize;
 
         if ( WRITE_DEBUGGING_BAM ) {
@@ -156,10 +158,10 @@ public class ReferenceConfidenceModel {
      *
      * @param refHaplotype the reference haplotype, used to get the reference bases across activeRegion.getLoc()
      * @param calledHaplotypes a list of haplotypes that segregate in this region, for realignment of the reads in the
-     *                         stratifiedReadMap, corresponding to each reads best haplotype.  Must contain the refHaplotype.
+     *                         readLikelihoods, corresponding to each reads best haplotype.  Must contain the refHaplotype.
      * @param paddedReferenceLoc the location of refHaplotype (which might be larger than activeRegion.getLoc())
      * @param activeRegion the active region we want to get the reference confidence over
-     * @param stratifiedReadMap a map from a single sample to its PerReadAlleleLikelihoodMap for each haplotype in calledHaplotypes
+     * @param readLikelihoods a map from a single sample to its PerReadAlleleLikelihoodMap for each haplotype in calledHaplotypes
      * @param variantCalls calls made in this region.  The return result will contain any variant call in this list in the
      *                     correct order by genomic position, and any variant in this list will stop us emitting a ref confidence
      *                     under any position it covers (for snps and insertions that is 1 bp, but for deletions its the entire ref span)
@@ -170,22 +172,22 @@ public class ReferenceConfidenceModel {
                                                        final Collection<Haplotype> calledHaplotypes,
                                                        final GenomeLoc paddedReferenceLoc,
                                                        final ActiveRegion activeRegion,
-                                                       final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap,
+                                                       final ReadLikelihoods<Haplotype> readLikelihoods,
                                                        final List<VariantContext> variantCalls) {
         if ( refHaplotype == null ) throw new IllegalArgumentException("refHaplotype cannot be null");
         if ( calledHaplotypes == null ) throw new IllegalArgumentException("calledHaplotypes cannot be null");
         if ( !calledHaplotypes.contains(refHaplotype)) throw new IllegalArgumentException("calledHaplotypes must contain the refHaplotype");
         if ( paddedReferenceLoc == null ) throw new IllegalArgumentException("paddedReferenceLoc cannot be null");
         if ( activeRegion == null ) throw new IllegalArgumentException("activeRegion cannot be null");
-        if ( stratifiedReadMap == null ) throw new IllegalArgumentException("stratifiedReadMap cannot be null");
-        if ( stratifiedReadMap.size() != 1 ) throw new IllegalArgumentException("stratifiedReadMap must contain exactly one sample but it contained " + stratifiedReadMap.size());
+        if ( readLikelihoods == null ) throw new IllegalArgumentException("readLikelihoods cannot be null");
+        if ( readLikelihoods.sampleCount() != 1 ) throw new IllegalArgumentException("readLikelihoods must contain exactly one sample but it contained " + readLikelihoods.sampleCount());
         if ( refHaplotype.length() != activeRegion.getExtendedLoc().size() ) throw new IllegalArgumentException("refHaplotype " + refHaplotype.length() + " and activeRegion location size " + activeRegion.getLocation().size() + " are different");
 
         final GenomeLoc refSpan = activeRegion.getLocation();
-        final List<ReadBackedPileup> refPileups = getPileupsOverReference(refHaplotype, calledHaplotypes, paddedReferenceLoc, activeRegion, refSpan, stratifiedReadMap);
+        final List<ReadBackedPileup> refPileups = getPileupsOverReference(refHaplotype, calledHaplotypes, paddedReferenceLoc, activeRegion, refSpan, readLikelihoods);
         final byte[] ref = refHaplotype.getBases();
         final List<VariantContext> results = new ArrayList<>(refSpan.size());
-        final String sampleName = stratifiedReadMap.keySet().iterator().next();
+        final String sampleName = readLikelihoods.sample(0);
 
         final int globalRefOffset = refSpan.getStart() - activeRegion.getExtendedLoc().getStart();
         for ( final ReadBackedPileup pileup : refPileups ) {
@@ -311,15 +313,15 @@ public class ReferenceConfidenceModel {
                                                            final GenomeLoc paddedReferenceLoc,
                                                            final ActiveRegion activeRegion,
                                                            final GenomeLoc activeRegionSpan,
-                                                           final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+                                                           final ReadLikelihoods<Haplotype> readLikelihoods) {
 
         if ( refHaplotype == null ) throw new IllegalArgumentException("refHaplotype cannot be null");
         if ( calledHaplotypes == null ) throw new IllegalArgumentException("calledHaplotypes cannot be null");
         if ( !calledHaplotypes.contains(refHaplotype)) throw new IllegalArgumentException("calledHaplotypes must contain the refHaplotype");
         if ( paddedReferenceLoc == null ) throw new IllegalArgumentException("paddedReferenceLoc cannot be null");
         if ( activeRegion == null ) throw new IllegalArgumentException("activeRegion cannot be null");
-        if ( stratifiedReadMap == null ) throw new IllegalArgumentException("stratifiedReadMap cannot be null");
-        if ( stratifiedReadMap.size() != 1 ) throw new IllegalArgumentException("stratifiedReadMap must contain exactly one sample but it contained " + stratifiedReadMap.size());
+        if ( readLikelihoods == null ) throw new IllegalArgumentException("readLikelihoods cannot be null");
+        if ( readLikelihoods.sampleCount() != 1 ) throw new IllegalArgumentException("readLikelihoods must contain exactly one sample but it contained " + readLikelihoods.sampleCount());
 
         final List<GATKSAMRecord> reads = activeRegion.getReads();
 

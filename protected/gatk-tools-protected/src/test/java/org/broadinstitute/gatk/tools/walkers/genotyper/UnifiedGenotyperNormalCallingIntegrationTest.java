@@ -53,13 +53,14 @@ import java.util.Arrays;
 
 public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
 
-    private final static String baseCommand = "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b36KGReference + " --no_cmdline_in_header -glm BOTH -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
+    private final static String baseCommand = "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R "
+            + b36KGReference + " --no_cmdline_in_header -glm BOTH -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
 
     // --------------------------------------------------------------------------------------------------------------
     //
     // testing normal calling
     //
-    // --------------------------------------------------------------------------------------------------------------
+    // ---------------------------------------------------- ----------------------------------------------------------
     @Test
     public void testMultiSamplePilot1() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(

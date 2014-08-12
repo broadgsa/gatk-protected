@@ -111,8 +111,8 @@ public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
     @SuppressWarnings("unused")
     public void timeGraphBasedLikelihoods(final int reps) {
         for (int i = 0; i < reps; i++) {
-            GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
-            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), Collections.singletonMap("anonymous", dataSet.readList()));
+            final GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
+            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), Collections.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
         }
     }
 
@@ -121,7 +121,7 @@ public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
         for (int i = 0; i < reps; i++) {
             final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
                     PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
-            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), Collections.singletonMap("anonymous", dataSet.readList()));
+            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), Collections.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
         }
     }
 

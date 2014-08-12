@@ -100,20 +100,42 @@ public class StandardCallerArgumentCollection implements Cloneable {
     public File CONTAMINATION_FRACTION_FILE = null;
 
     /**
+     * Indicates whether there is some sample contamination present.
+     */
+    private boolean sampleContaminationWasLoaded = false;
+
+    /**
      *
      * @return an _Immutable_ copy of the Sample-Contamination Map, defaulting to CONTAMINATION_FRACTION so that if the sample isn't in the map map(sample)==CONTAMINATION_FRACTION
      */
     public Map<String,Double> getSampleContamination(){
         //make sure that the default value is set up right
         sampleContamination.setDefaultValue(CONTAMINATION_FRACTION);
+        if (!Double.isNaN(CONTAMINATION_FRACTION) && CONTAMINATION_FRACTION > 0.0)
+            sampleContaminationWasLoaded = true;
         return Collections.unmodifiableMap(sampleContamination);
     }
 
     public void setSampleContamination(DefaultHashMap<String, Double> sampleContamination) {
         this.sampleContamination.clear();
+        this.sampleContaminationWasLoaded = !Double.isNaN(CONTAMINATION_FRACTION) && CONTAMINATION_FRACTION > 0.0;
+        if (!sampleContaminationWasLoaded)
+            for (final Double d : sampleContamination.values())
+                if (!Double.isNaN(d) && d > 0.0) {
+                    sampleContaminationWasLoaded = true;
+                    break;
+                }
         this.sampleContamination.putAll(sampleContamination);
         this.sampleContamination.setDefaultValue(CONTAMINATION_FRACTION);
     }
+
+    /**
+     * Returns true if there is some sample contamination present, false otherwise.
+     * @return {@code true} iff there is some sample contamination
+     */
+    public boolean isSampleContaminationPresent() {
+        return (!Double.isNaN(CONTAMINATION_FRACTION) && CONTAMINATION_FRACTION > 0.0) || sampleContaminationWasLoaded;
+   }
 
     //Needs to be here because it uses CONTAMINATION_FRACTION
     private DefaultHashMap<String,Double> sampleContamination = new DefaultHashMap<String,Double>(CONTAMINATION_FRACTION);

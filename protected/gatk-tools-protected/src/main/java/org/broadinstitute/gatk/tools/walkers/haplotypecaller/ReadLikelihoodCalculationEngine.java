@@ -46,7 +46,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.util.List;
@@ -87,7 +88,7 @@ public interface ReadLikelihoodCalculationEngine {
      * @return never {@code null}, and with at least one entry for input sample (keys in {@code perSampleReadList}.
      *    The value maps can be potentially empty though.
      */
-    public Map<String, PerReadAlleleLikelihoodMap> computeReadLikelihoods(AssemblyResultSet assemblyResultSet,
+    public ReadLikelihoods<Haplotype> computeReadLikelihoods(AssemblyResultSet assemblyResultSet, List<String> samples,
                                Map<String, List<GATKSAMRecord>> perSampleReadList);
 
     public void close();
