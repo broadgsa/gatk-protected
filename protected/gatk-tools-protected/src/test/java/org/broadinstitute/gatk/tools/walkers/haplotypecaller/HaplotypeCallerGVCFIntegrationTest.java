@@ -47,18 +47,36 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
-import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.variant.GATKVCFIndexType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
+
+    @DataProvider(name = "MyDataProviderHaploid")
+    public Object[][] makeMyDataProviderHaploid() {
+        List<Object[]> tests = new ArrayList<>();
+
+        final String PCRFreeIntervals = "-L 20:10,000,000-10,010,000";
+        final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "5cc1858896aca6683282f53054bb7a61"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "010a747f5c41ddb7889168e499eb40bb"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "d7dbc1c8e11a277e9db857eb766fd2c6"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "799752d88c4e15e19a953add764d2239"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "fa057b35d6fe9588c2653b6560d6e3c2"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "d10e8907594414890cbf80d282426812"});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+
     @DataProvider(name = "MyDataProvider")
     public Object[][] makeMyDataProvider() {
         List<Object[]> tests = new ArrayList<>();
@@ -77,6 +95,24 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         return tests.toArray(new Object[][]{});
     }
 
+    @DataProvider(name = "MyDataProviderTetraploid")
+    public Object[][] makeMyDataProviderTetraploid() {
+        List<Object[]> tests = new ArrayList<>();
+
+        final String PCRFreeIntervals = "-L 20:10,000,000-10,010,000";
+        final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "6e157b6fdf4071fcb7da74f40146a611"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "354b84dbfaf55947aea40865e74ce66b"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "fc4b7e6528747cb20e0c92699a0787cb"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "6e0f5d82b77ea79a639d43b2db70e751"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "a3daf472f7ab16667e5f6dab1af392ff"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "af9230fa56752b732572ce956101a2be"});
+
+        return tests.toArray(new Object[][]{});
+    }
+
     /**
      * Example testng test using MyDataProvider
      */
@@ -86,7 +122,31 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
                 b37KGReference, bam, intervals, mode, HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
         final String name = "testHCWithGVCF bam=" + bam + " intervals= " + intervals + " gvcf= " + mode;
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
-        final Pair<List<File>,List<String>> executionOutput = executeTest(name, spec);
+        executeTest(name, spec);
+    }
+
+    /**
+     * Example testng test using MyDataProvider
+     */
+    @Test(dataProvider = "MyDataProviderHaploid", enabled=false)
+    public void testHCWithGVCFHaploid(final String bam, final ReferenceConfidenceMode mode, final String intervals, final String md5) {
+        final String commandLine = String.format("-T HaplotypeCaller -ploidy 1 --disableDithering --pcr_indel_model NONE -R %s -I %s %s -ERC %s --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
+                b37KGReference, bam, intervals, mode, HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+        final String name = "testHCWithGVCFHaploid bam=" + bam + " intervals= " + intervals + " gvcf= " + mode;
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
+        executeTest(name, spec);
+    }
+
+    /**
+     * Example testng test using MyDataProvider
+     */
+    @Test(dataProvider = "MyDataProviderTetraploid", enabled=false)
+    public void testHCWithGVCFTetraploid(final String bam, final ReferenceConfidenceMode mode, final String intervals, final String md5) {
+        final String commandLine = String.format("-T HaplotypeCaller -ploidy 4 --disableDithering --pcr_indel_model NONE -R %s -I %s %s -ERC %s --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
+                b37KGReference, bam, intervals, mode, HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+        final String name = "testHCWithGVCFTetraploid bam=" + bam + " intervals= " + intervals + " gvcf= " + mode;
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
+        executeTest(name, spec);
     }
 
     @Test
@@ -144,6 +204,11 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
 
     private static final String NOCALL_GVCF_BUGFIX_INTERVALS = privateTestDir + "gvcf_nocall_bug.interval_list";
     private static final String NOCALL_GVCF_BUGFIX_BAM = privateTestDir + "gvcf_nocall_bug.bam";
+    private static final String GENERAL_PLOIDY_BUGFIX1_BAM = privateTestDir + "general-ploidy-arrayindex-bug-1.bam";
+    private static final String GENERAL_PLOIDY_BUGFIX1_INTERVALS = privateTestDir + "general-ploidy-arrayindex-bug-1.intervals";
+    private static final String GENERAL_PLOIDY_BUGFIX2_BAM = privateTestDir + "general-ploidy-arrayindex-bug-2.bam";
+    private static final String GENERAL_PLOIDY_BUGFIX2_INTERVALS = privateTestDir + "general-ploidy-arrayindex-bug-2.intervals";
+
 
     @Test
     public void testNoCallGVCFMissingPLsBugFix() {
@@ -153,4 +218,23 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testNoCallGVCFMissingPLsBugFix", spec);
     }
+
+    @Test(enabled=false)
+    public void testGeneralPloidyArrayIndexBug1Fix() {
+        final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -ploidy 1 -maxAltAlleles 2 -isr INTERSECTION -L 1:23696115-23696189",
+                b37KGReference, GENERAL_PLOIDY_BUGFIX1_BAM, GENERAL_PLOIDY_BUGFIX1_INTERVALS, HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("7c263d77bf831551366c6e36233b46ce"));
+        spec.disableShadowBCF();
+        executeTest(" testGeneralPloidyArrayIndexBug1Fix", spec);
+    }
+
+    @Test(enabled=false)
+    public void testGeneralPloidyArrayIndexBug2Fix() {
+        final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -ploidy 2 -maxAltAlleles 2 -A DepthPerSampleHC -A StrandBiasBySample -L 1:38052860-38052937",
+                b37KGReference, GENERAL_PLOIDY_BUGFIX2_BAM, GENERAL_PLOIDY_BUGFIX2_INTERVALS, HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("7c263d77bf831551366c6e36233b46ce"));
+        spec.disableShadowBCF();
+        executeTest(" testGeneralPloidyArrayIndexBug2Fix", spec);
+    }
+
 }

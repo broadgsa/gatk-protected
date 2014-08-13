@@ -43,97 +43,129 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.utils;
+package org.broadinstitute.gatk.genotyping;
 
+import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.RandomDNA;
+import org.testng.Assert;
+import org.testng.SkipException;
+
+import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
- * Random DNA sequence generator.
- *
- * <p>
- *     Returned bases are always in upper case and one of the valid four nocleotides 'A', 'C', 'G' and 'T'.
- * </p>
+ * Helper class for those unit-test classes that test on implementations of SampleList.
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class
-        RandomDNA {
+public class AlleleListUnitTester {
 
-    private Random random;
+    private static final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+    private static final RandomDNA rndDNA = new RandomDNA(rnd);
 
     /**
-     * Constructs a new random DNA generator.
-     *
+     * Test that the contents of an allele-list are the ones expected.
+     * <p/>
      * <p>
-     *     The seed would be the default which would depend on system properties and the current time as
-     *     described in {@link Random} documentation.
-     * </p>
-     */
-    @SuppressWarnings("unused")
-    public RandomDNA() {
-        random = new Random();
-    }
-
-
-    /**
-     * Creates a new random DNA generator given a random number generator.
-     * @param rnd the underlying random number generator.
-     *
-     * @throws IllegalArgumentException if {@code rnd} is {@code null}.
-     */
-    public RandomDNA(final Random rnd) {
-        if (rnd == null)
-            throw new IllegalArgumentException("the random number generator cannot be null");
-        random = rnd;
-    }
-
-    /**
-     * Constructs a new random DNA generator providing a seed.
-     *
-     * @param seed the random number generator seed.
-     */
-    public RandomDNA(final long seed) {
-        random = new Random(seed);
-    }
-
-    /**
-     * Updates the content of a byte array with a random base sequence.
-     *
-     * <p>
-     *     The whole array will be filled with new base values.
+     * This method perform various consistency check involving all the {@link org.broadinstitute.gatk.genotyping.AlleleList} interface methods.
+     * Therefore calling this method is equivalent to a thorough check of the {@link org.broadinstitute.gatk.genotyping.AlleleList} aspect of
+     * the {@code actual} argument.
      * </p>
      *
-     * @param destination the array to update.
-     *
-     * @throws NullPointerException if {@code destination} is {@code null}.
+     * @param actual   the sample-list to assess.
+     * @param expected the expected sample-list.
+     * @throws IllegalArgumentException if {@code expected} is {@code null} or contains
+     *                                  {@code null}s which is an indication of an bug in the testing code.
+     * @throws RuntimeException         if there is some testing assertion exception which
+     *                                  is an indication of an actual bug the code that is been tested.
      */
-    public void nextBases(final byte[] destination) {
-        random.nextBytes(destination);
-        for (int i = 0; i < destination.length; i++) {
-            final int ord = destination[i] & 0x03;
-            switch (ord) {
-                case 0: destination[i] = 'A'; break;
-                case 1: destination[i] = 'C'; break;
-                case 2: destination[i] = 'G'; break;
-                case 3: destination[i] = 'T'; break;
-                default: throw new IllegalStateException("this cannot be happening!!!");
-            }
+    public static <A extends Allele> void assertAlleleList(final AlleleList<A> actual, final List<A> expected) {
+        if (expected == null)
+            throw new IllegalArgumentException("the expected list cannot be null");
+        final Set<A> expectedAlleleSet = new HashSet<>(expected.size());
+        Assert.assertNotNull(actual);
+        Assert.assertEquals(actual.alleleCount(), expected.size());
+        for (int i = 0; i < expected.size(); i++) {
+            final A expectedAllele = expected.get(i);
+            if (expectedAllele == null)
+                throw new IllegalArgumentException("the expected sample cannot be null");
+            if (expectedAllele.equals(NEVER_USE_ALLELE))
+                throw new IllegalArgumentException("you cannot use the forbidden sample name");
+            if (expectedAlleleSet.contains(expected.get(i)))
+                throw new IllegalArgumentException("repeated allele in the expected list, this is a test bug");
+            final A actualAllele = actual.alleleAt(i);
+            Assert.assertNotNull(actualAllele, "allele cannot be null");
+            Assert.assertFalse(expectedAlleleSet.contains(actualAllele), "repeated allele: " + actualAllele);
+            Assert.assertEquals(actualAllele, expectedAllele, "wrong allele order; index = " + i);
+            Assert.assertEquals(actual.alleleIndex(actualAllele), i, "allele index mismatch");
+            expectedAlleleSet.add(actualAllele);
         }
+
+        Assert.assertEquals(actual.alleleIndex((A) NEVER_USE_ALLELE), -1);
     }
 
     /**
-     * Returns a random RNA sequence of bases.
-     * @param size the length of the sequence.
+     * Save to assume that this allele will never be used.
+     */
+    private static final Allele NEVER_USE_ALLELE = Allele.create(new String("ACTGACTGACTGACTGACTGACTGACTGACTGGTCAGTCAGTCAGTCAGTCAGTCA").getBytes(), false);
+
+    /**
+     * Generate testing alleles.
      *
-     * @throws IllegalArgumentException if {@code size} is negative.
+     * <p>
+     *     Basically all are random alleles given the maximum allele length.
+     * </p>
+     *
+     * <p>
+     *     So with a low max-allele-length and high allele-count you can force repeats.
+     * </p>
+     *
+     * @param alleleCount number of alleles to generate.
+     * @param maxAlleleLength the maximum length of the allele in bases.
+     *
+     * @throws RuntimeException if {@code alleleCount} is negative or {@code maxAlleleLength} is less than 1.
      * @return never {@code null}.
      */
-    public byte[] nextBases(final int size) {
-        if (size < 0) throw new IllegalArgumentException("the size cannot be negative");
-        final byte[] result = new byte[size];
-        nextBases(result);
+    public static Allele[] generateRandomAlleles(final int alleleCount, final int maxAlleleLength) {
+        if (maxAlleleLength < 1)
+            throw new IllegalArgumentException("the max allele length cannot be less than 1");
+        final Allele[] result = new Allele[alleleCount];
+        for (int i = 0; i < alleleCount; i++) {
+            final int alleleLength = rnd.nextInt(maxAlleleLength) + 1;
+            result[i] = Allele.create(rndDNA.nextBases(alleleLength));
+        }
         return result;
     }
 
-
+    /**
+     * Generate testing alleles.
+     *
+     * <p>
+     *     Basically all are random alleles given the maximum allele length.
+     * </p>
+     *
+     * <p>
+     *     So with a low max-allele-length and high allele-count you can force repeats.
+     * </p>
+     *
+     * @param alleleCount number of alleles to generate.
+     * @param maxAlleleLength the maximum length of the allele in bases.
+     * @param skipIfRepeats throw an test-skip exception {@link SkipException} if the resulting allele-list
+     *                     has repeats, thus is size is less than {@code alleleCount}
+     *
+     * @throws RuntimeException if {@code alleleCount} is negative or {@code maxAlleleLength} is less than 1.
+     * @return never {@code null}.
+     */
+    static AlleleList<Allele> alleleList(final int alleleCount, final int maxAlleleLength, final boolean skipIfRepeats) {
+        final Allele[] alleles = AlleleListUnitTester.generateRandomAlleles(alleleCount,maxAlleleLength);
+        if (alleleCount > 0)
+            alleles[0] = Allele.create(alleles[0].getBases(),true);
+        final AlleleList<Allele> alleleList = new IndexedAlleleList<>(alleles);
+        if (skipIfRepeats && alleleList.alleleCount() != alleles.length)
+            throw new SkipException("repeated alleles, should be infrequent");
+        return alleleList;
+    }
 }

@@ -89,7 +89,6 @@ public class GenotypeLikelihoodCalculator {
      */
     private final GenotypeAlleleCounts[] genotypeAlleleCounts;
 
-
     /**
      * Number of genotypes given this calculator {@link #ploidy} and {@link #alleleCount}.
      */

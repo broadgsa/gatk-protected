@@ -347,7 +347,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testHomRefAlt() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, 2);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 1, 0));
         writer.add(makeHomRef("20", 2, 0));

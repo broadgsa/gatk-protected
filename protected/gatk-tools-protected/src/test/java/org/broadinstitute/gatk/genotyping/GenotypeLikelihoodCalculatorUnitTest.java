@@ -43,97 +43,130 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.utils;
+package org.broadinstitute.gatk.genotyping;
 
-import java.util.Random;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.GenotypeLikelihoods;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import java.util.Arrays;
 
 /**
- * Random DNA sequence generator.
- *
- * <p>
- *     Returned bases are always in upper case and one of the valid four nocleotides 'A', 'C', 'G' and 'T'.
- * </p>
+ * Tests {@link GenotypeLikelihoodCalculators} and {@link GenotypeLikelihoodCalculator}.
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class
-        RandomDNA {
+public class GenotypeLikelihoodCalculatorUnitTest {
 
-    private Random random;
-
-    /**
-     * Constructs a new random DNA generator.
-     *
-     * <p>
-     *     The seed would be the default which would depend on system properties and the current time as
-     *     described in {@link Random} documentation.
-     * </p>
-     */
-    @SuppressWarnings("unused")
-    public RandomDNA() {
-        random = new Random();
-    }
-
-
-    /**
-     * Creates a new random DNA generator given a random number generator.
-     * @param rnd the underlying random number generator.
-     *
-     * @throws IllegalArgumentException if {@code rnd} is {@code null}.
-     */
-    public RandomDNA(final Random rnd) {
-        if (rnd == null)
-            throw new IllegalArgumentException("the random number generator cannot be null");
-        random = rnd;
-    }
-
-    /**
-     * Constructs a new random DNA generator providing a seed.
-     *
-     * @param seed the random number generator seed.
-     */
-    public RandomDNA(final long seed) {
-        random = new Random(seed);
-    }
-
-    /**
-     * Updates the content of a byte array with a random base sequence.
-     *
-     * <p>
-     *     The whole array will be filled with new base values.
-     * </p>
-     *
-     * @param destination the array to update.
-     *
-     * @throws NullPointerException if {@code destination} is {@code null}.
-     */
-    public void nextBases(final byte[] destination) {
-        random.nextBytes(destination);
-        for (int i = 0; i < destination.length; i++) {
-            final int ord = destination[i] & 0x03;
-            switch (ord) {
-                case 0: destination[i] = 'A'; break;
-                case 1: destination[i] = 'C'; break;
-                case 2: destination[i] = 'G'; break;
-                case 3: destination[i] = 'T'; break;
-                default: throw new IllegalStateException("this cannot be happening!!!");
-            }
+    @Test(dataProvider = "ploidyAndMaximumAlleleData")
+    public void testPloidyAndMaximumAllele(final int ploidy, final int alleleCount) {
+        final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(ploidy, alleleCount);
+        Assert.assertNotNull(calculator);
+        Assert.assertEquals(calculator.ploidy(),ploidy);
+        Assert.assertEquals(calculator.alleleCount(), alleleCount);
+        Assert.assertEquals(calculator.genotypeCount(),calculateGenotypeCount(ploidy, alleleCount)," ploidy = " + ploidy + " alleleCount = " + alleleCount);
+        final int genotypeCount = calculator.genotypeCount();
+        final int testGenotypeCount = Math.min(30000,genotypeCount);
+        for (int i = 0; i < testGenotypeCount; i++) {
+            final GenotypeAlleleCounts alleleCounts = calculator.genotypeAlleleCountsAt(i);
+            Assert.assertNotNull(alleleCounts);
+            if (i > 0)
+                Assert.assertTrue(calculator.genotypeAlleleCountsAt(i - 1).compareTo(alleleCounts) < 0);
+            final int[] alleleArray = new int[ploidy];
+            int index = 0;
+            for (int j = 0; j < alleleCounts.distinctAlleleCount(); j++)
+                Arrays.fill(alleleArray, index, index += alleleCounts.alleleCountAt(j), alleleCounts.alleleIndexAt(j));
+            final int[] alleleCountArray = new int[alleleCounts.distinctAlleleCount() << 1];
+            alleleCounts.copyAlleleCounts(alleleCountArray,0);
+            Assert.assertEquals(index,ploidy);
+            Assert.assertEquals(calculator.allelesToIndex(alleleArray),i);
+            Assert.assertEquals(calculator.alleleCountsToIndex(alleleCountArray),i);
         }
     }
 
-    /**
-     * Returns a random RNA sequence of bases.
-     * @param size the length of the sequence.
-     *
-     * @throws IllegalArgumentException if {@code size} is negative.
-     * @return never {@code null}.
-     */
-    public byte[] nextBases(final int size) {
-        if (size < 0) throw new IllegalArgumentException("the size cannot be negative");
-        final byte[] result = new byte[size];
-        nextBases(result);
-        return result;
+    @Test(dataProvider = "ploidyAndMaximumAlleleAndReadCountsData", dependsOnMethods = "testPloidyAndMaximumAllele")
+    public void testLikelihoodCalculation(final int ploidy, final int alleleCount, final int[] readCount) {
+        final ReadLikelihoods<Allele> readLikelihoods = ReadLikelihoodsUnitTester.readLikelihoods(alleleCount,readCount);
+        final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(ploidy, alleleCount);
+        final int genotypeCount = calculator.genotypeCount();
+        final int testGenotypeCount = Math.min(30000,genotypeCount);
+        final int sampleCount = readCount.length;
+        for (int s = 0; s < sampleCount ; s++) {
+            final ReadLikelihoods.Matrix<Allele> sampleLikelihoods = readLikelihoods.sampleMatrix(s);
+            final GenotypeLikelihoods genotypeLikelihoods = calculator.genotypeLikelihoods(sampleLikelihoods);
+            final double[] genotypeLikelihoodsDoubles = genotypeLikelihoods.getAsVector();
+            Assert.assertEquals(genotypeLikelihoodsDoubles.length,genotypeCount);
+            for (int i = 0; i < testGenotypeCount; i++) {
+                final GenotypeAlleleCounts genotypeAlleleCounts = calculator.genotypeAlleleCountsAt(i);
+                Assert.assertNotNull(genotypeLikelihoods);
+                final double[] readGenotypeLikelihoods = new double[sampleLikelihoods.readCount()];
+                for (int r = 0; r < sampleLikelihoods.readCount(); r++) {
+                    final double[] compoments = new double[genotypeAlleleCounts.distinctAlleleCount()];
+                    for (int ar = 0; ar < genotypeAlleleCounts.distinctAlleleCount(); ar++) {
+                        final int a = genotypeAlleleCounts.alleleIndexAt(ar);
+                        final int aCount = genotypeAlleleCounts.alleleCountAt(ar);
+                        final double readLk = sampleLikelihoods.get(a, r);
+                        compoments[ar] = readLk + Math.log10(aCount);
+                    }
+                    readGenotypeLikelihoods[r] = MathUtils.approximateLog10SumLog10(compoments) - Math.log10(ploidy);
+                }
+                final double genotypeLikelihood = MathUtils.sum(readGenotypeLikelihoods);
+                Assert.assertEquals(genotypeLikelihoodsDoubles[i], genotypeLikelihood, 0.0001);
+            }
+        }
+
     }
 
 
+    // Simple inefficient calculation of the genotype count given the ploidy.
+    private int calculateGenotypeCount(final int ploidy, final int alleleCount) {
+        if (ploidy == 0)
+            return 0;
+        else if (ploidy == 1)
+            return alleleCount;
+        else if (ploidy == 2)
+            return ((alleleCount) * (alleleCount + 1)) >> 1;
+        else if (alleleCount == 0)
+            return 0;
+        else {
+            return calculateGenotypeCount(ploidy - 1, alleleCount) +
+                        calculateGenotypeCount(ploidy, alleleCount - 1);
+        }
+    }
+
+    private static final int[] MAXIMUM_ALLELE = new int[] { 1, 2, 5, 6 };
+
+    private static final int[] PLOIDY = new int[] { 1, 2, 3, 20 };
+
+    private static final int[][] READ_COUNTS = new int[][] {
+            { 10 , 100, 50 },
+            { 0, 100, 10, 1 , 50 },
+            { 1, 2, 3, 4, 20 },
+            { 10, 0 },
+    };
+
+    @DataProvider(name="ploidyAndMaximumAlleleAndReadCountsData")
+    public Object[][] ploidyAndMaximumAlleleAndReadCountsData() {
+        final Object[][] result = new Object[PLOIDY.length * MAXIMUM_ALLELE.length * READ_COUNTS.length][];
+        int index = 0;
+        for (final int i : PLOIDY)
+            for (final int j : MAXIMUM_ALLELE)
+                for (final int[] k : READ_COUNTS)
+                result[index++] = new Object[] { i, j, k };
+        return result;
+    }
+
+    @DataProvider(name="ploidyAndMaximumAlleleData")
+    public Object[][] ploidyAndMaximumAlleleData() {
+        final Object[][] result = new Object[PLOIDY.length * MAXIMUM_ALLELE.length][];
+        int index = 0;
+        for (final int i : PLOIDY)
+            for (final int j : MAXIMUM_ALLELE)
+                    result[index++] = new Object[] { i, j };
+        return result;
+    }
 }

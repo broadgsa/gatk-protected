@@ -300,6 +300,9 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
 
     @Test
     public void testRefConfidencePartialReads() {
+
+        final PloidyModel ploidyModel = new HomogeneousPloidyModel(samples,2);
+        final GenotypingModel genotypingModel = new InfiniteRandomMatingPopulationModel();
         final String ref = "ACGTAACCGGTT";
         for ( int readLen = 3; readLen < ref.length(); readLen++ ) {
             for ( int start = 0; start < ref.length() - readLen; start++ ) {
@@ -307,8 +310,6 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                 final List<Haplotype> haplotypes = Arrays.asList(data.getRefHap());
                 final List<VariantContext> calls = Collections.emptyList();
 
-                final PloidyModel ploidyModel = new HomogeneousPloidyModel(samples,2);
-                final GenotypingModel genotypingModel = new InfiniteRandomMatingPopulationModel();
                 data.getActiveRegion().add(data.makeRead(start, readLen));
                 final ReadLikelihoods<Haplotype> likelihoods = HaplotypeCaller.createDummyStratifiedReadMap(data.getRefHap(), samples, data.getActiveRegion());
 
@@ -325,6 +326,9 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
         final RefConfData xxxdata = new RefConfData("ACGTAACCGGTT", 0);
         final int start = xxxdata.getStart();
         final int stop = xxxdata.getEnd();
+
+        final PloidyModel ploidyModel = new HomogeneousPloidyModel(samples,2);
+        final GenotypingModel genotypingModel = new InfiniteRandomMatingPopulationModel();
 
         for ( int nReads = 0; nReads < 2; nReads++ ) {
 
@@ -347,8 +351,6 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
 
                     final ReadLikelihoods<Haplotype> likelihoods = HaplotypeCaller.createDummyStratifiedReadMap(data.getRefHap(), samples, data.getActiveRegion());
 
-                    final PloidyModel ploidyModel = new HomogeneousPloidyModel(samples,HomoSapiensConstants.DEFAULT_PLOIDY);
-                    final GenotypingModel genotypingModel = new InfiniteRandomMatingPopulationModel();
                     final List<Integer> expectedDPs = Collections.nCopies(data.getActiveRegion().getLocation().size(), nReads);
                     final List<VariantContext> contexts = model.calculateRefConfidence(data.getRefHap(), haplotypes, data.getPaddedRefLoc(), data.getActiveRegion(), likelihoods, ploidyModel, genotypingModel, calls);
                     checkReferenceModelResult(data, contexts, expectedDPs, calls);

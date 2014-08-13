@@ -51,6 +51,7 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.gatk.utils.BaseTest;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -70,7 +71,7 @@ public class HomRefBlockUnitTest extends BaseTest {
 
     @Test
     public void testBasicConstruction() {
-        final HomRefBlock band = new HomRefBlock(vc, 10, 20, 2);
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20, HomoSapiensConstants.DEFAULT_PLOIDY);
         Assert.assertSame(band.getStartingVC(), vc);
         Assert.assertEquals(band.getRef(), vc.getReference());
         Assert.assertEquals(band.getGQLowerBound(), 10);
@@ -85,8 +86,9 @@ public class HomRefBlockUnitTest extends BaseTest {
     @Test
     public void testMinMedian() {
         //TODO - might be better to make this test use a data provider?
-        final HomRefBlock band = new HomRefBlock(vc, 10, 20,2);
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20, HomoSapiensConstants.DEFAULT_PLOIDY);
         final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+        gb.alleles(vc.getAlleles());
 
         int pos = vc.getStart();
         band.add(pos++, gb.DP(10).GQ(11).PL(new int[]{0,11,100}).make());
@@ -116,8 +118,9 @@ public class HomRefBlockUnitTest extends BaseTest {
 
     @Test
     public void testBigGQIsCapped() {
-        final HomRefBlock band = new HomRefBlock(vc, 10, 20,2);
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20, HomoSapiensConstants.DEFAULT_PLOIDY);
         final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
+        gb.alleles(vc.getAlleles());
 
         band.add(vc.getStart(), gb.DP(1000).GQ(1000).PL(new int[]{0,10,100}).make());
         assertValues(band, 1000, 1000, 99, 99);
@@ -125,7 +128,7 @@ public class HomRefBlockUnitTest extends BaseTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testBadAdd() {
-        final HomRefBlock band = new HomRefBlock(vc, 10, 20,2);
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20, HomoSapiensConstants.DEFAULT_PLOIDY);
         final GenotypeBuilder gb = new GenotypeBuilder("NA12878");
 
         band.add(vc.getStart() + 10, gb.DP(10).GQ(11).PL(new int[]{0,10,100}).make());
@@ -155,7 +158,7 @@ public class HomRefBlockUnitTest extends BaseTest {
 
     @Test(dataProvider = "ContiguousData")
     public void testIsContiguous(final String contig, final int pos, final boolean expected) {
-        final HomRefBlock band = new HomRefBlock(vc, 10, 20,2);
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20, HomoSapiensConstants.DEFAULT_PLOIDY);
         final VariantContext testVC = new VariantContextBuilder(vc).chr(contig).start(pos).stop(pos).make();
         Assert.assertEquals(band.isContiguous(testVC), expected);
     }
