@@ -119,7 +119,7 @@ public abstract class RepeatCovariate implements ExperimentalCovariate {
 
             // get backward repeat unit and # repeats
             byte[] backwardRepeatUnit = Arrays.copyOfRange(readBases, offset - str + 1, offset + 1);
-            maxBW = GATKVariantContextUtils.findNumberofRepetitions(backwardRepeatUnit, Arrays.copyOfRange(readBases, 0, offset + 1), false);
+            maxBW = GATKVariantContextUtils.findNumberOfRepetitions(backwardRepeatUnit, Arrays.copyOfRange(readBases, 0, offset + 1), false);
             if (maxBW > 1) {
                 bestBWRepeatUnit = backwardRepeatUnit.clone();
                 break;
@@ -139,7 +139,7 @@ public abstract class RepeatCovariate implements ExperimentalCovariate {
 
                 // get forward repeat unit and # repeats
                 byte[] forwardRepeatUnit = Arrays.copyOfRange(readBases, offset +1, offset+str+1);
-                maxFW = GATKVariantContextUtils.findNumberofRepetitions(forwardRepeatUnit, Arrays.copyOfRange(readBases, offset + 1, readBases.length), true);
+                maxFW = GATKVariantContextUtils.findNumberOfRepetitions(forwardRepeatUnit, Arrays.copyOfRange(readBases, offset + 1, readBases.length), true);
                 if (maxFW > 1) {
                     bestFWRepeatUnit = forwardRepeatUnit.clone();
                     break;
@@ -157,7 +157,7 @@ public abstract class RepeatCovariate implements ExperimentalCovariate {
                 // but correct representation at that place might be (C)4.
                 // Hence, if the FW and BW units don't match, check if BW unit can still be a part of FW unit and add
                 // representations to total
-                maxBW = GATKVariantContextUtils.findNumberofRepetitions(bestFWRepeatUnit, Arrays.copyOfRange(readBases, 0, offset + 1), false);
+                maxBW = GATKVariantContextUtils.findNumberOfRepetitions(bestFWRepeatUnit, Arrays.copyOfRange(readBases, 0, offset + 1), false);
                 maxRL = maxFW + maxBW;
                 bestRepeatUnit = bestFWRepeatUnit;
 

@@ -92,38 +92,38 @@ public class RepeatCovariatesUnitTest {
     @Test
     public void testFindNumberOfRepetitions() {
         // First, test logic to compute number of repetitions of a substring on a given string.
-        int result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "ACAC".getBytes(), true);
+        int result = GATKVariantContextUtils.findNumberOfRepetitions("AC".getBytes(), "ACAC".getBytes(), true);
         Assert.assertEquals(2,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "ACACACAC".getBytes(), true);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("AC".getBytes(), "ACACACAC".getBytes(), true);
         Assert.assertEquals(4,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "ACACACACGT".getBytes(), true);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("AC".getBytes(), "ACACACACGT".getBytes(), true);
         Assert.assertEquals(4,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "GTACACACAC".getBytes(), true);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("AC".getBytes(), "GTACACACAC".getBytes(), true);
         Assert.assertEquals(0,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("GCA".getBytes(), "GTAGGGT".getBytes(), true);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("GCA".getBytes(), "GTAGGGT".getBytes(), true);
         Assert.assertEquals(0,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("GCAGCA".getBytes(), "GCAGCAGTAGGGTGTACACACAC".getBytes(), true);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("GCAGCA".getBytes(), "GCAGCAGTAGGGTGTACACACAC".getBytes(), true);
         Assert.assertEquals(1,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("GCAGCA".getBytes(), "GTAGGGTGTACACACACGCAGCAT".getBytes(), true);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("GCAGCA".getBytes(), "GTAGGGTGTACACACACGCAGCAT".getBytes(), true);
         Assert.assertEquals(0,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("GCA".getBytes(), "GTAGGGTGTACACACACGCAGCAGCA".getBytes(), true);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("GCA".getBytes(), "GTAGGGTGTACACACACGCAGCAGCA".getBytes(), true);
         Assert.assertEquals(0,result);
         // Same tests but looking backward on string
-        result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "ACAC".getBytes(), false);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("AC".getBytes(), "ACAC".getBytes(), false);
         Assert.assertEquals(2,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "ACACACAC".getBytes(), false);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("AC".getBytes(), "ACACACAC".getBytes(), false);
         Assert.assertEquals(4,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "ACACACACGT".getBytes(), false);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("AC".getBytes(), "ACACACACGT".getBytes(), false);
         Assert.assertEquals(0,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("AC".getBytes(), "GTACACACAC".getBytes(), false);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("AC".getBytes(), "GTACACACAC".getBytes(), false);
         Assert.assertEquals(4,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("GCA".getBytes(), "GTAGGGT".getBytes(), false);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("GCA".getBytes(), "GTAGGGT".getBytes(), false);
         Assert.assertEquals(0,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("GCAGCA".getBytes(), "GCAGCAGTAGGGTGTACACACAC".getBytes(), false);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("GCAGCA".getBytes(), "GCAGCAGTAGGGTGTACACACAC".getBytes(), false);
         Assert.assertEquals(0,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("GCAGCA".getBytes(), "GTAGGGTGTACACACACGCAGCAT".getBytes(), false);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("GCAGCA".getBytes(), "GTAGGGTGTACACACACGCAGCAT".getBytes(), false);
         Assert.assertEquals(0,result);
-        result = GATKVariantContextUtils.findNumberofRepetitions("GCA".getBytes(), "GTAGGGTGTACACACACGCAGCAGCA".getBytes(), false);
+        result = GATKVariantContextUtils.findNumberOfRepetitions("GCA".getBytes(), "GTAGGGTGTACACACACGCAGCAGCA".getBytes(), false);
         Assert.assertEquals(3,result);
 
         // test logic to get repeat unit and number of repeats from covariate value
@@ -211,8 +211,8 @@ public class RepeatCovariatesUnitTest {
                 Assert.assertEquals(rurlValM,rurlValI);
 
 
-                int fw = GATKVariantContextUtils.findNumberofRepetitions(ruValM.getBytes(), readBases.substring(offset+1,readLength).getBytes(),true);
-                int bw = GATKVariantContextUtils.findNumberofRepetitions(ruValM.getBytes(), readBases.substring(0,offset+1).getBytes(),false);
+                int fw = GATKVariantContextUtils.findNumberOfRepetitions(ruValM.getBytes(), readBases.substring(offset + 1, readLength).getBytes(), true);
+                int bw = GATKVariantContextUtils.findNumberOfRepetitions(ruValM.getBytes(), readBases.substring(0, offset + 1).getBytes(), false);
                 Assert.assertEquals(Math.min(fw+bw,RAC.MAX_REPEAT_LENGTH),(int)Integer.valueOf(rlValM));
             }
 
