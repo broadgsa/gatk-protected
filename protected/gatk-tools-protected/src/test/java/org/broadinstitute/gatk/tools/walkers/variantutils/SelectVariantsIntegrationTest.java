@@ -277,7 +277,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants --keepOriginalAC -env -R " + b36KGReference + " -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("e9b8292212545684cdb163423329ee7e")
+                Arrays.asList("4695c99d96490ed4e5b1568c5b52dea6")
         );
 
         executeTest("testKeepOriginalACAndENV--" + testFile, spec);
