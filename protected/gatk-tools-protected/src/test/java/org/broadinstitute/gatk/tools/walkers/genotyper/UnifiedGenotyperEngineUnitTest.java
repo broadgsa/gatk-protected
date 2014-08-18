@@ -50,15 +50,17 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 // the imports for unit testing.
 
 
-import org.broadinstitute.gatk.utils.BaseTest;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.arguments.GATKArgumentCollection;
-import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.Utils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.engine.arguments.GATKArgumentCollection;
+import org.broadinstitute.gatk.genotyping.SampleList;
+import org.broadinstitute.gatk.genotyping.SampleListUtils;
+import org.broadinstitute.gatk.utils.BaseTest;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -76,7 +78,7 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
         engine.setArguments(new GATKArgumentCollection());
 
         final UnifiedArgumentCollection args = new UnifiedArgumentCollection();
-        final Set<String> fakeSamples = Collections.singleton("fake");
+        final SampleList fakeSamples = SampleListUtils.singletonList("fake");
 
         ugEngine = new UnifiedGenotypingEngine(engine, args,fakeSamples);
     }

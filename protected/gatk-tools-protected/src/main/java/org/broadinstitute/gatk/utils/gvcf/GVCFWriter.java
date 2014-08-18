@@ -46,15 +46,14 @@
 
 package org.broadinstitute.gatk.utils.gvcf;
 
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -70,9 +69,7 @@ public class GVCFWriter implements VariantContextWriter {
     //
     // static VCF field names
     //
-    protected final static String BLOCK_SIZE_INFO_FIELD = "BLOCK_SIZE";
     protected final static String MIN_DP_FORMAT_FIELD = "MIN_DP";
-    protected final static String MIN_GQ_FORMAT_FIELD = "MIN_GQ";
 
     //
     // Final fields initialized in constructor
@@ -87,6 +84,7 @@ public class GVCFWriter implements VariantContextWriter {
     String contigOfNextAvailableStart = null;
     private String sampleName = null;
     private HomRefBlock currentBlock = null;
+    private final int defaultPloidy;
 
     /**
      * Is the proposed GQ partitions well-formed?
@@ -94,7 +92,7 @@ public class GVCFWriter implements VariantContextWriter {
      * @param GQPartitions proposed GQ partitions
      * @return a non-null string if something is wrong (string explains issue)
      */
-    protected static List<HomRefBlock> parsePartitions(final List<Integer> GQPartitions) {
+    protected static List<HomRefBlock> parsePartitions(final List<Integer> GQPartitions, final int defaultPloidy) {
         if ( GQPartitions == null ) throw new IllegalArgumentException("GQpartitions cannot be null");
         if ( GQPartitions.isEmpty() ) throw new IllegalArgumentException("GQpartitions cannot be empty");
 
@@ -104,10 +102,10 @@ public class GVCFWriter implements VariantContextWriter {
             if ( value == null ) throw new IllegalArgumentException("GQPartitions contains a null integer");
             if ( value < lastThreshold ) throw new IllegalArgumentException("GQPartitions is out of order.  Last is " + lastThreshold + " but next is " + value);
             if ( value == lastThreshold ) throw new IllegalArgumentException("GQPartitions is equal elements: Last is " + lastThreshold + " but next is " + value);
-            result.add(new HomRefBlock(lastThreshold, value));
+            result.add(new HomRefBlock(lastThreshold, value,defaultPloidy));
             lastThreshold = value;
         }
-        result.add(new HomRefBlock(lastThreshold, Integer.MAX_VALUE));
+        result.add(new HomRefBlock(lastThreshold, Integer.MAX_VALUE,defaultPloidy));
 
         return result;
     }
@@ -128,11 +126,13 @@ public class GVCFWriter implements VariantContextWriter {
      *
      * @param underlyingWriter the ultimate destination of the GVCF records
      * @param GQPartitions a well-formed list of GQ partitions
+     * @param defaultPloidy the assumed ploidy for input variant context without one.
      */
-    public GVCFWriter(final VariantContextWriter underlyingWriter, final List<Integer> GQPartitions) {
+    public GVCFWriter(final VariantContextWriter underlyingWriter, final List<Integer> GQPartitions, final int defaultPloidy) {
         if ( underlyingWriter == null ) throw new IllegalArgumentException("underlyingWriter cannot be null");
         this.underlyingWriter = underlyingWriter;
-        this.GQPartitions = parsePartitions(GQPartitions);
+        this.GQPartitions = parsePartitions(GQPartitions,defaultPloidy);
+        this.defaultPloidy = defaultPloidy;
     }
 
     /**
@@ -147,10 +147,6 @@ public class GVCFWriter implements VariantContextWriter {
         if ( header == null ) throw new IllegalArgumentException("header cannot be null");
         header.addMetaDataLine(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
         header.addMetaDataLine(new VCFFormatHeaderLine(MIN_DP_FORMAT_FIELD, 1, VCFHeaderLineType.Integer, "Minimum DP observed within the GVCF block"));
-
-        // These annotations are no longer standard
-        //header.addMetaDataLine(new VCFInfoHeaderLine(BLOCK_SIZE_INFO_FIELD, 1, VCFHeaderLineType.Integer, "Size of the homozygous reference GVCF block"));
-        //header.addMetaDataLine(new VCFFormatHeaderLine(MIN_GQ_FORMAT_FIELD, 1, VCFHeaderLineType.Integer, "Minimum GQ observed within the GVCF block"));
 
         for ( final HomRefBlock partition : GQPartitions ) {
             header.addMetaDataLine(partition.toVCFHeaderLine());
@@ -188,27 +184,30 @@ public class GVCFWriter implements VariantContextWriter {
      * @return a VariantContext to be emitted, or null if non is appropriate
      */
     protected VariantContext addHomRefSite(final VariantContext vc, final Genotype g) {
+
         if ( nextAvailableStart != -1 ) {
             // don't create blocks while the hom-ref site falls before nextAvailableStart (for deletions)
-            if ( vc.getStart() <= nextAvailableStart && vc.getChr().equals(contigOfNextAvailableStart) ) {
+            if ( vc.getStart() <= nextAvailableStart && vc.getChr().equals(contigOfNextAvailableStart) )
                 return null;
-            }
             // otherwise, reset to non-relevant
             nextAvailableStart = -1;
             contigOfNextAvailableStart = null;
         }
 
-        if ( currentBlock == null ) {
-            currentBlock = createNewBlock(vc, g);
-            return null;
-        } else if ( currentBlock.withinBounds(g.getGQ()) ) {
+        final VariantContext result;
+        if (genotypeCanBeMergedInCurrentBlock(g)) {
             currentBlock.add(vc.getStart(), g);
-            return null;
+            result = null;
         } else {
-            final VariantContext result = blockToVCF(currentBlock);
+            result = blockToVCF(currentBlock);
             currentBlock = createNewBlock(vc, g);
-            return result;
         }
+        return result;
+    }
+
+    private boolean genotypeCanBeMergedInCurrentBlock(final Genotype g) {
+        return currentBlock != null && currentBlock.withinBounds(g.getGQ()) && currentBlock.getPloidy() == g.getPloidy()
+                && (currentBlock.getMinPLs() == null || !g.hasPL() || (currentBlock.getMinPLs().length == g.getPL().length));
     }
 
     /**
@@ -226,21 +225,20 @@ public class GVCFWriter implements VariantContextWriter {
      * Convert a HomRefBlock into a VariantContext
      *
      * @param block the block to convert
-     * @return a VariantContext representing the gVCF encoding for this block
+     * @return a VariantContext representing the gVCF encoding for this block.
+     * It will return {@code null} if input {@code block} is {@code null}, indicating that there
+     * is no variant-context to be output into the VCF.
      */
     private VariantContext blockToVCF(final HomRefBlock block) {
-        if ( block == null ) throw new IllegalArgumentException("block cannot be null");
+        if ( block == null ) return null;
 
         final VariantContextBuilder vcb = new VariantContextBuilder(block.getStartingVC());
         vcb.attributes(new HashMap<String, Object>(2)); // clear the attributes
         vcb.stop(block.getStop());
         vcb.attribute(VCFConstants.END_KEY, block.getStop());
 
-        // This annotation is no longer standard
-        //vcb.attribute(BLOCK_SIZE_INFO_FIELD, block.getSize());
-
         // create the single Genotype with GQ and DP annotations
-        final GenotypeBuilder gb = new GenotypeBuilder(sampleName, Collections.nCopies(2, block.getRef()));
+        final GenotypeBuilder gb = new GenotypeBuilder(sampleName, GATKVariantContextUtils.homozygousAlleleList(block.getRef(),block.getPloidy()));
         gb.noAD().noPL().noAttributes(); // clear all attributes
         gb.GQ(block.getMedianGQ());
         gb.DP(block.getMedianDP());
@@ -269,10 +267,12 @@ public class GVCFWriter implements VariantContextWriter {
                 break;
             }
         }
-        if ( partition == null ) throw new IllegalStateException("GQ " + g + " from " + vc + " didn't fit into any partition " + partition);
+
+        if ( partition == null )
+            throw new IllegalStateException("GQ " + g + " from " + vc + " didn't fit into any partition");
 
         // create the block, add g to it, and return it for use
-        final HomRefBlock block = new HomRefBlock(vc, partition.getGQLowerBound(), partition.getGQUpperBound());
+        final HomRefBlock block = new HomRefBlock(vc, partition.getGQLowerBound(), partition.getGQUpperBound(), defaultPloidy);
         block.add(vc.getStart(), g);
         return block;
     }

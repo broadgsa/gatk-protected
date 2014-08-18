@@ -47,16 +47,19 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.samtools.SAMUtils;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.GenotypeLikelihoods;
+import htsjdk.variant.vcf.VCFConstants;
+import org.broadinstitute.gatk.genotyping.GenotypeAlleleCounts;
+import org.broadinstitute.gatk.genotyping.GenotypeLikelihoodCalculator;
+import org.broadinstitute.gatk.genotyping.GenotypeLikelihoodCalculators;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACcounts;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACset;
 import org.broadinstitute.gatk.utils.MathUtils;
-import htsjdk.variant.vcf.VCFConstants;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
-import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 
 import java.util.*;
 
@@ -424,18 +427,9 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
      */
     public static int[] getAlleleCountFromPLIndex(final int nAlleles, final int numChromosomes, final int PLindex) {
 
-        // todo - another brain-dead inefficient implementation, can do much better by computing in closed form
-        final SumIterator iterator = new SumIterator(nAlleles,numChromosomes);
-        while (iterator.hasNext()) {
-            final int[] plVec = iterator.getCurrentVector();
-            if (iterator.getLinearIndex() == PLindex)
-                return plVec;
-
-            iterator.next();
-        }
-
-        return null;
-
+        final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(numChromosomes, nAlleles);
+        final GenotypeAlleleCounts alleleCounts = calculator.genotypeAlleleCountsAt(PLindex);
+        return alleleCounts.alleleCountsByIndex(nAlleles - 1);
     }
 
     /*

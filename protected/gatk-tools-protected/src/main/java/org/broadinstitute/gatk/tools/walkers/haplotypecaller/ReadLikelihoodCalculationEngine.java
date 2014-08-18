@@ -46,6 +46,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import org.broadinstitute.gatk.genotyping.SampleList;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
@@ -81,6 +82,7 @@ public interface ReadLikelihoodCalculationEngine {
      * active region assembly process.
      *
      * @param assemblyResultSet the input assembly results.
+     * @param samples the list of targeted samples.
      * @param perSampleReadList the input read sets stratified per sample.
      *
      * @throws NullPointerException if either parameter is {@code null}.
@@ -88,7 +90,7 @@ public interface ReadLikelihoodCalculationEngine {
      * @return never {@code null}, and with at least one entry for input sample (keys in {@code perSampleReadList}.
      *    The value maps can be potentially empty though.
      */
-    public ReadLikelihoods<Haplotype> computeReadLikelihoods(AssemblyResultSet assemblyResultSet, List<String> samples,
+    public ReadLikelihoods<Haplotype> computeReadLikelihoods(AssemblyResultSet assemblyResultSet, SampleList samples,
                                Map<String, List<GATKSAMRecord>> perSampleReadList);
 
     public void close();

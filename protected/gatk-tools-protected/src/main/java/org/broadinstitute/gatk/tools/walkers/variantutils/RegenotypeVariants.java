@@ -46,6 +46,10 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.genotyping.IndexedSampleList;
+import org.broadinstitute.gatk.genotyping.SampleList;
+import org.broadinstitute.gatk.genotyping.SampleListUtils;
 import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
@@ -120,14 +124,18 @@ public class RegenotypeVariants extends RodWalker<Integer, Integer> implements T
         UAC.genotypingOutputMode = GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES;
 
         String trackName = variantCollection.variants.getName();
-        Set<String> samples = SampleUtils.getSampleListWithVCFHeader(getToolkit(), Arrays.asList(trackName));
-        UG_engine = new UnifiedGenotypingEngine(getToolkit(), UAC, samples);
+
+        final GenomeAnalysisEngine toolkit = getToolkit();
+        final SampleList samples =
+                new IndexedSampleList(SampleUtils.getSampleListWithVCFHeader(getToolkit(), Arrays.asList(trackName)));
+        final Set<String> sampleNameSet = SampleListUtils.asSet(samples);
+        UG_engine = new UnifiedGenotypingEngine(UAC, samples,toolkit.getGenomeLocParser(),toolkit.getArguments().BAQMode);
 
         final Set<VCFHeaderLine> hInfo = new HashSet<VCFHeaderLine>();
         hInfo.addAll(GATKVCFUtils.getHeaderFields(getToolkit(), Arrays.asList(trackName)));
         hInfo.addAll(UnifiedGenotyper.getHeaderInfo(UAC, null, null));
 
-        vcfWriter.writeHeader(new VCFHeader(hInfo, samples));
+        vcfWriter.writeHeader(new VCFHeader(hInfo, sampleNameSet));
     }
 
     /**

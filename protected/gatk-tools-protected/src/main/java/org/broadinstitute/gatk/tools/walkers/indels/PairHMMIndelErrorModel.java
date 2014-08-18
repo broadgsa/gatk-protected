@@ -49,6 +49,9 @@ package org.broadinstitute.gatk.tools.walkers.indels;
 import com.google.java.contract.Ensures;
 import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.genotyping.AlleleList;
+import org.broadinstitute.gatk.genotyping.IndexedAlleleList;
+import org.broadinstitute.gatk.genotyping.IndexedSampleList;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.clipping.ReadClipper;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
@@ -444,10 +447,10 @@ public class PairHMMIndelErrorModel {
 
                     // Apparently more than one allele can map to the same haplotype after trimming
                     final Set<Haplotype> distinctHaplotypesSet = new LinkedHashSet<>(trimmedHaplotypeMap.values());
-                    final List<Haplotype> distinctHaplotypesList = Arrays.asList(distinctHaplotypesSet.toArray(new Haplotype[distinctHaplotypesSet.size()]));
+                    final AlleleList<Haplotype> distinctHaplotypesList = new IndexedAlleleList<>(distinctHaplotypesSet.toArray(new Haplotype[distinctHaplotypesSet.size()]));
                     // Get the likelihoods for our clipped read against each of our trimmed haplotypes.
                     final ReadLikelihoods<Haplotype> rl = new ReadLikelihoods<>(
-                            Collections.singletonList("DUMMY_SAMPLE"),distinctHaplotypesList,Collections.singletonMap("DUMMY_SAMPLE",Collections.singletonList(processedRead)));
+                            new IndexedSampleList(Collections.singletonList("DUMMY_SAMPLE")),distinctHaplotypesList,Collections.singletonMap("DUMMY_SAMPLE",Collections.singletonList(processedRead)));
 
                     final ReadLikelihoods.Matrix<Haplotype> dummySampleLikelihoods = rl.sampleMatrix(0);
                     pairHMM.computeLikelihoods(rl.sampleMatrix(0), Collections.singletonList(processedRead), readGCPArrayMap);

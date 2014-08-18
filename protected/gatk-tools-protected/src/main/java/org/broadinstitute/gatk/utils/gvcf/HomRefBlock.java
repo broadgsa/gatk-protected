@@ -46,11 +46,11 @@
 
 package org.broadinstitute.gatk.utils.gvcf;
 
-import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.gatk.utils.MathUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,6 +75,7 @@ final class HomRefBlock {
     final private List<Integer> GQs = new ArrayList<>(100);
     final private List<Integer> DPs = new ArrayList<>(100);
     private final Allele ref;
+    private final int ploidy;
 
     /**
      * Create a new HomRefBlock
@@ -83,7 +84,7 @@ final class HomRefBlock {
      * @param minGQ the minGQ (inclusive) to use in this band
      * @param maxGQ the maxGQ (exclusive) to use in this band
      */
-    public HomRefBlock(final VariantContext startingVC, int minGQ, int maxGQ) {
+    public HomRefBlock(final VariantContext startingVC, final int minGQ, final int maxGQ, final int defaultPloidy) {
         if ( startingVC == null ) throw new IllegalArgumentException("startingVC cannot be null");
         if ( minGQ > maxGQ ) throw new IllegalArgumentException("bad minGQ " + minGQ + " as its > maxGQ " + maxGQ);
 
@@ -92,6 +93,7 @@ final class HomRefBlock {
         this.ref = startingVC.getReference();
         this.minGQ = minGQ;
         this.maxGQ = maxGQ;
+        this.ploidy = startingVC.getMaxPloidy(defaultPloidy);
     }
 
     /**
@@ -100,7 +102,7 @@ final class HomRefBlock {
      * @param minGQ the minGQ (inclusive) to use in this band
      * @param maxGQ the maxGQ (exclusive) to use in this band
      */
-    public HomRefBlock(int minGQ, int maxGQ) {
+    public HomRefBlock(final int minGQ, final int maxGQ, final int ploidy) {
         if ( minGQ > maxGQ ) throw new IllegalArgumentException("bad minGQ " + minGQ + " as its > maxGQ " + maxGQ);
 
         this.startingVC = null;
@@ -108,6 +110,7 @@ final class HomRefBlock {
         this.ref = null;
         this.minGQ = minGQ;
         this.maxGQ = maxGQ;
+        this.ploidy = ploidy;
     }
 
     /**
@@ -119,19 +122,18 @@ final class HomRefBlock {
         if ( ! g.hasGQ() ) throw new IllegalArgumentException("g must have GQ field");
         if ( ! g.hasPL() ) throw new IllegalArgumentException("g must have PL field");
         if ( pos != stop + 1 ) throw new IllegalArgumentException("adding genotype at pos " + pos + " isn't contiguous with previous stop " + stop);
+        if ( g.getPloidy() != ploidy)
+            throw new IllegalArgumentException("cannot add a genotype with a different ploidy: " + g.getPloidy() + " != " + ploidy);
 
-        if( minPLs == null ) { // if the minPLs vector has not been set yet, create it here by copying the provided genotype's PLs
+        if( minPLs == null )
+            minPLs = g.getPL();
+        else { // otherwise take the min with the provided genotype's PLs
             final int[] PL = g.getPL();
-            if( PL.length == 3 ) {
-                minPLs = PL.clone();
-            }
-        } else { // otherwise take the min with the provided genotype's PLs
-            final int[] PL = g.getPL();
-            if( PL.length == 3 ) {
-                minPLs[0] = Math.min(minPLs[0], PL[0]);
-                minPLs[1] = Math.min(minPLs[1], PL[1]);
-                minPLs[2] = Math.min(minPLs[2], PL[2]);
-            }
+            if (PL.length != minPLs.length)
+                throw new IllegalStateException("trying to merge different PL array sizes: " + PL.length + " != " + minPLs.length);
+            for (int i = 0; i < PL.length; i++)
+                if (minPLs[i] > PL[i])
+                    minPLs[i] = PL[i];
         }
         stop = pos;
         GQs.add(Math.min(g.getGQ(), 99)); // cap the GQs by the max. of 99 emission
@@ -181,5 +183,13 @@ final class HomRefBlock {
 
     public VCFHeaderLine toVCFHeaderLine() {
         return new VCFHeaderLine("GVCFBlock", "minGQ=" + getGQLowerBound() + "(inclusive),maxGQ=" + getGQUpperBound() + "(exclusive)");
+    }
+
+    /**
+     * Get the ploidy of this hom-ref block.
+     * @return
+     */
+    public int getPloidy() {
+        return ploidy;
     }
 }

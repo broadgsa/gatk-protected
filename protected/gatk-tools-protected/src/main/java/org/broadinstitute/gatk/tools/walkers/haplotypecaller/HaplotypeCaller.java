@@ -52,6 +52,7 @@ import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
@@ -64,15 +65,12 @@ import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.*;
+import org.broadinstitute.gatk.genotyping.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
-import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.QualityUtils;
-import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.gatk.utils.activeregion.ActivityProfileState;
@@ -606,7 +604,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // the minimum length of a read we'd consider using for genotyping
     private final static int MIN_READ_LENGTH = 10;
 
-    private List<String> samplesList;
+    private SampleList samplesList;
 
     private final static Allele FAKE_REF_ALLELE = Allele.create("N", true); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
     private final static Allele FAKE_ALT_ALLELE = Allele.create("<FAKE_ALT>", false); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
@@ -625,9 +623,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     public void initialize() {
         super.initialize();
-
-        if (SCAC.genotypeArgs.samplePloidy != HomoSapiensConstants.DEFAULT_PLOIDY)
-            throw new UserException.BadArgumentValue("-ploidy", "" + SCAC.genotypeArgs.samplePloidy + "; currently HaplotypeCaller only supports diploid sample analysis (-ploidy 2)");
 
         if (dontGenotype && emitReferenceConfidence())
             throw new UserException("You cannot request gVCF output and do not genotype at the same time");
@@ -656,12 +651,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             logger.info("Disabling physical phasing, which is supported only for reference-model confidence output");
         }
 
-        if ( SCAC.AFmodel == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY )
-            throw new UserException.BadArgumentValue("pnrm", "HaplotypeCaller doesn't currently support " + SCAC.AFmodel);
-
-
-        samplesList = new ArrayList<>(SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader()));
-        Set<String> samplesSet = new LinkedHashSet<>(samplesList);
+        final GenomeAnalysisEngine toolkit = getToolkit();
+        samplesList = toolkit.getReadSampleList();
+        final Set<String> sampleSet = SampleListUtils.asSet(samplesList);
 
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
         final UnifiedArgumentCollection simpleUAC = SCAC.cloneTo(UnifiedArgumentCollection.class);
@@ -672,20 +664,24 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
-        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(getToolkit(), simpleUAC, samplesSet);
+        // Seems that at least with some test data we can lose genuine haploid variation if we use
+        // UGs engine with ploidy == 1
+        simpleUAC.genotypeArgs.samplePloidy = Math.max(2,SCAC.genotypeArgs.samplePloidy);
+        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(simpleUAC, toolkit);
         activeRegionEvaluationGenotyperEngine.setLogger(logger);
 
         if( SCAC.CONTAMINATION_FRACTION_FILE != null )
-            SCAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(SCAC.CONTAMINATION_FRACTION_FILE, SCAC.CONTAMINATION_FRACTION, samplesSet, logger));
+            SCAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(SCAC.CONTAMINATION_FRACTION_FILE, SCAC.CONTAMINATION_FRACTION, sampleSet, logger));
 
         if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
             throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
 
-        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(), SCAC, !doNotRunPhysicalPhasing);
+        final GenomeLocParser genomeLocParser = toolkit.getGenomeLocParser();
+        genotypingEngine = new HaplotypeCallerGenotypingEngine( SCAC, samplesList, genomeLocParser, !doNotRunPhysicalPhasing);
         // initialize the output VCF header
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
-        Set<VCFHeaderLine> headerInfo = new HashSet<>();
+        final Set<VCFHeaderLine> headerInfo = new HashSet<>();
 
         headerInfo.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
         // all annotation fields from VariantAnnotatorEngine
@@ -707,13 +703,20 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_GT_KEY, 1, VCFHeaderLineType.String, "Physical phasing haplotype information, describing how the alternate alleles are phased in relation to one another"));
         }
 
+        if (SCAC.genotypeArgs.samplePloidy != HomoSapiensConstants.DEFAULT_PLOIDY) {
+            if (SCAC.emitReferenceConfidence != ReferenceConfidenceMode.NONE)
+                throw new UserException.BadArgumentValue("ERC", "For now ploidies different that 2 are not allow for GVCF or BP_RESOLUTION outputs");
+            headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Integer, "Maximum likelihood expectation (MLE) for the alternate allele count, in the same order as listed, for each individual sample"));
+            headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Maximum likelihood expectation (MLE) for the alternate allele fraction, in the same order as listed, for each individual sample"));
+        }
+
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
         headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotypingEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
 
-        initializeReferenceConfidenceModel(samplesSet, headerInfo);
+        initializeReferenceConfidenceModel(samplesList, headerInfo);
 
-        vcfWriter.writeHeader(new VCFHeader(headerInfo, samplesSet));
+        vcfWriter.writeHeader(new VCFHeader(headerInfo, sampleSet));
 
         try {
             // fasta reference reader to supplement the edges of the reference sequence
@@ -771,10 +774,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES,emitReferenceConfidence());
     }
 
-    private void initializeReferenceConfidenceModel(final Set<String> samples, final Set<VCFHeaderLine> headerInfo) {
+    private void initializeReferenceConfidenceModel(final SampleList samples, final Set<VCFHeaderLine> headerInfo) {
         referenceConfidenceModel = new ReferenceConfidenceModel(getToolkit().getGenomeLocParser(), samples, getToolkit().getSAMFileHeader(), indelSizeToEliminateInRefModel);
         if ( emitReferenceConfidence() ) {
-            if ( samples.size() != 1 ) throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently");
+            if ( samples.sampleCount() != 1 )
+                throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently");
             headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
             if ( SCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
                 // a kluge to enforce the use of this indexing strategy
@@ -784,7 +788,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 }
 
                 try {
-                    vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands);
+                    vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands,SCAC.genotypeArgs.samplePloidy);
                 } catch ( IllegalArgumentException e ) {
                     throw new UserException.BadArgumentValue("GQBands", "are malformed: " + e.getMessage());
                 }
@@ -857,8 +861,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final Map<String, AlignmentContext> splitContexts = AlignmentContextUtils.splitContextBySampleName(context);
         final GenotypesContext genotypes = GenotypesContext.create(splitContexts.keySet().size());
         final MathUtils.RunningAverage averageHQSoftClips = new MathUtils.RunningAverage();
+        final GenotypingModel genotypingModel = genotypingEngine.getGenotypingModel();
         for( final Map.Entry<String, AlignmentContext> sample : splitContexts.entrySet() ) {
-            final double[] genotypeLikelihoods = referenceConfidenceModel.calcGenotypeLikelihoodsOfRefVsAny(sample.getValue().getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE, averageHQSoftClips).genotypeLikelihoods;
+            final String sampleName = sample.getKey();
+            // The ploidy here is not dictated by the sample but by the simple genotyping-engine used to determine whether regions are active or not.
+            final int activeRegionDetectionHackishSamplePloidy = activeRegionEvaluationGenotyperEngine.getConfiguration().genotypeArgs.samplePloidy;
+            final double[] genotypeLikelihoods = referenceConfidenceModel.calcGenotypeLikelihoodsOfRefVsAny(sampleName,activeRegionDetectionHackishSamplePloidy,genotypingModel,sample.getValue().getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE, averageHQSoftClips).genotypeLikelihoods;
             genotypes.add( new GenotypeBuilder(sample.getKey()).alleles(noCall).PL(genotypeLikelihoods).make() );
         }
 
@@ -969,8 +977,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 regionForGenotyping.getLocation(),
                 getToolkit().getGenomeLocParser(),
                 metaDataTracker,
-                ( consensusMode ? Collections.<VariantContext>emptyList() : givenAlleles ),
-		        emitReferenceConfidence() );
+                (consensusMode ? Collections.<VariantContext>emptyList() : givenAlleles),
+                emitReferenceConfidence());
 
         // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
         if ( bamWriter != null ) {
@@ -997,7 +1005,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 // output variant containing region.
                 result.addAll(referenceConfidenceModel.calculateRefConfidence(assemblyResult.getReferenceHaplotype(),
                         calledHaplotypes.getCalledHaplotypes(), assemblyResult.getPaddedReferenceLoc(), regionForGenotyping,
-                        readLikelihoods, calledHaplotypes.getCalls()));
+                        readLikelihoods, genotypingEngine.getPloidyModel(), genotypingEngine.getGenotypingModel(), calledHaplotypes.getCalls()));
                 // output right-flanking non-variant section:
                 if (trimmingResult.hasRightFlankingRegion())
                     result.addAll(referenceModelForNoVariation(trimmingResult.nonVariantRightFlankRegion(),false));
@@ -1110,7 +1118,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             final List<Haplotype> haplotypes = Collections.singletonList(refHaplotype);
             return referenceConfidenceModel.calculateRefConfidence(refHaplotype, haplotypes,
                     paddedLoc, region, createDummyStratifiedReadMap(refHaplotype, samplesList, region),
-                    Collections.<VariantContext>emptyList());
+                    genotypingEngine.getPloidyModel(), genotypingEngine.getGenotypingModel(), Collections.<VariantContext>emptyList());
         } else
             return NO_CALLS;
     }
@@ -1123,11 +1131,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * @return a map from sample -> PerReadAlleleLikelihoodMap that maps each read to ref
      */
     public static ReadLikelihoods<Haplotype> createDummyStratifiedReadMap(final Haplotype refHaplotype,
-                                                                          final List<String> samples,
+                                                                          final SampleList samples,
                                                                           final ActiveRegion region) {
-        return new ReadLikelihoods<>(samples, Collections.singletonList(refHaplotype),
+        return new ReadLikelihoods<>(samples, new IndexedAlleleList<>(refHaplotype),
                 splitReadsBySample(samples, region.getReads()));
-
     }
 
 
@@ -1235,18 +1242,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         return splitReadsBySample(samplesList, reads);
     }
 
-    public static Map<String, List<GATKSAMRecord>> splitReadsBySample( final List<String> samplesList, final Collection<GATKSAMRecord> reads ) {
+    private static Map<String, List<GATKSAMRecord>> splitReadsBySample( final SampleList samplesList, final Collection<GATKSAMRecord> reads ) {
         final Map<String, List<GATKSAMRecord>> returnMap = new HashMap<>();
-        for( final String sample : samplesList) {
-            List<GATKSAMRecord> readList = returnMap.get( sample );
-            if( readList == null ) {
-                readList = new ArrayList<>();
-                returnMap.put(sample, readList);
-            }
-        }
-        for( final GATKSAMRecord read : reads ) {
+        final int sampleCount = samplesList.sampleCount();
+        for (int i = 0; i < sampleCount; i++)
+            returnMap.put(samplesList.sampleAt(i), new ArrayList<GATKSAMRecord>());
+
+        for( final GATKSAMRecord read : reads )
             returnMap.get(read.getReadGroup().getSample()).add(read);
-        }
+
         return returnMap;
     }
 

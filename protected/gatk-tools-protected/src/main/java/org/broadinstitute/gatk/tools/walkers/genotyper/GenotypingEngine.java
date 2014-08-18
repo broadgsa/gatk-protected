@@ -48,15 +48,17 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import htsjdk.variant.variantcontext.*;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.genotyping.SampleList;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalc;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
@@ -69,8 +71,6 @@ import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.vcf.VCFConstants;
 
 import java.util.*;
 
@@ -86,22 +86,20 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected Logger logger;
 
-    protected final GenomeAnalysisEngine toolkit;
-
     protected final Config configuration;
 
     protected VariantAnnotatorEngine annotationEngine;
 
     protected final int numberOfGenomes;
 
-    protected final Collection<String> sampleNames;
+    protected final SampleList samples;
 
 
     private final double[] log10AlleleFrequencyPriorsSNPs;
 
     private final double[] log10AlleleFrequencyPriorsIndels;
 
-    private final GenomeLocParser genomeLocParser;
+    protected final GenomeLocParser genomeLocParser;
 
     // the model used for calculating p(non-ref)
     protected ThreadLocal<AFCalc> afcm = new ThreadLocal<AFCalc>() {
@@ -111,59 +109,32 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             return AFCalcFactory.createAFCalc(configuration, numberOfGenomes, logger);
         }
     };
-    /**
-     * Construct a new genotyper engine.
-     *
-     * @param toolkit reference to the genome-analysis toolkit.
-     * @param configuration engine configuration object.
-     *
-     * @throws IllegalArgumentException if either {@code toolkit} or {@code configuration} is {@code null}.
-     */
-    protected GenotypingEngine(final GenomeAnalysisEngine toolkit, final Config configuration) {
-        this(toolkit,configuration,resolveSampleNamesFromToolkit(toolkit));
-    }
 
-    /**
-     * Resolve the sample name set to be the set of all samples passed to the tool.
-     *
-     * @param toolkit reference to the toolkit.
-     *
-     * @throws IllegalArgumentException if the {@code toolkit} is {@code null}.
-     *
-     * @return never {@code null}, but empty if there is no samples.
-     */
-    private static Set<String> resolveSampleNamesFromToolkit(final GenomeAnalysisEngine toolkit) {
-        if (toolkit == null)
-            throw new IllegalArgumentException("the toolkit cannot be null");
-        return new LinkedHashSet<>(toolkit.getSampleDB().getSampleNames());
-    }
 
     /**
      * Construct a new genotyper engine, on a specific subset of samples.
      *
-     * @param toolkit reference to the genome-analysis toolkit.
      * @param configuration engine configuration object.
-     * @param sampleNames subset of sample to work on identified by their names. If {@code null}, the full toolkit
+     * @param samples subset of sample to work on identified by their names. If {@code null}, the full toolkit
      *                    sample set will be used instead.
+     * @param genomeLocParser the genome-loc-parser
      *
-     * @throws IllegalArgumentException if either {@code toolkit} or {@code configuration} is {@code null}.
+     * @throws IllegalArgumentException if any of {@code samples}, {@code configuration} or {@code genomeLocParser} is {@code null}.
      */
-    protected GenotypingEngine(final GenomeAnalysisEngine toolkit, final Config configuration,final Set<String> sampleNames) {
-        if (toolkit == null)
-            throw new IllegalArgumentException("the toolkit cannot be null");
+    protected GenotypingEngine(final Config configuration,final SampleList samples, final GenomeLocParser genomeLocParser) {
+
         if (configuration == null)
             throw new IllegalArgumentException("the configuration cannot be null");
         this.configuration = configuration;
         logger = Logger.getLogger(getClass());
-        this.toolkit = toolkit;
-        this.sampleNames = sampleNames != null ? sampleNames : toolkit.getSampleDB().getSampleNames();
-        numberOfGenomes = this.sampleNames.size() * configuration.genotypeArgs.samplePloidy;
+        this.samples = samples;
+        numberOfGenomes = this.samples.sampleCount() * configuration.genotypeArgs.samplePloidy;
         MathUtils.Log10Cache.ensureCacheContains(numberOfGenomes * 2);
         log10AlleleFrequencyPriorsSNPs = computeAlleleFrequencyPriors(numberOfGenomes,
                 configuration.genotypeArgs.snpHeterozygosity,configuration.genotypeArgs.inputPrior);
         log10AlleleFrequencyPriorsIndels = computeAlleleFrequencyPriors(numberOfGenomes,
                 configuration.genotypeArgs.indelHeterozygosity,configuration.genotypeArgs.inputPrior);
-        genomeLocParser = toolkit.getGenomeLocParser();
+        this.genomeLocParser = genomeLocParser;
     }
 
     /**
@@ -257,7 +228,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
                 ! outputAlternativeAlleles.siteIsMonomorphic ||
                     configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES || configuration.annotateAllSitesWithPLs
                         ? AFresult.getLog10PosteriorOfAFEq0() + 0.0
-                        : AFresult.getLog10PosteriorOfAFGT0() + 0.0;
+                        : AFresult.getLog10PosteriorOfAFGT0() + 0.0 ;
 
 
         // Add 0.0 removes -0.0 occurrences.
@@ -270,6 +241,9 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             return limitedContext ? null : estimateReferenceConfidence(vc, stratifiedContexts, getModelTheta(model), true, PoFGT0);
 
         // start constructing the resulting VC
+        final GenomeLocParser genomeLocParser = this.genomeLocParser != null || refContext == null ? this.genomeLocParser : refContext.getGenomeLocParser();
+        if (genomeLocParser == null)
+            throw new IllegalStateException("this UG engine was created without a valid genomeLocParser and no refContext was provided");
         final GenomeLoc loc = genomeLocParser.createGenomeLoc(vc);
         final List<Allele> outputAlleles = outputAlternativeAlleles.outputAlleles(vc.getReference());
         final VariantContextBuilder builder = new VariantContextBuilder(callSourceString(), loc.getContig(), loc.getStart(), loc.getStop(), outputAlleles);
@@ -506,7 +480,9 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         double log10POfRef = Math.log10(initialPofRef);
 
         // for each sample that we haven't examined yet
-        for ( String sample : sampleNames ) {
+        final int sampleCount = samples.sampleCount();
+        for (int i = 0; i < sampleCount; i++) {
+            final String sample = samples.sampleAt(i);
             final AlignmentContext context = contexts.get(sample);
             if ( ignoreCoveredSamples && context != null )
                 continue;

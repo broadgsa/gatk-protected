@@ -46,14 +46,14 @@
 
 package org.broadinstitute.gatk.utils.gvcf;
 
-import org.broadinstitute.gatk.utils.BaseTest;
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.ReferenceConfidenceModel;
-import org.broadinstitute.gatk.utils.Utils;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
+import org.broadinstitute.gatk.utils.BaseTest;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -100,21 +100,21 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testHeaderWriting() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
         writer.writeHeader(new VCFHeader());
         Assert.assertTrue(mockWriter.headerWritten);
     }
 
     @Test
     public void testClose() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
         writer.close();
         Assert.assertTrue(mockWriter.closed);
     }
 
     @Test
     public void testCloseWithoutClosingUnderlyingWriter() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
         writer.close(false);
         Assert.assertFalse(mockWriter.closed);
     }
@@ -164,7 +164,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testCloseEmitsLastVariant() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 1, 30));
         Assert.assertEquals(mockWriter.emitted.size(), 0);
@@ -176,7 +176,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testCloseDoesntEmitsLastVariantWhenNonRef() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeNonRef("20", 1, 30));
         Assert.assertEquals(mockWriter.emitted.size(), 1);
@@ -188,7 +188,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testCrossingContigBoundaryRef() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 1, 30));
         writer.add(makeHomRef("20", 2, 30));
@@ -204,7 +204,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testCrossingContigBoundaryToLowerPositionsRef() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 30, 30));
         writer.add(makeHomRef("20", 31, 30));
@@ -220,7 +220,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testCrossingContigBoundaryFromNonRefToLowerPositionsRef() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeNonRef("20", 20, 30));
         Assert.assertEquals(mockWriter.emitted.size(), 1);
@@ -235,7 +235,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testCrossingContigBoundaryNonRef() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 1, 30));
         writer.add(makeHomRef("20", 2, 30));
@@ -248,7 +248,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testCrossingContigBoundaryNonRefThenNonRef() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeNonRef("20", 1, 30));
         Assert.assertEquals(mockWriter.emitted.size(), 1);
@@ -283,7 +283,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testVariantForcesNonRef() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 1, 30));
         writer.add(makeHomRef("20", 2, 30));
@@ -300,7 +300,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testEmittingTwoBands() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 1, 0));
         writer.add(makeHomRef("20", 2, 0));
@@ -315,7 +315,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testNonContiguousBlocks() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 1, 0));
         writer.add(makeHomRef("20", 2, 0));
@@ -329,7 +329,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testDeletion() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, HomoSapiensConstants.DEFAULT_PLOIDY);
 
         writer.add(makeHomRef("20", 1, 0));
         writer.add(makeHomRef("20", 2, 0));
@@ -347,7 +347,7 @@ public class GVCFWriterUnitTest extends BaseTest {
 
     @Test
     public void testHomRefAlt() {
-        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition);
+        final GVCFWriter writer = new GVCFWriter(mockWriter, standardPartition, 2);
 
         writer.add(makeHomRef("20", 1, 0));
         writer.add(makeHomRef("20", 2, 0));
@@ -383,7 +383,7 @@ public class GVCFWriterUnitTest extends BaseTest {
     @Test(dataProvider = "BandPartitionData")
     public void testMyData(final List<Integer> partitions, final boolean expectedGood) {
         try {
-            GVCFWriter.parsePartitions(partitions);
+            GVCFWriter.parsePartitions(partitions,2);
             Assert.assertTrue(expectedGood, "Expected to fail but didn't");
         } catch ( Exception e ) {
             Assert.assertTrue(! expectedGood, "Expected to succeed but failed with message " + e.getMessage());

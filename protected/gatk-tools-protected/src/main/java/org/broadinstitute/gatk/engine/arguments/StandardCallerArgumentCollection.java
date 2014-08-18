@@ -145,7 +145,7 @@ public class StandardCallerArgumentCollection implements Cloneable {
      */
     @Hidden
     @Argument(fullName = "p_nonref_model", shortName = "pnrm", doc = "Non-reference probability calculation model to employ", required = false)
-    public AFCalcFactory.Calculation AFmodel = AFCalcFactory.Calculation.getDefaultModel();
+    public AFCalcFactory.Calculation requestedAlleleFrequencyCalculationModel;
 
     @Hidden
     @Argument(shortName = "logExactCalls", doc="x", required=false)
