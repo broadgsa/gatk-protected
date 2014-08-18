@@ -46,6 +46,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypesContext;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
@@ -79,38 +81,30 @@ public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBased
     private static final String SOR = "SOR";
 
     @Override
-    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
-                                        final AnnotatorCompatible walker,
-                                        final ReferenceContext ref,
-                                        final Map<String,AlignmentContext> stratifiedContexts,
-                                        final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
-        if ( !vc.isVariant() )
-            return null;
-
-        if ( vc.hasGenotypes() ) {
-            final int[][] tableFromPerSampleAnnotations = getTableFromSamples( vc.getGenotypes(), MIN_COUNT );
-            if ( tableFromPerSampleAnnotations != null ) {
-                final double ratio = calculateSOR(tableFromPerSampleAnnotations);
-                return annotationForOneTable(ratio);
-            }
-        }
-
-        if (vc.isSNP() && stratifiedContexts != null) {
-            final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
-            final double ratio = calculateSOR(tableNoFiltering);
+    protected Map<String, Object> calculateAnnotationFromGTfield(GenotypesContext genotypes){
+        final int[][] tableFromPerSampleAnnotations = getTableFromSamples( genotypes, MIN_COUNT );
+        if ( tableFromPerSampleAnnotations != null ) {
+            final double ratio = calculateSOR(tableFromPerSampleAnnotations);
             return annotationForOneTable(ratio);
         }
-        else if (stratifiedPerReadAlleleLikelihoodMap != null) {
-            // either SNP with no alignment context, or indels: per-read likelihood map needed
-            final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc, MIN_COUNT);
-            final double ratio = calculateSOR(table);
-            return annotationForOneTable(ratio);
-        }
-        else
-            // for non-snp variants, we  need per-read likelihoods.
-            // for snps, we can get same result from simple pileup
-            return null;
+        return null;
+    }
+
+    @Override
+    protected Map<String, Object> calculateAnnotationFromStratifiedContexts(Map<String, AlignmentContext> stratifiedContexts,
+                                                                                     final VariantContext vc){
+        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
+        final double ratio = calculateSOR(tableNoFiltering);
+        return annotationForOneTable(ratio);
+    }
+
+    @Override
+    protected Map<String, Object> calculateAnnotationFromLikelihoodMap(Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
+                                                                                final VariantContext vc){
+        // either SNP with no alignment context, or indels: per-read likelihood map needed
+        final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc, MIN_COUNT);
+        final double ratio = calculateSOR(table);
+        return annotationForOneTable(ratio);
     }
 
     /**

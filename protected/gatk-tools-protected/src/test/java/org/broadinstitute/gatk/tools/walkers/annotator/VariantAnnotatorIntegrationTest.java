@@ -155,7 +155,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoReads() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("1c423b7730b9805e7b885ece924286e0"));
+                Arrays.asList("e86d04320dc9a597c1f58ad4b03b33c3"));
         executeTest("not passing it any reads", spec);
     }
 
@@ -163,7 +163,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testDBTagWithDbsnp() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --dbsnp " + b36dbSNP129 + " -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("54d7d5bb9404652857adf5e50d995f30"));
+                Arrays.asList("bcccbe1c8572d98fa73d824d80ea0a05"));
         executeTest("getting DB tag with dbSNP", spec);
     }
 
@@ -171,7 +171,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testMultipleIdsWithDbsnp() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --alwaysAppendDbsnpId --dbsnp " + b36dbSNP129 + " -G Standard --variant " + privateTestDir + "vcfexample3withIDs.vcf -L " + privateTestDir + "vcfexample3withIDs.vcf", 1,
-                Arrays.asList("5fe63e511061ed4f91d938e72e7e3c39"));
+                Arrays.asList("e9d82ed45249833803aad9ebf2a686c2"));
         executeTest("adding multiple IDs with dbSNP", spec);
     }
 
@@ -179,7 +179,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testDBTagWithHapMap() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --comp:H3 " + privateTestDir + "fakeHM3.vcf -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("cc7184263975595a6e2473d153227146"));
+                Arrays.asList("2ff3d4bdaa9e0cc2688b26fed601c184"));
         executeTest("getting DB tag with HM3", spec);
     }
 
@@ -187,7 +187,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testDBTagWithTwoComps() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --comp:H3 " + privateTestDir + "fakeHM3.vcf --comp:foo " + privateTestDir + "fakeHM3.vcf -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("6afbf05090ae139f53467cf6e0e71cf4"));
+                Arrays.asList("dbffbec98dc60850a6bde11540e8040c"));
         executeTest("getting DB tag with 2 comps", spec);
     }
 
@@ -203,7 +203,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testUsingExpression() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations.vcf -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -E foo.AF -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("2b0e8cdfd691779befc5ac123d1a1887"));
+                Arrays.asList("fb00c3b512926f8036829e53fd7f369a"));
         executeTest("using expression", spec);
     }
 
@@ -211,7 +211,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testUsingExpressionWithID() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations.vcf -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -E foo.ID -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("3de1d1998203518098ffae233f3e2352"));
+                Arrays.asList("915f72e6cbeb7a77cd2746b4a99a6d64"));
         executeTest("using expression with ID", spec);
     }
 
