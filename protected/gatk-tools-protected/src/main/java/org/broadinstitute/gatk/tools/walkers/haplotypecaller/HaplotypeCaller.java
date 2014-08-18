@@ -497,10 +497,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected boolean mergeVariantsViaLD = false;
 
     @Advanced
-    @Argument(fullName="tryPhysicalPhasing", shortName="tryPhysicalPhasing", doc="If specified, we will add physical (read-based) phasing information", required = false)
-    protected boolean tryPhysicalPhasing = false;
+    @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="If specified, we will not try to add physical (read-based) phasing information", required = false)
+    protected boolean doNotRunPhysicalPhasing = false;
 
-    public static final String HAPLOTYPE_CALLER_PHASING_KEY = "HCP";
+    public static final String HAPLOTYPE_CALLER_PHASING_ID_KEY = "PID";
+    public static final String HAPLOTYPE_CALLER_PHASING_GT_KEY = "PGT";
 
     // -----------------------------------------------------------------------------------------------
     // arguments for debugging / developing the haplotype caller
@@ -634,11 +635,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if ( emitReferenceConfidence() ) {
 
             if (SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES)
-                throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and Genotyping Giving Alleles at the same time");
+                throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and GENOTYPE_GIVEN_ALLELES at the same time");
 
             SCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
             SCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
-
 
             // also, we don't need to output several of the annotations
             annotationsToExclude.add("ChromosomeCounts");
@@ -651,6 +651,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             if (!SCAC.annotateAllSitesWithPLs)
                 logger.info("All sites annotated with PLs forced to true for reference-model confidence output");
             SCAC.annotateAllSitesWithPLs = true;
+        } else if ( ! doNotRunPhysicalPhasing ) {
+            doNotRunPhysicalPhasing = true;
+            logger.info("Disabling physical phasing, which is supported only for reference-model confidence output");
         }
 
         if ( SCAC.AFmodel == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY )
@@ -678,7 +681,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
             throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
 
-        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(), SCAC, tryPhysicalPhasing);
+        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(), SCAC, !doNotRunPhysicalPhasing);
         // initialize the output VCF header
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
@@ -699,8 +702,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 VCFConstants.DEPTH_KEY,
                 VCFConstants.GENOTYPE_PL_KEY);
 
-        if ( tryPhysicalPhasing )
-            headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_KEY, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Physical phasing information, each unique ID within a given sample (but not across samples) connects alternate alleles as occurring on the same haplotype"));
+        if ( ! doNotRunPhysicalPhasing ) {
+            headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_ID_KEY, 1, VCFHeaderLineType.String, "Physical phasing ID information, where each unique ID within a given sample (but not across samples) connects records within a phasing group"));
+            headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_GT_KEY, 1, VCFHeaderLineType.String, "Physical phasing haplotype information, describing how the alternate alleles are phased in relation to one another"));
+        }
 
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used

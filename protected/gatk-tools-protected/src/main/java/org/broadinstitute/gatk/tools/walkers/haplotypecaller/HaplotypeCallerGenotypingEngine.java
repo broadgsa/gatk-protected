@@ -57,6 +57,7 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.OutputMode;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.EventMap;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
@@ -77,16 +78,16 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
-    private final boolean tryPhysicalPhasing;
+    private final boolean doPhysicalPhasing;
 
     /**
      * {@inheritDoc}
      * @param toolkit {@inheritDoc}
      * @param configuration {@inheritDoc}
      */
-    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final boolean tryPhysicalPhasing) {
+    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final boolean doPhysicalPhasing) {
         super(toolkit,configuration);
-        this.tryPhysicalPhasing = tryPhysicalPhasing;
+        this.doPhysicalPhasing = doPhysicalPhasing;
     }
 
     /**
@@ -97,7 +98,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      */
     public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final Set<String> sampleNames) {
         super(toolkit,configuration,sampleNames);
-        tryPhysicalPhasing = false;
+        doPhysicalPhasing = true;
     }
 
 
@@ -254,7 +255,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                     if (logger != null) logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
                 }
 
-                ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper,genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC),ALLELE_EXTENSION));
+                ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper, genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC), ALLELE_EXTENSION));
                 if (configuration.isSampleContaminationPresent())
                     readAlleleLikelihoods.contaminationDownsampling(configuration.getSampleContamination());
 
@@ -286,7 +287,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             }
         }
 
-        final List<VariantContext> phasedCalls = tryPhysicalPhasing ? phaseCalls(returnCalls, calledHaplotypes) : returnCalls;
+        final List<VariantContext> phasedCalls = doPhysicalPhasing ? phaseCalls(returnCalls, calledHaplotypes) : returnCalls;
         return new CalledHaplotypes(phasedCalls, calledHaplotypes);
     }
 
@@ -303,8 +304,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         final Map<VariantContext, Set<Haplotype>> haplotypeMap = constructHaplotypeMapping(calls, calledHaplotypes);
 
         // construct a mapping from call to phase set ID
-        final Map<VariantContext, Integer> phaseSetMapping = new HashMap<>();
-        final int uniqueCounterEndValue = constructPhaseSetMapping(calls, haplotypeMap, phaseSetMapping);
+        final Map<VariantContext, Pair<Integer, String>> phaseSetMapping = new HashMap<>();
+        final int uniqueCounterEndValue = constructPhaseSetMapping(calls, haplotypeMap, calledHaplotypes.size() - 1, phaseSetMapping);
 
         // we want to establish (potential) *groups* of phased variants, so we need to be smart when looking at pairwise phasing partners
         return constructPhaseGroups(calls, phaseSetMapping, uniqueCounterEndValue);
@@ -349,17 +350,19 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      *
      * @param originalCalls    the original unphased calls
      * @param haplotypeMap     mapping from alternate allele to the set of haplotypes that contain that allele
+     * @param totalAvailableHaplotypes the total number of possible haplotypes used in calling
      * @param phaseSetMapping  the map to populate in this method
      * @return the next incremental unique index
      */
     protected static int constructPhaseSetMapping(final List<VariantContext> originalCalls,
                                                   final Map<VariantContext, Set<Haplotype>> haplotypeMap,
-                                                  final Map<VariantContext, Integer> phaseSetMapping) {
+                                                  final int totalAvailableHaplotypes,
+                                                  final Map<VariantContext, Pair<Integer, String>> phaseSetMapping) {
 
         final int numCalls = originalCalls.size();
         int uniqueCounter = 0;
 
-        // use the haplotype mapping to connect variants that are always present on the same haplotypes
+        // use the haplotype mapping to connect variants that are always/never present on the same haplotypes
         for ( int i = 0; i < numCalls - 1; i++ ) {
             final VariantContext call = originalCalls.get(i);
             final Set<Haplotype> haplotypesWithCall = haplotypeMap.get(call);
@@ -369,17 +372,45 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             for ( int j = i+1; j < numCalls; j++ ) {
                 final VariantContext comp = originalCalls.get(j);
                 final Set<Haplotype> haplotypesWithComp = haplotypeMap.get(comp);
+                if ( haplotypesWithComp.isEmpty() )
+                    continue;
 
-                // if the variants are in phase, record that fact
-                if ( haplotypesWithCall.size() == haplotypesWithComp.size() && haplotypesWithCall.containsAll(haplotypesWithComp) ) {
-                    // if it's part of an existing group, use that group's unique ID
-                    if ( phaseSetMapping.containsKey(call) ) {
-                        phaseSetMapping.put(comp, phaseSetMapping.get(call));
-                    // otherwise, create a new group
-                    } else {
-                        phaseSetMapping.put(call, uniqueCounter);
-                        phaseSetMapping.put(comp, uniqueCounter);
+                // if the variants are together on all haplotypes, record that fact.
+                // another possibility is that one of the variants is on all possible haplotypes (i.e. it is homozygous).
+                final boolean callIsOnAllHaps = haplotypesWithCall.size() == totalAvailableHaplotypes;
+                final boolean compIsOnAllHaps = haplotypesWithComp.size() == totalAvailableHaplotypes;
+                if ( (haplotypesWithCall.size() == haplotypesWithComp.size() && haplotypesWithCall.containsAll(haplotypesWithComp)) || callIsOnAllHaps || compIsOnAllHaps ) {
+
+                    // create a new group if these are the first entries
+                    if ( ! phaseSetMapping.containsKey(call) ) {
+                        phaseSetMapping.put(call, new Pair<>(uniqueCounter, callIsOnAllHaps ? "1|1" : "0|1"));
+                        phaseSetMapping.put(comp, new Pair<>(uniqueCounter, compIsOnAllHaps ? "1|1" : "0|1"));
                         uniqueCounter++;
+                    }
+                    // otherwise it's part of an existing group so use that group's unique ID
+                    else if ( ! phaseSetMapping.containsKey(comp) ) {
+                        final Pair<Integer, String> callPhase = phaseSetMapping.get(call);
+                        phaseSetMapping.put(comp, new Pair<>(callPhase.first, compIsOnAllHaps ? "1|1" : callPhase.second));
+                    }
+                }
+                // if the variants are apart on *all* haplotypes, record that fact
+                else if ( haplotypesWithCall.size() + haplotypesWithComp.size() == totalAvailableHaplotypes ) {
+
+                    final Set<Haplotype> intersection = new HashSet<>();
+                    intersection.addAll(haplotypesWithCall);
+                    intersection.retainAll(haplotypesWithComp);
+                    if ( intersection.isEmpty() ) {
+                        // create a new group if these are the first entries
+                        if ( ! phaseSetMapping.containsKey(call) ) {
+                            phaseSetMapping.put(call, new Pair<>(uniqueCounter, "0|1"));
+                            phaseSetMapping.put(comp, new Pair<>(uniqueCounter, "1|0"));
+                            uniqueCounter++;
+                        }
+                        // otherwise it's part of an existing group so use that group's unique ID
+                        else if ( ! phaseSetMapping.containsKey(comp) ){
+                            final Pair<Integer, String> callPhase = phaseSetMapping.get(call);
+                            phaseSetMapping.put(comp, new Pair<>(callPhase.first, callPhase.second.equals("0|1") ? "1|0" : "0|1"));
+                        }
                     }
                 }
             }
@@ -397,7 +428,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * @return a non-null list which represents the possibly phased version of the calls
      */
     protected static List<VariantContext> constructPhaseGroups(final List<VariantContext> originalCalls,
-                                                               final Map<VariantContext, Integer> phaseSetMapping,
+                                                               final Map<VariantContext, Pair<Integer, String>> phaseSetMapping,
                                                                final int indexTo) {
         final List<VariantContext> phasedCalls = new ArrayList<>(originalCalls);
 
@@ -407,7 +438,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             final List<Integer> indexes = new ArrayList<>();
             for ( int index = 0; index < originalCalls.size(); index++ ) {
                 final VariantContext call = originalCalls.get(index);
-                if ( phaseSetMapping.containsKey(call) && phaseSetMapping.get(call) == count )
+                if ( phaseSetMapping.containsKey(call) && phaseSetMapping.get(call).first == count )
                     indexes.add(index);
             }
             if ( indexes.size() < 2 )
@@ -418,7 +449,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
             // update the VCs
             for ( final int index : indexes ) {
-                final VariantContext phasedCall = phaseVC(originalCalls.get(index), uniqueID);
+                final VariantContext originalCall = originalCalls.get(index);
+                final VariantContext phasedCall = phaseVC(originalCall, uniqueID, phaseSetMapping.get(originalCall).second);
                 phasedCalls.set(index, phasedCall);
             }
         }
@@ -452,12 +484,13 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      *
      * @param vc   the variant context
      * @param ID   the ID to use
+     * @param phaseGT the phase GT string to use
      * @return phased non-null variant context
      */
-    private static VariantContext phaseVC(final VariantContext vc, final String ID) {
+    private static VariantContext phaseVC(final VariantContext vc, final String ID, final String phaseGT) {
         final List<Genotype> phasedGenotypes = new ArrayList<>();
         for ( final Genotype g : vc.getGenotypes() )
-            phasedGenotypes.add(new GenotypeBuilder(g).attribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_KEY, ID).make());
+            phasedGenotypes.add(new GenotypeBuilder(g).attribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_ID_KEY, ID).attribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY, phaseGT).make());
         return new VariantContextBuilder(vc).genotypes(phasedGenotypes).make();
     }
 
