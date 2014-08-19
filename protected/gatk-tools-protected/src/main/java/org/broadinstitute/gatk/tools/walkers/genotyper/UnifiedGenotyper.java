@@ -46,6 +46,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
@@ -199,14 +200,14 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
      * Which annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available annotations.
      */
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
-    protected List<String> annotationsToUse = new ArrayList<String>();
+    protected List<String> annotationsToUse = new ArrayList<>();
 
     /**
      * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the -A or -G arguments,
      * so annotations will be excluded even if they are explicitly included with the other options.
      */
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
-    protected List<String> annotationsToExclude = new ArrayList<String>();
+    protected List<String> annotationsToExclude = new ArrayList<>();
 
     /**
      * If specified, all available annotations in the group will be applied. See the VariantAnnotator -list argument to view available groups.
@@ -217,11 +218,6 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
     // the calculation arguments
     private UnifiedGenotypingEngine genotypingEngine = null;
-
-    // the annotation engine
-    private VariantAnnotatorEngine annotationEngine;
-
-    private Set<String> samples;
 
     // enable deletions in the pileup
     @Override
@@ -256,17 +252,22 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
      *
      **/
     public void initialize() {
+        super.initialize();
 
+        final GenomeAnalysisEngine toolkit = getToolkit();
+        final Set<String> sampleNameSet;
         if ( UAC.TREAT_ALL_READS_AS_SINGLE_POOL ) {
-            samples.add(GenotypeLikelihoodsCalculationModel.DUMMY_SAMPLE_NAME);
+            sampleNameSet = Collections.singleton(GenotypeLikelihoodsCalculationModel.DUMMY_SAMPLE_NAME);
         } else {
             // get all of the unique sample names
-            samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
+            sampleNameSet = SampleUtils.getSAMFileSamples(toolkit.getSAMFileHeader());
             if ( UAC.referenceSampleName != null )
-                samples.remove(UAC.referenceSampleName);
+                sampleNameSet.remove(UAC.referenceSampleName);
         }
+        final SampleList samples = new IndexedSampleList(sampleNameSet);
+
         if ( UAC.CONTAMINATION_FRACTION_FILE != null )
-            UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, UAC.CONTAMINATION_FRACTION, samples, logger));
+            UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, UAC.CONTAMINATION_FRACTION, sampleNameSet, logger));
 
         // check for a bad max alleles value
         if ( UAC.genotypeArgs.MAX_ALTERNATE_ALLELES > GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
@@ -282,8 +283,8 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
         if ( verboseWriter != null )
             verboseWriter.println("AFINFO\tLOC\tREF\tALT\tMAF\tF\tAFprior\tMLE\tMAP");
 
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
-        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), UAC, samples);
+        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
+        genotypingEngine = new UnifiedGenotypingEngine(UAC, samples, toolkit.getGenomeLocParser(), toolkit.getArguments().BAQMode);
         genotypingEngine.setVerboseWriter(verboseWriter);
         genotypingEngine.setAnnotationEngine(annotationEngine);
 
@@ -298,11 +299,11 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
         final Set<String> samplesForHeader;
         if ( ! onlyEmitSamples.isEmpty() ) {
             // make sure that onlyEmitSamples is a subset of samples
-            if ( ! samples.containsAll(onlyEmitSamples) )
+            if ( ! sampleNameSet.containsAll(onlyEmitSamples) )
                 throw new UserException.BadArgumentValue("onlyEmitSamples", "must be a strict subset of the samples in the BAM files but is wasn't");
             samplesForHeader = onlyEmitSamples;
         } else {
-            samplesForHeader = samples;
+            samplesForHeader = sampleNameSet;
         }
         writer.writeHeader(new VCFHeader(headerInfo, samplesForHeader));
     }
@@ -310,7 +311,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
     public static Set<VCFHeaderLine> getHeaderInfo(final UnifiedArgumentCollection UAC,
                                                    final VariantAnnotatorEngine annotationEngine,
                                                    final DbsnpArgumentCollection dbsnp) {
-        Set<VCFHeaderLine> headerInfo = new HashSet<VCFHeaderLine>();
+        final Set<VCFHeaderLine> headerInfo = new HashSet<>();
 
         // all annotation fields from VariantAnnotatorEngine
         if ( annotationEngine != null )

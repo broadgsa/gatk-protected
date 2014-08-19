@@ -48,12 +48,9 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingOutputMode;
-import org.broadinstitute.gatk.tools.walkers.genotyper.OutputMode;
+import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.Utils;
@@ -64,7 +61,6 @@ import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.haplotype.MergeVariantsAcrossHaplotypes;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
 
@@ -80,27 +76,32 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     private final boolean doPhysicalPhasing;
 
+    private final GenotypingModel genotypingModel;
+
+    private final PloidyModel ploidyModel;
+
     /**
      * {@inheritDoc}
-     * @param toolkit {@inheritDoc}
      * @param configuration {@inheritDoc}
+     * @param samples {@inheritDoc}
+     * @param genomeLocParser {@inheritDoc}
+     * @param doPhysicalPhasing whether to try physical phasing.
      */
-    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final boolean doPhysicalPhasing) {
-        super(toolkit,configuration);
-        this.doPhysicalPhasing = doPhysicalPhasing;
+    public HaplotypeCallerGenotypingEngine(final HaplotypeCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final boolean doPhysicalPhasing) {
+        super(configuration,samples,genomeLocParser);
+        if (genomeLocParser == null)
+            throw new IllegalArgumentException("the genome location parser provided cannot be null");
+        this.doPhysicalPhasing= doPhysicalPhasing;
+        ploidyModel = new HomogeneousPloidyModel(samples,configuration.genotypeArgs.samplePloidy);
+        genotypingModel = new InfiniteRandomMatingPopulationModel();
     }
 
     /**
      * {@inheritDoc}
-     * @param toolkit {@inheritDoc}
-     * @param configuration {@inheritDoc}
-     * @param sampleNames {@inheritDoc}
      */
-    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final Set<String> sampleNames) {
-        super(toolkit,configuration,sampleNames);
-        doPhysicalPhasing = true;
+    public HaplotypeCallerGenotypingEngine(final HaplotypeCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser) {
+        this(configuration,samples,genomeLocParser,false);
     }
-
 
     /**
      * Change the merge variant across haplotypes for this engine.
@@ -198,9 +199,9 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         if (readLikelihoods == null || readLikelihoods.sampleCount() == 0) throw new IllegalArgumentException("readLikelihoods input should be non-empty and non-null, got "+readLikelihoods);
         if (ref == null || ref.length == 0 ) throw new IllegalArgumentException("ref bytes input should be non-empty and non-null, got " + Arrays.toString(ref));
         if (refLoc == null || refLoc.size() != ref.length) throw new IllegalArgumentException(" refLoc must be non-null and length must match ref bytes, got "+refLoc);
-        if (activeRegionWindow == null ) throw new IllegalArgumentException("activeRegionWindow must be non-null, got "+activeRegionWindow);
-        if (activeAllelesToGenotype == null ) throw new IllegalArgumentException("activeAllelesToGenotype must be non-null, got "+activeAllelesToGenotype);
-        if (genomeLocParser == null ) throw new IllegalArgumentException("genomeLocParser must be non-null, got "+genomeLocParser);
+        if (activeRegionWindow == null ) throw new IllegalArgumentException("activeRegionWindow must be non-null");
+        if (activeAllelesToGenotype == null ) throw new IllegalArgumentException("activeAllelesToGenotype must be non-null");
+        if (genomeLocParser == null ) throw new IllegalArgumentException("genomeLocParser must be non-null");
 
         // update the haplotypes so we're ready to call, getting the ordered list of positions on the reference
         // that carry events among the haplotypes
@@ -228,20 +229,16 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                         GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED,
                         GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
 
-                final VariantContextBuilder vcb = new VariantContextBuilder(mergedVC);
+                if( mergedVC == null )
+                    continue;
 
-                if( mergedVC == null ) { continue; }
+
 
                 final GenotypeLikelihoodsCalculationModel.Model calculationModel = mergedVC.isSNP()
                         ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL;
 
-                if (emitReferenceConfidence) {
-                    final List<Allele> alleleList = new ArrayList<>();
-                    alleleList.addAll(mergedVC.getAlleles());
-                    alleleList.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
-                    vcb.alleles(alleleList);
-                    mergedVC = vcb.make();
-                }
+                if (emitReferenceConfidence)
+                    mergedVC = addNonRefSymbolicAllele(mergedVC);
 
                 final Map<VariantContext, Allele> mergeMap = new LinkedHashMap<>();
                 mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
@@ -264,7 +261,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                     readAlleleLikelihoods.addNonReferenceAllele(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
 
                 final GenotypesContext genotypes = calculateGLsForThisEvent( readAlleleLikelihoods, mergedVC );
-                final VariantContext call = calculateGenotypes(null,null,null,null,new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel, false,null);
+                final VariantContext call = calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel);
                 if( call != null ) {
 
                     readAlleleLikelihoods = prepareReadAlleleLikelihoodsForAnnotation(readLikelihoods, perSampleFilteredReadList,
@@ -494,6 +491,16 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         return new VariantContextBuilder(vc).genotypes(phasedGenotypes).make();
     }
 
+    private VariantContext addNonRefSymbolicAllele(final VariantContext mergedVC) {
+        final VariantContextBuilder vcb = new VariantContextBuilder(mergedVC);
+        final List<Allele> originalList = mergedVC.getAlleles();
+        final List<Allele> alleleList = new ArrayList<>(originalList.size() + 1);
+        alleleList.addAll(mergedVC.getAlleles());
+        alleleList.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        vcb.alleles(alleleList);
+        return vcb.make();
+    }
+
     // Builds the read-likelihoods collection to use for annotation considering user arguments and the collection
     // used for genotyping.
     private ReadLikelihoods<Allele> prepareReadAlleleLikelihoodsForAnnotation(
@@ -653,22 +660,14 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
     @Requires({"readLikelihoods!= null", "mergedVC != null"})
     @Ensures("result != null")
     private GenotypesContext calculateGLsForThisEvent( final ReadLikelihoods<Allele> readLikelihoods, final VariantContext mergedVC ) {
-        final GenotypesContext genotypes = GenotypesContext.create(readLikelihoods.sampleCount());
-        // Grab the genotype likelihoods from the appropriate places in the haplotype likelihood matrix -- calculation performed independently per sample
-        for (final String sample : readLikelihoods.samples() ) {
-            final int numHaplotypes = mergedVC.getAlleles().size();
-            final double[] genotypeLikelihoods = new double[numHaplotypes * (numHaplotypes+1) / 2];
-            final double[][] haplotypeLikelihoodMatrix = PairHMMLikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, readLikelihoods, mergedVC.getAlleles(), true);
-            int glIndex = 0;
-            for( int iii = 0; iii < numHaplotypes; iii++ ) {
-                for( int jjj = 0; jjj <= iii; jjj++ ) {
-                    genotypeLikelihoods[glIndex++] = haplotypeLikelihoodMatrix[iii][jjj]; // for example: AA,AB,BB,AC,BC,CC
-                }
-            }
-            logger.debug(" Likelihoods for sample " + sample + " : " + Arrays.toString(genotypeLikelihoods));
-            genotypes.add(new GenotypeBuilder(sample).alleles(NO_CALL).PL(genotypeLikelihoods).make());
-        }
-        return genotypes;
+        final List<Allele> vcAlleles = mergedVC.getAlleles();
+        final AlleleList<Allele> alleleList = readLikelihoods.alleleCount() == vcAlleles.size() ? readLikelihoods : new IndexedAlleleList<>(vcAlleles);
+        final GenotypingLikelihoods<Allele> likelihoods = genotypingModel.calculateLikelihoods(alleleList,new GenotypingData<>(ploidyModel,readLikelihoods));
+        final int sampleCount = samples.sampleCount();
+        final GenotypesContext result = GenotypesContext.create(sampleCount);
+        for (int s = 0; s < sampleCount; s++)
+            result.add(new GenotypeBuilder(samples.sampleAt(s)).alleles(NO_CALL).PL(likelihoods.sampleLikelihoods(s).getAsPLs()).make());
+        return result;
     }
 
     /**
@@ -778,5 +777,23 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         public int hashCode() {
             return (vc == null ? -1 : vc.getAlleles().hashCode());
         }
+    }
+
+    /**
+     * Returns the ploidy-model used by this genotyping engine.
+     *
+     * @return never {@code null}.
+     */
+    public PloidyModel getPloidyModel() {
+        return ploidyModel;
+    }
+
+    /**
+     * Returns the genotyping-model used by this genotyping engine.
+     *
+     * @return never {@code null}.
+     */
+    public GenotypingModel getGenotypingModel() {
+        return genotypingModel;
     }
 }

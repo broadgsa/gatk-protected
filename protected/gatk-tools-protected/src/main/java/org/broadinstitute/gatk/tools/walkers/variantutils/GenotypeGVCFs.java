@@ -46,8 +46,12 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
+import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
@@ -111,6 +115,7 @@ import java.util.*;
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 @Reference(window=@Window(start=-10,stop=10))
+@SuppressWarnings("unused")
 public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
 
     /**
@@ -159,12 +164,13 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
             variants.addAll(variantCollection.getRodBindings());
 
-        final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit(), variants);
-        final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
+        final GenomeAnalysisEngine toolkit = getToolkit();
+        final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(toolkit, variants);
+        final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE));
         // create the genotyping engine
-        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), createUAC(), samples);
+        genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), toolkit.getArguments().BAQMode);
         // create the annotation engine
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
+        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, toolkit);
 
         // take care of the VCF headers
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
@@ -179,7 +185,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
             VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
-        final VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
+        final Set<String> sampleNameSet = SampleListUtils.asSet(samples);
+        final VCFHeader vcfHeader = new VCFHeader(headerLines, sampleNameSet);
         vcfWriter.writeHeader(vcfHeader);
     }
 

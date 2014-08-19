@@ -48,10 +48,8 @@ package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
-import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.classloader.PluginManager;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 
 import java.lang.reflect.Constructor;
 import java.util.LinkedList;
@@ -105,6 +103,24 @@ public class AFCalcFactory {
         }
 
         public static Calculation getDefaultModel() { return EXACT_INDEPENDENT; }
+
+        /**
+         * Returns the best (fastest) model give the required ploidy and alternative allele count.
+         * @param requiredPloidy required ploidy
+         * @param requiredAlternativeAlleleCount required alternative allele count.
+         * @param preferredModel a preferred mode if any. A {@code null} indicate that we should be try to use the default instead.
+         * @return never {@code null}
+         */
+        public static Calculation getBestModel(final int requiredPloidy, final int requiredAlternativeAlleleCount, final Calculation preferredModel) {
+            final Calculation preferred = preferredModel == null ? getDefaultModel() : preferredModel;
+            if (preferred.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+                return preferred;
+            if (EXACT_INDEPENDENT.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+                return EXACT_INDEPENDENT;
+            if (EXACT_REFERENCE.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+                return EXACT_REFERENCE;
+            return EXACT_GENERAL_PLOIDY;
+        }
     }
 
     private static final Map<String, Class<? extends AFCalc>> afClasses;
@@ -137,25 +153,10 @@ public class AFCalcFactory {
     public static AFCalc createAFCalc(final StandardCallerArgumentCollection UAC,
                                       final int nSamples,
                                       final Logger logger) {
-        final int maxAltAlleles = UAC.genotypeArgs.MAX_ALTERNATE_ALLELES;
-        if ( ! UAC.AFmodel.usableForParams(UAC.genotypeArgs.samplePloidy, maxAltAlleles) ) {
-            logger.info("Requested ploidy " + UAC.genotypeArgs.samplePloidy + " maxAltAlleles " + maxAltAlleles + " not supported by requested model " + UAC.AFmodel + " looking for an option");
-            final List<Calculation> supportingCalculations = new LinkedList<Calculation>();
-            for ( final Calculation calc : Calculation.values() ) {
-                if ( calc.usableForParams(UAC.genotypeArgs.samplePloidy, maxAltAlleles) )
-                    supportingCalculations.add(calc);
-            }
+        final Calculation afCalculationModel = Calculation.getBestModel(UAC.genotypeArgs.samplePloidy,UAC.genotypeArgs.MAX_ALTERNATE_ALLELES,
+                UAC.requestedAlleleFrequencyCalculationModel);
 
-            if ( supportingCalculations.isEmpty() )
-                throw new UserException("no AFCalculation model found that supports ploidy of " + UAC.genotypeArgs.samplePloidy + " and max alt alleles " + maxAltAlleles);
-            else if ( supportingCalculations.size() > 1 )
-                logger.debug("Warning, multiple supporting AFCalcs found " + Utils.join(",", supportingCalculations) + " choosing first arbitrarily");
-            else
-                UAC.AFmodel = supportingCalculations.get(0);
-            logger.info("Selecting model " + UAC.AFmodel);
-        }
-
-        final AFCalc calc = createAFCalc(UAC.AFmodel, nSamples, maxAltAlleles, UAC.genotypeArgs.samplePloidy);
+        final AFCalc calc = createAFCalc(afCalculationModel, nSamples, UAC.genotypeArgs.MAX_ALTERNATE_ALLELES, UAC.genotypeArgs.samplePloidy);
 
         if ( logger != null ) calc.setLogger(logger);
         if ( UAC.exactCallsLog != null ) calc.enableProcessLog(UAC.exactCallsLog);

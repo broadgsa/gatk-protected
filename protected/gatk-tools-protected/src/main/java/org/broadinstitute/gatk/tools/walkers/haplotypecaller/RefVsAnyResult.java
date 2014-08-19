@@ -46,6 +46,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
+
 /**
  * Holds information about a genotype call of a single sample reference vs. any non-ref event
  *
@@ -58,7 +60,7 @@ final class RefVsAnyResult {
     /**
      * The genotype likelihoods for ref/ref ref/non-ref non-ref/non-ref
      */
-    final double[] genotypeLikelihoods = new double[3];
+    final double[] genotypeLikelihoods;
 
     /**
      * AD field value for ref / non-ref
@@ -74,7 +76,31 @@ final class RefVsAnyResult {
      * Cap the het and hom var likelihood values by the hom ref likelihood.
      */
     protected void capByHomRefLikelihood() {
-        genotypeLikelihoods[1] = Math.min(genotypeLikelihoods[0], genotypeLikelihoods[1]);
-        genotypeLikelihoods[2] = Math.min(genotypeLikelihoods[0], genotypeLikelihoods[2]);
+        final int likelihoodCount = genotypeLikelihoods.length;
+        for (int i = 1; i < likelihoodCount; i++)
+            genotypeLikelihoods[i] = Math.min(genotypeLikelihoods[0],genotypeLikelihoods[i]);
     }
+
+    /**
+     * Creates a new ref-vs-alt result assuming 3 as the number of genotype likelihoods (human ploidy.
+     */
+    @Deprecated
+    public RefVsAnyResult() {
+        genotypeLikelihoods =
+                new double[(HomoSapiensConstants.DEFAULT_PLOIDY * (HomoSapiensConstants.DEFAULT_PLOIDY + 1)) >> 1];
+    }
+
+    /**
+     * Creates a new ref-vs-alt result indicating the genotype likelihood vector capacity.
+     * @param likelihoodCapacity the required capacity of the likelihood array, should match the possible number of
+     *                           genotypes given the number of alleles (always 2), ploidy (arbitrary) less the genotyping
+     *                           model non-sense genotype count if applies.
+     * @throws IllegalArgumentException if {@code likelihoodCapacity} is negative.
+     */
+    public RefVsAnyResult(final int likelihoodCapacity) {
+        if (likelihoodCapacity < 0)
+            throw new IllegalArgumentException("likelihood capacity is negative");
+        genotypeLikelihoods = new double[likelihoodCapacity];
+    }
+
 }

@@ -47,6 +47,7 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.HaplotypeGraph;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
@@ -262,7 +263,7 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
                    dataSet = (ActiveRegionTestDataSet) params[0];
                    if (INTRODUCE_READ_ERRORS) dataSet.introduceErrors(new Random(13));
                    graphEngine = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(),hmm,Double.NEGATIVE_INFINITY, HeterogeneousKmerSizeResolution.COMBO_MAX);
-                   graphLks = graphEngine.computeReadLikelihoods(dataSet.haplotypeList(),Collections.singletonList("anonymous"),Collections.singletonMap("anonymous",dataSet.readList())).toPerReadAlleleLikelihoodMap(0);
+                   graphLks = graphEngine.computeReadLikelihoods(dataSet.haplotypeList(), SampleListUtils.singletonList("anonymous"),Collections.singletonMap("anonymous",dataSet.readList())).toPerReadAlleleLikelihoodMap(0);
 
                    // clip reads at the anchors.
                    final Map<GATKSAMRecord,GATKSAMRecord> clippedReads = anchorClippedReads(graphEngine.getHaplotypeGraph(),dataSet.readList());
@@ -272,7 +273,7 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
                        clippedReadList.add(clippedReads.containsKey(r) ? clippedReads.get(r) : r);
                    }
 
-                   loglessLks = fullPairHMM.computeReadLikelihoods(dataSet.assemblyResultSet(),Collections.singletonList("anonymous"),Collections.singletonMap("anonymous",clippedReadList)).toPerReadAlleleLikelihoodMap(0);
+                   loglessLks = fullPairHMM.computeReadLikelihoods(dataSet.assemblyResultSet(),SampleListUtils.singletonList("anonymous"),Collections.singletonMap("anonymous",clippedReadList)).toPerReadAlleleLikelihoodMap(0);
 
                    // Change clipped by unclipped in the resulting likelihood map.
                    for (final GATKSAMRecord r : clippedReads.keySet()) {

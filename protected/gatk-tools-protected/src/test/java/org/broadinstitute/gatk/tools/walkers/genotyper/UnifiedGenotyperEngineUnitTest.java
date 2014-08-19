@@ -50,15 +50,15 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 // the imports for unit testing.
 
 
-import org.broadinstitute.gatk.utils.BaseTest;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.arguments.GATKArgumentCollection;
-import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.Utils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.engine.arguments.GATKArgumentCollection;
+import org.broadinstitute.gatk.utils.BaseTest;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -76,9 +76,9 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
         engine.setArguments(new GATKArgumentCollection());
 
         final UnifiedArgumentCollection args = new UnifiedArgumentCollection();
-        final Set<String> fakeSamples = Collections.singleton("fake");
+        final SampleList fakeSamples = SampleListUtils.singletonList("fake");
 
-        ugEngine = new UnifiedGenotypingEngine(engine, args,fakeSamples);
+        ugEngine = new UnifiedGenotypingEngine(args,fakeSamples,engine.getGenomeLocParser(),engine.getArguments().BAQMode);
     }
 
     private UnifiedGenotypingEngine getEngine() {
@@ -87,7 +87,7 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
 
     @DataProvider(name = "ReferenceQualityCalculation")
     public Object[][] makeReferenceQualityCalculation() {
-        List<Object[]> tests = new ArrayList<Object[]>();
+        final List<Object[]> tests = new ArrayList<>();
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
         final double p = Math.log10(0.5);
@@ -114,7 +114,7 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
 
         for ( Integer numAltAlleles = 0; numAltAlleles < 100; numAltAlleles++ )  {
 
-            Set<Allele> alleles = new HashSet<Allele>();
+            final Set<Allele> alleles = new HashSet<>();
             alleles.add(Allele.create("A", true));        // ref allele
 
             for (int len = 1; len <=numAltAlleles; len++) {

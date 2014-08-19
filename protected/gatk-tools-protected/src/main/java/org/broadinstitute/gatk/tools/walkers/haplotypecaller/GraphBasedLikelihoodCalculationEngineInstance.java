@@ -46,7 +46,11 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import htsjdk.variant.variantcontext.Allele;
 import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.MultiSampleEdge;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.Path;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.Route;
@@ -61,7 +65,6 @@ import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pairhmm.FlexibleHMM;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 
 import java.util.*;
 
@@ -233,12 +236,13 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
      * @return never {@code null}, and with at least one entry for input sample (keys in {@code perSampleReadList}.
      *    The value maps can be potentially empty though.
      */
-    public ReadLikelihoods<Haplotype> computeReadLikelihoods(final List<Haplotype> haplotypes, final List<String> samples,
+    public ReadLikelihoods<Haplotype> computeReadLikelihoods(final List<Haplotype> haplotypes, final SampleList samples,
             final Map<String, List<GATKSAMRecord>> perSampleReadList) {
         // General preparation on the input haplotypes:
-        final ReadLikelihoods<Haplotype> result = new ReadLikelihoods<>(samples, haplotypes, perSampleReadList);
         final List<Haplotype> sortedHaplotypes = new ArrayList<>(haplotypes);
         Collections.sort(sortedHaplotypes, Haplotype.ALPHANUMERICAL_COMPARATOR);
+        final AlleleList<Haplotype> alleles = new IndexedAlleleList<>(sortedHaplotypes);
+        final ReadLikelihoods<Haplotype> result = new ReadLikelihoods<>(samples, alleles, perSampleReadList);
 
         // The actual work:
         final int sampleCount = result.sampleCount();
@@ -315,7 +319,7 @@ public class GraphBasedLikelihoodCalculationEngineInstance {
     private void calculatePerReadAlleleLikelihoodMapHaplotypeProcessing(final int haplotypeIndex,
                                                                         final ReadLikelihoods.Matrix<Haplotype> likelihoods,
                                                                         final Map<MultiDeBruijnVertex, Set<ReadSegmentCost>> costsEndingByVertex) {
-        final Haplotype haplotype = likelihoods.allele(haplotypeIndex);
+        final Haplotype haplotype = likelihoods.alleleAt(haplotypeIndex);
         final HaplotypeRoute haplotypeRoute = haplotypeGraph.getHaplotypeRoute(haplotype);
         final Set<MultiDeBruijnVertex> haplotypeVertices = haplotypeRoute.vertexSet();
         final Map<GATKSAMRecord, ReadCost> readCostByRead = new HashMap<>();

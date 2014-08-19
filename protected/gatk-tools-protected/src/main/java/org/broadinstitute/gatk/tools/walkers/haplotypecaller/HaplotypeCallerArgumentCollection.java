@@ -45,9 +45,9 @@
 */
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Advanced;
 import org.broadinstitute.gatk.utils.commandline.Argument;
-import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
 
 /**
  * Set of arguments for the {@link HaplotypeCaller}

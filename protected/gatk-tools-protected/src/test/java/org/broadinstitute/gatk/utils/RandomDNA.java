@@ -56,7 +56,8 @@ import java.util.Random;
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class RandomDNA {
+public class
+        RandomDNA {
 
     private Random random;
 
@@ -71,6 +72,19 @@ public class RandomDNA {
     @SuppressWarnings("unused")
     public RandomDNA() {
         random = new Random();
+    }
+
+
+    /**
+     * Creates a new random DNA generator given a random number generator.
+     * @param rnd the underlying random number generator.
+     *
+     * @throws IllegalArgumentException if {@code rnd} is {@code null}.
+     */
+    public RandomDNA(final Random rnd) {
+        if (rnd == null)
+            throw new IllegalArgumentException("the random number generator cannot be null");
+        random = rnd;
     }
 
     /**

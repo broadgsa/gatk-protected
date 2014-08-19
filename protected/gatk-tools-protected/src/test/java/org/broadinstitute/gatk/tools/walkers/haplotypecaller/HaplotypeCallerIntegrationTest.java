@@ -94,8 +94,34 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testHaplotypeCallerMultiSampleHaploid() {
+        HCTest(CEUTRIO_BAM,
+                "-ploidy 1", "b9e43506af628768fc9fd1ced49822b1");
+    }
+
+    @Test
+    public void testHaplotypeCallerSingleSampleHaploid() {
+        HCTest(NA12878_BAM, "-ploidy 1", "fb584b8c3f371ee2e438a3fc2335b26f");
+    }
+
+    @Test
+    public void testHaplotypeCallerSingleSampleTetraploid() {
+        HCTest(NA12878_BAM, "-ploidy 4", "d450b486c76520f9c803c603f25563e4");
+    }
+
+    @Test
     public void testHaplotypeCallerMinBaseQuality() {
         HCTest(NA12878_BAM, "-mbq 15", "d063c0e5af1fd413be0500609ae36d46");
+    }
+
+    @Test
+    public void testHaplotypeCallerMinBaseQualityHaploid() {
+        HCTest(NA12878_BAM, "-mbq 15 -ploidy 1", "40259040f6febd8ea5931132cf5d8958");
+    }
+
+    @Test
+    public void testHaplotypeCallerMinBaseQualityTetraploid() {
+        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "ca11eae5def67ca9717d129348e4cda7");
     }
 
     @Test
@@ -104,13 +130,18 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testHaplotypeCallerGraphBasedMultiSampleHaploid() {
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "f0677e5a2882f947f437e8d2049172cb");
+    }
+
+    @Test
     public void testHaplotypeCallerGraphBasedMultiSample() {
         HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "4c2a2dad6379b13fee4c7faca17441f5");
     }
 
-    @Test(enabled = false) // can't annotate the rsID's yet
+    @Test
     public void testHaplotypeCallerSingleSampleWithDbsnp() {
-        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "");
+        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "9d7067648561aa35b04d355184a5dea2");
     }
 
     @Test
@@ -118,6 +149,18 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf" +
                 " -isr INTERSECTION -L " + GGA_INTERVALS_FILE,
                 "669aac2aa9c22881eda86ee53b13351a");
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleGGAHaploid() {
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 1 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
+                "e50c55c65db3fa55c75ba03b4dd2f1a8");
+    }
+
+    @Test
+    public void testHaplotypeCallerMultiSampleGGATetraploid() {
+        HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 4 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
+                "374d6db6e5f3f4fdb5ede26a529caa8b");
     }
 
     @Test
@@ -265,7 +308,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + hg19Reference + " --no_cmdline_in_header -I " + NA12878_PCRFREE250_ADAPTER_TRIMMED + " -o %s -L 20:10,024,000-10,024,500 "
                         , 1,
                 Arrays.asList(""));
-        executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
+        executeTest("HCTestGraphBasedPCRFreePositiveLogLkFix", spec);
     }
 
     // --------------------------------------------------------------------------------------------------------------
@@ -345,6 +388,5 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final WalkerTestSpec longSpec = new WalkerTestSpec(commandLineLongInterval + " -o %s",Arrays.asList(md5));
         executeTest("testDifferentIndelLocationsDueToSWExactDoubleComparisonsFix::longInterval",longSpec);
     }
-
 
 }

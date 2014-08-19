@@ -48,6 +48,9 @@ package org.broadinstitute.gatk.utils.haplotype;
 
 import com.google.java.contract.Requires;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleListUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.PairHMMLikelihoodCalculationEngine;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
@@ -77,7 +80,9 @@ public class HaplotypeLDCalculator {
     @SuppressWarnings("unchecked")
     protected HaplotypeLDCalculator() {
         haplotypes = Collections.emptyList();
-        readLikelihoods = new ReadLikelihoods<>((List<String>)Collections.EMPTY_LIST, (List<Haplotype>)Collections.EMPTY_LIST, Collections.EMPTY_MAP);
+        final AlleleList<Haplotype> alleleList = AlleleListUtils.emptyList();
+        readLikelihoods = new ReadLikelihoods<>(SampleListUtils.emptyList(),
+                alleleList, Collections.EMPTY_MAP);
     }
 
     public HaplotypeLDCalculator(final List<Haplotype> haplotypes, final ReadLikelihoods<Haplotype> haplotypeReadMap) {

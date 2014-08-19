@@ -69,12 +69,12 @@ public class UnifiedGenotyperGeneralPloidySuite1IntegrationTest extends WalkerTe
 
     @Test(enabled = true)
     public void testBOTH_GGA_Pools() {
-        executor.PC_LSV_Test(String.format(" -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_BOTH_GGA", "BOTH", "05b8af0db7b009721df209eea96bdf1a");
+        executor.PC_LSV_Test(String.format(" -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_BOTH_GGA", "BOTH", "4b646b6fc9c5c2ef88433a5b350310fe");
     }
 
     @Test(enabled = true)
     public void testINDEL_GGA_Pools() {
-        executor.PC_LSV_Test(String.format(" -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_INDEL_GGA", "INDEL", "1ac510860b295d66e1da7b27ba7cafb8");
+        executor.PC_LSV_Test(String.format(" -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_INDEL_GGA", "INDEL", "171355e4d0648fdd50d7d56de950d338");
     }
 
     @Test(enabled = true)

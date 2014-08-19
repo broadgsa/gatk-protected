@@ -47,6 +47,7 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.SeqGraph;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
@@ -113,7 +114,7 @@ public class GraphBasedLikelihoodCalculationEngine implements ReadLikelihoodCalc
     }
 
     @Override
-    public ReadLikelihoods<Haplotype> computeReadLikelihoods(final AssemblyResultSet assemblyResultSet, final List<String> samples, final Map<String, List<GATKSAMRecord>> perSampleReadList) {
+    public ReadLikelihoods<Haplotype> computeReadLikelihoods(final AssemblyResultSet assemblyResultSet, final SampleList samples, final Map<String, List<GATKSAMRecord>> perSampleReadList) {
         final GraphBasedLikelihoodCalculationEngineInstance graphLikelihoodEngine =
                 new GraphBasedLikelihoodCalculationEngineInstance(assemblyResultSet,
                         hmm,log10GlobalReadMismappingRate,heterogeneousKmerSizeResolution);

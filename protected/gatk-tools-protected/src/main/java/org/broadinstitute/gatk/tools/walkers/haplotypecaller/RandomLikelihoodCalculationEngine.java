@@ -46,11 +46,14 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 
 import java.util.HashMap;
 import java.util.List;
@@ -63,17 +66,15 @@ import java.util.Random;
 public class RandomLikelihoodCalculationEngine implements ReadLikelihoodCalculationEngine {
 
     @Override
-    public ReadLikelihoods computeReadLikelihoods(final AssemblyResultSet assemblyResultSet,
-                                                  final List<String> samples,
+    public ReadLikelihoods<Haplotype> computeReadLikelihoods(final AssemblyResultSet assemblyResultSet,
+                                                  final SampleList samples,
                                                   final Map<String, List<GATKSAMRecord>> reads) {
-        final List<Haplotype> haplotypes = assemblyResultSet.getHaplotypeList();
+        final AlleleList<Haplotype> haplotypes = new IndexedAlleleList<>(assemblyResultSet.getHaplotypeList());
         final ReadLikelihoods result = new ReadLikelihoods(samples, haplotypes, reads);
-        final Map<Haplotype,Allele> alleles = new HashMap<>(haplotypes.size());
-        for (final Haplotype haplotype : haplotypes)
-            alleles.put(haplotype,Allele.create(haplotype,false));
+        final Map<Haplotype,Allele> alleles = new HashMap<>(haplotypes.alleleCount());
         final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
-        final int sampleCount = samples.size();
-        final int alleleCount = alleles.size();
+        final int sampleCount = samples.sampleCount();
+        final int alleleCount = haplotypes.alleleCount();
         for (int i = 0; i < sampleCount; i++)  {
             final List<GATKSAMRecord> sampleReads = result.sampleReads(i);
             final int readCount = sampleReads.size();

@@ -56,7 +56,7 @@ import htsjdk.variant.variantcontext.*;
 import java.util.*;
 
 public class GeneralPloidyExactAFCalc extends ExactAFCalc {
-    static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 10; // if PL vectors longer than this # of elements, don't log them
+    static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 100; // if PL vectors longer than this # of elements, don't log them
 
     private final int ploidy;
 

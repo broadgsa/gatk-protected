@@ -49,7 +49,11 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import htsjdk.samtools.SAMUtils;
+import htsjdk.variant.variantcontext.Allele;
 import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
@@ -59,7 +63,6 @@ import org.broadinstitute.gatk.utils.pairhmm.*;
 import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatCovariate;
 import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -249,12 +252,13 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
     }
 
     @Override
-    public ReadLikelihoods<Haplotype> computeReadLikelihoods( final AssemblyResultSet assemblyResultSet, final List<String> samples, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
+    public ReadLikelihoods<Haplotype> computeReadLikelihoods( final AssemblyResultSet assemblyResultSet, final SampleList samples, final Map<String, List<GATKSAMRecord>> perSampleReadList ) {
 
-        final List<Haplotype> haplotypes = assemblyResultSet.getHaplotypeList();
+        final List<Haplotype> haplotypeList = assemblyResultSet.getHaplotypeList();
+        final AlleleList<Haplotype> haplotypes = new IndexedAlleleList<>(haplotypeList);
 
         // configure the HMM
-        initializePairHMM(haplotypes, perSampleReadList);
+        initializePairHMM(haplotypeList, perSampleReadList);
 
         // Add likelihoods for each sample's reads to our result
         final ReadLikelihoods<Haplotype> result = new ReadLikelihoods<>(samples, haplotypes, perSampleReadList);

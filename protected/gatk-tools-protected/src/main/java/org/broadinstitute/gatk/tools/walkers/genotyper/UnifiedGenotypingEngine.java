@@ -45,6 +45,9 @@
 */
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.GenotypesContext;
+import htsjdk.variant.variantcontext.VariantContext;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
@@ -62,9 +65,6 @@ import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.GenotypesContext;
-import htsjdk.variant.variantcontext.VariantContext;
 
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
@@ -88,7 +88,6 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
     // the various loggers and writers
     private PrintStream verboseWriter;
 
-    private final GenomeLocParser genomeLocParser;
     private final boolean BAQEnabledOnCMDLine;
 
     // ---------------------------------------------------------------------------------------------------------
@@ -97,36 +96,42 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
     //
     // ---------------------------------------------------------------------------------------------------------
 
+
     /**
-     * Constructs a new Unified-Genotyper engine.
-     * <p>The new engine won't emmit annotations, will use the full sample set and will not produce additional verbose
-     * output</p>
+     * Creates a new unified genotyping given the UG configuration parameters and the GA engine.
+     * @param configuration the UG configuration.
+     * @param toolkit the GA engine.
      *
-     * @param toolkit reference to the enclosing genome analysis engine.
-     * @param configuration configuration object.
-     *
-     * @throws IllegalArgumentException if either {@code toolkit} or {@code UAC} is {@code null}.
+     * @throws NullPointerException if either {@code configuration} or {@code toolkit} is {@code null}.
      */
-    public UnifiedGenotypingEngine(final GenomeAnalysisEngine toolkit, final UnifiedArgumentCollection configuration) {
-        this(toolkit, configuration, null);
+    public UnifiedGenotypingEngine(final UnifiedArgumentCollection configuration,
+                                   final GenomeAnalysisEngine toolkit) {
+        this(configuration,toolkit.getSampleList(),toolkit.getGenomeLocParser(),toolkit.getArguments().BAQMode);
     }
 
+
     /**
-     * Constructs a new Unified-Genotyper engine.
+     * Creates a new unified genotyping given the UG configuration parameters, the targeted set of samples and
+     * a genome location parser.
      *
-     * @param toolkit reference to the enclosing genome analysis engine.
-     * @param configuration configuration object.
-     * @param sampleNames subset of sample names to work on. If {@code null}, all it will use the {@code toolkit} full sample set.
+     * @param configuration the UG configuration.
+     * @param samples {@inheritDoc}
+     * @param baqCalculationMode the BAQ calculation mode.
      *
-     * @throws IllegalArgumentException if either {@code toolkit} or {@code UAC} is {@code null}.
+     * @throws NullPointerException if any of {@code configuration}, {@code samples} or {@code genomeLocParser} is {@code null}.
+     *
+     * @throws IllegalArgumentException if {@code baqCalculationMode} is {@code null}.
      */
-    public UnifiedGenotypingEngine(final GenomeAnalysisEngine toolkit, final UnifiedArgumentCollection configuration,
-                                   final Set<String> sampleNames) {
+    public UnifiedGenotypingEngine(final UnifiedArgumentCollection configuration,
+                                   final SampleList samples, final GenomeLocParser genomeLocParser,
+                                   final BAQ.CalculationMode baqCalculationMode) {
 
-        super(toolkit,configuration,sampleNames);
+        super(configuration,samples,genomeLocParser);
 
-        this.BAQEnabledOnCMDLine = toolkit.getArguments().BAQMode != BAQ.CalculationMode.OFF;
-        genomeLocParser = toolkit.getGenomeLocParser();
+        if (baqCalculationMode == null)
+            throw new IllegalArgumentException("the BAQ calculation mode cannot be null");
+
+        this.BAQEnabledOnCMDLine = baqCalculationMode != BAQ.CalculationMode.OFF;
 
         determineGLModelsToUse();
 
@@ -302,7 +307,8 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                                                 final GenotypeLikelihoodsCalculationModel.Model model,
                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
 
-        return glcm.get().get(model.name()).getLikelihoods(tracker, refContext, stratifiedContexts, type, alternateAllelesToUse, useBAQedPileup && BAQEnabledOnCMDLine, genomeLocParser, perReadAlleleLikelihoodMap);
+        return glcm.get().get(model.name()).getLikelihoods(tracker, refContext, stratifiedContexts, type, alternateAllelesToUse, useBAQedPileup && BAQEnabledOnCMDLine,
+                genomeLocParser != null || refContext == null ? genomeLocParser : refContext.getGenomeLocParser(), perReadAlleleLikelihoodMap);
     }
 
 
