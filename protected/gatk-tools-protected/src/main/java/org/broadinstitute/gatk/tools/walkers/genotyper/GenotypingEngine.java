@@ -101,13 +101,17 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     protected final GenomeLocParser genomeLocParser;
 
     // the model used for calculating p(non-ref)
-    protected ThreadLocal<AFCalc> afcm = new ThreadLocal<AFCalc>() {
+    protected ThreadLocal<AFCalc> afcm = getAlleleFrequencyCalculatorThreadLocal();
 
-        @Override
-        public AFCalc initialValue() {
-            return AFCalcFactory.createAFCalc(configuration, numberOfGenomes, logger);
-        }
-    };
+    protected ThreadLocal<AFCalc> getAlleleFrequencyCalculatorThreadLocal() {
+        return new ThreadLocal<AFCalc>() {
+
+            @Override
+            public AFCalc initialValue() {
+                return AFCalcFactory.createAFCalc(configuration, numberOfGenomes, false, logger);
+            }
+        };
+    }
 
 
     /**
