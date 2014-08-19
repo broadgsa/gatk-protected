@@ -48,9 +48,9 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.genotyping.AlleleList;
-import org.broadinstitute.gatk.genotyping.IndexedAlleleList;
-import org.broadinstitute.gatk.genotyping.SampleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.MultiSampleEdge;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.Path;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.Route;

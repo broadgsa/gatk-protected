@@ -48,8 +48,6 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.walkers.*;
-import org.broadinstitute.gatk.genotyping.IndexedSampleList;
-import org.broadinstitute.gatk.genotyping.SampleList;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;

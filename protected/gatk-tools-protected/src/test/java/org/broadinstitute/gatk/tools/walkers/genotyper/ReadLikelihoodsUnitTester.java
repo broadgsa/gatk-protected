@@ -43,90 +43,82 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import com.google.caliper.Param;
-import com.google.caliper.SimpleBenchmark;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
 
-import java.util.Collections;
-import java.util.Random;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Created with IntelliJ IDEA.
- * User: valentin
- * Date: 8/6/13
- * Time: 3:00 PM
- * To change this template use File | Settings | File Templates.
+ * Constains utilities for tests that need to create read-likelihoods.
  */
-public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
-// ./private/shell/googleCaliperCommand.csh org.broadinstitute.gatk.tools.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
-
-//    @Param({"10", "25"})
-    @Param({"10"})
-    protected int kmerSize;
+public class ReadLikelihoodsUnitTester {
 
 
-//    @Param({"100","250"})
-    @Param({"100"})
-    protected int readLength;
-
-    @Param({"*1T*", "*3Iacg*","*30Igctcggatgccttgcggggctccagagtcc*",
-            "*3D*","*30D*","*1T3=3Iacg*","*1T*3Iacg*","*1T8=1T8=1T8=1T8=1T*","*1T*1T*1T*1T*1T*"})
-//    @Param({"*1T*"})
-    protected String variation;
-
-    @Param({"10000"})
-//    @Param({"100", "300", "1000"})// "3000", "10000"})
-    protected int readCount;
-
-//    @Param({"300","1000","3000"})
-    @Param({"300"})
-    protected int regionSize;
-
-    // Invariants:
-
-    protected final byte bq = 20;
-
-    protected final byte iq = 35;
-
-    protected final byte dq = 35;
-
-    protected ActiveRegionTestDataSet dataSet;
-
-    @Param({"true"})
-    public boolean withErrors;
-
-    @Param({"13"})
-    public int randomSeed;
-
-    public void setUp() {
-       dataSet = ActiveRegionTestDataSetUnitTest.createActiveRegionTestDataSet(kmerSize, readLength, variation, readCount, regionSize, bq, iq, dq);
-       final Random rnd = new Random(randomSeed);
-       if (withErrors) dataSet.introduceErrors(rnd);
-    }
-
-    @SuppressWarnings("unused")
-    public void timeGraphBasedLikelihoods(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
-            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+    static ReadLikelihoods<Allele> readLikelihoods(final int alleleCount, final int[] readCount) {
+        final int sampleCount = readCount.length;
+        final AlleleList<Allele> alleleList = AlleleListUnitTester.alleleList(alleleCount,100,true);
+        final SampleList sampleList = SampleListUnitTester.sampleList(sampleCount);
+        final Map<String,List<GATKSAMRecord>> sampleToReads = new HashMap<>(sampleCount);
+        for (int i = 0; i < sampleCount; i++) {
+            sampleToReads.put(sampleList.sampleAt(i),readList(i,readCount[i]));
         }
-    }
-
-    @SuppressWarnings("unused")
-    public void timeLoglessPairHMM(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
-            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+        final ReadLikelihoods<Allele> likelihoods = new ReadLikelihoods<>(sampleList,alleleList, sampleToReads);
+        for (int s = 0; s < sampleCount; s++) {
+            final ReadLikelihoods.Matrix<Allele> sampleLikelihoods = likelihoods.sampleMatrix(s);
+            for (int a = 0; a < alleleCount; a++)
+                for (int r = 0; r < readCount[s]; r++)
+                    sampleLikelihoods.set(a, r, testLikelihood(s, a, r));
         }
+        return likelihoods;
+    }
+
+    /**
+     * produces a test likelihood depending on the sample, read and allele index.
+     */
+    private static double testLikelihood(final int sampleIndex, final int alleleIndex, final int readIndex) {
+        return - Math.abs(3 * (sampleIndex + 1) + 7 * (alleleIndex + 1)  + 11 * (readIndex + 1));
     }
 
 
+    private static SAMFileHeader SAM_HEADER = ArtificialSAMUtils.createArtificialSamHeader(10, 0, 1000);
 
+
+    static List<GATKSAMRecord> readList(final int sampleIndex, final int readCount) {
+        final List<GATKSAMRecord> reads = new ArrayList<>(readCount);
+        int readIndex = 0;
+        for (int j = 0; j < readCount; j++)
+            reads.add(ArtificialSAMUtils.createArtificialRead(SAM_HEADER, "READ_" + sampleIndex + "_" + (readIndex++), 1, 1, 100));
+        return reads;
+    }
+
+
+    /**
+     * Creates a sampleToReads map given the sample list and the required read counts.
+     * @param sampleList the target sample-list.
+     * @param readCounts the target read-counts.
+     * @return never {@code null}.
+     */
+    public static Map<String,List<GATKSAMRecord>> sampleToReads(final SampleList sampleList, final int[] readCounts) {
+        final Map<String,List<GATKSAMRecord>> result = new HashMap<>(sampleList.sampleCount());
+        int readIndex = 0;
+        for (int i = 0; i < sampleList.sampleCount(); i++) {
+            final int readCount = readCounts[i];
+            final String sample = sampleList.sampleAt(i);
+            final List<GATKSAMRecord> records = new ArrayList<>(readCount);
+            for (int j = 0; j < readCount; j++)
+                records.add(ArtificialSAMUtils.createArtificialRead(SAM_HEADER,"READ_" + (readIndex++),1,1,100));
+            result.put(sample,records);
+        }
+        return result;
+    }
 
 }

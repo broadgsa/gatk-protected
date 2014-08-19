@@ -43,90 +43,80 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import com.google.caliper.Param;
-import com.google.caliper.SimpleBenchmark;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.testng.Assert;
 
-import java.util.Collections;
-import java.util.Random;
+import java.util.*;
 
 /**
- * Created with IntelliJ IDEA.
- * User: valentin
- * Date: 8/6/13
- * Time: 3:00 PM
- * To change this template use File | Settings | File Templates.
+ * Helper class for those unit-test classes that test on implementations of SampleList.
+ *
+ * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
-// ./private/shell/googleCaliperCommand.csh org.broadinstitute.gatk.tools.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
+public class SampleListUnitTester {
 
-//    @Param({"10", "25"})
-    @Param({"10"})
-    protected int kmerSize;
-
-
-//    @Param({"100","250"})
-    @Param({"100"})
-    protected int readLength;
-
-    @Param({"*1T*", "*3Iacg*","*30Igctcggatgccttgcggggctccagagtcc*",
-            "*3D*","*30D*","*1T3=3Iacg*","*1T*3Iacg*","*1T8=1T8=1T8=1T8=1T*","*1T*1T*1T*1T*1T*"})
-//    @Param({"*1T*"})
-    protected String variation;
-
-    @Param({"10000"})
-//    @Param({"100", "300", "1000"})// "3000", "10000"})
-    protected int readCount;
-
-//    @Param({"300","1000","3000"})
-    @Param({"300"})
-    protected int regionSize;
-
-    // Invariants:
-
-    protected final byte bq = 20;
-
-    protected final byte iq = 35;
-
-    protected final byte dq = 35;
-
-    protected ActiveRegionTestDataSet dataSet;
-
-    @Param({"true"})
-    public boolean withErrors;
-
-    @Param({"13"})
-    public int randomSeed;
-
-    public void setUp() {
-       dataSet = ActiveRegionTestDataSetUnitTest.createActiveRegionTestDataSet(kmerSize, readLength, variation, readCount, regionSize, bq, iq, dq);
-       final Random rnd = new Random(randomSeed);
-       if (withErrors) dataSet.introduceErrors(rnd);
-    }
-
-    @SuppressWarnings("unused")
-    public void timeGraphBasedLikelihoods(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
-            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+    /**
+     * Test that the contents of a sample-list are the ones expected.
+     *
+     * <p>
+     *     This method perform various consistency check involving all the {@link org.broadinstitute.gatk.tools.walkers.genotyper.SampleList} interface methods.
+     *     Therefore calling this method is equivalent to a thorough check of the {@link org.broadinstitute.gatk.tools.walkers.genotyper.SampleList} aspect of
+     *     the {@code actual} argument.
+     * </p>
+     *
+     * @param actual the sample-list to assess.
+     * @param expected the expected sample-list.
+     *
+     * @throws IllegalArgumentException if {@code expected} is {@code null} or contains
+     *   {@code null}s which is an indication of an bug in the testing code.
+     *
+     * @throws java.lang.RuntimeException if there is some testing assertion exception which
+     *   is an indication of an actual bug the code that is been tested.
+     */
+    public static void assertSampleList(final SampleList actual, final List<String> expected) {
+        if (expected == null)
+            throw new IllegalArgumentException("the expected list cannot be null");
+        final Set<String> expectedNames = new HashSet<>(expected.size());
+        Assert.assertNotNull(actual);
+        Assert.assertEquals(actual.sampleCount(),expected.size());
+        for (int i = 0; i < expected.size(); i++) {
+            final String expectedSample = expected.get(i);
+            if (expectedSample == null)
+                throw new IllegalArgumentException("the expected sample cannot be null");
+            if (expectedSample.equals(NEVER_USE_SAMPLE_NAME))
+                throw new IllegalArgumentException("you cannot use the forbidden sample name");
+            if (expectedNames.contains(expected.get(i)))
+                throw new IllegalArgumentException("repeated names in the expected list, this is a test bug");
+            final String actualSample = actual.sampleAt(i);
+            Assert.assertNotNull(actualSample,"sample name cannot be null");
+            Assert.assertFalse(expectedNames.contains(actualSample),"repeated sample name: " + actualSample);
+            Assert.assertEquals(actualSample,expectedSample,"wrong sample name order; index = " + i);
+            Assert.assertEquals(actual.sampleIndex(actualSample),i,"sample index mismatch");
+            expectedNames.add(actualSample);
         }
+
+        Assert.assertEquals(actual.sampleIndex(NEVER_USE_SAMPLE_NAME),-1);
     }
 
-    @SuppressWarnings("unused")
-    public void timeLoglessPairHMM(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
-            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
-        }
+    /**
+     * Creates a sample list for testing given the number of samples in it.
+     * @param sampleCount the required sample count.
+     * @return never {@code null}.
+     */
+    static SampleList sampleList(final int sampleCount) {
+        if (sampleCount < 0)
+            throw new IllegalArgumentException("the number of sample cannot be negative");
+        final List<String> result = new ArrayList<>(sampleCount);
+        for (int i =0; i < sampleCount; i++)
+            result.add("SAMPLE_" + i);
+        return new IndexedSampleList(result);
     }
 
-
-
-
+    /**
+     * Save to assume that this sample name will never be used.
+     */
+    private static final String NEVER_USE_SAMPLE_NAME = "WHY_WOULD_YOU_CALL_A_SAMPLE_LIKE_THIS?  ArE yOu Crazzzzy? " + new Date().toString();
 }

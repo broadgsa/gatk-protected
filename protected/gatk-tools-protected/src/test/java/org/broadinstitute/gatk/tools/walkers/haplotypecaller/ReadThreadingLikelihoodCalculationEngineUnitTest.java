@@ -47,7 +47,7 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.genotyping.SampleListUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.HaplotypeGraph;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;

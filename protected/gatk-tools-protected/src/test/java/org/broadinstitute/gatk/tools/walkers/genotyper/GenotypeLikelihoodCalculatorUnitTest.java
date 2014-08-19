@@ -43,90 +43,130 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import com.google.caliper.Param;
-import com.google.caliper.SimpleBenchmark;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.GenotypeLikelihoods;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.Random;
+import java.util.Arrays;
 
 /**
- * Created with IntelliJ IDEA.
- * User: valentin
- * Date: 8/6/13
- * Time: 3:00 PM
- * To change this template use File | Settings | File Templates.
+ * Tests {@link org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators} and {@link org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculator}.
+ *
+ * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
-// ./private/shell/googleCaliperCommand.csh org.broadinstitute.gatk.tools.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
+public class GenotypeLikelihoodCalculatorUnitTest {
 
-//    @Param({"10", "25"})
-    @Param({"10"})
-    protected int kmerSize;
-
-
-//    @Param({"100","250"})
-    @Param({"100"})
-    protected int readLength;
-
-    @Param({"*1T*", "*3Iacg*","*30Igctcggatgccttgcggggctccagagtcc*",
-            "*3D*","*30D*","*1T3=3Iacg*","*1T*3Iacg*","*1T8=1T8=1T8=1T8=1T*","*1T*1T*1T*1T*1T*"})
-//    @Param({"*1T*"})
-    protected String variation;
-
-    @Param({"10000"})
-//    @Param({"100", "300", "1000"})// "3000", "10000"})
-    protected int readCount;
-
-//    @Param({"300","1000","3000"})
-    @Param({"300"})
-    protected int regionSize;
-
-    // Invariants:
-
-    protected final byte bq = 20;
-
-    protected final byte iq = 35;
-
-    protected final byte dq = 35;
-
-    protected ActiveRegionTestDataSet dataSet;
-
-    @Param({"true"})
-    public boolean withErrors;
-
-    @Param({"13"})
-    public int randomSeed;
-
-    public void setUp() {
-       dataSet = ActiveRegionTestDataSetUnitTest.createActiveRegionTestDataSet(kmerSize, readLength, variation, readCount, regionSize, bq, iq, dq);
-       final Random rnd = new Random(randomSeed);
-       if (withErrors) dataSet.introduceErrors(rnd);
-    }
-
-    @SuppressWarnings("unused")
-    public void timeGraphBasedLikelihoods(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
-            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+    @Test(dataProvider = "ploidyAndMaximumAlleleData")
+    public void testPloidyAndMaximumAllele(final int ploidy, final int alleleCount) {
+        final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(ploidy, alleleCount);
+        Assert.assertNotNull(calculator);
+        Assert.assertEquals(calculator.ploidy(),ploidy);
+        Assert.assertEquals(calculator.alleleCount(), alleleCount);
+        Assert.assertEquals(calculator.genotypeCount(),calculateGenotypeCount(ploidy, alleleCount)," ploidy = " + ploidy + " alleleCount = " + alleleCount);
+        final int genotypeCount = calculator.genotypeCount();
+        final int testGenotypeCount = Math.min(30000,genotypeCount);
+        for (int i = 0; i < testGenotypeCount; i++) {
+            final GenotypeAlleleCounts alleleCounts = calculator.genotypeAlleleCountsAt(i);
+            Assert.assertNotNull(alleleCounts);
+            if (i > 0)
+                Assert.assertTrue(calculator.genotypeAlleleCountsAt(i - 1).compareTo(alleleCounts) < 0);
+            final int[] alleleArray = new int[ploidy];
+            int index = 0;
+            for (int j = 0; j < alleleCounts.distinctAlleleCount(); j++)
+                Arrays.fill(alleleArray, index, index += alleleCounts.alleleCountAt(j), alleleCounts.alleleIndexAt(j));
+            final int[] alleleCountArray = new int[alleleCounts.distinctAlleleCount() << 1];
+            alleleCounts.copyAlleleCounts(alleleCountArray,0);
+            Assert.assertEquals(index,ploidy);
+            Assert.assertEquals(calculator.allelesToIndex(alleleArray),i);
+            Assert.assertEquals(calculator.alleleCountsToIndex(alleleCountArray),i);
         }
     }
 
-    @SuppressWarnings("unused")
-    public void timeLoglessPairHMM(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
-            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+    @Test(dataProvider = "ploidyAndMaximumAlleleAndReadCountsData", dependsOnMethods = "testPloidyAndMaximumAllele")
+    public void testLikelihoodCalculation(final int ploidy, final int alleleCount, final int[] readCount) {
+        final ReadLikelihoods<Allele> readLikelihoods = ReadLikelihoodsUnitTester.readLikelihoods(alleleCount,readCount);
+        final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(ploidy, alleleCount);
+        final int genotypeCount = calculator.genotypeCount();
+        final int testGenotypeCount = Math.min(30000,genotypeCount);
+        final int sampleCount = readCount.length;
+        for (int s = 0; s < sampleCount ; s++) {
+            final ReadLikelihoods.Matrix<Allele> sampleLikelihoods = readLikelihoods.sampleMatrix(s);
+            final GenotypeLikelihoods genotypeLikelihoods = calculator.genotypeLikelihoods(sampleLikelihoods);
+            final double[] genotypeLikelihoodsDoubles = genotypeLikelihoods.getAsVector();
+            Assert.assertEquals(genotypeLikelihoodsDoubles.length,genotypeCount);
+            for (int i = 0; i < testGenotypeCount; i++) {
+                final GenotypeAlleleCounts genotypeAlleleCounts = calculator.genotypeAlleleCountsAt(i);
+                Assert.assertNotNull(genotypeLikelihoods);
+                final double[] readGenotypeLikelihoods = new double[sampleLikelihoods.readCount()];
+                for (int r = 0; r < sampleLikelihoods.readCount(); r++) {
+                    final double[] compoments = new double[genotypeAlleleCounts.distinctAlleleCount()];
+                    for (int ar = 0; ar < genotypeAlleleCounts.distinctAlleleCount(); ar++) {
+                        final int a = genotypeAlleleCounts.alleleIndexAt(ar);
+                        final int aCount = genotypeAlleleCounts.alleleCountAt(ar);
+                        final double readLk = sampleLikelihoods.get(a, r);
+                        compoments[ar] = readLk + Math.log10(aCount);
+                    }
+                    readGenotypeLikelihoods[r] = MathUtils.approximateLog10SumLog10(compoments) - Math.log10(ploidy);
+                }
+                final double genotypeLikelihood = MathUtils.sum(readGenotypeLikelihoods);
+                Assert.assertEquals(genotypeLikelihoodsDoubles[i], genotypeLikelihood, 0.0001);
+            }
         }
+
     }
 
 
+    // Simple inefficient calculation of the genotype count given the ploidy.
+    private int calculateGenotypeCount(final int ploidy, final int alleleCount) {
+        if (ploidy == 0)
+            return 0;
+        else if (ploidy == 1)
+            return alleleCount;
+        else if (ploidy == 2)
+            return ((alleleCount) * (alleleCount + 1)) >> 1;
+        else if (alleleCount == 0)
+            return 0;
+        else {
+            return calculateGenotypeCount(ploidy - 1, alleleCount) +
+                        calculateGenotypeCount(ploidy, alleleCount - 1);
+        }
+    }
 
+    private static final int[] MAXIMUM_ALLELE = new int[] { 1, 2, 5, 6 };
 
+    private static final int[] PLOIDY = new int[] { 1, 2, 3, 20 };
+
+    private static final int[][] READ_COUNTS = new int[][] {
+            { 10 , 100, 50 },
+            { 0, 100, 10, 1 , 50 },
+            { 1, 2, 3, 4, 20 },
+            { 10, 0 },
+    };
+
+    @DataProvider(name="ploidyAndMaximumAlleleAndReadCountsData")
+    public Object[][] ploidyAndMaximumAlleleAndReadCountsData() {
+        final Object[][] result = new Object[PLOIDY.length * MAXIMUM_ALLELE.length * READ_COUNTS.length][];
+        int index = 0;
+        for (final int i : PLOIDY)
+            for (final int j : MAXIMUM_ALLELE)
+                for (final int[] k : READ_COUNTS)
+                result[index++] = new Object[] { i, j, k };
+        return result;
+    }
+
+    @DataProvider(name="ploidyAndMaximumAlleleData")
+    public Object[][] ploidyAndMaximumAlleleData() {
+        final Object[][] result = new Object[PLOIDY.length * MAXIMUM_ALLELE.length][];
+        int index = 0;
+        for (final int i : PLOIDY)
+            for (final int j : MAXIMUM_ALLELE)
+                    result[index++] = new Object[] { i, j };
+        return result;
+    }
 }

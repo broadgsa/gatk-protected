@@ -43,90 +43,129 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import com.google.caliper.Param;
-import com.google.caliper.SimpleBenchmark;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.RandomDNA;
+import org.testng.Assert;
+import org.testng.SkipException;
 
-import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
- * Created with IntelliJ IDEA.
- * User: valentin
- * Date: 8/6/13
- * Time: 3:00 PM
- * To change this template use File | Settings | File Templates.
+ * Helper class for those unit-test classes that test on implementations of SampleList.
+ *
+ * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
-// ./private/shell/googleCaliperCommand.csh org.broadinstitute.gatk.tools.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
+public class AlleleListUnitTester {
 
-//    @Param({"10", "25"})
-    @Param({"10"})
-    protected int kmerSize;
+    private static final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+    private static final RandomDNA rndDNA = new RandomDNA(rnd);
 
-
-//    @Param({"100","250"})
-    @Param({"100"})
-    protected int readLength;
-
-    @Param({"*1T*", "*3Iacg*","*30Igctcggatgccttgcggggctccagagtcc*",
-            "*3D*","*30D*","*1T3=3Iacg*","*1T*3Iacg*","*1T8=1T8=1T8=1T8=1T*","*1T*1T*1T*1T*1T*"})
-//    @Param({"*1T*"})
-    protected String variation;
-
-    @Param({"10000"})
-//    @Param({"100", "300", "1000"})// "3000", "10000"})
-    protected int readCount;
-
-//    @Param({"300","1000","3000"})
-    @Param({"300"})
-    protected int regionSize;
-
-    // Invariants:
-
-    protected final byte bq = 20;
-
-    protected final byte iq = 35;
-
-    protected final byte dq = 35;
-
-    protected ActiveRegionTestDataSet dataSet;
-
-    @Param({"true"})
-    public boolean withErrors;
-
-    @Param({"13"})
-    public int randomSeed;
-
-    public void setUp() {
-       dataSet = ActiveRegionTestDataSetUnitTest.createActiveRegionTestDataSet(kmerSize, readLength, variation, readCount, regionSize, bq, iq, dq);
-       final Random rnd = new Random(randomSeed);
-       if (withErrors) dataSet.introduceErrors(rnd);
-    }
-
-    @SuppressWarnings("unused")
-    public void timeGraphBasedLikelihoods(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
-            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+    /**
+     * Test that the contents of an allele-list are the ones expected.
+     * <p/>
+     * <p>
+     * This method perform various consistency check involving all the {@link org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList} interface methods.
+     * Therefore calling this method is equivalent to a thorough check of the {@link org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList} aspect of
+     * the {@code actual} argument.
+     * </p>
+     *
+     * @param actual   the sample-list to assess.
+     * @param expected the expected sample-list.
+     * @throws IllegalArgumentException if {@code expected} is {@code null} or contains
+     *                                  {@code null}s which is an indication of an bug in the testing code.
+     * @throws RuntimeException         if there is some testing assertion exception which
+     *                                  is an indication of an actual bug the code that is been tested.
+     */
+    public static <A extends Allele> void assertAlleleList(final AlleleList<A> actual, final List<A> expected) {
+        if (expected == null)
+            throw new IllegalArgumentException("the expected list cannot be null");
+        final Set<A> expectedAlleleSet = new HashSet<>(expected.size());
+        Assert.assertNotNull(actual);
+        Assert.assertEquals(actual.alleleCount(), expected.size());
+        for (int i = 0; i < expected.size(); i++) {
+            final A expectedAllele = expected.get(i);
+            if (expectedAllele == null)
+                throw new IllegalArgumentException("the expected sample cannot be null");
+            if (expectedAllele.equals(NEVER_USE_ALLELE))
+                throw new IllegalArgumentException("you cannot use the forbidden sample name");
+            if (expectedAlleleSet.contains(expected.get(i)))
+                throw new IllegalArgumentException("repeated allele in the expected list, this is a test bug");
+            final A actualAllele = actual.alleleAt(i);
+            Assert.assertNotNull(actualAllele, "allele cannot be null");
+            Assert.assertFalse(expectedAlleleSet.contains(actualAllele), "repeated allele: " + actualAllele);
+            Assert.assertEquals(actualAllele, expectedAllele, "wrong allele order; index = " + i);
+            Assert.assertEquals(actual.alleleIndex(actualAllele), i, "allele index mismatch");
+            expectedAlleleSet.add(actualAllele);
         }
+
+        Assert.assertEquals(actual.alleleIndex((A) NEVER_USE_ALLELE), -1);
     }
 
-    @SuppressWarnings("unused")
-    public void timeLoglessPairHMM(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
-            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+    /**
+     * Save to assume that this allele will never be used.
+     */
+    private static final Allele NEVER_USE_ALLELE = Allele.create(new String("ACTGACTGACTGACTGACTGACTGACTGACTGGTCAGTCAGTCAGTCAGTCAGTCA").getBytes(), false);
+
+    /**
+     * Generate testing alleles.
+     *
+     * <p>
+     *     Basically all are random alleles given the maximum allele length.
+     * </p>
+     *
+     * <p>
+     *     So with a low max-allele-length and high allele-count you can force repeats.
+     * </p>
+     *
+     * @param alleleCount number of alleles to generate.
+     * @param maxAlleleLength the maximum length of the allele in bases.
+     *
+     * @throws RuntimeException if {@code alleleCount} is negative or {@code maxAlleleLength} is less than 1.
+     * @return never {@code null}.
+     */
+    public static Allele[] generateRandomAlleles(final int alleleCount, final int maxAlleleLength) {
+        if (maxAlleleLength < 1)
+            throw new IllegalArgumentException("the max allele length cannot be less than 1");
+        final Allele[] result = new Allele[alleleCount];
+        for (int i = 0; i < alleleCount; i++) {
+            final int alleleLength = rnd.nextInt(maxAlleleLength) + 1;
+            result[i] = Allele.create(rndDNA.nextBases(alleleLength));
         }
+        return result;
     }
 
-
-
-
+    /**
+     * Generate testing alleles.
+     *
+     * <p>
+     *     Basically all are random alleles given the maximum allele length.
+     * </p>
+     *
+     * <p>
+     *     So with a low max-allele-length and high allele-count you can force repeats.
+     * </p>
+     *
+     * @param alleleCount number of alleles to generate.
+     * @param maxAlleleLength the maximum length of the allele in bases.
+     * @param skipIfRepeats throw an test-skip exception {@link SkipException} if the resulting allele-list
+     *                     has repeats, thus is size is less than {@code alleleCount}
+     *
+     * @throws RuntimeException if {@code alleleCount} is negative or {@code maxAlleleLength} is less than 1.
+     * @return never {@code null}.
+     */
+    static AlleleList<Allele> alleleList(final int alleleCount, final int maxAlleleLength, final boolean skipIfRepeats) {
+        final Allele[] alleles = AlleleListUnitTester.generateRandomAlleles(alleleCount,maxAlleleLength);
+        if (alleleCount > 0)
+            alleles[0] = Allele.create(alleles[0].getBases(),true);
+        final AlleleList<Allele> alleleList = new IndexedAlleleList<>(alleles);
+        if (skipIfRepeats && alleleList.alleleCount() != alleles.length)
+            throw new SkipException("repeated alleles, should be infrequent");
+        return alleleList;
+    }
 }

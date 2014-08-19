@@ -44,54 +44,128 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
-import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.util.List;
-import java.util.Map;
 
 /**
- * Common interface for assembly-haplotype vs reads likelihood engines.
+ * Creates {@link org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods.Matrix} mappers to be used when working with a subset of the original alleles.
+ *
+ * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public interface ReadLikelihoodCalculationEngine {
+public abstract class AlleleLikelihoodMatrixMapper<A extends Allele> {
 
-    enum Implementation {
-        /**
-         * Classic full pair-hmm all haplotypes vs all reads.
-         */
-        PairHMM,
-
-        /**
-         * Graph-base likelihoods.
-         */
-        GraphBased,
-
-        /**
-         * Random likelihoods, used to establish a baseline benchmark for other meaningful implementations.
-         */
-        Random
-    }
-
+    public abstract ReadLikelihoods.Matrix<A> map(final ReadLikelihoods.Matrix<A> original);
 
     /**
-     * Calculates the likelihood of reads across many samples evaluated against haplotypes resulting from the
-     * active region assembly process.
+     * Instantiates a new mapper given an allele-list permutation.
+     * @param permutation the requested permutation.
+     * @param <A> the allele type.
      *
-     * @param assemblyResultSet the input assembly results.
-     * @param samples the list of targeted samples.
-     * @param perSampleReadList the input read sets stratified per sample.
+     * @throws IllegalArgumentException if {@code permutation} is {@code null}.
      *
-     * @throws NullPointerException if either parameter is {@code null}.
-     *
-     * @return never {@code null}, and with at least one entry for input sample (keys in {@code perSampleReadList}.
-     *    The value maps can be potentially empty though.
+     * @return never {@code null}.
      */
-    public ReadLikelihoods<Haplotype> computeReadLikelihoods(AssemblyResultSet assemblyResultSet, SampleList samples,
-                               Map<String, List<GATKSAMRecord>> perSampleReadList);
+    public static <A extends Allele> AlleleLikelihoodMatrixMapper<A> newInstance(final AlleleListPermutation<A> permutation) {
+        if (permutation == null)
+            throw new IllegalArgumentException("the permutation must not be null");
+        if (permutation.isNonPermuted())
+            return asIs();
+        else
+            return general(permutation);
+    }
 
-    public void close();
+    /**
+     * Returns trivial mapper that just maps to the original matrix without changes.
+     *
+     * @param <A> the allele type.
+     * @return never {@code null}.
+     */
+    @SuppressWarnings("unchecked")
+    private static <A extends Allele> AlleleLikelihoodMatrixMapper<A> asIs() {
+        return AS_IS;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static final AlleleLikelihoodMatrixMapper AS_IS = new AlleleLikelihoodMatrixMapper<Allele>() {
+            @Override
+            public ReadLikelihoods.Matrix<Allele> map(final ReadLikelihoods.Matrix original) {
+                return original;
+            }
+    };
+
+    /**
+     * Constructs a new mapper instance that work with general permutation without making any assumption.
+     * @param permutation the permutation to apply to requested matrices wrappers.
+     * @param <A> allele type.
+     * @return never {@code null}.
+     */
+    private static <A extends Allele> AlleleLikelihoodMatrixMapper<A> general(final AlleleListPermutation<A> permutation) {
+        return new AlleleLikelihoodMatrixMapper<A>() {
+            @Override
+            public ReadLikelihoods.Matrix<A> map(final ReadLikelihoods.Matrix<A> original) {
+                return new ReadLikelihoods.Matrix<A>() {
+
+                    @Override
+                    public List<GATKSAMRecord> reads() {
+                        return original.reads();
+                    }
+
+                    @Override
+                    public List<A> alleles() {
+                        return permutation.toList();
+                    }
+
+                    @Override
+                    public void set(final int alleleIndex, final int readIndex, final double value) {
+                        original.set(permutation.fromIndex(alleleIndex),readIndex,value);
+                    }
+
+                    @Override
+                    public double get(final int alleleIndex, final int readIndex) {
+                        return original.get(permutation.fromIndex(alleleIndex),readIndex);
+                    }
+
+                    @Override
+                    public int alleleIndex(final A allele) {
+                        return permutation.alleleIndex(allele);
+                    }
+
+                    @Override
+                    public int readIndex(GATKSAMRecord read) {
+                        return original.readIndex(read);
+                    }
+
+                    @Override
+                    public int alleleCount() {
+                        return permutation.toSize();
+                    }
+
+                    @Override
+                    public int readCount() {
+                        return original.readCount();
+                    }
+
+                    @Override
+                    public A alleleAt(final int alleleIndex) {
+                        return original.alleleAt(permutation.fromIndex(alleleIndex));
+                    }
+
+                    @Override
+                    public GATKSAMRecord readAt(final int readIndex) {
+                        return original.readAt(readIndex);
+                    }
+
+                    @Override
+                    public void copyAlleleLikelihoods(final int alleleIndex, final double[] dest, final int offset) {
+                        original.copyAlleleLikelihoods(permutation.fromIndex(alleleIndex),dest,offset);
+                    }
+                };
+            }
+        };
+    }
 }

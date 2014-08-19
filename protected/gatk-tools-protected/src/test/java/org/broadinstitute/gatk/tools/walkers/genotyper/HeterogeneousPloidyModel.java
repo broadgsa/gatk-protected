@@ -43,90 +43,80 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import com.google.caliper.Param;
-import com.google.caliper.SimpleBenchmark;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
 
-import java.util.Collections;
-import java.util.Random;
+import org.broadinstitute.gatk.tools.walkers.genotyper.PloidyModel;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 
 /**
- * Created with IntelliJ IDEA.
- * User: valentin
- * Date: 8/6/13
- * Time: 3:00 PM
- * To change this template use File | Settings | File Templates.
+ * General heterogeneous ploidy model.
+ *
+ * <p>
+ *     Currenly only avaialable for testing but will be promoted at some point and have its own unit test.
+ * </p>
  */
-public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
-// ./private/shell/googleCaliperCommand.csh org.broadinstitute.gatk.tools.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
+public class HeterogeneousPloidyModel implements PloidyModel {
 
-//    @Param({"10", "25"})
-    @Param({"10"})
-    protected int kmerSize;
+    private final SampleList sampleList;
 
+    private final int[] ploidies;
 
-//    @Param({"100","250"})
-    @Param({"100"})
-    protected int readLength;
+    private final int ploidySum;
 
-    @Param({"*1T*", "*3Iacg*","*30Igctcggatgccttgcggggctccagagtcc*",
-            "*3D*","*30D*","*1T3=3Iacg*","*1T*3Iacg*","*1T8=1T8=1T8=1T8=1T*","*1T*1T*1T*1T*1T*"})
-//    @Param({"*1T*"})
-    protected String variation;
+    private final boolean isHomogeneous;
 
-    @Param({"10000"})
-//    @Param({"100", "300", "1000"})// "3000", "10000"})
-    protected int readCount;
+    public HeterogeneousPloidyModel(final SampleList sampleList, final int[] ploidies) {
+        if (sampleList == null)
+            throw new IllegalArgumentException("the sample list cannot be null");
+        if (ploidies == null)
+            throw new IllegalArgumentException("the ploidies cannot be null");
+        if (sampleList.sampleCount() != ploidies.length)
+            throw new IllegalArgumentException("sample-list and ploidy array length must match");
 
-//    @Param({"300","1000","3000"})
-    @Param({"300"})
-    protected int regionSize;
+        this.ploidies = ploidies.clone();
 
-    // Invariants:
-
-    protected final byte bq = 20;
-
-    protected final byte iq = 35;
-
-    protected final byte dq = 35;
-
-    protected ActiveRegionTestDataSet dataSet;
-
-    @Param({"true"})
-    public boolean withErrors;
-
-    @Param({"13"})
-    public int randomSeed;
-
-    public void setUp() {
-       dataSet = ActiveRegionTestDataSetUnitTest.createActiveRegionTestDataSet(kmerSize, readLength, variation, readCount, regionSize, bq, iq, dq);
-       final Random rnd = new Random(randomSeed);
-       if (withErrors) dataSet.introduceErrors(rnd);
-    }
-
-    @SuppressWarnings("unused")
-    public void timeGraphBasedLikelihoods(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
-            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+        int ploidySum = 0;
+        for (int i = 0; i < ploidies.length; i++) {
+            final int p = this.ploidies[i];
+            if (p < 0)
+                throw new IllegalArgumentException("no ploidy can be less than 0");
+            ploidySum += p;
         }
+        this.ploidySum = ploidySum;
+        isHomogeneous = ploidies.length == 0 || ploidies.length * this.ploidies[0] == ploidySum;
+        this.sampleList = sampleList;
     }
 
-    @SuppressWarnings("unused")
-    public void timeLoglessPairHMM(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
-            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
-        }
+    @Override
+    public int samplePloidy(final int sampleIndex) {
+        if (sampleIndex < 0 || sampleIndex > ploidies.length)
+            throw new IllegalArgumentException("invalid sample index: " + sampleIndex);
+        return ploidies[sampleIndex];
     }
 
+    @Override
+    public boolean isHomogeneous() {
+        return isHomogeneous;
+    }
 
+    @Override
+    public int totalPloidy() {
+        return ploidySum;
+    }
 
+    @Override
+    public int sampleCount() {
+        return ploidies.length;
+    }
 
+    @Override
+    public int sampleIndex(final String sample) {
+        return sampleList.sampleIndex(sample);
+    }
+
+    @Override
+    public String sampleAt(int sampleIndex) {
+        return sampleList.sampleAt(sampleIndex);
+    }
 }

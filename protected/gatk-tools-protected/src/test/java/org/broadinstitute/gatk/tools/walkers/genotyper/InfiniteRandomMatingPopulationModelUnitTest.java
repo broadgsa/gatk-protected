@@ -43,90 +43,103 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import com.google.caliper.Param;
-import com.google.caliper.SimpleBenchmark;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.GenotypeLikelihoods;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
- * Created with IntelliJ IDEA.
- * User: valentin
- * Date: 8/6/13
- * Time: 3:00 PM
- * To change this template use File | Settings | File Templates.
+ * Test {@link org.broadinstitute.gatk.tools.walkers.genotyper.InfiniteRandomMatingPopulationModel}
  */
-public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
-// ./private/shell/googleCaliperCommand.csh org.broadinstitute.gatk.tools.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
+public class InfiniteRandomMatingPopulationModelUnitTest {
 
-//    @Param({"10", "25"})
-    @Param({"10"})
-    protected int kmerSize;
-
-
-//    @Param({"100","250"})
-    @Param({"100"})
-    protected int readLength;
-
-    @Param({"*1T*", "*3Iacg*","*30Igctcggatgccttgcggggctccagagtcc*",
-            "*3D*","*30D*","*1T3=3Iacg*","*1T*3Iacg*","*1T8=1T8=1T8=1T8=1T*","*1T*1T*1T*1T*1T*"})
-//    @Param({"*1T*"})
-    protected String variation;
-
-    @Param({"10000"})
-//    @Param({"100", "300", "1000"})// "3000", "10000"})
-    protected int readCount;
-
-//    @Param({"300","1000","3000"})
-    @Param({"300"})
-    protected int regionSize;
-
-    // Invariants:
-
-    protected final byte bq = 20;
-
-    protected final byte iq = 35;
-
-    protected final byte dq = 35;
-
-    protected ActiveRegionTestDataSet dataSet;
-
-    @Param({"true"})
-    public boolean withErrors;
-
-    @Param({"13"})
-    public int randomSeed;
-
-    public void setUp() {
-       dataSet = ActiveRegionTestDataSetUnitTest.createActiveRegionTestDataSet(kmerSize, readLength, variation, readCount, regionSize, bq, iq, dq);
-       final Random rnd = new Random(randomSeed);
-       if (withErrors) dataSet.introduceErrors(rnd);
-    }
-
-    @SuppressWarnings("unused")
-    public void timeGraphBasedLikelihoods(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
-            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+    @Test(dataProvider="ploidyAndMaximumAlleleAndReadCountsData")
+    public void testCalculateLikelihoods(final int[] ploidies, final int alleleCount, final int discardAlleleCount, final int[] readCounts) {
+        final ReadLikelihoods<Allele> likelihoods = ReadLikelihoodsUnitTester.readLikelihoods(alleleCount,readCounts);
+        final AlleleList<Allele> genotypingAlleleList = discardAlleleCount == 0 ? likelihoods : discardAllelesAtRandom(likelihoods,discardAlleleCount);
+        final SampleList sampleList = SampleListUnitTester.sampleList(ploidies.length);
+        final PloidyModel ploidyModel = new HeterogeneousPloidyModel(sampleList,ploidies);
+        final GenotypingData<Allele> data = new GenotypingData<>(ploidyModel,likelihoods);
+        final InfiniteRandomMatingPopulationModel model = new InfiniteRandomMatingPopulationModel();
+        final GenotypingLikelihoods<Allele> gLikelihoods = model.calculateLikelihoods(genotypingAlleleList,data);
+        Assert.assertNotNull(gLikelihoods);
+        AlleleListUnitTester.assertAlleleList(gLikelihoods, AlleleListUtils.asList(genotypingAlleleList));
+        SampleListUnitTester.assertSampleList(gLikelihoods,SampleListUtils.asList(sampleList));
+        final int sampleCount = gLikelihoods.sampleCount();
+        for (int i = 0; i < sampleCount; i++) {
+            final GenotypeLikelihoods sampleLikelihoods = gLikelihoods.sampleLikelihoods(i);
+            Assert.assertNotNull(sampleLikelihoods);
+            final double[] values = sampleLikelihoods.getAsVector();
+            Assert.assertNotNull(values);
+            Assert.assertEquals(values.length, GenotypeLikelihoodCalculators.getInstance(ploidies[i], genotypingAlleleList.alleleCount()).genotypeCount());
+            for (int j = 0; j < values.length; j++)
+                Assert.assertTrue(values[j] <= 0);
         }
     }
 
-    @SuppressWarnings("unused")
-    public void timeLoglessPairHMM(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
-            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+    private AlleleList<Allele> discardAllelesAtRandom(final AlleleList<Allele> likelihoods, final int discardAlleleCount) {
+        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final ArrayList<Allele> subset = new ArrayList<>(AlleleListUtils.asList(likelihoods));
+        for (int i = 0; i < discardAlleleCount; i++) {
+            subset.remove(rnd.nextInt(subset.size()));
         }
+        return new IndexedAlleleList<>(subset);
     }
 
+    /**
+     * Each entry contains to value, where the first is the total number of alleles and the second
+     * The number to discard some arbitrary number of alleles for genotyping for the {@link #testCalculateLikelihoods}.
+     */
+    private static final int[][] ALLELE_COUNTS = new int[][] {
+            {1, 0},
+            {2, 1},
+            {5, 2},
+            {10, 4},
+            {1, 0},
+            {2, 1},
+            {10, 7}
+    };
+
+    private static final int[][] PLOIDIES = new int[][]{
+            {1, 1, 1, 1},
+            {1, 2, 3, 4},
+            {2, 2, 2, 2},
+            {2, 1, 2, 1},
+            {1},
+            {2},
+            {},
+    };
 
 
+    private static final int[][] READ_COUNTS = new int[][] {
+            { 10 , 100, 50, 20 },
+            { 0, 100, 10, 1 },
+            { 1, 2, 3, 4 },
+            { 10, 20, 50, 40 },
+            { 10  },
+            { 20 },
+            { }
+    };
+
+    @DataProvider(name="ploidyAndMaximumAlleleAndReadCountsData")
+    public Object[][] ploidyAndMaximumAlleleAndReadCountsData() {
+        final List<Object[]> result = new ArrayList<>(PLOIDIES.length * 2);
+        for (int i = 0; i < PLOIDIES.length; i++) {
+            result.add(new Object[] {PLOIDIES[i], ALLELE_COUNTS[i][0], 0, READ_COUNTS[i]});
+            final int discardAlleleCount = ALLELE_COUNTS[i][1];
+            if (discardAlleleCount == 0) continue;
+            result.add(new Object[] { PLOIDIES[i], ALLELE_COUNTS[i][0], ALLELE_COUNTS[i][1], READ_COUNTS[i]});
+        }
+        return result.toArray(new Object[0][]);
+    }
 
 }

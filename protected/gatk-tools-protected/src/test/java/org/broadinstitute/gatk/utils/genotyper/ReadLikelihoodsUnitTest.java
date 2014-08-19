@@ -48,7 +48,7 @@ package org.broadinstitute.gatk.utils.genotyper;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.genotyping.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
@@ -616,7 +616,7 @@ public class ReadLikelihoodsUnitTest
         final Map<String,List<GATKSAMRecord>> sampleToReads = ReadLikelihoodsUnitTester.sampleToReads(sampleList, readCounts);
         final ReadLikelihoods<Allele> subject = new ReadLikelihoods<>(sampleList,alleleList,sampleToReads);
 
-        AlleleListUnitTester.assertAlleleList(subject,AlleleListUtils.asList(alleleList));
+        AlleleListUnitTester.assertAlleleList(subject, AlleleListUtils.asList(alleleList));
         SampleListUnitTester.assertSampleList(subject,SampleListUtils.asList(sampleList));
 
         if (hasReference) {

@@ -54,7 +54,6 @@ import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.genotyping.SampleList;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcResult;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.GenomeLocParser;

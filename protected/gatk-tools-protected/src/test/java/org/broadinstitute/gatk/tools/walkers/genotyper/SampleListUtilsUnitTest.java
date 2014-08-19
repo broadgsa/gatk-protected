@@ -43,88 +43,84 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import com.google.caliper.Param;
-import com.google.caliper.SimpleBenchmark;
+import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.Random;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
- * Created with IntelliJ IDEA.
- * User: valentin
- * Date: 8/6/13
- * Time: 3:00 PM
- * To change this template use File | Settings | File Templates.
+ * Test {@link org.broadinstitute.gatk.tools.walkers.genotyper.AlleleListUtils}.
+ *
+ * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
-// ./private/shell/googleCaliperCommand.csh org.broadinstitute.gatk.tools.walkers.haplotypecaller.HCLikelihoodCalculationEnginesBenchmark --saveResults build/benchmark/HCLikelihoodCalculationEnginesBenchmark
+public class SampleListUtilsUnitTest {
 
-//    @Param({"10", "25"})
-    @Param({"10"})
-    protected int kmerSize;
+    @Test(dataProvider = "singleSampleListData")
+    public void testAsList(final List<String> samples) {
+         final SampleList sampleList = new IndexedSampleList(samples);
+         final List<String> asList = SampleListUtils.asList(sampleList);
+         Assert.assertEquals(samples, asList);
+    }
 
+    @Test(dataProvider = "twoSampleListData", dependsOnMethods={"testAsList"})
+    public void testEquals(final List<String> sample2, final List<String> samples2) {
+        final SampleList sampleList1 = new IndexedSampleList(sample2);
+        final SampleList sampleList2 = new IndexedSampleList(samples2);
+        Assert.assertTrue(SampleListUtils.equals(sampleList1, sampleList1));
+        Assert.assertTrue(SampleListUtils.equals(sampleList2,sampleList2));
+        Assert.assertEquals(SampleListUtils.equals(sampleList1, sampleList2),
+                Arrays.equals(SampleListUtils.asList(sampleList1).toArray(new String[sampleList1.sampleCount()]),
+                        SampleListUtils.asList(sampleList2).toArray(new String[sampleList2.sampleCount()]))
+        );
+        Assert.assertEquals(SampleListUtils.equals(sampleList1,sampleList2),
+                            SampleListUtils.equals(sampleList2,sampleList1));
+    }
 
-//    @Param({"100","250"})
-    @Param({"100"})
-    protected int readLength;
+  private List<String>[] sampleLists;
 
-    @Param({"*1T*", "*3Iacg*","*30Igctcggatgccttgcggggctccagagtcc*",
-            "*3D*","*30D*","*1T3=3Iacg*","*1T*3Iacg*","*1T8=1T8=1T8=1T8=1T*","*1T*1T*1T*1T*1T*"})
-//    @Param({"*1T*"})
-    protected String variation;
-
-    @Param({"10000"})
-//    @Param({"100", "300", "1000"})// "3000", "10000"})
-    protected int readCount;
-
-//    @Param({"300","1000","3000"})
-    @Param({"300"})
-    protected int regionSize;
-
-    // Invariants:
-
-    protected final byte bq = 20;
-
-    protected final byte iq = 35;
-
-    protected final byte dq = 35;
-
-    protected ActiveRegionTestDataSet dataSet;
-
-    @Param({"true"})
-    public boolean withErrors;
-
-    @Param({"13"})
-    public int randomSeed;
-
+    @BeforeClass
     public void setUp() {
-       dataSet = ActiveRegionTestDataSetUnitTest.createActiveRegionTestDataSet(kmerSize, readLength, variation, readCount, regionSize, bq, iq, dq);
-       final Random rnd = new Random(randomSeed);
-       if (withErrors) dataSet.introduceErrors(rnd);
-    }
-
-    @SuppressWarnings("unused")
-    public void timeGraphBasedLikelihoods(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final GraphBasedLikelihoodCalculationEngineInstance rtlce = new GraphBasedLikelihoodCalculationEngineInstance(dataSet.assemblyResultSet(), new FastLoglessPairHMM((byte)10),Double.NEGATIVE_INFINITY,HeterogeneousKmerSizeResolution.COMBO_MAX);
-            rtlce.computeReadLikelihoods(dataSet.haplotypeList(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
+        sampleLists = new List[SAMPLE_COUNT.length];
+        int nextIndex = 0;
+        for (int i = 0; i < SAMPLE_COUNT.length; i++) {
+            final List<String> sampleList = new ArrayList<>(SAMPLE_COUNT[i]);
+            sampleList.add("SAMPLE_" + i);
+            sampleLists[nextIndex++] = sampleList;
         }
     }
 
-    @SuppressWarnings("unused")
-    public void timeLoglessPairHMM(final int reps) {
-        for (int i = 0; i < reps; i++) {
-            final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
-            engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
-        }
+    private static final int[] SAMPLE_COUNT = { 0, 1, 5, 10, 20};
+
+
+    @DataProvider(name="singleSampleListData")
+    public Object[][] singleSampleListData() {
+        final Object[][] result = new Object[sampleLists.length][];
+        for (int i = 0; i < sampleLists.length; i++)
+            result[i] = new Object[] { sampleLists[i]};
+        return result;
     }
+
+    @DataProvider(name="twoSampleListData")
+    public Object[][] twoAlleleListData() {
+        final Object[][] result = new Object[sampleLists.length * sampleLists.length][];
+        int index = 0;
+        for (int i = 0; i < sampleLists.length; i++)
+            for (int j = 0; j < sampleLists.length; j++)
+                result[index++] = new Object[] { sampleLists[i], sampleLists[j]};
+        return result;
+    }
+
+
+
 
 
 
