@@ -51,6 +51,8 @@ import com.google.java.contract.Requires;
 import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalc;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.Utils;
@@ -101,6 +103,18 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      */
     public HaplotypeCallerGenotypingEngine(final HaplotypeCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser) {
         this(configuration,samples,genomeLocParser,false);
+    }
+
+    @Override
+    protected ThreadLocal<AFCalc> getAlleleFrequencyCalculatorThreadLocal() {
+        return new ThreadLocal<AFCalc>() {
+
+            @Override
+            public AFCalc initialValue() {
+                return AFCalcFactory.createAFCalc(configuration, numberOfGenomes,
+                        configuration.emitReferenceConfidence != ReferenceConfidenceMode.NONE , logger);
+            }
+        };
     }
 
     /**

@@ -82,8 +82,8 @@ final class StateTracker {
      * maxAltAlleles in length, and so only the first getAllelesUsedInGenotyping.size() - 1 values
      * are meaningful.
      */
-    private final int[] alleleCountsOfMLE;
-    private final int[] alleleCountsOfMAP;
+    private int[] alleleCountsOfMLE;
+    private int[] alleleCountsOfMAP;
 
     /**
      * A vector of log10 likelihood values seen, for future summation.  When the size of the
@@ -231,6 +231,31 @@ final class StateTracker {
      * Reset the data in this results object, so that it can be used in a subsequent AF calculation
      *
      * Resetting of the data is done by the calculation model itself, so shouldn't be done by callers any longer
+     *
+     * @param ensureAltAlleleCapacity indicate the minimum number of alt-alleles that should be supported by the
+     *                                tracker.
+     */
+    protected void reset(final int ensureAltAlleleCapacity) {
+        log10MLE = log10MAP = log10LikelihoodOfAFzero = VALUE_NOT_CALCULATED;
+        log10LikelihoodsForAFGt0CacheIndex = 0;
+        log10LikelihoodsForAFGt0Sum = null;
+        allelesUsedInGenotyping = null;
+        nEvaluations = 0;
+        if (alleleCountsOfMAP.length < ensureAltAlleleCapacity) {
+            final int newCapacity = Math.max(ensureAltAlleleCapacity,alleleCountsOfMAP.length << 1);
+            alleleCountsOfMAP = new int[newCapacity];
+            alleleCountsOfMLE = new int[newCapacity];
+        } else {
+            Arrays.fill(alleleCountsOfMLE, 0);
+            Arrays.fill(alleleCountsOfMAP, 0);
+        }
+        Arrays.fill(log10LikelihoodsForAFGt0, Double.POSITIVE_INFINITY);
+    }
+
+    /**
+     * Reset the data in this results object, so that it can be used in a subsequent AF calculation
+     *
+     * Resetting of the data is done by the calculation model itself, so shouldn't be done by callers any longer
      */
     protected void reset() {
         log10MLE = log10MAP = log10LikelihoodOfAFzero = VALUE_NOT_CALCULATED;
@@ -242,6 +267,7 @@ final class StateTracker {
         Arrays.fill(alleleCountsOfMAP, 0);
         Arrays.fill(log10LikelihoodsForAFGt0, Double.POSITIVE_INFINITY);
     }
+
 
     /**
      * Tell this result we used one more evaluation cycle

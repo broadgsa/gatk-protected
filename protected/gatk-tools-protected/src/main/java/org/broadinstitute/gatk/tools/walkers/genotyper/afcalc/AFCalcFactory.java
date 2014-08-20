@@ -151,7 +151,7 @@ public class AFCalcFactory {
      * @return an initialized AFCalc
      */
     public static AFCalc createAFCalc(final StandardCallerArgumentCollection UAC,
-                                      final int nSamples,
+                                      final int nSamples, final boolean emitConfModel,
                                       final Logger logger) {
         final Calculation afCalculationModel = Calculation.getBestModel(UAC.genotypeArgs.samplePloidy,UAC.genotypeArgs.MAX_ALTERNATE_ALLELES,
                 UAC.requestedAlleleFrequencyCalculationModel);
