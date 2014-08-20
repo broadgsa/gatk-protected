@@ -46,9 +46,12 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
+import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.utils.MathUtils;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Collection of allele counts for a genotype. It encompasses what alleles are present in the genotype and in what number.</p>
@@ -702,6 +705,46 @@ public class GenotypeAlleleCounts implements Comparable<GenotypeAlleleCounts>, C
      */
     @Override
     protected GenotypeAlleleCounts clone() {
-        return new GenotypeAlleleCounts(ploidy,index,Arrays.copyOf(sortedAlleleCounts,distinctAlleleCount << 1));
+        final GenotypeAlleleCounts result;
+        try {
+            result = (GenotypeAlleleCounts) super.clone();
+        } catch (final CloneNotSupportedException e) {
+            throw new IllegalStateException(e);
+        }
+        result.sortedAlleleCounts = Arrays.copyOf(sortedAlleleCounts,distinctAlleleCount << 1);
+        return result;
+    }
+
+    /**
+     * Composes a list with the alleles.
+     *
+     * @param allelesToUse alleles to use.
+     *
+     * @throws IllegalArgumentException if {@code allelesToUse} is {@code null},
+     *          or does not contain enough elements to accommodate the maximum allele index in this allele-counts.
+     *
+     * @return never null, but it might be restricted (unmodifiable or non-expandable).
+     */
+    public <T extends Allele> List<T> asAlleleList(final List<T> allelesToUse) {
+        if (allelesToUse == null)
+            throw new IllegalArgumentException("the input allele list cannot be null");
+        if (allelesToUse.size() < maximumAlleleIndex())
+            throw new IllegalArgumentException("the provided alleles to use does not contain an element for the maximum allele ");
+        if (distinctAlleleCount == 1 ) {
+            if (ploidy == 1)
+                return Collections.singletonList(allelesToUse.get(sortedAlleleCounts[0]));
+            else
+                return Collections.nCopies(ploidy,allelesToUse.get(sortedAlleleCounts[0]));
+        } else {
+            final Allele[] myAlleles = new Allele[ploidy];
+            int nextIndex = 0;
+            for (int i = 0, ii = 0; i < distinctAlleleCount; i++) {
+                final Allele allele = allelesToUse.get(sortedAlleleCounts[ii++]);
+                final int repeats = sortedAlleleCounts[ii++];
+                for (int j = 0; j < repeats; j++)
+                    myAlleles[nextIndex++] = allele;
+            }
+            return (List<T>) Arrays.asList(myAlleles);
+        }
     }
 }
