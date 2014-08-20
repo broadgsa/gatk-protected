@@ -439,6 +439,10 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         pos24.setEventMap(new EventMap(Arrays.asList(vc2, vc4)));
         pos24.getEventMap().put(2, vc2);
         pos24.getEventMap().put(4, vc4);
+        final Haplotype pos34 = new Haplotype("AACCA".getBytes());
+        pos34.setEventMap(new EventMap(Arrays.asList(vc3, vc4)));
+        pos34.getEventMap().put(3, vc3);
+        pos34.getEventMap().put(4, vc4);
         final Haplotype pos234 = new Haplotype("ACCCA".getBytes());
         pos234.setEventMap(new EventMap(Arrays.asList(vc2, vc3, vc4)));
         pos234.getEventMap().put(2, vc2);
@@ -508,6 +512,20 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         haplotypeMap.put(vc3, haplotypes3hom);
         haplotypeMap.put(vc4, haplotypes4het);
         tests.add(new Object[]{calls, new HashMap<>(haplotypeMap), 2, 3, 1, 2, 0});
+
+        // test no phased variants around a hom
+        final Set<Haplotype> haplotypes2incomplete = new HashSet<>();
+        haplotypes2incomplete.add(pos24);
+        final Set<Haplotype> haplotypes3incomplete = new HashSet<>();
+        haplotypes3incomplete.add(pos34);
+        final Set<Haplotype> haplotypes4complete = new HashSet<>();
+        haplotypes4complete.add(pos24);
+        haplotypes4complete.add(pos34);
+        haplotypes4complete.add(pos234);
+        haplotypeMap.put(vc2, haplotypes2incomplete);
+        haplotypeMap.put(vc3, haplotypes3incomplete);
+        haplotypeMap.put(vc4, haplotypes4complete);
+        tests.add(new Object[]{calls, new HashMap<>(haplotypeMap), 0, 0, 0, 0, 0});
 
         return tests.toArray(new Object[][]{});
     }
