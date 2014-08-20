@@ -48,7 +48,15 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
@@ -64,6 +72,83 @@ import java.util.*;
  * Class of tests to detect strand bias.
  */
 public abstract class StrandBiasTest extends InfoFieldAnnotation {
+    private final static Logger logger = Logger.getLogger(StrandBiasTest.class);
+
+    @Override
+    public void initialize(final AnnotatorCompatible walker, final GenomeAnalysisEngine toolkit, final Set<VCFHeaderLine> headerLines) {
+        boolean hasSBBSannotation = false;
+        for ( final VCFHeaderLine line : headerLines) {
+            if ( line instanceof VCFFormatHeaderLine) {
+                final VCFFormatHeaderLine formatline = (VCFFormatHeaderLine)line;
+                if ( formatline.getID().equals(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME) ) {
+                    hasSBBSannotation = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasSBBSannotation) {
+            logger.info("StrandBiasBySample annotation exists in input VCF header. Attempting to use StrandBiasBySample " +
+                    "values to calculate strand bias annotation values. If no sample has the SB genotype annotation, annotation may still fail.");
+            return;
+        }
+
+        boolean hasReads = toolkit.getReadsDataSource().getReaderIDs().size() > 0;
+        if (hasReads) {
+            logger.info("SAM/BAM data was found. Attempting to use read data to calculate strand bias annotations values.");
+            return;
+        }
+
+        logger.info(new String("No StrandBiasBySample annotation or read data was found.  Strand bias annotations will not be output."));
+
+    }
+
+    @Override
+    //template method for calculating strand bias annotations using the three different methods
+    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
+                                        final AnnotatorCompatible walker,
+                                        final ReferenceContext ref,
+                                        final Map<String,AlignmentContext> stratifiedContexts,
+                                        final VariantContext vc,
+                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+        if ( !vc.isVariant() )
+            return null;
+
+        if ( vc.hasGenotypes() ) {
+            boolean hasSB = false;
+            for (final Genotype g : vc.getGenotypes()) {
+                if (g.hasAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME)) {
+                    hasSB = true;
+                    break;
+                }
+            }
+            if (hasSB)
+                return calculateAnnotationFromGTfield(vc.getGenotypes());
+        }
+
+        //stratifiedContexts can come come from VariantAnnotator, but will be size 0 if no reads were provided
+        if (vc.isSNP() && stratifiedContexts != null  && stratifiedContexts.size() > 0) {
+            return calculateAnnotationFromStratifiedContexts(stratifiedContexts, vc);
+        }
+
+        //stratifiedPerReadAllelelikelihoodMap can come from HaplotypeCaller call to VariantAnnotatorEngine
+        else if (stratifiedPerReadAlleleLikelihoodMap != null) {
+            return calculateAnnotationFromLikelihoodMap(stratifiedPerReadAlleleLikelihoodMap, vc);
+        }
+        else
+            // for non-snp variants, we  need per-read likelihoods.
+            // for snps, we can get same result from simple pileup
+            return null;
+    }
+
+    protected abstract Map<String, Object> calculateAnnotationFromGTfield(final GenotypesContext genotypes);
+
+    protected abstract Map<String, Object> calculateAnnotationFromStratifiedContexts(final Map<String, AlignmentContext> stratifiedContexts,
+                                                                                     final VariantContext vc);
+
+    protected abstract Map<String, Object> calculateAnnotationFromLikelihoodMap(final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
+                                                                                final VariantContext vc);
+
     /**
      * Create the contingency table by retrieving the per-sample strand bias annotation and adding them together
      * @param genotypes the genotypes from which to pull out the per-sample strand bias annotation
@@ -108,9 +193,9 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
                                                   final int minCount ) {
         int[][] table = new int[2][2];
 
-        for ( Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
+        for (final Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
             final int[] myTable = new int[4];
-            for (PileupElement p : sample.getValue().getBasePileup()) {
+            for (final PileupElement p : sample.getValue().getBasePileup()) {
 
                 if ( ! isUsableBase(p) ) // ignore deletions and bad MQ
                     continue;

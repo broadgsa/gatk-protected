@@ -47,6 +47,8 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import cern.jet.math.Arithmetic;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypesContext;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
@@ -87,41 +89,33 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
     private static final int MIN_QUAL_FOR_FILTERED_TEST = 17;
     private static final int MIN_COUNT = 2;
 
-    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
-                                        final AnnotatorCompatible walker,
-                                        final ReferenceContext ref,
-                                        final Map<String, AlignmentContext> stratifiedContexts,
-                                        final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
-        if ( !vc.isVariant() )
-            return null;
-
-        if ( vc.hasGenotypes() ) {
-            final int[][] tableFromPerSampleAnnotations = getTableFromSamples( vc.getGenotypes(), MIN_COUNT );
-            if ( tableFromPerSampleAnnotations != null ) {
-              return pValueForBestTable(tableFromPerSampleAnnotations, null);
-            }
-        }
-
-        if (vc.isSNP() && stratifiedContexts != null) {
-            final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
-            final int[][] tableFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), MIN_QUAL_FOR_FILTERED_TEST, MIN_COUNT);
-            printTable("unfiltered", tableNoFiltering);
-            printTable("filtered", tableFiltering);
-            return pValueForBestTable(tableFiltering, tableNoFiltering);
-        }
-        else if (stratifiedPerReadAlleleLikelihoodMap != null) {
-            // either SNP with no alignment context, or indels: per-read likelihood map needed
-            final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc, MIN_COUNT);
-            //logger.info("VC " + vc);
-            //printTable(table, 0.0);
-            return pValueForBestTable(table, null);
-        }
-        else
-            // for non-snp variants, we  need per-read likelihoods.
-            // for snps, we can get same result from simple pileup
-            return null;
+    @Override
+    protected Map<String, Object> calculateAnnotationFromGTfield(final GenotypesContext genotypes){
+        final int[][] tableFromPerSampleAnnotations = getTableFromSamples( genotypes, MIN_COUNT );
+        return ( tableFromPerSampleAnnotations != null )? pValueForBestTable(tableFromPerSampleAnnotations, null) : null;
     }
+
+    @Override
+    protected Map<String, Object> calculateAnnotationFromStratifiedContexts(final Map<String, AlignmentContext> stratifiedContexts,
+                                                                                     final VariantContext vc){
+        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
+        final int[][] tableFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), MIN_QUAL_FOR_FILTERED_TEST, MIN_COUNT);
+        printTable("unfiltered", tableNoFiltering);
+        printTable("filtered", tableFiltering);
+        return pValueForBestTable(tableFiltering, tableNoFiltering);
+    }
+
+    @Override
+    protected Map<String, Object> calculateAnnotationFromLikelihoodMap(final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
+                                                                                final VariantContext vc){
+        // either SNP with no alignment context, or indels: per-read likelihood map needed
+        final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc, MIN_COUNT);
+        //logger.info("VC " + vc);
+        //printTable(table, 0.0);
+        return pValueForBestTable(table, null);
+    }
+
+
 
     /**
      * Create an annotation for the highest (i.e., least significant) p-value of table1 and table2
