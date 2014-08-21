@@ -136,13 +136,22 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
     private void testCalculatePosteriorNoExternalData() {
         VariantContext test1 = makeVC("1",Arrays.asList(Aref,T), makeG("s1",Aref,T,20,0,10),
                 makeG("s2",T,T,60,40,0),
-                makeG("s3",Aref,Aref,0,30,90));
-        test1 = new VariantContextBuilder(test1).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,3).make();
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(test1, new ArrayList<VariantContext>(), 0, 0.001, true, false, true);
-        Genotype test1exp1 = makeGwithPLs("s1",Aref,T,new double[]{-2.20686, -0.03073215, -1.20686});
+                makeG("s3",Aref,Aref,0,30,90),
+                makeG("s4",Aref,T,20,0,10),
+                makeG("s5",T,T,60,40,0),
+                makeG("s6",Aref,Aref,0,30,90),
+                makeG("s7",Aref,T,20,0,10),
+                makeG("s8",T,T,60,40,0),
+                makeG("s9",Aref,Aref,0,30,90),
+                makeG("s10",Aref,T,20,0,10),
+                makeG("s11",T,T,60,40,0),
+                makeG("s12",Aref,Aref,0,30,90));
+        test1 = new VariantContextBuilder(test1).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,12).make();
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(test1, new ArrayList<VariantContext>(), 0, 0.001, true, false, false);
+        Genotype test1exp1 = makeGwithPLs("s1",Aref,T,new double[]{-2.26110257, -0.02700903, -1.26110257});
         Assert.assertTrue(test1exp1.hasPL());
-        Genotype test1exp2 = makeGwithPLs("s2",T,T,new double[]{-6.000066, -3.823938, -6.557894e-05});
-        Genotype test1exp3 = makeGwithPLs("s3",Aref,Aref,new double[]{-0.0006510083, -2.824524, -9.000651});
+        Genotype test1exp2 = makeGwithPLs("s2",T,T,new double[]{-6.000075e+00, -3.765981e+00, -7.488009e-05});
+        Genotype test1exp3 = makeGwithPLs("s3",Aref,Aref,new double[]{-0.0007438855, -2.7666503408, -9.0007438855});
         Assert.assertEquals("java.util.ArrayList",test1result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY).getClass().getCanonicalName());
         Assert.assertEquals(arraysEq(test1exp1.getPL(), _mleparse((List<Integer>)test1result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY))), "");
         Assert.assertEquals(arraysEq(test1exp2.getPL(),_mleparse((List<Integer>)test1result.getGenotype(1).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY))), "");
@@ -154,13 +163,21 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
                 makeG("s1",Aref,T,30,10,60,0,15,90),
                 makeG("s2",Aref,C,40,0,10,30,40,80),
                 makeG("s3",Aref,Aref,0,5,8,15,20,40),
-                makeG("s4",C,T,80,40,12,20,0,10));
-        test2 = new VariantContextBuilder(test2).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,new ArrayList<Integer>(Arrays.asList(2,2))).make();
-        VariantContext test2result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(test2,new ArrayList<VariantContext>(),5,0.001,true,false, true);
-        Genotype test2exp1 = makeGwithPLs("s1",Aref,T,new double[]{-2.647372, -1.045139, -6.823193, -0.04513873, -2.198182, -9.823193});
-        Genotype test2exp2 = makeGwithPLs("s2",Aref,C,new double[]{-3.609957, -0.007723248, -1.785778, -3.007723, -4.660767, -8.785778});
-        Genotype test2exp3 = makeGwithPLs("s3",Aref,Aref,new double[] {-0.06094877, -0.9587151, -2.03677,-1.958715,  -3.111759, -5.23677});
-        Genotype test2exp4 = makeGwithPLs("s4",C,T,new double[]{-7.016534, -3.4143, -1.392355, -1.4143, -0.06734388, -1.192355});
+                makeG("s4",C,T,80,40,12,20,0,10),
+                makeG("s5",Aref,T,30,10,60,0,15,90),
+                makeG("s6",Aref,C,40,0,10,30,40,80),
+                makeG("s7",Aref,Aref,0,5,8,15,20,40),
+                makeG("s8",C,T,80,40,12,20,0,10),
+                makeG("s9",Aref,T,30,10,60,0,15,90),
+                makeG("s10",Aref,C,40,0,10,30,40,80),
+                makeG("s11",Aref,Aref,0,5,8,15,20,40),
+                makeG("s12",C,T,80,40,12,20,0,10));
+        test2 = new VariantContextBuilder(test2).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,new ArrayList<Integer>(Arrays.asList(6,6))).make();
+        VariantContext test2result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(test2,new ArrayList<VariantContext>(),5,0.001,true,false, false);
+        Genotype test2exp1 = makeGwithPLs("s1",Aref,T,new double[]{-2.823957, -1.000000, -6.686344,  0.000000, -1.952251, -9.686344});
+        Genotype test2exp2 = makeGwithPLs("s2",Aref,C,new double[]{-3.823957,  0.000000, -1.686344, -3.000000, -4.452251, -8.686344});
+        Genotype test2exp3 = makeGwithPLs("s3",Aref,Aref,new double[] {0.000000, -0.676043, -1.662387, -1.676043, -2.628294, -4.862387});
+        Genotype test2exp4 = makeGwithPLs("s4",C,T,new double[]{-7.371706, -3.547749, -1.434094, -1.547749,  0.000000, -1.234094});
         Assert.assertEquals(arraysEq(test2exp1.getPL(),(int[]) _mleparse((List<Integer>)test2result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY))), "");
         Assert.assertEquals(arraysEq(test2exp2.getPL(),(int[]) _mleparse((List<Integer>)test2result.getGenotype(1).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY))), "");
         Assert.assertEquals(arraysEq(test2exp3.getPL(),(int[]) _mleparse((List<Integer>)test2result.getGenotype(2).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY))), "");
@@ -178,7 +195,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
         supplTest1.add(makeVC("4",Arrays.asList(Aref,T),
                 makeG("s_1",T,T),
                 makeG("s_2",Aref,T)));
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false, true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false, false);
         // the counts here are ref=30, alt=14
         Genotype test1exp1 = makeGwithPLs("t1",T,T,new double[]{-3.370985, -1.415172, -0.01721766});
         Genotype test1exp2 = makeGwithPLs("t2",Aref,T,new double[]{-1.763792, -0.007978791, -3.010024});
@@ -189,7 +206,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
 
         VariantContext testNonOverlapping = makeVC("1", Arrays.asList(Aref,T), makeG("s1",T,T,3,1,0));
         List<VariantContext> other = Arrays.asList(makeVC("2",Arrays.asList(Aref,C),makeG("s2",C,C,10,2,0)));
-        VariantContext test2result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testNonOverlapping,other,0,0.001,true,false,true);
+        VariantContext test2result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testNonOverlapping,other,0,0.001,true,false,false);
         Genotype test2exp1 = makeGwithPLs("SGV",T,T,new double[]{-4.078345, -3.276502, -0.0002661066});
         Assert.assertEquals(arraysEq(test2exp1.getPL(),_mleparse((List<Integer>) test2result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY))), "");
     }
@@ -199,7 +216,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
         VariantContext testOverlappingBase = makeVC("1", Arrays.asList(Aref,T), makeG("s1",T,T,40,1,0));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,500).attribute(VCFConstants.ALLELE_NUMBER_KEY,1000).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
 
         int[] GP = _mleparse( (List<Integer>)test1result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY));
         Assert.assertTrue(GP[2] > GP[1]);
@@ -210,7 +227,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
         VariantContext testOverlappingBase = makeVC("1", Arrays.asList(Aref,T), makeG("s1",T,T,40,0,1));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,900).attribute(VCFConstants.ALLELE_NUMBER_KEY,1000).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
 
         int[] GP = _mleparse( (List<Integer>)test1result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY));
         Assert.assertTrue(GP[2] < GP[1]);
@@ -221,7 +238,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
         VariantContext testOverlappingBase = makeVC("1", Arrays.asList(Aref,T), makeG("s1",T,T,0,1,40));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,500).attribute(VCFConstants.ALLELE_NUMBER_KEY,1000).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
 
         int[] GP = _mleparse( (List<Integer>)test1result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY));
         Assert.assertTrue(GP[0] > GP[1]);
@@ -232,7 +249,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
         VariantContext testOverlappingBase = makeVC("1", Arrays.asList(Aref,T), makeG("s1",T,T,1,0,40));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,100).attribute(VCFConstants.ALLELE_NUMBER_KEY,1000).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
 
         int[] GP = _mleparse( (List<Integer>)test1result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY));
         Assert.assertTrue(GP[0] < GP[1]);
@@ -245,7 +262,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
                 makeG("s3",Aref,T,22,0,12));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,11).attribute(VCFConstants.ALLELE_NUMBER_KEY,10).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
     }
 
     @Test (expectedExceptions = {UserException.class})
@@ -256,7 +273,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T,C))).attribute(VCFConstants.ALLELE_COUNT_KEY,5).attribute(VCFConstants.ALLELE_NUMBER_KEY,10).make());
 
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
     }
 
     @Test (expectedExceptions = {UserException.class})
@@ -266,7 +283,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
                 makeG("s3",Aref,T,22,0,12));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T,C))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,5).attribute(VCFConstants.ALLELE_NUMBER_KEY,10).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
     }
 
     @Test
@@ -276,7 +293,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
                 makeG("s3",Aref,T,22,0,12));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T,C))).attribute(VCFConstants.ALLELE_COUNT_KEY,Arrays.asList(5,4)).attribute(VCFConstants.ALLELE_NUMBER_KEY,10).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
     }
 
     @Test
@@ -286,7 +303,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
                 makeG("s3",Aref,T,22,0,12));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T,C))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,Arrays.asList(5,4)).attribute(VCFConstants.ALLELE_NUMBER_KEY,10).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(testOverlappingBase,supplTest1,0,0.001,true,false,false);
     }
 
     @Test
@@ -296,7 +313,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
                 makeG("s3",Aref,ATC,22,0,12));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,T,C))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,Arrays.asList(5,4)).attribute(VCFConstants.ALLELE_NUMBER_KEY,10).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(inputIndel,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(inputIndel,supplTest1,0,0.001,true,false,false);
 
         System.out.println(test1result);
         int[] GPs = _mleparse( (List<Integer>)test1result.getGenotype(0).getAnyAttribute(PHRED_SCALED_POSTERIORS_KEY));
@@ -311,7 +328,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
                 makeG("s3",Aref,T,22,0,12));
         List<VariantContext> supplTest1 = new ArrayList<>(1);
         supplTest1.add(new VariantContextBuilder(makeVC("2",Arrays.asList(Aref,ATC,ATCATC))).attribute(VCFConstants.MLE_ALLELE_COUNT_KEY,Arrays.asList(5,4)).attribute(VCFConstants.ALLELE_NUMBER_KEY,10).make());
-        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(inputIndel,supplTest1,0,0.001,true,false,true);
+        VariantContext test1result = PosteriorLikelihoodsUtils.calculatePosteriorGLs(inputIndel,supplTest1,0,0.001,true,false,false);
 
 
         System.out.println(test1result);

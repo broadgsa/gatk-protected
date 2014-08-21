@@ -60,7 +60,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testUsingDiscoveredAF() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T CalculateGenotypePosteriors --no_cmdline_in_header -calcMissing" +
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
                         " -o %s" +
                         " -R " + b37KGReference +
                         " -L 20:10,000,000-10,100,000" +
@@ -73,7 +73,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testMissingPriors() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header -useACoff" +
                         " -o %s" +
                         " -R " + b37KGReference +
                         " -L 20:10,000,000-10,100,000" +
@@ -86,7 +86,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testInputINDELs() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header -useACoff" +
                         " -o %s" +
                         " -R " + b37KGReference +
                         " -L 20:10,000,000-10,100,000" +
@@ -100,14 +100,14 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testFamilyPriors() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header -useACoff" +
                         " -o %s" +
                         " -R " + b37KGReference +
                         " -ped " + CEUtrioFamilyFile +
                         " -V " + CEUtrioTest +
                         " -supporting " + CEUtrioPopPriorsTest,
                 1,
-                Arrays.asList("a22c81f0609c9f43578054661797395b"));
+                Arrays.asList("781f85f56dac9074c96ace31b09e0f59"));
         executeTest("testFamilyPriors", spec);
     }
 

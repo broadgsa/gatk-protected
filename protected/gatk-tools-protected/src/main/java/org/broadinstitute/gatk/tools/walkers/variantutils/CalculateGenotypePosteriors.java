@@ -113,15 +113,19 @@ import java.util.*;
  *  1) Genotype posteriors added to the genotype fields ("PP")
  *  2) Genotypes and GQ assigned according to these posteriors
  *  3) Per-site genotype priors added to the INFO field ("PG")
- *  4) (Optional) Per-site, per-trio transmission probabilities given as Phred-scaled probability of all genotypes in the trio being correct, added to the genotype fields ("TP")
+ *  4) (Optional) Per-site, per-trio joint likelihoods (JL) and joint posteriors (JL) given as Phred-scaled probability
+ *  of all genotypes in the trio being correct based on the PLs for JL and the PPs for JP. These annotations are added to
+ *  the genotype fields.
  * </p>
  *
  * <h3>Notes</h3>
  * <p>
- * Currently, priors will only be applied for SNP sites in the input callset (and only those that have a SNP at the
- * matching site in the priors VCF unless the --calculateMissingPriors flag is used).
- * If the site is not called in the priors, flat priors will be applied. Flat priors are also applied for any non-SNP
- * sites in the input callset.
+ * Using the default behavior, priors will only be applied for each variants (provided each variant has at least 10
+ * called samples.) SNP sites in the input callset that have a SNP at the matching site in the supporting VCF will have
+ * priors applied based on the AC from the supporting samples and the input callset (unless the --ignoreInputSamples
+ * flag is used). If the site is not called in the supporting VCF, priors will be applied using the discovered AC from
+ * the input samples (unless the --discoveredACpriorsOff flag is used). Flat priors are applied for any non-SNP sites in
+ * the input callset.
  * </p>
  *
  * <h3>Examples</h3>
@@ -234,8 +238,9 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
     /**
      * Calculate priors for missing external variants from sample data -- default behavior is to apply flat priors
      */
-    @Argument(fullName="calculateMissingPriors",shortName="calcMissing",doc="Use discovered allele frequency in the callset for variants that do no appear in the external callset", required=false)
-    public boolean calcMissing = false;
+    @Argument(fullName="discoveredACpriorsOff",shortName="useACoff",doc="Do not use discovered allele count in the input callset " +
+            "for variants that do not appear in the external callset. ", required=false)
+    public boolean useACoff = false;
 
     /**
      * Skip application of population-based priors
@@ -252,7 +257,8 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
     @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
 
-    private final String TRANSMISSION_PROBABILITY_TAG_NAME = "TP";
+    private final String JOINT_LIKELIHOOD_TAG_NAME = "JL";
+    private final String JOINT_POSTERIOR_TAG_NAME = "JP";
     private final String PHRED_SCALED_POSTERIORS_KEY = "PP";
 
     private FamilyLikelihoodsUtils famUtils = new FamilyLikelihoodsUtils();
@@ -298,8 +304,10 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
         headerLines.add(new VCFFormatHeaderLine(PHRED_SCALED_POSTERIORS_KEY, VCFHeaderLineCount.G, VCFHeaderLineType.Integer, "Phred-scaled Posterior Genotype Probabilities"));
         headerLines.add(new VCFInfoHeaderLine("PG", VCFHeaderLineCount.G, VCFHeaderLineType.Integer, "Genotype Likelihood Prior"));
-        if (!skipFamilyPriors)
-            headerLines.add(new VCFFormatHeaderLine(TRANSMISSION_PROBABILITY_TAG_NAME, 1, VCFHeaderLineType.Integer, "Phred score of the genotype combination and phase given that the genotypes are correct"));
+        if (!skipFamilyPriors) {
+            headerLines.add(new VCFFormatHeaderLine(JOINT_LIKELIHOOD_TAG_NAME, 1, VCFHeaderLineType.Integer, "Phred-scaled joint likelihood of the genotype combination (before applying family priors)"));
+            headerLines.add(new VCFFormatHeaderLine(JOINT_POSTERIOR_TAG_NAME, 1, VCFHeaderLineType.Integer, "Phred-scaled joint posterior probability of the genotype combination (after applying family priors)"));
+        }
         headerLines.add(new VCFHeaderLine("source", "CalculateGenotypePosteriors"));
 
         vcfWriter.writeHeader(new VCFHeader(headerLines, vcfSamples));
@@ -331,12 +339,14 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
                     GenotypesContext gc = famUtils.calculatePosteriorGLs(vc);
                     builder.genotypes(gc);
                 }
+                VariantContextUtils.calculateChromosomeCounts(builder, false);
                 vc_familyPriors = builder.make();
 
                 if (!skipPopulationPriors)
-                    vc_bothPriors = PosteriorLikelihoodsUtils.calculatePosteriorGLs(vc_familyPriors, otherVCs, missing * numRefIfMissing, globalPrior, !ignoreInputSamples, defaultToAC, calcMissing);
+                    vc_bothPriors = PosteriorLikelihoodsUtils.calculatePosteriorGLs(vc_familyPriors, otherVCs, missing * numRefIfMissing, globalPrior, !ignoreInputSamples, defaultToAC, useACoff);
                 else {
                     final VariantContextBuilder builder2 = new VariantContextBuilder(vc_familyPriors);
+                    VariantContextUtils.calculateChromosomeCounts(builder, false);
                     vc_bothPriors = builder2.make();
                 }
                 vcfWriter.add(vc_bothPriors);
