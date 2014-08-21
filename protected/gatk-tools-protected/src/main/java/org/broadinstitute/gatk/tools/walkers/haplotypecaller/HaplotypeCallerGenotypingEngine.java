@@ -362,7 +362,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * @param originalCalls    the original unphased calls
      * @param haplotypeMap     mapping from alternate allele to the set of haplotypes that contain that allele
      * @param totalAvailableHaplotypes the total number of possible haplotypes used in calling
-     * @param phaseSetMapping  the map to populate in this method
+     * @param phaseSetMapping  the map to populate in this method;
+     *                         note that it is okay for this method NOT to populate the phaseSetMapping at all (e.g. in an impossible-to-phase situation)
      * @return the next incremental unique index
      */
     protected static int constructPhaseSetMapping(final List<VariantContext> originalCalls,
@@ -380,6 +381,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             if ( haplotypesWithCall.isEmpty() )
                 continue;
 
+            final boolean callIsOnAllHaps = haplotypesWithCall.size() == totalAvailableHaplotypes;
+
             for ( int j = i+1; j < numCalls; j++ ) {
                 final VariantContext comp = originalCalls.get(j);
                 final Set<Haplotype> haplotypesWithComp = haplotypeMap.get(comp);
@@ -388,12 +391,19 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
                 // if the variants are together on all haplotypes, record that fact.
                 // another possibility is that one of the variants is on all possible haplotypes (i.e. it is homozygous).
-                final boolean callIsOnAllHaps = haplotypesWithCall.size() == totalAvailableHaplotypes;
                 final boolean compIsOnAllHaps = haplotypesWithComp.size() == totalAvailableHaplotypes;
                 if ( (haplotypesWithCall.size() == haplotypesWithComp.size() && haplotypesWithCall.containsAll(haplotypesWithComp)) || callIsOnAllHaps || compIsOnAllHaps ) {
 
                     // create a new group if these are the first entries
                     if ( ! phaseSetMapping.containsKey(call) ) {
+                        // note that if the comp is already in the map then that is very bad because it means that there is
+                        // another variant that is in phase with the comp but not with the call.  Since that's an un-phasable
+                        // situation, we should abort if we encounter it.
+                        if ( phaseSetMapping.containsKey(comp) ) {
+                            phaseSetMapping.clear();
+                            return 0;
+                        }
+
                         phaseSetMapping.put(call, new Pair<>(uniqueCounter, callIsOnAllHaps ? "1|1" : "0|1"));
                         phaseSetMapping.put(comp, new Pair<>(uniqueCounter, compIsOnAllHaps ? "1|1" : "0|1"));
                         uniqueCounter++;
@@ -413,6 +423,14 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                     if ( intersection.isEmpty() ) {
                         // create a new group if these are the first entries
                         if ( ! phaseSetMapping.containsKey(call) ) {
+                            // note that if the comp is already in the map then that is very bad because it means that there is
+                            // another variant that is in phase with the comp but not with the call.  Since that's an un-phasable
+                            // situation, we should abort if we encounter it.
+                            if ( phaseSetMapping.containsKey(comp) ) {
+                                phaseSetMapping.clear();
+                                return 0;
+                            }
+
                             phaseSetMapping.put(call, new Pair<>(uniqueCounter, "0|1"));
                             phaseSetMapping.put(comp, new Pair<>(uniqueCounter, "1|0"));
                             uniqueCounter++;
