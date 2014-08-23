@@ -68,7 +68,6 @@ import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
@@ -627,8 +626,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public void initialize() {
         super.initialize();
 
-
-
         if (dontGenotype && emitReferenceConfidence())
             throw new UserException("You cannot request gVCF output and do not genotype at the same time");
 
@@ -706,11 +703,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if ( ! doNotRunPhysicalPhasing ) {
             headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_ID_KEY, 1, VCFHeaderLineType.String, "Physical phasing ID information, where each unique ID within a given sample (but not across samples) connects records within a phasing group"));
             headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_GT_KEY, 1, VCFHeaderLineType.String, "Physical phasing haplotype information, describing how the alternate alleles are phased in relation to one another"));
-        }
-
-        if (SCAC.genotypeArgs.samplePloidy != HomoSapiensConstants.DEFAULT_PLOIDY || SCAC.requestedAlleleFrequencyCalculationModel == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY) {
-            headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Integer, "Maximum likelihood expectation (MLE) for the alternate allele count, in the same order as listed, for each individual sample"));
-            headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Maximum likelihood expectation (MLE) for the alternate allele fraction, in the same order as listed, for each individual sample"));
         }
 
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances

@@ -96,17 +96,17 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleHaploid() {
         HCTest(CEUTRIO_BAM,
-                "-ploidy 1", "b9e43506af628768fc9fd1ced49822b1");
+                "-ploidy 1", "b12bb4ccc8c86202550d59c9350d93e5");
     }
 
     @Test
     public void testHaplotypeCallerSingleSampleHaploid() {
-        HCTest(NA12878_BAM, "-ploidy 1", "fb584b8c3f371ee2e438a3fc2335b26f");
+        HCTest(NA12878_BAM, "-ploidy 1", "e97604190cb3f91c52746a32bce8293f");
     }
 
     @Test
     public void testHaplotypeCallerSingleSampleTetraploid() {
-        HCTest(NA12878_BAM, "-ploidy 4", "d450b486c76520f9c803c603f25563e4");
+        HCTest(NA12878_BAM, "-ploidy 4", "9f2da06419b29f89605b90943aea0de4");
     }
 
     @Test
@@ -116,12 +116,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMinBaseQualityHaploid() {
-        HCTest(NA12878_BAM, "-mbq 15 -ploidy 1", "40259040f6febd8ea5931132cf5d8958");
+        HCTest(NA12878_BAM, "-mbq 15 -ploidy 1", "3b9f1b1fffcea0edee47803e9f4f868c");
     }
 
     @Test
     public void testHaplotypeCallerMinBaseQualityTetraploid() {
-        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "ca11eae5def67ca9717d129348e4cda7");
+        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "f551c2d2b82145bb827a2c7e01a70a5b");
     }
 
     @Test
@@ -131,7 +131,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSampleHaploid() {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "f0677e5a2882f947f437e8d2049172cb");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "a7c0848813773a0a21fa7bb18732c504");
     }
 
     @Test
@@ -154,13 +154,13 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGAHaploid() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 1 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "e50c55c65db3fa55c75ba03b4dd2f1a8");
+                "d02d67d13a289d05b26b57cd3ae0346b");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGATetraploid() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 4 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "374d6db6e5f3f4fdb5ede26a529caa8b");
+                "d842dcacdacd2be5b1e7f4efd17e7266");
     }
 
     @Test

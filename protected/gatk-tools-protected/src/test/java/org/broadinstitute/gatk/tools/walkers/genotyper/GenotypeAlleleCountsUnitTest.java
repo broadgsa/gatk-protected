@@ -45,12 +45,15 @@
 */
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeAlleleCounts;
+import htsjdk.variant.variantcontext.Allele;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Test {@link org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeAlleleCounts}
@@ -77,6 +80,7 @@ public class GenotypeAlleleCountsUnitTest {
         Assert.assertTrue(subject.compareTo(subject) == 0);
         Assert.assertTrue(subject.equals(subject));
         Assert.assertEquals(subject.index(),0);
+        Assert.assertEquals(subject.asAlleleList(testAlleles),Collections.nCopies(ploidy,testAlleles.get(0)));
         for (int maximumAlleleIndex = 0; maximumAlleleIndex <= MAXIMUM_ALLELE_INDEX; maximumAlleleIndex++) {
             final int[] expected = new int[maximumAlleleIndex + 1];
             expected[0] = ploidy;
@@ -113,6 +117,7 @@ public class GenotypeAlleleCountsUnitTest {
         Assert.assertEquals(next.distinctAlleleCount(),0);
         Assert.assertEquals(next.ploidy(),0);
         Assert.assertEquals(next.index(),0);
+        Assert.assertEquals(next.asAlleleList(testAlleles),Collections.EMPTY_LIST);
         for (int maximumAlleleIndex = 0; maximumAlleleIndex <= 10; maximumAlleleIndex++) {
             final int[] expected = new int[maximumAlleleIndex + 1];
             Assert.assertEquals(next.alleleCountsByIndex(maximumAlleleIndex),expected);
@@ -144,6 +149,8 @@ public class GenotypeAlleleCountsUnitTest {
 
             Assert.assertEquals(next.index(), current.index() + 1);
             Assert.assertEquals(next.ploidy(),current.ploidy());
+
+            Assert.assertEquals(next.asAlleleList(testAlleles),Collections.singletonList(testAlleles.get(next.maximumAlleleIndex())));
 
            for (int maximumAlleleIndex = 0; maximumAlleleIndex <= MAXIMUM_ALLELE_INDEX; maximumAlleleIndex++) {
                final int[] expected = new int[maximumAlleleIndex + 1];
@@ -205,6 +212,16 @@ public class GenotypeAlleleCountsUnitTest {
             Assert.assertFalse(current.equals(next));
             Assert.assertEquals(next.index(),current.index() + 1);
             Assert.assertEquals(next.ploidy(),ploidy);
+
+            //Check asAlleleList.
+            final List<Allele> expectedList = new ArrayList<>(ploidy);
+            for (int i = 0; i < next.distinctAlleleCount(); i++) {
+                for (int j = 0; j < next.alleleCountAt(i); j++) {
+                    expectedList.add(testAlleles.get(next.alleleIndexAt(i)));
+                }
+            }
+            Assert.assertEquals(next.asAlleleList(testAlleles),expectedList);
+
             current = next;
         }
     }
@@ -316,6 +333,18 @@ public class GenotypeAlleleCountsUnitTest {
     }
 
     private static final int MAXIMUM_ALLELE_INDEX = 10;
+
+    private static final List<Allele> testAlleles;
+
+    static {
+        final StringBuilder sb = new StringBuilder(51);
+        testAlleles = new ArrayList<>(51);
+        sb.append('A');
+        for (int i = 0; i <= 50; i++) {
+            testAlleles.add(Allele.create(sb.toString().getBytes(), i == 0));
+            sb.append('A');
+        }
+    }
 
     private static final int[] PLOIDY = new int[] { 1, 2, 3, 7, 10};
 

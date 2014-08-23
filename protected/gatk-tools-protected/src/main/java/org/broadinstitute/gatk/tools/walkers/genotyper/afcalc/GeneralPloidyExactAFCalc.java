@@ -46,12 +46,14 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
-import org.broadinstitute.gatk.tools.walkers.genotyper.GeneralPloidyGenotypeLikelihoods;
-import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GeneralPloidyGenotypeLikelihoods;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeAlleleCounts;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculator;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
 
@@ -548,41 +550,16 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                 final int numChromosomes) {
         final int numNewAltAlleles = allelesToUse.size() - 1;
 
-
-
         // find the genotype with maximum likelihoods
         final int PLindex = numNewAltAlleles == 0 ? 0 : MathUtils.maxElementIndex(newLikelihoods);
+        final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(numChromosomes,allelesToUse.size());
+        final GenotypeAlleleCounts alleleCounts = calculator.genotypeAlleleCountsAt(PLindex);
 
-        final int[] mlAlleleCount = GeneralPloidyGenotypeLikelihoods.getAlleleCountFromPLIndex(allelesToUse.size(), numChromosomes, PLindex);
-        final ArrayList<Double> alleleFreqs = new ArrayList<>();
-        final ArrayList<Integer> alleleCounts = new ArrayList<>();
-
-
-        for (int k=1; k < mlAlleleCount.length; k++) {
-            alleleCounts.add(mlAlleleCount[k]);
-            final double freq = (double)mlAlleleCount[k] / (double)numChromosomes;
-            alleleFreqs.add(freq);
-
-        }
-
-        // per-pool logging of AC and AF
-        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, alleleCounts.size() == 1 ? alleleCounts.get(0) : alleleCounts);
-        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, alleleFreqs.size() == 1 ? alleleFreqs.get(0) : alleleFreqs);
+        gb.alleles(alleleCounts.asAlleleList(allelesToUse));
 
         // remove PLs if necessary
         if (newLikelihoods.length > MAX_LENGTH_FOR_POOL_PL_LOGGING)
             gb.noPL();
-
-        ArrayList<Allele> myAlleles = new ArrayList<Allele>();
-
-        // add list of called ML genotypes to alleles list
-        // TODO - too unwieldy?
-        int idx = 0;
-        for (int mlind = 0; mlind < mlAlleleCount.length; mlind++) {
-            for (int k=0; k < mlAlleleCount[mlind]; k++)
-                myAlleles.add(idx++,allelesToUse.get(mlind));
-        }
-        gb.alleles(myAlleles);
 
         // TODO - deprecated so what is the appropriate method to call?
         if ( numNewAltAlleles > 0 )
