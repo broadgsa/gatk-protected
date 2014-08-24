@@ -629,6 +629,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public void initialize() {
         super.initialize();
 
+        if (SCAC.genotypeArgs.samplePloidy != HomoSapiensConstants.DEFAULT_PLOIDY && !doNotRunPhysicalPhasing) {
+            doNotRunPhysicalPhasing = true;
+            logger.info("Currently, physical phasing is not available when ploidy is different than " + HomoSapiensConstants.DEFAULT_PLOIDY + "; therefore it won't be performed");
+        }
+
         if (dontGenotype && emitReferenceConfidence())
             throw new UserException("You cannot request gVCF output and do not genotype at the same time");
 
