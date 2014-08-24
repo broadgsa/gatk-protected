@@ -90,7 +90,11 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "a64e2d8e60a1be9cb0b4306c85e96393"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "d5c07fa3edca496a84fd17cecad06230"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "66019a0914f905522da6bd3b557a57d1"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "de763f6c9a5aec4586a2671941e4c96d"});
+
+        final String NA12878bandedResolutionMD5 = "de763f6c9a5aec4586a2671941e4c96d";
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, NA12878bandedResolutionMD5});
+        tests.add(new Object[]{NA12878_WEx + " -I " + privateTestDir + "NA20313.highCoverageRegion.bam -sn NA12878",
+                ReferenceConfidenceMode.GVCF, WExIntervals, NA12878bandedResolutionMD5});
 
         return tests.toArray(new Object[][]{});
     }

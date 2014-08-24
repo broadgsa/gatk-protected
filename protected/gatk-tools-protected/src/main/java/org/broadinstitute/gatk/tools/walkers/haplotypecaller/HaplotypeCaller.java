@@ -341,6 +341,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @ArgumentCollection
     private HaplotypeCallerArgumentCollection SCAC = new HaplotypeCallerArgumentCollection();
 
+    @Argument(fullName="sample_name", shortName = "sn", doc="Name of single sample to use from a multi-sample bam.  The name is case-sensitive", required=false)
+    protected String sampleNameToUse = null;
+
     // -----------------------------------------------------------------------------------------------
     // arguments to control internal behavior of the read threading assembler
     // -----------------------------------------------------------------------------------------------
@@ -655,8 +658,21 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final GenomeAnalysisEngine toolkit = getToolkit();
         samplesList = toolkit.getReadSampleList();
-        final Set<String> sampleSet = SampleListUtils.asSet(samplesList);
+        Set<String> sampleSet = SampleListUtils.asSet(samplesList);
 
+        if (sampleNameToUse != null) {
+            if (!sampleSet.contains(sampleNameToUse))
+                throw new UserException.BadArgumentValue("sample_name", "Specified name does not exist in input bam files");
+            if (sampleSet.size() == 1) {
+                //No reason to incur performance penalty associated with filtering if they specified the name of the only sample
+                sampleNameToUse = null;
+            } else {
+                samplesList = new IndexedSampleList(sampleNameToUse);
+                sampleSet = SampleListUtils.asSet(samplesList);
+            }
+        }
+
+        
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
         final UnifiedArgumentCollection simpleUAC = SCAC.cloneTo(UnifiedArgumentCollection.class);
         simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
@@ -773,7 +789,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         referenceConfidenceModel = new ReferenceConfidenceModel(getToolkit().getGenomeLocParser(), samples, getToolkit().getSAMFileHeader(), indelSizeToEliminateInRefModel);
         if ( emitReferenceConfidence() ) {
             if ( samples.sampleCount() != 1 )
-                throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently");
+                throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently.  Use the sample_name argument");
             headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
             if ( SCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
                 // a kluge to enforce the use of this indexing strategy
@@ -884,6 +900,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         if ( justDetermineActiveRegions )
             // we're benchmarking ART and/or the active region determination code in the HC, just leave without doing any work
             return NO_CALLS;
+
+        if (sampleNameToUse != null)
+            removeReadsFromAllSamplesExcept(sampleNameToUse, originalActiveRegion);
 
         if( !originalActiveRegion.isActive() )
             // Not active so nothing to do!
@@ -1269,5 +1288,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             for ( final List<GATKSAMRecord> overlappingPair : fragmentCollection.getOverlappingPairs() )
                 FragmentUtils.adjustQualsOfOverlappingPairedFragments(overlappingPair);
         }
+    }
+
+    private void removeReadsFromAllSamplesExcept(final String targetSample, final ActiveRegion activeRegion) {
+        final Set<GATKSAMRecord> readsToRemove = new LinkedHashSet<>();
+        for( final GATKSAMRecord rec : activeRegion.getReads() ) {
+            if( !rec.getReadGroup().getSample().equals(targetSample) ) {
+                readsToRemove.add(rec);
+            }
+        }
+        activeRegion.removeAll( readsToRemove );
+
     }
 }
