@@ -73,6 +73,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     private final static List<Allele> NO_CALL = Collections.singletonList(Allele.NO_CALL);
     private static final int ALLELE_EXTENSION = 2;
+    private static final String phase01 = "0|1";
+    private static final String phase10 = "1|0";
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
@@ -404,14 +406,19 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                             return 0;
                         }
 
-                        phaseSetMapping.put(call, new Pair<>(uniqueCounter, callIsOnAllHaps ? "1|1" : "0|1"));
-                        phaseSetMapping.put(comp, new Pair<>(uniqueCounter, compIsOnAllHaps ? "1|1" : "0|1"));
+                        // An important note: even for homozygous variants we are setting the phase as "0|1" here.
+                        // We do this because we cannot possibly know for sure at this time that the genotype for this
+                        // sample will actually be homozygous downstream: there are steps in the pipeline that are liable
+                        // to change the genotypes.  Because we can't make those assumptions here, we have decided to output
+                        // the phase as if the call is heterozygous and then "fix" it downstream as needed.
+                        phaseSetMapping.put(call, new Pair<>(uniqueCounter, phase01));
+                        phaseSetMapping.put(comp, new Pair<>(uniqueCounter, phase01));
                         uniqueCounter++;
                     }
                     // otherwise it's part of an existing group so use that group's unique ID
                     else if ( ! phaseSetMapping.containsKey(comp) ) {
                         final Pair<Integer, String> callPhase = phaseSetMapping.get(call);
-                        phaseSetMapping.put(comp, new Pair<>(callPhase.first, compIsOnAllHaps ? "1|1" : callPhase.second));
+                        phaseSetMapping.put(comp, new Pair<>(callPhase.first, callPhase.second));
                     }
                 }
                 // if the variants are apart on *all* haplotypes, record that fact
@@ -431,14 +438,14 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                                 return 0;
                             }
 
-                            phaseSetMapping.put(call, new Pair<>(uniqueCounter, "0|1"));
-                            phaseSetMapping.put(comp, new Pair<>(uniqueCounter, "1|0"));
+                            phaseSetMapping.put(call, new Pair<>(uniqueCounter, phase01));
+                            phaseSetMapping.put(comp, new Pair<>(uniqueCounter, phase10));
                             uniqueCounter++;
                         }
                         // otherwise it's part of an existing group so use that group's unique ID
                         else if ( ! phaseSetMapping.containsKey(comp) ){
                             final Pair<Integer, String> callPhase = phaseSetMapping.get(call);
-                            phaseSetMapping.put(comp, new Pair<>(callPhase.first, callPhase.second.equals("0|1") ? "1|0" : "0|1"));
+                            phaseSetMapping.put(comp, new Pair<>(callPhase.first, callPhase.second.equals(phase01) ? phase10 : phase01));
                         }
                     }
                 }
