@@ -62,6 +62,15 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test(enabled = true)
+    public void testUpdatePGT() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf", b37KGReference),
+                1,
+                Arrays.asList("bc3d3eff337836af245b81f52b94d70c"));
+        executeTest("testUpdatePGT", spec);
+    }
+
+    @Test(enabled = true)
     public void combineSingleSamplePipelineGVCF() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
@@ -81,7 +90,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " --includeNonVariantSites -L 20:10,030,000-10,033,000 -L 20:10,386,000-10,386,500", b37KGReference),
                 1,
-                Arrays.asList("f1dd2b9ab422c0b806392464e466ed91"));
+                Arrays.asList("4193e7c4e6fc889b4aa5a326899b1a4e"));
         executeTest("combineSingleSamplePipelineGVCF_includeNonVariants", spec);
     }
 

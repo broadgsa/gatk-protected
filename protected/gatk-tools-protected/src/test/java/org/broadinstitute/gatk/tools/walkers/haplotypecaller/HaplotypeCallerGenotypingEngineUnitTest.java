@@ -479,11 +479,14 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         haplotypeMap.put(vc4, haplotypes24);
         tests.add(new Object[]{calls, new HashMap<>(haplotypeMap), 2, 3, 1, 2, 1});
 
+        // test 2 hets
+        haplotypeMap.remove(vc3);
+        tests.add(new Object[]{Arrays.asList(vc2, vc4), new HashMap<>(haplotypeMap), 1, 2, 1, 2, 0});
+
         // test 2 with opposite phase
         final Set<Haplotype> haplotypes1 = new HashSet<>();
         haplotypes1.add(pos1);
         haplotypeMap.put(vc1, haplotypes1);
-        haplotypeMap.remove(vc3);
         tests.add(new Object[]{Arrays.asList(vc1, vc2, vc4), new HashMap<>(haplotypeMap), 2, 3, 1, 1, 2});
 
         // test homs around a het
@@ -498,7 +501,7 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         haplotypeMap.put(vc2, haplotypes2hom);
         haplotypeMap.put(vc3, haplotypes3het);
         haplotypeMap.put(vc4, haplotypes4hom);
-        tests.add(new Object[]{calls, new HashMap<>(haplotypeMap), 2, 3, 1, 1, 0});
+        tests.add(new Object[]{calls, new HashMap<>(haplotypeMap), 2, 3, 1, 3, 0});
 
         // test hets around a hom
         final Set<Haplotype> haplotypes2het = new HashSet<>();
@@ -511,7 +514,7 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         haplotypeMap.put(vc2, haplotypes2het);
         haplotypeMap.put(vc3, haplotypes3hom);
         haplotypeMap.put(vc4, haplotypes4het);
-        tests.add(new Object[]{calls, new HashMap<>(haplotypeMap), 2, 3, 1, 2, 0});
+        tests.add(new Object[]{calls, new HashMap<>(haplotypeMap), 2, 3, 1, 3, 0});
 
         // test no phased variants around a hom
         final Set<Haplotype> haplotypes2incomplete = new HashSet<>();

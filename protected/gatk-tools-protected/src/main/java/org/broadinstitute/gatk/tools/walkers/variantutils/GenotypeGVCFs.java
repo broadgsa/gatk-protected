@@ -52,6 +52,7 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
 import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
@@ -218,15 +219,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
                 return null;
 
             regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
-
-            // we want to carry forward the attributes from the original VC but make sure to add the MLE-based annotations
-            final Map<String, Object> attrs = new HashMap<>(originalVC.getAttributes());
-            attrs.put(VCFConstants.MLE_ALLELE_COUNT_KEY, regenotypedVC.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
-            attrs.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, regenotypedVC.getAttribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY));
-            if (regenotypedVC.hasAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY))
-                attrs.put(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, regenotypedVC.getAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY));
-
-            result = new VariantContextBuilder(regenotypedVC).attributes(attrs).make();
+            result = addGenotypingAnnotations(originalVC.getAttributes(), regenotypedVC);
         }
 
         // if it turned monomorphic then we either need to ignore or fix such sites
@@ -237,18 +230,47 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             createRefGTs = true;
         }
 
-        // re-annotate it
-        result = annotationEngine.annotateContext(tracker, ref, null, result);
+        // Re-annotate and fix/remove some of the original annotations.
+        // Note that the order of these actions matters and is different for polymorphic and monomorphic sites.
+        // For polymorphic sites we need to make sure e.g. the SB tag is sent to the annotation engine and then removed later.
+        // For monomorphic sites we need to make sure e.g. the hom ref genotypes are created and only then are passed to the annotation engine.
+        // We could theoretically make 2 passes to re-create the genotypes, but that gets extremely expensive with large sample sizes.
+        if ( createRefGTs ) {
+            result = new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, true)).make();
+            result = annotationEngine.annotateContext(tracker, ref, null, result);
+        } else {
+            result = annotationEngine.annotateContext(tracker, ref, null, result);
+            result = new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, false)).make();
+        }
 
-        // fix some of the annotations
-        return new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, createRefGTs)).make();
+        return result;
     }
+
+    /**
+     * Add genotyping-based annotations to the new VC
+     *
+     * @param originalAttributes the non-null annotations from the original VC
+     * @param newVC the new non-null VC
+     * @return a non-null VC
+     */
+    private VariantContext addGenotypingAnnotations(final Map<String, Object> originalAttributes, final VariantContext newVC) {
+        // we want to carry forward the attributes from the original VC but make sure to add the MLE-based annotations
+        final Map<String, Object> attrs = new HashMap<>(originalAttributes);
+        attrs.put(VCFConstants.MLE_ALLELE_COUNT_KEY, newVC.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
+        attrs.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, newVC.getAttribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+        if (newVC.hasAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY))
+            attrs.put(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, newVC.getAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY));
+
+        return new VariantContextBuilder(newVC).attributes(attrs).make();
+    }
+
 
     /**
      * Cleans up genotype-level annotations that need to be updated.
      * 1. move MIN_DP to DP if present
      * 2. propagate DP to AD if not present
      * 3. remove SB if present
+     * 4. change the PGT value from "0|1" to "1|1" for homozygous variant genotypes
      *
      * @param VC            the VariantContext with the Genotypes to fix
      * @param createRefGTs  if true we will also create proper hom ref genotypes since we assume the site is monomorphic
@@ -272,6 +294,11 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
             // remove SB
             attrs.remove("SB");
+
+            // update PGT for hom vars
+            if ( oldGT.isHomVar() && oldGT.hasExtendedAttribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY) ) {
+                attrs.put(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY, "1|1");
+            }
 
             // create AD if it's not there
             if ( !oldGT.hasAD() && VC.isVariant() ) {
