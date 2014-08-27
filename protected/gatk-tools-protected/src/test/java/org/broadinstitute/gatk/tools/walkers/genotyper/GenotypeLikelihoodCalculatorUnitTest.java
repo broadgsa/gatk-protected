@@ -47,13 +47,14 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
+import java.util.*;
 
 /**
  * Tests {@link org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators} and {@link org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculator}.
@@ -118,7 +119,48 @@ public class GenotypeLikelihoodCalculatorUnitTest {
                 Assert.assertEquals(genotypeLikelihoodsDoubles[i], genotypeLikelihood, 0.0001);
             }
         }
+    }
 
+    @Test(dataProvider = "ploidyAndMaximumAlleleAndNewMaximumAlleleData")
+    public void testGenotypeIndexMap(final int ploidy, final int oldAlleleCount, final int newAlleleCount) {
+        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final int maxAlleleCount = Math.max(oldAlleleCount,newAlleleCount);
+        final int[] alleleMap = new int[newAlleleCount];
+        final Map<Integer,Set<Integer>> reverseMap = new HashMap<>(oldAlleleCount);
+        for (int i = 0; i < alleleMap.length; i++) {
+            alleleMap[i] = rnd.nextInt(oldAlleleCount);
+            if (reverseMap.get(alleleMap[i]) == null) reverseMap.put(alleleMap[i],new HashSet<Integer>(6));
+            reverseMap.get(alleleMap[i]).add(i);
+        }
+        final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(ploidy,maxAlleleCount);
+
+        final int[] genotypeIndexMap = calculator.genotypeIndexMap(alleleMap);
+        Assert.assertNotNull(genotypeIndexMap);
+        Assert.assertEquals(genotypeIndexMap.length,GenotypeLikelihoodCalculators.genotypeCount(ploidy,newAlleleCount));
+
+        final GenotypeLikelihoodCalculator oldCalculator = GenotypeLikelihoodCalculators.getInstance(ploidy,oldAlleleCount);
+        final GenotypeLikelihoodCalculator newCalculator = GenotypeLikelihoodCalculators.getInstance(ploidy,newAlleleCount);
+
+        for (int i = 0; i < genotypeIndexMap.length; i++) {
+            final GenotypeAlleleCounts oldCounts = oldCalculator.genotypeAlleleCountsAt(genotypeIndexMap[i]);
+            final GenotypeAlleleCounts newCounts = newCalculator.genotypeAlleleCountsAt(i);
+            final int[] reverseCounts = new int[oldAlleleCount];
+            for (int j = 0; j < newCounts.distinctAlleleCount(); j++) {
+                final int newIndex = newCounts.alleleIndexAt(j);
+                final int newRepeats = newCounts.alleleCountAt(j);
+                final int expectedOldIndex = alleleMap[newIndex];
+                final int oldIndexRank = oldCounts.alleleRankFor(expectedOldIndex);
+                Assert.assertNotEquals(oldIndexRank, -1);
+                final int oldIndex = oldCounts.alleleIndexAt(oldIndexRank);
+                final int oldRepeats = oldCounts.alleleCountAt(oldIndexRank);
+                Assert.assertEquals(oldIndex, expectedOldIndex);
+                // not necessarily the same count if two or more new alleles map the same old allele.
+                Assert.assertTrue(oldRepeats >= newRepeats);
+                reverseCounts[oldIndex] += newRepeats;
+            }
+            for (int j = 0; j < oldAlleleCount; j++)
+                Assert.assertEquals(oldCounts.alleleCountFor(j),reverseCounts[j]);
+        }
     }
 
 
@@ -168,5 +210,15 @@ public class GenotypeLikelihoodCalculatorUnitTest {
             for (final int j : MAXIMUM_ALLELE)
                     result[index++] = new Object[] { i, j };
         return result;
+    }
+
+    @DataProvider(name="ploidyAndMaximumAlleleAndNewMaximumAlleleData")
+    public Object[][] ploidyAndMaximumAlleleAndNewMaximumAlleleData() {
+        final List<Object[]> result = new ArrayList<>(PLOIDY.length * MAXIMUM_ALLELE.length * 20);
+        for (final int i : PLOIDY)
+            for (final int j : MAXIMUM_ALLELE)
+                for (int k = 0; k < (i < 10? j * 2 : j + 1); k++)
+                    result.add(new Object[] { i, j, k });
+        return result.toArray(new Object[result.size()][]);
     }
 }

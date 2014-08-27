@@ -43,6 +43,7 @@
 *  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
+
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
@@ -548,6 +549,11 @@ public class GenotypeLikelihoodCalculator {
 
     /**
      * Transforms the content of the heap into an index.
+     *
+     * <p>
+     *     The heap contents are flushed as a result, so is left ready for another use.
+     * </p>
+     *
      * @return a valid likelihood index.
      */
     private int alleleHeapToIndex() {
@@ -564,4 +570,65 @@ public class GenotypeLikelihoodCalculator {
         }
         return result;
     }
+
+    /**
+     * Composes a genotype index map given a allele index recoding.
+     *
+     * @param oldToNewAlleleIndexMap allele recoding. The ith entry indicates the index of the allele in original encoding
+     *                               that corresponds to the ith allele index in the final encoding.
+     *
+     * @throws IllegalArgumentException if this calculator cannot handle the recoding provided. This is
+     * the case when either {@code oldToNewAlleleIndexMap}'s length or any of its element (+ 1 as they are 0-based) is larger
+     * this calculator's {@link #alleleCount()}. Also if any {@code oldToNewAllelesIndexMap} element is negative.
+     *
+     * @return never {@code null}.
+     */
+    public int[] genotypeIndexMap(final int[] oldToNewAlleleIndexMap) {
+        if (oldToNewAlleleIndexMap == null)
+            throw new IllegalArgumentException("the input encoding array cannot be null");
+
+        final int resultAlleleCount = oldToNewAlleleIndexMap.length;
+        if (resultAlleleCount > alleleCount)
+            throw new IllegalArgumentException("this calculator does not have enough capacity for handling "
+                    + resultAlleleCount + " alleles ");
+        final int resultLength = resultAlleleCount == alleleCount
+                ? genotypeCount : GenotypeLikelihoodCalculators.genotypeCount(ploidy,resultAlleleCount);
+
+        final int[] result = new int[resultLength];
+        final int[] sortedAlleleCounts = new int[Math.max(ploidy,alleleCount) << 1];
+        alleleHeap.clear();
+        GenotypeAlleleCounts alleleCounts = genotypeAlleleCounts[0];
+        for (int i = 0; i < resultLength; i++) {
+            genotypeIndexMapPerGenotypeIndex(i,alleleCounts, oldToNewAlleleIndexMap, result, sortedAlleleCounts);
+            if (i < resultLength - 1)
+                  alleleCounts = nextGenotypeAlleleCounts(alleleCounts);
+        }
+        return result;
+    }
+
+    /**
+     * Performs the genotype mapping per new genotype index.
+     *
+     * @param newGenotypeIndex the target new genotype index.
+     * @param alleleCounts tha correspond to {@code newGenotypeIndex}.
+     * @param oldToNewAlleleIndexMap the allele mapping.
+     * @param destination where to store the new genotype index mapping to old.
+     * @param sortedAlleleCountsBuffer a buffer to re-use to get the genotype-allele-count's sorted allele counts.
+     */
+    private void genotypeIndexMapPerGenotypeIndex(final int newGenotypeIndex, final GenotypeAlleleCounts alleleCounts, final int[] oldToNewAlleleIndexMap, final int[] destination, final int[] sortedAlleleCountsBuffer) {
+        final int distinctAlleleCount = alleleCounts.distinctAlleleCount();
+        alleleCounts.copyAlleleCounts(sortedAlleleCountsBuffer,0);
+        for (int j = 0, jj = 0; j < distinctAlleleCount; j++) {
+            final int oldIndex = sortedAlleleCountsBuffer[jj++];
+            final int repeats = sortedAlleleCountsBuffer[jj++];
+            final int newIndex = oldToNewAlleleIndexMap[oldIndex];
+            if (newIndex < 0 || newIndex >= alleleCount)
+                throw new IllegalArgumentException("found invalid new allele index (" + newIndex + ") for old index (" + oldIndex + ")");
+            for (int k = 0; k < repeats; k++)
+                alleleHeap.add(newIndex);
+        }
+        final int genotypeIndex = alleleHeapToIndex(); // this cleans the heap for the next use.
+        destination[newGenotypeIndex] = genotypeIndex;
+    }
+
 }
