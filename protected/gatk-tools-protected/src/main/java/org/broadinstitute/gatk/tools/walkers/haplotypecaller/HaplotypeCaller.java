@@ -1097,7 +1097,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         } catch ( final Exception e ) {
             // Capture any exception that might be thrown, and write out the assembly failure BAM if requested
             if ( captureAssemblyFailureBAM ) {
-                final SAMFileWriter writer = ReadUtils.createSAMFileWriterWithCompression(getToolkit().getSAMFileHeader(), true, "assemblyFailure.bam", 5);
+                final SAMFileWriter writer = ReadUtils.createSAMFileWriter("assemblyFailure.bam", getToolkit());
                 for ( final GATKSAMRecord read : activeRegion.getReads() ) {
                     writer.addAlignment(read);
                 }
