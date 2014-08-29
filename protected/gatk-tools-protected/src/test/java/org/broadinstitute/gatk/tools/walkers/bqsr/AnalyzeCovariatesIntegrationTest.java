@@ -147,7 +147,6 @@ public class AnalyzeCovariatesIntegrationTest extends WalkerTest {
             throws IOException  {
 
         final File afterFile = new File(TEST_DATA_DIR,afterFileName);
-        afterFile.deleteOnExit();
         final WalkerTestSpec spec = new WalkerTestSpec(
                 buildCommandLine(null,"%s",true,true,afterFile),
                 1,UserException.IncompatibleRecalibrationTableParameters.class);
