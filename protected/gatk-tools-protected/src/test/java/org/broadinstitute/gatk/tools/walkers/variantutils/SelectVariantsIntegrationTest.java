@@ -359,6 +359,10 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
 
     @Test
     public void testInvalidJexl() {
+        // NOTE: JexlEngine singleton construction in VariantContextUtils sets silent to false.
+        // However VariantFiltration.initialize() sets setSilent(true) on the shared instance.
+        // Just in case this test runs after a VariantFiltration in the same VM, always set silent back to false.
+        htsjdk.variant.variantcontext.VariantContextUtils.engine.get().setSilent(false);
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants" +
                         " -R "+b37KGReference +
