@@ -50,6 +50,8 @@ import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -168,5 +170,21 @@ public class OverhangFixingManagerUnitTest extends BaseTest {
     public void testMismatch(final byte[] read, final int readStart, final byte[] ref, final int refStart, final int overhang, final boolean expected) {
         final OverhangFixingManager manager = new OverhangFixingManager(null, genomeLocParser, referenceReader, 10000, 1, 40, false);
         Assert.assertEquals(manager.overhangingBasesMismatch(read, readStart, ref, refStart, overhang), expected, new String(read) + " vs. " + new String(ref) + " @" + overhang);
+    }
+
+    @Test
+    public void testUnmappedReadsDoNotFail() {
+        // create an unmapped read
+        final GATKSAMRecord read = new GATKSAMRecord(ArtificialSAMUtils.createArtificialSamHeader());
+        read.setReadName("foo");
+        read.setReferenceName("*");
+        read.setAlignmentStart(100);
+        read.setCigarString("*");
+        read.setReadUnmappedFlag(true);
+
+        // try to add it to the manager
+        final OverhangFixingManager manager = new OverhangFixingManager(null, null, null, 100, 1, 30, false);
+        manager.addRead(read); // we just want to make sure that the following call does not fail
+        Assert.assertTrue(true);
     }
 }

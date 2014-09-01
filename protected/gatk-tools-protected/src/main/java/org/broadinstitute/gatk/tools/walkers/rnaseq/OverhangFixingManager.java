@@ -232,7 +232,7 @@ public class OverhangFixingManager {
      */
     private void fixSplit(final SplitRead read, final Splice splice) {
         // if the read doesn't even overlap the split position then we can just exit
-        if ( !splice.loc.overlapsP(read.loc) )
+        if ( read.loc == null || !splice.loc.overlapsP(read.loc) )
             return;
 
         if ( isLeftOverhang(read.loc, splice.loc) ) {
@@ -326,7 +326,8 @@ public class OverhangFixingManager {
         public void setRead(final GATKSAMRecord read) {
             if ( !read.isEmpty() ) {
                 this.read = read;
-                loc = genomeLocParser.createGenomeLoc(read.getReferenceName(), read.getSoftStart(), read.getSoftEnd());
+                if ( ! read.getReadUnmappedFlag() )
+                    loc = genomeLocParser.createGenomeLoc(read.getReferenceName(), read.getSoftStart(), read.getSoftEnd());
             }
         }
     }
