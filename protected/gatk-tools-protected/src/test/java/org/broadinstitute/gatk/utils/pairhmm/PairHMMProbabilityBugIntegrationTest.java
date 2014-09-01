@@ -59,11 +59,11 @@ import java.util.Arrays;
 public class PairHMMProbabilityBugIntegrationTest extends WalkerTest {
 
     private static final File REFERENCE = new File("/humgen/gsa-hpprojects/GATK/bundle/current/hg19/ucsc.hg19.fasta").getAbsoluteFile();
-    private static final File BAM = new File ("private/testdata", "pairhmm_prob_bug.bam").getAbsoluteFile();
-    private static final File INTERVAL = new File ("private/testdata", "pairhmm_prob_bug.interval.bed").getAbsoluteFile();
+    private static final File BAM = new File (privateTestDir, "pairhmm_prob_bug.bam").getAbsoluteFile();
+    private static final File INTERVAL = new File (privateTestDir, "pairhmm_prob_bug.interval.bed").getAbsoluteFile();
 
-    private static final File UG_BAM = new File("private/testdata", "pairhmm_prob_bug.ug.bam").getAbsoluteFile();
-    private static final File UG_INTERVAL = new File("private/testdata", "pairhmm_prob_bug.ug.intervals.bed").getAbsoluteFile();
+    private static final File UG_BAM = new File(privateTestDir, "pairhmm_prob_bug.ug.bam").getAbsoluteFile();
+    private static final File UG_INTERVAL = new File(privateTestDir, "pairhmm_prob_bug.ug.intervals.bed").getAbsoluteFile();
 
 
     @Test

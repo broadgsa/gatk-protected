@@ -47,6 +47,7 @@
 package org.broadinstitute.gatk.engine.walkers.diffengine;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.broadinstitute.gatk.utils.BaseTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -84,7 +85,7 @@ public class DiffObjectsIntegrationTest extends WalkerTest {
     @Test(enabled = true, dataProvider = "data")
     public void testDiffs(TestParams params) {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T DiffObjects -R public/testdata/exampleFASTA.fasta "
+                "-T DiffObjects -R " + publicTestDir + "exampleFASTA.fasta "
                         + " -m " + params.master
                         + " -t " + params.test
                         + (params.doPairwise ? " -doPairwise " : "")
