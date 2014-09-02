@@ -69,7 +69,6 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
     /** The min and max kmer sizes to try when building the graph. */
     private final List<Integer> kmerSizes;
-    private final int maxAllowedPathsForReadThreadingAssembler;
 
     private final boolean dontIncreaseKmerSizesForCycles;
     private final boolean allowNonUniqueKmersInRef;
@@ -85,7 +84,6 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
     public ReadThreadingAssembler(final int maxAllowedPathsForReadThreadingAssembler, final List<Integer> kmerSizes, final boolean dontIncreaseKmerSizesForCycles, final boolean allowNonUniqueKmersInRef, final int numPruningSamples) {
         super(maxAllowedPathsForReadThreadingAssembler);
         this.kmerSizes = kmerSizes;
-        this.maxAllowedPathsForReadThreadingAssembler = maxAllowedPathsForReadThreadingAssembler;
         this.dontIncreaseKmerSizesForCycles = dontIncreaseKmerSizesForCycles;
         this.allowNonUniqueKmersInRef = allowNonUniqueKmersInRef;
         this.numPruningSamples = numPruningSamples;
@@ -159,7 +157,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
         final ReadThreadingGraph rtgraph = new ReadThreadingGraph(kmerSize, debugGraphTransformations, minBaseQualityToUseInAssembly, numPruningSamples);
 
-        rtgraph.setThreadingStartOnlyAtExistingVertex(!recoverDanglingHeads);
+        rtgraph.setThreadingStartOnlyAtExistingVertex(!recoverDanglingBranches);
 
         // add the reference sequence to the graph
         rtgraph.addSequence("ref", refHaplotype.getBases(), true);
@@ -199,8 +197,10 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
 
         // look at all chains in the graph that terminate in a non-ref node (dangling sources and sinks) and see if
         // we can recover them by merging some N bases from the chain back into the reference
-        if ( recoverDanglingTails ) rtgraph.recoverDanglingTails(pruneFactor);
-        if ( recoverDanglingHeads ) rtgraph.recoverDanglingHeads(pruneFactor);
+        if ( recoverDanglingBranches ) {
+            rtgraph.recoverDanglingTails(pruneFactor, minDanglingBranchLength);
+            rtgraph.recoverDanglingHeads(pruneFactor, minDanglingBranchLength);
+        }
 
         // remove all heading and trailing paths
         if ( removePathsNotConnectedToRef ) rtgraph.removePathsNotConnectedToRef();
