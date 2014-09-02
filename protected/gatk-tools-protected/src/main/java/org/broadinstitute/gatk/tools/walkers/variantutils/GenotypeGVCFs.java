@@ -46,16 +46,13 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
-import org.broadinstitute.gatk.utils.commandline.*;
+import htsjdk.variant.variantcontext.*;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
+import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
@@ -65,17 +62,17 @@ import org.broadinstitute.gatk.engine.walkers.TreeReducible;
 import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedArgumentCollection;
-import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
+import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.utils.commandline.*;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.utils.variant.ReferenceConfidenceVariantContextMerger;
 
 import java.util.*;
 
@@ -192,11 +189,24 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             return null;
 
         final GenomeLoc loc = ref.getLocus();
-        final VariantContext combinedVC = GATKVariantContextUtils.referenceConfidenceMerge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
+        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
         if ( combinedVC == null )
             return null;
 
+        checkPloidy(combinedVC);
+
         return regenotypeVC(tracker, ref, combinedVC);
+    }
+
+    private void checkPloidy(final VariantContext combinedVC) {
+        final int requiredPloidy = genotypeArgs.samplePloidy;
+        for (final Genotype g : combinedVC.getGenotypes()) {
+            if (g.getPloidy() != requiredPloidy) {
+                throw new UserException.BadArgumentValue("ploidy",
+                        "the input variant data contains calls with a different ploidy than the one specified (" + requiredPloidy
+                                + "). For example sample (" + g.getSampleName() + ") at (" + combinedVC.getChr() + ":" + combinedVC.getStart() + ")");
+            }
+        }
     }
 
     /**

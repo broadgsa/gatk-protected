@@ -83,6 +83,18 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test(enabled = true)
+    public void testTetraploidRun() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -ploidy 4 -V:sample1 " + privateTestDir + "tetraploid-gvcf-1.vcf" +
+                        " -V:sample2 " + privateTestDir + "tetraploid-gvcf-2.vcf" +
+                        " -V:sample3 " + privateTestDir + "tetraploid-gvcf-3.vcf" +
+                        " -L " + privateTestDir + "tetraploid-gvcfs.intervals", b37KGReference),
+                1,
+                Arrays.asList("a2e482cddbc987b0ba004e13044f6e81"));
+        executeTest("combineSingleSamplePipelineGVCF", spec);
+    }
+
+    @Test(enabled = true)
     public void combineSingleSamplePipelineGVCF_includeNonVariants() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +

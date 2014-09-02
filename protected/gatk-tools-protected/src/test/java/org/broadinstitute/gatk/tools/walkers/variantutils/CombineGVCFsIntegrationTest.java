@@ -87,6 +87,18 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         Assert.assertTrue(second.getGenotype("NA2").isNoCall());
     }
 
+    @Test(enabled = true)
+    public void testTetraploidRun() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V:sample1 " + privateTestDir + "tetraploid-gvcf-1.vcf" +
+                        " -V:sample2 " + privateTestDir + "tetraploid-gvcf-2.vcf" +
+                        " -V:sample3 " + privateTestDir + "tetraploid-gvcf-3.vcf" +
+                        " -L " + privateTestDir + "tetraploid-gvcfs.intervals"),
+                1,
+                Arrays.asList("41de0808e029ebefd8b28d31ce10109c"));
+        executeTest("combineSingleSamplePipelineGVCF", spec);
+    }
+
     @Test
     public void testTwoSpansManyBlocksInOne() throws Exception {
         final String cmd = baseTestString(" -L 1:69512-69634");
