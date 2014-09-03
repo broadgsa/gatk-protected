@@ -161,8 +161,6 @@ public class SplitNCigarReads extends ReadWalker<GATKSAMRecord, OverhangFixingMa
         catch (FileNotFoundException ex) {
             throw new UserException.CouldNotReadInputFile(toolkit.getArguments().referenceFile, ex);
         }
-
-
     }
 
     @Override
