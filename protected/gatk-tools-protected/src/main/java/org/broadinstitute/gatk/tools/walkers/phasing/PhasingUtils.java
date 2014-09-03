@@ -101,59 +101,112 @@ class PhasingUtils {
         return reallyMergeIntoMNP(vc1, vc2, referenceFile);
     }
 
+    // Assumes: alleleSegregationIsKnown(gt1, gt2)
+    static SameHaplotypeAlleles matchHaplotypeAlleles(final Genotype gt1, final Genotype gt2) {
+        final SameHaplotypeAlleles hapAlleles = new SameHaplotypeAlleles();
+
+        final int nalleles = gt1.getPloidy();
+        final Allele[] site1AllelesArray = gt1.getAlleles().toArray(new Allele[nalleles]);
+        final Allele[] site2AllelesArray = gt2.getAlleles().toArray(new Allele[nalleles]);
+
+        final int[] site2Inds = new int[nalleles];
+        if (gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY) && gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) {
+            final String[] hp1 = (String[]) gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY);
+            final String[] hp2 = (String[]) gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY);
+
+            final HashMap<String, Integer> site1Inds = new HashMap<String, Integer>();
+            for (int ind1 = 0; ind1 < hp1.length; ++ind1) {
+                final String h1 = hp1[ind1];
+                site1Inds.put(h1, ind1);
+            }
+
+            for (int ind2 = 0; ind2 < hp2.length; ++ind2) {
+                final String h2 = hp2[ind2];
+                final int ind1 = site1Inds.get(h2);
+                if (ind2 != ind1)
+                    hapAlleles.requiresSwap = true;
+                site2Inds[ind2] = ind1; // this is OK, since allSamplesAreMergeable()
+            }
+        }
+        else { // gt1.isHom() || gt2.isHom() ; so, we trivially merge the corresponding alleles
+            for (int ind = 0; ind < site2Inds.length; ++ind)
+                site2Inds[ind] = ind;
+        }
+
+        for (int ind1 = 0; ind1 < nalleles; ++ind1) {
+            final Allele all1 = site1AllelesArray[ind1];
+            final int ind2 = site2Inds[ind1];
+            final Allele all2 = site2AllelesArray[ind2]; // this is OK, since alleleSegregationIsKnown(gt1, gt2)
+
+            hapAlleles.hapAlleles.add(new AlleleOneAndTwo(all1, all2));
+        }
+
+        return hapAlleles;
+    }
+
     static VariantContext reallyMergeIntoMNP(VariantContext vc1, VariantContext vc2, ReferenceSequenceFile referenceFile) {
-        int startInter = vc1.getEnd() + 1;
-        int endInter = vc2.getStart() - 1;
+        final int startInter = vc1.getEnd() + 1;
+        final int endInter = vc2.getStart() - 1;
         byte[] intermediateBases = null;
         if (startInter <= endInter) {
             intermediateBases = referenceFile.getSubsequenceAt(vc1.getChr(), startInter, endInter).getBases();
             StringUtil.toUpperCase(intermediateBases);
         }
-        MergedAllelesData mergeData = new MergedAllelesData(intermediateBases, vc1, vc2); // ensures that the reference allele is added
+        final MergedAllelesData mergeData = new MergedAllelesData(intermediateBases, vc1, vc2); // ensures that the reference allele is added
 
-        GenotypesContext mergedGenotypes = GenotypesContext.create();
+        final GenotypesContext mergedGenotypes = GenotypesContext.create();
         for (final Genotype gt1 : vc1.getGenotypes()) {
-            Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
+            final Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
 
-            List<Allele> site1Alleles = gt1.getAlleles();
-            List<Allele> site2Alleles = gt2.getAlleles();
+            final SameHaplotypeAlleles hapAlleles = matchHaplotypeAlleles(gt1, gt2);
 
-            List<Allele> mergedAllelesForSample = new LinkedList<Allele>();
+            boolean isPhased = gt1.isPhased() && gt2.isPhased();
+            if (hapAlleles.requiresSwap) // at least one swap of allele order was necessary, so trio-based phasing order cannot be maintained
+                isPhased = false;
 
-            /* NOTE: Since merged alleles are added to mergedAllelesForSample in the SAME order as in the input VC records,
-               we preserve phase information (if any) relative to whatever precedes vc1:
-             */
-            Iterator<Allele> all2It = site2Alleles.iterator();
-            for (Allele all1 : site1Alleles) {
-                Allele all2 = all2It.next(); // this is OK, since allSamplesAreMergeable()
-
-                Allele mergedAllele = mergeData.ensureMergedAllele(all1, all2);
+            final List<Allele> mergedAllelesForSample = new LinkedList<Allele>();
+            for (AlleleOneAndTwo all1all2 : hapAlleles.hapAlleles) {
+                final Allele mergedAllele = mergeData.ensureMergedAllele(all1all2.all1, all1all2.all2);
                 mergedAllelesForSample.add(mergedAllele);
             }
 
-            double mergedGQ = Math.max(gt1.getLog10PError(), gt2.getLog10PError());
+            final double mergedGQ = Math.min(gt1.getLog10PError(), gt2.getLog10PError());
 
-            Map<String, Object> mergedGtAttribs = new HashMap<String, Object>();
-            PhaseAndQuality phaseQual = calcPhaseForMergedGenotypes(gt1, gt2);
-            if (phaseQual.PQ != null)
-                mergedGtAttribs.put(ReadBackedPhasing.PQ_KEY, phaseQual.PQ);
+            final Map<String, Object> mergedGtAttribs = new HashMap<String, Object>();
 
-            Genotype mergedGt = new GenotypeBuilder(gt1.getSampleName(), mergedAllelesForSample).log10PError(mergedGQ).attributes(mergedGtAttribs).phased(phaseQual.isPhased).make();
+            double PQ = Double.MAX_VALUE;
+            if (gt1.hasAnyAttribute(ReadBackedPhasing.PQ_KEY)) {
+                PQ = Math.min(PQ, (double) gt1.getAnyAttribute(ReadBackedPhasing.PQ_KEY));
+            }
+            if (gt2.hasAnyAttribute(ReadBackedPhasing.PQ_KEY)) {
+                PQ = Math.min(PQ, (double) gt2.getAnyAttribute(ReadBackedPhasing.PQ_KEY));
+            }
+            if (PQ != Double.MAX_VALUE)
+                mergedGtAttribs.put(ReadBackedPhasing.PQ_KEY, PQ);
+
+            if (gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) {
+                mergedGtAttribs.put(ReadBackedPhasing.HP_KEY, gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY));
+            }
+            else if (gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) { // gt1 doesn't have, but merged (so gt1 is hom and can take gt2's haplotype names):
+                mergedGtAttribs.put(ReadBackedPhasing.HP_KEY, gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY));
+            }
+
+            final Genotype mergedGt = new GenotypeBuilder(gt1.getSampleName(), mergedAllelesForSample).log10PError(mergedGQ).attributes(mergedGtAttribs).phased(isPhased).make();
             mergedGenotypes.add(mergedGt);
         }
 
-        String mergedName = mergeVariantContextNames(vc1.getSource(), vc2.getSource());
-        double mergedLog10PError = Math.min(vc1.getLog10PError(), vc2.getLog10PError());
-        Set<String> mergedFilters = new HashSet<String>(); // Since vc1 and vc2 were unfiltered, the merged record remains unfiltered
-        Map<String, Object> mergedAttribs = mergeVariantContextAttributes(vc1, vc2);
+        final String mergedName = mergeVariantContextNames(vc1.getSource(), vc2.getSource());
+        final double mergedLog10PError = Math.min(vc1.getLog10PError(), vc2.getLog10PError());
+        final Set<String> mergedFilters = new HashSet<String>(); // Since vc1 and vc2 were unfiltered, the merged record remains unfiltered
+        final Map<String, Object> mergedAttribs = mergeVariantContextAttributes(vc1, vc2);
 
         // ids
-        List<String> mergedIDs = new ArrayList<String>();
+        final List<String> mergedIDs = new ArrayList<String>();
         if ( vc1.hasID() ) mergedIDs.add(vc1.getID());
         if ( vc2.hasID() ) mergedIDs.add(vc2.getID());
-        String mergedID = mergedIDs.isEmpty() ? VCFConstants.EMPTY_ID_FIELD : Utils.join(VCFConstants.ID_FIELD_SEPARATOR, mergedIDs);
+        final String mergedID = mergedIDs.isEmpty() ? VCFConstants.EMPTY_ID_FIELD : Utils.join(VCFConstants.ID_FIELD_SEPARATOR, mergedIDs);
 
-        VariantContextBuilder mergedBuilder = new VariantContextBuilder(mergedName, vc1.getChr(), vc1.getStart(), vc2.getEnd(), mergeData.getAllMergedAlleles()).id(mergedID).genotypes(mergedGenotypes).log10PError(mergedLog10PError).filters(mergedFilters).attributes(mergedAttribs);
+        final VariantContextBuilder mergedBuilder = new VariantContextBuilder(mergedName, vc1.getChr(), vc1.getStart(), vc2.getEnd(), mergeData.getAllMergedAlleles()).id(mergedID).genotypes(mergedGenotypes).log10PError(mergedLog10PError).filters(mergedFilters).attributes(mergedAttribs);
         VariantContextUtils.calculateChromosomeCounts(mergedBuilder, true);
         return mergedBuilder.make();
     }
@@ -165,11 +218,12 @@ class PhasingUtils {
     static Map<String, Object> mergeVariantContextAttributes(VariantContext vc1, VariantContext vc2) {
         Map<String, Object> mergedAttribs = new HashMap<String, Object>();
 
-        List<VariantContext> vcList = new LinkedList<VariantContext>();
+        final List<VariantContext> vcList = new LinkedList<VariantContext>();
         vcList.add(vc1);
         vcList.add(vc2);
 
-        String[] MERGE_OR_ATTRIBS = {VCFConstants.DBSNP_KEY};
+        //String[] MERGE_OR_ATTRIBS = {VCFConstants.DBSNP_KEY};
+        final String[] MERGE_OR_ATTRIBS = {};
         for (String orAttrib : MERGE_OR_ATTRIBS) {
             boolean attribVal = false;
             for (VariantContext vc : vcList) {
@@ -184,14 +238,17 @@ class PhasingUtils {
     }
 
     static boolean mergeIntoMNPvalidationCheck(GenomeLocParser genomeLocParser, VariantContext vc1, VariantContext vc2) {
-        GenomeLoc loc1 = GATKVariantContextUtils.getLocation(genomeLocParser, vc1);
-        GenomeLoc loc2 = GATKVariantContextUtils.getLocation(genomeLocParser, vc2);
+        if (!vc1.isSNP() || !vc2.isSNP())
+            return false;
+
+        final GenomeLoc loc1 = GATKVariantContextUtils.getLocation(genomeLocParser, vc1);
+        final GenomeLoc loc2 = GATKVariantContextUtils.getLocation(genomeLocParser, vc2);
 
         if (!loc1.onSameContig(loc2))
-            throw new ReviewedGATKException("Can only merge vc1, vc2 if on the same chromosome");
+            return false;
 
         if (!loc1.isBefore(loc2))
-            throw new ReviewedGATKException("Can only merge if vc1 is BEFORE vc2");
+            return false;
 
         if (vc1.isFiltered() || vc2.isFiltered())
             return false;
@@ -217,7 +274,7 @@ class PhasingUtils {
     static boolean allSamplesAreMergeable(VariantContext vc1, VariantContext vc2) {
         // Check that each sample's genotype in vc2 is uniquely appendable onto its genotype in vc1:
         for (final Genotype gt1 : vc1.getGenotypes()) {
-            Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
+            final Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
 
             if (!alleleSegregationIsKnown(gt1, gt2)) // can merge if: phased, or if either is a hom
                 return false;
@@ -230,47 +287,31 @@ class PhasingUtils {
         if (gt1.getPloidy() != gt2.getPloidy())
             return false;
 
-        /* If gt2 is phased or hom, then could even be MERGED with gt1 [This is standard].
+        // If gt1 or gt2 are hom, then could be MERGED:
+        if (gt1.isHom() || gt2.isHom())
+            return true;
 
-           HOWEVER, EVEN if this is not the case, but gt1.isHom(),
-           it is trivially known that each of gt2's alleles segregate with the single allele type present in gt1.
-         */
-        return (gt2.isPhased() || gt2.isHom() || gt1.isHom());
-    }
+        // Otherwise, need to check that alleles from gt1 can be matched up with alleles from gt2:
+        if (!gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY) || !gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY))
+            return false;
 
-    static PhaseAndQuality calcPhaseForMergedGenotypes(Genotype gt1, Genotype gt2) {
-        if (gt2.isPhased() || gt2.isHom())
-            return new PhaseAndQuality(gt1); // maintain the phase of gt1
+        final String[] hp1 = (String[]) gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY);
+        final String[] hp2 = (String[]) gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY);
+        if (hp1.length != gt1.getPloidy() || hp2.length != gt2.getPloidy())
+            return false;
 
-        if (!gt1.isHom())
-            throw new ReviewedGATKException("alleleSegregationIsKnown(gt1, gt2) implies: gt2.genotypesArePhased() || gt2.isHom() || gt1.isHom()");
-
-        /* We're dealing with: gt1.isHom(), gt2.isHet(), !gt2.genotypesArePhased(); so, the merged (het) Genotype is not phased relative to the previous Genotype
-
-           For example, if we're merging the third Genotype with the second one:
-           0/1
-           1|1
-           0/1
-
-           Then, we want to output:
-           0/1
-           1/2
-         */
-        return new PhaseAndQuality(gt2); // maintain the phase of gt2 [since !gt2.genotypesArePhased()]
+        Arrays.sort(hp1);
+        Arrays.sort(hp2);
+        return (Arrays.equals(hp1, hp2)); // The haplotype names match (though possibly in a different order)
     }
 
     static boolean someSampleHasDoubleNonReferenceAllele(VariantContext vc1, VariantContext vc2) {
         for (final Genotype gt1 : vc1.getGenotypes()) {
-            Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
+            final Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
 
-            List<Allele> site1Alleles = gt1.getAlleles();
-            List<Allele> site2Alleles = gt2.getAlleles();
-
-            Iterator<Allele> all2It = site2Alleles.iterator();
-            for (Allele all1 : site1Alleles) {
-                Allele all2 = all2It.next(); // this is OK, since allSamplesAreMergeable()
-
-                if (all1.isNonReference() && all2.isNonReference()) // corresponding alleles are alternate
+            final SameHaplotypeAlleles hapAlleles = matchHaplotypeAlleles(gt1, gt2);
+            for (AlleleOneAndTwo all1all2 : hapAlleles.hapAlleles) {
+                if (all1all2.all1.isNonReference() && all1all2.all2.isNonReference()) // corresponding alleles are alternate
                     return true;
             }
         }
@@ -280,8 +321,8 @@ class PhasingUtils {
 
     static boolean doubleAllelesSegregatePerfectlyAmongSamples(VariantContext vc1, VariantContext vc2) {
         // Check that Alleles at vc1 and at vc2 always segregate together in all samples (including reference):
-        Map<Allele, Allele> allele1ToAllele2 = new HashMap<Allele, Allele>();
-        Map<Allele, Allele> allele2ToAllele1 = new HashMap<Allele, Allele>();
+        final Map<Allele, Allele> allele1ToAllele2 = new HashMap<Allele, Allele>();
+        final Map<Allele, Allele> allele2ToAllele1 = new HashMap<Allele, Allele>();
 
         // Note the segregation of the alleles for the reference genome:
         allele1ToAllele2.put(vc1.getReference(), vc2.getReference());
@@ -289,22 +330,20 @@ class PhasingUtils {
 
         // Note the segregation of the alleles for each sample (and check that it is consistent with the reference and all previous samples).
         for (final Genotype gt1 : vc1.getGenotypes()) {
-            Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
+            final Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
 
-            List<Allele> site1Alleles = gt1.getAlleles();
-            List<Allele> site2Alleles = gt2.getAlleles();
+            SameHaplotypeAlleles hapAlleles = matchHaplotypeAlleles(gt1, gt2);
+            for (AlleleOneAndTwo all1all2 : hapAlleles.hapAlleles) {
+                final Allele all1 = all1all2.all1;
+                final Allele all2 = all1all2.all2;
 
-            Iterator<Allele> all2It = site2Alleles.iterator();
-            for (Allele all1 : site1Alleles) {
-                Allele all2 = all2It.next();
-
-                Allele all1To2 = allele1ToAllele2.get(all1);
+                final Allele all1To2 = allele1ToAllele2.get(all1);
                 if (all1To2 == null)
                     allele1ToAllele2.put(all1, all2);
                 else if (!all1To2.equals(all2)) // all1 segregates with two different alleles at site 2
                     return false;
 
-                Allele all2To1 = allele2ToAllele1.get(all2);
+                final Allele all2To1 = allele2ToAllele1.get(all2);
                 if (all2To1 == null)
                     allele2ToAllele1.put(all2, all1);
                 else if (!all2To1.equals(all1)) // all2 segregates with two different alleles at site 1
@@ -321,6 +360,16 @@ class PhasingUtils {
 
         public String toString() {
             return "all samples are mergeable";
+        }
+    }
+
+    static class SameHaplotypeAlleles {
+        public boolean requiresSwap;
+        public List<AlleleOneAndTwo> hapAlleles;
+
+        public SameHaplotypeAlleles() {
+            requiresSwap = false;
+            hapAlleles = new LinkedList<AlleleOneAndTwo>();
         }
     }
 
@@ -341,7 +390,7 @@ class PhasingUtils {
             if (!(other instanceof AlleleOneAndTwo))
                 return false;
 
-            AlleleOneAndTwo otherAot = (AlleleOneAndTwo) other;
+            final AlleleOneAndTwo otherAot = (AlleleOneAndTwo) other;
             return (this.all1.equals(otherAot.all1) && this.all2.equals(otherAot.all2));
         }
     }
@@ -368,10 +417,10 @@ class PhasingUtils {
             Allele mergedAllele = mergedAlleles.get(all12);
 
             if (mergedAllele == null) {
-                byte[] bases1 = all1.getBases();
-                byte[] bases2 = all2.getBases();
+                final byte[] bases1 = all1.getBases();
+                final byte[] bases2 = all2.getBases();
 
-                byte[] mergedBases = new byte[bases1.length + intermediateLength + bases2.length];
+                final byte[] mergedBases = new byte[bases1.length + intermediateLength + bases2.length];
                 System.arraycopy(bases1, 0, mergedBases, 0, bases1.length);
                 if (intermediateBases != null)
                     System.arraycopy(intermediateBases, 0, mergedBases, bases1.length, intermediateLength);
@@ -386,19 +435,6 @@ class PhasingUtils {
 
         public Set<Allele> getAllMergedAlleles() {
             return new HashSet<Allele>(mergedAlleles.values());
-        }
-    }
-
-    static class PhaseAndQuality {
-        public boolean isPhased;
-        public Double PQ = null;
-
-        public PhaseAndQuality(Genotype gt) {
-            this.isPhased = gt.isPhased();
-            if (this.isPhased) {
-                this.PQ = gt.getAttributeAsDouble(ReadBackedPhasing.PQ_KEY, -1);
-                if ( this.PQ == -1 ) this.PQ = null;
-            }
         }
     }
 }
