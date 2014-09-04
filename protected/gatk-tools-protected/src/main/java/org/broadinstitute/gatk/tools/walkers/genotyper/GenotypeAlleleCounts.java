@@ -599,7 +599,7 @@ public class GenotypeAlleleCounts implements Comparable<GenotypeAlleleCounts>, C
             }
             // It is guaranteed that at this point alleleIndex == nextIndex
             // thanks to the condition of the enclosing while: there must be at least one index of interest that
-            // it is present in remaning (nextRank,endRank] interval as otherwise endRank would be less than nextRank.
+            // is present in the remaining (nextRank,endRank] interval as otherwise endRank would be less than nextRank.
             dest[nextDestOffset++] = sortedAlleleCounts[nextSortedAlleleCountsOffset++];
             nextIndex++;
         }
@@ -756,7 +756,7 @@ public class GenotypeAlleleCounts implements Comparable<GenotypeAlleleCounts>, C
      * </p>
      *
      * <p>
-     *     If a sufficiently large array is provided as {@code dest}, this is used as the destination. Unecessary
+     *     If a sufficiently large array is provided as {@code dest}, this is used as the destination. Unnecessary
      *     positions at the back of the array are left untouched.
      * </p>
      *

@@ -245,7 +245,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                                          final LinkedList<ExactACset> ACqueue,
                                                          final HashMap<ExactACcounts, ExactACset> indexesToACset) {
 
-        // compute likeihood in "set" of new set based on original likelihoods
+        // compute likelihood in "set" of new set based on original likelihoods
         final int numAlleles = set.getACcounts().getCounts().length;
         final int newPloidy = set.getACsum();
         final double log10LofK = computeLofK(set, originalPool, newGL, log10AlleleFrequencyPriors, numAlleles, originalPloidy, newGLPloidy);
@@ -358,7 +358,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * @param numAlleles                Number of alleles (including ref)
      * @param ploidy1                   Ploidy of original pool (combined)
      * @param ploidy2                   Ploidy of new pool
-     * @return                          log-likehood of requested conformation
+     * @return                          log-likelihood of requested conformation
      */
     private double computeLofK(final ExactACset set,
                                final CombinedPoolLikelihoods firstGLs,
@@ -441,7 +441,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     }
 
     /**
-     * Small helper routine - is a particular AC conformationv vector valid? ie are all elements non-negative and sum to ploidy?
+     * Small helper routine - is a particular AC conformation vector valid? ie are all elements non-negative and sum to ploidy?
      * @param set                            AC conformation vector
      * @param ploidy                         Ploidy of set
      * @return                               Valid conformation
