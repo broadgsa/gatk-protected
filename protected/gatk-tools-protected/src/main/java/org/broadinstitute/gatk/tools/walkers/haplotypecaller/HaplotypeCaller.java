@@ -243,7 +243,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Hidden
     @Advanced
     @Argument(fullName="heterogeneousKmerSizeResolution",shortName="hksr",doc="how to solve heterogeneous kmer situations using the fast method",required=false)
-    protected HeterogeneousKmerSizeResolution heterogeneousKmerSizeResultion = HeterogeneousKmerSizeResolution.COMBO_MIN;
+    protected HeterogeneousKmerSizeResolution heterogeneousKmerSizeResolution = HeterogeneousKmerSizeResolution.COMBO_MIN;
 
     @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false, defaultToStdout = false)
     protected PrintStream graphWriter = null;
@@ -822,7 +822,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             case PairHMM:
                 return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, pairHMM, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
             case GraphBased:
-                return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate,heterogeneousKmerSizeResultion,SCAC.DEBUG,debugGraphTransformations);
+                return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate, heterogeneousKmerSizeResolution,SCAC.DEBUG,debugGraphTransformations);
             case Random:
                 return new RandomLikelihoodCalculationEngine();
             default:
@@ -931,7 +931,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final AssemblyResultSet untrimmedAssemblyResult = assembleReads(originalActiveRegion, givenAlleles);
 
         final TreeSet<VariantContext> allVariationEvents = untrimmedAssemblyResult.getVariationEvents();
-        // TODO - line bellow might be unecessary : it might be that assemblyResult will always have those alleles anyway
+        // TODO - line bellow might be unnecessary : it might be that assemblyResult will always have those alleles anyway
         // TODO - so check and remove if that is the case:
         allVariationEvents.addAll(givenAlleles);
 
@@ -973,7 +973,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final List<Haplotype> haplotypes = assemblyResult.getHaplotypeList();
         final Map<String,List<GATKSAMRecord>> reads = splitReadsBySample( regionForGenotyping.getReads() );
 
-        // Calculate the likelihoods: CPU intesive part.
+        // Calculate the likelihoods: CPU intensive part.
         final ReadLikelihoods<Haplotype> readLikelihoods =
                 likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,samplesList,reads);
 
