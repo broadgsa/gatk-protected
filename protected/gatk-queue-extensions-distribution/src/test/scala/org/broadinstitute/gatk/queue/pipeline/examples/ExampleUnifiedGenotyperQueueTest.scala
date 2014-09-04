@@ -50,18 +50,19 @@ import org.testng.annotations.{DataProvider, Test}
 import org.broadinstitute.gatk.queue.pipeline.{QueueTest, QueueTestSpec}
 import org.broadinstitute.gatk.utils.BaseTest
 
-/*
- * TODO: Tests are all currently disabled until we fix the paths to use the qscript directory, or as a patch the gatk.basedir as a passed in variable.
- */
 class ExampleUnifiedGenotyperQueueTest {
-  @Test(timeOut=36000000, enabled=false)
+  private final val exampleUGQScript = QueueTest.protectedQScriptsPackageDir + "examples/ExampleUnifiedGenotyper.scala"
+  private final val exampleFasta = BaseTest.publicTestDir + "exampleFASTA.fasta"
+  private final val exampleBam = BaseTest.publicTestDir + "exampleBAM.bam"
+
+  @Test(timeOut=36000000)
   def testUnifiedGenotyper() {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper"
     spec.args = Array(
-      " -S public/scala/qscript/org/broadinstitute/gatk/queue/qscripts/examples/ExampleUnifiedGenotyper.scala",
-      " -R " + BaseTest.publicTestDir + "exampleFASTA.fasta",
-      " -I " + BaseTest.publicTestDir + "exampleBAM.bam",
+      " -S " + exampleUGQScript,
+      " -R " + exampleFasta,
+      " -I " + exampleBam,
       " -filter QD",
       " -filterExpression 'QD < 2.0'").mkString
     spec.jobRunners = QueueTest.allJobRunners
@@ -76,27 +77,27 @@ class ExampleUnifiedGenotyperQueueTest {
       Array("vcf_intervals", BaseTest.validationDataLocation + "intervalTest.1.vcf")
     ).asInstanceOf[Array[Array[Object]]]
 
-  @Test(dataProvider = "ugIntervals", timeOut=36000000, enabled=false)
+  @Test(dataProvider = "ugIntervals", timeOut=36000000)
   def testUnifiedGenotyperWithIntervals(intervalsName: String, intervalsPath: String) {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper_with_" + intervalsName
     spec.args = Array(
-      " -S public/scala/qscript/org/broadinstitute/gatk/queue/qscripts/examples/ExampleUnifiedGenotyper.scala",
-      " -I " + BaseTest.validationDataLocation + "OV-0930.normal.chunk.bam",
+      " -S " + exampleUGQScript,
       " -R " + BaseTest.hg18Reference,
+      " -I " + BaseTest.validationDataLocation + "OV-0930.normal.chunk.bam",
       " -L " + intervalsPath).mkString
     spec.jobRunners = Seq("Lsf706")
     QueueTest.executeTest(spec)
   }
 
-  @Test(timeOut=36000000, enabled=false)
+  @Test(timeOut=36000000)
   def testUnifiedGenotyperNoGCOpt() {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper_no_gc_opt"
     spec.args = Array(
-      " -S public/scala/qscript/org/broadinstitute/gatk/queue/qscripts/examples/ExampleUnifiedGenotyper.scala",
-      " -R " + BaseTest.publicTestDir + "exampleFASTA.fasta",
-      " -I " + BaseTest.publicTestDir + "exampleBAM.bam",
+      " -S " + exampleUGQScript,
+      " -R " + exampleFasta,
+      " -I " + exampleBam,
       " -noGCOpt").mkString
     spec.jobRunners = QueueTest.allJobRunners
     QueueTest.executeTest(spec)
@@ -105,27 +106,27 @@ class ExampleUnifiedGenotyperQueueTest {
   @DataProvider(name="resMemReqParams")
   def getResMemReqParam = Array(Array("mem_free"), Array("virtual_free")).asInstanceOf[Array[Array[Object]]]
 
-  @Test(dataProvider = "resMemReqParams", timeOut=36000000, enabled=false)
+  @Test(dataProvider = "resMemReqParams", timeOut=36000000)
   def testUnifiedGenotyperResMemReqParam(reqParam: String) {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper_" + reqParam
     spec.args = Array(
-      " -S public/scala/qscript/org/broadinstitute/gatk/queue/qscripts/examples/ExampleUnifiedGenotyper.scala",
-      " -R " + BaseTest.publicTestDir + "exampleFASTA.fasta",
-      " -I " + BaseTest.publicTestDir + "exampleBAM.bam",
+      " -S " + exampleUGQScript,
+      " -R " + exampleFasta,
+      " -I " + exampleBam,
       " -resMemReqParam " + reqParam).mkString
     spec.jobRunners = Seq("GridEngine")
     QueueTest.executeTest(spec)
   }
 
-  @Test(timeOut=36000000, enabled=false)
+  @Test(timeOut=36000000)
   def testUnifiedGenotyperLogDirectory() {
     val spec = new QueueTestSpec
     spec.name = "unifiedgenotyper_with_log_directory"
     spec.args = Array(
-      " -S public/scala/qscript/org/broadinstitute/gatk/queue/qscripts/examples/ExampleUnifiedGenotyper.scala",
-      " -R " + BaseTest.publicTestDir + "exampleFASTA.fasta",
-      " -I " + BaseTest.publicTestDir + "exampleBAM.bam",
+      " -S " + exampleUGQScript,
+      " -R " + exampleFasta,
+      " -I " + exampleBam,
       " -logDir exampleUGLogDir").mkString
     spec.jobRunners = QueueTest.allJobRunners
     spec.expectedFilePaths :+= "exampleUGLogDir/exampleBAM.unfiltered.vcf.out"
