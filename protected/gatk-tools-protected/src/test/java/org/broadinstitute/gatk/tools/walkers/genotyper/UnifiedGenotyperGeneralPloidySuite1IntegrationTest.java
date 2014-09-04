@@ -64,21 +64,21 @@ public class UnifiedGenotyperGeneralPloidySuite1IntegrationTest extends WalkerTe
 
     @Test(enabled = true)
     public void testSNP_ACS_Pools() {
-        executor.PC_LSV_Test_short("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 6 -out_mode EMIT_ALL_CONFIDENT_SITES", "LSV_SNP_ACS", "SNP", "df0e67c975ef74d593f1c704daab1705");
+        executor.PC_LSV_Test_short("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 6 -out_mode EMIT_ALL_CONFIDENT_SITES", "LSV_SNP_ACS", "SNP", "fa4f5e31d1f45193aa3a9b2a9a931ffd");
     }
 
     @Test(enabled = true)
     public void testBOTH_GGA_Pools() {
-        executor.PC_LSV_Test(String.format("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_BOTH_GGA", "BOTH", "2d3067587de19fbb3b0bb9afbc12256d");
+        executor.PC_LSV_Test(String.format("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_BOTH_GGA", "BOTH", "39cccae4a26c64e09631e28f17db2792");
     }
 
     @Test(enabled = true)
     public void testINDEL_GGA_Pools() {
-        executor.PC_LSV_Test(String.format("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_INDEL_GGA", "INDEL", "171355e4d0648fdd50d7d56de950d338");
+        executor.PC_LSV_Test(String.format("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_INDEL_GGA", "INDEL", "5e4013183ca26b0d7c48ea2ec147d9d7");
     }
 
     @Test(enabled = true)
     public void testINDEL_maxAltAlleles2_ploidy1_Pools_noRef() {
-        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "ae90d6be28c19e455083a47bc95c3b1b");
+        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "af69cf83a27d082d76b18fede7ac2699");
     }
 }

@@ -53,6 +53,7 @@ import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -74,7 +75,7 @@ import java.util.*;
  * altRatio = (max(X[1][0], X[1][1])/min(X[1][0], X[1][1])) ensures that the annotation value is large only
  * </p>
  */
-public class StrandOddsRatio extends StrandBiasTest implements ActiveRegionBasedAnnotation {
+public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotation, ActiveRegionBasedAnnotation {
     private final static double AUGMENTATION_CONSTANT = 1.0;
     private static final int MIN_COUNT = 0;
 
