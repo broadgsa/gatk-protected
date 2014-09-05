@@ -648,6 +648,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // also, we don't need to output several of the annotations
             annotationsToExclude.add("ChromosomeCounts");
             annotationsToExclude.add("FisherStrand");
+            annotationsToExclude.add("StrandOddsRatio");
             annotationsToExclude.add("QualByDepth");
 
             // but we definitely want certain other ones

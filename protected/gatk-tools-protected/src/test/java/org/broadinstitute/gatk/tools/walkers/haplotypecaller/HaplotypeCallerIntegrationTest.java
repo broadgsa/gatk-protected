@@ -85,87 +85,87 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "321a0b7cb6ff80691f23566670e1d604");
+        HCTest(CEUTRIO_BAM, "", "fd31a5da51e46b021db055177841c8c2");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "42de756c08b028be70287ada1022526e");
+        HCTest(NA12878_BAM, "", "4f80b7c7e448d719e308b7d73751bebc");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleHaploid() {
         HCTest(CEUTRIO_BAM,
-                "-ploidy 1", "b12bb4ccc8c86202550d59c9350d93e5");
+                "-ploidy 1", "466d423a3bacd0032549bda987fb1574");
     }
 
     @Test
     public void testHaplotypeCallerSingleSampleHaploid() {
-        HCTest(NA12878_BAM, "-ploidy 1", "e97604190cb3f91c52746a32bce8293f");
+        HCTest(NA12878_BAM, "-ploidy 1", "f588569b6d14246b7e6678ac80286012");
     }
 
     @Test
     public void testHaplotypeCallerSingleSampleTetraploid() {
-        HCTest(NA12878_BAM, "-ploidy 4", "9f2da06419b29f89605b90943aea0de4");
+        HCTest(NA12878_BAM, "-ploidy 4", "95d4cca48fcbb82d5e41cfe60d68531e");
     }
 
     @Test
     public void testHaplotypeCallerMinBaseQuality() {
-        HCTest(NA12878_BAM, "-mbq 15", "d063c0e5af1fd413be0500609ae36d46");
+        HCTest(NA12878_BAM, "-mbq 15", "07125724eb465a739df9c6ab191216b0");
     }
 
     @Test
     public void testHaplotypeCallerMinBaseQualityHaploid() {
-        HCTest(NA12878_BAM, "-mbq 15 -ploidy 1", "3b9f1b1fffcea0edee47803e9f4f868c");
+        HCTest(NA12878_BAM, "-mbq 15 -ploidy 1", "e5c8a8bfb4d9d522e610a2299a9b32ad");
     }
 
     @Test
     public void testHaplotypeCallerMinBaseQualityTetraploid() {
-        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "f551c2d2b82145bb827a2c7e01a70a5b");
+        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "af711f92b33d3f42e87a719745d93a68");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedSingleSample() {
-        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "6cf15ddbfa4a3738e891fd9a09da8d07");
+        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "4577a7c82300950eff0fae10aa4cc4ae");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSampleHaploid() {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "a7c0848813773a0a21fa7bb18732c504");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "2ce7ef54258261c9e869fc69db3312e3");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSample() {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "4c2a2dad6379b13fee4c7faca17441f5");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "958511863caca47833b1df03a2f1e130");
     }
 
     @Test
     public void testHaplotypeCallerSingleSampleWithDbsnp() {
-        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "9d7067648561aa35b04d355184a5dea2");
+        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "8294e5a78f2e1091369ae5d9735533cd");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf" +
                 " -isr INTERSECTION -L " + GGA_INTERVALS_FILE,
-                "669aac2aa9c22881eda86ee53b13351a");
+                "368f42869cc651c8fd94ec2a572bb545");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAHaploid() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 1 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "d02d67d13a289d05b26b57cd3ae0346b");
+                "52494fae89dd37abd0029013557dfa9d");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGATetraploid() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 4 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "d842dcacdacd2be5b1e7f4efd17e7266");
+                "6a70e9d87459f274bc9b20f9b97ea274");
     }
 
     @Test
     public void testHaplotypeCallerInsertionOnEdgeOfContig() {
-        HCTest(CEUTRIO_MT_TEST_BAM, "-L MT:1-10", "7f1fb8f9587f64643f6612ef1dd6d4ae");
+        HCTest(CEUTRIO_MT_TEST_BAM, "-L MT:1-10", "455843da6331c282cb88943f25dafeec");
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
@@ -176,7 +176,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "ec90508248b82800eb2596348a7cf85b");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "77f56e9211b13690ad4c30f40469381a");
     }
 
     private void HCTestNearbySmallIntervals(String bam, String args, String md5) {
@@ -213,7 +213,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerNearbySmallIntervals() {
-        HCTestNearbySmallIntervals(NA12878_BAM, "", "f1c19db6fb896332de232b7e5cbc2016");
+        HCTestNearbySmallIntervals(NA12878_BAM, "", "e0794be1404bffd88738968e26b48cbb");
     }
 
     // This problem bam came from a user on the forum and it spotted a problem where the ReadClipper
@@ -223,14 +223,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("b484c2e943d3f1f3248947726fd60cdb"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("2be5ac87d698d7f92525a9721e66ed94"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
     @Test
     public void HCTestStructuralIndels() {
         final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("91717e5e271742c2c9b67223e58f1320"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("a145c3c0e99b278054a9960923da8aaa"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
 
@@ -272,7 +272,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,090,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("89b83443b0092530bdad595b14f67f2d"));
+                Arrays.asList("defb00b7f19a4626a1ace1bbf4fdf81d"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -281,7 +281,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,100,000-11,000,000 -D " + b37dbSNP132
                         + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
-                Arrays.asList("76277d8ea79e2901364a26740d2f50ae"));
+                Arrays.asList("b279dfa0864495d0cbe45167c13d5a75"));
         executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
     }
 
@@ -289,7 +289,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGSGraphBased() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,090,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("9aa0a5946de59884c46cde74f817e77d"));
+                Arrays.asList("6d221ed702f7f241e1af6f9016754a50"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -298,7 +298,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-11,000,000 -D " + b37dbSNP132
                         + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
-                Arrays.asList("6bea6d26a3512a7b74d9610d188b6e9a"));
+                Arrays.asList("e46d99fb778e2aff09ccbbc1bda2a1bf"));
         executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
     }
 
@@ -321,7 +321,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestAggressivePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model AGGRESSIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,270,000-10,300,000", 1,
-                Arrays.asList("9b8a822e5ead66f09227d82c94315e59"));
+                Arrays.asList("163a42e1144be1dc905233a8a42b72f6"));
         executeTest("HC calling with aggressive indel error modeling on WGS intervals", spec);
     }
 
@@ -329,7 +329,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestConservativePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model CONSERVATIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,270,000-10,300,000", 1,
-                Arrays.asList("1d24772716916eede70f6c157d46e931"));
+                Arrays.asList("13298981348351e79a2ff5407f206c1d"));
         executeTest("HC calling with conservative indel error modeling on WGS intervals", spec);
     }
 
@@ -350,7 +350,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header --maxNumHaplotypesInPopulation 16",
                 b37KGReferenceWithDecoy, privateTestDir + "hc-lack-sensitivity.bam", privateTestDir + "hc-lack-sensitivity.interval_list",
                 HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("90ab538102f5faf4f4a07860cb8fa1b1"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("ae2d947d3ba3b139cc99efa877c4785c"));
         spec.disableShadowBCF();
         executeTest("testLackSensitivityDueToBadHaplotypeSelectionFix", spec);
     }
@@ -359,7 +359,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testMissingKeyAlternativeHaplotypesBugFix() {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header ",
                 b37KGReferenceWithDecoy, privateTestDir + "lost-alt-key-hap.bam", privateTestDir + "lost-alt-key-hap.interval_list");
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("4322083ad7decca26a3257be2f1d0347"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("ca3d7b611b57835724fabd78f202bede"));
         spec.disableShadowBCF();
         executeTest("testMissingKeyAlternativeHaplotypesBugFix", spec);
     }
@@ -382,7 +382,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         // but please make sure that both outputs get the same variant,
         // alleles all with DBSNP ids
         // We test here that change in active region size does not have an effect in placement of indels.
-        final String md5 = "54c2cea6e2266fe3ff05c1b5d58bb609";
+        final String md5 = "8f572cfc1da9bdfc5e5725e092298ee6";
         final WalkerTestSpec shortSpec = new WalkerTestSpec(commandLineShortInterval + " -o %s",Arrays.asList(md5));
         executeTest("testDifferentIndelLocationsDueToSWExactDoubleComparisonsFix::shortInterval",shortSpec);
         final WalkerTestSpec longSpec = new WalkerTestSpec(commandLineLongInterval + " -o %s",Arrays.asList(md5));
