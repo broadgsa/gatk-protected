@@ -60,8 +60,7 @@ import java.util.*;
 public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSampleEdge> {
 
     private static final int MAX_CIGAR_COMPLEXITY = 3;
-    private static final int MIN_DANGLING_TAIL_LENGTH = 5;  // SNP + 3 stabilizing nodes + the LCA
-    private static final int MAXIMUM_MISMATCHES_IN_DANGLING_HEAD_MERGE = 1;
+    private int maxMismatchesInDanglingHead = -1;
 
     protected boolean alreadyBuilt;
 
@@ -71,6 +70,10 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      */
     protected DanglingChainMergingGraph(final int kmerSize, final EdgeFactory<MultiDeBruijnVertex, MultiSampleEdge> edgeFactory) {
         super(kmerSize, edgeFactory);
+    }
+
+    protected void setMaxMismatchesInDanglingHead(final int maxMismatchesInDanglingHead) {
+        this.maxMismatchesInDanglingHead = maxMismatchesInDanglingHead;
     }
 
     /**
@@ -119,8 +122,9 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * Try to recover dangling tails
      *
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     * @param minDanglingBranchLength the minimum length of a dangling branch for us to try to merge it
      */
-    public void recoverDanglingTails(final int pruneFactor) {
+    public void recoverDanglingTails(final int pruneFactor, final int minDanglingBranchLength) {
         if ( ! alreadyBuilt )  throw new IllegalStateException("recoverDanglingTails requires the graph be already built");
 
         int attempted = 0;
@@ -128,7 +132,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         for ( final MultiDeBruijnVertex v : vertexSet() ) {
             if ( outDegreeOf(v) == 0 && ! isRefSink(v) ) {
                 attempted++;
-                nRecovered += recoverDanglingTail(v, pruneFactor);
+                nRecovered += recoverDanglingTail(v, pruneFactor, minDanglingBranchLength);
             }
         }
 
@@ -139,8 +143,9 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * Try to recover dangling heads
      *
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     * @param minDanglingBranchLength the minimum length of a dangling branch for us to try to merge it
      */
-    public void recoverDanglingHeads(final int pruneFactor) {
+    public void recoverDanglingHeads(final int pruneFactor, final int minDanglingBranchLength) {
         if ( ! alreadyBuilt )  throw new IllegalStateException("recoverDanglingHeads requires the graph be already built");
 
         // we need to build a list of dangling heads because that process can modify the graph (and otherwise generate
@@ -157,7 +162,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         // now we can try to recover the dangling heads
         for ( final MultiDeBruijnVertex v : danglingHeads ) {
             attempted++;
-            nRecovered += recoverDanglingHead(v, pruneFactor);
+            nRecovered += recoverDanglingHead(v, pruneFactor, minDanglingBranchLength);
         }
 
         logger.debug("Recovered " + nRecovered + " of " + attempted + " dangling heads");
@@ -168,13 +173,14 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      *
      * @param vertex the vertex to recover
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     * @param minDanglingBranchLength the minimum length of a dangling branch for us to try to merge it
      * @return 1 if we successfully recovered the vertex and 0 otherwise
      */
-    protected int recoverDanglingTail(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected int recoverDanglingTail(final MultiDeBruijnVertex vertex, final int pruneFactor, final int minDanglingBranchLength) {
         if ( outDegreeOf(vertex) != 0 ) throw new IllegalStateException("Attempting to recover a dangling tail for " + vertex + " but it has out-degree > 0");
 
         // generate the CIGAR string from Smith-Waterman between the dangling tail and reference paths
-        final DanglingChainMergeHelper danglingTailMergeResult = generateCigarAgainstDownwardsReferencePath(vertex, pruneFactor);
+        final DanglingChainMergeHelper danglingTailMergeResult = generateCigarAgainstDownwardsReferencePath(vertex, pruneFactor, minDanglingBranchLength);
 
         // if the CIGAR is too complex (or couldn't be computed) then we do not allow the merge into the reference path
         if ( danglingTailMergeResult == null || ! cigarIsOkayToMerge(danglingTailMergeResult.cigar, false, true) )
@@ -189,13 +195,14 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      *
      * @param vertex the vertex to recover
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     * @param minDanglingBranchLength the minimum length of a dangling branch for us to try to merge it
      * @return 1 if we successfully recovered a vertex and 0 otherwise
      */
-    protected int recoverDanglingHead(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected int recoverDanglingHead(final MultiDeBruijnVertex vertex, final int pruneFactor, final int minDanglingBranchLength) {
         if ( inDegreeOf(vertex) != 0 ) throw new IllegalStateException("Attempting to recover a dangling head for " + vertex + " but it has in-degree > 0");
 
         // generate the CIGAR string from Smith-Waterman between the dangling tail and reference paths
-        final DanglingChainMergeHelper danglingHeadMergeResult = generateCigarAgainstUpwardsReferencePath(vertex, pruneFactor);
+        final DanglingChainMergeHelper danglingHeadMergeResult = generateCigarAgainstUpwardsReferencePath(vertex, pruneFactor, minDanglingBranchLength);
 
         // if the CIGAR is too complex (or couldn't be computed) then we do not allow the merge into the reference path
         if ( danglingHeadMergeResult == null || ! cigarIsOkayToMerge(danglingHeadMergeResult.cigar, true, false) )
@@ -230,7 +237,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         if ( requireLastElementM && elements.get(numElements - 1).getOperator() != CigarOperator.M )
             return false;
 
-        // TODO -- do we want to check whether the Ms mismatch too much also?
+        // note that there are checks for too many mismatches in the dangling branch later in the process
 
         return true;
     }
@@ -313,11 +320,12 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
      * @return a SmithWaterman object which can be null if no proper alignment could be generated
      */
-    protected DanglingChainMergeHelper generateCigarAgainstDownwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected DanglingChainMergeHelper generateCigarAgainstDownwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor, final int minDanglingBranchLength) {
+        final int minTailPathLength = Math.max(1, minDanglingBranchLength); // while heads can be 0, tails absolutely cannot
 
         // find the lowest common ancestor path between this vertex and the diverging master path if available
         final List<MultiDeBruijnVertex> altPath = findPathUpwardsToLowestCommonAncestor(vertex, pruneFactor);
-        if ( altPath == null || isRefSource(altPath.get(0)) || altPath.size() < MIN_DANGLING_TAIL_LENGTH )
+        if ( altPath == null || isRefSource(altPath.get(0)) || altPath.size() < minTailPathLength + 1 ) // add 1 to include the LCA
             return null;
 
         // now get the reference path from the LCA
@@ -340,11 +348,11 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
      * @return a SmithWaterman object which can be null if no proper alignment could be generated
      */
-    protected DanglingChainMergeHelper generateCigarAgainstUpwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected DanglingChainMergeHelper generateCigarAgainstUpwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor, final int minDanglingBranchLength) {
 
         // find the highest common descendant path between vertex and the reference source if available
         final List<MultiDeBruijnVertex> altPath = findPathDownwardsToHighestCommonDescendantOfReference(vertex, pruneFactor);
-        if ( altPath == null || isRefSink(altPath.get(0)) )
+        if ( altPath == null || isRefSink(altPath.get(0)) || altPath.size() < minDanglingBranchLength + 1 ) // add 1 to include the LCA
             return null;
 
         // now get the reference path from the LCA
@@ -477,20 +485,32 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * @param maxIndex the maximum index to traverse (not inclusive)
      * @return the index of the ideal prefix match or -1 if it cannot find one, must be less than maxIndex
      */
-    protected static int bestPrefixMatch(final byte[] path1, final byte[] path2, final int maxIndex) {
+    protected int bestPrefixMatch(final byte[] path1, final byte[] path2, final int maxIndex) {
+        final int maxMismatches = getMaxMismatches(maxIndex);
         int mismatches = 0;
         int index = 0;
         int lastGoodIndex = -1;
         while ( index < maxIndex ) {
             if ( path1[index] != path2[index] ) {
-                if ( ++mismatches > MAXIMUM_MISMATCHES_IN_DANGLING_HEAD_MERGE )
-                    return lastGoodIndex;
+                if ( ++mismatches > maxMismatches )
+                    return -1;
                 lastGoodIndex = index;
             }
             index++;
         }
         // if we got here then we hit the max index
         return lastGoodIndex;
+    }
+
+    /**
+     * Determine the maximum number of mismatches permitted on the branch.
+     * Unless it's preset (e.g. by unit tests) it should be the length of the branch divided by the kmer size.
+     *
+     * @param lengthOfDanglingBranch  the length of the branch itself
+     * @return positive integer
+     */
+    private int getMaxMismatches(final int lengthOfDanglingBranch) {
+        return maxMismatchesInDanglingHead > 0 ? maxMismatchesInDanglingHead : Math.max(1, (lengthOfDanglingBranch / kmerSize));
     }
 
     protected boolean extendDanglingPathAgainstReference(final DanglingChainMergeHelper danglingHeadMergeResult, final int numNodesToExtend) {

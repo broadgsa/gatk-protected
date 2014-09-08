@@ -364,16 +364,22 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="The number of samples that must pass the minPuning factor in order for the path to be kept", required = false)
     protected int numPruningSamples = 1;
 
-    /**
-     * This mode is currently experimental and should only be used in the RNA-seq calling pipeline.
-     */
-    @Advanced
-    @Argument(fullName="recoverDanglingHeads", shortName="recoverDanglingHeads", doc="Should we enable dangling head recovery in the read threading assembler?", required = false)
-    protected boolean recoverDanglingHeads = false;
+    @Deprecated
+    @Argument(fullName="recoverDanglingHeads", shortName="recoverDanglingHeads", doc="This argument is no longer needed as it is now the default behavior", required = false)
+    protected boolean DEPRECATED_RecoverDanglingHeads = false;
 
     @Hidden
-    @Argument(fullName="doNotRecoverDanglingTails", shortName="doNotRecoverDanglingTails", doc="Should we disable dangling tail recovery in the read threading assembler?", required = false)
-    protected boolean doNotRecoverDanglingTails = false;
+    @Argument(fullName="doNotRecoverDanglingBranches", shortName="doNotRecoverDanglingBranches", doc="Should we disable dangling head and tail recovery in the read threading assembler?", required = false)
+    protected boolean doNotRecoverDanglingBranches = false;
+
+    /**
+     * When constructing the assembly graph we are often left with "dangling" branches.  The assembly engine attempts to rescue these branches
+     * by merging them back into the main graph.  This argument describes the minimum length of a dangling branch needed for the engine to
+     * try to rescue it.  A smaller number here will lead to higher sensitivity to real variation but also to a higher number of false positives.
+     */
+    @Advanced
+    @Argument(fullName="minDanglingBranchLength", shortName="minDanglingBranchLength", doc="Minimum length of a dangling branch to attempt recovery in the read threading assembler", required = false)
+    protected int minDanglingBranchLength = 4;
 
     @Advanced
     @Argument(fullName="consensus", shortName="consensus", doc="In 1000G consensus mode. Inject all provided alleles to the assembly graph but don't forcibly genotype all of them.", required = false)
@@ -678,7 +684,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             }
         }
 
-        
+
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
         final UnifiedArgumentCollection simpleUAC = SCAC.cloneTo(UnifiedArgumentCollection.class);
         simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
@@ -750,8 +756,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         assemblyEngine.setDebug(SCAC.DEBUG);
         assemblyEngine.setDebugGraphTransformations(debugGraphTransformations);
         assemblyEngine.setAllowCyclesInKmerGraphToGeneratePaths(allowCyclesInKmerGraphToGeneratePaths);
-        assemblyEngine.setRecoverDanglingTails(!doNotRecoverDanglingTails);
-        assemblyEngine.setRecoverDanglingHeads(recoverDanglingHeads);
+        assemblyEngine.setRecoverDanglingBranches(!doNotRecoverDanglingBranches);
+        assemblyEngine.setMinDanglingBranchLength(minDanglingBranchLength);
         assemblyEngine.setMinBaseQualityToUseInAssembly(MIN_BASE_QUALTY_SCORE);
 
         MIN_TAIL_QUALITY = (byte)(MIN_BASE_QUALTY_SCORE - 1);

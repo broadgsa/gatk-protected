@@ -85,7 +85,7 @@ public class ReadThreadingAssemblerUnitTest extends BaseTest {
 
         public SeqGraph assemble() {
             assembler.removePathsNotConnectedToRef = false; // needed to pass some of the tests
-            assembler.setRecoverDanglingTails(false); // needed to pass some of the tests
+            assembler.setRecoverDanglingBranches(false); // needed to pass some of the tests
             assembler.setDebugGraphTransformations(true);
             final SeqGraph graph = assembler.assemble(reads, refHaplotype, Collections.<Haplotype>emptyList()).get(0).getGraph();
             if ( DEBUG ) graph.printGraph(new File("test.dot"), 0);
@@ -171,7 +171,7 @@ public class ReadThreadingAssemblerUnitTest extends BaseTest {
         Assert.assertNotNull(graph.getReferenceSinkVertex());
 
         final List<KBestHaplotype> paths = new KBestHaplotypeFinder(graph);
-        Assert.assertEquals(paths.size(), 2);
+        Assert.assertEquals(paths.size(), 1);
     }
 
     @Test(enabled = ! DEBUG)

@@ -86,8 +86,8 @@ public abstract class LocalAssemblyEngine {
     protected boolean debug = false;
     protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
     protected boolean debugGraphTransformations = false;
-    protected boolean recoverDanglingTails = true;
-    protected boolean recoverDanglingHeads = true;
+    protected boolean recoverDanglingBranches = true;
+    protected int minDanglingBranchLength = 0;
 
     protected byte minBaseQualityToUseInAssembly = DEFAULT_MIN_BASE_QUALITY_TO_USE;
     protected int pruneFactor = 2;
@@ -439,19 +439,11 @@ public abstract class LocalAssemblyEngine {
         this.debugGraphTransformations = debugGraphTransformations;
     }
 
-    public boolean isRecoverDanglingTails() {
-        return recoverDanglingTails;
+    public boolean isRecoverDanglingBranches() { return recoverDanglingBranches; }
+
+    public void setRecoverDanglingBranches(final boolean recoverDanglingBranches) {
+        this.recoverDanglingBranches = recoverDanglingBranches;
     }
 
-    public void setRecoverDanglingTails(boolean recoverDanglingTails) {
-        this.recoverDanglingTails = recoverDanglingTails;
-    }
-
-    public boolean isRecoverDanglingHeads() {
-        return recoverDanglingHeads;
-    }
-
-    public void setRecoverDanglingHeads(boolean recoverDanglingHeads) {
-        this.recoverDanglingHeads = recoverDanglingHeads;
-    }
+    public void setMinDanglingBranchLength(final int minDanglingBranchLength) { this.minDanglingBranchLength = minDanglingBranchLength; }
 }

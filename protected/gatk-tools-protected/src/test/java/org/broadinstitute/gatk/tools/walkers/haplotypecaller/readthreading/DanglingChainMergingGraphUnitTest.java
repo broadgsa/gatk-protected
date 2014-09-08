@@ -119,7 +119,7 @@ public class DanglingChainMergingGraphUnitTest extends BaseTest {
         Assert.assertTrue(altSink != null, "We did not find a non-reference sink");
 
         // confirm that the SW alignment agrees with our expectations
-        final ReadThreadingGraph.DanglingChainMergeHelper result = rtgraph.generateCigarAgainstDownwardsReferencePath(altSink, 0);
+        final ReadThreadingGraph.DanglingChainMergeHelper result = rtgraph.generateCigarAgainstDownwardsReferencePath(altSink, 0, 4);
 
         if ( result == null ) {
             Assert.assertFalse(cigarIsGood);
@@ -209,6 +209,7 @@ public class DanglingChainMergingGraphUnitTest extends BaseTest {
         rtgraph.addSequence("ref", ref.getBytes(), true);
         final GATKSAMRecord read = ArtificialSAMUtils.createArtificialRead(alt.getBytes(), Utils.dupBytes((byte) 30, alt.length()), alt.length() + "M");
         rtgraph.addRead(read);
+        rtgraph.setMaxMismatchesInDanglingHead(10);
         rtgraph.buildGraphIfNecessary();
 
         // confirm that we have just a single dangling head
@@ -223,7 +224,7 @@ public class DanglingChainMergingGraphUnitTest extends BaseTest {
         Assert.assertTrue(altSource != null, "We did not find a non-reference source");
 
         // confirm that the SW alignment agrees with our expectations
-        final ReadThreadingGraph.DanglingChainMergeHelper result = rtgraph.generateCigarAgainstUpwardsReferencePath(altSource, 0);
+        final ReadThreadingGraph.DanglingChainMergeHelper result = rtgraph.generateCigarAgainstUpwardsReferencePath(altSource, 0, 1);
 
         if ( result == null ) {
             Assert.assertFalse(shouldBeMerged);
