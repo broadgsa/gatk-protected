@@ -186,12 +186,13 @@ public class GeneralPloidyAFCalculationModelUnitTest extends BaseTest {
         final int len = GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(1 + cfg.numAltAlleles, cfg.ploidy * cfg.GLs.size());
         double[] priors = new double[len];  // flat priors
 
-        final GeneralPloidyExactAFCalc calc = new GeneralPloidyExactAFCalc(cfg.GLs.size(), 1 + cfg.numAltAlleles, cfg.ploidy);
-        calc.combineSinglePools(cfg.GLs, 1 + cfg.numAltAlleles, cfg.ploidy, priors);
+        final GeneralPloidyExactAFCalc calc = new GeneralPloidyExactAFCalc();
+        calc.combineSinglePools(cfg.GLs, cfg.ploidy,cfg.numAltAlleles + 1, priors);
         int nameIndex = 1;
+
         for ( int allele = 0; allele < cfg.numAltAlleles; allele++, nameIndex+=2 ) {
-            int expectedAlleleCount = Integer.valueOf(cfg.name.substring(nameIndex, nameIndex+1));
-            int calculatedAlleleCount = calc.getStateTracker().getAlleleCountsOfMAP()[allele];
+            int expectedAlleleCount = Integer.valueOf(cfg.name.substring(nameIndex, nameIndex + 1));
+            int calculatedAlleleCount = calc.getAltAlleleCountOfMAP(allele);
             Assert.assertEquals(calculatedAlleleCount, expectedAlleleCount);
         }
     }

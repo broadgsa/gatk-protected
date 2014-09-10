@@ -52,6 +52,7 @@ import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -66,12 +67,12 @@ public class AFCalcPerformanceUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         // list of all high-quality models in the system
-        final List<AFCalcFactory.Calculation> biAllelicModels = Arrays.asList(
-                AFCalcFactory.Calculation.EXACT_INDEPENDENT,
-                AFCalcFactory.Calculation.EXACT_REFERENCE);
+        final List<AFCalculatorImplementation> biAllelicModels = Arrays.asList(
+                AFCalculatorImplementation.EXACT_INDEPENDENT,
+                AFCalculatorImplementation.EXACT_REFERENCE);
 
-        final List<AFCalcFactory.Calculation> multiAllelicModels = Arrays.asList(
-                AFCalcFactory.Calculation.EXACT_INDEPENDENT);
+        final List<AFCalculatorImplementation> multiAllelicModels = Arrays.asList(
+                AFCalculatorImplementation.EXACT_INDEPENDENT);
 
 //        for ( final int nonTypePLs : Arrays.asList(100) ) {
 //            for ( final int nSamples : Arrays.asList(10000) ) {
@@ -81,8 +82,8 @@ public class AFCalcPerformanceUnitTest extends BaseTest {
             for ( final int nSamples : Arrays.asList(100, 1000) ) {
                 final List<Integer> alleleCounts = Arrays.asList(0, 1, 2, 3, 4, 5, 10, 50, 500);
                     for ( final int nAltAlleles : Arrays.asList(1, 2, 3) ) {
-                    final List<AFCalcFactory.Calculation> models = nAltAlleles > 1 ? multiAllelicModels : biAllelicModels;
-                    for ( final AFCalcFactory.Calculation model : models ) {
+                    final List<AFCalculatorImplementation> models = nAltAlleles > 1 ? multiAllelicModels : biAllelicModels;
+                    for ( final AFCalculatorImplementation model : models ) {
                         for ( final List<Integer> ACs : Utils.makePermutations(alleleCounts, nAltAlleles, true) ) {
                             if ( MathUtils.sum(ACs) < nSamples * 2 ) {
                                 final AFCalcTestBuilder testBuilder
@@ -118,7 +119,7 @@ public class AFCalcPerformanceUnitTest extends BaseTest {
         final AFCalc calc = testBuilder.makeModel();
         final double[] priors = testBuilder.makePriors();
         final VariantContext vc = testBuilder.makeACTest(ACs, 0, nonTypePL);
-        final AFCalcResult result = calc.getLog10PNonRef(vc, priors);
+        final AFCalcResult result = calc.getLog10PNonRef(vc, HomoSapiensConstants.DEFAULT_PLOIDY, testBuilder.numAltAlleles, priors);
         final Pair<Integer, Integer> expectedNEvaluation = estNumberOfEvaluations(testBuilder, vc, nonTypePL);
         final int minEvals = expectedNEvaluation.getFirst();
         final int maxEvals = expectedNEvaluation.getSecond();

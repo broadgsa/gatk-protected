@@ -56,6 +56,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.GATKArgumentCollection;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
@@ -78,7 +79,8 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
         final UnifiedArgumentCollection args = new UnifiedArgumentCollection();
         final SampleList fakeSamples = SampleListUtils.singletonList("fake");
 
-        ugEngine = new UnifiedGenotypingEngine(args,fakeSamples,engine.getGenomeLocParser(),engine.getArguments().BAQMode);
+        ugEngine = new UnifiedGenotypingEngine(args,fakeSamples,engine.getGenomeLocParser(),
+                new FixedAFCalculatorProvider(args,null,true),engine.getArguments().BAQMode);
     }
 
     private UnifiedGenotypingEngine getEngine() {

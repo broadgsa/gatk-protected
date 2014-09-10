@@ -60,6 +60,7 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
 import java.io.*;
 import java.util.*;
@@ -106,7 +107,7 @@ public class AFCalcPerformanceTest {
                     final VariantContext vc = testBuilder.makeACTest(ACs, 0, nonTypePL);
 
                     timer.start();
-                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vc, priors);
+                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vc, HomoSapiensConstants.DEFAULT_PLOIDY, testBuilder.numAltAlleles, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     int otherAC = 0;
@@ -172,7 +173,7 @@ public class AFCalcPerformanceTest {
                     vcb.genotypes(genotypes);
 
                     timer.start();
-                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vcb.make(), priors);
+                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vcb.make(), HomoSapiensConstants.DEFAULT_PLOIDY, testBuilder.numAltAlleles, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);
@@ -202,7 +203,7 @@ public class AFCalcPerformanceTest {
                     final VariantContext vc = testBuilder.makeACTest(ac, nNonInformative, nonTypePL);
 
                     timer.start();
-                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vc, priors);
+                    final AFCalcResult resultTracker = calc.getLog10PNonRef(vc, HomoSapiensConstants.DEFAULT_PLOIDY, testBuilder.numAltAlleles, priors);
                     final long runtime = timer.getElapsedTimeNano();
 
                     final List<Object> columns = new LinkedList<Object>(coreValues);
@@ -214,10 +215,10 @@ public class AFCalcPerformanceTest {
     }
 
     private static class ModelParams {
-        final AFCalcFactory.Calculation modelType;
+        final AFCalculatorImplementation modelType;
         final int maxBiNSamples, maxTriNSamples;
 
-        private ModelParams(AFCalcFactory.Calculation modelType, int maxBiNSamples, int maxTriNSamples) {
+        private ModelParams(AFCalculatorImplementation modelType, int maxBiNSamples, int maxTriNSamples) {
             this.modelType = modelType;
             this.maxBiNSamples = maxBiNSamples;
             this.maxTriNSamples = maxTriNSamples;
@@ -238,6 +239,7 @@ public class AFCalcPerformanceTest {
         SINGLE,
         EXACT_LOG
     }
+
     public static void main(final String[] args) throws Exception {
         final TTCCLayout layout = new TTCCLayout();
         layout.setThreadPrinting(false);
@@ -270,11 +272,11 @@ public class AFCalcPerformanceTest {
 
         for ( final ExactCallLogger.ExactCall call : loggedCalls ) {
             final AFCalcTestBuilder testBuilder = new AFCalcTestBuilder(call.vc.getNSamples(), 1,
-                    AFCalcFactory.Calculation.EXACT_INDEPENDENT,
+                    AFCalculatorImplementation.EXACT_INDEPENDENT,
                     AFCalcTestBuilder.PriorType.human);
             logger.info(call);
             final SimpleTimer timer = new SimpleTimer().start();
-            final AFCalcResult result = testBuilder.makeModel().getLog10PNonRef(call.vc, testBuilder.makePriors());
+            final AFCalcResult result = testBuilder.makeModel().getLog10PNonRef(call.vc, HomoSapiensConstants.DEFAULT_PLOIDY, testBuilder.numAltAlleles,testBuilder.makePriors());
             final long newNanoTime = timer.getElapsedTimeNano();
             if ( call.originalCall.anyPolymorphic(-1) || result.anyPolymorphic(-1) ) {
                 logger.info("**** ONE IS POLY");
@@ -298,13 +300,13 @@ public class AFCalcPerformanceTest {
         final int ac = Integer.valueOf(args[2]);
 
         final AFCalcTestBuilder testBuilder = new AFCalcTestBuilder(nSamples, 1,
-                AFCalcFactory.Calculation.EXACT_INDEPENDENT,
+                AFCalculatorImplementation.EXACT_INDEPENDENT,
                 AFCalcTestBuilder.PriorType.human);
 
         final VariantContext vc = testBuilder.makeACTest(new int[]{ac}, 0, 100);
 
         final SimpleTimer timer = new SimpleTimer().start();
-        final AFCalcResult resultTracker = testBuilder.makeModel().getLog10PNonRef(vc, testBuilder.makePriors());
+        final AFCalcResult resultTracker = testBuilder.makeModel().getLog10PNonRef(vc, HomoSapiensConstants.DEFAULT_PLOIDY, testBuilder.numAltAlleles, testBuilder.makePriors());
         final long runtime = timer.getElapsedTimeNano();
         logger.info("result " + resultTracker.getLog10PosteriorOfAFGT0());
         logger.info("runtime " + runtime);
@@ -317,9 +319,9 @@ public class AFCalcPerformanceTest {
         final PrintStream out = new PrintStream(new FileOutputStream(args[1]));
 
         final List<ModelParams> modelParams = Arrays.asList(
-                new ModelParams(AFCalcFactory.Calculation.EXACT_REFERENCE, 10000, 10),
+                new ModelParams(AFCalculatorImplementation.EXACT_REFERENCE, 10000, 10),
 //                new ModelParams(AFCalcTestBuilder.ModelType.GeneralExact, 100, 10),
-                new ModelParams(AFCalcFactory.Calculation.EXACT_INDEPENDENT, 10000, 1000));
+                new ModelParams(AFCalculatorImplementation.EXACT_INDEPENDENT, 10000, 1000));
 
         final boolean ONLY_HUMAN_PRIORS = false;
         final List<AFCalcTestBuilder.PriorType> priorTypes = ONLY_HUMAN_PRIORS

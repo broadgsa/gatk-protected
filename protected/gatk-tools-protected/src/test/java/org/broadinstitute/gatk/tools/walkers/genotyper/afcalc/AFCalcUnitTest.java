@@ -46,13 +46,14 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
+import htsjdk.variant.variantcontext.*;
 import org.apache.commons.lang.ArrayUtils;
-import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
+import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.Utils;
-import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 import org.testng.Assert;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.DataProvider;
@@ -75,6 +76,19 @@ public class AFCalcUnitTest extends BaseTest {
     final private static boolean INCLUDE_TRIALLELIC = true;
     final private static boolean Guillermo_FIXME = false; // TODO -- can only be enabled when GdA fixes bug
     final private static boolean DEBUG_ONLY = false;
+
+    protected static List<AFCalc> createAFCalculators(final List<AFCalculatorImplementation> calcs, final int maxAltAlleles, final int ploidy) {
+        final List<AFCalc> AFCalcs = new LinkedList<>();
+
+        for ( final AFCalculatorImplementation calc : calcs ) {
+            if (calc.usableForParams(ploidy,maxAltAlleles))
+                AFCalcs.add(calc.newInstance());
+            else
+                throw new IllegalStateException("cannot use " + calc + " calculator instance with combination " + maxAltAlleles + " " + ploidy);
+        }
+
+        return AFCalcs;
+    }
 
     @BeforeSuite
     public void before() {
@@ -109,7 +123,7 @@ public class AFCalcUnitTest extends BaseTest {
 
         private GetGLsTest(final AFCalc calc, int numAltAlleles, List<Genotype> arg, final double[] priors, final String priorName) {
             super(GetGLsTest.class);
-            GLs = GenotypesContext.create(new ArrayList<Genotype>(arg));
+            GLs = GenotypesContext.create(new ArrayList<>(arg));
             this.numAltAlleles = numAltAlleles;
             this.calc = calc;
             this.priors = priors;
@@ -126,12 +140,12 @@ public class AFCalcUnitTest extends BaseTest {
         }
 
         public AFCalcResult execute() {
-            return getCalc().getLog10PNonRef(getVC(), getPriors());
+            return getCalc().getLog10PNonRef(getVC(), HomoSapiensConstants.DEFAULT_PLOIDY, numAltAlleles, getPriors());
         }
 
         public AFCalcResult executeRef() {
-            final AFCalc ref = AFCalcFactory.createAFCalc(AFCalcFactory.Calculation.EXACT_REFERENCE, getCalc().nSamples, getCalc().getMaxAltAlleles());
-            return ref.getLog10PNonRef(getVC(), getPriors());
+            final AFCalc ref = AFCalculatorImplementation.EXACT_REFERENCE.newInstance();
+            return ref.getLog10PNonRef(getVC(), HomoSapiensConstants.DEFAULT_PLOIDY, numAltAlleles, getPriors());
         }
 
         public double[] getPriors() {
@@ -165,13 +179,18 @@ public class AFCalcUnitTest extends BaseTest {
         }
     }
 
+
+    private static final int MAX_ALT_ALLELES = 2;
+    private static final int PLOIDY = 2;
+
+
     @DataProvider(name = "wellFormedGLs")
     public Object[][] createSimpleGLsData() {
         final List<Genotype> biAllelicSamples = Arrays.asList(AA1, AB1, BB1);
         final List<Genotype> triAllelicSamples = Arrays.asList(AA2, AB2, BB2, AC2, BC2, CC2);
 
         for ( final int nSamples : Arrays.asList(1, 2, 3, 4) ) {
-            List<AFCalc> calcs = AFCalcFactory.createAFCalcs( Arrays.asList( AFCalcFactory.Calculation.values() ), 4, 2, 2);
+            List<AFCalc> calcs = createAFCalculators(Arrays.asList(AFCalculatorImplementation.values()), MAX_ALT_ALLELES, PLOIDY);
 
             final int nPriorValues = 2*nSamples+1;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
@@ -261,12 +280,12 @@ public class AFCalcUnitTest extends BaseTest {
                 samples.addAll(Collections.nCopies(nNonInformative, testData.nonInformative));
 
                 final int nSamples = samples.size();
-                List<AFCalc> calcs = AFCalcFactory.createAFCalcs(Arrays.asList(AFCalcFactory.Calculation.values()), 4, 2, 2);
+                List<AFCalc> calcs = createAFCalculators(Arrays.asList(AFCalculatorImplementation.values()), MAX_ALT_ALLELES, PLOIDY);
 
                 final double[] priors = MathUtils.normalizeFromLog10(new double[2*nSamples+1], true);  // flat priors
 
                 for ( AFCalc model : calcs ) {
-                    if ( testData.nAltAlleles > 1 && model instanceof OriginalDiploidExactAFCalc )
+                    if ( testData.nAltAlleles > 1 && model instanceof OriginalDiploidExactAFCalc)
                         continue;
 
                     final GetGLsTest onlyInformative = new GetGLsTest(model, testData.nAltAlleles, testData.called, priors, "flat");
@@ -289,15 +308,18 @@ public class AFCalcUnitTest extends BaseTest {
         final AFCalcResult actual = withNonInformative.execute();
 
         testResultSimple(withNonInformative);
-        compareAFCalcResults(actual, expected, onlyInformative.getCalc(), true);
+        compareAFCalcResults(actual, expected, onlyInformative.getCalc(), onlyInformative.numAltAlleles, true);
     }
 
     private void testResultSimple(final GetGLsTest cfg) {
         final AFCalcResult refResultTracker = cfg.executeRef();
         final AFCalcResult resultTracker = cfg.execute();
-
-        compareAFCalcResults(resultTracker, refResultTracker, cfg.getCalc(), true);
-
+        try {
+            compareAFCalcResults(resultTracker, refResultTracker, cfg.getCalc(), cfg.numAltAlleles, true);
+        } catch (Throwable t) {
+            cfg.execute();
+            throw new RuntimeException(t);
+        }
         Assert.assertNotNull(resultTracker.getAllelesUsedInGenotyping());
         Assert.assertTrue(cfg.getAlleles().containsAll(resultTracker.getAllelesUsedInGenotyping()), "Result object has alleles not in our initial allele list");
 
@@ -310,9 +332,9 @@ public class AFCalcUnitTest extends BaseTest {
         }
     }
 
-    private void compareAFCalcResults(final AFCalcResult actual, final AFCalcResult expected, final AFCalc calc, final boolean onlyPosteriorsShouldBeEqual) {
+    private void compareAFCalcResults(final AFCalcResult actual, final AFCalcResult expected, final AFCalc calc, final int maxAltAlleles, final boolean onlyPosteriorsShouldBeEqual) {
         // note we cannot really test the multi-allelic case because we actually meaningfully differ among the models here
-        final double TOLERANCE = calc.getMaxAltAlleles() > 1 ? 1000 : 0.1; // much tighter constraints on bi-allelic results
+        final double TOLERANCE = maxAltAlleles > 1 ? 1000 : 0.1; // much tighter constraints on bi-allelic results
 
         if ( ! onlyPosteriorsShouldBeEqual ) {
             Assert.assertEquals(actual.getLog10PriorOfAFEq0(), expected.getLog10PriorOfAFEq0(), TOLERANCE, "Priors AF == 0");
@@ -322,7 +344,7 @@ public class AFCalcUnitTest extends BaseTest {
         }
         Assert.assertEquals(actual.getLog10PosteriorOfAFEq0(), expected.getLog10PosteriorOfAFEq0(), TOLERANCE, "Posteriors AF == 0");
         Assert.assertEquals(actual.getLog10PosteriorOfAFGT0(), expected.getLog10PosteriorOfAFGT0(), TOLERANCE, "Posteriors AF > 0");
-        Assert.assertEquals(actual.getAlleleCountsOfMLE(), expected.getAlleleCountsOfMLE(), "MLE ACs");
+        Assert.assertTrue(Arrays.equals(actual.getAlleleCountsOfMLE(), expected.getAlleleCountsOfMLE()), "MLE ACs ");
         Assert.assertEquals(actual.getAllelesUsedInGenotyping(), expected.getAllelesUsedInGenotyping(), "Alleles used in genotyping");
 
         for ( final Allele a : expected.getAllelesUsedInGenotyping() ) {
@@ -369,14 +391,14 @@ public class AFCalcUnitTest extends BaseTest {
         final Genotype g;
         final double pNonRef, tolerance;
         final boolean canScale;
-        final List<AFCalcFactory.Calculation> badModels;
+        final List<AFCalculatorImplementation> badModels;
         final VariantContext vc;
 
         private PNonRefData(final VariantContext vc, Genotype g, double pNonRef, double tolerance, final boolean canScale) {
-            this(vc, g, pNonRef, tolerance, canScale, Collections.<AFCalcFactory.Calculation>emptyList());
+            this(vc, g, pNonRef, tolerance, canScale, Collections.<AFCalculatorImplementation>emptyList());
         }
 
-        private PNonRefData(final VariantContext vc, Genotype g, double pNonRef, double tolerance, final boolean canScale, final List<AFCalcFactory.Calculation> badModels) {
+        private PNonRefData(final VariantContext vc, Genotype g, double pNonRef, double tolerance, final boolean canScale, final List<AFCalculatorImplementation> badModels) {
             this.g = g;
             this.pNonRef = pNonRef;
             this.tolerance = tolerance;
@@ -433,7 +455,7 @@ public class AFCalcUnitTest extends BaseTest {
                 new PNonRefData(vc3, makePL(GG, 10, 10, 10, 10, 10, 0), 0.9166667, TOLERANCE, false)
         );
 
-        for ( AFCalcFactory.Calculation modelType : Arrays.asList(AFCalcFactory.Calculation.EXACT_REFERENCE, AFCalcFactory.Calculation.EXACT_INDEPENDENT) ) {
+        for ( AFCalculatorImplementation modelType : Arrays.asList(AFCalculatorImplementation.EXACT_REFERENCE, AFCalculatorImplementation.EXACT_INDEPENDENT) ) {
             for ( int nNonInformative = 0; nNonInformative < 3; nNonInformative++ ) {
                 for ( final PNonRefData rootData : initialPNonRefData ) {
                     for ( int plScale = 1; plScale <= 100000; plScale *= 10 ) {
@@ -451,7 +473,7 @@ public class AFCalcUnitTest extends BaseTest {
 
     @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "PNonRef")
     private void testPNonRef(final VariantContext vcRoot,
-                             AFCalcFactory.Calculation modelType,
+                             AFCalculatorImplementation modelType,
                              AFCalcTestBuilder.PriorType priorType,
                              final List<Genotype> genotypes,
                              final double expectedPNonRef,
@@ -463,7 +485,7 @@ public class AFCalcUnitTest extends BaseTest {
         final VariantContextBuilder vcb = new VariantContextBuilder(vcRoot);
         vcb.genotypes(genotypes);
 
-        final AFCalcResult resultTracker = testBuilder.makeModel().getLog10PNonRef(vcb.make(), testBuilder.makePriors());
+        final AFCalcResult resultTracker = testBuilder.makeModel().getLog10PNonRef(vcb.make(), PLOIDY, MAX_ALT_ALLELES, testBuilder.makePriors());
 
         Assert.assertEquals(resultTracker.getLog10PosteriorOfAFGT0(), Math.log10(expectedPNonRef), tolerance,
                 "Actual pNonRef not within tolerance " + tolerance + " of expected");
@@ -476,12 +498,12 @@ public class AFCalcUnitTest extends BaseTest {
         final List<Integer> bigNonRefPLs = Arrays.asList(0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 100, 1000);
         final List<List<Integer>> bigDiploidPLs = removeBadPLs(Utils.makePermutations(bigNonRefPLs, 3, true));
 
-        for ( AFCalcFactory.Calculation modelType : AFCalcFactory.Calculation.values() ) {
+        for ( AFCalculatorImplementation modelType : AFCalculatorImplementation.values() ) {
 
             if ( false ) { // for testing only
                 tests.add(new Object[]{modelType, toGenotypes(Arrays.asList(Arrays.asList(0,100,0)))});
             } else {
-                if ( modelType == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY ) continue; // TODO -- GENERAL_PLOIDY DOESN'T WORK
+                if ( modelType == AFCalculatorImplementation.EXACT_GENERAL_PLOIDY ) continue; // TODO -- GENERAL_PLOIDY DOESN'T WORK
 
                 // test all combinations of PLs for 1 sample
                 for ( final List<List<Integer>> PLsPerSample : Utils.makePermutations(bigDiploidPLs, 1, true) ) {
@@ -539,16 +561,16 @@ public class AFCalcUnitTest extends BaseTest {
     }
 
     @Test(enabled = true && ! DEBUG_ONLY, dataProvider = "PNonRefBiallelicSystematic")
-    private void PNonRefBiallelicSystematic(AFCalcFactory.Calculation modelType, final List<Genotype> genotypes) {
+    private void PNonRefBiallelicSystematic(AFCalculatorImplementation modelType, final List<Genotype> genotypes) {
         //logger.warn("Running " + modelType + " with " + genotypes);
-        final AFCalcTestBuilder refBuilder = new AFCalcTestBuilder(genotypes.size(), 1, AFCalcFactory.Calculation.EXACT_REFERENCE, AFCalcTestBuilder.PriorType.human);
+        final AFCalcTestBuilder refBuilder = new AFCalcTestBuilder(genotypes.size(), 1, AFCalculatorImplementation.EXACT_REFERENCE, AFCalcTestBuilder.PriorType.human);
         final AFCalcTestBuilder testBuilder = new AFCalcTestBuilder(genotypes.size(), 1, modelType, AFCalcTestBuilder.PriorType.human);
 
         final VariantContextBuilder vcb = new VariantContextBuilder("x", "1", 1, 1, Arrays.asList(A, C));
         vcb.genotypes(genotypes);
 
-        final AFCalcResult refResult = refBuilder.makeModel().getLog10PNonRef(vcb.make(), testBuilder.makePriors());
-        final AFCalcResult testResult = testBuilder.makeModel().getLog10PNonRef(vcb.make(), testBuilder.makePriors());
+        final AFCalcResult refResult = refBuilder.makeModel().getLog10PNonRef(vcb.make(), PLOIDY, MAX_ALT_ALLELES, testBuilder.makePriors());
+        final AFCalcResult testResult = testBuilder.makeModel().getLog10PNonRef(vcb.make(), PLOIDY, MAX_ALT_ALLELES, testBuilder.makePriors());
 
         final double tolerance = 1e-3;
         Assert.assertEquals(testResult.getLog10PosteriorOfAFGT0(), refResult.getLog10PosteriorOfAFGT0(), tolerance,
@@ -567,9 +589,9 @@ public class AFCalcUnitTest extends BaseTest {
     public Object[][] makeModels() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        for ( final AFCalcFactory.Calculation calc : AFCalcFactory.Calculation.values() ) {
+        for ( final AFCalculatorImplementation calc : AFCalculatorImplementation.values() ) {
             if ( calc.usableForParams(2, 4) )
-                tests.add(new Object[]{AFCalcFactory.createAFCalc(calc, 2, 4)});
+                tests.add(new Object[]{AFCalcFactory.createCalculatorForDiploidAnalysis()});
         }
 
         return tests.toArray(new Object[][]{});
@@ -656,14 +678,14 @@ public class AFCalcUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         // list of all high-quality models in the system
-        final List<AFCalcFactory.Calculation> models = Arrays.asList(
-                AFCalcFactory.Calculation.getDefaultModel(),
-                AFCalcFactory.Calculation.EXACT_REFERENCE,
-                AFCalcFactory.Calculation.EXACT_INDEPENDENT);
+        final List<AFCalculatorImplementation> models = Arrays.asList(
+                AFCalculatorImplementation.DEFAULT,
+                AFCalculatorImplementation.EXACT_REFERENCE,
+                AFCalculatorImplementation.EXACT_INDEPENDENT);
 
         // note that we cannot use small PLs here or the thresholds are hard to set
         for ( final int nonTypePLs : Arrays.asList(100, 1000) ) {
-            for ( final AFCalcFactory.Calculation model : models ) {
+            for ( final AFCalculatorImplementation model : models ) {
                 for ( final int allele1AC : Arrays.asList(0, 1, 2, 10, 100, 1000, 10000) ) {
                     for ( final int nSamples : Arrays.asList(1, 10, 100, 1000, 10000) ) {
 //        for ( final int nonTypePLs : Arrays.asList(10) ) {
@@ -713,13 +735,13 @@ public class AFCalcUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         // list of all high-quality models in the system
-        final List<AFCalcFactory.Calculation> models = Arrays.asList(AFCalcFactory.Calculation.EXACT_INDEPENDENT);
+        final List<AFCalculatorImplementation> models = Arrays.asList(AFCalculatorImplementation.EXACT_INDEPENDENT);
 
         final List<Integer> alleleCounts = Arrays.asList(0, 1, 2, 3, 4, 5, 10, 20);
 
         final int nonTypePLs = 1000;
         final int nAlleles = 4;
-        for ( final AFCalcFactory.Calculation model : models ) {
+        for ( final AFCalculatorImplementation model : models ) {
             for ( final List<Integer> ACs : Utils.makePermutations(alleleCounts, nAlleles, true) ) {
                 final List<Boolean> isPoly = new ArrayList<Boolean>(ACs.size());
                 for ( final int ac : ACs ) isPoly.add(ac > 0);
@@ -746,7 +768,7 @@ public class AFCalcUnitTest extends BaseTest {
         final AFCalc calc = testBuilder.makeModel();
         final double[] priors = testBuilder.makePriors();
         final VariantContext vc = testBuilder.makeACTest(ACs, 0, nonTypePL);
-        final AFCalcResult result = calc.getLog10PNonRef(vc, priors);
+        final AFCalcResult result = calc.getLog10PNonRef(vc, PLOIDY, testBuilder.numAltAlleles, priors);
 
         boolean anyPoly = false;
         for ( final boolean onePoly : expectedPoly ) anyPoly = anyPoly || onePoly;
