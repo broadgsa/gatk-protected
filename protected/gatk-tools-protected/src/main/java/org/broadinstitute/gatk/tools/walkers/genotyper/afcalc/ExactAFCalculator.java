@@ -55,11 +55,11 @@ import java.util.*;
 /**
  * Uses the Exact calculation of Heng Li
  */
-abstract class ExactAFCalc extends AFCalc {
+abstract class ExactAFCalculator extends AFCalculator {
 
     protected static final int HOM_REF_INDEX = 0;  // AA likelihoods are always first
     /**
-     * Sorts {@link ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first.
+     * Sorts {@link ExactAFCalculator.LikelihoodSum} instances where those with higher likelihood are first.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
 
@@ -69,7 +69,7 @@ abstract class ExactAFCalc extends AFCalc {
         }
     };
     /**
-     * Sorts {@link ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first but make sure that
+     * Sorts {@link ExactAFCalculator.LikelihoodSum} instances where those with higher likelihood are first but make sure that
      * NON_REF alleles are place are last.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_NON_REF_THEN_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
@@ -84,7 +84,7 @@ abstract class ExactAFCalc extends AFCalc {
         }
     };
     /**
-     * Sorts {@link ExactAFCalc.LikelihoodSum} instances where those with lower alternative allele index are first regardless of
+     * Sorts {@link ExactAFCalculator.LikelihoodSum} instances where those with lower alternative allele index are first regardless of
      * the likelihood sum.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_INDEX_COMPARATOR = new Comparator<LikelihoodSum>() {
@@ -94,7 +94,7 @@ abstract class ExactAFCalc extends AFCalc {
         }
     };
 
-    protected ExactAFCalc() {
+    protected ExactAFCalculator() {
 
     }
 

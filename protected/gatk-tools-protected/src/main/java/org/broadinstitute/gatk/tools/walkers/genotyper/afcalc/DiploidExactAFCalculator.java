@@ -55,15 +55,15 @@ import htsjdk.variant.variantcontext.VariantContext;
 
 import java.util.*;
 
-public abstract class DiploidExactAFCalc extends ExactAFCalc {
+public abstract class DiploidExactAFCalculator extends ExactAFCalculator {
 
     private static final double LOG10_OF_2 = MathUtils.Log10Cache.get(2);
 
-    public DiploidExactAFCalc() {
+    public DiploidExactAFCalculator() {
     }
 
     @Override
-    protected AFCalcResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
+    protected AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
                                                final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
         final int numAlternateAlleles = vc.getNAlleles() - 1;
 

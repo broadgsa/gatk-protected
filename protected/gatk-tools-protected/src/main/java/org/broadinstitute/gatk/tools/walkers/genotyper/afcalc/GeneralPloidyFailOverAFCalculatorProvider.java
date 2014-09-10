@@ -58,9 +58,9 @@ import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentColle
  */
 public class GeneralPloidyFailOverAFCalculatorProvider extends AFCalculatorProvider {
 
-    private final AFCalc preferred;
+    private final AFCalculator preferred;
     private final AFCalculatorImplementation preferredImplementation;
-    private final AFCalc failOver;
+    private final AFCalculator failOver;
 
     /**
      * Creates a new AF calculator provider given the genotyping arguments and logger reference.
@@ -86,7 +86,7 @@ public class GeneralPloidyFailOverAFCalculatorProvider extends AFCalculatorProvi
      * @return {@inheritDoc}
      */
     @Override
-    public AFCalc getInstance(final int ploidy, final int maximumAlternativeAlleles) {
+    public AFCalculator getInstance(final int ploidy, final int maximumAlternativeAlleles) {
         return preferredImplementation.usableForParams(ploidy,maximumAlternativeAlleles) ? preferred : failOver;
     }
 

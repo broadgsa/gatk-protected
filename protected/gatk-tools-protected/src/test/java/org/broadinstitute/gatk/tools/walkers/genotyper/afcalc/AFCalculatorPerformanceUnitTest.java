@@ -61,7 +61,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class AFCalcPerformanceUnitTest extends BaseTest {
+public class AFCalculatorPerformanceUnitTest extends BaseTest {
     @DataProvider(name = "ScalingTests")
     public Object[][] makepolyTestProviderLotsOfAlleles() {
         List<Object[]> tests = new ArrayList<Object[]>();
@@ -86,8 +86,8 @@ public class AFCalcPerformanceUnitTest extends BaseTest {
                     for ( final AFCalculatorImplementation model : models ) {
                         for ( final List<Integer> ACs : Utils.makePermutations(alleleCounts, nAltAlleles, true) ) {
                             if ( MathUtils.sum(ACs) < nSamples * 2 ) {
-                                final AFCalcTestBuilder testBuilder
-                                        = new AFCalcTestBuilder(nSamples, nAltAlleles, model, AFCalcTestBuilder.PriorType.human);
+                                final AFCalculatorTestBuilder testBuilder
+                                        = new AFCalculatorTestBuilder(nSamples, nAltAlleles, model, AFCalculatorTestBuilder.PriorType.human);
                                 tests.add(new Object[]{testBuilder, ACs, nonTypePLs});
                             }
                         }
@@ -99,7 +99,7 @@ public class AFCalcPerformanceUnitTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    private Pair<Integer, Integer> estNumberOfEvaluations(final AFCalcTestBuilder testBuilder, final VariantContext vc, final int nonTypePL) {
+    private Pair<Integer, Integer> estNumberOfEvaluations(final AFCalculatorTestBuilder testBuilder, final VariantContext vc, final int nonTypePL) {
         final int evalOverhead = 2; // 2
         final int maxEvalsPerSamplePerAC = 3;
 
@@ -115,11 +115,11 @@ public class AFCalcPerformanceUnitTest extends BaseTest {
     }
 
     @Test(dataProvider = "ScalingTests")
-    private void testScaling(final AFCalcTestBuilder testBuilder, final List<Integer> ACs, final int nonTypePL) {
-        final AFCalc calc = testBuilder.makeModel();
+    private void testScaling(final AFCalculatorTestBuilder testBuilder, final List<Integer> ACs, final int nonTypePL) {
+        final AFCalculator calc = testBuilder.makeModel();
         final double[] priors = testBuilder.makePriors();
         final VariantContext vc = testBuilder.makeACTest(ACs, 0, nonTypePL);
-        final AFCalcResult result = calc.getLog10PNonRef(vc, HomoSapiensConstants.DEFAULT_PLOIDY, testBuilder.numAltAlleles, priors);
+        final AFCalculationResult result = calc.getLog10PNonRef(vc, HomoSapiensConstants.DEFAULT_PLOIDY, testBuilder.numAltAlleles, priors);
         final Pair<Integer, Integer> expectedNEvaluation = estNumberOfEvaluations(testBuilder, vc, nonTypePL);
         final int minEvals = expectedNEvaluation.getFirst();
         final int maxEvals = expectedNEvaluation.getSecond();

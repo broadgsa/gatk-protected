@@ -65,7 +65,7 @@ public abstract class AFCalculatorProvider {
      * @param defaultPloidy the assumed ploidy in case that there is no a GT call present to determine it.
      * @return never {@code null}
      */
-    public AFCalc getInstance(final VariantContext variantContext, final int defaultPloidy, final int maximumAltAlleles) {
+    public AFCalculator getInstance(final VariantContext variantContext, final int defaultPloidy, final int maximumAltAlleles) {
         if (variantContext == null)
             throw new IllegalArgumentException("variant context cannot be null");
 
@@ -96,6 +96,6 @@ public abstract class AFCalculatorProvider {
      * @param maximumAltAlleles the allele count.
      * @return never {@code null}
      */
-    public abstract AFCalc getInstance(final int ploidy, final int maximumAltAlleles);
+    public abstract AFCalculator getInstance(final int ploidy, final int maximumAltAlleles);
 
 }

@@ -59,8 +59,8 @@ import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalc;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcResult;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculationResult;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
@@ -218,8 +218,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
         final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
         final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
-        final AFCalc afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles);
-        final AFCalcResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
+        final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles);
+        final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
 
         final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult);
 
@@ -333,7 +333,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @param afcr the exact model calcualtion result.
      * @return never {@code null}.
      */
-    private OutputAlleleSubset calculateOutputAlleleSubset(final AFCalcResult afcr) {
+    private OutputAlleleSubset calculateOutputAlleleSubset(final AFCalculationResult afcr) {
         final List<Allele> alleles = afcr.getAllelesUsedInGenotyping();
 
         final int alternativeAlleleCount = alleles.size() - 1;
@@ -635,7 +635,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
                                                        final AlignmentContext rawContext, final Map<String, AlignmentContext> stratifiedContexts, final RefMetaDataTracker tracker, final ReferenceContext refContext, final List<Integer> alleleCountsofMLE, final boolean bestGuessIsRef,
-                                                       final AFCalcResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
+                                                       final AFCalculationResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
                                                        final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
         final HashMap<String, Object> attributes = new HashMap<>();
 

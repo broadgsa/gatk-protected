@@ -63,7 +63,7 @@ import java.util.*;
  * Note that all of the values -- i.e. priors -- are checked now that they are meaningful, which means
  * that users of this code can rely on the values coming out of these functions.
  */
-public class AFCalcResult {
+public class AFCalculationResult {
     private final static int AF0 = 0;
     private final static int AF1p = 1;
     private final static int LOG_10_ARRAY_SIZES = 2;
@@ -89,12 +89,12 @@ public class AFCalcResult {
     /**
      * Create a results object capability of storing results for calls with up to maxAltAlleles
      */
-    public AFCalcResult(final int[] alleleCountsOfMLE,
-                        final int nEvaluations,
-                        final List<Allele> allelesUsedInGenotyping,
-                        final double[] log10LikelihoodsOfAC,
-                        final double[] log10PriorsOfAC,
-                        final Map<Allele, Double> log10pRefByAllele) {
+    public AFCalculationResult(final int[] alleleCountsOfMLE,
+                               final int nEvaluations,
+                               final List<Allele> allelesUsedInGenotyping,
+                               final double[] log10LikelihoodsOfAC,
+                               final double[] log10PriorsOfAC,
+                               final Map<Allele, Double> log10pRefByAllele) {
         if ( allelesUsedInGenotyping == null || allelesUsedInGenotyping.size() < 1 ) throw new IllegalArgumentException("allelesUsedInGenotyping must be non-null list of at least 1 value " + allelesUsedInGenotyping);
         if ( alleleCountsOfMLE == null ) throw new IllegalArgumentException("alleleCountsOfMLE cannot be null");
         if ( alleleCountsOfMLE.length != allelesUsedInGenotyping.size() - 1) throw new IllegalArgumentException("alleleCountsOfMLE.length " + alleleCountsOfMLE.length + " != allelesUsedInGenotyping.size() " + allelesUsedInGenotyping.size());
@@ -123,8 +123,8 @@ public class AFCalcResult {
      * @param log10PriorsOfAC
      * @return
      */
-    public AFCalcResult withNewPriors(final double[] log10PriorsOfAC) {
-        return new AFCalcResult(alleleCountsOfMLE, nEvaluations, allelesUsedInGenotyping, log10LikelihoodsOfAC, log10PriorsOfAC, log10pRefByAllele);
+    public AFCalculationResult withNewPriors(final double[] log10PriorsOfAC) {
+        return new AFCalculationResult(alleleCountsOfMLE, nEvaluations, allelesUsedInGenotyping, log10LikelihoodsOfAC, log10PriorsOfAC, log10pRefByAllele);
     }
 
     /**

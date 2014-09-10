@@ -57,14 +57,14 @@ import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
 
-public class GeneralPloidyExactAFCalc extends ExactAFCalc {
+public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
 
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 100; // if PL vectors longer than this # of elements, don't log them
 
 
     private final static boolean VERBOSE = false;
 
-    protected GeneralPloidyExactAFCalc() {
+    protected GeneralPloidyExactAFCalculator() {
     }
 
     @Override
@@ -73,7 +73,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
     }
 
     @Override
-    protected AFCalcResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy, final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
+    protected AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy, final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
         combineSinglePools(vc.getGenotypes(), defaultPloidy, vc.getNAlleles(), log10AlleleFrequencyPriors);
         return getResultFromFinalState(vc, log10AlleleFrequencyPriors, stateTracker);
     }

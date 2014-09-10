@@ -186,7 +186,7 @@ public class GeneralPloidyAFCalculationModelUnitTest extends BaseTest {
         final int len = GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(1 + cfg.numAltAlleles, cfg.ploidy * cfg.GLs.size());
         double[] priors = new double[len];  // flat priors
 
-        final GeneralPloidyExactAFCalc calc = new GeneralPloidyExactAFCalc();
+        final GeneralPloidyExactAFCalculator calc = new GeneralPloidyExactAFCalculator();
         calc.combineSinglePools(cfg.GLs, cfg.ploidy,cfg.numAltAlleles + 1, priors);
         int nameIndex = 1;
 

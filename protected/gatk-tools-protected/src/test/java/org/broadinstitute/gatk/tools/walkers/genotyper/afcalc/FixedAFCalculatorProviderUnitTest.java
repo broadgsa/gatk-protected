@@ -97,7 +97,7 @@ public class FixedAFCalculatorProviderUnitTest {
         genotypeArgs.samplePloidy = ploidy;
         genotypeArgs.MAX_ALTERNATE_ALLELES = maxAltAlleles;
         final AFCalculatorProvider provider = FixedAFCalculatorProvider.createThreadSafeProvider(toolkit,callerArgs,null);
-        final Hashtable<Thread,AFCalc> perThreadProvider = new Hashtable(cpuThreadCount * dataThreadCount);
+        final Hashtable<Thread,AFCalculator> perThreadProvider = new Hashtable(cpuThreadCount * dataThreadCount);
         final List<Thread> threads = new ArrayList<>();
         // execute different threads.
         for (int i = 0; i < cpuThreadCount; i++)
@@ -121,7 +121,7 @@ public class FixedAFCalculatorProviderUnitTest {
                 Assert.fail();
             }
         // check that each thread gave a different calculator.
-        final Set<AFCalc> calculators = new HashSet<>(perThreadProvider.values());
+        final Set<AFCalculator> calculators = new HashSet<>(perThreadProvider.values());
         Assert.assertEquals(calculators.size(),threads.size());
     }
 

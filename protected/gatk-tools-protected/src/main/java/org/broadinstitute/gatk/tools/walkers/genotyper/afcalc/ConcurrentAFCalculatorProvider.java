@@ -69,13 +69,13 @@ public abstract class ConcurrentAFCalculatorProvider extends AFCalculatorProvide
     }
 
     @Override
-    public AFCalc getInstance(final VariantContext vc, final int defaultPloidy, final int maxAltAlleleCount) {
+    public AFCalculator getInstance(final VariantContext vc, final int defaultPloidy, final int maxAltAlleleCount) {
         return threadLocal.get().getInstance(vc,defaultPloidy,maxAltAlleleCount);
     }
 
 
     @Override
-    public AFCalc getInstance(final int ploidy, final int maxAltAlleleCount) {
+    public AFCalculator getInstance(final int ploidy, final int maxAltAlleleCount) {
         return threadLocal.get().getInstance(ploidy, maxAltAlleleCount);
     }
 

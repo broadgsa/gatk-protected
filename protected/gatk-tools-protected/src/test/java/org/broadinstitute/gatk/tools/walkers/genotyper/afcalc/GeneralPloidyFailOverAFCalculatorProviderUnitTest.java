@@ -69,7 +69,7 @@ public class GeneralPloidyFailOverAFCalculatorProviderUnitTest {
 
         final GeneralPloidyFailOverAFCalculatorProvider provider = new GeneralPloidyFailOverAFCalculatorProvider(args,null);
 
-        final AFCalc calculator = provider.getInstance(ploidy,maxAltAlleles);
+        final AFCalculator calculator = provider.getInstance(ploidy,maxAltAlleles);
         Assert.assertNotNull(calculator);
         final AFCalculatorImplementation implementation = AFCalculatorImplementation.fromCalculatorClass(calculator.getClass());
         Assert.assertTrue(implementation.usableForParams(ploidy,maxAltAlleles));
@@ -78,7 +78,7 @@ public class GeneralPloidyFailOverAFCalculatorProviderUnitTest {
                 if (implementation.usableForParams(PLOIDIES[i],MAX_ALT_ALLELES[j]))
                     Assert.assertSame(provider.getInstance(PLOIDIES[i],MAX_ALT_ALLELES[j]),calculator);
                 else                    {
-                    final AFCalc failOver = provider.getInstance(PLOIDIES[i],MAX_ALT_ALLELES[j]);
+                    final AFCalculator failOver = provider.getInstance(PLOIDIES[i],MAX_ALT_ALLELES[j]);
                     Assert.assertNotNull(failOver);
                     final AFCalculatorImplementation failOverImplementation = AFCalculatorImplementation.fromCalculatorClass(failOver.getClass());
                     Assert.assertTrue(failOverImplementation.usableForParams(PLOIDIES[i],MAX_ALT_ALLELES[j]));
@@ -99,7 +99,7 @@ public class GeneralPloidyFailOverAFCalculatorProviderUnitTest {
         genotypeArgs.samplePloidy = ploidy;
         genotypeArgs.MAX_ALTERNATE_ALLELES = maxAltAlleles;
         final AFCalculatorProvider provider = GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit,genotypeArgs,null);
-        final Hashtable<Thread,AFCalc> perThreadProvider = new Hashtable(cpuThreadCount * dataThreadCount);
+        final Hashtable<Thread,AFCalculator> perThreadProvider = new Hashtable(cpuThreadCount * dataThreadCount);
         final List<Thread> threads = new ArrayList<>();
         // execute different threads.
         for (int i = 0; i < cpuThreadCount; i++)
@@ -123,7 +123,7 @@ public class GeneralPloidyFailOverAFCalculatorProviderUnitTest {
                 Assert.fail();
             }
         // check that each thread gave a different calculator.
-        final Set<AFCalc> calculators = new HashSet<>(perThreadProvider.values());
+        final Set<AFCalculator> calculators = new HashSet<>(perThreadProvider.values());
         Assert.assertEquals(calculators.size(),threads.size());
     }
 

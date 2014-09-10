@@ -61,7 +61,7 @@ import java.util.*;
 
 
 // SEE  private/R/pls.R if you want the truth output for these tests
-public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
+public class IndependentAllelesDiploidExactAFCalculatorUnitTest extends BaseTest {
     @DataProvider(name = "TestCombineGLs")
     public Object[][] makeTestCombineGLs() {
         List<Object[]> tests = new ArrayList<Object[]>();
@@ -102,12 +102,12 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
     }
 
     private Genotype makePL(final int ... PLs) {
-        return AFCalcUnitTest.makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), PLs);
+        return AFCalculationUnitTest.makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), PLs);
     }
 
     @Test(enabled = true, dataProvider = "TestCombineGLs")
     public void testCombineGLsPrecise(final int altIndex, final int nAlts, final Genotype testg, final Genotype expected) {
-        final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc) AFCalculatorImplementation.EXACT_INDEPENDENT.newInstance();
+        final IndependentAllelesDiploidExactAFCalculator calc = (IndependentAllelesDiploidExactAFCalculator) AFCalculatorImplementation.EXACT_INDEPENDENT.newInstance();
         final Genotype combined = calc.combineGLsPrecise(testg, altIndex, nAlts);
 
         Assert.assertEquals(combined.getPL(), expected.getPL(),
@@ -116,7 +116,7 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
 
     @Test(enabled = true, dataProvider = "TestCombineGLs")
     public void testCombinePrecise(final int altIndex, final int nAlts, final Genotype testg, final Genotype expected) {
-        final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc) AFCalculatorImplementation.EXACT_INDEPENDENT.newInstance();
+        final IndependentAllelesDiploidExactAFCalculator calc = (IndependentAllelesDiploidExactAFCalculator) AFCalculatorImplementation.EXACT_INDEPENDENT.newInstance();
         final Genotype combined = calc.combineGLsPrecise(testg, altIndex, nAlts);
 
         Assert.assertEquals(combined.getPL(), expected.getPL(),
@@ -156,7 +156,7 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
 
     @Test(enabled = true, dataProvider = "TestMakeAlleleConditionalContexts")
     private void testMakeAlleleConditionalContexts(final VariantContext vc, final List<VariantContext> expectedVCs) {
-        final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc) AFCalculatorImplementation.EXACT_INDEPENDENT.newInstance();
+        final IndependentAllelesDiploidExactAFCalculator calc = (IndependentAllelesDiploidExactAFCalculator) AFCalculatorImplementation.EXACT_INDEPENDENT.newInstance();
         final List<VariantContext> biAllelicVCs = calc.makeAlleleConditionalContexts(vc);
 
         Assert.assertEquals(biAllelicVCs.size(), expectedVCs.size());
@@ -197,24 +197,24 @@ public class IndependentAllelesDiploidExactAFCalcUnitTest extends BaseTest {
 
         final double log10pNonRef = Math.log10(1-pRef);
 
-        final List<AFCalcResult> originalPriors = new LinkedList<AFCalcResult>();
+        final List<AFCalculationResult> originalPriors = new LinkedList<AFCalculationResult>();
         final List<Double> pNonRefN = new LinkedList<Double>();
         for ( int i = 0; i < log10LAlleles.size(); i++ ) {
             final double log10LAllele1 = log10LAlleles.get(i);
             final double[] L1 = MathUtils.normalizeFromLog10(new double[]{log10LAllele1, 0.0}, true);
-            final AFCalcResult result1 = new AFCalcResult(new int[]{1}, 1, Arrays.asList(A, C), L1, rawPriors, Collections.singletonMap(C, -10000.0));
+            final AFCalculationResult result1 = new AFCalculationResult(new int[]{1}, 1, Arrays.asList(A, C), L1, rawPriors, Collections.singletonMap(C, -10000.0));
             originalPriors.add(result1);
             pNonRefN.add(log10pNonRef*(i+1));
         }
 
-        final IndependentAllelesDiploidExactAFCalc calc = (IndependentAllelesDiploidExactAFCalc) AFCalculatorImplementation.EXACT_INDEPENDENT.newInstance();
-        final List<AFCalcResult> thetaNPriors = calc.applyMultiAllelicPriors(originalPriors);
+        final IndependentAllelesDiploidExactAFCalculator calc = (IndependentAllelesDiploidExactAFCalculator) AFCalculatorImplementation.EXACT_INDEPENDENT.newInstance();
+        final List<AFCalculationResult> thetaNPriors = calc.applyMultiAllelicPriors(originalPriors);
 
         double prevPosterior = 0.0;
         for ( int i = 0; i < log10LAlleles.size(); i++ ) {
-            final AFCalcResult thetaN = thetaNPriors.get(i);
-            AFCalcResult orig = null;
-            for ( final AFCalcResult x : originalPriors )
+            final AFCalculationResult thetaN = thetaNPriors.get(i);
+            AFCalculationResult orig = null;
+            for ( final AFCalculationResult x : originalPriors )
                 if ( x.getAllelesUsedInGenotyping().equals(thetaN.getAllelesUsedInGenotyping()))
                     orig = x;
 

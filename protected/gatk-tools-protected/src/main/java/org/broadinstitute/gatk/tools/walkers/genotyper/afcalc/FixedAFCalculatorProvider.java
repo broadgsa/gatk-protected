@@ -59,7 +59,7 @@ import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection
  */
 public class FixedAFCalculatorProvider extends AFCalculatorProvider {
 
-    private final AFCalc singleton;
+    private final AFCalculator singleton;
 
     private final boolean verifyRequests;
 
@@ -135,7 +135,7 @@ public class FixedAFCalculatorProvider extends AFCalculatorProvider {
     }
 
     @Override
-    public AFCalc getInstance(final VariantContext vc, final int defaultPloidy, final int maximumAlleleCount) {
+    public AFCalculator getInstance(final VariantContext vc, final int defaultPloidy, final int maximumAlleleCount) {
         if (verifyRequests)
             // supers implementation will call eventually one of the other methods, so no need to verify anything here.
             return super.getInstance(vc,defaultPloidy,maximumAlleleCount);
@@ -143,7 +143,7 @@ public class FixedAFCalculatorProvider extends AFCalculatorProvider {
     }
 
     @Override
-    public AFCalc getInstance(final int ploidy, final int maxAltAlleleCount) {
+    public AFCalculator getInstance(final int ploidy, final int maxAltAlleleCount) {
         if (verifyRequests) {
             if (this.ploidy != AFCalculatorImplementation.UNBOUND_PLOIDY && ploidy != this.ploidy)
                 throw new IllegalStateException("non-supported ploidy");

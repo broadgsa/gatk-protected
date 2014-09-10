@@ -46,195 +46,178 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
-import com.google.java.contract.Ensures;
-import com.google.java.contract.Requires;
-import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.utils.SimpleTimer;
-import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.GenotypesContext;
-import htsjdk.variant.variantcontext.VariantContext;
+import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.Utils;
+import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
-import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
+public class AFCalculatorTestBuilder {
+    final static Allele A = Allele.create("A", true);
+    final static Allele C = Allele.create("C");
+    final static Allele G = Allele.create("G");
+    final static Allele T = Allele.create("T");
+    final static Allele AA = Allele.create("AA");
+    final static Allele AT = Allele.create("AT");
+    final static Allele AG = Allele.create("AG");
 
-/**
- * Generic interface for calculating the probability of alleles segregating given priors and genotype likelihoods
- */
-public abstract class AFCalc implements Cloneable {
-    private final static Logger defaultLogger = Logger.getLogger(AFCalc.class);
+    static int sampleNameCounter = 0;
 
+    final int nSamples;
+    final int numAltAlleles;
+    final AFCalculatorImplementation modelType;
+    final PriorType priorType;
 
-    protected Logger logger = defaultLogger;
-
-    private SimpleTimer callTimer = new SimpleTimer();
-    private StateTracker stateTracker;
-    private ExactCallLogger exactCallLogger = null;
-
-    /**
-     * Create a new AFCalc object capable of calculating the prob. that alleles are
-     * segregating among many samples.
-     *
-     * <p>
-     *    Restrictions in ploidy and number of alternative alleles that a instance can handle will be determined
-     *    by its implementation class {@link AFCalculatorImplementation}
-     * </p>
-     */
-    protected AFCalc() {
+    public AFCalculatorTestBuilder(final int nSamples, final int numAltAlleles,
+                                   final AFCalculatorImplementation modelType, final PriorType priorType) {
+        this.nSamples = nSamples;
+        this.numAltAlleles = numAltAlleles;
+        this.modelType = modelType;
+        this.priorType = priorType;
     }
 
-    /**
-     * Enable exact call logging to file
-     *
-     * @param exactCallsLog the destination file
-     */
-    public void enableProcessLog(final File exactCallsLog) {
-        exactCallLogger = new ExactCallLogger(exactCallsLog);
+    @Override
+    public String toString() {
+        return String.format("AFCalcTestBuilder nSamples=%d nAlts=%d model=%s prior=%s", nSamples, numAltAlleles, modelType, priorType);
     }
 
-    /**
-     * Use this logger instead of the default logger
-     *
-     * @param logger
-     */
-    public void setLogger(Logger logger) {
-        this.logger = logger;
+    public enum PriorType {
+        flat,
+        human
     }
 
-    /**
-     * Compute the probability of the alleles segregating given the genotype likelihoods of the samples in vc
-     *
-     * @param vc the VariantContext holding the alleles and sample information.  The VariantContext
-     *           must have at least 1 alternative allele
-     * @param log10AlleleFrequencyPriors a prior vector nSamples x 2 in length indicating the Pr(AF = i)
-     * @return result (for programming convenience)
-     */
-    public AFCalcResult getLog10PNonRef(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles, final double[] log10AlleleFrequencyPriors) {
-        if ( vc == null ) throw new IllegalArgumentException("VariantContext cannot be null");
-        if ( vc.getNAlleles() == 1 ) throw new IllegalArgumentException("VariantContext has only a single reference allele, but getLog10PNonRef requires at least one at all " + vc);
-        if ( log10AlleleFrequencyPriors == null ) throw new IllegalArgumentException("priors vector cannot be null");
-
-        // reset the result, so we can store our new result there
-        final StateTracker stateTracker = getStateTracker(true,maximumAlternativeAlleles);
-
-        final VariantContext vcWorking = reduceScope(vc,defaultPloidy, maximumAlternativeAlleles);
-
-        callTimer.start();
-        final AFCalcResult result = computeLog10PNonRef(vcWorking, defaultPloidy, log10AlleleFrequencyPriors, stateTracker);
-        final long nanoTime = callTimer.getElapsedTimeNano();
-
-        if ( exactCallLogger != null )
-            exactCallLogger.printCallInfo(vcWorking, log10AlleleFrequencyPriors, nanoTime, result);
-
-        return result;
+    public int getNumAltAlleles() {
+        return numAltAlleles;
     }
 
-    /**
-     * Convert the final state of the state tracker into our result as an AFCalcResult
-     *
-     * Assumes that stateTracker has been updated accordingly
-     *
-     * @param vcWorking the VariantContext we actually used as input to the calc model (after reduction)
-     * @param log10AlleleFrequencyPriors the priors by AC vector
-     * @return a AFCalcResult describing the result of this calculation
-     */
-    @Requires("stateTracker.getnEvaluations() >= 0")
-    @Ensures("result != null")
-    protected AFCalcResult getResultFromFinalState(final VariantContext vcWorking, final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
-        stateTracker.setAllelesUsedInGenotyping(vcWorking.getAlleles());
-        return stateTracker.toAFCalcResult(log10AlleleFrequencyPriors);
+    public int getnSamples() {
+        return nSamples;
     }
 
-    // ---------------------------------------------------------------------------
-    //
-    // Abstract methods that should be implemented by concrete implementations
-    // to actually calculate the AF
-    //
-    // ---------------------------------------------------------------------------
-
-    /**
-     * Look at VC and perhaps return a new one of reduced complexity, if that's necessary
-     *
-     * Used before the call to computeLog10PNonRef to simply the calculation job at hand,
-     * if vc exceeds bounds.  For example, if VC has 100 alt alleles this function
-     * may decide to only genotype the best 2 of them.
-     *
-     * @param vc the initial VC provided by the caller to this AFcalculation
-     * @return a potentially simpler VC that's more tractable to genotype
-     */
-    @Requires({"vc != null", "vc.getNAlleles() > 1"})
-    @Ensures("result != null")
-    protected abstract VariantContext reduceScope(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles);
-
-    /**
-     * Actually carry out the log10PNonRef calculation on vc, storing results in results
-     *
-     * @param vc                                variant context with alleles and genotype likelihoods,
-     *                                          must have at least one alt allele
-     * @param log10AlleleFrequencyPriors        priors
-     * @return a AFCalcResult object describing the results of this calculation
-     */
-    @Requires({"vc != null", "log10AlleleFrequencyPriors != null", "vc.getNAlleles() > 1"})
-    protected abstract AFCalcResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
-                                                        final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker);
-
-    /**
-     * Subset VC to the just allelesToUse, updating genotype likelihoods
-     *
-     * Must be overridden by concrete subclasses
-     *
-     * @param vc                                variant context with alleles and genotype likelihoods
-     * @param defaultPloidy                     default ploidy to assume in case {@code vc} does not indicate it for a sample.
-     * @param allelesToUse                      alleles to subset
-     * @param assignGenotypes
-     * @return GenotypesContext object
-     */
-    public abstract GenotypesContext subsetAlleles(final VariantContext vc,
-                                                   final int defaultPloidy,
-                                                   final List<Allele> allelesToUse,
-                                                   final boolean assignGenotypes);
-
-    // ---------------------------------------------------------------------------
-    //
-    // accessors
-    //
-    // ---------------------------------------------------------------------------
-
-
-    /**
-     * Retrieves the state tracker.
-     *
-     * <p>
-     *     The tracker will be reset if so requested or if it needs to be resized due to an increase in the
-     *     maximum number of alleles is must be able to handle.
-     * </p>
-     *
-     * @param reset make sure the tracker is reset.
-     * @param maximumAlternativeAlleleCount the maximum alternative allele count it must be able to handle. Has no effect if
-     *                                     the current tracker is able to handle that number.
-     *
-     * @return never {@code null}
-     */
-    protected StateTracker getStateTracker(final boolean reset, final int maximumAlternativeAlleleCount) {
-        if (stateTracker == null)
-            stateTracker = new StateTracker(maximumAlternativeAlleleCount);
-        else if (reset)
-            stateTracker.reset(maximumAlternativeAlleleCount);
-        else
-            stateTracker.ensureMaximumAlleleCapacity(maximumAlternativeAlleleCount);
-        return stateTracker;
+    public AFCalculator makeModel() {
+        return AFCalculatorFactory.createCalculator(modelType, nSamples, getNumAltAlleles(), HomoSapiensConstants.DEFAULT_PLOIDY);
     }
 
-    /**
-     * Used by testing code.
-     *
-     * Please don't use this method in production.
-     *
-     * @deprecated
-     */
-    @Deprecated
-    protected int getAltAlleleCountOfMAP(final int allele) {
-        return getStateTracker(false,allele + 1).getAlleleCountsOfMAP()[allele];
+    public double[] makePriors() {
+        final int nPriorValues = 2*nSamples+1;
+
+        switch ( priorType ) {
+            case flat:
+                return MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
+
+            //TODO break dependency with human... avoid special reference to this species.
+            case human:
+                final double[] humanPriors = new double[nPriorValues];
+                GenotypingEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
+                return humanPriors;
+            default:
+                throw new RuntimeException("Unexpected type " + priorType);
+        }
     }
 
+    public VariantContext makeACTest(final List<Integer> ACs, final int nNonInformative, final int nonTypePL) {
+        return makeACTest(ArrayUtils.toPrimitive(ACs.toArray(new Integer[]{})), nNonInformative, nonTypePL);
+    }
+
+    public VariantContext makeACTest(final int[] ACs, final int nNonInformative, final int nonTypePL) {
+        final int nChrom = nSamples * 2;
+
+        final int[] nhet = new int[numAltAlleles];
+        final int[] nhomvar = new int[numAltAlleles];
+
+        for ( int i = 0; i < ACs.length; i++ ) {
+            final double p = ACs[i] / (1.0 * nChrom);
+            nhomvar[i] = (int)Math.floor((nSamples - nNonInformative) * p * p);
+            nhet[i] = ACs[i] - 2 * nhomvar[i];
+
+            if ( nhet[i] < 0 )
+                throw new IllegalStateException("Bug! nhet[i] < 0");
+        }
+
+        final long calcAC = MathUtils.sum(nhet) + 2 * MathUtils.sum(nhomvar);
+        if ( calcAC != MathUtils.sum(ACs) )
+            throw new IllegalStateException("calculated AC " + calcAC + " not equal to desired AC " + Utils.join(",", ACs));
+
+        return makeACTest(nhet, nhomvar, nNonInformative, nonTypePL);
+    }
+
+    public VariantContext makeACTest(final int[] nhet, final int[] nhomvar, final int nNonInformative, final int nonTypePL) {
+        List<Genotype> samples = new ArrayList<Genotype>(nSamples);
+
+        for ( int altI = 0; altI < nhet.length; altI++ ) {
+            for ( int i = 0; i < nhet[altI]; i++ )
+                samples.add(makePL(GenotypeType.HET, nonTypePL, altI+1));
+            for ( int i = 0; i < nhomvar[altI]; i++ )
+                samples.add(makePL(GenotypeType.HOM_VAR, nonTypePL, altI+1));
+        }
+
+        final Genotype nonInformative = makeNonInformative();
+        samples.addAll(Collections.nCopies(nNonInformative, nonInformative));
+
+        final int nRef = Math.max((int) (nSamples - nNonInformative - MathUtils.sum(nhet) - MathUtils.sum(nhomvar)), 0);
+        samples.addAll(Collections.nCopies(nRef, makePL(GenotypeType.HOM_REF, nonTypePL, 0)));
+
+        samples = samples.subList(0, nSamples);
+
+        if ( samples.size() > nSamples )
+            throw new IllegalStateException("too many samples");
+
+        VariantContextBuilder vcb = new VariantContextBuilder("x", "1", 1, 1, getAlleles());
+        vcb.genotypes(samples);
+        return vcb.make();
+    }
+
+    public List<Allele> getAlleles() {
+        return Arrays.asList(A, C, G, T, AA, AT, AG).subList(0, numAltAlleles+1);
+    }
+
+    public List<Allele> getAlleles(final GenotypeType type, final int altI) {
+        switch (type) {
+            case HOM_REF: return Arrays.asList(getAlleles().get(0), getAlleles().get(0));
+            case HET:     return Arrays.asList(getAlleles().get(0), getAlleles().get(altI));
+            case HOM_VAR: return Arrays.asList(getAlleles().get(altI), getAlleles().get(altI));
+            default: throw new IllegalArgumentException("Unexpected type " + type);
+        }
+    }
+
+    public Genotype makePL(final List<Allele> expectedGT, int ... pls) {
+        GenotypeBuilder gb = new GenotypeBuilder("sample" + sampleNameCounter++);
+        gb.alleles(expectedGT);
+        gb.PL(pls);
+        return gb.make();
+    }
+
+    private int numPLs() {
+        return GenotypeLikelihoods.numLikelihoods(numAltAlleles+1, 2);
+    }
+
+    public Genotype makeNonInformative() {
+        final int[] nonInformativePLs = new int[GenotypeLikelihoods.numLikelihoods(numAltAlleles, 2)];
+        return makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), nonInformativePLs);
+    }
+
+    public Genotype makePL(final GenotypeType type, final int nonTypePL, final int altI) {
+        GenotypeBuilder gb = new GenotypeBuilder("sample" + sampleNameCounter++);
+        gb.alleles(getAlleles(type, altI));
+
+        final int[] pls = new int[numPLs()];
+        Arrays.fill(pls, nonTypePL);
+
+        int index = 0;
+        switch ( type ) {
+            case HOM_REF: index = GenotypeLikelihoods.calculatePLindex(0, 0); break;
+            case HET:     index = GenotypeLikelihoods.calculatePLindex(0, altI); break;
+            case HOM_VAR: index = GenotypeLikelihoods.calculatePLindex(altI, altI); break;
+        }
+        pls[index] = 0;
+        gb.PL(pls);
+
+        return gb.make();
+    }
 }
