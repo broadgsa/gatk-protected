@@ -57,9 +57,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * TODO this class (+AFCalculator) is a bit messy... it seems that it combines "debugging" (unnecessarily adding CPU cost in production)
+ * TODO but it also contains important part of the AF calculation state... why mix both!!!? It seems that the second
+ * TODO part could be just blend into AFCalculator ... one one hand you want to reduce classes code size ... but these
+ * TODO two classes code seems to be quite intertwine and makes it difficult to understand what is going on.
+ * in the production setting without much need
+ *
  * Keeps track of the state information during the exact model AF calculation.
  *
- * Tracks things like the MLE and MAP AC values, their corresponding likelhood and posterior
+ * Tracks things like the MLE and MAP AC values, their corresponding likelihood and posterior
  * values, the likelihood of the AF == 0 state, and the number of evaluations needed
  * by the calculation to compute the P(AF == 0)
  */
@@ -120,7 +126,7 @@ final class StateTracker {
      * @param maxAltAlleles an integer >= 1
      */
     public StateTracker(final int maxAltAlleles) {
-        if ( maxAltAlleles < 1 ) throw new IllegalArgumentException("maxAltAlleles must be >= 0, saw " + maxAltAlleles);
+        if ( maxAltAlleles < 0 ) throw new IllegalArgumentException("maxAltAlleles must be >= 0, saw " + maxAltAlleles);
 
         alleleCountsOfMLE = new int[maxAltAlleles];
         alleleCountsOfMAP = new int[maxAltAlleles];
@@ -170,7 +176,7 @@ final class StateTracker {
     }
 
     @Ensures("result >= 0")
-    protected int getnEvaluations() {
+    protected int getNEvaluations() {
         return nEvaluations;
     }
 
@@ -350,5 +356,10 @@ final class StateTracker {
             throw new IllegalArgumentException("The first element of allelesUsedInGenotyping must be the reference allele");
 
         this.allelesUsedInGenotyping = allelesUsedInGenotyping;
+    }
+
+    public void ensureMaximumAlleleCapacity(final int capacity) {
+        if (this.alleleCountsOfMAP.length < capacity)
+            reset(capacity);
     }
 }

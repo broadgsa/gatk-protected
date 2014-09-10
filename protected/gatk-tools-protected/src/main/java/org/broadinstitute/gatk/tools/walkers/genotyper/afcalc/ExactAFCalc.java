@@ -56,9 +56,10 @@ import java.util.*;
  * Uses the Exact calculation of Heng Li
  */
 abstract class ExactAFCalc extends AFCalc {
+
     protected static final int HOM_REF_INDEX = 0;  // AA likelihoods are always first
     /**
-     * Sorts {@link org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first.
+     * Sorts {@link ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
 
@@ -68,7 +69,7 @@ abstract class ExactAFCalc extends AFCalc {
         }
     };
     /**
-     * Sorts {@link org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first but make sure that
+     * Sorts {@link ExactAFCalc.LikelihoodSum} instances where those with higher likelihood are first but make sure that
      * NON_REF alleles are place are last.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_NON_REF_THEN_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
@@ -83,7 +84,7 @@ abstract class ExactAFCalc extends AFCalc {
         }
     };
     /**
-     * Sorts {@link org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactAFCalc.LikelihoodSum} instances where those with lower alternative allele index are first regardless of
+     * Sorts {@link ExactAFCalc.LikelihoodSum} instances where those with lower alternative allele index are first regardless of
      * the likelihood sum.
      */
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_INDEX_COMPARATOR = new Comparator<LikelihoodSum>() {
@@ -93,8 +94,8 @@ abstract class ExactAFCalc extends AFCalc {
         }
     };
 
-    protected ExactAFCalc(final int nSamples, int maxAltAlleles, final int ploidy) {
-        super(nSamples, maxAltAlleles, ploidy);
+    protected ExactAFCalc() {
+
     }
 
     /**
@@ -135,10 +136,10 @@ abstract class ExactAFCalc extends AFCalc {
     }
 
     @Override
-    protected VariantContext reduceScope(final VariantContext vc) {
+    protected VariantContext reduceScope(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles) {
         // don't try to genotype too many alternate alleles
         final List<Allele> inputAltAlleles = vc.getAlternateAlleles();
-        final List<Allele> outputAltAlleles = reduceScopeAlleles(vc,getMaxAltAlleles());
+        final List<Allele> outputAltAlleles = reduceScopeAlleles(vc, defaultPloidy, maximumAlternativeAlleles);
 
         // only if output allele has reduced from the input alt allele set size we should care.
         final int altAlleleReduction = inputAltAlleles.size() - outputAltAlleles.size();
@@ -146,17 +147,17 @@ abstract class ExactAFCalc extends AFCalc {
         if (altAlleleReduction == 0)
             return vc;
         else if (altAlleleReduction != 0) {
-            logger.warn("this tool is currently set to genotype at most " + getMaxAltAlleles()
+            logger.warn("this tool is currently set to genotype at most " + maximumAlternativeAlleles
                     + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart()
                     + " has " + (vc.getAlternateAlleles().size())
                     + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
 
-            final List<Allele> alleles = new ArrayList<>(getMaxAltAlleles() + 1);
+            final List<Allele> alleles = new ArrayList<>(maximumAlternativeAlleles + 1);
             alleles.add(vc.getReference());
-            alleles.addAll(reduceScopeAlleles(vc, getMaxAltAlleles()));
+            alleles.addAll(reduceScopeAlleles(vc, defaultPloidy, maximumAlternativeAlleles));
             final VariantContextBuilder builder = new VariantContextBuilder(vc);
             builder.alleles(alleles);
-            builder.genotypes(reduceScopeGenotypes(vc, alleles));
+            builder.genotypes(reduceScopeGenotypes(vc, defaultPloidy, alleles));
             if (altAlleleReduction < 0)
                 throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc + " " + builder.make());
             return builder.make();
@@ -170,7 +171,7 @@ abstract class ExactAFCalc extends AFCalc {
      * @param numAllelesToChoose number of alleles to keep.
      * @return the list of alternative allele to keep.
      */
-    protected List<Allele> reduceScopeAlleles(final VariantContext vc, final int numAllelesToChoose) {
+    protected List<Allele> reduceScopeAlleles(final VariantContext vc, final int defaultPloidy, final int numAllelesToChoose) {
 
         // Look  for the <NON_REF> allele to exclude it from the pruning if present.
         final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
@@ -194,7 +195,7 @@ abstract class ExactAFCalc extends AFCalc {
         }
 
         // Calculate the allele likelihood sums.
-        reduceScopeCalculateLikelihoodSums(vc, likelihoodSums);
+        reduceScopeCalculateLikelihoodSums(vc, defaultPloidy, likelihoodSums);
 
         // sort them by probability mass and choose the best ones
         // Make sure that the <NON_REF> allele is last if present.
@@ -227,7 +228,7 @@ abstract class ExactAFCalc extends AFCalc {
      * @param vc source variant context.
      * @param likelihoodSums where to update the likelihood sums.
      */
-    protected abstract void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final LikelihoodSum[] likelihoodSums);
+    protected abstract void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final int defaultPloidy, final LikelihoodSum[] likelihoodSums);
 
     /**
      * Transforms the genotypes of the variant context according to the new subset of possible alleles.
@@ -236,5 +237,5 @@ abstract class ExactAFCalc extends AFCalc {
      * @param allelesToUse possible alleles.
      * @return never {@code null}, the new set of genotype calls for the reduced scope.
      */
-    protected abstract GenotypesContext reduceScopeGenotypes(final VariantContext vc, final List<Allele> allelesToUse);
+    protected abstract GenotypesContext reduceScopeGenotypes(final VariantContext vc, final int defaultPloidy, final List<Allele> allelesToUse);
 }

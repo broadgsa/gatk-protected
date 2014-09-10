@@ -59,15 +59,14 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
 
     private static final double LOG10_OF_2 = MathUtils.Log10Cache.get(2);
 
-    public DiploidExactAFCalc(final int nSamples, final int maxAltAlleles, final int ploidy) {
-        super(nSamples, maxAltAlleles, ploidy);
-        if ( ploidy != 2 ) throw new IllegalArgumentException("ploidy must be two for DiploidExactAFCalc and subclasses but saw " + ploidy);
+    public DiploidExactAFCalc() {
     }
 
     @Override
-    protected AFCalcResult computeLog10PNonRef(final VariantContext vc,
-                                               final double[] log10AlleleFrequencyPriors) {
+    protected AFCalcResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
+                                               final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
         final int numAlternateAlleles = vc.getNAlleles() - 1;
+
         final ArrayList<double[]> genotypeLikelihoods = getGLs(vc.getGenotypes(), true);
         final int numSamples = genotypeLikelihoods.size()-1;
         final int numChr = 2*numSamples;
@@ -85,12 +84,13 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
         indexesToACset.put(zeroSet.getACcounts(), zeroSet);
 
         while ( !ACqueue.isEmpty() ) {
-            getStateTracker().incNEvaluations(); // keep track of the number of evaluations
+            stateTracker.incNEvaluations(); // keep track of the number of evaluations
 
             // compute log10Likelihoods
             final ExactACset set = ACqueue.remove();
 
-            calculateAlleleCountConformation(set, genotypeLikelihoods, numChr, ACqueue, indexesToACset, log10AlleleFrequencyPriors);
+            calculateAlleleCountConformation(set, genotypeLikelihoods, numChr, ACqueue,
+                    indexesToACset, log10AlleleFrequencyPriors,stateTracker);
 
             // clean up memory
             indexesToACset.remove(set.getACcounts());
@@ -98,17 +98,17 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
             //    System.out.printf(" *** removing used set=%s%n", set.ACcounts);
         }
 
-        return getResultFromFinalState(vc, log10AlleleFrequencyPriors);
+        return getResultFromFinalState(vc, log10AlleleFrequencyPriors, stateTracker);
     }
 
 
     @Override
-    protected GenotypesContext reduceScopeGenotypes(final VariantContext vc, final List<Allele> allelesToUse) {
+    protected GenotypesContext reduceScopeGenotypes(final VariantContext vc, final int defaultPloidy, final List<Allele> allelesToUse) {
         return GATKVariantContextUtils.subsetDiploidAlleles(vc, allelesToUse, GATKVariantContextUtils.GenotypeAssignmentMethod.SET_TO_NO_CALL);
     }
 
     @Override
-    protected void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final LikelihoodSum[] likelihoodSums) {
+    protected void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final int defaultPloidy, final LikelihoodSum[] likelihoodSums) {
         final ArrayList<double[]> GLs = getGLs(vc.getGenotypes(), true);
         for ( final double[] likelihoods : GLs ) {
             final int PLindexOfBestGL = MathUtils.maxElementIndex(likelihoods);
@@ -140,18 +140,19 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
                                                     final int numChr,
                                                     final LinkedList<ExactACset> ACqueue,
                                                     final HashMap<ExactACcounts, ExactACset> indexesToACset,
-                                                    final double[] log10AlleleFrequencyPriors) {
+                                                    final double[] log10AlleleFrequencyPriors,
+                                                    final StateTracker stateTracker) {
 
         //if ( DEBUG )
         //    System.out.printf(" *** computing LofK for set=%s%n", set.ACcounts);
 
         // compute the log10Likelihoods
-        computeLofK(set, genotypeLikelihoods, log10AlleleFrequencyPriors);
+        computeLofK(set, genotypeLikelihoods, log10AlleleFrequencyPriors, stateTracker);
 
         final double log10LofK = set.getLog10Likelihoods()[set.getLog10Likelihoods().length-1];
 
         // can we abort early because the log10Likelihoods are so small?
-        if ( getStateTracker().abort(log10LofK, set.getACcounts(), true) ) {
+        if ( stateTracker.abort(log10LofK, set.getACcounts(), true) ) {
             //if ( DEBUG )
             //    System.out.printf(" *** breaking early set=%s log10L=%.2f maxLog10L=%.2f%n", set.ACcounts, log10LofK, maxLog10L);
             return log10LofK;
@@ -227,7 +228,7 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
 
     private void computeLofK(final ExactACset set,
                              final ArrayList<double[]> genotypeLikelihoods,
-                             final double[] log10AlleleFrequencyPriors) {
+                             final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
 
         set.getLog10Likelihoods()[0] = 0.0; // the zero case
         final int totalK = set.getACsum();
@@ -238,8 +239,8 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
                 set.getLog10Likelihoods()[j] = set.getLog10Likelihoods()[j-1] + genotypeLikelihoods.get(j)[HOM_REF_INDEX];
 
             final double log10Lof0 = set.getLog10Likelihoods()[set.getLog10Likelihoods().length-1];
-            getStateTracker().setLog10LikelihoodOfAFzero(log10Lof0);
-            getStateTracker().setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
+            stateTracker.setLog10LikelihoodOfAFzero(log10Lof0);
+            stateTracker.setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
             return;
         }
 
@@ -261,7 +262,7 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
         double log10LofK = set.getLog10Likelihoods()[set.getLog10Likelihoods().length-1];
 
         // update the MLE if necessary
-        getStateTracker().updateMLEifNeeded(log10LofK, set.getACcounts().getCounts());
+        stateTracker.updateMLEifNeeded(log10LofK, set.getACcounts().getCounts());
 
         // apply the priors over each alternate allele
         for ( final int ACcount : set.getACcounts().getCounts() ) {
@@ -269,7 +270,7 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
                 log10LofK += log10AlleleFrequencyPriors[ACcount];
         }
 
-        getStateTracker().updateMAPifNeeded(log10LofK, set.getACcounts().getCounts());
+        stateTracker.updateMAPifNeeded(log10LofK, set.getACcounts().getCounts());
     }
 
     private void pushData(final ExactACset targetSet,
@@ -324,12 +325,15 @@ public abstract class DiploidExactAFCalc extends ExactAFCalc {
         return coeff;
     }
 
+    @Override
     public GenotypesContext subsetAlleles(final VariantContext vc,
+                                          final int defaultPloidy,
                                           final List<Allele> allelesToUse,
-                                          final boolean assignGenotypes,
-                                          final int ploidy) {
+                                          final boolean assignGenotypes) {
+        if (defaultPloidy != 2)
+            throw new IllegalArgumentException("cannot support ploidy different than 2 and the default ploidy is " + defaultPloidy);
         return allelesToUse.size() == 1
-                ? GATKVariantContextUtils.subsetToRefOnly(vc, ploidy)
+                ? GATKVariantContextUtils.subsetToRefOnly(vc, 2)
                 : GATKVariantContextUtils.subsetDiploidAlleles(vc, allelesToUse,
                      assignGenotypes ? GATKVariantContextUtils.GenotypeAssignmentMethod.USE_PLS_TO_ASSIGN : GATKVariantContextUtils.GenotypeAssignmentMethod.SET_TO_NO_CALL);
     }

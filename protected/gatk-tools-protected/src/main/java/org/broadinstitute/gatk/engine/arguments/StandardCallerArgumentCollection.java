@@ -46,10 +46,10 @@
 
 package org.broadinstitute.gatk.engine.arguments;
 
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorImplementation;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingOutputMode;
 import org.broadinstitute.gatk.tools.walkers.genotyper.OutputMode;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.gatk.utils.collections.DefaultHashMap;
 import htsjdk.variant.variantcontext.VariantContext;
 
@@ -145,7 +145,7 @@ public class StandardCallerArgumentCollection implements Cloneable {
      */
     @Hidden
     @Argument(fullName = "p_nonref_model", shortName = "pnrm", doc = "Non-reference probability calculation model to employ", required = false)
-    public AFCalcFactory.Calculation requestedAlleleFrequencyCalculationModel;
+    public AFCalculatorImplementation requestedAlleleFrequencyCalculationModel;
 
     @Hidden
     @Argument(shortName = "logExactCalls", doc="x", required=false)

@@ -59,12 +59,15 @@ import java.util.Map;
  * Original bi-allelic ~O(N) implementation.  Kept here for posterity and reference
  */
 class OriginalDiploidExactAFCalc extends DiploidExactAFCalc {
-    protected OriginalDiploidExactAFCalc(int nSamples, int maxAltAlleles, final int ploidy) {
-        super(nSamples, maxAltAlleles, ploidy);
+    protected OriginalDiploidExactAFCalc() {
     }
 
     @Override
-    protected AFCalcResult computeLog10PNonRef(VariantContext vc, double[] log10AlleleFrequencyPriors) {
+    protected AFCalcResult computeLog10PNonRef(final VariantContext vc,
+                                                      @SuppressWarnings("unused")
+                                                      final int defaultPloidy,
+                                                      final double[] log10AlleleFrequencyPriors,
+                                                      final StateTracker stateTracker) {
         final double[] log10AlleleFrequencyLikelihoods = new double[log10AlleleFrequencyPriors.length];
         final double[] log10AlleleFrequencyPosteriors  = new double[log10AlleleFrequencyPriors.length];
         final Pair<Integer, Integer> result = linearExact(vc, log10AlleleFrequencyPriors, log10AlleleFrequencyLikelihoods, log10AlleleFrequencyPosteriors);
@@ -122,7 +125,7 @@ class OriginalDiploidExactAFCalc extends DiploidExactAFCalc {
         }
     }
 
-    public Pair<Integer, Integer> linearExact(final VariantContext vc,
+    private Pair<Integer, Integer> linearExact(final VariantContext vc,
                                               double[] log10AlleleFrequencyPriors,
                                               double[] log10AlleleFrequencyLikelihoods,
                                               double[] log10AlleleFrequencyPosteriors) {
@@ -194,6 +197,6 @@ class OriginalDiploidExactAFCalc extends DiploidExactAFCalc {
             logY.rotate();
         }
 
-        return new Pair<Integer, Integer>(lastK, mleK);
+        return new Pair<>(lastK, mleK);
     }
 }

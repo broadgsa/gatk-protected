@@ -116,47 +116,49 @@ import java.util.*;
     private final static int[] BIALLELIC_NON_INFORMATIVE_PLS = new int[]{0,0,0};
     private final static List<Allele> BIALLELIC_NOCALL = Arrays.asList(Allele.NO_CALL, Allele.NO_CALL);
 
+
+
     /**
      * Sorts AFCalcResults by their posteriors of AF > 0, so the
      */
-    private final static class CompareAFCalcResultsByPNonRef implements Comparator<AFCalcResult> {
+    private final static class CompareAFCalculatorResultsByPNonRef implements Comparator<AFCalcResult> {
         @Override
         public int compare(AFCalcResult o1, AFCalcResult o2) {
             return -1 * Double.compare(o1.getLog10PosteriorOfAFGT0(), o2.getLog10PosteriorOfAFGT0());
         }
     }
 
-    private final static CompareAFCalcResultsByPNonRef compareAFCalcResultsByPNonRef = new CompareAFCalcResultsByPNonRef();
+    private final static CompareAFCalculatorResultsByPNonRef compareAFCalcResultsByPNonRef = new CompareAFCalculatorResultsByPNonRef();
 
     /**
      * The AFCalc model we are using to do the bi-allelic computation
      */
     final AFCalc biAlleleExactModel;
 
-    protected IndependentAllelesDiploidExactAFCalc(int nSamples, int maxAltAlleles, final int ploidy) {
-        super(nSamples, maxAltAlleles, ploidy);
-        biAlleleExactModel = new ReferenceDiploidExactAFCalc(nSamples, 1, ploidy);
+    protected IndependentAllelesDiploidExactAFCalc() {
+        super();
+        biAlleleExactModel = new ReferenceDiploidExactAFCalc();
     }
 
     /**
      * Trivial subclass that helps with debugging by keeping track of the supporting information for this joint call
      */
-    private static class MyAFCalcResult extends AFCalcResult {
+    private static class MyAFCalculationResult extends AFCalcResult {
         /**
          * List of the supporting bi-allelic AFCalcResults that went into making this multi-allelic joint call
          */
         final List<AFCalcResult> supporting;
 
-        private MyAFCalcResult(int[] alleleCountsOfMLE, int nEvaluations, List<Allele> allelesUsedInGenotyping, double[] log10LikelihoodsOfAC, double[] log10PriorsOfAC, Map<Allele, Double> log10pRefByAllele, List<AFCalcResult> supporting) {
+        private MyAFCalculationResult(int[] alleleCountsOfMLE, int nEvaluations, List<Allele> allelesUsedInGenotyping, double[] log10LikelihoodsOfAC, double[] log10PriorsOfAC, Map<Allele, Double> log10pRefByAllele, List<AFCalcResult> supporting) {
             super(alleleCountsOfMLE, nEvaluations, allelesUsedInGenotyping, log10LikelihoodsOfAC, log10PriorsOfAC, log10pRefByAllele);
             this.supporting = supporting;
         }
     }
 
     @Override
-    public AFCalcResult computeLog10PNonRef(final VariantContext vc,
-                                            final double[] log10AlleleFrequencyPriors) {
-        final List<AFCalcResult> independentResultTrackers = computeAlleleIndependentExact(vc, log10AlleleFrequencyPriors);
+    public AFCalcResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
+                                            final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
+        final List<AFCalcResult> independentResultTrackers = computeAlleleIndependentExact(vc, defaultPloidy, log10AlleleFrequencyPriors);
 
         if ( independentResultTrackers.size() == 0 )
             throw new IllegalStateException("Independent alleles model returned an empty list of results at VC " + vc);
@@ -181,12 +183,12 @@ import java.util.*;
      */
     @Requires({"vc != null", "log10AlleleFrequencyPriors != null"})
     @Ensures("goodIndependentResult(vc, result)")
-    protected final List<AFCalcResult> computeAlleleIndependentExact(final VariantContext vc,
+    protected final List<AFCalcResult> computeAlleleIndependentExact(final VariantContext vc, final int defaultPloidy,
                                                                      final double[] log10AlleleFrequencyPriors) {
         final List<AFCalcResult> results = new LinkedList<AFCalcResult>();
 
         for ( final VariantContext subvc : makeAlleleConditionalContexts(vc) ) {
-            final AFCalcResult resultTracker = biAlleleExactModel.getLog10PNonRef(subvc, log10AlleleFrequencyPriors);
+            final AFCalcResult resultTracker = biAlleleExactModel.getLog10PNonRef(subvc, defaultPloidy, vc.getNAlleles() - 1, log10AlleleFrequencyPriors);
             results.add(resultTracker);
         }
 
@@ -486,7 +488,7 @@ import java.util.*;
                 log10PosteriorOfACGt0 - log10PriorsOfAC[1]
         };
 
-        return new MyAFCalcResult(alleleCountsOfMLE, nEvaluations, vc.getAlleles(),
+        return new MyAFCalculationResult(alleleCountsOfMLE, nEvaluations, vc.getAlleles(),
                 // necessary to ensure all values < 0
                 MathUtils.normalizeFromLog10(log10LikelihoodsOfAC, true),
                 // priors incorporate multiple alt alleles, must be normalized

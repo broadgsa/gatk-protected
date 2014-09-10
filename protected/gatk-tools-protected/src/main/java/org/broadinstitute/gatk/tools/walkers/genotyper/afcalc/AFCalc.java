@@ -64,32 +64,23 @@ import java.util.List;
 public abstract class AFCalc implements Cloneable {
     private final static Logger defaultLogger = Logger.getLogger(AFCalc.class);
 
-    protected final int nSamples;
-    protected final int maxAlternateAllelesToGenotype;
 
     protected Logger logger = defaultLogger;
 
     private SimpleTimer callTimer = new SimpleTimer();
-    private final StateTracker stateTracker;
+    private StateTracker stateTracker;
     private ExactCallLogger exactCallLogger = null;
 
     /**
      * Create a new AFCalc object capable of calculating the prob. that alleles are
-     * segregating among nSamples with up to maxAltAlleles for SNPs and maxAltAllelesForIndels
-     * for indels for samples with ploidy
+     * segregating among many samples.
      *
-     * @param nSamples number of samples, must be > 0
-     * @param maxAltAlleles maxAltAlleles for SNPs
-     * @param ploidy the ploidy, must be > 0
+     * <p>
+     *    Restrictions in ploidy and number of alternative alleles that a instance can handle will be determined
+     *    by its implementation class {@link AFCalculatorImplementation}
+     * </p>
      */
-    protected AFCalc(final int nSamples, final int maxAltAlleles, final int ploidy) {
-        if ( nSamples < 0 ) throw new IllegalArgumentException("nSamples must be greater than zero " + nSamples);
-        if ( maxAltAlleles < 1 ) throw new IllegalArgumentException("maxAltAlleles must be greater than zero " + maxAltAlleles);
-        if ( ploidy < 1 ) throw new IllegalArgumentException("ploidy must be > 0 but got " + ploidy);
-
-        this.nSamples = nSamples;
-        this.maxAlternateAllelesToGenotype = maxAltAlleles;
-        this.stateTracker = new StateTracker(maxAltAlleles);
+    protected AFCalc() {
     }
 
     /**
@@ -118,19 +109,18 @@ public abstract class AFCalc implements Cloneable {
      * @param log10AlleleFrequencyPriors a prior vector nSamples x 2 in length indicating the Pr(AF = i)
      * @return result (for programming convenience)
      */
-    public AFCalcResult getLog10PNonRef(final VariantContext vc, final double[] log10AlleleFrequencyPriors) {
+    public AFCalcResult getLog10PNonRef(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles, final double[] log10AlleleFrequencyPriors) {
         if ( vc == null ) throw new IllegalArgumentException("VariantContext cannot be null");
         if ( vc.getNAlleles() == 1 ) throw new IllegalArgumentException("VariantContext has only a single reference allele, but getLog10PNonRef requires at least one at all " + vc);
         if ( log10AlleleFrequencyPriors == null ) throw new IllegalArgumentException("priors vector cannot be null");
-        if ( stateTracker == null ) throw new IllegalArgumentException("Results object cannot be null");
 
         // reset the result, so we can store our new result there
-        stateTracker.reset();
+        final StateTracker stateTracker = getStateTracker(true,maximumAlternativeAlleles);
 
-        final VariantContext vcWorking = reduceScope(vc);
+        final VariantContext vcWorking = reduceScope(vc,defaultPloidy, maximumAlternativeAlleles);
 
         callTimer.start();
-        final AFCalcResult result = computeLog10PNonRef(vcWorking, log10AlleleFrequencyPriors);
+        final AFCalcResult result = computeLog10PNonRef(vcWorking, defaultPloidy, log10AlleleFrequencyPriors, stateTracker);
         final long nanoTime = callTimer.getElapsedTimeNano();
 
         if ( exactCallLogger != null )
@@ -150,7 +140,7 @@ public abstract class AFCalc implements Cloneable {
      */
     @Requires("stateTracker.getnEvaluations() >= 0")
     @Ensures("result != null")
-    protected AFCalcResult getResultFromFinalState(final VariantContext vcWorking, final double[] log10AlleleFrequencyPriors) {
+    protected AFCalcResult getResultFromFinalState(final VariantContext vcWorking, final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
         stateTracker.setAllelesUsedInGenotyping(vcWorking.getAlleles());
         return stateTracker.toAFCalcResult(log10AlleleFrequencyPriors);
     }
@@ -174,7 +164,7 @@ public abstract class AFCalc implements Cloneable {
      */
     @Requires({"vc != null", "vc.getNAlleles() > 1"})
     @Ensures("result != null")
-    protected abstract VariantContext reduceScope(final VariantContext vc);
+    protected abstract VariantContext reduceScope(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles);
 
     /**
      * Actually carry out the log10PNonRef calculation on vc, storing results in results
@@ -185,8 +175,8 @@ public abstract class AFCalc implements Cloneable {
      * @return a AFCalcResult object describing the results of this calculation
      */
     @Requires({"vc != null", "log10AlleleFrequencyPriors != null", "vc.getNAlleles() > 1"})
-    protected abstract AFCalcResult computeLog10PNonRef(final VariantContext vc,
-                                                        final double[] log10AlleleFrequencyPriors);
+    protected abstract AFCalcResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
+                                                        final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker);
 
     /**
      * Subset VC to the just allelesToUse, updating genotype likelihoods
@@ -194,15 +184,15 @@ public abstract class AFCalc implements Cloneable {
      * Must be overridden by concrete subclasses
      *
      * @param vc                                variant context with alleles and genotype likelihoods
+     * @param defaultPloidy                     default ploidy to assume in case {@code vc} does not indicate it for a sample.
      * @param allelesToUse                      alleles to subset
      * @param assignGenotypes
-     * @param ploidy
      * @return GenotypesContext object
      */
     public abstract GenotypesContext subsetAlleles(final VariantContext vc,
+                                                   final int defaultPloidy,
                                                    final List<Allele> allelesToUse,
-                                                   final boolean assignGenotypes,
-                                                   final int ploidy);
+                                                   final boolean assignGenotypes);
 
     // ---------------------------------------------------------------------------
     //
@@ -210,12 +200,41 @@ public abstract class AFCalc implements Cloneable {
     //
     // ---------------------------------------------------------------------------
 
-    public int getMaxAltAlleles() {
-        return maxAlternateAllelesToGenotype;
+
+    /**
+     * Retrieves the state tracker.
+     *
+     * <p>
+     *     The tracker will be reset if so requested or if it needs to be resized due to an increase in the
+     *     maximum number of alleles is must be able to handle.
+     * </p>
+     *
+     * @param reset make sure the tracker is reset.
+     * @param maximumAlternativeAlleleCount the maximum alternative allele count it must be able to handle. Has no effect if
+     *                                     the current tracker is able to handle that number.
+     *
+     * @return never {@code null}
+     */
+    protected StateTracker getStateTracker(final boolean reset, final int maximumAlternativeAlleleCount) {
+        if (stateTracker == null)
+            stateTracker = new StateTracker(maximumAlternativeAlleleCount);
+        else if (reset)
+            stateTracker.reset(maximumAlternativeAlleleCount);
+        else
+            stateTracker.ensureMaximumAlleleCapacity(maximumAlternativeAlleleCount);
+        return stateTracker;
     }
 
-    protected StateTracker getStateTracker() {
-        return stateTracker;
+    /**
+     * Used by testing code.
+     *
+     * Please don't use this method in production.
+     *
+     * @deprecated
+     */
+    @Deprecated
+    protected int getAltAlleleCountOfMAP(final int allele) {
+        return getStateTracker(false,allele + 1).getAlleleCountsOfMAP()[allele];
     }
 
 }
