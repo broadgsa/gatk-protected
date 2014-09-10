@@ -64,6 +64,7 @@ import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
 
@@ -180,7 +181,8 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
 
         // create the genotypes; no-call everyone for now
         final GenotypesContext genotypes = GenotypesContext.create();
-
+        final int ploidy = UAC.genotypeArgs.samplePloidy;
+        final List<Allele> noCall = GATKVariantContextUtils.noCallAlleles(ploidy);
         for ( SampleGenotypeData sampleData : GLs ) {
             final double[] allLikelihoods = sampleData.GL.getLikelihoods();
             final double[] myLikelihoods = new double[numLikelihoods];
@@ -193,6 +195,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
             final double[] genotypeLikelihoods = MathUtils.normalizeFromLog10(myLikelihoods, false, true);
             gb.PL(genotypeLikelihoods);
             gb.DP(sampleData.depth);
+            gb.alleles(noCall);
             if (UAC.annotateAllSitesWithPLs)
                 gb.attribute(UnifiedGenotypingEngine.PL_FOR_ALL_SNP_ALLELES_KEY,GenotypeLikelihoods.fromLog10Likelihoods(MathUtils.normalizeFromLog10(allLikelihoods, false, true)));
             genotypes.add(gb.make());

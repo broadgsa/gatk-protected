@@ -48,6 +48,7 @@ package org.broadinstitute.gatk.tools.walkers.validation;
 
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.walkers.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
@@ -352,12 +353,15 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
 
         final GenomeAnalysisEngine toolkit = getToolkit();
         uac.GLmodel = GenotypeLikelihoodsCalculationModel.Model.SNP;
-        snpEngine = new UnifiedGenotypingEngine(uac,toolkit);
+        snpEngine = new UnifiedGenotypingEngine(uac,
+                FixedAFCalculatorProvider.createThreadSafeProvider(toolkit, uac, logger),toolkit);
+
 
         // Adding the INDEL calling arguments for UG
         UnifiedArgumentCollection uac_indel = uac.clone();
         uac_indel.GLmodel = GenotypeLikelihoodsCalculationModel.Model.INDEL;
-        indelEngine = new UnifiedGenotypingEngine(uac_indel,toolkit);
+        indelEngine = new UnifiedGenotypingEngine(uac_indel,
+                FixedAFCalculatorProvider.createThreadSafeProvider(toolkit, uac, logger),toolkit);
 
         // make sure we have callConf set to the threshold set by the UAC so we can use it later.
         callConf = uac.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING;

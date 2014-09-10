@@ -46,18 +46,20 @@
 
 package org.broadinstitute.gatk.tools.walkers.validation.validationsiteselector;
 
+import htsjdk.variant.variantcontext.VariantContext;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalc;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcResult;
-import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
 import java.util.TreeSet;
 
 
 public class GLBasedSampleSelector extends SampleSelector {
+    private static final int MAX_ALT_ALLELES = 4;
     double[] flatPriors = null;
     final double referenceLikelihood;
-    AFCalc AFCalculator;
+    AFCalc afCalculator;
 
     public GLBasedSampleSelector(TreeSet<String> sm, double refLik) {
         super(sm);
@@ -78,9 +80,9 @@ public class GLBasedSampleSelector extends SampleSelector {
         // do we want to apply a prior? maybe user-spec?
         if ( flatPriors == null ) {
             flatPriors = new double[1+2*samples.size()];
-            AFCalculator = AFCalcFactory.createAFCalc(samples.size(), 4, 2);
+            afCalculator = AFCalcFactory.createCalculator(samples.size(), MAX_ALT_ALLELES, HomoSapiensConstants.DEFAULT_PLOIDY);
         }
-        final AFCalcResult result = AFCalculator.getLog10PNonRef(subContext, flatPriors);
+        final AFCalcResult result = afCalculator.getLog10PNonRef(subContext, HomoSapiensConstants.DEFAULT_PLOIDY, MAX_ALT_ALLELES,  flatPriors);
         // do we want to let this qual go up or down?
         if ( result.getLog10LikelihoodOfAFEq0() < referenceLikelihood ) {
             return true;

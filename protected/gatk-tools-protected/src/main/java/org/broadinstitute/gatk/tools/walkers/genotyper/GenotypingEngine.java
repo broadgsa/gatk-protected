@@ -60,8 +60,8 @@ import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalc;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcResult;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
@@ -81,7 +81,10 @@ import java.util.*;
 public abstract class GenotypingEngine<Config extends StandardCallerArgumentCollection> {
 
     public static final String NUMBER_OF_DISCOVERED_ALLELES_KEY = "NDA";
+
     public static final String LOW_QUAL_FILTER_NAME = "LowQual";
+
+    protected final AFCalculatorProvider afCalculatorProvider   ;
 
     protected Logger logger;
 
@@ -100,20 +103,6 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected final GenomeLocParser genomeLocParser;
 
-    // the model used for calculating p(non-ref)
-    protected ThreadLocal<AFCalc> afcm = getAlleleFrequencyCalculatorThreadLocal();
-
-    protected ThreadLocal<AFCalc> getAlleleFrequencyCalculatorThreadLocal() {
-        return new ThreadLocal<AFCalc>() {
-
-            @Override
-            public AFCalc initialValue() {
-                return AFCalcFactory.createAFCalc(configuration, numberOfGenomes, false, logger);
-            }
-        };
-    }
-
-
     /**
      * Construct a new genotyper engine, on a specific subset of samples.
      *
@@ -124,10 +113,17 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      *
      * @throws IllegalArgumentException if any of {@code samples}, {@code configuration} or {@code genomeLocParser} is {@code null}.
      */
-    protected GenotypingEngine(final Config configuration,final SampleList samples, final GenomeLocParser genomeLocParser) {
+    protected GenotypingEngine(final Config configuration, final SampleList samples,
+                               final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider) {
 
         if (configuration == null)
             throw new IllegalArgumentException("the configuration cannot be null");
+        if (samples == null)
+            throw new IllegalArgumentException("the sample list provided cannot be null");
+        if (afCalculatorProvider == null)
+            throw new IllegalArgumentException("the AF calculator provider cannot be null");
+
+        this.afCalculatorProvider = afCalculatorProvider;
         this.configuration = configuration;
         logger = Logger.getLogger(getClass());
         this.samples = samples;
@@ -220,7 +216,10 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if (hasTooManyAlternativeAlleles(vc) || vc.getNSamples() == 0)
             return emptyCallContext(tracker,refContext,rawContext);
 
-        final AFCalcResult AFresult = afcm.get().getLog10PNonRef(vc, getAlleleFrequencyPriors(model));
+        final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
+        final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
+        final AFCalc afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles);
+        final AFCalcResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
 
         final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult);
 
@@ -260,7 +259,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             builder.filter(LOW_QUAL_FILTER_NAME);
 
         // create the genotypes
-        final GenotypesContext genotypes = afcm.get().subsetAlleles(vc, outputAlleles, true,configuration.genotypeArgs.samplePloidy);
+
+        final GenotypesContext genotypes = afCalculator.subsetAlleles(vc, defaultPloidy, outputAlleles, true);
         builder.genotypes(genotypes);
 
         // *** note that calculating strand bias involves overwriting data structures, so we do that last

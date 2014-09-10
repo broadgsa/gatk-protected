@@ -51,8 +51,7 @@ import com.google.java.contract.Requires;
 import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalc;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.Utils;
@@ -71,7 +70,6 @@ import java.util.*;
  */
 public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeCallerArgumentCollection> {
 
-    private final static List<Allele> NO_CALL = Collections.singletonList(Allele.NO_CALL);
     private static final int ALLELE_EXTENSION = 2;
     private static final String phase01 = "0|1";
     private static final String phase10 = "1|0";
@@ -91,32 +89,13 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * @param genomeLocParser {@inheritDoc}
      * @param doPhysicalPhasing whether to try physical phasing.
      */
-    public HaplotypeCallerGenotypingEngine(final HaplotypeCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final boolean doPhysicalPhasing) {
-        super(configuration,samples,genomeLocParser);
+    public HaplotypeCallerGenotypingEngine(final HaplotypeCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doPhysicalPhasing) {
+        super(configuration,samples,genomeLocParser,afCalculatorProvider);
         if (genomeLocParser == null)
             throw new IllegalArgumentException("the genome location parser provided cannot be null");
         this.doPhysicalPhasing= doPhysicalPhasing;
         ploidyModel = new HomogeneousPloidyModel(samples,configuration.genotypeArgs.samplePloidy);
         genotypingModel = new InfiniteRandomMatingPopulationModel();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public HaplotypeCallerGenotypingEngine(final HaplotypeCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser) {
-        this(configuration,samples,genomeLocParser,false);
-    }
-
-    @Override
-    protected ThreadLocal<AFCalc> getAlleleFrequencyCalculatorThreadLocal() {
-        return new ThreadLocal<AFCalc>() {
-
-            @Override
-            public AFCalc initialValue() {
-                return AFCalcFactory.createAFCalc(configuration, numberOfGenomes,
-                        configuration.emitReferenceConfidence != ReferenceConfidenceMode.NONE , logger);
-            }
-        };
     }
 
     /**
@@ -226,6 +205,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         // Walk along each position in the key set and create each event to be outputted
         final Set<Haplotype> calledHaplotypes = new HashSet<>();
         final List<VariantContext> returnCalls = new ArrayList<>();
+        final int ploidy = configuration.genotypeArgs.samplePloidy;
+        final List<Allele> noCallAlleles = GATKVariantContextUtils.noCallAlleles(ploidy);
 
         for( final int loc : startPosKeySet ) {
             if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) { // genotyping an event inside this active region
@@ -276,7 +257,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                 if (emitReferenceConfidence)
                     readAlleleLikelihoods.addNonReferenceAllele(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
 
-                final GenotypesContext genotypes = calculateGLsForThisEvent( readAlleleLikelihoods, mergedVC );
+                final GenotypesContext genotypes = calculateGLsForThisEvent( readAlleleLikelihoods, mergedVC, noCallAlleles );
                 final VariantContext call = calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel);
                 if( call != null ) {
 
@@ -698,14 +679,14 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      */
     @Requires({"readLikelihoods!= null", "mergedVC != null"})
     @Ensures("result != null")
-    private GenotypesContext calculateGLsForThisEvent( final ReadLikelihoods<Allele> readLikelihoods, final VariantContext mergedVC ) {
+    private GenotypesContext calculateGLsForThisEvent( final ReadLikelihoods<Allele> readLikelihoods, final VariantContext mergedVC, final List<Allele> noCallAlleles ) {
         final List<Allele> vcAlleles = mergedVC.getAlleles();
         final AlleleList<Allele> alleleList = readLikelihoods.alleleCount() == vcAlleles.size() ? readLikelihoods : new IndexedAlleleList<>(vcAlleles);
         final GenotypingLikelihoods<Allele> likelihoods = genotypingModel.calculateLikelihoods(alleleList,new GenotypingData<>(ploidyModel,readLikelihoods));
         final int sampleCount = samples.sampleCount();
         final GenotypesContext result = GenotypesContext.create(sampleCount);
         for (int s = 0; s < sampleCount; s++)
-            result.add(new GenotypeBuilder(samples.sampleAt(s)).alleles(NO_CALL).PL(likelihoods.sampleLikelihoods(s).getAsPLs()).make());
+            result.add(new GenotypeBuilder(samples.sampleAt(s)).alleles(noCallAlleles).PL(likelihoods.sampleLikelihoods(s).getAsPLs()).make());
         return result;
     }
 
@@ -767,23 +748,6 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         }
 
         return eventMapper;
-    }
-
-    @Ensures({"result.size() == haplotypeAllelesForSample.size()"})
-    protected static List<Allele> findEventAllelesInSample( final List<Allele> eventAlleles, final List<Allele> haplotypeAlleles, final List<Allele> haplotypeAllelesForSample, final List<List<Haplotype>> alleleMapper, final List<Haplotype> haplotypes ) {
-        if( haplotypeAllelesForSample.contains(Allele.NO_CALL) ) { return NO_CALL; }
-        final List<Allele> eventAllelesForSample = new ArrayList<>();
-        for( final Allele a : haplotypeAllelesForSample ) {
-            final Haplotype haplotype = haplotypes.get(haplotypeAlleles.indexOf(a));
-            for( int iii = 0; iii < alleleMapper.size(); iii++ ) {
-                final List<Haplotype> mappedHaplotypes = alleleMapper.get(iii);
-                if( mappedHaplotypes.contains(haplotype) ) {
-                    eventAllelesForSample.add(eventAlleles.get(iii));
-                    break;
-                }
-            }
-        }
-        return eventAllelesForSample;
     }
 
     @Deprecated

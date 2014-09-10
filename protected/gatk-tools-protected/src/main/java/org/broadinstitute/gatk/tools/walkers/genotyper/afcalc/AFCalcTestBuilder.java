@@ -51,6 +51,7 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -70,11 +71,11 @@ public class AFCalcTestBuilder {
 
     final int nSamples;
     final int numAltAlleles;
-    final AFCalcFactory.Calculation modelType;
+    final AFCalculatorImplementation modelType;
     final PriorType priorType;
 
     public AFCalcTestBuilder(final int nSamples, final int numAltAlleles,
-                             final AFCalcFactory.Calculation modelType, final PriorType priorType) {
+                             final AFCalculatorImplementation modelType, final PriorType priorType) {
         this.nSamples = nSamples;
         this.numAltAlleles = numAltAlleles;
         this.modelType = modelType;
@@ -100,7 +101,7 @@ public class AFCalcTestBuilder {
     }
 
     public AFCalc makeModel() {
-        return AFCalcFactory.createAFCalc(modelType, nSamples, getNumAltAlleles(), 2);
+        return AFCalcFactory.createCalculator(modelType, nSamples, getNumAltAlleles(), HomoSapiensConstants.DEFAULT_PLOIDY);
     }
 
     public double[] makePriors() {

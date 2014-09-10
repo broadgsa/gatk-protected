@@ -60,6 +60,7 @@ import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
 
@@ -286,8 +287,8 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
         builder.attributes(attributes);
         // create the genotypes; no-call everyone for now
         final GenotypesContext genotypes = GenotypesContext.create();
-        final List<Allele> noCall = new ArrayList<Allele>();
-        noCall.add(Allele.NO_CALL);
+        final int ploidy = UAC.genotypeArgs.samplePloidy;
+        final List<Allele> noCall = GATKVariantContextUtils.noCallAlleles(ploidy);
 
         for ( PoolGenotypeData sampleData : GLs ) {
             // extract from multidimensional array

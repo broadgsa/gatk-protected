@@ -68,6 +68,7 @@ import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
@@ -96,6 +97,7 @@ import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFIndexType;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
 import java.io.FileNotFoundException;
@@ -697,7 +699,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // Seems that at least with some test data we can lose genuine haploid variation if we use
         // UGs engine with ploidy == 1
         simpleUAC.genotypeArgs.samplePloidy = Math.max(2,SCAC.genotypeArgs.samplePloidy);
-        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(simpleUAC, toolkit);
+
+        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(simpleUAC,
+                FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(),simpleUAC,logger), toolkit);
         activeRegionEvaluationGenotyperEngine.setLogger(logger);
 
         if( SCAC.CONTAMINATION_FRACTION_FILE != null )
@@ -707,7 +711,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
 
         final GenomeLocParser genomeLocParser = toolkit.getGenomeLocParser();
-        genotypingEngine = new HaplotypeCallerGenotypingEngine( SCAC, samplesList, genomeLocParser, !doNotRunPhysicalPhasing);
+
+        genotypingEngine = new HaplotypeCallerGenotypingEngine( SCAC, samplesList, genomeLocParser, FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(),SCAC,logger), !doNotRunPhysicalPhasing);
         // initialize the output VCF header
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
@@ -880,7 +885,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // if we don't have any data, just abort early
             return new ActivityProfileState(ref.getLocus(), 0.0);
 
-        final List<Allele> noCall = Collections.singletonList(Allele.NO_CALL); // used to noCall all genotypes until the exact model is applied
+        final int ploidy = activeRegionEvaluationGenotyperEngine.getConfiguration().genotypeArgs.samplePloidy;
+        final List<Allele> noCall = GATKVariantContextUtils.noCallAlleles(ploidy); // used to noCall all genotypes until the exact model is applied
         final Map<String, AlignmentContext> splitContexts = AlignmentContextUtils.splitContextBySampleName(context);
         final GenotypesContext genotypes = GenotypesContext.create(splitContexts.keySet().size());
         final MathUtils.RunningAverage averageHQSoftClips = new MathUtils.RunningAverage();

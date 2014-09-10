@@ -60,6 +60,7 @@ import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
 
@@ -130,8 +131,8 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
 
         // create the genotypes; no-call everyone for now
         GenotypesContext genotypes = GenotypesContext.create();
-        final List<Allele> noCall = new ArrayList<Allele>();
-        noCall.add(Allele.NO_CALL);
+        final int ploidy = UAC.genotypeArgs.samplePloidy;
+        final List<Allele> noCall = GATKVariantContextUtils.noCallAlleles(ploidy);
 
         // For each sample, get genotype likelihoods based on pileup
         // compute prior likelihoods on haplotypes, and initialize haplotype likelihood matrix with them.
@@ -148,6 +149,7 @@ public class IndelGenotypeLikelihoodsCalculationModel extends GenotypeLikelihood
                 final GenotypeBuilder b = new GenotypeBuilder(sample.getKey());
                 final double[] genotypeLikelihoods = pairModel.computeDiploidReadHaplotypeLikelihoods(pileup, haplotypeMap, ref, eventLength, perReadAlleleLikelihoodMap.get(sample.getKey()), UAC.getSampleContamination().get(sample.getKey()));
                 b.PL(genotypeLikelihoods);
+                b.alleles(noCall);
                 b.DP(getFilteredDepth(pileup));
                 genotypes.add(b.make());
 

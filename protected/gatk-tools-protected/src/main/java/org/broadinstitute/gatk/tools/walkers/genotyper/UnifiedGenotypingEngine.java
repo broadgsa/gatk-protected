@@ -55,6 +55,7 @@ import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcResult;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.baq.BAQ;
@@ -104,9 +105,9 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
      *
      * @throws NullPointerException if either {@code configuration} or {@code toolkit} is {@code null}.
      */
-    public UnifiedGenotypingEngine(final UnifiedArgumentCollection configuration,
+    public UnifiedGenotypingEngine(final UnifiedArgumentCollection configuration, final AFCalculatorProvider afCalculatorProvider,
                                    final GenomeAnalysisEngine toolkit) {
-        this(configuration,toolkit.getSampleList(),toolkit.getGenomeLocParser(),toolkit.getArguments().BAQMode);
+        this(configuration,toolkit.getSampleList(),toolkit.getGenomeLocParser(),afCalculatorProvider,toolkit.getArguments().BAQMode);
     }
 
 
@@ -123,10 +124,10 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
      * @throws IllegalArgumentException if {@code baqCalculationMode} is {@code null}.
      */
     public UnifiedGenotypingEngine(final UnifiedArgumentCollection configuration,
-                                   final SampleList samples, final GenomeLocParser genomeLocParser,
+                                   final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider,
                                    final BAQ.CalculationMode baqCalculationMode) {
 
-        super(configuration,samples,genomeLocParser);
+        super(configuration,samples,genomeLocParser,afCalculatorProvider);
 
         if (baqCalculationMode == null)
             throw new IllegalArgumentException("the BAQ calculation mode cannot be null");
@@ -416,7 +417,9 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                                                     final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
         final VariantContext vc = calculateLikelihoods(tracker, refContext, stratifiedContexts,orientation,
                 allAllelesToUse, false, model, perReadAlleleLikelihoodMap);
-        return afcm.get().getLog10PNonRef(vc, getAlleleFrequencyPriors(model));
+        final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
+        final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
+        return afCalculatorProvider.getInstance(vc, defaultPloidy, maxAltAlleles).getLog10PNonRef(vc, defaultPloidy, maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
     }
 
     private Map<String, AlignmentContext> getFilteredAndStratifiedContexts(final ReferenceContext refContext,
@@ -480,7 +483,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
             AFline.append('\t');
             AFline.append(i).append('/').append(numberOfGenomes).append('\t');
             AFline.append(String.format("%.2f\t", ((float) i) / numberOfGenomes));
-            AFline.append(String.format("%.8f\t", getAlleleFrequencyPriors(model)[i]));
+            AFline.append(String.format("%.8f\t", getAlleleFrequencyPriors(vc,configuration.genotypeArgs.samplePloidy,model)[i]));
             verboseWriter.println(AFline.toString());
         }
 

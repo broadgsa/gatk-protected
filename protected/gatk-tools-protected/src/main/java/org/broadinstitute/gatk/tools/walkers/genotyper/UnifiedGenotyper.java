@@ -46,10 +46,12 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.walkers.*;
-import org.broadinstitute.gatk.utils.commandline.*;
+import htsjdk.variant.variantcontext.GenotypeLikelihoods;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
@@ -59,18 +61,18 @@ import org.broadinstitute.gatk.engine.filters.BadMateFilter;
 import org.broadinstitute.gatk.engine.filters.MappingQualityUnavailableFilter;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.baq.BAQ;
-import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
-import htsjdk.variant.variantcontext.GenotypeLikelihoods;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -284,7 +286,9 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             verboseWriter.println("AFINFO\tLOC\tREF\tALT\tMAF\tF\tAFprior\tMLE\tMAP");
 
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
-        genotypingEngine = new UnifiedGenotypingEngine(UAC, samples, toolkit.getGenomeLocParser(), toolkit.getArguments().BAQMode);
+
+        final AFCalculatorProvider afCalcAFCalculatorProvider = FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(),UAC,logger);
+        genotypingEngine = new UnifiedGenotypingEngine(UAC, samples, toolkit.getGenomeLocParser(), afCalcAFCalculatorProvider, toolkit.getArguments().BAQMode);
         genotypingEngine.setVerboseWriter(verboseWriter);
         genotypingEngine.setAnnotationEngine(annotationEngine);
 
@@ -307,6 +311,8 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
         }
         writer.writeHeader(new VCFHeader(headerInfo, samplesForHeader));
     }
+
+
 
     public static Set<VCFHeaderLine> getHeaderInfo(final UnifiedArgumentCollection UAC,
                                                    final VariantAnnotatorEngine annotationEngine,
