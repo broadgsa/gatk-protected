@@ -146,6 +146,8 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
      */
     @Argument(fullName="ignore_filter", shortName="ignoreFilter", doc="If specified, the recalibration will be applied to variants marked as filtered by the specified filter name in the input VCF file", required=false)
     private String[] IGNORE_INPUT_FILTERS = null;
+    @Argument(fullName="ignore_all_filters", shortName="ignoreAllFilters", doc="If specified, the variant recalibrator will ignore all input filters. Useful to rerun the VQSR from a filtered output file.", required=false)
+    private boolean IGNORE_ALL_FILTERS = false;
     @Argument(fullName="excludeFiltered", shortName="ef", doc="Don't output filtered loci after applying the recalibration", required=false)
     protected boolean EXCLUDE_FILTERED = false;
     @Argument(fullName = "mode", shortName = "mode", doc = "Recalibration mode to employ: 1.) SNP for recalibrating only SNPs (emitting indels untouched in the output VCF); 2.) INDEL for indels; and 3.) BOTH for recalibrating both SNPs and indels simultaneously.", required = false)
@@ -246,7 +248,7 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
 
         for( final VariantContext vc : VCs ) {
 
-            if( VariantDataManager.checkVariationClass( vc, MODE ) && (vc.isNotFiltered() || ignoreInputFilterSet.containsAll(vc.getFilters())) ) {
+            if( VariantDataManager.checkVariationClass( vc, MODE ) && (IGNORE_ALL_FILTERS || vc.isNotFiltered() || ignoreInputFilterSet.containsAll(vc.getFilters())) ) {
 
                 final VariantContext recalDatum = getMatchingRecalVC(vc, recals);
                 if( recalDatum == null ) {
