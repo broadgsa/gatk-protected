@@ -59,9 +59,9 @@ import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalc;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcResult;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculationResult;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
@@ -81,7 +81,10 @@ import java.util.*;
 public abstract class GenotypingEngine<Config extends StandardCallerArgumentCollection> {
 
     public static final String NUMBER_OF_DISCOVERED_ALLELES_KEY = "NDA";
+
     public static final String LOW_QUAL_FILTER_NAME = "LowQual";
+
+    protected final AFCalculatorProvider afCalculatorProvider   ;
 
     protected Logger logger;
 
@@ -94,25 +97,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     protected final SampleList samples;
 
 
-    private final double[] log10AlleleFrequencyPriorsSNPs;
+    private final AFPriorProvider log10AlleleFrequencyPriorsSNPs;
 
-    private final double[] log10AlleleFrequencyPriorsIndels;
+    private final AFPriorProvider log10AlleleFrequencyPriorsIndels;
 
     protected final GenomeLocParser genomeLocParser;
-
-    // the model used for calculating p(non-ref)
-    protected ThreadLocal<AFCalc> afcm = getAlleleFrequencyCalculatorThreadLocal();
-
-    protected ThreadLocal<AFCalc> getAlleleFrequencyCalculatorThreadLocal() {
-        return new ThreadLocal<AFCalc>() {
-
-            @Override
-            public AFCalc initialValue() {
-                return AFCalcFactory.createAFCalc(configuration, numberOfGenomes, false, logger);
-            }
-        };
-    }
-
 
     /**
      * Construct a new genotyper engine, on a specific subset of samples.
@@ -124,19 +113,26 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      *
      * @throws IllegalArgumentException if any of {@code samples}, {@code configuration} or {@code genomeLocParser} is {@code null}.
      */
-    protected GenotypingEngine(final Config configuration,final SampleList samples, final GenomeLocParser genomeLocParser) {
+    protected GenotypingEngine(final Config configuration, final SampleList samples,
+                               final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider) {
 
         if (configuration == null)
             throw new IllegalArgumentException("the configuration cannot be null");
+        if (samples == null)
+            throw new IllegalArgumentException("the sample list provided cannot be null");
+        if (afCalculatorProvider == null)
+            throw new IllegalArgumentException("the AF calculator provider cannot be null");
+
+        this.afCalculatorProvider = afCalculatorProvider;
         this.configuration = configuration;
         logger = Logger.getLogger(getClass());
         this.samples = samples;
         numberOfGenomes = this.samples.sampleCount() * configuration.genotypeArgs.samplePloidy;
         MathUtils.Log10Cache.ensureCacheContains(numberOfGenomes * 2);
-        log10AlleleFrequencyPriorsSNPs = computeAlleleFrequencyPriors(numberOfGenomes,
-                configuration.genotypeArgs.snpHeterozygosity,configuration.genotypeArgs.inputPrior);
-        log10AlleleFrequencyPriorsIndels = computeAlleleFrequencyPriors(numberOfGenomes,
-                configuration.genotypeArgs.indelHeterozygosity,configuration.genotypeArgs.inputPrior);
+        log10AlleleFrequencyPriorsSNPs = composeAlleleFrequencyPriorProvider(numberOfGenomes,
+                configuration.genotypeArgs.snpHeterozygosity, configuration.genotypeArgs.inputPrior);
+        log10AlleleFrequencyPriorsIndels = composeAlleleFrequencyPriorProvider(numberOfGenomes,
+                configuration.genotypeArgs.indelHeterozygosity, configuration.genotypeArgs.inputPrior);
         this.genomeLocParser = genomeLocParser;
     }
 
@@ -220,7 +216,10 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if (hasTooManyAlternativeAlleles(vc) || vc.getNSamples() == 0)
             return emptyCallContext(tracker,refContext,rawContext);
 
-        final AFCalcResult AFresult = afcm.get().getLog10PNonRef(vc, getAlleleFrequencyPriors(model));
+        final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
+        final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
+        final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles);
+        final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
 
         final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult);
 
@@ -260,7 +259,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             builder.filter(LOW_QUAL_FILTER_NAME);
 
         // create the genotypes
-        final GenotypesContext genotypes = afcm.get().subsetAlleles(vc, outputAlleles, true,configuration.genotypeArgs.samplePloidy);
+
+        final GenotypesContext genotypes = afCalculator.subsetAlleles(vc, defaultPloidy, outputAlleles, true);
         builder.genotypes(genotypes);
 
         // *** note that calculating strand bias involves overwriting data structures, so we do that last
@@ -333,7 +333,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @param afcr the exact model calcualtion result.
      * @return never {@code null}.
      */
-    private OutputAlleleSubset calculateOutputAlleleSubset(final AFCalcResult afcr) {
+    private OutputAlleleSubset calculateOutputAlleleSubset(final AFCalculationResult afcr) {
         final List<Allele> alleles = afcr.getAllelesUsedInGenotyping();
 
         final int alternativeAlleleCount = alleles.size() - 1;
@@ -496,14 +496,25 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         return new VariantCallContext(vc, QualityUtils.phredScaleLog10CorrectRate(log10POfRef) >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING, false);
     }
 
-    protected final double[] getAlleleFrequencyPriors( final GenotypeLikelihoodsCalculationModel.Model model ) {
+    /**
+     * Returns the log10 prior probability for all possible allele counts from 0 to N where N is the total number of
+     * genomes (total-ploidy).
+     *
+     * @param vc the target variant-context, use to determine the total ploidy thus the possible ACs.
+     * @param defaultPloidy default ploidy to be assume if we do not have the ploidy for some sample in {@code vc}.
+     * @param model the calculation model (SNP,INDEL or MIXED) whose priors are to be retrieved.
+     * @throws java.lang.NullPointerException if either {@code vc} or {@code model} is {@code null}
+     * @return never {@code null}, an array with exactly <code>total-ploidy(vc) + 1</code> positions.
+     */
+    protected final double[] getAlleleFrequencyPriors( final VariantContext vc, final int defaultPloidy, final GenotypeLikelihoodsCalculationModel.Model model ) {
+        final int totalPloidy = GATKVariantContextUtils.totalPloidy(vc,defaultPloidy);
         switch (model) {
             case SNP:
             case GENERALPLOIDYSNP:
-                return log10AlleleFrequencyPriorsSNPs;
+                return log10AlleleFrequencyPriorsSNPs.forTotalPloidy(totalPloidy);
             case INDEL:
             case GENERALPLOIDYINDEL:
-                return log10AlleleFrequencyPriorsIndels;
+                return log10AlleleFrequencyPriorsIndels.forTotalPloidy(totalPloidy);
             default:
                 throw new IllegalArgumentException("Unexpected GenotypeCalculationModel " + model);
         }
@@ -552,38 +563,20 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      *
      * @return never {@code null}.
      */
-    public static double[] computeAlleleFrequencyPriors(final int N, final double heterozygosity, final List<Double> inputPriors) {
+    private static AFPriorProvider composeAlleleFrequencyPriorProvider(final int N, final double heterozygosity, final List<Double> inputPriors) {
 
         final double[] priors = new double[N + 1];
         double sum = 0.0;
+        final AFPriorProvider result;
 
         if (!inputPriors.isEmpty()) {
             // user-specified priors
             if (inputPriors.size() != N)
                 throw new UserException.BadArgumentValue("inputPrior","Invalid length of inputPrior vector: vector length must be equal to # samples +1 ");
-
-            int idx = 1;
-            for (final double prior: inputPriors) {
-                if (prior < 0.0)
-                    throw new UserException.BadArgumentValue("Bad argument: negative values not allowed","inputPrior");
-                priors[idx++] = Math.log10(prior);
-                sum += prior;
-            }
+            return new CustomAFPriorProvider(inputPriors);
         }
         else
-            // for each i
-            for (int i = 1; i <= N; i++) {
-                final double value = heterozygosity / (double)i;
-                priors[i] = Math.log10(value);
-                sum += value;
-            }
-
-        // protection against the case of heterozygosity too high or an excessive number of samples (which break population genetics assumptions)
-        if (sum > 1.0)
-            throw new UserException.BadArgumentValue("heterozygosity","The heterozygosity value is set too high relative to the number of samples to be processed, or invalid values specified if input priors were provided - try reducing heterozygosity value or correct input priors.");
-        // null frequency for AF=0 is (1 - sum(all other frequencies))
-        priors[0] = Math.log10(1.0 - sum);
-        return priors;
+            return new HeterozygosityAFPriorProvider(heterozygosity);
     }
 
     /**
@@ -642,7 +635,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
                                                        final AlignmentContext rawContext, final Map<String, AlignmentContext> stratifiedContexts, final RefMetaDataTracker tracker, final ReferenceContext refContext, final List<Integer> alleleCountsofMLE, final boolean bestGuessIsRef,
-                                                       final AFCalcResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
+                                                       final AFCalculationResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
                                                        final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
         final HashMap<String, Object> attributes = new HashMap<>();
 

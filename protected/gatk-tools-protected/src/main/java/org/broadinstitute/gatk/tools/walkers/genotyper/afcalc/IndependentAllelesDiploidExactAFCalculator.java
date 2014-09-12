@@ -106,7 +106,7 @@ import java.util.*;
  * as P(D | AF_* == 0) = prod_i P (D | AF_i == 0), after applying the theta^i
  * prior for the ith least likely allele.
  */
- public class IndependentAllelesDiploidExactAFCalc extends DiploidExactAFCalc {
+ public class IndependentAllelesDiploidExactAFCalculator extends DiploidExactAFCalculator {
 
     /**
      * The min. confidence of an allele to be included in the joint posterior.
@@ -116,47 +116,49 @@ import java.util.*;
     private final static int[] BIALLELIC_NON_INFORMATIVE_PLS = new int[]{0,0,0};
     private final static List<Allele> BIALLELIC_NOCALL = Arrays.asList(Allele.NO_CALL, Allele.NO_CALL);
 
+
+
     /**
      * Sorts AFCalcResults by their posteriors of AF > 0, so the
      */
-    private final static class CompareAFCalcResultsByPNonRef implements Comparator<AFCalcResult> {
+    private final static class CompareAFCalculatorResultsByPNonRef implements Comparator<AFCalculationResult> {
         @Override
-        public int compare(AFCalcResult o1, AFCalcResult o2) {
+        public int compare(AFCalculationResult o1, AFCalculationResult o2) {
             return -1 * Double.compare(o1.getLog10PosteriorOfAFGT0(), o2.getLog10PosteriorOfAFGT0());
         }
     }
 
-    private final static CompareAFCalcResultsByPNonRef compareAFCalcResultsByPNonRef = new CompareAFCalcResultsByPNonRef();
+    private final static CompareAFCalculatorResultsByPNonRef compareAFCalcResultsByPNonRef = new CompareAFCalculatorResultsByPNonRef();
 
     /**
      * The AFCalc model we are using to do the bi-allelic computation
      */
-    final AFCalc biAlleleExactModel;
+    final AFCalculator biAlleleExactModel;
 
-    protected IndependentAllelesDiploidExactAFCalc(int nSamples, int maxAltAlleles, final int ploidy) {
-        super(nSamples, maxAltAlleles, ploidy);
-        biAlleleExactModel = new ReferenceDiploidExactAFCalc(nSamples, 1, ploidy);
+    protected IndependentAllelesDiploidExactAFCalculator() {
+        super();
+        biAlleleExactModel = new ReferenceDiploidExactAFCalculator();
     }
 
     /**
      * Trivial subclass that helps with debugging by keeping track of the supporting information for this joint call
      */
-    private static class MyAFCalcResult extends AFCalcResult {
+    private static class MyAFCalculationResult extends AFCalculationResult {
         /**
          * List of the supporting bi-allelic AFCalcResults that went into making this multi-allelic joint call
          */
-        final List<AFCalcResult> supporting;
+        final List<AFCalculationResult> supporting;
 
-        private MyAFCalcResult(int[] alleleCountsOfMLE, int nEvaluations, List<Allele> allelesUsedInGenotyping, double[] log10LikelihoodsOfAC, double[] log10PriorsOfAC, Map<Allele, Double> log10pRefByAllele, List<AFCalcResult> supporting) {
+        private MyAFCalculationResult(int[] alleleCountsOfMLE, int nEvaluations, List<Allele> allelesUsedInGenotyping, double[] log10LikelihoodsOfAC, double[] log10PriorsOfAC, Map<Allele, Double> log10pRefByAllele, List<AFCalculationResult> supporting) {
             super(alleleCountsOfMLE, nEvaluations, allelesUsedInGenotyping, log10LikelihoodsOfAC, log10PriorsOfAC, log10pRefByAllele);
             this.supporting = supporting;
         }
     }
 
     @Override
-    public AFCalcResult computeLog10PNonRef(final VariantContext vc,
-                                            final double[] log10AlleleFrequencyPriors) {
-        final List<AFCalcResult> independentResultTrackers = computeAlleleIndependentExact(vc, log10AlleleFrequencyPriors);
+    public AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
+                                            final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
+        final List<AFCalculationResult> independentResultTrackers = computeAlleleIndependentExact(vc, defaultPloidy, log10AlleleFrequencyPriors);
 
         if ( independentResultTrackers.size() == 0 )
             throw new IllegalStateException("Independent alleles model returned an empty list of results at VC " + vc);
@@ -166,7 +168,7 @@ import java.util.*;
             return independentResultTrackers.get(0);
         } else {
             // we are a multi-allelic, so we need to actually combine the results
-            final List<AFCalcResult> withMultiAllelicPriors = applyMultiAllelicPriors(independentResultTrackers);
+            final List<AFCalculationResult> withMultiAllelicPriors = applyMultiAllelicPriors(independentResultTrackers);
             return combineIndependentPNonRefs(vc, withMultiAllelicPriors);
         }
     }
@@ -181,12 +183,12 @@ import java.util.*;
      */
     @Requires({"vc != null", "log10AlleleFrequencyPriors != null"})
     @Ensures("goodIndependentResult(vc, result)")
-    protected final List<AFCalcResult> computeAlleleIndependentExact(final VariantContext vc,
+    protected final List<AFCalculationResult> computeAlleleIndependentExact(final VariantContext vc, final int defaultPloidy,
                                                                      final double[] log10AlleleFrequencyPriors) {
-        final List<AFCalcResult> results = new LinkedList<AFCalcResult>();
+        final List<AFCalculationResult> results = new LinkedList<AFCalculationResult>();
 
         for ( final VariantContext subvc : makeAlleleConditionalContexts(vc) ) {
-            final AFCalcResult resultTracker = biAlleleExactModel.getLog10PNonRef(subvc, log10AlleleFrequencyPriors);
+            final AFCalculationResult resultTracker = biAlleleExactModel.getLog10PNonRef(subvc, defaultPloidy, vc.getNAlleles() - 1, log10AlleleFrequencyPriors);
             results.add(resultTracker);
         }
 
@@ -196,7 +198,7 @@ import java.util.*;
     /**
      * Helper function to ensure that the computeAlleleIndependentExact is returning reasonable results
      */
-    private static boolean goodIndependentResult(final VariantContext vc, final List<AFCalcResult> results) {
+    private static boolean goodIndependentResult(final VariantContext vc, final List<AFCalculationResult> results) {
         if ( results.size() != vc.getNAlleles() - 1) return false;
         for ( int i = 0; i < results.size(); i++ ) {
             if ( results.get(i).getAllelesUsedInGenotyping().size() != 2 )
@@ -387,8 +389,8 @@ import java.util.*;
         return new GenotypeBuilder(original).PL(GLs).alleles(BIALLELIC_NOCALL).make();
     }
 
-    protected final List<AFCalcResult> applyMultiAllelicPriors(final List<AFCalcResult> conditionalPNonRefResults) {
-        final ArrayList<AFCalcResult> sorted = new ArrayList<AFCalcResult>(conditionalPNonRefResults);
+    protected final List<AFCalculationResult> applyMultiAllelicPriors(final List<AFCalculationResult> conditionalPNonRefResults) {
+        final ArrayList<AFCalculationResult> sorted = new ArrayList<AFCalculationResult>(conditionalPNonRefResults);
 
         // sort the results, so the most likely allele is first
         Collections.sort(sorted, compareAFCalcResultsByPNonRef);
@@ -424,8 +426,8 @@ import java.util.*;
      *
      * @param sortedResultsWithThetaNPriors the pNonRef result for each allele independently
      */
-    protected AFCalcResult combineIndependentPNonRefs(final VariantContext vc,
-                                                      final List<AFCalcResult> sortedResultsWithThetaNPriors) {
+    protected AFCalculationResult combineIndependentPNonRefs(final VariantContext vc,
+                                                      final List<AFCalculationResult> sortedResultsWithThetaNPriors) {
         int nEvaluations = 0;
         final int nAltAlleles = sortedResultsWithThetaNPriors.size();
         final int[] alleleCountsOfMLE = new int[nAltAlleles];
@@ -437,7 +439,7 @@ import java.util.*;
         double log10PosteriorOfACGt0Sum = 0.0;
 
         boolean anyPoly = false;
-        for ( final AFCalcResult sortedResultWithThetaNPriors : sortedResultsWithThetaNPriors ) {
+        for ( final AFCalculationResult sortedResultWithThetaNPriors : sortedResultsWithThetaNPriors ) {
             final Allele altAllele = sortedResultWithThetaNPriors.getAllelesUsedInGenotyping().get(1);
             final int altI = vc.getAlleles().indexOf(altAllele) - 1;
 
@@ -486,7 +488,7 @@ import java.util.*;
                 log10PosteriorOfACGt0 - log10PriorsOfAC[1]
         };
 
-        return new MyAFCalcResult(alleleCountsOfMLE, nEvaluations, vc.getAlleles(),
+        return new MyAFCalculationResult(alleleCountsOfMLE, nEvaluations, vc.getAlleles(),
                 // necessary to ensure all values < 0
                 MathUtils.normalizeFromLog10(log10LikelihoodsOfAC, true),
                 // priors incorporate multiple alt alleles, must be normalized

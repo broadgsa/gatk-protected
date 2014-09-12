@@ -83,9 +83,9 @@ public class ExactCallLogger implements Cloneable {
     public static class ExactCall {
         final VariantContext vc;
         final long runtime;
-        final AFCalcResult originalCall;
+        final AFCalculationResult originalCall;
 
-        public ExactCall(VariantContext vc, final long runtime, final AFCalcResult originalCall) {
+        public ExactCall(VariantContext vc, final long runtime, final AFCalculationResult originalCall) {
             this.vc = vc;
             this.runtime = runtime;
             this.originalCall = originalCall;
@@ -103,7 +103,7 @@ public class ExactCallLogger implements Cloneable {
     protected final void printCallInfo(final VariantContext vc,
                                        final double[] log10AlleleFrequencyPriors,
                                        final long runtimeNano,
-                                       final AFCalcResult result) {
+                                       final AFCalculationResult result) {
         printCallElement(vc, "type", "ignore", vc.getType());
 
         int allelei = 0;
@@ -194,7 +194,7 @@ public class ExactCallLogger implements Cloneable {
                         builder.chr(currentLoc.getContig()).start(currentLoc.getStart()).stop(stop);
                         builder.genotypes(genotypes);
                         final int[] mleInts = ArrayUtils.toPrimitive(mle.toArray(new Integer[]{}));
-                        final AFCalcResult result = new AFCalcResult(mleInts, 1, alleles, posteriors, priors, log10pRefByAllele);
+                        final AFCalculationResult result = new AFCalculationResult(mleInts, 1, alleles, posteriors, priors, log10pRefByAllele);
                         calls.add(new ExactCall(builder.make(), runtimeNano, result));
                     }
                     break;

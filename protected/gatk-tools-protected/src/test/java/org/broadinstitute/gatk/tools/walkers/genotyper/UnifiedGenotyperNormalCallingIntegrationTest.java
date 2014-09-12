@@ -65,7 +65,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMultiSamplePilot1() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000", 1,
-                Arrays.asList("9824ea30340fd3632bad672fc6ade114"));
+                Arrays.asList("a15a28d854789c71ef2879dd4c606b1a"));
         executeTest("test MultiSample Pilot1", spec);
     }
 
@@ -97,7 +97,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMultipleSNPAlleles() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH --dbsnp " + b37dbSNP129 + " -I " + privateTestDir + "multiallelic.snps.bam -o %s -L " + privateTestDir + "multiallelic.snps.intervals", 1,
-                Arrays.asList("2474c60302fc79f28bb0c721d305c09b"));
+                Arrays.asList("1a36b5c036e0452f526dc1a5fdd60929"));
         executeTest("test Multiple SNP alleles", spec);
     }
 

@@ -44,165 +44,180 @@
 *  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.variantutils;
+package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
-import org.broadinstitute.gatk.engine.walkers.WalkerTest;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
-import htsjdk.variant.variantcontext.VariantContext;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
+import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.Utils;
+import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
-import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-public class CombineGVCFsIntegrationTest extends WalkerTest {
-    public static String baseTestString(String args) {
-        return "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V "
-                + privateTestDir + "gvcfExample1.vcf -V " + privateTestDir + "gvcfExample2.vcf" + args;
+public class AFCalculatorTestBuilder {
+    final static Allele A = Allele.create("A", true);
+    final static Allele C = Allele.create("C");
+    final static Allele G = Allele.create("G");
+    final static Allele T = Allele.create("T");
+    final static Allele AA = Allele.create("AA");
+    final static Allele AT = Allele.create("AT");
+    final static Allele AG = Allele.create("AG");
+
+    static int sampleNameCounter = 0;
+
+    final int nSamples;
+    final int numAltAlleles;
+    final AFCalculatorImplementation modelType;
+    final PriorType priorType;
+
+    public AFCalculatorTestBuilder(final int nSamples, final int numAltAlleles,
+                                   final AFCalculatorImplementation modelType, final PriorType priorType) {
+        this.nSamples = nSamples;
+        this.numAltAlleles = numAltAlleles;
+        this.modelType = modelType;
+        this.priorType = priorType;
     }
 
-    @Test
-    public void testOneStartsBeforeTwoAndEndsAfterwards() throws Exception {
-        final String cmd = baseTestString(" -L 1:69485-69509");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
-        spec.disableShadowBCF();
-        final File gVCF = executeTest("testOneStartsBeforeTwoAndEndsAfterwards", spec).first.get(0);
-        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
-
-        Assert.assertEquals(allVCs.size(), 2, "Observed: " + allVCs);
-
-        final VariantContext first = allVCs.get(0);
-        Assert.assertEquals(first.getStart(), 69491);
-        Assert.assertEquals(first.getEnd(), 69497);
-        Assert.assertEquals(first.getGenotypes().size(), 2);
-        Assert.assertTrue(first.getGenotype("NA1").isNoCall());
-        Assert.assertTrue(first.getGenotype("NA2").isNoCall());
-
-        final VariantContext second = allVCs.get(1);
-        Assert.assertEquals(second.getStart(), 69498);
-        Assert.assertEquals(second.getEnd(), 69506);
-        Assert.assertEquals(second.getGenotypes().size(), 2);
-        Assert.assertTrue(second.getGenotype("NA1").isNoCall());
-        Assert.assertTrue(second.getGenotype("NA2").isNoCall());
+    @Override
+    public String toString() {
+        return String.format("AFCalcTestBuilder nSamples=%d nAlts=%d model=%s prior=%s", nSamples, numAltAlleles, modelType, priorType);
     }
 
-    @Test(enabled = true)
-    public void testTetraploidRun() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V:sample1 " + privateTestDir + "tetraploid-gvcf-1.vcf" +
-                        " -V:sample2 " + privateTestDir + "tetraploid-gvcf-2.vcf" +
-                        " -V:sample3 " + privateTestDir + "tetraploid-gvcf-3.vcf" +
-                        " -L " + privateTestDir + "tetraploid-gvcfs.intervals",
-                1,
-                Arrays.asList("20f55be01d01bed48bf66f354fa72e5b"));
-        executeTest("combineSingleSamplePipelineGVCF", spec);
+    public enum PriorType {
+        flat,
+        human
     }
 
-    @Test(enabled= true)
-    public void testMixedPloidyRun() {
-        WalkerTestSpec spec = new WalkerTestSpec(
-                "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V:sample1 " + privateTestDir + "haploid-gvcf-1.vcf" +
-                        " -V:sample2 " + privateTestDir + "tetraploid-gvcf-2.vcf" +
-                        " -V:sample3 " + privateTestDir + "diploid-gvcf-3.vcf" +
-                        " -L " + privateTestDir + "tetraploid-gvcfs.intervals",
-                1,
-                Arrays.asList("c8bf3da5eb641d0082bdd5f12ea58e1e"));
-        executeTest("combineSingleSamplePipelineGVCF", spec);
+    public int getNumAltAlleles() {
+        return numAltAlleles;
     }
 
-    @Test
-    public void testTwoSpansManyBlocksInOne() throws Exception {
-        final String cmd = baseTestString(" -L 1:69512-69634");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
-        spec.disableShadowBCF();
-        final File gVCF = executeTest("testTwoSpansManyBlocksInOne", spec).first.get(0);
-        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
-
-        Assert.assertEquals(allVCs.size(), 5);
+    public int getnSamples() {
+        return nSamples;
     }
 
-    @Test
-    public void testOneHasAltAndTwoHasNothing() throws Exception {
-        final String cmd = baseTestString(" -L 1:69511");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
-        spec.disableShadowBCF();
-        final File gVCF = executeTest("testOneHasAltAndTwoHasNothing", spec).first.get(0);
-        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
-
-        Assert.assertEquals(allVCs.size(), 1);
-
-        final VariantContext first = allVCs.get(0);
-        Assert.assertEquals(first.getStart(), 69511);
-        Assert.assertEquals(first.getEnd(), 69511);
-        Assert.assertEquals(first.getGenotypes().size(), 2);
+    public AFCalculator makeModel() {
+        return AFCalculatorFactory.createCalculator(modelType, nSamples, getNumAltAlleles(), HomoSapiensConstants.DEFAULT_PLOIDY);
     }
 
-    @Test
-    public void testOneHasAltAndTwoHasRefBlock() throws Exception {
-        final String cmd = baseTestString(" -L 1:69635");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
-        spec.disableShadowBCF();
-        final File gVCF = executeTest("testOneHasAltAndTwoHasRefBlock", spec).first.get(0);
-        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
+    public double[] makePriors() {
+        final int nPriorValues = 2*nSamples+1;
 
-        Assert.assertEquals(allVCs.size(), 1);
+        switch ( priorType ) {
+            case flat:
+                return MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
 
-        final VariantContext first = allVCs.get(0);
-        Assert.assertEquals(first.getStart(), 69635);
-        Assert.assertEquals(first.getEnd(), 69635);
-        Assert.assertEquals(first.getNAlleles(), 3);
-        Assert.assertEquals(first.getGenotypes().size(), 2);
+            //TODO break dependency with human... avoid special reference to this species.
+            case human:
+                final double[] humanPriors = new double[nPriorValues];
+                GenotypingEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
+                return humanPriors;
+            default:
+                throw new RuntimeException("Unexpected type " + priorType);
+        }
     }
 
-    @Test
-    public void testOneHasDeletionAndTwoHasRefBlock() throws Exception {
-        final String cmd = baseTestString(" -L 1:69772-69783");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
-        spec.disableShadowBCF();
-        final File gVCF = executeTest("testOneHasDeletionAndTwoHasRefBlock", spec).first.get(0);
-        final List<VariantContext> allVCs = GATKVCFUtils.readVCF(gVCF).getSecond();
-
-        Assert.assertEquals(allVCs.size(), 3);
-
-        final VariantContext first = allVCs.get(0);
-        Assert.assertEquals(first.getStart(), 69772);
-        Assert.assertEquals(first.getEnd(), 69776);
-        Assert.assertEquals(first.getNAlleles(), 3);
-        Assert.assertEquals(first.getGenotypes().size(), 2);
-
-        final VariantContext second = allVCs.get(1);
-        Assert.assertEquals(second.getStart(), 69773);
-        Assert.assertEquals(second.getEnd(), 69774);
-        Assert.assertEquals(second.getGenotypes().size(), 2);
-
-        final VariantContext third = allVCs.get(2);
-        Assert.assertEquals(third.getStart(), 69775);
-        Assert.assertEquals(third.getEnd(), 69783);
-        Assert.assertEquals(third.getGenotypes().size(), 2);
+    public VariantContext makeACTest(final List<Integer> ACs, final int nNonInformative, final int nonTypePL) {
+        return makeACTest(ArrayUtils.toPrimitive(ACs.toArray(new Integer[]{})), nNonInformative, nonTypePL);
     }
 
-    @Test
-    public void testMD5s() throws Exception {
-        final String cmd = baseTestString(" -L 1:69485-69791");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("1df56fdfc71729cc82ba5dbfc75a72c4"));
-        spec.disableShadowBCF();
-        executeTest("testMD5s", spec);
+    public VariantContext makeACTest(final int[] ACs, final int nNonInformative, final int nonTypePL) {
+        final int nChrom = nSamples * 2;
+
+        final int[] nhet = new int[numAltAlleles];
+        final int[] nhomvar = new int[numAltAlleles];
+
+        for ( int i = 0; i < ACs.length; i++ ) {
+            final double p = ACs[i] / (1.0 * nChrom);
+            nhomvar[i] = (int)Math.floor((nSamples - nNonInformative) * p * p);
+            nhet[i] = ACs[i] - 2 * nhomvar[i];
+
+            if ( nhet[i] < 0 )
+                throw new IllegalStateException("Bug! nhet[i] < 0");
+        }
+
+        final long calcAC = MathUtils.sum(nhet) + 2 * MathUtils.sum(nhomvar);
+        if ( calcAC != MathUtils.sum(ACs) )
+            throw new IllegalStateException("calculated AC " + calcAC + " not equal to desired AC " + Utils.join(",", ACs));
+
+        return makeACTest(nhet, nhomvar, nNonInformative, nonTypePL);
     }
 
-    @Test
-    public void testBasepairResolutionOutput() throws Exception {
-        final String cmd = baseTestString(" -L 1:69485-69791 --convertToBasePairResolution");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("9c8fc4d9e330fbe41a00b7f71a784f4e"));
-        spec.disableShadowBCF();
-        executeTest("testBasepairResolutionOutput", spec);
+    public VariantContext makeACTest(final int[] nhet, final int[] nhomvar, final int nNonInformative, final int nonTypePL) {
+        List<Genotype> samples = new ArrayList<Genotype>(nSamples);
+
+        for ( int altI = 0; altI < nhet.length; altI++ ) {
+            for ( int i = 0; i < nhet[altI]; i++ )
+                samples.add(makePL(GenotypeType.HET, nonTypePL, altI+1));
+            for ( int i = 0; i < nhomvar[altI]; i++ )
+                samples.add(makePL(GenotypeType.HOM_VAR, nonTypePL, altI+1));
+        }
+
+        final Genotype nonInformative = makeNonInformative();
+        samples.addAll(Collections.nCopies(nNonInformative, nonInformative));
+
+        final int nRef = Math.max((int) (nSamples - nNonInformative - MathUtils.sum(nhet) - MathUtils.sum(nhomvar)), 0);
+        samples.addAll(Collections.nCopies(nRef, makePL(GenotypeType.HOM_REF, nonTypePL, 0)));
+
+        samples = samples.subList(0, nSamples);
+
+        if ( samples.size() > nSamples )
+            throw new IllegalStateException("too many samples");
+
+        VariantContextBuilder vcb = new VariantContextBuilder("x", "1", 1, 1, getAlleles());
+        vcb.genotypes(samples);
+        return vcb.make();
     }
 
-    @Test
-    public void testBasepairResolutionInput() throws Exception {
-        final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V " + privateTestDir + "gvcf.basepairResolution.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("6116f3c70cd5288f3e8b89b1953a1e15"));
-        spec.disableShadowBCF();
-        executeTest("testBasepairResolutionInput", spec);
+    public List<Allele> getAlleles() {
+        return Arrays.asList(A, C, G, T, AA, AT, AG).subList(0, numAltAlleles+1);
+    }
+
+    public List<Allele> getAlleles(final GenotypeType type, final int altI) {
+        switch (type) {
+            case HOM_REF: return Arrays.asList(getAlleles().get(0), getAlleles().get(0));
+            case HET:     return Arrays.asList(getAlleles().get(0), getAlleles().get(altI));
+            case HOM_VAR: return Arrays.asList(getAlleles().get(altI), getAlleles().get(altI));
+            default: throw new IllegalArgumentException("Unexpected type " + type);
+        }
+    }
+
+    public Genotype makePL(final List<Allele> expectedGT, int ... pls) {
+        GenotypeBuilder gb = new GenotypeBuilder("sample" + sampleNameCounter++);
+        gb.alleles(expectedGT);
+        gb.PL(pls);
+        return gb.make();
+    }
+
+    private int numPLs() {
+        return GenotypeLikelihoods.numLikelihoods(numAltAlleles+1, 2);
+    }
+
+    public Genotype makeNonInformative() {
+        final int[] nonInformativePLs = new int[GenotypeLikelihoods.numLikelihoods(numAltAlleles, 2)];
+        return makePL(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL), nonInformativePLs);
+    }
+
+    public Genotype makePL(final GenotypeType type, final int nonTypePL, final int altI) {
+        GenotypeBuilder gb = new GenotypeBuilder("sample" + sampleNameCounter++);
+        gb.alleles(getAlleles(type, altI));
+
+        final int[] pls = new int[numPLs()];
+        Arrays.fill(pls, nonTypePL);
+
+        int index = 0;
+        switch ( type ) {
+            case HOM_REF: index = GenotypeLikelihoods.calculatePLindex(0, 0); break;
+            case HET:     index = GenotypeLikelihoods.calculatePLindex(0, altI); break;
+            case HOM_VAR: index = GenotypeLikelihoods.calculatePLindex(altI, altI); break;
+        }
+        pls[index] = 0;
+        gb.PL(pls);
+
+        return gb.make();
     }
 }

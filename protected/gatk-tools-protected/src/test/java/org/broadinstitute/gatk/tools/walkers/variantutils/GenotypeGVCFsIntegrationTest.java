@@ -85,12 +85,24 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testTetraploidRun() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString(" -ploidy 4 -V:sample1 " + privateTestDir + "tetraploid-gvcf-1.vcf" +
+                baseTestString(" -V:sample1 " + privateTestDir + "tetraploid-gvcf-1.vcf" +
                         " -V:sample2 " + privateTestDir + "tetraploid-gvcf-2.vcf" +
                         " -V:sample3 " + privateTestDir + "tetraploid-gvcf-3.vcf" +
                         " -L " + privateTestDir + "tetraploid-gvcfs.intervals", b37KGReference),
                 1,
                 Arrays.asList("a2e482cddbc987b0ba004e13044f6e81"));
+        executeTest("combineSingleSamplePipelineGVCF", spec);
+    }
+
+    @Test(enabled= true)
+    public void testMixedPloidyRun() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V:sample1 " + privateTestDir + "haploid-gvcf-1.vcf" +
+                        " -V:sample2 " + privateTestDir + "tetraploid-gvcf-2.vcf" +
+                        " -V:sample3 " + privateTestDir + "diploid-gvcf-3.vcf" +
+                        " -L " + privateTestDir + "tetraploid-gvcfs.intervals", b37KGReference),
+                1,
+                Arrays.asList("0ad7d784a15ad7f8b386ec7ca34032af"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -148,7 +160,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V " + privateTestDir + "gvcfExample1.vcf" +
                         " -V " + privateTestDir + "gvcfExample2.vcf",
                 1,
-                Arrays.asList("81c4cc8a6b72c24598ee899df838f1e8"));
+                Arrays.asList("ec63a629cc707554d3dd2ba7254b3b8d"));
         executeTest("testSamplesWithDifferentLs", spec);
     }
 

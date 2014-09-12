@@ -50,6 +50,7 @@ import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
 import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
 import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
@@ -129,7 +130,9 @@ public class RegenotypeVariants extends RodWalker<Integer, Integer> implements T
         final SampleList samples =
                 new IndexedSampleList(SampleUtils.getSampleListWithVCFHeader(getToolkit(), Arrays.asList(trackName)));
         final Set<String> sampleNameSet = SampleListUtils.asSet(samples);
-        UG_engine = new UnifiedGenotypingEngine(UAC, samples,toolkit.getGenomeLocParser(),toolkit.getArguments().BAQMode);
+        UG_engine = new UnifiedGenotypingEngine(UAC, samples,toolkit.getGenomeLocParser(),
+                FixedAFCalculatorProvider.createThreadSafeProvider(toolkit,UAC,logger),
+                toolkit.getArguments().BAQMode);
 
         final Set<VCFHeaderLine> hInfo = new HashSet<VCFHeaderLine>();
         hInfo.addAll(GATKVCFUtils.getHeaderFields(getToolkit(), Arrays.asList(trackName)));

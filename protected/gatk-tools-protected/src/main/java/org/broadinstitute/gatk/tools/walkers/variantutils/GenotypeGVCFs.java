@@ -63,11 +63,11 @@ import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.GeneralPloidyFailOverAFCalculatorProvider;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.commandline.*;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
@@ -166,7 +166,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(toolkit, variants);
         final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE));
         // create the genotyping engine
-        genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), toolkit.getArguments().BAQMode);
+        genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
+                toolkit.getArguments().BAQMode);
         // create the annotation engine
         annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, toolkit);
 
@@ -182,6 +183,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         final Set<String> sampleNameSet = SampleListUtils.asSet(samples);
         final VCFHeader vcfHeader = new VCFHeader(headerLines, sampleNameSet);
         vcfWriter.writeHeader(vcfHeader);
+
+        logger.info("Notice that the -ploidy parameter is ignored in " + getClass().getSimpleName() + " tool as this is automatically determined by the input variant files");
     }
 
     public VariantContext map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
@@ -192,21 +195,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
         if ( combinedVC == null )
             return null;
-
-        checkPloidy(combinedVC);
-
         return regenotypeVC(tracker, ref, combinedVC);
-    }
-
-    private void checkPloidy(final VariantContext combinedVC) {
-        final int requiredPloidy = genotypeArgs.samplePloidy;
-        for (final Genotype g : combinedVC.getGenotypes()) {
-            if (g.getPloidy() != requiredPloidy) {
-                throw new UserException.BadArgumentValue("ploidy",
-                        "the input variant data contains calls with a different ploidy than the one specified (" + requiredPloidy
-                                + "). For example sample (" + g.getSampleName() + ") at (" + combinedVC.getChr() + ":" + combinedVC.getStart() + ")");
-            }
-        }
     }
 
     /**

@@ -57,27 +57,25 @@ import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
 
-public class GeneralPloidyExactAFCalc extends ExactAFCalc {
+public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
+
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 100; // if PL vectors longer than this # of elements, don't log them
 
-    private final int ploidy;
 
     private final static boolean VERBOSE = false;
 
-    protected GeneralPloidyExactAFCalc(final int nSamples, final int maxAltAlleles, final int ploidy) {
-        super(nSamples, maxAltAlleles, ploidy);
-        this.ploidy = ploidy;
+    protected GeneralPloidyExactAFCalculator() {
     }
 
     @Override
-    protected GenotypesContext reduceScopeGenotypes(final VariantContext vc, final List<Allele> allelesToUse) {
-        return subsetAlleles(vc,allelesToUse,false,ploidy);
+    protected GenotypesContext reduceScopeGenotypes(final VariantContext vc, final int defaultPloidy, final List<Allele> allelesToUse) {
+        return subsetAlleles(vc,defaultPloidy,allelesToUse,false);
     }
 
     @Override
-    public AFCalcResult computeLog10PNonRef(final VariantContext vc, final double[] log10AlleleFrequencyPriors) {
-        combineSinglePools(vc.getGenotypes(), vc.getNAlleles(), ploidy, log10AlleleFrequencyPriors);
-        return getResultFromFinalState(vc, log10AlleleFrequencyPriors);
+    protected AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy, final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
+        combineSinglePools(vc.getGenotypes(), defaultPloidy, vc.getNAlleles(), log10AlleleFrequencyPriors);
+        return getResultFromFinalState(vc, log10AlleleFrequencyPriors, stateTracker);
     }
 
     /**
@@ -126,17 +124,29 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         }
     }
 
+
     @Override
-    protected void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final LikelihoodSum[] likelihoodSums) {
+    protected void reduceScopeCalculateLikelihoodSums(final VariantContext vc, final int defaultPloidy, final LikelihoodSum[] likelihoodSums) {
         final int numOriginalAltAlleles = likelihoodSums.length;
-        final ArrayList<double[]> GLs = getGLs(vc.getGenotypes(), false);
-        for ( final double[] likelihoods : GLs ) {
-            final int PLindexOfBestGL = MathUtils.maxElementIndex(likelihoods);
+        final GenotypesContext genotypes = vc.getGenotypes();
+        for ( final Genotype genotype : genotypes.iterateInSampleNameOrder() ) {
+            if (!genotype.hasPL())
+                continue;
+            final double[] gls = genotype.getLikelihoods().getAsVector();
+            if (MathUtils.sum(gls) >= GATKVariantContextUtils.SUM_GL_THRESH_NOCALL)
+                continue;
+
+            final int PLindexOfBestGL = MathUtils.maxElementIndex(gls);
+
+            final double bestToHomRefDiffGL = PLindexOfBestGL == PL_INDEX_OF_HOM_REF ? 0.0 : gls[PLindexOfBestGL] - gls[PL_INDEX_OF_HOM_REF];
+            final int declaredPloidy = genotype.getPloidy();
+            final int ploidy = declaredPloidy <= 0 ? defaultPloidy : declaredPloidy;
+
             final int[] acCount = GeneralPloidyGenotypeLikelihoods.getAlleleCountFromPLIndex(1 + numOriginalAltAlleles, ploidy, PLindexOfBestGL);
             // by convention, first count coming from getAlleleCountFromPLIndex comes from reference allele
             for (int k=1; k < acCount.length;k++)
                 if (acCount[k] > 0 )
-                    likelihoodSums[k-1].sum += acCount[k] * (likelihoods[PLindexOfBestGL] - likelihoods[PL_INDEX_OF_HOM_REF]);
+                    likelihoodSums[k-1].sum += acCount[k] * bestToHomRefDiffGL;
         }
     }
 
@@ -144,51 +154,51 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * Simple non-optimized version that combines GLs from several pools and produces global AF distribution.
      * @param GLs                              Inputs genotypes context with per-pool GLs
      * @param numAlleles                       Number of alternate alleles
-     * @param ploidyPerPool                    Number of samples per pool
      * @param log10AlleleFrequencyPriors       Frequency priors
      */
     protected void combineSinglePools(final GenotypesContext GLs,
+                                      final int defaultPloidy,
                                       final int numAlleles,
-                                      final int ploidyPerPool,
                                       final double[] log10AlleleFrequencyPriors) {
 
-        final ArrayList<double[]> genotypeLikelihoods = getGLs(GLs, true);
-
-
-        int combinedPloidy = 0;
-
         // Combine each pool incrementally - likelihoods will be renormalized at each step
-         CombinedPoolLikelihoods combinedPoolLikelihoods = new CombinedPoolLikelihoods();
 
         // first element: zero ploidy, e.g. trivial degenerate distribution
+        final int numAltAlleles = numAlleles - 1;
         final int[] zeroCounts = new int[numAlleles];
         final ExactACset set = new ExactACset(1, new ExactACcounts(zeroCounts));
         set.getLog10Likelihoods()[0] = 0.0;
-
-        final int genotypeCount = genotypeLikelihoods.size();
+        final StateTracker stateTracker = getStateTracker(false,numAltAlleles);
+        int combinedPloidy = 0;
+        CombinedPoolLikelihoods combinedPoolLikelihoods = new CombinedPoolLikelihoods();
         combinedPoolLikelihoods.add(set);
 
-        getStateTracker().reset(numAlleles - 1);
-        if ( genotypeCount <= 1 ) {
-            // no meaningful GLs at all, just set the tracker to non poly values
-            // just mimic-ing call below
-            getStateTracker().setLog10LikelihoodOfAFzero(0.0);
-        } else {
-            for (int p=1; p<genotypeCount; p++) {
-                combinedPoolLikelihoods = fastCombineMultiallelicPool(combinedPoolLikelihoods, genotypeLikelihoods.get(p),
-                        combinedPloidy, ploidyPerPool, numAlleles, log10AlleleFrequencyPriors);
-                combinedPloidy = ploidyPerPool + combinedPloidy; // total number of chromosomes in combinedLikelihoods
-                if (p < genotypeCount - 1) getStateTracker().reset(); // TODO -- why is this here?  It makes it hard to track the n evaluation
-            }
+        for (final Genotype genotype : GLs.iterateInSampleNameOrder()) {
+            // recover gls and check if they qualify.
+            if (!genotype.hasPL())
+                continue;
+            final double[] gls = genotype.getLikelihoods().getAsVector();
+            if (MathUtils.sum(gls) >= GATKVariantContextUtils.SUM_GL_THRESH_NOCALL)
+                continue;
+            stateTracker.reset();
+            final int declaredPloidy = genotype.getPloidy();
+            final int ploidy = declaredPloidy < 1 ? defaultPloidy : declaredPloidy;
+            // they do qualify so we proceed.
+            combinedPoolLikelihoods = fastCombineMultiallelicPool(combinedPoolLikelihoods, gls,
+                    combinedPloidy, ploidy, numAlleles, log10AlleleFrequencyPriors, stateTracker);
+            combinedPloidy = ploidy + combinedPloidy; // total number of chromosomes in combinedLikelihoods
         }
+        if (combinedPloidy == 0)
+            stateTracker.setLog10LikelihoodOfAFzero(0.0);
     }
 
-    public CombinedPoolLikelihoods fastCombineMultiallelicPool(final CombinedPoolLikelihoods originalPool,
+    private CombinedPoolLikelihoods fastCombineMultiallelicPool(final CombinedPoolLikelihoods originalPool,
                                                                double[] newGL,
                                                                int originalPloidy,
                                                                int newGLPloidy,
                                                                int numAlleles,
-                                                               final double[] log10AlleleFrequencyPriors) {
+                                                               final double[] log10AlleleFrequencyPriors,
+                                                               final StateTracker stateTracker) {
         final LinkedList<ExactACset> ACqueue = new LinkedList<>();
         // mapping of ExactACset indexes to the objects
         final HashMap<ExactACcounts, ExactACset> indexesToACset = new HashMap<>();
@@ -206,11 +216,11 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 
         // keep processing while we have AC conformations that need to be calculated
         while ( !ACqueue.isEmpty() ) {
-            getStateTracker().incNEvaluations();
+            stateTracker.incNEvaluations();
             // compute log10Likelihoods
             final ExactACset ACset = ACqueue.remove();
 
-            calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, ACqueue, indexesToACset);
+            calculateACConformationAndUpdateQueue(ACset, newPool, originalPool, newGL, log10AlleleFrequencyPriors, originalPloidy, newGLPloidy, ACqueue, indexesToACset, stateTracker);
 
             // clean up memory
             indexesToACset.remove(ACset.getACcounts());
@@ -243,12 +253,13 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                                          final int originalPloidy,
                                                          final int newGLPloidy,
                                                          final LinkedList<ExactACset> ACqueue,
-                                                         final HashMap<ExactACcounts, ExactACset> indexesToACset) {
+                                                         final HashMap<ExactACcounts, ExactACset> indexesToACset,
+                                                         final StateTracker stateTracker) {
 
         // compute likelihood in "set" of new set based on original likelihoods
         final int numAlleles = set.getACcounts().getCounts().length;
         final int newPloidy = set.getACsum();
-        final double log10LofK = computeLofK(set, originalPool, newGL, log10AlleleFrequencyPriors, numAlleles, originalPloidy, newGLPloidy);
+        final double log10LofK = computeLofK(set, originalPool, newGL, log10AlleleFrequencyPriors, numAlleles, originalPloidy, newGLPloidy, stateTracker);
 
 
         // add to new pool
@@ -256,7 +267,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
             newPool.add(set);
 
         // TODO -- change false to true this correct line when the implementation of this model is optimized (it's too slow now to handle this fix)
-        if ( getStateTracker().abort(log10LofK, set.getACcounts(), false) ) {
+        if ( stateTracker.abort(log10LofK, set.getACcounts(), false) ) {
             return log10LofK;
         }
 
@@ -364,7 +375,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                                final CombinedPoolLikelihoods firstGLs,
                                final double[] secondGL,
                                final double[] log10AlleleFrequencyPriors,
-                               final int numAlleles, final int ploidy1, final int ploidy2) {
+                               final int numAlleles, final int ploidy1, final int ploidy2, final StateTracker stateTracker) {
 
         final int newPloidy = ploidy1 + ploidy2;
 
@@ -381,9 +392,8 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         if ( totalAltK == 0 ) {   // all-ref case
             final double log10Lof0 = firstGLs.getGLOfACZero() + secondGL[HOM_REF_INDEX];
             set.getLog10Likelihoods()[0] = log10Lof0;
-
-            getStateTracker().setLog10LikelihoodOfAFzero(log10Lof0);
-            getStateTracker().setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
+            stateTracker.setLog10LikelihoodOfAFzero(log10Lof0);
+            stateTracker.setLog10PosteriorOfAFzero(log10Lof0 + log10AlleleFrequencyPriors[0]);
             return log10Lof0;
 
         }   else {
@@ -427,7 +437,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         // update the MLE if necessary
         final int altCounts[] = Arrays.copyOfRange(set.getACcounts().getCounts(),1, set.getACcounts().getCounts().length);
         // TODO -- GUILLERMO THIS CODE MAY PRODUCE POSITIVE LIKELIHOODS OR -INFINITY
-        getStateTracker().updateMLEifNeeded(Math.max(log10LofK, -Double.MAX_VALUE), altCounts);
+        stateTracker.updateMLEifNeeded(Math.max(log10LofK, -Double.MAX_VALUE), altCounts);
 
         // apply the priors over each alternate allele
         for (final int ACcount : altCounts ) {
@@ -435,7 +445,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
                 log10LofK += log10AlleleFrequencyPriors[ACcount];
         }
         // TODO -- GUILLERMO THIS CODE MAY PRODUCE POSITIVE LIKELIHOODS OR -INFINITY
-        getStateTracker().updateMAPifNeeded(Math.max(log10LofK, -Double.MAX_VALUE), altCounts);
+        stateTracker.updateMAPifNeeded(Math.max(log10LofK, -Double.MAX_VALUE), altCounts);
 
         return log10LofK;
     }
@@ -462,21 +472,17 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
      * From a given variant context, extract a given subset of alleles, and update genotype context accordingly,
      * including updating the PL's, and assign genotypes accordingly
      * @param vc                                variant context with alleles and genotype likelihoods
+     * @param defaultPloidy                     ploidy to assume in case that {@code vc} does not contain that information
+     *                                          for a sample.
      * @param allelesToUse                      alleles to subset
      * @param assignGenotypes                   true: assign hard genotypes, false: leave as no-call
-     * @param ploidy                            number of chromosomes per sample (pool)
      * @return                                  GenotypesContext with new PLs
      */
-    public GenotypesContext subsetAlleles(final VariantContext vc,
+    public GenotypesContext subsetAlleles(final VariantContext vc, final int defaultPloidy,
                                           final List<Allele> allelesToUse,
-                                          final boolean assignGenotypes,
-                                          final int ploidy) {
+                                          final boolean assignGenotypes) {
         // the genotypes with PLs
         final GenotypesContext oldGTs = vc.getGenotypes();
-        List<Allele> NO_CALL_ALLELES = new ArrayList<>(ploidy);
-
-        for (int k=0; k < ploidy; k++)
-            NO_CALL_ALLELES.add(Allele.NO_CALL);
 
         // samples
         final List<String> sampleIndices = oldGTs.getSampleNamesOrderedByName();
@@ -492,8 +498,10 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
         // create the new genotypes
         for ( int k = 0; k < oldGTs.size(); k++ ) {
             final Genotype g = oldGTs.get(sampleIndices.get(k));
+            final int declaredPloidy = g.getPloidy();
+            final int ploidy = declaredPloidy <= 0 ? defaultPloidy : declaredPloidy;
             if ( !g.hasLikelihoods() ) {
-                newGTs.add(GenotypeBuilder.create(g.getSampleName(), NO_CALL_ALLELES));
+                newGTs.add(GenotypeBuilder.create(g.getSampleName(),GATKVariantContextUtils.noCallAlleles(ploidy)));
                 continue;
             }
 
@@ -514,7 +522,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 
             // if there is no mass on the (new) likelihoods, then just no-call the sample
             if ( MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL ) {
-                newGTs.add(GenotypeBuilder.create(g.getSampleName(), NO_CALL_ALLELES));
+                newGTs.add(GenotypeBuilder.create(g.getSampleName(), GATKVariantContextUtils.noCallAlleles(ploidy)));
             }
             else {
                 final GenotypeBuilder gb = new GenotypeBuilder(g);
@@ -526,7 +534,7 @@ public class GeneralPloidyExactAFCalc extends ExactAFCalc {
 
                 // if we weren't asked to assign a genotype, then just no-call the sample
                 if ( !assignGenotypes || MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL )
-                    gb.alleles(NO_CALL_ALLELES);
+                    gb.alleles(GATKVariantContextUtils.noCallAlleles(ploidy));
                 else
                     assignGenotype(gb, newLikelihoods, allelesToUse, ploidy);
                 newGTs.add(gb.make());
