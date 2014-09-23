@@ -51,6 +51,8 @@
 
 package org.broadinstitute.gatk.utils.sam;
 
+import htsjdk.samtools.GATKBin;
+
 import java.util.Arrays;
 
 /**
@@ -69,15 +71,30 @@ public class ClippedGATKSAMRecord extends GATKSAMRecord {
      * @param end inclusive last position in {@code read} included in the clipped view.
      */
     public ClippedGATKSAMRecord(final GATKSAMRecord read, int start, int end) {
-        super(read.getHeader(), read.getReferenceIndex(), read.getAlignmentStart() + start, (short) read.getReadNameLength(),
-                (short) 100, -1, read.getCigarLength(), read.getFlags(), end - start,
-                read.getMateReferenceIndex(), read.getMateAlignmentStart(), read.getInferredInsertSize(),
-                new byte[0]);
+        super(read.getHeader());
+        this.setReferenceIndex(read.getReferenceIndex());
+        this.setAlignmentStart(read.getAlignmentStart() + start);
+        this.setMappingQuality(100);
+        // setting read indexing bin below
+        this.setFlags(read.getFlags());
+        this.setMateReferenceIndex(read.getMateReferenceIndex());
+        this.setMateAlignmentStart(read.getMateAlignmentStart());
+        this.setInferredInsertSize(read.getInferredInsertSize());
         this.setReadBases(Arrays.copyOfRange(read.getReadBases(), start, end));
         this.setBaseQualities(Arrays.copyOfRange(read.getBaseQualities(),start,end));
         this.setReadName(read.getReadName());
         insertionQuals = Arrays.copyOfRange(read.getBaseInsertionQualities(),start,end);
         deletionQuals = Arrays.copyOfRange(read.getBaseDeletionQualities(),start,end);
+
+        // Set these to null in order to mark them as being candidates for lazy initialization.
+        // If this is not done, they will have non-null defaults.
+        super.setReadName(null);
+        super.setCigarString(null);
+        super.setReadBases(null);
+        super.setBaseQualities(null);
+
+        // Do this after the above because setCigarString will clear it.
+        GATKBin.setReadIndexingBin(this, -1);
     }
 
     @Override

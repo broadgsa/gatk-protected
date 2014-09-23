@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import htsjdk.samtools.GATKBin;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -317,22 +318,18 @@ public class ActiveRegionTestDataSet {
 
     private class MyGATKSAMRecord extends GATKSAMRecord {
             protected MyGATKSAMRecord(final GATKSAMRecord r) {
-                super(r.getHeader(), r.getReferenceIndex(), r.getAlignmentStart(), (short) r.getReadNameLength(),
-                        (short) 100, -1, r.getCigarLength(), r.getFlags(), r.getReadLength(),
-                        r.getMateReferenceIndex(), r.getMateAlignmentStart(), r.getInferredInsertSize(),
-                        new byte[0]);
-                this.setReadBases(r.getReadBases());
-                this.setBaseQualities(r.getBaseQualities());
-                this.setReadName(r.getReadName());
+                super(r);
+                this.setMappingQuality(100);
+                GATKBin.setReadIndexingBin(this, -1);
             }
 
         ExponentialDistribution indelLengthDist = MathUtils.exponentialDistribution(1.0 / 0.9);
 
         public MyGATKSAMRecord(final GATKSAMRecord r, final Random rnd) {
-            super(r.getHeader(), r.getReferenceIndex(), r.getAlignmentStart(), (short) r.getReadNameLength(),
-                    (short) 100, -1, r.getCigarLength(), r.getFlags(), r.getReadLength(),
-                    r.getMateReferenceIndex(), r.getMateAlignmentStart(), r.getInferredInsertSize(),
-                    new byte[0]);
+            super(r);
+            this.setMappingQuality(100);
+            // setting read indexing bin last
+
             final byte[] bases = new byte[r.getReadBases().length];
 
             final byte[] readBases = r.getReadBases();
@@ -384,7 +381,7 @@ public class ActiveRegionTestDataSet {
             this.setBaseQualities(r.getBaseQualities());
             this.setReadName(r.getReadName());
 
-
+            GATKBin.setReadIndexingBin(this, -1);
         }
 
         private int generateIndelLength(final Random rnd) {
