@@ -48,8 +48,8 @@ package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.MathUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -148,11 +148,13 @@ final class StateTracker {
     /**
      * @return true iff all ACs in this object are less than or equal to their corresponding ACs in the provided set
      */
-    private boolean isLowerAC(final ExactACcounts otherACs) {
+    private boolean isLowerAC(final ExactACcounts otherACs, final boolean otherACsContainsReference) {
         final int[] otherACcounts = otherACs.getCounts();
 
-        for ( int i = 0; i < otherACcounts.length; i++ ) {
-            if ( alleleCountsOfMLE[i] > otherACcounts[i] )
+        final int firstAltAlleleIndex = otherACsContainsReference ? 1 : 0;
+
+        for ( int i = firstAltAlleleIndex; i < otherACcounts.length; i++ ) {
+            if ( alleleCountsOfMLE[i - firstAltAlleleIndex] > otherACcounts[i] )
                 return false;
         }
 
@@ -164,10 +166,11 @@ final class StateTracker {
      *
      * @param log10LofK the log10LofK of these ACs
      * @param ACs the ACs of this state
+     * @param exactACcountsContainReference whether the {@code ACs} contains the reference allele count (index == 0) beside all other alternative alleles.
      * @return return true if there's no reason to continue with subpaths of AC, or false otherwise
      */
-    protected boolean abort( final double log10LofK, final ExactACcounts ACs, final boolean enforceLowerACs ) {
-        return tooLowLikelihood(log10LofK) && (!enforceLowerACs || isLowerAC(ACs));
+    protected boolean abort(final double log10LofK, final ExactACcounts ACs, final boolean enforceLowerACs, final boolean exactACcountsContainReference) {
+        return tooLowLikelihood(log10LofK) && (!enforceLowerACs || isLowerAC(ACs,exactACcountsContainReference));
     }
 
     @Ensures("result != null")

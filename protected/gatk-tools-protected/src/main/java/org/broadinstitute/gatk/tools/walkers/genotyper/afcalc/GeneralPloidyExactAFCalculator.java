@@ -266,10 +266,8 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
         if (!Double.isInfinite(log10LofK))
             newPool.add(set);
 
-        // TODO -- change false to true this correct line when the implementation of this model is optimized (it's too slow now to handle this fix)
-        if ( stateTracker.abort(log10LofK, set.getACcounts(), false) ) {
+        if ( stateTracker.abort(log10LofK, set.getACcounts(), true, true) )
             return log10LofK;
-        }
 
         // iterate over higher frequencies if possible
         // by convention, ACcounts contained in set have full vector of possible pool ac counts including ref count.

@@ -96,7 +96,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleHaploid() {
         HCTest(CEUTRIO_BAM,
-                "-ploidy 1", "c93650f842aa4dfa4ef2b5f1b908a576");
+                "-ploidy 1", "5046d3f77a56fcc4ccc8a216670effac");
     }
 
     @Test
@@ -131,7 +131,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSampleHaploid() {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "0962d7723ef1e5e20fb42e869f12e1da");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "1425b46f3cd50040a1272c8775672fc0");
     }
 
     @Test
@@ -160,7 +160,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGATetraploid() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 4 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf",
-                "874f5fc9d7eed8894f72b8d2587de4b6");
+                "38ae7a6d082fc02f865f7a69a9c871d9");
     }
 
     @Test

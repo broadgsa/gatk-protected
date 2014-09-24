@@ -152,7 +152,7 @@ public abstract class DiploidExactAFCalculator extends ExactAFCalculator {
         final double log10LofK = set.getLog10Likelihoods()[set.getLog10Likelihoods().length-1];
 
         // can we abort early because the log10Likelihoods are so small?
-        if ( stateTracker.abort(log10LofK, set.getACcounts(), true) ) {
+        if ( stateTracker.abort(log10LofK, set.getACcounts(), true, false) ) {
             //if ( DEBUG )
             //    System.out.printf(" *** breaking early set=%s log10L=%.2f maxLog10L=%.2f%n", set.ACcounts, log10LofK, maxLog10L);
             return log10LofK;
