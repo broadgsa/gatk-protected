@@ -83,9 +83,11 @@ public class ReferenceConfidenceVariantContextMerger {
      * @param loc     the current location
      * @param refBase the reference allele to use if all contexts in the VC are spanning (i.e. don't start at the location in loc); if null, we'll return null in this case
      * @param removeNonRefSymbolicAllele if true, remove the <NON_REF> allele from the merged VC
+     * @param samplesAreUniquified  if true, sample names have been uniquified
      * @return new VariantContext representing the merge of all VCs or null if it not relevant
      */
-    public static VariantContext merge(final List<VariantContext> VCs, final GenomeLoc loc, final Byte refBase, final boolean removeNonRefSymbolicAllele) {
+    public static VariantContext merge(final List<VariantContext> VCs, final GenomeLoc loc, final Byte refBase, final boolean removeNonRefSymbolicAllele,
+                                       final boolean samplesAreUniquified) {
         // this can happen if e.g. you are using a dbSNP file that spans a region with no gVCFs
         if ( VCs == null || VCs.size() == 0 )
             return null;
@@ -133,7 +135,7 @@ public class ReferenceConfidenceVariantContextMerger {
             final VariantContext vc = pair.getFirst();
             final List<Allele> remappedAlleles = pair.getSecond();
 
-            mergeRefConfidenceGenotypes(genotypes, vc, remappedAlleles, allelesList);
+            mergeRefConfidenceGenotypes(genotypes, vc, remappedAlleles, allelesList, samplesAreUniquified);
 
             // special case DP (add it up) for all events
             if ( vc.hasAttribute(VCFConstants.DEPTH_KEY) ) {
@@ -303,15 +305,17 @@ public class ReferenceConfidenceVariantContextMerger {
      * Merge into the context a new genotype represented by the given VariantContext for the provided list of target alleles.
      * This method assumes that none of the alleles in the VC overlaps with any of the alleles in the set.
      *
-     * @param mergedGenotypes   the genotypes context to add to
-     * @param VC                the Variant Context for the sample
-     * @param remappedAlleles   the list of remapped alleles for the sample
-     * @param targetAlleles     the list of target alleles
+     * @param mergedGenotypes       the genotypes context to add to
+     * @param VC                    the Variant Context for the sample
+     * @param remappedAlleles       the list of remapped alleles for the sample
+     * @param targetAlleles         the list of target alleles
+     * @param samplesAreUniquified  true if sample names have been uniquified
      */
     private static void mergeRefConfidenceGenotypes(final GenotypesContext mergedGenotypes,
                                                     final VariantContext VC,
                                                     final List<Allele> remappedAlleles,
-                                                    final List<Allele> targetAlleles) {
+                                                    final List<Allele> targetAlleles,
+                                                    final boolean samplesAreUniquified) {
         final int maximumPloidy = VC.getMaxPloidy(GATKVariantContextUtils.DEFAULT_PLOIDY);
         // the map is different depending on the ploidy, so in order to keep this method flexible (mixed ploidies)
         // we need to get a map done (lazily inside the loop) for each ploidy, up to the maximum possible.
@@ -320,11 +324,14 @@ public class ReferenceConfidenceVariantContextMerger {
         int[] perSampleIndexesOfRelevantAlleles;
 
         for ( final Genotype g : VC.getGenotypes() ) {
-            final String name = g.getSampleName();
-            if ( mergedGenotypes.containsSample(name) )
-                continue;
+            final String name;
+            if (samplesAreUniquified)
+               name = g.getSampleName() + "." + VC.getSource();
+            else
+               name = g.getSampleName();
             final int ploidy = g.getPloidy();
             final GenotypeBuilder genotypeBuilder = new GenotypeBuilder(g).alleles(GATKVariantContextUtils.noCallAlleles(g.getPloidy()));
+            genotypeBuilder.name(name);
             if (g.hasPL()) {
                 // lazy initialization of the genotype index map by ploidy.
                 perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, VC.getStart(), g);

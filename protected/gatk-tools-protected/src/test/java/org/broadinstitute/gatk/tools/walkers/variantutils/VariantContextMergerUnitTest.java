@@ -99,8 +99,9 @@ public class VariantContextMergerUnitTest  extends BaseTest {
     }
 
     @Test(dataProvider = "referenceConfidenceMergeData")
-    public void testReferenceConfidenceMerge(final String testID, final List<VariantContext> toMerge, final GenomeLoc loc, final boolean returnSiteEvenIfMonomorphic, final VariantContext expectedResult) {
-        final VariantContext result = ReferenceConfidenceVariantContextMerger.merge(toMerge, loc, returnSiteEvenIfMonomorphic ? (byte) 'A' : null, true);
+    public void testReferenceConfidenceMerge(final String testID, final List<VariantContext> toMerge, final GenomeLoc loc,
+                                             final boolean returnSiteEvenIfMonomorphic, final boolean uniquifySamples, final VariantContext expectedResult) {
+        final VariantContext result = ReferenceConfidenceVariantContextMerger.merge(toMerge, loc, returnSiteEvenIfMonomorphic ? (byte) 'A' : null, true, uniquifySamples);
         if ( result == null ) {
             Assert.assertTrue(expectedResult == null);
             return;
@@ -171,6 +172,7 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         final int start = 10;
         final GenomeLoc loc = new UnvalidatingGenomeLoc("20", 0, start, start);
         final VariantContext VCbase = new VariantContextBuilder("test", "20", start, start, Arrays.asList(Aref)).make();
+        final VariantContext VCbase2 = new VariantContextBuilder("test2", "20", start, start, Arrays.asList(Aref)).make();
         final VariantContext VCprevBase = new VariantContextBuilder("test", "20", start-1, start-1, Arrays.asList(Aref)).make();
 
         final int[] standardPLs = new int[]{30, 20, 10, 71, 72, 73};
@@ -183,26 +185,34 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         final List<Allele> A_ALT = Arrays.asList(Aref, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_ALT = new GenotypeBuilder("A").PL(new int[]{0, 100, 1000}).alleles(noCalls).make();
         final VariantContext vcA_ALT = new VariantContextBuilder(VCbase).alleles(A_ALT).genotypes(gA_ALT).make();
+
         final Allele AAref = Allele.create("AA", true);
         final List<Allele> AA_ALT = Arrays.asList(AAref, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gAA_ALT = new GenotypeBuilder("AA").PL(new int[]{0, 80, 800}).alleles(noCalls).make();
         final VariantContext vcAA_ALT = new VariantContextBuilder(VCprevBase).alleles(AA_ALT).genotypes(gAA_ALT).make();
+
         final List<Allele> A_C = Arrays.asList(Aref, C);
         final Genotype gA_C = new GenotypeBuilder("A_C").PL(new int[]{30, 20, 10}).alleles(noCalls).make();
         final List<Allele> A_C_ALT = Arrays.asList(Aref, C, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_C_ALT = new GenotypeBuilder("A_C").PL(standardPLs).alleles(noCalls).make();
+        final VariantContext vcA_C = new VariantContextBuilder(VCbase2).alleles(A_C_ALT).genotypes(gA_C).make();
         final VariantContext vcA_C_ALT = new VariantContextBuilder(VCbase).alleles(A_C_ALT).genotypes(gA_C_ALT).make();
+
         final List<Allele> A_G_ALT = Arrays.asList(Aref, G, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_G_ALT = new GenotypeBuilder("A_G").PL(standardPLs).alleles(noCalls).make();
         final VariantContext vcA_G_ALT = new VariantContextBuilder(VCbase).alleles(A_G_ALT).genotypes(gA_G_ALT).make();
+
         final List<Allele> A_C_G = Arrays.asList(Aref, C, G);
         final Genotype gA_C_G = new GenotypeBuilder("A_C_G").PL(new int[]{40, 20, 30, 20, 10, 30}).alleles(noCalls).make();
         final List<Allele> A_C_G_ALT = Arrays.asList(Aref, C, G, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_C_G_ALT = new GenotypeBuilder("A_C_G").PL(new int[]{40, 20, 30, 20, 10, 30, 71, 72, 73, 74}).alleles(noCalls).make();
+        final VariantContext vcA_C_G = new VariantContextBuilder(VCbase2).alleles(A_C_G_ALT).genotypes(gA_C_G).make();
         final VariantContext vcA_C_G_ALT = new VariantContextBuilder(VCbase).alleles(A_C_G_ALT).genotypes(gA_C_G_ALT).make();
+
         final List<Allele> A_ATC_ALT = Arrays.asList(Aref, ATC, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_ATC_ALT = new GenotypeBuilder("A_ATC").PL(standardPLs).alleles(noCalls).make();
         final VariantContext vcA_ATC_ALT = new VariantContextBuilder(VCbase).alleles(A_ATC_ALT).genotypes(gA_ATC_ALT).make();
+
         final Allele A = Allele.create("A", false);
         final List<Allele> AA_A_ALT = Arrays.asList(AAref, A, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gAA_A_ALT = new GenotypeBuilder("AA_A").PL(standardPLs).alleles(noCalls).make();
@@ -210,40 +220,40 @@ public class VariantContextMergerUnitTest  extends BaseTest {
 
         // first test the case of a single record
         tests.add(new Object[]{"test00",Arrays.asList(vcA_C_ALT),
-                loc, false,
+                loc, false, false,
                 new VariantContextBuilder(VCbase).alleles(A_C).genotypes(gA_C).make()});
 
         // now, test pairs:
         // a SNP with another SNP
         tests.add(new Object[]{"test01",Arrays.asList(vcA_C_ALT, vcA_G_ALT),
-                loc, false,
+                loc, false, false,
                 new VariantContextBuilder(VCbase).alleles(A_C_G).genotypes(gA_C_ALT, new GenotypeBuilder("A_G").PL(reorderedSecondAllelePLs).alleles(noCalls).make()).make()});
         // a SNP with an indel
         tests.add(new Object[]{"test02",Arrays.asList(vcA_C_ALT, vcA_ATC_ALT),
-                loc, false,
+                loc, false, false,
                 new VariantContextBuilder(VCbase).alleles(Arrays.asList(Aref, C, ATC)).genotypes(gA_C_ALT, new GenotypeBuilder("A_ATC").PL(reorderedSecondAllelePLs).alleles(noCalls).make()).make()});
         // a SNP with 2 SNPs
         tests.add(new Object[]{"test03",Arrays.asList(vcA_C_ALT, vcA_C_G_ALT),
-                loc, false,
+                loc, false, false,
                 new VariantContextBuilder(VCbase).alleles(A_C_G).genotypes(gA_C_ALT, gA_C_G).make()});
         // a SNP with a ref record
         tests.add(new Object[]{"test04",Arrays.asList(vcA_C_ALT, vcA_ALT),
-                loc, false,
+                loc, false, false,
                 new VariantContextBuilder(VCbase).alleles(A_C).genotypes(gA_C, gA_ALT).make()});
 
         // spanning records:
         // a SNP with a spanning ref record
         tests.add(new Object[]{"test05",Arrays.asList(vcA_C_ALT, vcAA_ALT),
-                loc, false,
+                loc, false, false,
                 new VariantContextBuilder(VCbase).alleles(A_C).genotypes(gA_C, gAA_ALT).make()});
         // a SNP with a spanning deletion
         tests.add(new Object[]{"test06",Arrays.asList(vcA_C_ALT, vcAA_A_ALT),
-                loc, false,
+                loc, false, false,
                 new VariantContextBuilder(VCbase).alleles(A_C).genotypes(gA_C, new GenotypeBuilder("AA_A").PL(new int[]{30, 71, 73}).alleles(noCalls).make()).make()});
 
         // combination of all
         tests.add(new Object[]{"test07",Arrays.asList(vcA_C_ALT, vcA_G_ALT, vcA_ATC_ALT, vcA_C_G_ALT, vcA_ALT, vcAA_ALT, vcAA_A_ALT),
-                loc, false,
+                loc, false, false,
                 new VariantContextBuilder(VCbase).alleles(Arrays.asList(Aref, C, G, ATC)).genotypes(new GenotypeBuilder("A_C").PL(new int[]{30, 20, 10, 71, 72, 73, 71, 72, 73, 73}).alleles(noCalls).make(),
                         new GenotypeBuilder("A_G").PL(new int[]{30, 71, 73, 20, 72, 10, 71, 73, 72, 73}).alleles(noCalls).make(),
                         new GenotypeBuilder("A_ATC").PL(new int[]{30, 71, 73, 71, 73, 73, 20, 72, 72, 10}).alleles(noCalls).make(),
@@ -255,11 +265,22 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         // just spanning ref contexts, trying both instances where we want/do not want ref-only contexts
         tests.add(new Object[]{"test08",Arrays.asList(vcAA_ALT),
 
-                loc, false,
+                loc, false, false,
                 null});
         tests.add(new Object[]{"test09", Arrays.asList(vcAA_ALT),
-                loc, true,
+                loc, true, false,
                 new VariantContextBuilder(VCbase).alleles(Arrays.asList(Allele.create("A", true))).genotypes(new GenotypeBuilder("AA").PL(new int[]{0}).alleles(noCalls).make()).make()});
+
+        // test uniquification of sample names
+        tests.add(new Object[]{"test10",Arrays.asList(vcA_C, vcA_C_ALT), loc, false, true,
+                new VariantContextBuilder(VCbase).alleles(A_C).genotypes(
+                        new GenotypeBuilder("A_C.test2").PL(new int[]{30, 20, 10}).alleles(noCalls).make(),
+                        new GenotypeBuilder("A_C.test").PL(new int[]{30, 20, 10}).alleles(noCalls).make()).make()});
+
+        tests.add(new Object[]{"test11",Arrays.asList(vcA_C_G, vcA_C_G_ALT), loc, false, true,
+                new VariantContextBuilder(VCbase).alleles(A_C_G).genotypes(
+                        new GenotypeBuilder("A_C_G.test2").PL(new int[]{40, 20, 30, 20, 10, 30}).alleles(noCalls).make(),
+                        new GenotypeBuilder("A_C_G.test").PL(new int[]{40, 20, 30, 20, 10, 30}).alleles(noCalls).make()).make()});
 
         final Object[][] result = tests.toArray(new Object[][]{});
         return result;

@@ -293,7 +293,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
             // we need the specialized merge if the site contains anything other than ref blocks
             final VariantContext mergedVC;
             if ( containsTrueAltAllele(stoppedVCs) )
-                mergedVC = ReferenceConfidenceVariantContextMerger.merge(stoppedVCs, gLoc, refBase, false);
+                mergedVC = ReferenceConfidenceVariantContextMerger.merge(stoppedVCs, gLoc, refBase, false, false);
             else
                 mergedVC = referenceBlockMerge(stoppedVCs, state, pos.getStart());
 
