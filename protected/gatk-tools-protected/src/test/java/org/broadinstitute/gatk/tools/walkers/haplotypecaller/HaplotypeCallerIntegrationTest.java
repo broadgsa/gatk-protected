@@ -85,12 +85,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "7bc718c6a604405e6d33c3073630cc66");
+        HCTest(CEUTRIO_BAM, "", "5468f50b4ed198e6e9b05a67c3103f72");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() {
-        HCTest(NA12878_BAM, "", "07125724eb465a739df9c6ab191216b0");
+        HCTest(NA12878_BAM, "", "e85ada8486a4ed7231918187a100e1c3");
     }
 
     @Test
@@ -111,7 +111,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMinBaseQuality() {
-        HCTest(NA12878_BAM, "-mbq 15", "07125724eb465a739df9c6ab191216b0");
+        HCTest(NA12878_BAM, "-mbq 15", "e85ada8486a4ed7231918187a100e1c3");
     }
 
     @Test
@@ -126,7 +126,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedSingleSample() {
-        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "79b0f8fa5e42ef23f3d166d84d92fa23");
+        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "129965453a3ad9a22aa241f8c4afcbbf");
     }
 
     @Test
@@ -136,19 +136,19 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSample() {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "10119fbb494e966a6f1b54307cfbeb8b");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "987c0bb684fc03bcc46cb619e8269fe4");
     }
 
     @Test
     public void testHaplotypeCallerSingleSampleWithDbsnp() {
-        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "fded195a0436242673718e6dc083c172");
+        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "0f9f45384669cde243731ca803fa3a0b");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf" +
                 " -isr INTERSECTION -L " + GGA_INTERVALS_FILE,
-                "5bc8892b68e281a3ceb4f2d141f8c723");
+                "86a060e9514eaf90c14ddaa7e6d07259");
     }
 
     @Test
