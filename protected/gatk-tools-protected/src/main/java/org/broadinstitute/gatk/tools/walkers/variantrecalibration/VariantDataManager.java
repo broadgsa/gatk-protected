@@ -46,7 +46,6 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
-import it.unimi.dsi.fastutil.booleans.BooleanLists;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
