@@ -56,36 +56,36 @@ public class UnifiedGenotyperGeneralPloidyTestExecutor extends WalkerTest {
     final static String LSV_BAM = validationDataLocation +"93pools_NA12878_ref_chr20_40m_41m.bam";
     final static String REFSAMPLE_MT_CALLS = comparisonDataLocation + "Unvalidated/mtDNA/NA12878.snp.vcf";
     final static String REFSAMPLE_NAME = "NA12878";
-    final static String MTINTERVALS = "MT:1-1000";
-    final static String LSVINTERVALS = "20:40,500,000-41,000,000";
+    final static String MTINTERVALS = privateTestDir + "mt-pool-intervals.list";
+    final static String LSVINTERVALS = "20:40,500,000-40,957,000";
     final static String LSVINTERVALS_SHORT = "20:40,500,000-40,501,000";
     final static String NA12891_CALLS = comparisonDataLocation + "Unvalidated/mtDNA/NA12891.snp.vcf";
     final static String NA12878_WG_CALLS = comparisonDataLocation + "Unvalidated/NA12878/CEUTrio.HiSeq.WGS.b37_decoy.recal.ts_95.snp_indel_combined.vcf";
     final static String LSV_ALLELES = validationDataLocation + "ALL.chr20_40m_41m.largeScaleValidationSites.vcf";
 
     public void PC_MT_Test(String bam, String args, String name, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -ignoreLane ",
+        final String base = String.format("-T UnifiedGenotyper -dcov 200 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -ignoreLane ",
                 REF, bam, MTINTERVALS, REFSAMPLE_MT_CALLS, REFSAMPLE_NAME) + " --no_cmdline_in_header -o %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
     }
 
     public void PC_LSV_Test(String args, String name, String model, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -glm %s -ignoreLane ",
+        final String base = String.format("-T UnifiedGenotyper -dcov 200 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -glm %s -ignoreLane ",
                 REF, LSV_BAM, LSVINTERVALS, NA12878_WG_CALLS, REFSAMPLE_NAME, model) + " --no_cmdline_in_header -o %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
     }
 
     public void PC_LSV_Test_short(String args, String name, String model, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -glm %s -ignoreLane ",
+        final String base = String.format("-T UnifiedGenotyper -dcov 200 -R %s -I %s -L %s --reference_sample_calls %s -refsample %s -glm %s -ignoreLane ",
                 REF, LSV_BAM, LSVINTERVALS_SHORT, NA12878_WG_CALLS, REFSAMPLE_NAME, model) + " --no_cmdline_in_header -o %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
     }
 
     public void PC_LSV_Test_NoRef(String args, String name, String model, String md5) {
-        final String base = String.format("-T UnifiedGenotyper -dcov 10000 -R %s -I %s -L %s -glm %s -ignoreLane",
+        final String base = String.format("-T UnifiedGenotyper -dcov 200 -R %s -I %s -L %s -glm %s -ignoreLane",
                 REF, LSV_BAM, LSVINTERVALS, model) + " --no_cmdline_in_header -o %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testPoolCaller:"+name+" args=" + args, spec);
