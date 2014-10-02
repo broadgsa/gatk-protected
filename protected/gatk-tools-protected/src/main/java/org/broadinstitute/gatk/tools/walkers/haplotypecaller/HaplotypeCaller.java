@@ -608,8 +608,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // reference base padding size
     private static final int REFERENCE_PADDING = 500;
 
-    private final static int maxReadsInRegionPerSample = 1000; // TODO -- should be an argument
-    private final static int minReadsPerAlignmentStart = 5; // TODO -- should be an argument
+    /**
+     * When downsampling, level the coverage of the reads in each sample to no more than maxReadsInRegionPerSample reads,
+     * not reducing coverage at any read start to less than minReadsPerAlignmentStart
+     */
+    @Argument(fullName = "maxReadsInRegionPerSample", shortName = "maxReadsInRegionPerSample", doc="Maximum reads in an active region", required = false)
+    protected int maxReadsInRegionPerSample = 1000;
+
+    @Argument(fullName = "minReadsPerAlignmentStart", shortName = "minReadsPerAlignStart", doc="Minimum number of reads sharing the same alignment start for each genomic location in an active region", required = false)
+    protected int minReadsPerAlignmentStart = 5;
 
     private byte MIN_TAIL_QUALITY;
     private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
