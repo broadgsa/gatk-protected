@@ -63,28 +63,31 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     private static String CEUtrioPopPriorsTest = privateTestDir + "CEUtrioPopPriorsTest.vcf";
 
     @Test(enabled = true)
+    //use the first 20 variants to save time; they have a nice range of AC from 4 to over 4000
     public void testUsingDiscoveredAF() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T CalculateGenotypePosteriors --no_cmdline_in_header" +
                         " -o %s" +
                         " -R " + b37KGReference +
-                        " -L 20:10,000,000-10,100,000" +
+                        " -L 20:10,000,000-10,001,432" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("75c4b1baba3071047e4629c8e81ddea1"));
+                Arrays.asList("afe5c06ef62612e4c663a3f8e9f5cd60"));
         executeTest("testUsingDiscoveredAF", spec);
     }
 
     @Test(enabled = true)
+    //this test ignores discovered AC and has no external priors, so it should only apply the PP tag with values the same as PLs
+    //only test the first 20 variants to save time
     public void testMissingPriors() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T CalculateGenotypePosteriors --no_cmdline_in_header -useACoff" +
                         " -o %s" +
                         " -R " + b37KGReference +
-                        " -L 20:10,000,000-10,100,000" +
+                        " -L 20:10,000,000-10,001,432" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("5a2d7481fc69b97033f8c3ae9c0bdd20"));
+                Arrays.asList("de153b79fd1c0e1c1f769ec4a9fb01e0"));
         executeTest("testMissingPriors", spec);
     }
 
