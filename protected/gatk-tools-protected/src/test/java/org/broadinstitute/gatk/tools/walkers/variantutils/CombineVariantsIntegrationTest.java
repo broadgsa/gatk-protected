@@ -150,7 +150,8 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
 
     @Test public void uniqueSNPs() {
         // parallelism must be disabled because the input VCF is malformed (DB=0) and parallelism actually fixes this which breaks the md5s
-        combine2("pilot2.snps.vcf4.genotypes.vcf", "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.vcf", "", "e5ea6ac3905bd9eeea1a2ef5d2cb5af7", true);
+        //both of these files have the YRI trio and merging of duplicate samples without priority must be specified with UNSORTED merge type
+        combine2("pilot2.snps.vcf4.genotypes.vcf", "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.vcf", " -genotypeMergeOptions UNSORTED", "e5ea6ac3905bd9eeea1a2ef5d2cb5af7", true);
     }
 
     @Test public void omniHM3Union() { combineSites(" -filteredRecordsMergeType KEEP_IF_ANY_UNFILTERED", "def52bcd3942bbe39cd7ebe845c4f206"); }
