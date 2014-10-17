@@ -219,11 +219,14 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         // only re-genotype polymorphic sites
         if ( result.isVariant() ) {
             VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
-            if ( regenotypedVC == null )
-                return null;
-
-            regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
-            result = addGenotypingAnnotations(originalVC.getAttributes(), regenotypedVC);
+            if ( regenotypedVC == null) {
+                if (!INCLUDE_NON_VARIANTS)
+                    return null;
+            }
+            else {
+                regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
+                result = addGenotypingAnnotations(originalVC.getAttributes(), regenotypedVC);
+            }
         }
 
         // if it turned monomorphic then we either need to ignore or fix such sites
