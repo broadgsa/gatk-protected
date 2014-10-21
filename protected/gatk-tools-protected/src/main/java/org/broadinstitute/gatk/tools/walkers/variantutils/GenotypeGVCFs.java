@@ -219,11 +219,14 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         // only re-genotype polymorphic sites
         if ( result.isVariant() ) {
             VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
-            if ( regenotypedVC == null )
-                return null;
-
-            regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
-            result = addGenotypingAnnotations(originalVC.getAttributes(), regenotypedVC);
+            if ( regenotypedVC == null) {
+                if (!INCLUDE_NON_VARIANTS)
+                    return null;
+            }
+            else {
+                regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
+                result = addGenotypingAnnotations(originalVC.getAttributes(), regenotypedVC);
+            }
         }
 
         // if it turned monomorphic then we either need to ignore or fix such sites
@@ -313,10 +316,12 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
             if ( createRefGTs ) {
                 final int ploidy = oldGT.getPloidy();
-                final List<Allele> refAlleles = new ArrayList<>(ploidy);
-                for ( int i = 0; i < ploidy; i++ )
-                    refAlleles.add(VC.getReference());
-                builder.alleles(refAlleles);
+                final List<Allele> refAlleles = Collections.nCopies(ploidy,VC.getReference());
+
+                //keep 0 depth samples as no-call
+                if (depth > 0) {
+                    builder.alleles(refAlleles);
+                }
 
                 // also, the PLs are technically no longer usable
                 builder.noPL();

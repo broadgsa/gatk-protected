@@ -119,7 +119,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " --includeNonVariantSites -L 20:10,030,000-10,033,000 -L 20:10,386,000-10,386,500", b37KGReference),
                 1,
-                Arrays.asList("4193e7c4e6fc889b4aa5a326899b1a4e"));
+                Arrays.asList("fdd06679c8a14ef2010d075cbae76519"));
         executeTest("combineSingleSamplePipelineGVCF_includeNonVariants", spec);
     }
 
