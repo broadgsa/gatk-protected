@@ -110,4 +110,24 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
 
     }
 
+    @Test
+    public void testLongInsertFailure() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forLongInsert.vcf -o %s",
+                1,
+                Arrays.asList("bb412c1fc8f95523dd2fc623d53dbeec"));
+        executeTest("testLongInsertFailure", spec);
+    }
+
+    @Test
+    public void testLongInsertSuccess() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-RL 269 -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forLongInsert.vcf -o %s",
+                1,
+                Arrays.asList("9236320c470cd8d6759c21b79206f63f"));
+        executeTest("testLongInsertSuccess", spec);
+    }
+
 }

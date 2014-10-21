@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.simulatereads;
 
+import org.apache.log4j.Logger;
 import cern.jet.random.Poisson;
 import cern.jet.random.engine.MersenneTwister;
 import htsjdk.samtools.SAMFileHeader;
@@ -108,6 +109,7 @@ import java.util.*;
 
 @Reference(window=@Window(start=-200,stop=200))
 public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
+    private static Logger logger = Logger.getLogger(SimulateReadsForVariants.class);
 
     @ArgumentCollection protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
     /**
@@ -248,20 +250,21 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
         if ( vc == null || !vc.isBiallelic() )
             return 0;
 
-        if ( verbose ) logger.info(String.format("Generating reads for %s", vc));
+        if ( !generateReadsForVariant(vc, ref, useAFAsAlleleFraction) )
+            return 0;
 
-        generateReadsForVariant(vc, ref, useAFAsAlleleFraction);
+        if ( verbose ) logger.info(String.format("Generating reads for %s", vc));
 
         return 1;
     }
 
     /**
-     * Contstructs an artifical haplotype given an allele and original reference context
+     * Constructs an artificial haplotype given an allele and original reference context
      *
      * @param allele     the allele to model (can be reference)
      * @param refLength  the length of the reference allele
      * @param ref        the original reference context
-     * @return a non-null ArtificialHaplotype
+     * @return the artificial haplotype or null if the readLength parameter is too small to hold the allele and reference
      */
     private ArtificialHaplotype constructHaplotype(final Allele allele, final int refLength, final ReferenceContext ref) {
 
@@ -269,24 +272,63 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
 
         final int alleleLength = allele.getBases().length;
         final int halfAlleleLength = (alleleLength + 1) / 2;
+        final int refContextLength = ref.getBases().length;
 
         // this is how far back to move from the event to start copying bases
         final int offset = halfReadLength - halfAlleleLength;
 
+        // number of bases copied to the haplotype
+        int copiedCount = 0;
+
         // copy bases before the event
         final int locusPosOnRefContext = (int)(ref.getLocus().getStart() - ref.getWindow().getStart());
         int posOnRefContext = locusPosOnRefContext - offset;
-        System.arraycopy(ref.getBases(), posOnRefContext, haplotype, 0, offset);
-        int copiedCount = offset;
+        if ( offset >= 0 && posOnRefContext >= 0 && posOnRefContext + offset <= refContextLength )
+        {
+            System.arraycopy(ref.getBases(), posOnRefContext, haplotype, 0, offset);
+            copiedCount = offset;
+        }
+        else
+        {
+            String msg = new String("Can not copy reference bases to haplotype: ");
+            if ( offset < 0 )
+                msg += "Read length(" + readLength + ") < Allele length(" +  alleleLength + ")";
+            else
+                msg += "Reference position(" + posOnRefContext + ") < 0";
+            logger.info(msg);
+            return null;
+        }
 
         // copy the event bases
-        System.arraycopy(allele.getBases(), 0, haplotype, copiedCount, alleleLength);
-        copiedCount += alleleLength;
+        if ( copiedCount + alleleLength <= readLength )
+        {
+            System.arraycopy(allele.getBases(), 0, haplotype, copiedCount, alleleLength);
+            copiedCount += alleleLength;
+        }
+        else
+        {
+            String msg = new String("Can not copy allele bases to haplotype: ");
+            msg += "Read length(" + readLength + ") < Allele length(" +  alleleLength + ") +  copied count(" + copiedCount + ")";
+            logger.info(msg);
+            return null;
+        }
+
 
         // copy bases after the event
         posOnRefContext = locusPosOnRefContext + refLength;
         final int remainder = readLength - copiedCount;
-        System.arraycopy(ref.getBases(), posOnRefContext, haplotype, copiedCount, remainder);
+        if ( remainder > 0 && posOnRefContext + remainder <= refContextLength )
+        {
+            System.arraycopy(ref.getBases(), posOnRefContext, haplotype, copiedCount, remainder);
+            copiedCount += remainder;
+        }
+        else
+        {
+            String msg = new String("Can not copy remaining reference bases to haplotype: ");
+            msg += "Read length(" + readLength + ") <= Copied count(" +  copiedCount + ")";
+            logger.info(msg);
+            return null;
+        }
 
         final String cigar;
         if ( refLength == alleleLength )
@@ -303,12 +345,17 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
      * @param vc         the (bi-allelic) variant context for which to generate artificial reads
      * @param ref        the original reference context
      * @param useAFAsAlleleFraction use AF tag to indicate allele fraction
+     * @return true if successful generation of artificial reads for the variant, false otherwise
      */
-    private void generateReadsForVariant(final VariantContext vc, final ReferenceContext ref, final boolean useAFAsAlleleFraction) {
+    private boolean generateReadsForVariant(final VariantContext vc, final ReferenceContext ref, final boolean useAFAsAlleleFraction) {
 
         final int refLength = vc.getReference().getBases().length;
-        final ArtificialHaplotype refHap = constructHaplotype(vc.getReference(), refLength, ref);
-        final ArtificialHaplotype altHap = constructHaplotype(vc.getAlternateAllele(0), refLength, ref);
+	    final ArtificialHaplotype refHap = constructHaplotype(vc.getReference(), refLength, ref);
+	    if ( refHap == null )
+            return false;
+	    final ArtificialHaplotype altHap = constructHaplotype(vc.getAlternateAllele(0), refLength, ref);
+        if ( altHap == null )
+            return false;
 
         final double refAlleleFraction = (useAFAsAlleleFraction)?1-vc.getAttributeAsDouble(VCFConstants.ALLELE_FREQUENCY_KEY, 0.5):0.5;
 
@@ -328,6 +375,8 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
                 writeRead(readBases, vc.getChr(), vc.getStart() - haplotype.offset, haplotype.cigar, g.getSampleName(), gi++ % 2 == 0);
             }
         }
+
+        return true;
     }
 
     /**
