@@ -293,6 +293,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public HaplotypeBAMWriter.Type bamWriterType = HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES;
 
     /**
+     * If set, certain "early exit" optimizations in HaplotypeCaller will be disabled.  This is most likely to be useful if
+     * you're using the -bamout argument to examine the placement of reads following reassembly and are interested in the
+     * reads in regions with no variations.  The -forceActive and -dontTrimActiveRegions arguments may also be necessary.
+     */
+    @Advanced
+    @Argument(fullName = "disableOptimizations", shortName="disableOptimizations", doc="Should HaplotypeCaller skip expensive calculations in active regions with no variants?",
+              required = false)
+    private boolean disableOptimizations = false;
+
+    /**
      * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
      * dbSNP is not used in any way for the calculations themselves.
      */
@@ -962,7 +972,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final ActiveRegionTrimmer.Result trimmingResult = trimmer.trim(originalActiveRegion,allVariationEvents);
 
-        if (!trimmingResult.isVariationPresent())
+        if (!trimmingResult.isVariationPresent() && !disableOptimizations)
             return referenceModelForNoVariation(originalActiveRegion,false);
 
         final AssemblyResultSet assemblyResult =
@@ -980,7 +990,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         // abort early if something is out of the acceptable range
         // TODO is this ever true at this point??? perhaps GGA. Need to check.
-        if( ! assemblyResult.isVariationPresent() )
+        if( ! assemblyResult.isVariationPresent() && ! disableOptimizations)
             return referenceModelForNoVariation(originalActiveRegion, false);
 
         // For sure this is not true if gVCF is on.
@@ -988,7 +998,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
 
         // TODO is this ever true at this point??? perhaps GGA. Need to check.
-        if( regionForGenotyping.size() == 0 ) {
+        if( regionForGenotyping.size() == 0 && ! disableOptimizations) {
             // no reads remain after filtering so nothing else to do!
             return referenceModelForNoVariation(originalActiveRegion, false);
         }
@@ -1024,13 +1034,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 (consensusMode ? Collections.<VariantContext>emptyList() : givenAlleles),
                 emitReferenceConfidence());
 
-        // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
         if ( bamWriter != null ) {
+            final Set<Haplotype> calledHaplotypeSet = new HashSet<>(calledHaplotypes.getCalledHaplotypes());
+            if (disableOptimizations)
+                calledHaplotypeSet.add(assemblyResult.getReferenceHaplotype());
             haplotypeBAMWriter.writeReadsAlignedToHaplotypes(
                     haplotypes,
                     assemblyResult.getPaddedReferenceLoc(),
                     haplotypes,
-                    calledHaplotypes.getCalledHaplotypes(),
+                    calledHaplotypeSet,
                     readLikelihoods);
         }
 

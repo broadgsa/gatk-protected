@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.utils.commandline.Advanced;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Hidden;
 import org.broadinstitute.gatk.utils.GenomeLoc;
@@ -94,7 +95,7 @@ class ActiveRegionTrimmer {
      */
     private boolean emitReferenceConfidence;
 
-    @Hidden
+    @Advanced
     @Argument(fullName="dontTrimActiveRegions", shortName="dontTrimActiveRegions", doc="If specified, we will not trim down the active region from the full region (active + extension) to just the active interval for genotyping", required = false)
     protected boolean dontTrimActiveRegions = false;
 
