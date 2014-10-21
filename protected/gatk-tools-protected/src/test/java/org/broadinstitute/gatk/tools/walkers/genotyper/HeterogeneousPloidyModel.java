@@ -52,8 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 
-import org.broadinstitute.gatk.tools.walkers.genotyper.PloidyModel;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 
 /**
  * General heterogeneous ploidy model.

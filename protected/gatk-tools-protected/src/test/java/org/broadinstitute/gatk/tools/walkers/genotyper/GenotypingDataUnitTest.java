@@ -52,7 +52,10 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.genotyper.AlleleListUtils;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;

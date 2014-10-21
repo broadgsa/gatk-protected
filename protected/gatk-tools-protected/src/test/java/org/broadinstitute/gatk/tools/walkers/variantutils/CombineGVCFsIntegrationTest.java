@@ -52,7 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.testng.Assert;
 import org.testng.annotations.Test;

@@ -53,7 +53,7 @@ package org.broadinstitute.gatk.utils.gga;
 
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.commandline.RodBinding;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;

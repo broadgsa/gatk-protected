@@ -58,25 +58,27 @@ import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.downsampling.AlleleBiasedDownsamplingUtils;
-import org.broadinstitute.gatk.engine.downsampling.DownsampleType;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.downsampling.AlleleBiasedDownsamplingUtils;
+import org.broadinstitute.gatk.utils.downsampling.DownsampleType;
 import org.broadinstitute.gatk.engine.filters.BadMateFilter;
 import org.broadinstitute.gatk.engine.filters.MappingQualityUnavailableFilter;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
-import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.baq.BAQ;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.io.PrintStream;
@@ -267,7 +269,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             sampleNameSet = Collections.singleton(GenotypeLikelihoodsCalculationModel.DUMMY_SAMPLE_NAME);
         } else {
             // get all of the unique sample names
-            sampleNameSet = SampleUtils.getSAMFileSamples(toolkit.getSAMFileHeader());
+            sampleNameSet = ReadUtils.getSAMFileSamples(toolkit.getSAMFileHeader());
             if ( UAC.referenceSampleName != null )
                 sampleNameSet.remove(UAC.referenceSampleName);
         }

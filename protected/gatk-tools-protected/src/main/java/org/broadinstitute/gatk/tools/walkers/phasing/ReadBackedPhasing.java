@@ -58,17 +58,17 @@ import org.broadinstitute.gatk.utils.commandline.Hidden;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.filters.MappingQualityZeroFilter;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.sam.ReadUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.HasGenomeLocation;
-import org.broadinstitute.gatk.utils.SampleUtils;
 import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
@@ -82,7 +82,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
 import java.io.*;
 import java.util.*;
 
-import static org.broadinstitute.gatk.utils.variant.GATKVCFUtils.getVCFHeadersFromRods;
+import static org.broadinstitute.gatk.engine.GATKVCFUtils.getVCFHeadersFromRods;
 
 /**
  * Walks along all variant ROD loci, caching a user-defined window of VariantContext sites, and then finishes phasing them when they go out of range (using upstream and downstream reads).
@@ -258,7 +258,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         Set<String> vcfSamples = new TreeSet<String>(samplesToPhase == null ? rodNameToHeader.get(trackName).getGenotypeSamples() : samplesToPhase);
         writer.writeHeader(new VCFHeader(hInfo, vcfSamples));
 
-        Set<String> readSamples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
+        Set<String> readSamples = ReadUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
         readSamples.retainAll(vcfSamples);
         if (readSamples.isEmpty()) {
             String noPhaseString = "No common samples in VCF and BAM headers" + (samplesToPhase == null ? "" : " (limited to sampleToPhase parameters)") + ", so nothing could possibly be phased!";

@@ -60,6 +60,8 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;

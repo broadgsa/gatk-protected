@@ -51,6 +51,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+
 /**
  * Information about the number of chromosome per sample at a given location.
  *

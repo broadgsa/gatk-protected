@@ -52,7 +52,11 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.AlleleListPermutation;
+import org.broadinstitute.gatk.utils.genotyper.AlleleListUtils;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
 import org.testng.Assert;
 import org.testng.SkipException;
 import org.testng.annotations.BeforeClass;
@@ -62,7 +66,7 @@ import org.testng.annotations.Test;
 import java.util.*;
 
 /**
- * Test {@link org.broadinstitute.gatk.tools.walkers.genotyper.AlleleListUtils}.
+ * Test {@link org.broadinstitute.gatk.utils.genotyper.AlleleListUtils}.
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
@@ -121,7 +125,7 @@ public class AlleleListUtilsUnitTest {
         Assert.assertTrue(AlleleListUtils.equals(selfPermutation,originalAlleleList));
     }
 
-    private final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+    private final Random rnd = Utils.getRandomGenerator();
 
     @Test(dataProvider = "singleAlleleListData", dependsOnMethods = "testEquals")
     public void testSubsetPermutation(final List<Allele> alleles1) {

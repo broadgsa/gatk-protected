@@ -51,12 +51,12 @@
 
 package org.broadinstitute.gatk.tools.walkers.validation.validationsiteselector;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextUtils;
+import org.broadinstitute.gatk.utils.Utils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -162,13 +162,13 @@ public class KeepAFSpectrumFrequencySelector extends FrequencyModeSelector {
         // deal with rounding artifacts
         while (totalSites > numValidationSites) {
             // take off one from randomly selected bin
-            int k= GenomeAnalysisEngine.getRandomGenerator().nextInt(NUM_BINS);
+            int k= Utils.getRandomGenerator().nextInt(NUM_BINS);
             sitesToChoosePerBin[k]--;
             totalSites--;
         }
         while (totalSites < numValidationSites) {
             // take off one from randomly selected bin
-            int k= GenomeAnalysisEngine.getRandomGenerator().nextInt( NUM_BINS);
+            int k= Utils.getRandomGenerator().nextInt( NUM_BINS);
             sitesToChoosePerBin[k]++;
             totalSites++;
         }

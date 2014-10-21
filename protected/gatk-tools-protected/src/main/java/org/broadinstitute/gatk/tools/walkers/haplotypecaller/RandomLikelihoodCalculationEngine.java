@@ -52,10 +52,10 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedAlleleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
@@ -77,7 +77,7 @@ public class RandomLikelihoodCalculationEngine implements ReadLikelihoodCalculat
         final AlleleList<Haplotype> haplotypes = new IndexedAlleleList<>(assemblyResultSet.getHaplotypeList());
         final ReadLikelihoods result = new ReadLikelihoods(samples, haplotypes, reads);
         final Map<Haplotype,Allele> alleles = new HashMap<>(haplotypes.alleleCount());
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         final int sampleCount = samples.sampleCount();
         final int alleleCount = haplotypes.alleleCount();
         for (int i = 0; i < sampleCount; i++)  {

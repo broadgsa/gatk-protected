@@ -48,8 +48,7 @@
 * 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
-
-package org.broadinstitute.gatk.utils.variant;
+package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFConstants;
@@ -59,6 +58,7 @@ import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
 

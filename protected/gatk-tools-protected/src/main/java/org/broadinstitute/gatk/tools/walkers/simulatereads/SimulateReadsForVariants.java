@@ -57,17 +57,17 @@ import cern.jet.random.engine.MersenneTwister;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.engine.walkers.Reference;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.sam.GATKSAMFileWriter;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.*;
@@ -175,7 +175,7 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
 
     // randomness related variables
     private static final long RANDOM_SEED = 1252863495;
-    private static final Random ran = GenomeAnalysisEngine.getRandomGenerator();
+    private static final Random ran = Utils.getRandomGenerator();
     private Poisson poissonRandom = null;
 
     // samples and read groups

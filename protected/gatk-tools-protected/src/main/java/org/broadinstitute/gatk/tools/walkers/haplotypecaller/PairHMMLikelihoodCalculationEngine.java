@@ -56,17 +56,17 @@ import com.google.java.contract.Requires;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedAlleleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pairhmm.*;
-import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatCovariate;
-import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatLengthCovariate;
+import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatCovariate;
+import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.io.File;
@@ -77,8 +77,6 @@ import java.util.*;
 
 public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalculationEngine {
     private final static Logger logger = Logger.getLogger(PairHMMLikelihoodCalculationEngine.class);
-
-    public static final byte BASE_QUALITY_SCORE_THRESHOLD = (byte) 18; // Base quals less than this value are squashed down to min possible qual
 
     private final byte constantGCP;
 
@@ -189,7 +187,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
     private void capMinimumReadQualities(GATKSAMRecord read, byte[] readQuals, byte[] readInsQuals, byte[] readDelQuals) {
         for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
             readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
-            readQuals[kkk] = ( readQuals[kkk] < BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
+            readQuals[kkk] = ( readQuals[kkk] < PairHMM.BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
             readInsQuals[kkk] = ( readInsQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readInsQuals[kkk] );
             readDelQuals[kkk] = ( readDelQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readDelQuals[kkk] );
         }

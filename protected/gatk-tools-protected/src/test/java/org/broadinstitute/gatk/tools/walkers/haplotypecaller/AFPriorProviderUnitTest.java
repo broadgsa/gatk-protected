@@ -51,12 +51,12 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.AFPriorProvider;
 import org.broadinstitute.gatk.tools.walkers.genotyper.CustomAFPriorProvider;
 import org.broadinstitute.gatk.tools.walkers.genotyper.HeterozygosityAFPriorProvider;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -77,7 +77,7 @@ public class AFPriorProviderUnitTest extends BaseTest {
     @Test(dataProvider="HeterozygosityProviderData")
     public void testHeterozygosityProvider(final double h, final int useCount, final int minPloidy, final int maxPloidy) {
         final double het = h / maxPloidy;
-        final Random rdn = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rdn = Utils.getRandomGenerator();
         final int[] plodies = new int[useCount];
         for (int i = 0; i < useCount; i++)
             plodies[i] = rdn.nextInt(maxPloidy - minPloidy + 1) + minPloidy;
@@ -100,7 +100,7 @@ public class AFPriorProviderUnitTest extends BaseTest {
     @Test(dataProvider="CustomProviderData")
     public void testCustomProvider(final int ploidy) {
         final double[] priors = new double[ploidy];
-        final Random rdn = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rdn = Utils.getRandomGenerator();
         double remaining = 1;
         final List<Double> priorsList = new ArrayList<Double>();
         for (int i = 0; i < priors.length; i++) {

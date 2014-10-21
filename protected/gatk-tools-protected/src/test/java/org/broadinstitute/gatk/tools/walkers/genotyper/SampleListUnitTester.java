@@ -51,8 +51,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.testng.Assert;
 
 import java.util.*;
@@ -68,8 +68,8 @@ public class SampleListUnitTester {
      * Test that the contents of a sample-list are the ones expected.
      *
      * <p>
-     *     This method perform various consistency check involving all the {@link org.broadinstitute.gatk.tools.walkers.genotyper.SampleList} interface methods.
-     *     Therefore calling this method is equivalent to a thorough check of the {@link org.broadinstitute.gatk.tools.walkers.genotyper.SampleList} aspect of
+     *     This method perform various consistency check involving all the {@link org.broadinstitute.gatk.utils.genotyper.SampleList} interface methods.
+     *     Therefore calling this method is equivalent to a thorough check of the {@link org.broadinstitute.gatk.utils.genotyper.SampleList} aspect of
      *     the {@code actual} argument.
      * </p>
      *

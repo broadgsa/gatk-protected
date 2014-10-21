@@ -60,7 +60,6 @@ import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.RandomDNA;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;

@@ -56,12 +56,11 @@ import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.downsampling.DownsampleType;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.downsampling.DownsampleType;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.classloader.PluginManager;
 import org.broadinstitute.gatk.utils.exceptions.DynamicClassResolutionException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
@@ -70,6 +69,7 @@ import org.broadinstitute.gatk.utils.help.HelpConstants;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.utils.sam.ReadUtils;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -154,7 +154,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         intervalListIterator = new PeekableIterator<GenomeLoc>(getToolkit().getIntervals().iterator());
 
         // get all of the unique sample names for the VCF Header
-        samples = SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
+        samples = ReadUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
         vcfWriter.writeHeader(new VCFHeader(getHeaderInfo(), samples));
 
         // pre load all the statistics classes because it is costly to operate on the JVM and we only want to do it once.

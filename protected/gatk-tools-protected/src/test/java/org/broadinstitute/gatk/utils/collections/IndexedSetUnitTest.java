@@ -51,7 +51,7 @@
 
 package org.broadinstitute.gatk.utils.collections;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -68,7 +68,7 @@ public class IndexedSetUnitTest {
     @Test(dataProvider = "initialCapacityElementCountMaxElementData")
     public void testCompositionBySingleElementAddition(final int initialCapacity,
                                                        final int elementCount, final int maxElement) {
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         final IndexedSet<Integer> subject = new IndexedSet<>(initialCapacity);
 
         final Set<Integer> elementSet = new LinkedHashSet<>();
@@ -111,7 +111,7 @@ public class IndexedSetUnitTest {
     }
 
     private List<Integer> generateElementCollection(final int elementCount, final int maxElement) {
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
 
         final List<Integer> elementList = new ArrayList<>(elementCount);
         for (int i = 0; i < elementCount; i++)
@@ -163,7 +163,7 @@ public class IndexedSetUnitTest {
         final IndexedSet<Integer> subject = new IndexedSet<>(elementList);
         final Set<Integer> elementSet = new LinkedHashSet<>(elementList);
         final int removeCount = (subject.size() + 1) / 2;
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         for (int i = 0; i < removeCount; i++) {
             final int removeIndex = rnd.nextInt(subject.size());
             final int removeElement = subject.get(removeIndex);
@@ -181,7 +181,7 @@ public class IndexedSetUnitTest {
         final IndexedSet<Integer> subject = new IndexedSet<>(elementList);
         final Set<Integer> elementSet = new LinkedHashSet<>(elementList);
         final int removeCount = subject.size();
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         for (int i = 0; i < removeCount; i++) {
             final int removeIndex = rnd.nextInt(subject.size());
             final int removeElement = subject.get(removeIndex);
@@ -211,7 +211,7 @@ public class IndexedSetUnitTest {
         final IndexedSet<Integer> subject = new IndexedSet<>(elementList);
         final Set<Integer> elementSet = new LinkedHashSet<>(elementList);
         final int removeCount = subject.size();
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         for (int i = 0; i < removeCount; i++) {
             final int removeIndex = rnd.nextInt(subject.size());
             final int removeElement = subject.get(removeIndex);

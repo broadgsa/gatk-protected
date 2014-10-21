@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.genotyper.AlleleListPermutation;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 

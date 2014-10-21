@@ -49,15 +49,15 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.utils.genotyper;
+package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.utils.genotyper.*;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
@@ -100,7 +100,7 @@ public class ReadLikelihoodsUnitTest
     }
 
     private double[][][] fillWithRandomLikelihoods(final String[] samples, final Allele[] alleles, final ReadLikelihoods<Allele> result) {
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         final double[][][] likelihoods = new double[samples.length][alleles.length][];
         for (int s = 0; s < likelihoods.length; s++) {
             final ReadLikelihoods.Matrix<Allele> sampleLikelihoods = result.sampleMatrix(s);
@@ -545,7 +545,7 @@ public class ReadLikelihoodsUnitTest
     @DataProvider(name="marginalizationDataSets")
     public Object[][] marginalizationDataSets() {
         try {
-            final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+            final Random rnd = Utils.getRandomGenerator();
             final Object[][] result = new Object[SAMPLE_SETS.length * ALLELE_SETS.length * ALLELE_SETS.length][];
             int nextIndex = 0;
             for (int s = 0; s < SAMPLE_SETS.length; s++) {
@@ -570,7 +570,7 @@ public class ReadLikelihoodsUnitTest
             result.put(toAllele,new ArrayList<Allele>(fromAlleles.length));
         final ArrayList<Allele> remaining = new ArrayList<>(Arrays.asList(fromAlleles));
         int nextToIndex = 0;
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         for (int i = 0; i < fromAlleles.length; i++) {
             final int fromAlleleIndex = rnd.nextInt(remaining.size());
             result.get(toAlleles[nextToIndex]).add(remaining.remove(fromAlleleIndex));
@@ -583,7 +583,7 @@ public class ReadLikelihoodsUnitTest
     @DataProvider(name="dataSets")
     public Object[][] dataSets() {
         try {
-            final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+            final Random rnd = Utils.getRandomGenerator();
             final Object[][] result = new Object[SAMPLE_SETS.length * ALLELE_SETS.length][];
             int nextIndex = 0;
             for (int s = 0; s < SAMPLE_SETS.length; s++)
@@ -728,7 +728,7 @@ public class ReadLikelihoodsUnitTest
     }
 
 
-    private final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+    private final Random rnd = Utils.getRandomGenerator();
 
     private void testLikelihoodMatrixQueries(final AlleleList<Allele> alleles, final SampleList samples,
                                              final Map<String,List<GATKSAMRecord>> sampleToReads, ReadLikelihoods<Allele> result) {

@@ -54,7 +54,7 @@ package org.broadinstitute.gatk.tools.walkers.bqsr;
 import htsjdk.samtools.SAMUtils;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.recalibration.EventType;
-import org.broadinstitute.gatk.utils.recalibration.ReadCovariates;
+import org.broadinstitute.gatk.engine.recalibration.ReadCovariates;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.testng.Assert;

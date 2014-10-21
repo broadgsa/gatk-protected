@@ -51,9 +51,9 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -64,7 +64,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Test {@link org.broadinstitute.gatk.tools.walkers.genotyper.AlleleListUtils}.
+ * Test {@link org.broadinstitute.gatk.utils.genotyper.AlleleListUtils}.
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */

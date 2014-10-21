@@ -49,15 +49,14 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.bqsr;
+package org.broadinstitute.gatk.engine.recalibration;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.commandline.Gatherer;
-import org.broadinstitute.gatk.engine.report.GATKReport;
+import org.broadinstitute.gatk.utils.report.GATKReport;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
-import org.broadinstitute.gatk.utils.recalibration.RecalibrationReport;
 
 import java.io.File;
 import java.io.FileNotFoundException;

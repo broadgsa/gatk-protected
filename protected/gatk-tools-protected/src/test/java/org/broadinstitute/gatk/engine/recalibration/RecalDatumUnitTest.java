@@ -49,7 +49,7 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.utils.recalibration;
+package org.broadinstitute.gatk.engine.recalibration;
 
 
 // the imports for unit testing.
@@ -134,7 +134,7 @@ public class RecalDatumUnitTest extends BaseTest {
         Assert.assertEquals(datum.getNumObservations(), cfg.exTotal, 1E-6);
         if ( cfg.getReportedQual() != -1 )
             Assert.assertEquals(datum.getEstimatedQReportedAsByte(), cfg.getReportedQual());
-        BaseTest.assertEqualsDoubleSmart(datum.getEmpiricalErrorRate(), cfg.getErrorRate());
+        assertEqualsDoubleSmart(datum.getEmpiricalErrorRate(), cfg.getErrorRate());
 
         final double e = datum.getEmpiricalQuality();
         Assert.assertTrue(datum.getEmpiricalQualityAsByte() >= Math.floor(e));

@@ -53,10 +53,10 @@ package org.broadinstitute.gatk.tools.walkers.indels;
 
 import com.google.java.contract.Ensures;
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedAlleleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.clipping.ReadClipper;
 import org.broadinstitute.gatk.utils.exceptions.UserException;

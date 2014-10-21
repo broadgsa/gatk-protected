@@ -49,11 +49,11 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.utils.recalibration;
+package org.broadinstitute.gatk.engine.recalibration;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.tools.walkers.bqsr.RecalibrationArgumentCollection;
-import org.broadinstitute.gatk.utils.recalibration.covariates.*;
+import org.broadinstitute.gatk.engine.recalibration.covariates.*;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.recalibration.EventType;
 import org.broadinstitute.gatk.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
@@ -96,7 +96,7 @@ public class ReadCovariatesUnitTest {
         requestedCovariates[3] = cyCov;
 
         final int NUM_READS = 100;
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
 
         final String[] readGroups = {"RG1", "RG2", "RGbla"};
         for (int idx = 0; idx < NUM_READS; idx++) {

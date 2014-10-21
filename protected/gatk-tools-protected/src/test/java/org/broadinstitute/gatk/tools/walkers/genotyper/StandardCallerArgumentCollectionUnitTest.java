@@ -51,9 +51,9 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
+import org.broadinstitute.gatk.tools.walkers.genotyper.StandardCallerArgumentCollection;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCallerArgumentCollection;
+import org.broadinstitute.gatk.utils.Utils;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -151,7 +151,7 @@ public class StandardCallerArgumentCollectionUnitTest {
 
     public <T extends StandardCallerArgumentCollection> T randomArgumentCollection(final Class<T> clazz) throws IllegalAccessException, InstantiationException {
         final T result = clazz.newInstance();
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         for (final Field field : clazz.getFields()) {
             final int fieldModifiers = field.getModifiers();
             if (!Modifier.isPublic(fieldModifiers))

@@ -51,7 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACset;
 import org.broadinstitute.gatk.tools.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;

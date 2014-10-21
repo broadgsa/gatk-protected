@@ -49,11 +49,10 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.utils.recalibration;
+package org.broadinstitute.gatk.engine.recalibration;
 
-import org.broadinstitute.gatk.tools.walkers.bqsr.RecalibrationArgumentCollection;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
-import org.broadinstitute.gatk.utils.recalibration.covariates.CycleCovariate;
+import org.broadinstitute.gatk.engine.recalibration.covariates.CycleCovariate;
 import org.broadinstitute.gatk.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;

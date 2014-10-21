@@ -59,16 +59,18 @@ import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.downsampling.AlleleBiasedDownsamplingUtils;
-import org.broadinstitute.gatk.engine.downsampling.DownsampleType;
-import org.broadinstitute.gatk.engine.downsampling.DownsamplingUtils;
+import org.broadinstitute.gatk.engine.io.stubs.SAMFileWriterStub;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.downsampling.AlleleBiasedDownsamplingUtils;
+import org.broadinstitute.gatk.utils.downsampling.DownsampleType;
+import org.broadinstitute.gatk.utils.downsampling.DownsamplingUtils;
 import org.broadinstitute.gatk.engine.filters.BadMateFilter;
-import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
+import org.broadinstitute.gatk.utils.genotyper.*;
+import org.broadinstitute.gatk.utils.sam.GATKSAMFileWriter;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
@@ -88,12 +90,9 @@ import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.gatk.utils.fragments.FragmentCollection;
 import org.broadinstitute.gatk.utils.fragments.FragmentUtils;
-import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.gvcf.GVCFWriter;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
-import org.broadinstitute.gatk.utils.haplotype.LDMerger;
-import org.broadinstitute.gatk.utils.haplotype.MergeVariantsAcrossHaplotypes;
 import org.broadinstitute.gatk.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
@@ -1167,7 +1166,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         } catch ( final Exception e ) {
             // Capture any exception that might be thrown, and write out the assembly failure BAM if requested
             if ( captureAssemblyFailureBAM ) {
-                final SAMFileWriter writer = ReadUtils.createSAMFileWriter("assemblyFailure.bam", getToolkit());
+                final SAMFileWriter writer = SAMFileWriterStub.createSAMFileWriter("assemblyFailure.bam", getToolkit());
                 for ( final GATKSAMRecord read : activeRegion.getReads() ) {
                     writer.addAlignment(read);
                 }

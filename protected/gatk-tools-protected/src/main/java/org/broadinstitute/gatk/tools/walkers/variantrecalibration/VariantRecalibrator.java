@@ -53,10 +53,9 @@ package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.PartitionBy;
 import org.broadinstitute.gatk.engine.walkers.PartitionType;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
@@ -284,7 +283,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         recalWriter.writeHeader( new VCFHeader(hInfo) );
 
         for( int iii = 0; iii < REPLICATE * 2; iii++ ) {
-            replicate.add(GenomeAnalysisEngine.getRandomGenerator().nextDouble());
+            replicate.add(Utils.getRandomGenerator().nextDouble());
         }
 
         // collect the actual rod bindings into a list for use later

@@ -49,15 +49,14 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.bqsr;
+package org.broadinstitute.gatk.engine.recalibration;
 
 import com.google.java.contract.Requires;
 import htsjdk.tribble.Feature;
 import org.broadinstitute.gatk.utils.commandline.*;
-import org.broadinstitute.gatk.engine.report.GATKReportTable;
+import org.broadinstitute.gatk.utils.report.GATKReportTable;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.exceptions.GATKException;
-import org.broadinstitute.gatk.utils.recalibration.RecalUtils;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -298,7 +297,7 @@ public class RecalibrationArgumentCollection implements Cloneable {
      * @return never <code>null</code>, but a zero-size collection if there are no differences.
      */
     @Requires("other != null && thisRole != null && otherRole != null && !thisRole.equalsIgnoreCase(otherRole)")
-    Map<String,? extends CharSequence> compareReportArguments(final RecalibrationArgumentCollection other,final String thisRole, final String otherRole) {
+    public Map<String,? extends CharSequence> compareReportArguments(final RecalibrationArgumentCollection other,final String thisRole, final String otherRole) {
         final Map<String,String> result = new LinkedHashMap<>(15);
         compareRequestedCovariates(result, other, thisRole, otherRole);
         compareSimpleReportArgument(result,"no_standard_covs", DO_NOT_USE_STANDARD_COVARIATES, other.DO_NOT_USE_STANDARD_COVARIATES, thisRole, otherRole);

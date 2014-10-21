@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
 
 /**
  * Common interface for genotyping models.
