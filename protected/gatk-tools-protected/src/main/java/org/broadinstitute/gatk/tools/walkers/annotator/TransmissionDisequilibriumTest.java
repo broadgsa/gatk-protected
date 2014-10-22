@@ -72,16 +72,19 @@ import java.util.*;
 /**
  * Wittkowski transmission disequilibrium test
  *
- * <p>Test statistic from Wittkowski transmission disequilibrium test.
- * The calculation is based on the following derivation in http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT</p>
+ * <p>This annotation indicates the presence of a genetic linkage between a genetic marker and a genetic trait.</p>
+ *
+ * <h3>Statistical notes</h3>
+ * <p>The calculation is based on the derivation described in <a href="http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT">http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT</a>.</p>
  *
  * <p>Note that this annotation requires a valid ped file.</p>
  *
  * <h3>Caveat</h3>
- * <p>This annotation can only be used with VariantAnnotator (not with UnifiedGenotyper or HaplotypeCaller).</p>
+ * <ul>
+ *     <li>This annotation requires a valid pedigree file.</li>
+ *     <li>This annotation can only be used with VariantAnnotator (not with UnifiedGenotyper or HaplotypeCaller).</li>
+ * </ul>
  *
- * @author rpoplin, lfran, ebanks
- * @since 11/14/11
  */
 
 public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implements RodRequiringAnnotation {

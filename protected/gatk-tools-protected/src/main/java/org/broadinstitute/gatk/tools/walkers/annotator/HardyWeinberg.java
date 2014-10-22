@@ -74,14 +74,19 @@ import java.util.Map;
 
 
 /**
- * Hardy-Weinberg test for disequilibrium
+ * Hardy-Weinberg test for transmission disequilibrium
  *
- * <p>This annotation calculates the Phred-scaled P value of genotype-based (using GT field) test for Hardy-Weinberg test for disequilibrium.</p>
+ * <p>This annotation estimates whether the frequencies of alleles and genotypes in a population stay the same from generation to generation.</p>
+ *
+ * <h3>Statistical notes</h3>
+ * <p>The output is a Phred-scaled P value. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of the Hardy-Weinberg test.</p>
  *
  * <h3>Caveats</h3>
- * <h4>This is an experimental annotation. As such, it is unsupported; we do not make any guarantees that it will work properly, and you use it at your own risk.</h4>
- * <p>Right now we just ignore genotypes that are not confident, but this throws off our HW ratios.
- * More analysis is needed to determine the right thing to do when the genotyper cannot decide whether a given sample is het or hom var.</p>
+ * <ul>
+ *     <li>This annotation requires multiple samples and a valid pedigree file.</li>
+ *     <li>This is an experimental annotation. As such, it is unsupported; we do not make any guarantees that it will work properly, and you use it at your own risk.</li>
+ *     <li>Low confidence genotypes are ignored, which may adversely affect HW ratios. More analysis is needed to determine the right thing to do when the genotyper cannot decide whether a given sample is heterozygous or homozygous variant.</li>
+ * </ul>
  */
 public class HardyWeinberg extends InfoFieldAnnotation implements ExperimentalAnnotation {
 

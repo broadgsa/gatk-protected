@@ -71,12 +71,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Annotates variants that are composed of tandem repeats
+ * Tandem repeat unit composition and counts per allele
  *
- * <p>This tool outputs the number of times the tandem repeat unit is repeated, for each allele (including reference).</p>
+ * <p>This annotation tags variants that fall within tandem repeat sets. It also provides the composition of the tandem repeat units and the number of times they are repeated for each allele (including the REF allele).</p>
  *
- * <h2>Caveat</h2>
- * <p>This annotation is currently not compatible with HaplotypeCaller.</p>
+ * <p>A tandem repeat unit is composed of one or more nucleotides that are repeated multiple times in series. Repetitive sequences are difficult to map to the reference because they are associated with multiple alignment possibilities. Knowing the number of repeat units in a set of tandem repeats tells you the number of different positions the tandem repeat can be placed in. The observation of many tandem repeat units multiplies the number of possible representations that can be made of the region.
+ *
+ * <h3>Caveats</h3>
+ * <ul>
+ *     <li>This annotation is currently not compatible with HaplotypeCaller.</li>
+ * </ul>
+ *
  */
 public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardAnnotation {
     private static final String STR_PRESENT = "STR";

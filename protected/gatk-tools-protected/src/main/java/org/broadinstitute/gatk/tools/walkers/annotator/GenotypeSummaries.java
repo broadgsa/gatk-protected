@@ -67,13 +67,11 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import java.util.*;
 
-/*********************************
- * Created by rpoplin on 4/5/14.
+/**
+ * Genotype summary statistics
  *
- * Genotype summary statistics.
- *
- * These summaries can all be recomputed from the genotypes on the fly but it is a lot faster to add them here as INFO field annotations.
- ********************************/
+ * <p>These summaries can all be recomputed from the genotypes on the fly but it is a lot faster to add them here as INFO field annotations.</p>
+ */
 
 public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
 

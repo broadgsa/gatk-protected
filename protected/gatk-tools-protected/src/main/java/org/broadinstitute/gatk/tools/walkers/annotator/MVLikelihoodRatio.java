@@ -71,22 +71,24 @@ import java.util.*;
 /**
  * Likelihood of being a Mendelian Violation
  *
- * <p>Given a variant context, this tool uses the genotype likelihoods to assess the likelihood of the site being a mendelian violation
- * versus the likelihood of the site transmitting according to mendelian rules. </p>
+ * <p>This annotation uses the likelihoods of the genotype calls to assess whether a site is transmitted from parents to offspring according to Mendelian rules. The output is the likelihood of the site being a Mendelian violation, which can be tentatively interpreted either as an indication of error (in the genotype calls) or as a possible <em><de novo/em> mutation. The higher the output value, the more likely there is to be a Mendelian violation. Note that only positive values indicating likely MVs will be annotated; if the value for a given site is negative (indicating that there is no violation) the annotation is not written to the file.</p>
+ *
+ * <h3>Statistical notes</h3>
+ * <p>This annotation considers all possible combinations of all possible genotypes (homozygous-reference, heterozygous, and homozygous-variant) for each member of a trio, which amounts to 27 possible combinations. Using the Phred-scaled genotype likelihoods (PL values) from each individual, the likelihood of each combination is calculated, and the result contributes to the likelihood of the corresponding case (mendelian violation or non-violation) depending on which set it belongs to. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
  *
  * <h3>Caveats</h3>
+ * <ul>
+ *     <li>The calculation assumes that the organism is diploid.</li>
+ *     <li>This annotation requires a valid pedigree file.</li>
+ *     <li>When multiple trios are present, the annotation is simply the maximum of the likelihood ratios, rather than the strict 1-Prod(1-p_i) calculation, as this can scale poorly for uncertain sites and many trios.</li>
+ *     <li>This annotation can only be used from the Variant Annotator. If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect. If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</li>
+ * </ul>
  *
- * <p>This tool assumes that the organism is diploid.</p>
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_PossibleDeNovo.php">PossibleDeNovo</a></b> annotates the existence of a de novo mutation in at least one of a set of families/trios.</li>
+ * </ul>
  *
- * <p>Note that this annotation requires a valid ped file.</p>
- *
- * <p>When multiple trios are present, the annotation is simply the maximum
- * of the likelihood ratios, rather than the strict 1-Prod(1-p_i) calculation, as this can scale poorly for uncertain
- * sites and many trios.</p>
- *
- * <p>This annotation can only be used from the Variant Annotator.
- * If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect.
- * If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</p>
  */
 
 public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiringAnnotation {

@@ -71,27 +71,25 @@ import htsjdk.variant.variantcontext.VariantContext;
 import java.util.*;
 
 /**
- * Tags variants with called genotypes that support the existence of a de novo mutation in at least one of the given families
+ * Existence of a de novo mutation in at least one of the given families
  *
- * <p>Given a variant context, this tool uses the called genotypes (ideally after having been refined using PhaseByTransmission and CalculateGenotypePosteriors)
- * to identify possible de novo mutations and the sample in which they occur. </p>
+ * <p>This annotation uses the genotype information from individuals in family trios to identify possible de novo mutations and the sample(s) in which they occur. This works best if the genotypes have been processed according to the <a href="https://www.broadinstitute.org/gatk/guide/article?id=4723">Genotype Refinement workflow</a>.</p>
  *
  * <h3>Caveats</h3>
+ * <ul>
+ *     <li>The calculation assumes that the organism is diploid.</li>
+ *     <li>This annotation requires a valid pedigree file.</li>
+ *     <li>Only reports possible de novos for children whose genotypes have not been tagged as filtered (which is most appropriate if parent likelihoods
+ * have already been factored in using PhaseByTransmission).</li>
+ *     <li>When multiple trios are present, the annotation is simply the maximum of the likelihood ratios, rather than the strict 1-Prod(1-p_i) calculation, as this can scale poorly for uncertain sites and many trios.</li>
+ *     <li>This annotation can only be used from the Variant Annotator.If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect. If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</li>
+ * </ul>
  *
- * <p>This tool assumes that the organism is diploid.</p>
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_MVLikelihoodRatio.php">MVLikelihoodRatio</a></b> evaluates whether a site is transmitted from parents to offspring according to Mendelian rules or not.</li>
+ * </ul>
  *
- * <p>Note that this annotation requires a valid ped file.</p>
- *
- * <p>Only reports possible de novos for children where genotype is not filtered (which is most appropriate if parent likelihoods
- * have already been factored in using PhaseByTransmission).</p>
- *
- * <p>When multiple trios are present, the annotation is simply the maximum
- * of the likelihood ratios, rather than the strict 1-Prod(1-p_i) calculation, as this can scale poorly for uncertain
- * sites and many trios.</p>
- *
- * <p>This annotation can only be used from the Variant Annotator.
- * If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect.
- * If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</p>
  */
 
 public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringAnnotation, ExperimentalAnnotation {

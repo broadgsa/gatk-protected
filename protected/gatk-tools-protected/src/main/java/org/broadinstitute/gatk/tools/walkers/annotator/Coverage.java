@@ -70,13 +70,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Total (unfiltered) depth over all samples.
+ * Total depth of coverage per sample (in FORMAT) and over all samples (in INFO).
  *
- * <p>While the sample-level (FORMAT) DP field describes the total depth of reads that passed the caller's
- * internal quality control metrics (like MAPQ > 17, for example), the INFO field DP represents the unfiltered depth
- * over all samples.  Note though that the DP is affected by downsampling (-dcov), so the max value one can obtain for
- * N samples with -dcov D is N * D
- * </p>
+ * <p>This annotation is used to provide counts of read depth at two different levels, with some important differences. At the sample level (FORMAT), the DP value is the count of reads that passed the caller's internal quality control metrics (such as MAPQ > 17, for example). At the site level (INFO), the DP value is the unfiltered depth over all samples.</p>
+ *
+ * <p>See the method documentation on <a href="http://www.broadinstitute.org/gatk/guide/article?id=4721">using coverage information</a> for important interpretation details.</p>
+ *
+ * <h3>Caveats</h3>
+ * <ul>
+ *     <li>If downsampling is enabled (as is done by default for some analyses to remove excessive coverage), the depth of coverage effectively seen by the caller may be inferior to the actual depth of coverage in the original file. If using `-dcov D`, the maximum depth that can be seen for N samples will be N * D.</li>
+ * </ul>
+ *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_DepthPerAlleleBySample.php">DepthPerAlleleBySample</a></b> calculates depth of coverage for each allele per sample (AD).</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_DepthPerSampleHC.php">DepthPerSampleHC</a></b> calculates depth of coverage after filtering by HaplotypeCaller.</li>
+ * </ul>
  */
 public class Coverage extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 

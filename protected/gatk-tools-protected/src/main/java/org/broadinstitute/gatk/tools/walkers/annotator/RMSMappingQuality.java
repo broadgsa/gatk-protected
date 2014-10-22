@@ -72,7 +72,18 @@ import java.util.*;
 
 
 /**
- * Root Mean Square of the mapping quality of the reads across all samples.
+ * Root Mean Square of the mapping quality of reads across all samples.
+ *
+ * <p>This annotation provides an estimation of the overall mapping quality of reads supporting a variant call, averaged over all samples in a cohort.</p>
+ *
+ * <h3>Statistical notes</h3>
+ * <p>The root mean square is equivalent to the mean of the mapping qualities plus the standard deviation of the mapping qualities.</p>
+ *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_MappingQualityRankSumTest.php">MappingQualityRankSumTest</a></b> compares the mapping quality of reads supporting the REF and ALT alleles.</li>
+ * </ul>
+ *
  */
 public class RMSMappingQuality extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 

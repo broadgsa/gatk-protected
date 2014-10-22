@@ -75,9 +75,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Implements the per sample allele count and frequency expectation typically with keys MLPSAC and MLPSAF.
+ * Allele count and frequency expectation per sample
  *
- * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
+ * Needs documentation
+ *
  */
 @SuppressWarnings("unused")
 public final class AlleleCountBySample extends GenotypeAnnotation {

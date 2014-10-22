@@ -74,26 +74,25 @@ import java.util.*;
 
 
 /**
- * The depth of coverage of each allele per sample
+ * Depth of coverage of each allele per sample
  *
- * <p>The AD and DP are complementary fields that are two important ways of thinking about the depth of the data for this
- * sample at this site.  While the sample-level (FORMAT) DP field describes the total depth of reads that passed the
- * caller's internal quality control metrics (like MAPQ > 17, for example), the AD values (one for each of
- * REF and ALT fields) is the unfiltered count of all reads that carried with them the
- * REF and ALT alleles. The reason for this distinction is that the DP is in some sense reflective of the
- * power I have to determine the genotype of the sample at this site, while the AD tells me how many times
- * I saw each of the REF and ALT alleles in the reads, free of any bias potentially introduced by filtering
- * the reads. If, for example, I believe there really is a an A/T polymorphism at a site, then I would like
- * to know the counts of A and T bases in this sample, even for reads with poor mapping quality that would
- * normally be excluded from the statistical calculations going into GQ and QUAL. Please note, however, that
- * the AD isn't necessarily calculated exactly for indels. Only reads which are statistically favoring one allele over the other are counted.
- * Because of this fact, the sum of AD may be different than the individual sample depth, especially when there are
- * many non-informative reads.</p>
+ * <p>Also known as the allele depth, this annotation gives the unfiltered count of reads that support a given allele for an individual sample. The values in the field are ordered to match the order of alleles specified in the REF and ALT fields: REF, ALT1, ALT2 and so on if there are multiple ALT alleles.</p>
  *
- * <p>Because the AD includes reads and bases that were filtered by the caller and in case of indels is based on a statistical computation,
- * <b>one should not base assumptions about the underlying genotype based on it</b>;
- * instead, the genotype likelihoods (PLs) are what determine the genotype calls.</p>
+ * <p>See the method documentation on <a href="http://www.broadinstitute.org/gatk/guide/article?id=4721">using coverage information</a> for important interpretation details.</p>
  *
+ * <h3>Caveats</h3>
+ * <ul>
+ *     <li>The AD calculation as performed by HaplotypeCaller may not yield exact results because only reads that statistically favor one allele over the other are counted. Due to this fact, the sum of AD may be different than the individual sample depth, especially when there are many non-informative reads.</li>
+ *     <li>For the AD calculation as performed by the UnifiedGenotyper, the same caveat as above applies to indels (but not to SNPs).</li>
+ *     <li>Because the AD includes reads and bases that were filtered by the caller (and in case of indels, is based on a statistical computation), it  should not be used to make assumptions about the genotype that it is associated with. Ultimately, the phred-scaled genotype likelihoods (PLs) are what determines the genotype calls.</li>
+ * </ul>
+ *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_Coverage.php">Coverage</a></b> gives the filtered depth of coverage for each sample and the unfiltered depth across all samples.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AlleleBalance.php">AlleleBallance</a></b> is a generalization of this annotation over all samples.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AlleleBalanceBySample.php">AlleleBallanceBySample</a></b> calculates allele balance for each individual sample.</li>
+ * </ul>
  */
 public class DepthPerAlleleBySample extends GenotypeAnnotation implements StandardAnnotation {
 
