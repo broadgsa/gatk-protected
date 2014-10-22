@@ -132,7 +132,8 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         alleles1.add(Allele.create("A", true));
         final List<Allele> alleles2 = new ArrayList<>(1);
         alleles2.add(Allele.create("A", true));
-        ReferenceConfidenceVariantContextMerger.getIndexesOfRelevantAlleles(alleles1, alleles2, -1);
+        GenotypeBuilder builder = new GenotypeBuilder();
+        ReferenceConfidenceVariantContextMerger.getIndexesOfRelevantAlleles(alleles1, alleles2, -1, builder.make());
         Assert.fail("We should have thrown an exception because the <ALT> allele was not present");
     }
 
@@ -147,7 +148,9 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         if ( allelesIndex > 0 )
             myAlleles.add(allAlleles.get(allelesIndex));
 
-        final int[] indexes = ReferenceConfidenceVariantContextMerger.getIndexesOfRelevantAlleles(myAlleles, allAlleles, -1);
+        GenotypeBuilder builder = new GenotypeBuilder();
+
+        final int[] indexes = ReferenceConfidenceVariantContextMerger.getIndexesOfRelevantAlleles(myAlleles, allAlleles, -1, builder.make());
 
         Assert.assertEquals(indexes.length, allAlleles.size());
 

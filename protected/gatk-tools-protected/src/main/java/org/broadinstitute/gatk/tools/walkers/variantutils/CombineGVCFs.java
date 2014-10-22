@@ -112,10 +112,14 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
     protected final class PositionalState {
         final List<VariantContext> VCs;
+        final Set<String> samples = new HashSet<>();
         final byte[] refBases;
         final GenomeLoc loc;
         public PositionalState(final List<VariantContext> VCs, final byte[] refBases, final GenomeLoc loc) {
             this.VCs = VCs;
+            for(final VariantContext vc : VCs){
+                samples.addAll(vc.getSampleNames());
+            }
             this.refBases = refBases;
             this.loc = loc;
         }
@@ -123,6 +127,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
     protected final class OverallState {
         final LinkedList<VariantContext> VCs = new LinkedList<>();
+        final Set<String> samples = new HashSet<>();
         GenomeLoc prevPos = null;
         byte refAfterPrevPos;
 
@@ -179,13 +184,17 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
         final int currentPos = startingStates.loc.getStart();
 
         if ( !startingStates.VCs.isEmpty() ) {
-            if ( ! okayToSkipThisSite(currentPos, previousState.prevPos) )
-                endPreviousStates(previousState, currentPos - 1, startingStates.refBases[0]);
+            if ( ! okayToSkipThisSite(startingStates, previousState) )
+                endPreviousStates(previousState, currentPos - 1, startingStates, false);
             previousState.VCs.addAll(startingStates.VCs);
+            for(final VariantContext vc : previousState.VCs){
+                previousState.samples.addAll(vc.getSampleNames());
+            }
+
         }
 
         if ( USE_BP_RESOLUTION || containsEndingContext(previousState.VCs, currentPos) ) {
-            endPreviousStates(previousState, currentPos, startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N');
+            endPreviousStates(previousState, currentPos, startingStates, true);
         }
 
         return previousState;
@@ -194,12 +203,18 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     /**
      * Is it okay to skip the given position?
      *
-     * @param thisPos      this position
-     * @param lastPosRun   the last position for which we created a VariantContext
+     * @param startingStates  state information for this position
+     * @param previousState   state information for the last position for which we created a VariantContext
      * @return true if it is okay to skip this position, false otherwise
      */
-    private boolean okayToSkipThisSite(final int thisPos, final GenomeLoc lastPosRun) {
-        return lastPosRun != null && thisPos == lastPosRun.getStart() + 1;
+    private boolean okayToSkipThisSite(final PositionalState startingStates, final OverallState previousState) {
+        final int thisPos = startingStates.loc.getStart();
+        final GenomeLoc lastPosRun = previousState.prevPos;
+        Set<String> intersection = new HashSet<String>(startingStates.samples);
+        intersection.retainAll(previousState.samples);
+
+        //if there's a starting VC with a sample that's already in a current VC, don't skip this position
+        return lastPosRun != null && thisPos == lastPosRun.getStart() + 1 && intersection.isEmpty();
     }
 
     /**
@@ -237,9 +252,15 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
      *
      * @param state   the state with list of VariantContexts
      * @param pos     the target ending position
-     * @param refBase the reference base to use at the position AFTER pos
+     * @param startingStates the state for the starting VCs
      */
-    private void endPreviousStates(final OverallState state, final int pos, final byte refBase) {
+    private void endPreviousStates(final OverallState state, final int pos, final PositionalState startingStates, boolean atCurrentPosition) {
+
+        final byte refBase;
+        if (atCurrentPosition)
+            refBase = startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N';
+        else
+            refBase = startingStates.refBases[0];
 
         final List<VariantContext> stoppedVCs = new ArrayList<>(state.VCs.size());
 
@@ -250,12 +271,24 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
                 stoppedVCs.add(vc);
 
                 // if it was ending anyways, then remove it from the future state
-                if ( isEndingContext(vc, pos) )
+                if ( vc.getEnd() == pos) {
+                    state.samples.removeAll(vc.getSampleNames());
                     state.VCs.remove(i);
+                    continue; //don't try to remove twice
+                }
+
+                //if ending vc is the same sample as a starting VC, then remove it from the future state
+                if(startingStates.VCs.size() > 0 && !atCurrentPosition && startingStates.samples.containsAll(vc.getSampleNames())) {
+                    state.samples.removeAll(vc.getSampleNames());
+                    state.VCs.remove(i);
+                }
             }
         }
 
-        if ( !stoppedVCs.isEmpty() ) {
+        //if we already output this state in BP resolution mode (reflected by state.prevPos) then skip output
+        GenomeLoc lastWriteLoc = state.prevPos;
+        final int lastWritePos = lastWriteLoc == null ? -1 : lastWriteLoc.getStart();
+        if ( !stoppedVCs.isEmpty() && pos > lastWritePos) {
             final GenomeLoc gLoc = genomeLocParser.createGenomeLoc(stoppedVCs.get(0).getChr(), pos);
 
             // we need the specialized merge if the site contains anything other than ref blocks
