@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.validation;
 
+import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
@@ -64,13 +65,10 @@ import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFUtils;
 
 import java.util.Map;
 import java.util.Set;
@@ -80,6 +78,8 @@ import static org.broadinstitute.gatk.utils.IndelUtils.isInsideExtendedIndel;
 /**
  * Genotypes a dataset and validates the calls of another dataset using the Unified Genotyper.
  *
+ *  <h4>Note that this is an old tool that makes use of the UnifiedGenotyper, which has since been
+ *  deprecated in favor of the HaplotypeCaller.</h4>
  *  <p>
  *     Genotype and Validate is a tool to evaluate the quality of a dataset for calling SNPs
  *     and Indels given a secondary (validation) data source. The data sources are BAM or VCF
@@ -212,9 +212,6 @@ import static org.broadinstitute.gatk.utils.IndelUtils.isInsideExtendedIndel;
  *      -o gav.vcf
  * </pre>
  *
- *
- * @author Mauricio Carneiro
- * @since ${DATE}
  */
 
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VALIDATION, extraDocs = {CommandLineGATK.class} )
@@ -226,8 +223,9 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
 
     /**
      * The optional output file that will have all the variants used in the Genotype and Validation essay.
+     * The new annotation `callStatus` will carry the value called in the validation VCF or BAM file."
      */
-    @Output(doc="Generate a VCF file with the variants considered by the walker, with a new annotation \"callStatus\" which will carry the value called in the validation VCF or BAM file", required=false)
+    @Output(doc="Output VCF file with annotated variants", required=false)
     protected VariantContextWriter vcfWriter = null;
 
     /**
@@ -335,6 +333,7 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
             samples = SampleUtils.getSampleList(header, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
             Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(header.values(), true);
             headerLines.add(new VCFHeaderLine("source", "GenotypeAndValidate"));
+            headerLines.add(new VCFInfoHeaderLine("callStatus", 1, VCFHeaderLineType.String, "Value from the validation VCF"));
             vcfWriter.writeHeader(new VCFHeader(headerLines, samples));
         }
 
