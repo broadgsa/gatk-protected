@@ -149,7 +149,7 @@ import java.util.*;
  *
  * <h3>Output</h3>
  * <p>
- * VCF file with raw, unrecalibrated SNP and indel calls.
+ * VCF file with raw, unfiltered SNP and indel calls. These must be filtered either by variant recalibration (best) or hard-filtering before use in downstream analyses.
  * </p>
  *
  * <h3>Examples</h3>
@@ -200,7 +200,6 @@ import java.util.*;
  *     -T HaplotypeCaller
  *     -R reference/human_g1k_v37.fasta
  *     -I sample1.bam \
- *     -recoverDanglingHeads \
  *     -dontUseSoftClippedBases \
  *     [--dbsnp dbSNP.vcf] \
  *     -stand_call_conf 20 \
@@ -211,17 +210,12 @@ import java.util.*;
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>Currently the -ploidy parameter only support the default 2 (diploid). Eventually it will be possible to change
- * its value in order to analyze data from non-diploid organisms.</li>
  * <li>We have not yet fully tested the interaction between the GVCF-based calling or the multisample calling and the
- * RNAseq-specific functionalities.
- * Use those in combination at your own risk.</li>
+ * RNAseq-specific functionalities.Use those in combination at your own risk.</li>
  * <li>Many users have reported issues running HaplotypeCaller with the -nct argument, so we recommend using Queue to
  * parallelize HaplotypeCaller instead of multithreading.</li>
  * </ul>
  *
- * @author rpoplin
- * @since 8/22/11
  */
 
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
@@ -252,7 +246,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="heterogeneousKmerSizeResolution",shortName="hksr",doc="how to solve heterogeneous kmer situations using the fast method",required=false)
     protected HeterogeneousKmerSizeResolution heterogeneousKmerSizeResolution = HeterogeneousKmerSizeResolution.COMBO_MIN;
 
-    @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false, defaultToStdout = false)
+    /**
+     * This argument is meant for debugging and is not immediately useful for normal analysis use.
+     */
+    @Output(fullName="graphOutput", shortName="graph", doc="Write debug assembly graph information to this file", required = false, defaultToStdout = false)
     protected PrintStream graphWriter = null;
 
     /**
@@ -286,24 +283,26 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private HaplotypeBAMWriter haplotypeBAMWriter;
 
     /**
-     * The type of BAM output we want to see.
+     * The type of BAM output we want to see. This determines whether HC will write out all of the haplotypes it
+     * considered (top 128 max) or just the ones that were selected as alleles and assigned to samples.
      */
     @Advanced
-    @Argument(fullName="bamWriterType", shortName="bamWriterType", doc="How should haplotypes be written to the BAM?", required = false)
+    @Argument(fullName="bamWriterType", shortName="bamWriterType", doc="Which haplotypes should be written to the BAM?", required = false)
     public HaplotypeBAMWriter.Type bamWriterType = HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES;
 
     /**
-     * If set, certain "early exit" optimizations in HaplotypeCaller will be disabled.  This is most likely to be useful if
-     * you're using the -bamout argument to examine the placement of reads following reassembly and are interested in the
-     * reads in regions with no variations.  The -forceActive and -dontTrimActiveRegions arguments may also be necessary.
+     * If set, certain "early exit" optimizations in HaplotypeCaller, which aim to save compute and time by skipping
+     * calculations if an ActiveRegion is determined to contain no variants, will be disabled. This is most likely to be useful if
+     * you're using the -bamout argument to examine the placement of reads following reassembly and are interested in seeing the mapping of
+     * reads in regions with no variations. Setting the -forceActive and -dontTrimActiveRegions flags may also be necessary.
      */
     @Advanced
-    @Argument(fullName = "disableOptimizations", shortName="disableOptimizations", doc="Should HaplotypeCaller skip expensive calculations in active regions with no variants?",
+    @Argument(fullName = "disableOptimizations", shortName="disableOptimizations", doc="Don't skip calculations in ActiveRegions with no variants",
               required = false)
     private boolean disableOptimizations = false;
 
     /**
-     * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
+     * rsIDs from this file are used to populate the ID column of the output. Also, the DB INFO flag will be set when appropriate.
      * dbSNP is not used in any way for the calculations themselves.
      */
     @ArgumentCollection
@@ -320,9 +319,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     /**
      * If a call overlaps with a record from the provided comp track, the INFO field will be annotated
-     *  as such in the output with the track name (e.g. -comp:FOO will have 'FOO' in the INFO field).
-     *  Records that are filtered in the comp track will be ignored.
-     *  Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
+     * as such in the output with the track name (e.g. -comp:FOO will have 'FOO' in the INFO field). Records that are
+     * filtered in the comp track will be ignored. Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
      */
     @Advanced
     @Input(fullName="comp", shortName = "comp", doc="comparison VCF file", required=false)
@@ -335,58 +333,86 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public boolean alwaysAppendDbsnpId() { return false; }
 
     /**
-     * Which annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available annotations.
+     * Which annotations to add to the output VCF file. The single value 'none' removes the default annotations. See the VariantAnnotator -list argument to view available annotations.
      */
     @Advanced
-    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls.  The single value 'none' removes the default annotations", required=false)
+    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
     protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"ClippingRankSumTest", "DepthPerSampleHC"}));
 
     /**
      * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the -A or -G arguments,
-     * so annotations will be excluded even if they are explicitly included with the other options.
+     * so these annotations will be excluded even if they are explicitly included with the other options.
      */
     @Advanced
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
     protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator"}));
 
     /**
-     * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
+     * Which groups of annotations to add to the output VCF file. The single value 'none' removes the default group. See
+     * the VariantAnnotator -list argument to view available groups. Note that this usage is not recommended because
+     * it obscures the specific requirements of individual annotations. Any requirements that are not met (e.g. failing
+     * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
-    @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls.  The single value 'none' removes the default group", required=false)
+    @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
     protected String[] annotationClassesToUse = { "Standard" };
 
     @ArgumentCollection
     private HaplotypeCallerArgumentCollection SCAC = new HaplotypeCallerArgumentCollection();
 
-    @Argument(fullName="sample_name", shortName = "sn", doc="Name of single sample to use from a multi-sample bam.  The name is case-sensitive", required=false)
+    /**
+     * You can use this argument to specify that HC should process a single sample out of a multisample BAM file. This
+     * is especially useful if your samples are all in the same file but you need to run them individually through HC
+     * in -ERC GVC mode (which is the recommended usage). Note that the name is case-sensitive.
+     */
+    @Argument(fullName="sample_name", shortName = "sn", doc="Name of single sample to use from a multi-sample bam", required=false)
     protected String sampleNameToUse = null;
 
     // -----------------------------------------------------------------------------------------------
     // arguments to control internal behavior of the read threading assembler
     // -----------------------------------------------------------------------------------------------
 
+    /**
+     * Multiple kmer sizes can be specified, using e.g. `-kmerSize 10 -kmerSize 25`.
+     */
     @Advanced
     @Argument(fullName="kmerSize", shortName="kmerSize", doc="Kmer size to use in the read threading assembler", required = false)
     protected List<Integer> kmerSizes = Arrays.asList(10, 25);
 
+    /**
+     * When graph cycles are detected, the normal behavior is to increase kmer sizes iteratively until the cycles are
+     * resolved. Disabling this behavior may cause the program to give up on assembling the ActiveRegion.
+     */
     @Advanced
-    @Argument(fullName="dontIncreaseKmerSizesForCycles", shortName="dontIncreaseKmerSizesForCycles", doc="Should we disable the iterating over kmer sizes when graph cycles are detected?", required = false)
+    @Argument(fullName="dontIncreaseKmerSizesForCycles", shortName="dontIncreaseKmerSizesForCycles", doc="Disable iterating over kmer sizes when graph cycles are detected", required = false)
     protected boolean dontIncreaseKmerSizesForCycles = false;
 
+    /**
+     * By default, the program does not allow processing of reference sections that contain non-unique kmers. Disabling
+     * this check may cause problems in the assembly graph.
+     */
     @Advanced
-    @Argument(fullName="allowNonUniqueKmersInRef", shortName="allowNonUniqueKmersInRef", doc="Should we allow graphs which have non-unique kmers in the reference?", required = false)
+    @Argument(fullName="allowNonUniqueKmersInRef", shortName="allowNonUniqueKmersInRef", doc="Allow graphs that have non-unique kmers in the reference", required = false)
     protected boolean allowNonUniqueKmersInRef = false;
 
+    /**
+     * If fewer samples than the specified number pass the minPruning threshold for a given path, that path will be eliminated from the graph.
+     */
     @Advanced
-    @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="The number of samples that must pass the minPuning factor in order for the path to be kept", required = false)
+    @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="Number of samples that must pass the minPruning threshold", required = false)
     protected int numPruningSamples = 1;
 
+    /**
+     * As of version 3.3, this argument is no longer needed because dangling end recovery is now the default behavior. See GATK 3.3 release notes for more details.
+     */
     @Deprecated
-    @Argument(fullName="recoverDanglingHeads", shortName="recoverDanglingHeads", doc="This argument is no longer needed as it is now the default behavior", required = false)
+    @Argument(fullName="recoverDanglingHeads", shortName="recoverDanglingHeads", doc="This argument is deprecated since version 3.3", required = false)
     protected boolean DEPRECATED_RecoverDanglingHeads = false;
 
+    /**
+     * By default, the read threading assembler will attempt to recover dangling heads and tails. See the `minDanglingBranchLength` argument documentation for more details.
+     */
     @Hidden
-    @Argument(fullName="doNotRecoverDanglingBranches", shortName="doNotRecoverDanglingBranches", doc="Should we disable dangling head and tail recovery in the read threading assembler?", required = false)
+    @Argument(fullName="doNotRecoverDanglingBranches", shortName="doNotRecoverDanglingBranches", doc="Disable dangling head and tail recovery", required = false)
     protected boolean doNotRecoverDanglingBranches = false;
 
     /**
@@ -395,11 +421,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * try to rescue it.  A smaller number here will lead to higher sensitivity to real variation but also to a higher number of false positives.
      */
     @Advanced
-    @Argument(fullName="minDanglingBranchLength", shortName="minDanglingBranchLength", doc="Minimum length of a dangling branch to attempt recovery in the read threading assembler", required = false)
+    @Argument(fullName="minDanglingBranchLength", shortName="minDanglingBranchLength", doc="Minimum length of a dangling branch to attempt recovery", required = false)
     protected int minDanglingBranchLength = 4;
 
+    /**
+     * This argument is specifically intended for 1000G consensus analysis mode. Setting this flag will inject all
+     * provided alleles to the assembly graph but will not forcibly genotype all of them.
+     */
     @Advanced
-    @Argument(fullName="consensus", shortName="consensus", doc="In 1000G consensus mode. Inject all provided alleles to the assembly graph but don't forcibly genotype all of them.", required = false)
+    @Argument(fullName="consensus", shortName="consensus", doc="1000G consensus mode", required = false)
     protected boolean consensusMode = false;
 
     // -----------------------------------------------------------------------------------------------
@@ -408,33 +438,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
 
     /**
-     * The GQ partition intervals
+     * When HC is run in reference confidence mode with banding compression enabled (-ERC GVCF), homozygous-reference
+     * sites are compressed into bands of similar genotype quality (GQ) that are emitted as a single VCF record. See
+     * the FAQ documentation for more details about the GVCF format.
      *
-     * Should be a non-empty list of boundaries.  For example, suppose this variable is
-     *
-     * [A, B, C]
-     *
-     * We would partition our hom-ref sites into the following bands:
-     *
-     * X < A
-     * A <= X < B
-     * B <= X < C
-     * X >= C
-     *
-     * For example, specifying bands as (1, 10, 20, 30, 40, 50) give the following GQ blocks:
-     *
-     * [0, 0]
-     * (0, 10]
-     * (10, 20]
-     * (20, 30]
-     * (30, 40]
-     * (40, 50]
-     * (50, 99]
-     *
-     * Note that in the GATK GQ values are capped at 99.
+     * This argument allows you to set the GQ boundaries. HC expects a list of multiple GQ threshold values. To pass
+     * multiple values, you provide them one by one with the argument, as in `-GQB 10 -GQB 20 -GQB 30` and so on. Note
+     * that GQ values are capped at 99 in the GATK.
      */
     @Advanced
-    @Argument(fullName="GVCFGQBands", shortName="GQB", doc="Emit experimental reference confidence scores", required = false)
+    @Argument(fullName="GVCFGQBands", shortName="GQB", doc="GQ thresholds for reference confidence bands", required = false)
     protected List<Integer> GVCFGQBands = new ArrayList<Integer>(70) {{
         for (int i=1; i<=60; ++i) add(i);
         add(70); add(80); add(90); add(99);
@@ -456,20 +469,22 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // -----------------------------------------------------------------------------------------------
 
     /**
-     * The minimum confidence needed for a given base for it to be used in variant calling.
+     * Bases with a quality below this threshold will not be used for calling.
      */
     @Argument(fullName = "min_base_quality_score", shortName = "mbq", doc = "Minimum base quality required to consider a base for calling", required = false)
     public byte MIN_BASE_QUALTY_SCORE = 10;
 
     /**
-     * Users should be aware that this argument can really affect the results of the variant calling and should exercise caution.
-     * Using a prune factor of 1 (or below) will prevent any pruning from the graph which is generally not ideal; it can make the
+     * Paths with fewer supporting kmers than the specified threshold will be pruned from the graph.
+     *
+     * Be aware that this argument can dramatically affect the results of variant calling and should only be used with great caution.
+     * Using a prune factor of 1 (or below) will prevent any pruning from the graph, which is generally not ideal; it can make the
      * calling much slower and even less accurate (because it can prevent effective merging of "tails" in the graph).  Higher values
      * tend to make the calling much faster, but also lowers the sensitivity of the results (because it ultimately requires higher
      * depth to produce calls).
      */
     @Advanced
-    @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with < X supporting kmers are pruned from the graph", required = false)
+    @Argument(fullName="minPruning", shortName="minPruning", doc = "Minimum support to not prune paths in the graph", required = false)
     protected int MIN_PRUNE_FACTOR = 2;
 
     @Advanced
@@ -477,18 +492,18 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected int gcpHMM = 10;
 
     /**
-     * If this flag is provided, the haplotype caller will include unmapped reads in the assembly and calling
+     * If this flag is provided, the haplotype caller will include unmapped reads (that have chromosomal coordinates) in the assembly and calling
      * when these reads occur in the region being analyzed.  Typically, for paired end analyses, one pair of the
      * read can map, but if its pair is too divergent then it may be unmapped and placed next to its mate, taking
      * the mates contig and alignment start.  If this flag is provided the haplotype caller will see such reads,
      * and may make use of them in assembly and calling, where possible.
      */
     @Hidden
-    @Argument(fullName="includeUmappedReads", shortName="unmapped", doc="If provided, unmapped reads with chromosomal coordinates (i.e., those placed to their maps) will be included in the assembly and calling", required = false)
+    @Argument(fullName="includeUmappedReads", shortName="unmapped", doc="Include unmapped reads with chromosomal coordinates", required = false)
     protected boolean includeUnmappedReads = false;
 
     @Advanced
-    @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "If specified, use additional trigger on variants found in an external alleles file", required=false)
+    @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "Use additional trigger on variants found in an external alleles file", required=false)
     protected boolean USE_ALLELES_TRIGGER = false;
 
     /**
@@ -501,29 +516,33 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * read for all of these events.  With this parameter set to Q30, though, the maximum evidence against any haplotype
      * that this (and any) read could contribute is Q30.
      *
-     * Set this term to any negative number to turn off the global mapping rate
+     * Set this term to any negative number to turn off the global mapping rate.
      */
     @Advanced
     @Argument(fullName="phredScaledGlobalReadMismappingRate", shortName="globalMAPQ", doc="The global assumed mismapping rate for reads", required = false)
     protected int phredScaledGlobalReadMismappingRate = 45;
 
     /**
-     * Assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
+     * The assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
      * considered requires N PairHMM evaluations if there are N reads across all samples.  In order to control the
      * run of the haplotype caller we only take maxNumHaplotypesInPopulation paths from the graph, in order of their
      * weights, no matter how many paths are possible to generate from the graph.  Putting this number too low
      * will result in dropping true variation because paths that include the real variant are not even considered.
+     * You can consider increasing this number when calling organisms with high heterozygosity.
      */
     @Advanced
-    @Argument(fullName="maxNumHaplotypesInPopulation", shortName="maxNumHaplotypesInPopulation", doc="Maximum number of haplotypes to consider for your population. This number will probably need to be increased when calling organisms with high heterozygosity.", required = false)
+    @Argument(fullName="maxNumHaplotypesInPopulation", shortName="maxNumHaplotypesInPopulation", doc="Maximum number of haplotypes to consider for your population", required = false)
     protected int maxNumHaplotypesInPopulation = 128;
 
     @Advanced
-    @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="If specified, we will merge variants together into block substitutions that are in strong local LD", required = false)
+    @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="Merge variants together into block substitutions if they are in strong local LD", required = false)
     protected boolean mergeVariantsViaLD = false;
 
+    /**
+     * As of GATK 3.3, HaplotypeCaller outputs physical information (see release notes and documentation for details). This argument disables that behavior.
+     */
     @Advanced
-    @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="If specified, we will not try to add physical (read-based) phasing information", required = false)
+    @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="Don't try to add physical (read-based) phasing information", required = false)
     protected boolean doNotRunPhysicalPhasing = false;
 
     public static final String HAPLOTYPE_CALLER_PHASING_ID_KEY = "PID";
@@ -543,45 +562,60 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
     protected String keepRG = null;
 
+    /**
+     * This argument is intended for benchmarking and scalability testing.
+     */
     @Hidden
-    @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "If specified, the HC won't actually do any assembly or calling, it'll just run the upfront active region determination code.  Useful for benchmarking and scalability testing", required=false)
+    @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "Just determine ActiveRegions, don't perform assembly or calling", required=false)
     protected boolean justDetermineActiveRegions = false;
 
+    /**
+     * This argument is intended for benchmarking and scalability testing.
+     */
     @Hidden
-    @Argument(fullName="dontGenotype", shortName="dontGenotype", doc = "If specified, the HC will do any assembly but won't do calling.  Useful for benchmarking and scalability testing", required=false)
+    @Argument(fullName="dontGenotype", shortName="dontGenotype", doc = "Perform assembly but do not genotype variants", required=false)
     protected boolean dontGenotype = false;
 
+    /**
+     * Enabling this argument may cause fundamental problems with the assembly graph itself.
+     */
     @Hidden
-    @Argument(fullName="errorCorrectKmers", shortName="errorCorrectKmers", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    @Argument(fullName="errorCorrectKmers", shortName="errorCorrectKmers", doc = "Use an exploratory algorithm to error correct the kmers used during assembly", required=false)
     protected boolean errorCorrectKmers = false;
 
     @Hidden
-    @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler for only this graph size", required = false)
+    @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="Write DOT formatted graph files out of the assembler for only this graph size", required = false)
     protected boolean debugGraphTransformations = false;
 
     @Advanced
-    @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="If specified, we will not analyze soft clipped bases in the reads", required = false)
+    @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="Do not analyze soft clipped bases in the reads", required = false)
     protected boolean dontUseSoftClippedBases = false;
 
     @Hidden
-    @Argument(fullName="captureAssemblyFailureBAM", shortName="captureAssemblyFailureBAM", doc="If specified, we will write a BAM called assemblyFailure.bam capturing all of the reads that were in the active region when the assembler failed for any reason", required = false)
+    @Argument(fullName="captureAssemblyFailureBAM", shortName="captureAssemblyFailureBAM", doc="Write a BAM called assemblyFailure.bam capturing all of the reads that were in the active region when the assembler failed for any reason", required = false)
     protected boolean captureAssemblyFailureBAM = false;
 
     @Hidden
-    @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="If specified, we will allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
+    @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="Allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
     protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
 
     @Hidden
-    @Argument(fullName="noFpga", shortName="noFpga", doc="If provided, disables the use of the FPGA HMM implementation", required = false)
+    @Argument(fullName="noFpga", shortName="noFpga", doc="Disable the use of the FPGA HMM implementation", required = false)
     protected boolean noFpga = false;
 
     // Parameters to control read error correction
+    /**
+     * Enabling this argument may cause fundamental problems with the assembly graph itself.
+     */
     @Hidden
-    @Argument(fullName="errorCorrectReads", shortName="errorCorrectReads", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    @Argument(fullName="errorCorrectReads", shortName="errorCorrectReads", doc = "Use an exploratory algorithm to error correct the kmers used during assembly", required=false)
     protected boolean errorCorrectReads = false;
 
+    /**
+     * Enabling this argument may cause fundamental problems with the assembly graph itself.
+     */
     @Hidden
-    @Argument(fullName="kmerLengthForReadErrorCorrection", shortName="kmerLengthForReadErrorCorrection", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    @Argument(fullName="kmerLengthForReadErrorCorrection", shortName="kmerLengthForReadErrorCorrection", doc = "Use an exploratory algorithm to error correct the kmers used during assembly", required=false)
     protected int kmerLengthForReadErrorCorrection = 25;
 
     @Hidden
@@ -730,7 +764,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             SCAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(SCAC.CONTAMINATION_FRACTION_FILE, SCAC.CONTAMINATION_FRACTION, sampleSet, logger));
 
         if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
-            throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
+            throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode at the same time. Please choose one or the other.");
 
         final GenomeLocParser genomeLocParser = toolkit.getGenomeLocParser();
 
@@ -828,7 +862,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         referenceConfidenceModel = new ReferenceConfidenceModel(getToolkit().getGenomeLocParser(), samples, getToolkit().getSAMFileHeader(), indelSizeToEliminateInRefModel);
         if ( emitReferenceConfidence() ) {
             if ( samples.sampleCount() != 1 )
-                throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently.  Use the sample_name argument");
+                throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently. Use the sample_name argument to run on a single sample out of a multi-sample BAM file.");
             headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
             if ( SCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
                 // a kluge to enforce the use of this indexing strategy
@@ -862,7 +896,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             default:
                 //Note: we do not include in the error message list as it is of no grand public interest.
                 throw new UserException("Unsupported likelihood calculation engine '" + likelihoodCalculationEngine +
-                        "'. Please use one of the following instead: 'PairHMM' and 'GraphBased'.");
+                        "'. Please use one of the following instead: 'PairHMM' or 'GraphBased'.");
         }
     }
 
