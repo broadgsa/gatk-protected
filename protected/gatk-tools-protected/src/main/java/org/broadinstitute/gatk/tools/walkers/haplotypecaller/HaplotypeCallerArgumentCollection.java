@@ -63,11 +63,11 @@ import org.broadinstitute.gatk.utils.commandline.Argument;
 public class HaplotypeCallerArgumentCollection extends StandardCallerArgumentCollection {
 
     @Advanced
-    @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information about each triggering active region", required = false)
+    @Argument(fullName="debug", shortName="debug", doc="Print out very verbose debug information about each triggering active region", required = false)
     protected boolean DEBUG;
 
     @Advanced
-    @Argument(fullName="useFilteredReadsForAnnotations", shortName="useFilteredReadsForAnnotations", doc = "If specified, use the contamination-filtered read maps for the purposes of annotating variants", required=false)
+    @Argument(fullName="useFilteredReadsForAnnotations", shortName="useFilteredReadsForAnnotations", doc = "Use the contamination-filtered read maps for the purposes of annotating variants", required=false)
     protected boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = false;
 
     /**
@@ -77,7 +77,7 @@ public class HaplotypeCallerArgumentCollection extends StandardCallerArgumentCol
      * This requirement is a temporary workaround for an issue with index compression.
      */
     @Advanced
-    @Argument(fullName="emitRefConfidence", shortName="ERC", doc="Mode for emitting experimental reference confidence scores", required = false)
+    @Argument(fullName="emitRefConfidence", shortName="ERC", doc="Mode for emitting reference confidence scores", required = false)
     protected ReferenceConfidenceMode emitReferenceConfidence = ReferenceConfidenceMode.NONE;
 
     @Override
