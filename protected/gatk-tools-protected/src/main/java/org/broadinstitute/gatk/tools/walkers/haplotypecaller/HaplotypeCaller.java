@@ -1,55 +1,63 @@
 /*
-*  By downloading the PROGRAM you agree to the following terms of use:
-*  
-*  BROAD INSTITUTE - SOFTWARE LICENSE AGREEMENT - FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
-*  
-*  This Agreement is made between the Broad Institute, Inc. with a principal address at 7 Cambridge Center, Cambridge, MA 02142 (BROAD) and the LICENSEE and is effective at the date the downloading is completed (EFFECTIVE DATE).
-*  
-*  WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
-*  WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
-*  NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
-*  
-*  1. DEFINITIONS
-*  1.1 PROGRAM shall mean copyright in the object code and source code known as GATK2 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute/GATK on the EFFECTIVE DATE.
-*  
-*  2. LICENSE
-*  2.1   Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. 
-*  The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only.  For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
-*  2.2  No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD.  LICENSEE shall ensure that all of its users agree to the terms of this Agreement.  LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
-*  2.3  License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.  
-*  
-*  3. OWNERSHIP OF INTELLECTUAL PROPERTY 
-*  LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies.  LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-*  Copyright 2012 Broad Institute, Inc.
-*  Notice of attribution:  The GATK2 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
-*  LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
-*  
-*  4. INDEMNIFICATION
-*  LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
-*  
-*  5. NO REPRESENTATIONS OR WARRANTIES
-*  THE PROGRAM IS DELIVERED AS IS.  BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
-*  IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
-*  
-*  6. ASSIGNMENT
-*  This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
-*  
-*  7. MISCELLANEOUS
-*  7.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
-*  7.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
-*  7.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
-*  7.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested.  All notices under this Agreement shall be deemed effective upon receipt. 
-*  7.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter. 
-*  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
-*  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+* By downloading the PROGRAM you agree to the following terms of use:
+* 
+* BROAD INSTITUTE
+* SOFTWARE LICENSE AGREEMENT
+* FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+* 
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* 
+* WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+* WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+* NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+* 
+* 1. DEFINITIONS
+* 1.1 PROGRAM shall mean copyright in the object code and source code known as GATK3 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute.org/gatk on the EFFECTIVE DATE.
+* 
+* 2. LICENSE
+* 2.1 Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. LICENSEE hereby automatically grants to BROAD a non-exclusive, royalty-free, irrevocable license to any LICENSEE bug fixes or modifications to the PROGRAM with unlimited rights to sublicense and/or distribute.  LICENSEE agrees to provide any such modifications and bug fixes to BROAD promptly upon their creation.
+* The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only. For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+* 2.2 No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD. LICENSEE shall ensure that all of its users agree to the terms of this Agreement. LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+* 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
+* 
+* 3. PHONE-HOME FEATURE
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* 
+* 4. OWNERSHIP OF INTELLECTUAL PROPERTY
+* LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+* Copyright 2012-2014 Broad Institute, Inc.
+* Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+* LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+* 
+* 5. INDEMNIFICATION
+* LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+* 
+* 6. NO REPRESENTATIONS OR WARRANTIES
+* THE PROGRAM IS DELIVERED AS IS. BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+* IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+* 
+* 7. ASSIGNMENT
+* This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+* 
+* 8. MISCELLANEOUS
+* 8.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+* 8.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+* 8.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+* 8.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested. All notices under this Agreement shall be deemed effective upon receipt.
+* 8.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter.
+* 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+* 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import htsjdk.samtools.SAMFileWriter;
-import org.broadinstitute.gatk.utils.commandline.*;
+import htsjdk.variant.variantcontext.*;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
@@ -65,21 +73,22 @@ import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalcFactory;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
 import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
-import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.gatk.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.gatk.utils.clipping.ReadClipper;
+import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.gatk.utils.fragments.FragmentCollection;
 import org.broadinstitute.gatk.utils.fragments.FragmentUtils;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.gvcf.GVCFWriter;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
@@ -89,12 +98,12 @@ import org.broadinstitute.gatk.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFIndexType;
-import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
@@ -140,7 +149,7 @@ import java.util.*;
  *
  * <h3>Output</h3>
  * <p>
- * VCF file with raw, unrecalibrated SNP and indel calls.
+ * VCF file with raw, unfiltered SNP and indel calls. These must be filtered either by variant recalibration (best) or hard-filtering before use in downstream analyses.
  * </p>
  *
  * <h3>Examples</h3>
@@ -191,7 +200,6 @@ import java.util.*;
  *     -T HaplotypeCaller
  *     -R reference/human_g1k_v37.fasta
  *     -I sample1.bam \
- *     -recoverDanglingHeads \
  *     -dontUseSoftClippedBases \
  *     [--dbsnp dbSNP.vcf] \
  *     -stand_call_conf 20 \
@@ -202,17 +210,12 @@ import java.util.*;
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>Currently the -ploidy parameter only support the default 2 (diploid). Eventually it will be possible to change
- * its value in order to analyze data from non-diploid organisms.</li>
  * <li>We have not yet fully tested the interaction between the GVCF-based calling or the multisample calling and the
- * RNAseq-specific functionalities.
- * Use those in combination at your own risk.</li>
+ * RNAseq-specific functionalities.Use those in combination at your own risk.</li>
  * <li>Many users have reported issues running HaplotypeCaller with the -nct argument, so we recommend using Queue to
  * parallelize HaplotypeCaller instead of multithreading.</li>
  * </ul>
  *
- * @author rpoplin
- * @since 8/22/11
  */
 
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
@@ -241,9 +244,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Hidden
     @Advanced
     @Argument(fullName="heterogeneousKmerSizeResolution",shortName="hksr",doc="how to solve heterogeneous kmer situations using the fast method",required=false)
-    protected HeterogeneousKmerSizeResolution heterogeneousKmerSizeResultion = HeterogeneousKmerSizeResolution.COMBO_MIN;
+    protected HeterogeneousKmerSizeResolution heterogeneousKmerSizeResolution = HeterogeneousKmerSizeResolution.COMBO_MIN;
 
-    @Output(fullName="graphOutput", shortName="graph", doc="File to which debug assembly graph information should be written", required = false, defaultToStdout = false)
+    /**
+     * This argument is meant for debugging and is not immediately useful for normal analysis use.
+     */
+    @Output(fullName="graphOutput", shortName="graph", doc="Write debug assembly graph information to this file", required = false, defaultToStdout = false)
     protected PrintStream graphWriter = null;
 
     /**
@@ -277,14 +283,26 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private HaplotypeBAMWriter haplotypeBAMWriter;
 
     /**
-     * The type of BAM output we want to see.
+     * The type of BAM output we want to see. This determines whether HC will write out all of the haplotypes it
+     * considered (top 128 max) or just the ones that were selected as alleles and assigned to samples.
      */
     @Advanced
-    @Argument(fullName="bamWriterType", shortName="bamWriterType", doc="How should haplotypes be written to the BAM?", required = false)
+    @Argument(fullName="bamWriterType", shortName="bamWriterType", doc="Which haplotypes should be written to the BAM?", required = false)
     public HaplotypeBAMWriter.Type bamWriterType = HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES;
 
     /**
-     * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
+     * If set, certain "early exit" optimizations in HaplotypeCaller, which aim to save compute and time by skipping
+     * calculations if an ActiveRegion is determined to contain no variants, will be disabled. This is most likely to be useful if
+     * you're using the -bamout argument to examine the placement of reads following reassembly and are interested in seeing the mapping of
+     * reads in regions with no variations. Setting the -forceActive and -dontTrimActiveRegions flags may also be necessary.
+     */
+    @Advanced
+    @Argument(fullName = "disableOptimizations", shortName="disableOptimizations", doc="Don't skip calculations in ActiveRegions with no variants",
+              required = false)
+    private boolean disableOptimizations = false;
+
+    /**
+     * rsIDs from this file are used to populate the ID column of the output. Also, the DB INFO flag will be set when appropriate.
      * dbSNP is not used in any way for the calculations themselves.
      */
     @ArgumentCollection
@@ -301,9 +319,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     /**
      * If a call overlaps with a record from the provided comp track, the INFO field will be annotated
-     *  as such in the output with the track name (e.g. -comp:FOO will have 'FOO' in the INFO field).
-     *  Records that are filtered in the comp track will be ignored.
-     *  Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
+     * as such in the output with the track name (e.g. -comp:FOO will have 'FOO' in the INFO field). Records that are
+     * filtered in the comp track will be ignored. Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
      */
     @Advanced
     @Input(fullName="comp", shortName = "comp", doc="comparison VCF file", required=false)
@@ -316,7 +333,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public boolean alwaysAppendDbsnpId() { return false; }
 
     /**
-     * Which annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available annotations.
+     * Which annotations to add to the output VCF file. The single value 'none' removes the default annotations. See the VariantAnnotator -list argument to view available annotations.
      */
     @Advanced
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
@@ -324,14 +341,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     /**
      * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the -A or -G arguments,
-     * so annotations will be excluded even if they are explicitly included with the other options.
+     * so these annotations will be excluded even if they are explicitly included with the other options.
      */
     @Advanced
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
     protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator"}));
 
     /**
-     * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
+     * Which groups of annotations to add to the output VCF file. The single value 'none' removes the default group. See
+     * the VariantAnnotator -list argument to view available groups. Note that this usage is not recommended because
+     * it obscures the specific requirements of individual annotations. Any requirements that are not met (e.g. failing
+     * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
     protected String[] annotationClassesToUse = { "Standard" };
@@ -339,39 +359,77 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @ArgumentCollection
     private HaplotypeCallerArgumentCollection SCAC = new HaplotypeCallerArgumentCollection();
 
+    /**
+     * You can use this argument to specify that HC should process a single sample out of a multisample BAM file. This
+     * is especially useful if your samples are all in the same file but you need to run them individually through HC
+     * in -ERC GVC mode (which is the recommended usage). Note that the name is case-sensitive.
+     */
+    @Argument(fullName="sample_name", shortName = "sn", doc="Name of single sample to use from a multi-sample bam", required=false)
+    protected String sampleNameToUse = null;
+
     // -----------------------------------------------------------------------------------------------
     // arguments to control internal behavior of the read threading assembler
     // -----------------------------------------------------------------------------------------------
 
+    /**
+     * Multiple kmer sizes can be specified, using e.g. `-kmerSize 10 -kmerSize 25`.
+     */
     @Advanced
     @Argument(fullName="kmerSize", shortName="kmerSize", doc="Kmer size to use in the read threading assembler", required = false)
     protected List<Integer> kmerSizes = Arrays.asList(10, 25);
 
+    /**
+     * When graph cycles are detected, the normal behavior is to increase kmer sizes iteratively until the cycles are
+     * resolved. Disabling this behavior may cause the program to give up on assembling the ActiveRegion.
+     */
     @Advanced
-    @Argument(fullName="dontIncreaseKmerSizesForCycles", shortName="dontIncreaseKmerSizesForCycles", doc="Should we disable the iterating over kmer sizes when graph cycles are detected?", required = false)
+    @Argument(fullName="dontIncreaseKmerSizesForCycles", shortName="dontIncreaseKmerSizesForCycles", doc="Disable iterating over kmer sizes when graph cycles are detected", required = false)
     protected boolean dontIncreaseKmerSizesForCycles = false;
 
+    /**
+     * By default, the program does not allow processing of reference sections that contain non-unique kmers. Disabling
+     * this check may cause problems in the assembly graph.
+     */
     @Advanced
-    @Argument(fullName="allowNonUniqueKmersInRef", shortName="allowNonUniqueKmersInRef", doc="Should we allow graphs which have non-unique kmers in the reference?", required = false)
+    @Argument(fullName="allowNonUniqueKmersInRef", shortName="allowNonUniqueKmersInRef", doc="Allow graphs that have non-unique kmers in the reference", required = false)
     protected boolean allowNonUniqueKmersInRef = false;
 
+    /**
+     * If fewer samples than the specified number pass the minPruning threshold for a given path, that path will be eliminated from the graph.
+     */
     @Advanced
-    @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="The number of samples that must pass the minPuning factor in order for the path to be kept", required = false)
+    @Argument(fullName="numPruningSamples", shortName="numPruningSamples", doc="Number of samples that must pass the minPruning threshold", required = false)
     protected int numPruningSamples = 1;
 
     /**
-     * This mode is currently experimental and should only be used in the RNA-seq calling pipeline.
+     * As of version 3.3, this argument is no longer needed because dangling end recovery is now the default behavior. See GATK 3.3 release notes for more details.
+     */
+    @Deprecated
+    @Argument(fullName="recoverDanglingHeads", shortName="recoverDanglingHeads", doc="This argument is deprecated since version 3.3", required = false)
+    protected boolean DEPRECATED_RecoverDanglingHeads = false;
+
+    /**
+     * By default, the read threading assembler will attempt to recover dangling heads and tails. See the `minDanglingBranchLength` argument documentation for more details.
+     */
+    @Hidden
+    @Argument(fullName="doNotRecoverDanglingBranches", shortName="doNotRecoverDanglingBranches", doc="Disable dangling head and tail recovery", required = false)
+    protected boolean doNotRecoverDanglingBranches = false;
+
+    /**
+     * When constructing the assembly graph we are often left with "dangling" branches.  The assembly engine attempts to rescue these branches
+     * by merging them back into the main graph.  This argument describes the minimum length of a dangling branch needed for the engine to
+     * try to rescue it.  A smaller number here will lead to higher sensitivity to real variation but also to a higher number of false positives.
      */
     @Advanced
-    @Argument(fullName="recoverDanglingHeads", shortName="recoverDanglingHeads", doc="Should we enable dangling head recovery in the read threading assembler?", required = false)
-    protected boolean recoverDanglingHeads = false;
+    @Argument(fullName="minDanglingBranchLength", shortName="minDanglingBranchLength", doc="Minimum length of a dangling branch to attempt recovery", required = false)
+    protected int minDanglingBranchLength = 4;
 
-    @Hidden
-    @Argument(fullName="doNotRecoverDanglingTails", shortName="doNotRecoverDanglingTails", doc="Should we disable dangling tail recovery in the read threading assembler?", required = false)
-    protected boolean doNotRecoverDanglingTails = false;
-
+    /**
+     * This argument is specifically intended for 1000G consensus analysis mode. Setting this flag will inject all
+     * provided alleles to the assembly graph but will not forcibly genotype all of them.
+     */
     @Advanced
-    @Argument(fullName="consensus", shortName="consensus", doc="In 1000G consensus mode. Inject all provided alleles to the assembly graph but don't forcibly genotype all of them.", required = false)
+    @Argument(fullName="consensus", shortName="consensus", doc="1000G consensus mode", required = false)
     protected boolean consensusMode = false;
 
     // -----------------------------------------------------------------------------------------------
@@ -380,34 +438,20 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
 
     /**
-     * The GQ partition intervals
+     * When HC is run in reference confidence mode with banding compression enabled (-ERC GVCF), homozygous-reference
+     * sites are compressed into bands of similar genotype quality (GQ) that are emitted as a single VCF record. See
+     * the FAQ documentation for more details about the GVCF format.
      *
-     * Should be a non-empty list of boundaries.  For example, suppose this variable is
-     *
-     * [A, B, C]
-     *
-     * We would partition our hom-ref sites into the following bands:
-     *
-     * X < A
-     * A <= X < B
-     * B <= X < C
-     * X >= C
-     *
-     * For example, specifying bands as (1, 10, 20, 30, 40, 50) give the following GQ blocks:
-     *
-     * [0, 0]
-     * (0, 10]
-     * (10, 20]
-     * (20, 30]
-     * (30, 40]
-     * (40, 50]
-     * (50, 99]
-     *
-     * Note that in the GATK GQ values are capped at 99.
+     * This argument allows you to set the GQ boundaries. HC expects a list of multiple GQ threshold values. To pass
+     * multiple values, you provide them one by one with the argument, as in `-GQB 10 -GQB 20 -GQB 30` and so on. Note
+     * that GQ values are capped at 99 in the GATK.
      */
     @Advanced
-    @Argument(fullName="GVCFGQBands", shortName="GQB", doc="Emit experimental reference confidence scores", required = false)
-    protected List<Integer> GVCFGQBands = Arrays.asList(5, 20, 60);
+    @Argument(fullName="GVCFGQBands", shortName="GQB", doc="GQ thresholds for reference confidence bands", required = false)
+    protected List<Integer> GVCFGQBands = new ArrayList<Integer>(70) {{
+        for (int i=1; i<=60; ++i) add(i);
+        add(70); add(80); add(90); add(99);
+    }};
 
     /**
      * This parameter determines the maximum size of an indel considered as potentially segregating in the
@@ -425,20 +469,22 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // -----------------------------------------------------------------------------------------------
 
     /**
-     * The minimum confidence needed for a given base for it to be used in variant calling.
+     * Bases with a quality below this threshold will not be used for calling.
      */
     @Argument(fullName = "min_base_quality_score", shortName = "mbq", doc = "Minimum base quality required to consider a base for calling", required = false)
     public byte MIN_BASE_QUALTY_SCORE = 10;
 
     /**
-     * Users should be aware that this argument can really affect the results of the variant calling and should exercise caution.
-     * Using a prune factor of 1 (or below) will prevent any pruning from the graph which is generally not ideal; it can make the
+     * Paths with fewer supporting kmers than the specified threshold will be pruned from the graph.
+     *
+     * Be aware that this argument can dramatically affect the results of variant calling and should only be used with great caution.
+     * Using a prune factor of 1 (or below) will prevent any pruning from the graph, which is generally not ideal; it can make the
      * calling much slower and even less accurate (because it can prevent effective merging of "tails" in the graph).  Higher values
      * tend to make the calling much faster, but also lowers the sensitivity of the results (because it ultimately requires higher
      * depth to produce calls).
      */
     @Advanced
-    @Argument(fullName="minPruning", shortName="minPruning", doc = "The minimum allowed pruning factor in assembly graph. Paths with < X supporting kmers are pruned from the graph", required = false)
+    @Argument(fullName="minPruning", shortName="minPruning", doc = "Minimum support to not prune paths in the graph", required = false)
     protected int MIN_PRUNE_FACTOR = 2;
 
     @Advanced
@@ -446,18 +492,18 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected int gcpHMM = 10;
 
     /**
-     * If this flag is provided, the haplotype caller will include unmapped reads in the assembly and calling
+     * If this flag is provided, the haplotype caller will include unmapped reads (that have chromosomal coordinates) in the assembly and calling
      * when these reads occur in the region being analyzed.  Typically, for paired end analyses, one pair of the
      * read can map, but if its pair is too divergent then it may be unmapped and placed next to its mate, taking
      * the mates contig and alignment start.  If this flag is provided the haplotype caller will see such reads,
      * and may make use of them in assembly and calling, where possible.
      */
     @Hidden
-    @Argument(fullName="includeUmappedReads", shortName="unmapped", doc="If provided, unmapped reads with chromosomal coordinates (i.e., those placed to their maps) will be included in the assembly and calling", required = false)
+    @Argument(fullName="includeUmappedReads", shortName="unmapped", doc="Include unmapped reads with chromosomal coordinates", required = false)
     protected boolean includeUnmappedReads = false;
 
     @Advanced
-    @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "If specified, use additional trigger on variants found in an external alleles file", required=false)
+    @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "Use additional trigger on variants found in an external alleles file", required=false)
     protected boolean USE_ALLELES_TRIGGER = false;
 
     /**
@@ -470,26 +516,37 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * read for all of these events.  With this parameter set to Q30, though, the maximum evidence against any haplotype
      * that this (and any) read could contribute is Q30.
      *
-     * Set this term to any negative number to turn off the global mapping rate
+     * Set this term to any negative number to turn off the global mapping rate.
      */
     @Advanced
     @Argument(fullName="phredScaledGlobalReadMismappingRate", shortName="globalMAPQ", doc="The global assumed mismapping rate for reads", required = false)
     protected int phredScaledGlobalReadMismappingRate = 45;
 
     /**
-     * Assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
+     * The assembly graph can be quite complex, and could imply a very large number of possible haplotypes.  Each haplotype
      * considered requires N PairHMM evaluations if there are N reads across all samples.  In order to control the
      * run of the haplotype caller we only take maxNumHaplotypesInPopulation paths from the graph, in order of their
      * weights, no matter how many paths are possible to generate from the graph.  Putting this number too low
      * will result in dropping true variation because paths that include the real variant are not even considered.
+     * You can consider increasing this number when calling organisms with high heterozygosity.
      */
     @Advanced
-    @Argument(fullName="maxNumHaplotypesInPopulation", shortName="maxNumHaplotypesInPopulation", doc="Maximum number of haplotypes to consider for your population. This number will probably need to be increased when calling organisms with high heterozygosity.", required = false)
+    @Argument(fullName="maxNumHaplotypesInPopulation", shortName="maxNumHaplotypesInPopulation", doc="Maximum number of haplotypes to consider for your population", required = false)
     protected int maxNumHaplotypesInPopulation = 128;
 
     @Advanced
-    @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="If specified, we will merge variants together into block substitutions that are in strong local LD", required = false)
+    @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="Merge variants together into block substitutions if they are in strong local LD", required = false)
     protected boolean mergeVariantsViaLD = false;
+
+    /**
+     * As of GATK 3.3, HaplotypeCaller outputs physical information (see release notes and documentation for details). This argument disables that behavior.
+     */
+    @Advanced
+    @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="Don't try to add physical (read-based) phasing information", required = false)
+    protected boolean doNotRunPhysicalPhasing = false;
+
+    public static final String HAPLOTYPE_CALLER_PHASING_ID_KEY = "PID";
+    public static final String HAPLOTYPE_CALLER_PHASING_GT_KEY = "PGT";
 
     // -----------------------------------------------------------------------------------------------
     // arguments for debugging / developing the haplotype caller
@@ -505,45 +562,60 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
     protected String keepRG = null;
 
+    /**
+     * This argument is intended for benchmarking and scalability testing.
+     */
     @Hidden
-    @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "If specified, the HC won't actually do any assembly or calling, it'll just run the upfront active region determination code.  Useful for benchmarking and scalability testing", required=false)
+    @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "Just determine ActiveRegions, don't perform assembly or calling", required=false)
     protected boolean justDetermineActiveRegions = false;
 
+    /**
+     * This argument is intended for benchmarking and scalability testing.
+     */
     @Hidden
-    @Argument(fullName="dontGenotype", shortName="dontGenotype", doc = "If specified, the HC will do any assembly but won't do calling.  Useful for benchmarking and scalability testing", required=false)
+    @Argument(fullName="dontGenotype", shortName="dontGenotype", doc = "Perform assembly but do not genotype variants", required=false)
     protected boolean dontGenotype = false;
 
+    /**
+     * Enabling this argument may cause fundamental problems with the assembly graph itself.
+     */
     @Hidden
-    @Argument(fullName="errorCorrectKmers", shortName="errorCorrectKmers", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    @Argument(fullName="errorCorrectKmers", shortName="errorCorrectKmers", doc = "Use an exploratory algorithm to error correct the kmers used during assembly", required=false)
     protected boolean errorCorrectKmers = false;
 
     @Hidden
-    @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="If specified, we will write DOT formatted graph files out of the assembler for only this graph size", required = false)
+    @Argument(fullName="debugGraphTransformations", shortName="debugGraphTransformations", doc="Write DOT formatted graph files out of the assembler for only this graph size", required = false)
     protected boolean debugGraphTransformations = false;
 
     @Advanced
-    @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="If specified, we will not analyze soft clipped bases in the reads", required = false)
+    @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="Do not analyze soft clipped bases in the reads", required = false)
     protected boolean dontUseSoftClippedBases = false;
 
     @Hidden
-    @Argument(fullName="captureAssemblyFailureBAM", shortName="captureAssemblyFailureBAM", doc="If specified, we will write a BAM called assemblyFailure.bam capturing all of the reads that were in the active region when the assembler failed for any reason", required = false)
+    @Argument(fullName="captureAssemblyFailureBAM", shortName="captureAssemblyFailureBAM", doc="Write a BAM called assemblyFailure.bam capturing all of the reads that were in the active region when the assembler failed for any reason", required = false)
     protected boolean captureAssemblyFailureBAM = false;
 
     @Hidden
-    @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="If specified, we will allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
+    @Argument(fullName="allowCyclesInKmerGraphToGeneratePaths", shortName="allowCyclesInKmerGraphToGeneratePaths", doc="Allow cycles in the kmer graphs to generate paths with multiple copies of the path sequenece rather than just the shortest paths", required = false)
     protected boolean allowCyclesInKmerGraphToGeneratePaths = false;
 
     @Hidden
-    @Argument(fullName="noFpga", shortName="noFpga", doc="If provided, disables the use of the FPGA HMM implementation", required = false)
+    @Argument(fullName="noFpga", shortName="noFpga", doc="Disable the use of the FPGA HMM implementation", required = false)
     protected boolean noFpga = false;
 
     // Parameters to control read error correction
+    /**
+     * Enabling this argument may cause fundamental problems with the assembly graph itself.
+     */
     @Hidden
-    @Argument(fullName="errorCorrectReads", shortName="errorCorrectReads", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    @Argument(fullName="errorCorrectReads", shortName="errorCorrectReads", doc = "Use an exploratory algorithm to error correct the kmers used during assembly", required=false)
     protected boolean errorCorrectReads = false;
 
+    /**
+     * Enabling this argument may cause fundamental problems with the assembly graph itself.
+     */
     @Hidden
-    @Argument(fullName="kmerLengthForReadErrorCorrection", shortName="kmerLengthForReadErrorCorrection", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    @Argument(fullName="kmerLengthForReadErrorCorrection", shortName="kmerLengthForReadErrorCorrection", doc = "Use an exploratory algorithm to error correct the kmers used during assembly", required=false)
     protected int kmerLengthForReadErrorCorrection = 25;
 
     @Hidden
@@ -585,8 +657,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // reference base padding size
     private static final int REFERENCE_PADDING = 500;
 
-    private final static int maxReadsInRegionPerSample = 1000; // TODO -- should be an argument
-    private final static int minReadsPerAlignmentStart = 5; // TODO -- should be an argument
+    /**
+     * When downsampling, level the coverage of the reads in each sample to no more than maxReadsInRegionPerSample reads,
+     * not reducing coverage at any read start to less than minReadsPerAlignmentStart
+     */
+    @Argument(fullName = "maxReadsInRegionPerSample", shortName = "maxReadsInRegionPerSample", doc="Maximum reads in an active region", required = false)
+    protected int maxReadsInRegionPerSample = 1000;
+
+    @Argument(fullName = "minReadsPerAlignmentStart", shortName = "minReadsPerAlignStart", doc="Minimum number of reads sharing the same alignment start for each genomic location in an active region", required = false)
+    protected int minReadsPerAlignmentStart = 5;
 
     private byte MIN_TAIL_QUALITY;
     private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
@@ -594,7 +673,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     // the minimum length of a read we'd consider using for genotyping
     private final static int MIN_READ_LENGTH = 10;
 
-    private List<String> samplesList;
+    private SampleList samplesList;
 
     private final static Allele FAKE_REF_ALLELE = Allele.create("N", true); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
     private final static Allele FAKE_ALT_ALLELE = Allele.create("<FAKE_ALT>", false); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
@@ -614,21 +693,26 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public void initialize() {
         super.initialize();
 
+        if (SCAC.genotypeArgs.samplePloidy != HomoSapiensConstants.DEFAULT_PLOIDY && !doNotRunPhysicalPhasing) {
+            doNotRunPhysicalPhasing = true;
+            logger.info("Currently, physical phasing is not available when ploidy is different than " + HomoSapiensConstants.DEFAULT_PLOIDY + "; therefore it won't be performed");
+        }
+
         if (dontGenotype && emitReferenceConfidence())
             throw new UserException("You cannot request gVCF output and do not genotype at the same time");
 
         if ( emitReferenceConfidence() ) {
 
             if (SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES)
-                throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and Genotyping Giving Alleles at the same time");
+                throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and GENOTYPE_GIVEN_ALLELES at the same time");
 
             SCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
             SCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
 
-
             // also, we don't need to output several of the annotations
             annotationsToExclude.add("ChromosomeCounts");
             annotationsToExclude.add("FisherStrand");
+            annotationsToExclude.add("StrandOddsRatio");
             annotationsToExclude.add("QualByDepth");
 
             // but we definitely want certain other ones
@@ -637,14 +721,27 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             if (!SCAC.annotateAllSitesWithPLs)
                 logger.info("All sites annotated with PLs forced to true for reference-model confidence output");
             SCAC.annotateAllSitesWithPLs = true;
+        } else if ( ! doNotRunPhysicalPhasing ) {
+            doNotRunPhysicalPhasing = true;
+            logger.info("Disabling physical phasing, which is supported only for reference-model confidence output");
         }
 
-        if ( SCAC.AFmodel == AFCalcFactory.Calculation.EXACT_GENERAL_PLOIDY )
-            throw new UserException.BadArgumentValue("pnrm", "HaplotypeCaller doesn't currently support " + SCAC.AFmodel);
+        final GenomeAnalysisEngine toolkit = getToolkit();
+        samplesList = toolkit.getReadSampleList();
+        Set<String> sampleSet = SampleListUtils.asSet(samplesList);
 
+        if (sampleNameToUse != null) {
+            if (!sampleSet.contains(sampleNameToUse))
+                throw new UserException.BadArgumentValue("sample_name", "Specified name does not exist in input bam files");
+            if (sampleSet.size() == 1) {
+                //No reason to incur performance penalty associated with filtering if they specified the name of the only sample
+                sampleNameToUse = null;
+            } else {
+                samplesList = new IndexedSampleList(sampleNameToUse);
+                sampleSet = SampleListUtils.asSet(samplesList);
+            }
+        }
 
-        samplesList = new ArrayList<>(SampleUtils.getSAMFileSamples(getToolkit().getSAMFileHeader()));
-        Set<String> samplesSet = new LinkedHashSet<>(samplesList);
 
         // create a UAC but with the exactCallsLog = null, so we only output the log for the HC caller itself, if requested
         final UnifiedArgumentCollection simpleUAC = SCAC.cloneTo(UnifiedArgumentCollection.class);
@@ -655,20 +752,27 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
-        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(getToolkit(), simpleUAC, samplesSet);
+        // Seems that at least with some test data we can lose genuine haploid variation if we use
+        // UGs engine with ploidy == 1
+        simpleUAC.genotypeArgs.samplePloidy = Math.max(2,SCAC.genotypeArgs.samplePloidy);
+
+        activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(simpleUAC,
+                FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(),simpleUAC,logger), toolkit);
         activeRegionEvaluationGenotyperEngine.setLogger(logger);
 
         if( SCAC.CONTAMINATION_FRACTION_FILE != null )
-            SCAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(SCAC.CONTAMINATION_FRACTION_FILE, SCAC.CONTAMINATION_FRACTION, samplesSet, logger));
+            SCAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(SCAC.CONTAMINATION_FRACTION_FILE, SCAC.CONTAMINATION_FRACTION, sampleSet, logger));
 
         if( SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES && consensusMode )
-            throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode. Please choose one or the other.");
+            throw new UserException("HaplotypeCaller cannot be run in both GENOTYPE_GIVEN_ALLELES mode and in consensus mode at the same time. Please choose one or the other.");
 
-        genotypingEngine = new HaplotypeCallerGenotypingEngine( getToolkit(),SCAC);
+        final GenomeLocParser genomeLocParser = toolkit.getGenomeLocParser();
+
+        genotypingEngine = new HaplotypeCallerGenotypingEngine( SCAC, samplesList, genomeLocParser, FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(),SCAC,logger), !doNotRunPhysicalPhasing);
         // initialize the output VCF header
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
-        Set<VCFHeaderLine> headerInfo = new HashSet<>();
+        final Set<VCFHeaderLine> headerInfo = new HashSet<>();
 
         headerInfo.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
         // all annotation fields from VariantAnnotatorEngine
@@ -685,13 +789,18 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 VCFConstants.DEPTH_KEY,
                 VCFConstants.GENOTYPE_PL_KEY);
 
+        if ( ! doNotRunPhysicalPhasing ) {
+            headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_ID_KEY, 1, VCFHeaderLineType.String, "Physical phasing ID information, where each unique ID within a given sample (but not across samples) connects records within a phasing group"));
+            headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_GT_KEY, 1, VCFHeaderLineType.String, "Physical phasing haplotype information, describing how the alternate alleles are phased in relation to one another"));
+        }
+
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
         headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotypingEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
 
-        initializeReferenceConfidenceModel(samplesSet, headerInfo);
+        initializeReferenceConfidenceModel(samplesList, headerInfo);
 
-        vcfWriter.writeHeader(new VCFHeader(headerInfo, samplesSet));
+        vcfWriter.writeHeader(new VCFHeader(headerInfo, sampleSet));
 
         try {
             // fasta reference reader to supplement the edges of the reference sequence
@@ -708,8 +817,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         assemblyEngine.setDebug(SCAC.DEBUG);
         assemblyEngine.setDebugGraphTransformations(debugGraphTransformations);
         assemblyEngine.setAllowCyclesInKmerGraphToGeneratePaths(allowCyclesInKmerGraphToGeneratePaths);
-        assemblyEngine.setRecoverDanglingTails(!doNotRecoverDanglingTails);
-        assemblyEngine.setRecoverDanglingHeads(recoverDanglingHeads);
+        assemblyEngine.setRecoverDanglingBranches(!doNotRecoverDanglingBranches);
+        assemblyEngine.setMinDanglingBranchLength(minDanglingBranchLength);
         assemblyEngine.setMinBaseQualityToUseInAssembly(MIN_BASE_QUALTY_SCORE);
 
         MIN_TAIL_QUALITY = (byte)(MIN_BASE_QUALTY_SCORE - 1);
@@ -749,10 +858,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 SCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES,emitReferenceConfidence());
     }
 
-    private void initializeReferenceConfidenceModel(final Set<String> samples, final Set<VCFHeaderLine> headerInfo) {
+    private void initializeReferenceConfidenceModel(final SampleList samples, final Set<VCFHeaderLine> headerInfo) {
         referenceConfidenceModel = new ReferenceConfidenceModel(getToolkit().getGenomeLocParser(), samples, getToolkit().getSAMFileHeader(), indelSizeToEliminateInRefModel);
         if ( emitReferenceConfidence() ) {
-            if ( samples.size() != 1 ) throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently");
+            if ( samples.sampleCount() != 1 )
+                throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently. Use the sample_name argument to run on a single sample out of a multi-sample BAM file.");
             headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
             if ( SCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
                 // a kluge to enforce the use of this indexing strategy
@@ -762,7 +872,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 }
 
                 try {
-                    vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands);
+                    vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands,SCAC.genotypeArgs.samplePloidy);
                 } catch ( IllegalArgumentException e ) {
                     throw new UserException.BadArgumentValue("GQBands", "are malformed: " + e.getMessage());
                 }
@@ -780,13 +890,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             case PairHMM:
                 return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, pairHMM, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
             case GraphBased:
-                return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate,heterogeneousKmerSizeResultion,SCAC.DEBUG,debugGraphTransformations);
+                return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate, heterogeneousKmerSizeResolution,SCAC.DEBUG,debugGraphTransformations);
             case Random:
                 return new RandomLikelihoodCalculationEngine();
             default:
                 //Note: we do not include in the error message list as it is of no grand public interest.
                 throw new UserException("Unsupported likelihood calculation engine '" + likelihoodCalculationEngine +
-                        "'. Please use one of the following instead: 'PairHMM' and 'GraphBased'.");
+                        "'. Please use one of the following instead: 'PairHMM' or 'GraphBased'.");
         }
     }
 
@@ -831,12 +941,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // if we don't have any data, just abort early
             return new ActivityProfileState(ref.getLocus(), 0.0);
 
-        final List<Allele> noCall = Collections.singletonList(Allele.NO_CALL); // used to noCall all genotypes until the exact model is applied
+        final int ploidy = activeRegionEvaluationGenotyperEngine.getConfiguration().genotypeArgs.samplePloidy;
+        final List<Allele> noCall = GATKVariantContextUtils.noCallAlleles(ploidy); // used to noCall all genotypes until the exact model is applied
         final Map<String, AlignmentContext> splitContexts = AlignmentContextUtils.splitContextBySampleName(context);
         final GenotypesContext genotypes = GenotypesContext.create(splitContexts.keySet().size());
         final MathUtils.RunningAverage averageHQSoftClips = new MathUtils.RunningAverage();
+        final GenotypingModel genotypingModel = genotypingEngine.getGenotypingModel();
         for( final Map.Entry<String, AlignmentContext> sample : splitContexts.entrySet() ) {
-            final double[] genotypeLikelihoods = referenceConfidenceModel.calcGenotypeLikelihoodsOfRefVsAny(sample.getValue().getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE, averageHQSoftClips).genotypeLikelihoods;
+            final String sampleName = sample.getKey();
+            // The ploidy here is not dictated by the sample but by the simple genotyping-engine used to determine whether regions are active or not.
+            final int activeRegionDetectionHackishSamplePloidy = activeRegionEvaluationGenotyperEngine.getConfiguration().genotypeArgs.samplePloidy;
+            final double[] genotypeLikelihoods = referenceConfidenceModel.calcGenotypeLikelihoodsOfRefVsAny(sampleName,activeRegionDetectionHackishSamplePloidy,genotypingModel,sample.getValue().getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE, averageHQSoftClips).genotypeLikelihoods;
             genotypes.add( new GenotypeBuilder(sample.getKey()).alleles(noCall).PL(genotypeLikelihoods).make() );
         }
 
@@ -860,6 +975,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // we're benchmarking ART and/or the active region determination code in the HC, just leave without doing any work
             return NO_CALLS;
 
+        if (sampleNameToUse != null)
+            removeReadsFromAllSamplesExcept(sampleNameToUse, originalActiveRegion);
+
         if( !originalActiveRegion.isActive() )
             // Not active so nothing to do!
             return referenceModelForNoVariation(originalActiveRegion, true);
@@ -882,13 +1000,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final AssemblyResultSet untrimmedAssemblyResult = assembleReads(originalActiveRegion, givenAlleles);
 
         final TreeSet<VariantContext> allVariationEvents = untrimmedAssemblyResult.getVariationEvents();
-        // TODO - line bellow might be unecessary : it might be that assemblyResult will always have those alleles anyway
+        // TODO - line bellow might be unnecessary : it might be that assemblyResult will always have those alleles anyway
         // TODO - so check and remove if that is the case:
         allVariationEvents.addAll(givenAlleles);
 
         final ActiveRegionTrimmer.Result trimmingResult = trimmer.trim(originalActiveRegion,allVariationEvents);
 
-        if (!trimmingResult.isVariationPresent())
+        if (!trimmingResult.isVariationPresent() && !disableOptimizations)
             return referenceModelForNoVariation(originalActiveRegion,false);
 
         final AssemblyResultSet assemblyResult =
@@ -906,7 +1024,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         // abort early if something is out of the acceptable range
         // TODO is this ever true at this point??? perhaps GGA. Need to check.
-        if( ! assemblyResult.isVariationPresent() )
+        if( ! assemblyResult.isVariationPresent() && ! disableOptimizations)
             return referenceModelForNoVariation(originalActiveRegion, false);
 
         // For sure this is not true if gVCF is on.
@@ -914,7 +1032,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
 
         // TODO is this ever true at this point??? perhaps GGA. Need to check.
-        if( regionForGenotyping.size() == 0 ) {
+        if( regionForGenotyping.size() == 0 && ! disableOptimizations) {
             // no reads remain after filtering so nothing else to do!
             return referenceModelForNoVariation(originalActiveRegion, false);
         }
@@ -924,13 +1042,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final List<Haplotype> haplotypes = assemblyResult.getHaplotypeList();
         final Map<String,List<GATKSAMRecord>> reads = splitReadsBySample( regionForGenotyping.getReads() );
 
-        // Calculate the likelihoods: CPU intesive part.
-        final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,reads);
+        // Calculate the likelihoods: CPU intensive part.
+        final ReadLikelihoods<Haplotype> readLikelihoods =
+                likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,samplesList,reads);
 
-        // Realign all the reads to the most likely haplotype for use by the annotations
-        for( final Map.Entry<String, PerReadAlleleLikelihoodMap> entry : stratifiedReadMap.entrySet() ) {
-            entry.getValue().realignReadsToMostLikelyHaplotype(haplotypes, assemblyResult.getPaddedReferenceLoc());
-        }
+        // Realign reads to their best haplotype.
+        final Map<GATKSAMRecord,GATKSAMRecord> readRealignments = realignReadsToTheirBestHaplotype(readLikelihoods, assemblyResult.getPaddedReferenceLoc());
+        readLikelihoods.changeReads(readRealignments);
 
         // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
         //  was a bad interaction between that selection and the marginalization that happens over each event when computing
@@ -940,24 +1058,26 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.assignGenotypeLikelihoods(
                 haplotypes,
-                stratifiedReadMap,
+                readLikelihoods,
                 perSampleFilteredReadList,
                 assemblyResult.getFullReferenceWithPadding(),
                 assemblyResult.getPaddedReferenceLoc(),
                 regionForGenotyping.getLocation(),
                 getToolkit().getGenomeLocParser(),
                 metaDataTracker,
-                ( consensusMode ? Collections.<VariantContext>emptyList() : givenAlleles ),
-		        emitReferenceConfidence() );
+                (consensusMode ? Collections.<VariantContext>emptyList() : givenAlleles),
+                emitReferenceConfidence());
 
-        // TODO -- must disable if we are doing NCT, or set the output type of ! presorted
         if ( bamWriter != null ) {
+            final Set<Haplotype> calledHaplotypeSet = new HashSet<>(calledHaplotypes.getCalledHaplotypes());
+            if (disableOptimizations)
+                calledHaplotypeSet.add(assemblyResult.getReferenceHaplotype());
             haplotypeBAMWriter.writeReadsAlignedToHaplotypes(
                     haplotypes,
                     assemblyResult.getPaddedReferenceLoc(),
                     haplotypes,
-                    calledHaplotypes.getCalledHaplotypes(),
-                    stratifiedReadMap);
+                    calledHaplotypeSet,
+                    readLikelihoods);
         }
 
         if( SCAC.DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
@@ -975,15 +1095,36 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 // output variant containing region.
                 result.addAll(referenceConfidenceModel.calculateRefConfidence(assemblyResult.getReferenceHaplotype(),
                         calledHaplotypes.getCalledHaplotypes(), assemblyResult.getPaddedReferenceLoc(), regionForGenotyping,
-                        stratifiedReadMap, calledHaplotypes.getCalls()));
+                        readLikelihoods, genotypingEngine.getPloidyModel(), genotypingEngine.getGenotypingModel(), calledHaplotypes.getCalls()));
                 // output right-flanking non-variant section:
                 if (trimmingResult.hasRightFlankingRegion())
                     result.addAll(referenceModelForNoVariation(trimmingResult.nonVariantRightFlankRegion(),false));
                 return result;
             }
-        } else {
+        } else
             return calledHaplotypes.getCalls();
+    }
+
+    /**
+     * Returns a map with the original read as a key and the realigned read as the value.
+     * <p>
+     *     Missing keys or equivalent key and value pairs mean that the read was not realigned.
+     * </p>
+     * @return never {@code null}
+     */
+    private Map<GATKSAMRecord,GATKSAMRecord> realignReadsToTheirBestHaplotype(final ReadLikelihoods<Haplotype> originalReadLikelihoods, final GenomeLoc paddedReferenceLoc) {
+
+        final Collection<ReadLikelihoods<Haplotype>.BestAllele> bestAlleles = originalReadLikelihoods.bestAlleles();
+        final Map<GATKSAMRecord,GATKSAMRecord> result = new HashMap<>(bestAlleles.size());
+
+        for (final ReadLikelihoods<Haplotype>.BestAllele bestAllele : bestAlleles) {
+            final GATKSAMRecord originalRead = bestAllele.read;
+            final Haplotype bestHaplotype = bestAllele.allele;
+            final boolean isInformative = bestAllele.isInformative();
+            final GATKSAMRecord realignedRead = AlignmentUtils.createReadAlignedToRef(originalRead,bestHaplotype,paddedReferenceLoc.getStart(),isInformative);
+            result.put(originalRead,realignedRead);
         }
+        return result;
     }
 
     private boolean containsCalls(final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes) {
@@ -1026,7 +1167,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         } catch ( final Exception e ) {
             // Capture any exception that might be thrown, and write out the assembly failure BAM if requested
             if ( captureAssemblyFailureBAM ) {
-                final SAMFileWriter writer = ReadUtils.createSAMFileWriterWithCompression(getToolkit().getSAMFileHeader(), true, "assemblyFailure.bam", 5);
+                final SAMFileWriter writer = ReadUtils.createSAMFileWriter("assemblyFailure.bam", getToolkit());
                 for ( final GATKSAMRecord read : activeRegion.getReads() ) {
                     writer.addAlignment(read);
                 }
@@ -1067,7 +1208,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             final List<Haplotype> haplotypes = Collections.singletonList(refHaplotype);
             return referenceConfidenceModel.calculateRefConfidence(refHaplotype, haplotypes,
                     paddedLoc, region, createDummyStratifiedReadMap(refHaplotype, samplesList, region),
-                    Collections.<VariantContext>emptyList());
+                    genotypingEngine.getPloidyModel(), genotypingEngine.getGenotypingModel(), Collections.<VariantContext>emptyList());
         } else
             return NO_CALLS;
     }
@@ -1079,22 +1220,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * @param region the active region containing reads
      * @return a map from sample -> PerReadAlleleLikelihoodMap that maps each read to ref
      */
-    public static Map<String, PerReadAlleleLikelihoodMap> createDummyStratifiedReadMap(final Haplotype refHaplotype,
-                                                                                       final List<String> samples,
-                                                                                       final ActiveRegion region) {
-        final Allele refAllele = Allele.create(refHaplotype, true);
-
-        final Map<String, PerReadAlleleLikelihoodMap> map = new LinkedHashMap<>(1);
-        for ( final Map.Entry<String, List<GATKSAMRecord>> entry : splitReadsBySample(samples, region.getReads()).entrySet() ) {
-            final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
-            for ( final GATKSAMRecord read : entry.getValue() ) {
-                likelihoodMap.add(read, refAllele, 0.0);
-            }
-            map.put(entry.getKey(), likelihoodMap);
-        }
-
-        return map;
+    public static ReadLikelihoods<Haplotype> createDummyStratifiedReadMap(final Haplotype refHaplotype,
+                                                                          final SampleList samples,
+                                                                          final ActiveRegion region) {
+        return new ReadLikelihoods<>(samples, new IndexedAlleleList<>(refHaplotype),
+                splitReadsBySample(samples, region.getReads()));
     }
+
 
     //---------------------------------------------------------------------------------------------------------------
     //
@@ -1200,18 +1332,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         return splitReadsBySample(samplesList, reads);
     }
 
-    public static Map<String, List<GATKSAMRecord>> splitReadsBySample( final List<String> samplesList, final Collection<GATKSAMRecord> reads ) {
+    private static Map<String, List<GATKSAMRecord>> splitReadsBySample( final SampleList samplesList, final Collection<GATKSAMRecord> reads ) {
         final Map<String, List<GATKSAMRecord>> returnMap = new HashMap<>();
-        for( final String sample : samplesList) {
-            List<GATKSAMRecord> readList = returnMap.get( sample );
-            if( readList == null ) {
-                readList = new ArrayList<>();
-                returnMap.put(sample, readList);
-            }
-        }
-        for( final GATKSAMRecord read : reads ) {
+        final int sampleCount = samplesList.sampleCount();
+        for (int i = 0; i < sampleCount; i++)
+            returnMap.put(samplesList.sampleAt(i), new ArrayList<GATKSAMRecord>());
+
+        for( final GATKSAMRecord read : reads )
             returnMap.get(read.getReadGroup().getSample()).add(read);
-        }
+
         return returnMap;
     }
 
@@ -1235,5 +1364,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             for ( final List<GATKSAMRecord> overlappingPair : fragmentCollection.getOverlappingPairs() )
                 FragmentUtils.adjustQualsOfOverlappingPairedFragments(overlappingPair);
         }
+    }
+
+    private void removeReadsFromAllSamplesExcept(final String targetSample, final ActiveRegion activeRegion) {
+        final Set<GATKSAMRecord> readsToRemove = new LinkedHashSet<>();
+        for( final GATKSAMRecord rec : activeRegion.getReads() ) {
+            if( !rec.getReadGroup().getSample().equals(targetSample) ) {
+                readsToRemove.add(rec);
+            }
+        }
+        activeRegion.removeAll( readsToRemove );
+
     }
 }

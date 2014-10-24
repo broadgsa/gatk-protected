@@ -1,47 +1,52 @@
 /*
-*  By downloading the PROGRAM you agree to the following terms of use:
-*  
-*  BROAD INSTITUTE - SOFTWARE LICENSE AGREEMENT - FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
-*  
-*  This Agreement is made between the Broad Institute, Inc. with a principal address at 7 Cambridge Center, Cambridge, MA 02142 (BROAD) and the LICENSEE and is effective at the date the downloading is completed (EFFECTIVE DATE).
-*  
-*  WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
-*  WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
-*  NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
-*  
-*  1. DEFINITIONS
-*  1.1 PROGRAM shall mean copyright in the object code and source code known as GATK2 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute/GATK on the EFFECTIVE DATE.
-*  
-*  2. LICENSE
-*  2.1   Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. 
-*  The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only.  For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
-*  2.2  No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD.  LICENSEE shall ensure that all of its users agree to the terms of this Agreement.  LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
-*  2.3  License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.  
-*  
-*  3. OWNERSHIP OF INTELLECTUAL PROPERTY 
-*  LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies.  LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-*  Copyright 2012 Broad Institute, Inc.
-*  Notice of attribution:  The GATK2 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
-*  LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
-*  
-*  4. INDEMNIFICATION
-*  LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
-*  
-*  5. NO REPRESENTATIONS OR WARRANTIES
-*  THE PROGRAM IS DELIVERED AS IS.  BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
-*  IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
-*  
-*  6. ASSIGNMENT
-*  This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
-*  
-*  7. MISCELLANEOUS
-*  7.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
-*  7.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
-*  7.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
-*  7.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested.  All notices under this Agreement shall be deemed effective upon receipt. 
-*  7.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter. 
-*  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
-*  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+* By downloading the PROGRAM you agree to the following terms of use:
+* 
+* BROAD INSTITUTE
+* SOFTWARE LICENSE AGREEMENT
+* FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+* 
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* 
+* WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+* WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+* NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+* 
+* 1. DEFINITIONS
+* 1.1 PROGRAM shall mean copyright in the object code and source code known as GATK3 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute.org/gatk on the EFFECTIVE DATE.
+* 
+* 2. LICENSE
+* 2.1 Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. LICENSEE hereby automatically grants to BROAD a non-exclusive, royalty-free, irrevocable license to any LICENSEE bug fixes or modifications to the PROGRAM with unlimited rights to sublicense and/or distribute.  LICENSEE agrees to provide any such modifications and bug fixes to BROAD promptly upon their creation.
+* The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only. For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+* 2.2 No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD. LICENSEE shall ensure that all of its users agree to the terms of this Agreement. LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+* 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
+* 
+* 3. PHONE-HOME FEATURE
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* 
+* 4. OWNERSHIP OF INTELLECTUAL PROPERTY
+* LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+* Copyright 2012-2014 Broad Institute, Inc.
+* Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+* LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+* 
+* 5. INDEMNIFICATION
+* LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+* 
+* 6. NO REPRESENTATIONS OR WARRANTIES
+* THE PROGRAM IS DELIVERED AS IS. BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+* IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+* 
+* 7. ASSIGNMENT
+* This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+* 
+* 8. MISCELLANEOUS
+* 8.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+* 8.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+* 8.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+* 8.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested. All notices under this Agreement shall be deemed effective upon receipt.
+* 8.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter.
+* 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+* 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading;
@@ -60,8 +65,7 @@ import java.util.*;
 public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnVertex, MultiSampleEdge> {
 
     private static final int MAX_CIGAR_COMPLEXITY = 3;
-    private static final int MIN_DANGLING_TAIL_LENGTH = 5;  // SNP + 3 stabilizing nodes + the LCA
-    private static final int MAXIMUM_MISMATCHES_IN_DANGLING_HEAD_MERGE = 1;
+    private int maxMismatchesInDanglingHead = -1;
 
     protected boolean alreadyBuilt;
 
@@ -71,6 +75,10 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      */
     protected DanglingChainMergingGraph(final int kmerSize, final EdgeFactory<MultiDeBruijnVertex, MultiSampleEdge> edgeFactory) {
         super(kmerSize, edgeFactory);
+    }
+
+    protected void setMaxMismatchesInDanglingHead(final int maxMismatchesInDanglingHead) {
+        this.maxMismatchesInDanglingHead = maxMismatchesInDanglingHead;
     }
 
     /**
@@ -119,8 +127,9 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * Try to recover dangling tails
      *
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     * @param minDanglingBranchLength the minimum length of a dangling branch for us to try to merge it
      */
-    public void recoverDanglingTails(final int pruneFactor) {
+    public void recoverDanglingTails(final int pruneFactor, final int minDanglingBranchLength) {
         if ( ! alreadyBuilt )  throw new IllegalStateException("recoverDanglingTails requires the graph be already built");
 
         int attempted = 0;
@@ -128,7 +137,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         for ( final MultiDeBruijnVertex v : vertexSet() ) {
             if ( outDegreeOf(v) == 0 && ! isRefSink(v) ) {
                 attempted++;
-                nRecovered += recoverDanglingTail(v, pruneFactor);
+                nRecovered += recoverDanglingTail(v, pruneFactor, minDanglingBranchLength);
             }
         }
 
@@ -139,8 +148,9 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * Try to recover dangling heads
      *
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     * @param minDanglingBranchLength the minimum length of a dangling branch for us to try to merge it
      */
-    public void recoverDanglingHeads(final int pruneFactor) {
+    public void recoverDanglingHeads(final int pruneFactor, final int minDanglingBranchLength) {
         if ( ! alreadyBuilt )  throw new IllegalStateException("recoverDanglingHeads requires the graph be already built");
 
         // we need to build a list of dangling heads because that process can modify the graph (and otherwise generate
@@ -157,7 +167,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         // now we can try to recover the dangling heads
         for ( final MultiDeBruijnVertex v : danglingHeads ) {
             attempted++;
-            nRecovered += recoverDanglingHead(v, pruneFactor);
+            nRecovered += recoverDanglingHead(v, pruneFactor, minDanglingBranchLength);
         }
 
         logger.debug("Recovered " + nRecovered + " of " + attempted + " dangling heads");
@@ -168,13 +178,14 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      *
      * @param vertex the vertex to recover
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     * @param minDanglingBranchLength the minimum length of a dangling branch for us to try to merge it
      * @return 1 if we successfully recovered the vertex and 0 otherwise
      */
-    protected int recoverDanglingTail(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected int recoverDanglingTail(final MultiDeBruijnVertex vertex, final int pruneFactor, final int minDanglingBranchLength) {
         if ( outDegreeOf(vertex) != 0 ) throw new IllegalStateException("Attempting to recover a dangling tail for " + vertex + " but it has out-degree > 0");
 
         // generate the CIGAR string from Smith-Waterman between the dangling tail and reference paths
-        final DanglingChainMergeHelper danglingTailMergeResult = generateCigarAgainstDownwardsReferencePath(vertex, pruneFactor);
+        final DanglingChainMergeHelper danglingTailMergeResult = generateCigarAgainstDownwardsReferencePath(vertex, pruneFactor, minDanglingBranchLength);
 
         // if the CIGAR is too complex (or couldn't be computed) then we do not allow the merge into the reference path
         if ( danglingTailMergeResult == null || ! cigarIsOkayToMerge(danglingTailMergeResult.cigar, false, true) )
@@ -189,13 +200,14 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      *
      * @param vertex the vertex to recover
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
+     * @param minDanglingBranchLength the minimum length of a dangling branch for us to try to merge it
      * @return 1 if we successfully recovered a vertex and 0 otherwise
      */
-    protected int recoverDanglingHead(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected int recoverDanglingHead(final MultiDeBruijnVertex vertex, final int pruneFactor, final int minDanglingBranchLength) {
         if ( inDegreeOf(vertex) != 0 ) throw new IllegalStateException("Attempting to recover a dangling head for " + vertex + " but it has in-degree > 0");
 
         // generate the CIGAR string from Smith-Waterman between the dangling tail and reference paths
-        final DanglingChainMergeHelper danglingHeadMergeResult = generateCigarAgainstUpwardsReferencePath(vertex, pruneFactor);
+        final DanglingChainMergeHelper danglingHeadMergeResult = generateCigarAgainstUpwardsReferencePath(vertex, pruneFactor, minDanglingBranchLength);
 
         // if the CIGAR is too complex (or couldn't be computed) then we do not allow the merge into the reference path
         if ( danglingHeadMergeResult == null || ! cigarIsOkayToMerge(danglingHeadMergeResult.cigar, true, false) )
@@ -230,7 +242,7 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
         if ( requireLastElementM && elements.get(numElements - 1).getOperator() != CigarOperator.M )
             return false;
 
-        // TODO -- do we want to check whether the Ms mismatch too much also?
+        // note that there are checks for too many mismatches in the dangling branch later in the process
 
         return true;
     }
@@ -313,11 +325,12 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
      * @return a SmithWaterman object which can be null if no proper alignment could be generated
      */
-    protected DanglingChainMergeHelper generateCigarAgainstDownwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected DanglingChainMergeHelper generateCigarAgainstDownwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor, final int minDanglingBranchLength) {
+        final int minTailPathLength = Math.max(1, minDanglingBranchLength); // while heads can be 0, tails absolutely cannot
 
         // find the lowest common ancestor path between this vertex and the diverging master path if available
         final List<MultiDeBruijnVertex> altPath = findPathUpwardsToLowestCommonAncestor(vertex, pruneFactor);
-        if ( altPath == null || isRefSource(altPath.get(0)) || altPath.size() < MIN_DANGLING_TAIL_LENGTH )
+        if ( altPath == null || isRefSource(altPath.get(0)) || altPath.size() < minTailPathLength + 1 ) // add 1 to include the LCA
             return null;
 
         // now get the reference path from the LCA
@@ -340,11 +353,11 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * @param pruneFactor  the prune factor to use in ignoring chain pieces
      * @return a SmithWaterman object which can be null if no proper alignment could be generated
      */
-    protected DanglingChainMergeHelper generateCigarAgainstUpwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor) {
+    protected DanglingChainMergeHelper generateCigarAgainstUpwardsReferencePath(final MultiDeBruijnVertex vertex, final int pruneFactor, final int minDanglingBranchLength) {
 
         // find the highest common descendant path between vertex and the reference source if available
         final List<MultiDeBruijnVertex> altPath = findPathDownwardsToHighestCommonDescendantOfReference(vertex, pruneFactor);
-        if ( altPath == null || isRefSink(altPath.get(0)) )
+        if ( altPath == null || isRefSink(altPath.get(0)) || altPath.size() < minDanglingBranchLength + 1 ) // add 1 to include the LCA
             return null;
 
         // now get the reference path from the LCA
@@ -477,20 +490,32 @@ public abstract class DanglingChainMergingGraph extends BaseGraph<MultiDeBruijnV
      * @param maxIndex the maximum index to traverse (not inclusive)
      * @return the index of the ideal prefix match or -1 if it cannot find one, must be less than maxIndex
      */
-    protected static int bestPrefixMatch(final byte[] path1, final byte[] path2, final int maxIndex) {
+    protected int bestPrefixMatch(final byte[] path1, final byte[] path2, final int maxIndex) {
+        final int maxMismatches = getMaxMismatches(maxIndex);
         int mismatches = 0;
         int index = 0;
         int lastGoodIndex = -1;
         while ( index < maxIndex ) {
             if ( path1[index] != path2[index] ) {
-                if ( ++mismatches > MAXIMUM_MISMATCHES_IN_DANGLING_HEAD_MERGE )
-                    return lastGoodIndex;
+                if ( ++mismatches > maxMismatches )
+                    return -1;
                 lastGoodIndex = index;
             }
             index++;
         }
         // if we got here then we hit the max index
         return lastGoodIndex;
+    }
+
+    /**
+     * Determine the maximum number of mismatches permitted on the branch.
+     * Unless it's preset (e.g. by unit tests) it should be the length of the branch divided by the kmer size.
+     *
+     * @param lengthOfDanglingBranch  the length of the branch itself
+     * @return positive integer
+     */
+    private int getMaxMismatches(final int lengthOfDanglingBranch) {
+        return maxMismatchesInDanglingHead > 0 ? maxMismatchesInDanglingHead : Math.max(1, (lengthOfDanglingBranch / kmerSize));
     }
 
     protected boolean extendDanglingPathAgainstReference(final DanglingChainMergeHelper danglingHeadMergeResult, final int numNodesToExtend) {

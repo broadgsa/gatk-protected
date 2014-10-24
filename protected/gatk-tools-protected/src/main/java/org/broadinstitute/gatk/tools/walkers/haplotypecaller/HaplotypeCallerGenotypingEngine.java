@@ -1,70 +1,72 @@
 /*
-*  By downloading the PROGRAM you agree to the following terms of use:
-*  
-*  BROAD INSTITUTE - SOFTWARE LICENSE AGREEMENT - FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
-*  
-*  This Agreement is made between the Broad Institute, Inc. with a principal address at 7 Cambridge Center, Cambridge, MA 02142 (BROAD) and the LICENSEE and is effective at the date the downloading is completed (EFFECTIVE DATE).
-*  
-*  WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
-*  WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
-*  NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
-*  
-*  1. DEFINITIONS
-*  1.1 PROGRAM shall mean copyright in the object code and source code known as GATK2 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute/GATK on the EFFECTIVE DATE.
-*  
-*  2. LICENSE
-*  2.1   Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. 
-*  The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only.  For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
-*  2.2  No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD.  LICENSEE shall ensure that all of its users agree to the terms of this Agreement.  LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
-*  2.3  License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.  
-*  
-*  3. OWNERSHIP OF INTELLECTUAL PROPERTY 
-*  LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies.  LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-*  Copyright 2012 Broad Institute, Inc.
-*  Notice of attribution:  The GATK2 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
-*  LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
-*  
-*  4. INDEMNIFICATION
-*  LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
-*  
-*  5. NO REPRESENTATIONS OR WARRANTIES
-*  THE PROGRAM IS DELIVERED AS IS.  BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
-*  IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
-*  
-*  6. ASSIGNMENT
-*  This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
-*  
-*  7. MISCELLANEOUS
-*  7.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
-*  7.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
-*  7.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
-*  7.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested.  All notices under this Agreement shall be deemed effective upon receipt. 
-*  7.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter. 
-*  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
-*  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+* By downloading the PROGRAM you agree to the following terms of use:
+* 
+* BROAD INSTITUTE
+* SOFTWARE LICENSE AGREEMENT
+* FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+* 
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* 
+* WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+* WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+* NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+* 
+* 1. DEFINITIONS
+* 1.1 PROGRAM shall mean copyright in the object code and source code known as GATK3 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute.org/gatk on the EFFECTIVE DATE.
+* 
+* 2. LICENSE
+* 2.1 Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. LICENSEE hereby automatically grants to BROAD a non-exclusive, royalty-free, irrevocable license to any LICENSEE bug fixes or modifications to the PROGRAM with unlimited rights to sublicense and/or distribute.  LICENSEE agrees to provide any such modifications and bug fixes to BROAD promptly upon their creation.
+* The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only. For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+* 2.2 No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD. LICENSEE shall ensure that all of its users agree to the terms of this Agreement. LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+* 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
+* 
+* 3. PHONE-HOME FEATURE
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* 
+* 4. OWNERSHIP OF INTELLECTUAL PROPERTY
+* LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+* Copyright 2012-2014 Broad Institute, Inc.
+* Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+* LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+* 
+* 5. INDEMNIFICATION
+* LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+* 
+* 6. NO REPRESENTATIONS OR WARRANTIES
+* THE PROGRAM IS DELIVERED AS IS. BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+* IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+* 
+* 7. ASSIGNMENT
+* This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+* 
+* 8. MISCELLANEOUS
+* 8.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+* 8.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+* 8.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+* 8.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested. All notices under this Agreement shall be deemed effective upon receipt.
+* 8.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter.
+* 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+* 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodsCalculationModel;
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingOutputMode;
-import org.broadinstitute.gatk.tools.walkers.genotyper.OutputMode;
+import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.Utils;
-import org.broadinstitute.gatk.utils.collections.DefaultHashMap;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.collections.Pair;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.EventMap;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.haplotype.MergeVariantsAcrossHaplotypes;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
 
@@ -73,30 +75,33 @@ import java.util.*;
  */
 public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeCallerArgumentCollection> {
 
-    private final static List<Allele> NO_CALL = Collections.singletonList(Allele.NO_CALL);
-    private final static int ALLELE_EXTENSION = 2;
+    private static final int ALLELE_EXTENSION = 2;
+    private static final String phase01 = "0|1";
+    private static final String phase10 = "1|0";
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
-    /**
-     * {@inheritDoc}
-     * @param toolkit {@inheritDoc}
-     * @param configuration {@inheritDoc}
-     */
-    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration) {
-        super(toolkit,configuration);
-    }
+    private final boolean doPhysicalPhasing;
+
+    private final GenotypingModel genotypingModel;
+
+    private final PloidyModel ploidyModel;
 
     /**
      * {@inheritDoc}
-     * @param toolkit {@inheritDoc}
      * @param configuration {@inheritDoc}
-     * @param sampleNames {@inheritDoc}
+     * @param samples {@inheritDoc}
+     * @param genomeLocParser {@inheritDoc}
+     * @param doPhysicalPhasing whether to try physical phasing.
      */
-    public HaplotypeCallerGenotypingEngine(final GenomeAnalysisEngine toolkit, final HaplotypeCallerArgumentCollection configuration, final Set<String> sampleNames) {
-        super(toolkit,configuration,sampleNames);
+    public HaplotypeCallerGenotypingEngine(final HaplotypeCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doPhysicalPhasing) {
+        super(configuration,samples,genomeLocParser,afCalculatorProvider);
+        if (genomeLocParser == null)
+            throw new IllegalArgumentException("the genome location parser provided cannot be null");
+        this.doPhysicalPhasing= doPhysicalPhasing;
+        ploidyModel = new HomogeneousPloidyModel(samples,configuration.genotypeArgs.samplePloidy);
+        genotypingModel = new InfiniteRandomMatingPopulationModel();
     }
-
 
     /**
      * Change the merge variant across haplotypes for this engine.
@@ -161,17 +166,17 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * Main entry point of class - given a particular set of haplotypes, samples and reference context, compute
      * genotype likelihoods and assemble into a list of variant contexts and genomic events ready for calling
      *
-     * The list of samples we're working with is obtained from the haplotypeReadMap
+     * The list of samples we're working with is obtained from the readLikelihoods
      *
      * @param haplotypes                             Haplotypes to assign likelihoods to
-     * @param haplotypeReadMap                       Map from reads->(haplotypes,likelihoods)
+     * @param readLikelihoods                       Map from reads->(haplotypes,likelihoods)
      * @param perSampleFilteredReadList              Map from sample to reads that were filtered after assembly and before calculating per-read likelihoods.
      * @param ref                                    Reference bytes at active region
      * @param refLoc                                 Corresponding active region genome location
      * @param activeRegionWindow                     Active window
      * @param genomeLocParser                        GenomeLocParser
      * @param activeAllelesToGenotype                Alleles to genotype
-     * @param emitReferenceConfidence                whether we should add a <NON_REF></NON_REF> alternative allele to the result variation contexts.
+     * @param emitReferenceConfidence whether we should add a &lt;NON_REF&gt; alternative allele to the result variation contexts.
      *
      * @return                                       A CalledHaplotypes object containing a list of VC's with genotyped events and called haplotypes
      *
@@ -180,7 +185,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
     @Ensures("result != null")
     // TODO - can this be refactored? this is hard to follow!
     public CalledHaplotypes assignGenotypeLikelihoods( final List<Haplotype> haplotypes,
-                                                       final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                       final ReadLikelihoods<Haplotype> readLikelihoods,
                                                        final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
                                                        final byte[] ref,
                                                        final GenomeLoc refLoc,
@@ -191,21 +196,22 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                                                        final boolean emitReferenceConfidence) {
         // sanity check input arguments
         if (haplotypes == null || haplotypes.isEmpty()) throw new IllegalArgumentException("haplotypes input should be non-empty and non-null, got "+haplotypes);
-        if (haplotypeReadMap == null || haplotypeReadMap.isEmpty()) throw new IllegalArgumentException("haplotypeReadMap input should be non-empty and non-null, got "+haplotypeReadMap);
+        if (readLikelihoods == null || readLikelihoods.sampleCount() == 0) throw new IllegalArgumentException("readLikelihoods input should be non-empty and non-null, got "+readLikelihoods);
         if (ref == null || ref.length == 0 ) throw new IllegalArgumentException("ref bytes input should be non-empty and non-null, got " + Arrays.toString(ref));
         if (refLoc == null || refLoc.size() != ref.length) throw new IllegalArgumentException(" refLoc must be non-null and length must match ref bytes, got "+refLoc);
-        if (activeRegionWindow == null ) throw new IllegalArgumentException("activeRegionWindow must be non-null, got "+activeRegionWindow);
-        if (activeAllelesToGenotype == null ) throw new IllegalArgumentException("activeAllelesToGenotype must be non-null, got "+activeAllelesToGenotype);
-        if (genomeLocParser == null ) throw new IllegalArgumentException("genomeLocParser must be non-null, got "+genomeLocParser);
+        if (activeRegionWindow == null ) throw new IllegalArgumentException("activeRegionWindow must be non-null");
+        if (activeAllelesToGenotype == null ) throw new IllegalArgumentException("activeAllelesToGenotype must be non-null");
+        if (genomeLocParser == null ) throw new IllegalArgumentException("genomeLocParser must be non-null");
 
         // update the haplotypes so we're ready to call, getting the ordered list of positions on the reference
         // that carry events among the haplotypes
-        final TreeSet<Integer> startPosKeySet = decomposeHaplotypesIntoVariantContexts(haplotypes, haplotypeReadMap, ref, refLoc, activeAllelesToGenotype);
+        final TreeSet<Integer> startPosKeySet = decomposeHaplotypesIntoVariantContexts(haplotypes, readLikelihoods, ref, refLoc, activeAllelesToGenotype);
 
         // Walk along each position in the key set and create each event to be outputted
         final Set<Haplotype> calledHaplotypes = new HashSet<>();
         final List<VariantContext> returnCalls = new ArrayList<>();
-        final Map<String, Double> emptyDownSamplingMap = new DefaultHashMap<>(0.0);
+        final int ploidy = configuration.genotypeArgs.samplePloidy;
+        final List<Allele> noCallAlleles = GATKVariantContextUtils.noCallAlleles(ploidy);
 
         for( final int loc : startPosKeySet ) {
             if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) { // genotyping an event inside this active region
@@ -221,22 +227,20 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
                 // Merge the event to find a common reference representation
 
-                VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList, GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED, GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
+                VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList,
+                        GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED,
+                        GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
 
-                final VariantContextBuilder vcb = new VariantContextBuilder(mergedVC);
+                if( mergedVC == null )
+                    continue;
 
-                if( mergedVC == null ) { continue; }
+
 
                 final GenotypeLikelihoodsCalculationModel.Model calculationModel = mergedVC.isSNP()
                         ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL;
 
-                if (emitReferenceConfidence) {
-                    final List<Allele> alleleList = new ArrayList<>();
-                    alleleList.addAll(mergedVC.getAlleles());
-                    alleleList.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
-                    vcb.alleles(alleleList);
-                    mergedVC = vcb.make();
-                }
+                if (emitReferenceConfidence)
+                    mergedVC = addNonRefSymbolicAllele(mergedVC);
 
                 final Map<VariantContext, Allele> mergeMap = new LinkedHashMap<>();
                 mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
@@ -250,22 +254,25 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                     if (logger != null) logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
                 }
 
-                final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = convertHaplotypeReadMapToAlleleReadMap(haplotypeReadMap, alleleMapper, configuration.getSampleContamination(), genomeLocParser, mergedVC);
+                ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper, genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC), ALLELE_EXTENSION));
+                if (configuration.isSampleContaminationPresent())
+                    readAlleleLikelihoods.contaminationDownsampling(configuration.getSampleContamination());
 
-                if (emitReferenceConfidence) addMiscellaneousAllele(alleleReadMap);
 
-                final GenotypesContext genotypes = calculateGLsForThisEvent( alleleReadMap, mergedVC );
-                final VariantContext call = calculateGenotypes(null, null, null, null, new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel, false, null);
+                if (emitReferenceConfidence)
+                    readAlleleLikelihoods.addNonReferenceAllele(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+
+                final GenotypesContext genotypes = calculateGLsForThisEvent( readAlleleLikelihoods, mergedVC, noCallAlleles );
+                final VariantContext call = calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel);
                 if( call != null ) {
-                    final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap_annotations = ( configuration.USE_FILTERED_READ_MAP_FOR_ANNOTATIONS ? alleleReadMap :
-                            convertHaplotypeReadMapToAlleleReadMap( haplotypeReadMap, alleleMapper, emptyDownSamplingMap, genomeLocParser, null ) );
-                    if (emitReferenceConfidence) addMiscellaneousAllele(alleleReadMap_annotations);
-                    final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap = addFilteredReadList(genomeLocParser, alleleReadMap_annotations, perSampleFilteredReadList, call, true);
 
-                    VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(tracker, stratifiedReadMap, call);
+                    readAlleleLikelihoods = prepareReadAlleleLikelihoodsForAnnotation(readLikelihoods, perSampleFilteredReadList,
+                            genomeLocParser, emitReferenceConfidence, alleleMapper, readAlleleLikelihoods, call);
+
+                    VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(tracker,readAlleleLikelihoods, call);
 
                     if( call.getAlleles().size() != mergedVC.getAlleles().size() )
-                        annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
+                       annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
 
                     // maintain the set of all called haplotypes
                     for ( final Allele calledAllele : call.getAlleles() ) {
@@ -279,67 +286,332 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             }
         }
 
-        return new CalledHaplotypes(returnCalls, calledHaplotypes);
+        final List<VariantContext> phasedCalls = doPhysicalPhasing ? phaseCalls(returnCalls, calledHaplotypes) : returnCalls;
+        return new CalledHaplotypes(phasedCalls, calledHaplotypes);
     }
 
     /**
-     * Add the <NON_REF> allele
-     * @param stratifiedReadMap target per-read-allele-likelihood-map.
+     * Tries to phase the individual alleles based on pairwise comparisons to the other alleles based on all called haplotypes
+     *
+     * @param calls             the list of called alleles
+     * @param calledHaplotypes  the set of haplotypes used for calling
+     * @return a non-null list which represents the possibly phased version of the calls
      */
-    public static Map<String, PerReadAlleleLikelihoodMap> addMiscellaneousAllele(final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
-        final Allele miscellanoeusAllele = GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE;
-        for (Map.Entry<String, PerReadAlleleLikelihoodMap> perSample : stratifiedReadMap.entrySet()) {
-            for (Map.Entry<GATKSAMRecord, Map<Allele, Double>> perRead : perSample.getValue().getLikelihoodReadMap().entrySet()) {
-                double bestLikelihood = Double.NEGATIVE_INFINITY;
-                double secondBestLikelihood = Double.NEGATIVE_INFINITY;
-                for (Map.Entry<Allele,Double> perAllele : perRead.getValue().entrySet()) {
-                    final double value = perAllele.getValue();
-                    if (value > bestLikelihood) {
-                        secondBestLikelihood = bestLikelihood;
-                        bestLikelihood = value;
-                    } else if (value < bestLikelihood && value > secondBestLikelihood) {
-                        secondBestLikelihood = value;
+    protected List<VariantContext> phaseCalls(final List<VariantContext> calls, final Set<Haplotype> calledHaplotypes) {
+
+        // construct a mapping from alternate allele to the set of haplotypes that contain that allele
+        final Map<VariantContext, Set<Haplotype>> haplotypeMap = constructHaplotypeMapping(calls, calledHaplotypes);
+
+        // construct a mapping from call to phase set ID
+        final Map<VariantContext, Pair<Integer, String>> phaseSetMapping = new HashMap<>();
+        final int uniqueCounterEndValue = constructPhaseSetMapping(calls, haplotypeMap, calledHaplotypes.size() - 1, phaseSetMapping);
+
+        // we want to establish (potential) *groups* of phased variants, so we need to be smart when looking at pairwise phasing partners
+        return constructPhaseGroups(calls, phaseSetMapping, uniqueCounterEndValue);
+    }
+
+    /**
+     * Construct the mapping from alternate allele to the set of haplotypes that contain that allele
+     *
+     * @param originalCalls    the original unphased calls
+     * @param calledHaplotypes  the set of haplotypes used for calling
+     * @return non-null Map
+     */
+    protected static Map<VariantContext, Set<Haplotype>> constructHaplotypeMapping(final List<VariantContext> originalCalls,
+                                                                                   final Set<Haplotype> calledHaplotypes) {
+        final Map<VariantContext, Set<Haplotype>> haplotypeMap = new HashMap<>(originalCalls.size());
+        for ( final VariantContext call : originalCalls ) {
+            // don't try to phase if there is not exactly 1 alternate allele
+            if ( ! isBiallelic(call) ) {
+                haplotypeMap.put(call, Collections.<Haplotype>emptySet());
+                continue;
+            }
+
+            // keep track of the haplotypes that contain this particular alternate allele
+            final Set<Haplotype> hapsWithAllele = new HashSet<>();
+            final Allele alt = call.getAlternateAllele(0);
+
+            for ( final Haplotype h : calledHaplotypes ) {
+                for ( final VariantContext event : h.getEventMap().getVariantContexts() ) {
+                    if ( event.getStart() == call.getStart() && event.getAlternateAlleles().contains(alt) )
+                        hapsWithAllele.add(h);
+                }
+            }
+            haplotypeMap.put(call, hapsWithAllele);
+        }
+
+        return haplotypeMap;
+    }
+
+
+    /**
+     * Construct the mapping from call (variant context) to phase set ID
+     *
+     * @param originalCalls    the original unphased calls
+     * @param haplotypeMap     mapping from alternate allele to the set of haplotypes that contain that allele
+     * @param totalAvailableHaplotypes the total number of possible haplotypes used in calling
+     * @param phaseSetMapping  the map to populate in this method;
+     *                         note that it is okay for this method NOT to populate the phaseSetMapping at all (e.g. in an impossible-to-phase situation)
+     * @return the next incremental unique index
+     */
+    protected static int constructPhaseSetMapping(final List<VariantContext> originalCalls,
+                                                  final Map<VariantContext, Set<Haplotype>> haplotypeMap,
+                                                  final int totalAvailableHaplotypes,
+                                                  final Map<VariantContext, Pair<Integer, String>> phaseSetMapping) {
+
+        final int numCalls = originalCalls.size();
+        int uniqueCounter = 0;
+
+        // use the haplotype mapping to connect variants that are always/never present on the same haplotypes
+        for ( int i = 0; i < numCalls - 1; i++ ) {
+            final VariantContext call = originalCalls.get(i);
+            final Set<Haplotype> haplotypesWithCall = haplotypeMap.get(call);
+            if ( haplotypesWithCall.isEmpty() )
+                continue;
+
+            final boolean callIsOnAllHaps = haplotypesWithCall.size() == totalAvailableHaplotypes;
+
+            for ( int j = i+1; j < numCalls; j++ ) {
+                final VariantContext comp = originalCalls.get(j);
+                final Set<Haplotype> haplotypesWithComp = haplotypeMap.get(comp);
+                if ( haplotypesWithComp.isEmpty() )
+                    continue;
+
+                // if the variants are together on all haplotypes, record that fact.
+                // another possibility is that one of the variants is on all possible haplotypes (i.e. it is homozygous).
+                final boolean compIsOnAllHaps = haplotypesWithComp.size() == totalAvailableHaplotypes;
+                if ( (haplotypesWithCall.size() == haplotypesWithComp.size() && haplotypesWithCall.containsAll(haplotypesWithComp)) || callIsOnAllHaps || compIsOnAllHaps ) {
+
+                    // create a new group if these are the first entries
+                    if ( ! phaseSetMapping.containsKey(call) ) {
+                        // note that if the comp is already in the map then that is very bad because it means that there is
+                        // another variant that is in phase with the comp but not with the call.  Since that's an un-phasable
+                        // situation, we should abort if we encounter it.
+                        if ( phaseSetMapping.containsKey(comp) ) {
+                            phaseSetMapping.clear();
+                            return 0;
+                        }
+
+                        // An important note: even for homozygous variants we are setting the phase as "0|1" here.
+                        // We do this because we cannot possibly know for sure at this time that the genotype for this
+                        // sample will actually be homozygous downstream: there are steps in the pipeline that are liable
+                        // to change the genotypes.  Because we can't make those assumptions here, we have decided to output
+                        // the phase as if the call is heterozygous and then "fix" it downstream as needed.
+                        phaseSetMapping.put(call, new Pair<>(uniqueCounter, phase01));
+                        phaseSetMapping.put(comp, new Pair<>(uniqueCounter, phase01));
+                        uniqueCounter++;
+                    }
+                    // otherwise it's part of an existing group so use that group's unique ID
+                    else if ( ! phaseSetMapping.containsKey(comp) ) {
+                        final Pair<Integer, String> callPhase = phaseSetMapping.get(call);
+                        phaseSetMapping.put(comp, new Pair<>(callPhase.first, callPhase.second));
                     }
                 }
-                final double miscellanousLikelihood = Double.isInfinite(secondBestLikelihood) ? bestLikelihood : secondBestLikelihood;
-                perSample.getValue().add(perRead.getKey(),miscellanoeusAllele,miscellanousLikelihood);
+                // if the variants are apart on *all* haplotypes, record that fact
+                else if ( haplotypesWithCall.size() + haplotypesWithComp.size() == totalAvailableHaplotypes ) {
+
+                    final Set<Haplotype> intersection = new HashSet<>();
+                    intersection.addAll(haplotypesWithCall);
+                    intersection.retainAll(haplotypesWithComp);
+                    if ( intersection.isEmpty() ) {
+                        // create a new group if these are the first entries
+                        if ( ! phaseSetMapping.containsKey(call) ) {
+                            // note that if the comp is already in the map then that is very bad because it means that there is
+                            // another variant that is in phase with the comp but not with the call.  Since that's an un-phasable
+                            // situation, we should abort if we encounter it.
+                            if ( phaseSetMapping.containsKey(comp) ) {
+                                phaseSetMapping.clear();
+                                return 0;
+                            }
+
+                            phaseSetMapping.put(call, new Pair<>(uniqueCounter, phase01));
+                            phaseSetMapping.put(comp, new Pair<>(uniqueCounter, phase10));
+                            uniqueCounter++;
+                        }
+                        // otherwise it's part of an existing group so use that group's unique ID
+                        else if ( ! phaseSetMapping.containsKey(comp) ){
+                            final Pair<Integer, String> callPhase = phaseSetMapping.get(call);
+                            phaseSetMapping.put(comp, new Pair<>(callPhase.first, callPhase.second.equals(phase01) ? phase10 : phase01));
+                        }
+                    }
+                }
             }
         }
-        return stratifiedReadMap;
+
+        return uniqueCounter;
+    }
+
+    /**
+     * Assemble the phase groups together and update the original calls accordingly
+     *
+     * @param originalCalls    the original unphased calls
+     * @param phaseSetMapping  mapping from call (variant context) to phase group ID
+     * @param indexTo          last index (exclusive) of phase group IDs
+     * @return a non-null list which represents the possibly phased version of the calls
+     */
+    protected static List<VariantContext> constructPhaseGroups(final List<VariantContext> originalCalls,
+                                                               final Map<VariantContext, Pair<Integer, String>> phaseSetMapping,
+                                                               final int indexTo) {
+        final List<VariantContext> phasedCalls = new ArrayList<>(originalCalls);
+
+        // if we managed to find any phased groups, update the VariantContexts
+        for ( int count = 0; count < indexTo; count++ ) {
+            // get all of the (indexes of the) calls that belong in this group (keeping them in the original order)
+            final List<Integer> indexes = new ArrayList<>();
+            for ( int index = 0; index < originalCalls.size(); index++ ) {
+                final VariantContext call = originalCalls.get(index);
+                if ( phaseSetMapping.containsKey(call) && phaseSetMapping.get(call).first == count )
+                    indexes.add(index);
+            }
+            if ( indexes.size() < 2 )
+                throw new IllegalStateException("Somehow we have a group of phased variants that has fewer than 2 members");
+
+            // create a unique ID based on the leftmost one
+            final String uniqueID = createUniqueID(originalCalls.get(indexes.get(0)));
+
+            // update the VCs
+            for ( final int index : indexes ) {
+                final VariantContext originalCall = originalCalls.get(index);
+                final VariantContext phasedCall = phaseVC(originalCall, uniqueID, phaseSetMapping.get(originalCall).second);
+                phasedCalls.set(index, phasedCall);
+            }
+        }
+
+        return phasedCalls;
+    }
+
+    /**
+     * Is this variant bi-allelic?  This implementation is very much specific to this class so shouldn't be pulled out into a generalized place.
+     *
+     * @param vc the variant context
+     * @return true if this variant context is bi-allelic, ignoring the NON-REF symbolic allele, false otherwise
+     */
+    private static boolean isBiallelic(final VariantContext vc) {
+        return vc.isBiallelic() || (vc.getNAlleles() == 3 && vc.getAlternateAlleles().contains(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE));
+    }
+
+    /**
+     * Create a unique identifier given the variant context
+     *
+     * @param vc   the variant context
+     * @return non-null String
+     */
+    private static String createUniqueID(final VariantContext vc) {
+        return String.format("%d_%s_%s", vc.getStart(), vc.getReference().getDisplayString(), vc.getAlternateAllele(0).getDisplayString());
+        // return base + "_0," + base + "_1";
+    }
+
+    /**
+     * Add physical phase information to the provided variant context
+     *
+     * @param vc   the variant context
+     * @param ID   the ID to use
+     * @param phaseGT the phase GT string to use
+     * @return phased non-null variant context
+     */
+    private static VariantContext phaseVC(final VariantContext vc, final String ID, final String phaseGT) {
+        final List<Genotype> phasedGenotypes = new ArrayList<>();
+        for ( final Genotype g : vc.getGenotypes() )
+            phasedGenotypes.add(new GenotypeBuilder(g).attribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_ID_KEY, ID).attribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY, phaseGT).make());
+        return new VariantContextBuilder(vc).genotypes(phasedGenotypes).make();
+    }
+
+    private VariantContext addNonRefSymbolicAllele(final VariantContext mergedVC) {
+        final VariantContextBuilder vcb = new VariantContextBuilder(mergedVC);
+        final List<Allele> originalList = mergedVC.getAlleles();
+        final List<Allele> alleleList = new ArrayList<>(originalList.size() + 1);
+        alleleList.addAll(mergedVC.getAlleles());
+        alleleList.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        vcb.alleles(alleleList);
+        return vcb.make();
+    }
+
+    // Builds the read-likelihoods collection to use for annotation considering user arguments and the collection
+    // used for genotyping.
+    private ReadLikelihoods<Allele> prepareReadAlleleLikelihoodsForAnnotation(
+            final ReadLikelihoods<Haplotype> readHaplotypeLikelihoods,
+            final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
+            final GenomeLocParser genomeLocParser,
+            final boolean emitReferenceConfidence,
+            final Map<Allele, List<Haplotype>> alleleMapper,
+            final ReadLikelihoods<Allele> readAlleleLikelihoodsForGenotyping,
+            final VariantContext call) {
+
+        final ReadLikelihoods<Allele> readAlleleLikelihoodsForAnnotations;
+        final GenomeLoc loc = genomeLocParser.createGenomeLoc(call);
+
+        // We can reuse for annotation the likelihood for genotyping as long as there is no contamination filtering
+        // or the user want to use the contamination filtered set for annotations.
+        // Otherwise (else part) we need to do it again.
+        if (configuration.USE_FILTERED_READ_MAP_FOR_ANNOTATIONS || !configuration.isSampleContaminationPresent()) {
+            readAlleleLikelihoodsForAnnotations = readAlleleLikelihoodsForGenotyping;
+            readAlleleLikelihoodsForAnnotations.filterToOnlyOverlappingUnclippedReads(loc);
+        } else {
+            readAlleleLikelihoodsForAnnotations = readHaplotypeLikelihoods.marginalize(alleleMapper, loc);
+            if (emitReferenceConfidence)
+                readAlleleLikelihoodsForAnnotations.addNonReferenceAllele(
+                        GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        }
+
+        // Skim the filtered map based on the location so that we do not add filtered read that are going to be removed
+        // right after a few lines of code bellow.
+        final Map<String, List<GATKSAMRecord>> overlappingFilteredReads = overlappingFilteredReads(perSampleFilteredReadList, loc);
+
+        readAlleleLikelihoodsForAnnotations.addReads(overlappingFilteredReads,0);
+
+        return readAlleleLikelihoodsForAnnotations;
+    }
+
+
+    private Map<String, List<GATKSAMRecord>> overlappingFilteredReads(final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList, final GenomeLoc loc) {
+        final Map<String,List<GATKSAMRecord>> overlappingFilteredReads = new HashMap<>(perSampleFilteredReadList.size());
+
+        for (final Map.Entry<String,List<GATKSAMRecord>> sampleEntry : perSampleFilteredReadList.entrySet()) {
+            final List<GATKSAMRecord> originalList = sampleEntry.getValue();
+            final String sample = sampleEntry.getKey();
+            if (originalList == null || originalList.size() == 0)
+                continue;
+            final List<GATKSAMRecord> newList = new ArrayList<>(originalList.size());
+            for (final GATKSAMRecord read : originalList) {
+                if (ReadLikelihoods.unclippedReadOverlapsRegion(read, loc))
+                    newList.add(read);
+            }
+            if (newList.size() == 0)
+                continue;
+            overlappingFilteredReads.put(sample,newList);
+        }
+        return overlappingFilteredReads;
     }
 
     /**
      * Go through the haplotypes we assembled, and decompose them into their constituent variant contexts
      *
      * @param haplotypes the list of haplotypes we're working with
-     * @param haplotypeReadMap map from samples -> the per read allele likelihoods
+     * @param readLikelihoods map from samples -> the per read allele likelihoods
      * @param ref the reference bases (over the same interval as the haplotypes)
      * @param refLoc the span of the reference bases
      * @param activeAllelesToGenotype alleles we want to ensure are scheduled for genotyping (GGA mode)
      * @return never {@code null} but perhaps an empty list if there is no variants to report.
      */
     private TreeSet<Integer> decomposeHaplotypesIntoVariantContexts(final List<Haplotype> haplotypes,
-                                                                    final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
+                                                                    final ReadLikelihoods readLikelihoods,
                                                                     final byte[] ref,
                                                                     final GenomeLoc refLoc,
                                                                     final List<VariantContext> activeAllelesToGenotype) {
         final boolean in_GGA_mode = !activeAllelesToGenotype.isEmpty();
 
-        // Using the cigar from each called haplotype to figure out what events need to be written out in a VCF file
+        // Using the cigar from each called haplotype figure out what events need to be written out in a VCF file
         final TreeSet<Integer> startPosKeySet = EventMap.buildEventMapsForHaplotypes(haplotypes, ref, refLoc, configuration.DEBUG);
 
-        if ( in_GGA_mode ) startPosKeySet.clear();
-
-        //cleanUpSymbolicUnassembledEvents( haplotypes ); // We don't make symbolic alleles so this isn't needed currently
         if ( !in_GGA_mode ) {
             // run the event merger if we're not in GGA mode
             if (crossHaplotypeEventMerger == null)
                 throw new IllegalStateException(" no variant merger was provided at set-up when needed in GGA mode");
-            final boolean mergedAnything = crossHaplotypeEventMerger.merge(haplotypes, haplotypeReadMap, startPosKeySet, ref, refLoc);
+            final boolean mergedAnything = crossHaplotypeEventMerger.merge(haplotypes, readLikelihoods, startPosKeySet, ref, refLoc);
             if ( mergedAnything )
                 cleanUpSymbolicUnassembledEvents( haplotypes ); // the newly created merged events could be overlapping the unassembled events
-        }
-        else {
+        } else {
+            startPosKeySet.clear();
             for( final VariantContext compVC : activeAllelesToGenotype ) {
                 startPosKeySet.add( compVC.getStart() );
             }
@@ -406,63 +678,21 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     /**
      * For a particular event described in inputVC, form PL vector for each sample by looking into allele read map and filling likelihood matrix for each allele
-     * @param alleleReadMap          Allele map describing mapping from reads to alleles and corresponding likelihoods
+     * @param readLikelihoods          Allele map describing mapping from reads to alleles and corresponding likelihoods
      * @param mergedVC               Input VC with event to genotype
      * @return                       GenotypesContext object wrapping genotype objects with PLs
      */
-    @Requires({"alleleReadMap!= null", "mergedVC != null"})
+    @Requires({"readLikelihoods!= null", "mergedVC != null"})
     @Ensures("result != null")
-    private GenotypesContext calculateGLsForThisEvent( final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap, final VariantContext mergedVC ) {
-        final GenotypesContext genotypes = GenotypesContext.create(alleleReadMap.size());
-        // Grab the genotype likelihoods from the appropriate places in the haplotype likelihood matrix -- calculation performed independently per sample
-        for( final String sample : alleleReadMap.keySet() ) {
-            final int numHaplotypes = mergedVC.getAlleles().size();
-            final double[] genotypeLikelihoods = new double[numHaplotypes * (numHaplotypes+1) / 2];
-            final double[][] haplotypeLikelihoodMatrix = PairHMMLikelihoodCalculationEngine.computeDiploidHaplotypeLikelihoods(sample, alleleReadMap, mergedVC.getAlleles(), true);
-            int glIndex = 0;
-            for( int iii = 0; iii < numHaplotypes; iii++ ) {
-                for( int jjj = 0; jjj <= iii; jjj++ ) {
-                    genotypeLikelihoods[glIndex++] = haplotypeLikelihoodMatrix[iii][jjj]; // for example: AA,AB,BB,AC,BC,CC
-                }
-            }
-            genotypes.add(new GenotypeBuilder(sample).alleles(NO_CALL).PL(genotypeLikelihoods).make());
-        }
-        return genotypes;
-    }
-
-    private static Map<String, PerReadAlleleLikelihoodMap> addFilteredReadList(final GenomeLocParser parser,
-                                                                               final Map<String, PerReadAlleleLikelihoodMap> perSampleReadMap,
-                                                                               final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
-                                                                               final VariantContext call,
-                                                                               final boolean requireOverlap) {
-
-        final Map<String, PerReadAlleleLikelihoodMap> returnMap = new LinkedHashMap<>();
-        final GenomeLoc callLoc = ( requireOverlap ? parser.createGenomeLoc(call) : null );
-        for( final Map.Entry<String, PerReadAlleleLikelihoodMap> sample : perSampleReadMap.entrySet() ) {
-            final PerReadAlleleLikelihoodMap likelihoodMap = new PerReadAlleleLikelihoodMap();
-
-            for( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> mapEntry : sample.getValue().getLikelihoodReadMap().entrySet() ) {
-                // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
-                if( !requireOverlap || callLoc.overlapsP(parser.createGenomeLocUnclipped(mapEntry.getKey())) ) {
-                    for( final Map.Entry<Allele,Double> alleleDoubleEntry : mapEntry.getValue().entrySet() ) {
-                        likelihoodMap.add(mapEntry.getKey(), alleleDoubleEntry.getKey(), alleleDoubleEntry.getValue());
-                    }
-                }
-            }
-
-            // add all filtered reads to the NO_CALL list because they weren't given any likelihoods
-            for( final GATKSAMRecord read : perSampleFilteredReadList.get(sample.getKey()) ) {
-                // only count the read if it overlaps the event, otherwise it is not added to the output read list at all
-                if( !requireOverlap || callLoc.overlapsP(parser.createGenomeLocUnclipped(read)) ) {
-                    for( final Allele allele : call.getAlleles() ) {
-                        likelihoodMap.add(read, allele, 0.0);
-                    }
-                }
-            }
-
-            returnMap.put(sample.getKey(), likelihoodMap);
-        }
-        return returnMap;
+    private GenotypesContext calculateGLsForThisEvent( final ReadLikelihoods<Allele> readLikelihoods, final VariantContext mergedVC, final List<Allele> noCallAlleles ) {
+        final List<Allele> vcAlleles = mergedVC.getAlleles();
+        final AlleleList<Allele> alleleList = readLikelihoods.alleleCount() == vcAlleles.size() ? readLikelihoods : new IndexedAlleleList<>(vcAlleles);
+        final GenotypingLikelihoods<Allele> likelihoods = genotypingModel.calculateLikelihoods(alleleList,new GenotypingData<>(ploidyModel,readLikelihoods));
+        final int sampleCount = samples.sampleCount();
+        final GenotypesContext result = GenotypesContext.create(sampleCount);
+        for (int s = 0; s < sampleCount; s++)
+            result.add(new GenotypeBuilder(samples.sampleAt(s)).alleles(noCallAlleles).PL(likelihoods.sampleLikelihoods(s).getAsPLs()).make());
+        return result;
     }
 
     /**
@@ -490,48 +720,6 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         haplotypes.removeAll(haplotypesToRemove);
     }
 
-    /**
-     * The reads, partioned by haplotype, must now be partioned by alleles.
-     * That is, some alleles are supported by multiple haplotypes and we marginalize over them by taking the max likelihood.
-     * In addition we subset down to only reads which overlap the alleles (plus a small extension)
-     * @param haplotypeReadMap                  Map from reads -> (haplotypes, likelihoods)
-     * @param alleleMapper                      Map from alleles -> list of haplotypes which support that allele
-     * @param perSampleDownsamplingFraction     Map from samples -> downsampling fraction
-     * @param genomeLocParser                   a genome loc parser
-     * @param eventsToGenotype                  the alleles to genotype in a single VariantContext, will be null if we don't want to require overlap
-     * @return                                  Map from reads -> (alleles, likelihoods)
-     */
-    protected Map<String, PerReadAlleleLikelihoodMap> convertHaplotypeReadMapToAlleleReadMap( final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
-                                                                                              final Map<Allele, List<Haplotype>> alleleMapper,
-                                                                                              final Map<String,Double> perSampleDownsamplingFraction,
-                                                                                              final GenomeLocParser genomeLocParser,
-                                                                                              final VariantContext eventsToGenotype) {
-        final GenomeLoc callLoc = ( eventsToGenotype != null ? genomeLocParser.createGenomeLoc(eventsToGenotype) : null );
-
-        final Map<String, PerReadAlleleLikelihoodMap> alleleReadMap = new LinkedHashMap<>();
-        for( final Map.Entry<String, PerReadAlleleLikelihoodMap> haplotypeReadMapEntry : haplotypeReadMap.entrySet() ) { // for each sample
-            final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap = new PerReadAlleleLikelihoodMap();
-            for( final Map.Entry<Allele, List<Haplotype>> alleleMapperEntry : alleleMapper.entrySet() ) { // for each output allele
-                final List<Haplotype> mappedHaplotypes = alleleMapperEntry.getValue();
-                for( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> readEntry : haplotypeReadMapEntry.getValue().getLikelihoodReadMap().entrySet() ) { // for each read
-                    if( eventsToGenotype == null || callLoc.overlapsP(genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLocUnclipped(readEntry.getKey()), ALLELE_EXTENSION)) ) { // make sure the read overlaps
-                        double maxLikelihood = Double.NEGATIVE_INFINITY;
-                        for( final Map.Entry<Allele,Double> alleleDoubleEntry : readEntry.getValue().entrySet() ) { // for each input allele
-                            if( mappedHaplotypes.contains( new Haplotype(alleleDoubleEntry.getKey())) ) { // exact match of haplotype base string
-                                maxLikelihood = Math.max( maxLikelihood, alleleDoubleEntry.getValue() );
-                            }
-                        }
-                        perReadAlleleLikelihoodMap.add(readEntry.getKey(), alleleMapperEntry.getKey(), maxLikelihood);
-                    }
-                }
-            }
-            perReadAlleleLikelihoodMap.performPerAlleleDownsampling(perSampleDownsamplingFraction.get(haplotypeReadMapEntry.getKey())); // perform contamination downsampling
-            alleleReadMap.put(haplotypeReadMapEntry.getKey(), perReadAlleleLikelihoodMap);
-        }
-
-        return alleleReadMap;
-    }
-
     protected static Map<Allele, List<Haplotype>> createAlleleMapper( final Map<VariantContext, Allele> mergeMap, final Map<Event, List<Haplotype>> eventMap ) {
         final Map<Allele, List<Haplotype>> alleleMapper = new LinkedHashMap<>();
         for( final Map.Entry<VariantContext, Allele> entry : mergeMap.entrySet() ) {
@@ -542,7 +730,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     @Requires({"haplotypes.size() >= eventsAtThisLoc.size() + 1"})
     @Ensures({"result.size() == eventsAtThisLoc.size() + 1"})
-    protected static Map<Event, List<Haplotype>> createEventMapper( final int loc, final List<VariantContext> eventsAtThisLoc, final List<Haplotype> haplotypes ) {
+    protected static Map<Event, List<Haplotype>> createEventMapper( final int loc, final List<VariantContext> eventsAtThisLoc, final List<Haplotype> haplotypes) {
 
         final Map<Event, List<Haplotype>> eventMapper = new LinkedHashMap<>(eventsAtThisLoc.size()+1);
         final Event refEvent = new Event(null);
@@ -565,23 +753,6 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         }
 
         return eventMapper;
-    }
-
-    @Ensures({"result.size() == haplotypeAllelesForSample.size()"})
-    protected static List<Allele> findEventAllelesInSample( final List<Allele> eventAlleles, final List<Allele> haplotypeAlleles, final List<Allele> haplotypeAllelesForSample, final List<List<Haplotype>> alleleMapper, final List<Haplotype> haplotypes ) {
-        if( haplotypeAllelesForSample.contains(Allele.NO_CALL) ) { return NO_CALL; }
-        final List<Allele> eventAllelesForSample = new ArrayList<>();
-        for( final Allele a : haplotypeAllelesForSample ) {
-            final Haplotype haplotype = haplotypes.get(haplotypeAlleles.indexOf(a));
-            for( int iii = 0; iii < alleleMapper.size(); iii++ ) {
-                final List<Haplotype> mappedHaplotypes = alleleMapper.get(iii);
-                if( mappedHaplotypes.contains(haplotype) ) {
-                    eventAllelesForSample.add(eventAlleles.get(iii));
-                    break;
-                }
-            }
-        }
-        return eventAllelesForSample;
     }
 
     @Deprecated
@@ -614,5 +785,23 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         public int hashCode() {
             return (vc == null ? -1 : vc.getAlleles().hashCode());
         }
+    }
+
+    /**
+     * Returns the ploidy-model used by this genotyping engine.
+     *
+     * @return never {@code null}.
+     */
+    public PloidyModel getPloidyModel() {
+        return ploidyModel;
+    }
+
+    /**
+     * Returns the genotyping-model used by this genotyping engine.
+     *
+     * @return never {@code null}.
+     */
+    public GenotypingModel getGenotypingModel() {
+        return genotypingModel;
     }
 }

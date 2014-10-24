@@ -1,56 +1,63 @@
 /*
-*  By downloading the PROGRAM you agree to the following terms of use:
-*
-*  BROAD INSTITUTE - SOFTWARE LICENSE AGREEMENT - FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
-*
-*  This Agreement is made between the Broad Institute, Inc. with a principal address at 7 Cambridge Center, Cambridge, MA 02142 (BROAD) and the LICENSEE and is effective at the date the downloading is completed (EFFECTIVE DATE).
-*
-*  WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
-*  WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
-*  NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
-*
-*  1. DEFINITIONS
-*  1.1 PROGRAM shall mean copyright in the object code and source code known as GATK2 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute/GATK on the EFFECTIVE DATE.
-*
-*  2. LICENSE
-*  2.1   Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM.
-*  The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only.  For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
-*  2.2  No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD.  LICENSEE shall ensure that all of its users agree to the terms of this Agreement.  LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
-*  2.3  License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
-*
-*  3. OWNERSHIP OF INTELLECTUAL PROPERTY
-*  LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies.  LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-*  Copyright 2012 Broad Institute, Inc.
-*  Notice of attribution:  The GATK2 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
-*  LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
-*
-*  4. INDEMNIFICATION
-*  LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
-*
-*  5. NO REPRESENTATIONS OR WARRANTIES
-*  THE PROGRAM IS DELIVERED AS IS.  BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
-*  IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
-*
-*  6. ASSIGNMENT
-*  This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
-*
-*  7. MISCELLANEOUS
-*  7.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
-*  7.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
-*  7.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
-*  7.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested.  All notices under this Agreement shall be deemed effective upon receipt.
-*  7.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter.
-*  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
-*  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+* By downloading the PROGRAM you agree to the following terms of use:
+* 
+* BROAD INSTITUTE
+* SOFTWARE LICENSE AGREEMENT
+* FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+* 
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* 
+* WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+* WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+* NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+* 
+* 1. DEFINITIONS
+* 1.1 PROGRAM shall mean copyright in the object code and source code known as GATK3 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute.org/gatk on the EFFECTIVE DATE.
+* 
+* 2. LICENSE
+* 2.1 Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. LICENSEE hereby automatically grants to BROAD a non-exclusive, royalty-free, irrevocable license to any LICENSEE bug fixes or modifications to the PROGRAM with unlimited rights to sublicense and/or distribute.  LICENSEE agrees to provide any such modifications and bug fixes to BROAD promptly upon their creation.
+* The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only. For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+* 2.2 No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD. LICENSEE shall ensure that all of its users agree to the terms of this Agreement. LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+* 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
+* 
+* 3. PHONE-HOME FEATURE
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* 
+* 4. OWNERSHIP OF INTELLECTUAL PROPERTY
+* LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+* Copyright 2012-2014 Broad Institute, Inc.
+* Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+* LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+* 
+* 5. INDEMNIFICATION
+* LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+* 
+* 6. NO REPRESENTATIONS OR WARRANTIES
+* THE PROGRAM IS DELIVERED AS IS. BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+* IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+* 
+* 7. ASSIGNMENT
+* This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+* 
+* 8. MISCELLANEOUS
+* 8.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+* 8.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+* 8.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+* 8.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested. All notices under this Agreement shall be deemed effective upon receipt.
+* 8.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter.
+* 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+* 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
-import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
-import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
-import org.broadinstitute.gatk.utils.commandline.*;
+import htsjdk.variant.variantcontext.*;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
+import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
@@ -60,17 +67,17 @@ import org.broadinstitute.gatk.engine.walkers.TreeReducible;
 import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedArgumentCollection;
-import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
+import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.GeneralPloidyFailOverAFCalculatorProvider;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.utils.variant.ReferenceConfidenceVariantContextMerger;
 
 import java.util.*;
 
@@ -111,6 +118,7 @@ import java.util.*;
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 @Reference(window=@Window(start=-10,stop=10))
+@SuppressWarnings("unused")
 public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
 
     /**
@@ -133,8 +141,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * Which annotations to recompute for the combined output VCF file.
      */
     @Advanced
-    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute", required=false)
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "GenotypeSummaries"}));
+    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute.  The single value 'none' removes the default annotations", required=false)
+    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "GenotypeSummaries", "StrandOddsRatio"}));
 
     /**
      * The rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate. Note that dbSNP is not used in any way for the calculations themselves.
@@ -159,28 +167,29 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
             variants.addAll(variantCollection.getRodBindings());
 
-        final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit(), variants);
-        final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
+        final GenomeAnalysisEngine toolkit = getToolkit();
+        final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(toolkit, variants);
+        final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE));
         // create the genotyping engine
-        genotypingEngine = new UnifiedGenotypingEngine(getToolkit(), createUAC(), samples);
+        genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
+                toolkit.getArguments().BAQMode);
         // create the annotation engine
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, getToolkit());
+        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, toolkit);
 
         // take care of the VCF headers
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
         headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
         headerLines.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
         // add the pool values for each genotype
-        if (genotypeArgs.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY) {
-            headerLines.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Integer, "Maximum likelihood expectation (MLE) for the alternate allele count, in the same order as listed, for each individual sample"));
-            headerLines.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Maximum likelihood expectation (MLE) for the alternate allele fraction, in the same order as listed, for each individual sample"));
-        }
         VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.MLE_ALLELE_COUNT_KEY, VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
             VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
-        final VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
+        final Set<String> sampleNameSet = SampleListUtils.asSet(samples);
+        final VCFHeader vcfHeader = new VCFHeader(headerLines, sampleNameSet);
         vcfWriter.writeHeader(vcfHeader);
+
+        logger.info("Notice that the -ploidy parameter is ignored in " + getClass().getSimpleName() + " tool as this is automatically determined by the input variant files");
     }
 
     public VariantContext map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
@@ -188,10 +197,9 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             return null;
 
         final GenomeLoc loc = ref.getLocus();
-        final VariantContext combinedVC = GATKVariantContextUtils.referenceConfidenceMerge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
+        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
         if ( combinedVC == null )
             return null;
-
         return regenotypeVC(tracker, ref, combinedVC);
     }
 
@@ -211,19 +219,14 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         // only re-genotype polymorphic sites
         if ( result.isVariant() ) {
             VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
-            if ( regenotypedVC == null )
-                return null;
-
-            regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
-
-            // we want to carry forward the attributes from the original VC but make sure to add the MLE-based annotations
-            final Map<String, Object> attrs = new HashMap<>(originalVC.getAttributes());
-            attrs.put(VCFConstants.MLE_ALLELE_COUNT_KEY, regenotypedVC.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
-            attrs.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, regenotypedVC.getAttribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY));
-            if (regenotypedVC.hasAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY))
-                attrs.put(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, regenotypedVC.getAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY));
-
-            result = new VariantContextBuilder(regenotypedVC).attributes(attrs).make();
+            if ( regenotypedVC == null) {
+                if (!INCLUDE_NON_VARIANTS)
+                    return null;
+            }
+            else {
+                regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
+                result = addGenotypingAnnotations(originalVC.getAttributes(), regenotypedVC);
+            }
         }
 
         // if it turned monomorphic then we either need to ignore or fix such sites
@@ -234,18 +237,47 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             createRefGTs = true;
         }
 
-        // re-annotate it
-        result = annotationEngine.annotateContext(tracker, ref, null, result);
+        // Re-annotate and fix/remove some of the original annotations.
+        // Note that the order of these actions matters and is different for polymorphic and monomorphic sites.
+        // For polymorphic sites we need to make sure e.g. the SB tag is sent to the annotation engine and then removed later.
+        // For monomorphic sites we need to make sure e.g. the hom ref genotypes are created and only then are passed to the annotation engine.
+        // We could theoretically make 2 passes to re-create the genotypes, but that gets extremely expensive with large sample sizes.
+        if ( createRefGTs ) {
+            result = new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, true)).make();
+            result = annotationEngine.annotateContext(tracker, ref, null, result);
+        } else {
+            result = annotationEngine.annotateContext(tracker, ref, null, result);
+            result = new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, false)).make();
+        }
 
-        // fix some of the annotations
-        return new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, createRefGTs)).make();
+        return result;
     }
+
+    /**
+     * Add genotyping-based annotations to the new VC
+     *
+     * @param originalAttributes the non-null annotations from the original VC
+     * @param newVC the new non-null VC
+     * @return a non-null VC
+     */
+    private VariantContext addGenotypingAnnotations(final Map<String, Object> originalAttributes, final VariantContext newVC) {
+        // we want to carry forward the attributes from the original VC but make sure to add the MLE-based annotations
+        final Map<String, Object> attrs = new HashMap<>(originalAttributes);
+        attrs.put(VCFConstants.MLE_ALLELE_COUNT_KEY, newVC.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
+        attrs.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, newVC.getAttribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+        if (newVC.hasAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY))
+            attrs.put(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, newVC.getAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY));
+
+        return new VariantContextBuilder(newVC).attributes(attrs).make();
+    }
+
 
     /**
      * Cleans up genotype-level annotations that need to be updated.
      * 1. move MIN_DP to DP if present
      * 2. propagate DP to AD if not present
      * 3. remove SB if present
+     * 4. change the PGT value from "0|1" to "1|1" for homozygous variant genotypes
      *
      * @param VC            the VariantContext with the Genotypes to fix
      * @param createRefGTs  if true we will also create proper hom ref genotypes since we assume the site is monomorphic
@@ -270,6 +302,11 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             // remove SB
             attrs.remove("SB");
 
+            // update PGT for hom vars
+            if ( oldGT.isHomVar() && oldGT.hasExtendedAttribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY) ) {
+                attrs.put(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY, "1|1");
+            }
+
             // create AD if it's not there
             if ( !oldGT.hasAD() && VC.isVariant() ) {
                 final int[] AD = new int[VC.getNAlleles()];
@@ -279,10 +316,12 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
             if ( createRefGTs ) {
                 final int ploidy = oldGT.getPloidy();
-                final List<Allele> refAlleles = new ArrayList<>(ploidy);
-                for ( int i = 0; i < ploidy; i++ )
-                    refAlleles.add(VC.getReference());
-                builder.alleles(refAlleles);
+                final List<Allele> refAlleles = Collections.nCopies(ploidy,VC.getReference());
+
+                //keep 0 depth samples as no-call
+                if (depth > 0) {
+                    builder.alleles(refAlleles);
+                }
 
                 // also, the PLs are technically no longer usable
                 builder.noPL();

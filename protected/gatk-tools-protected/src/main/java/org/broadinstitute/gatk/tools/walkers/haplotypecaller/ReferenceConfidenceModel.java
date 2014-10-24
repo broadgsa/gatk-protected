@@ -1,59 +1,68 @@
 /*
-*  By downloading the PROGRAM you agree to the following terms of use:
-*  
-*  BROAD INSTITUTE - SOFTWARE LICENSE AGREEMENT - FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
-*  
-*  This Agreement is made between the Broad Institute, Inc. with a principal address at 7 Cambridge Center, Cambridge, MA 02142 (BROAD) and the LICENSEE and is effective at the date the downloading is completed (EFFECTIVE DATE).
-*  
-*  WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
-*  WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
-*  NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
-*  
-*  1. DEFINITIONS
-*  1.1 PROGRAM shall mean copyright in the object code and source code known as GATK2 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute/GATK on the EFFECTIVE DATE.
-*  
-*  2. LICENSE
-*  2.1   Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. 
-*  The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only.  For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
-*  2.2  No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD.  LICENSEE shall ensure that all of its users agree to the terms of this Agreement.  LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
-*  2.3  License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.  
-*  
-*  3. OWNERSHIP OF INTELLECTUAL PROPERTY 
-*  LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies.  LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-*  Copyright 2012 Broad Institute, Inc.
-*  Notice of attribution:  The GATK2 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
-*  LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
-*  
-*  4. INDEMNIFICATION
-*  LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
-*  
-*  5. NO REPRESENTATIONS OR WARRANTIES
-*  THE PROGRAM IS DELIVERED AS IS.  BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
-*  IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
-*  
-*  6. ASSIGNMENT
-*  This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
-*  
-*  7. MISCELLANEOUS
-*  7.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
-*  7.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
-*  7.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
-*  7.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested.  All notices under this Agreement shall be deemed effective upon receipt. 
-*  7.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter. 
-*  7.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
-*  7.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+* By downloading the PROGRAM you agree to the following terms of use:
+* 
+* BROAD INSTITUTE
+* SOFTWARE LICENSE AGREEMENT
+* FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+* 
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* 
+* WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+* WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+* NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+* 
+* 1. DEFINITIONS
+* 1.1 PROGRAM shall mean copyright in the object code and source code known as GATK3 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute.org/gatk on the EFFECTIVE DATE.
+* 
+* 2. LICENSE
+* 2.1 Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. LICENSEE hereby automatically grants to BROAD a non-exclusive, royalty-free, irrevocable license to any LICENSEE bug fixes or modifications to the PROGRAM with unlimited rights to sublicense and/or distribute.  LICENSEE agrees to provide any such modifications and bug fixes to BROAD promptly upon their creation.
+* The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only. For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+* 2.2 No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD. LICENSEE shall ensure that all of its users agree to the terms of this Agreement. LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+* 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
+* 
+* 3. PHONE-HOME FEATURE
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* 
+* 4. OWNERSHIP OF INTELLECTUAL PROPERTY
+* LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+* Copyright 2012-2014 Broad Institute, Inc.
+* Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+* LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+* 
+* 5. INDEMNIFICATION
+* LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+* 
+* 6. NO REPRESENTATIONS OR WARRANTIES
+* THE PROGRAM IS DELIVERED AS IS. BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+* IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+* 
+* 7. ASSIGNMENT
+* This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+* 
+* 8. MISCELLANEOUS
+* 8.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+* 8.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+* 8.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+* 8.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested. All notices under this Agreement shall be deemed effective upon receipt.
+* 8.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter.
+* 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+* 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.samtools.*;
+import htsjdk.variant.variantcontext.*;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFSimpleHeaderLine;
 import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.locusiterator.LocusIteratorByState;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
@@ -62,9 +71,6 @@ import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFSimpleHeaderLine;
 
 import java.io.File;
 import java.util.*;
@@ -85,7 +91,8 @@ public class ReferenceConfidenceModel {
     public final static String ALTERNATE_ALLELE_STRING = "ALT"; // arbitrary alternate allele
 
     private final GenomeLocParser genomeLocParser;
-    private final Set<String> samples;
+
+    private final SampleList samples;
     private final int indelInformativeDepthIndelSize;
 
     private final static boolean WRITE_DEBUGGING_BAM = false;
@@ -102,12 +109,12 @@ public class ReferenceConfidenceModel {
      * @param indelInformativeDepthIndelSize the max size of indels to consider when calculating indel informative depths
      */
     public ReferenceConfidenceModel(final GenomeLocParser genomeLocParser,
-                                    final Set<String> samples,
+                                    final SampleList samples,
                                     final SAMFileHeader header,
                                     final int indelInformativeDepthIndelSize) {
         if ( genomeLocParser == null ) throw new IllegalArgumentException("genomeLocParser cannot be null");
         if ( samples == null ) throw new IllegalArgumentException("samples cannot be null");
-        if ( samples.isEmpty() ) throw new IllegalArgumentException("samples cannot be empty");
+        if ( samples.sampleCount() == 0) throw new IllegalArgumentException("samples cannot be empty");
         if ( header == null ) throw new IllegalArgumentException("header cannot be empty");
         if ( indelInformativeDepthIndelSize < 0) throw new IllegalArgumentException("indelInformativeDepthIndelSize must be >= 1 but got " + indelInformativeDepthIndelSize);
 
@@ -122,8 +129,6 @@ public class ReferenceConfidenceModel {
         } else {
             debuggingWriter = null;
         }
-
-        initializeIndelPLCache();
     }
 
     /**
@@ -149,17 +154,19 @@ public class ReferenceConfidenceModel {
     /**
      * Calculate the reference confidence for a single sample given the its read data
      *
-     * Returns a list of variant contexts, one for each position in the activeregion.getLoc(), each containing
+     * Returns a list of variant contexts, one for each position in the {@code activeRegion.getLoc()}, each containing
      * detailed information about the certainty that the sample is hom-ref for each base in the region.
      *
      *
      *
      * @param refHaplotype the reference haplotype, used to get the reference bases across activeRegion.getLoc()
      * @param calledHaplotypes a list of haplotypes that segregate in this region, for realignment of the reads in the
-     *                         stratifiedReadMap, corresponding to each reads best haplotype.  Must contain the refHaplotype.
+     *                         readLikelihoods, corresponding to each reads best haplotype.  Must contain the refHaplotype.
      * @param paddedReferenceLoc the location of refHaplotype (which might be larger than activeRegion.getLoc())
      * @param activeRegion the active region we want to get the reference confidence over
-     * @param stratifiedReadMap a map from a single sample to its PerReadAlleleLikelihoodMap for each haplotype in calledHaplotypes
+     * @param readLikelihoods a map from a single sample to its PerReadAlleleLikelihoodMap for each haplotype in calledHaplotypes
+     * @param ploidyModel indicate the ploidy of each sample in {@code stratifiedReadMap}.
+     * @param model genotyping model.
      * @param variantCalls calls made in this region.  The return result will contain any variant call in this list in the
      *                     correct order by genomic position, and any variant in this list will stop us emitting a ref confidence
      *                     under any position it covers (for snps and insertions that is 1 bp, but for deletions its the entire ref span)
@@ -170,22 +177,27 @@ public class ReferenceConfidenceModel {
                                                        final Collection<Haplotype> calledHaplotypes,
                                                        final GenomeLoc paddedReferenceLoc,
                                                        final ActiveRegion activeRegion,
-                                                       final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap,
+                                                       final ReadLikelihoods<Haplotype> readLikelihoods,
+                                                       final PloidyModel ploidyModel,
+                                                       final GenotypingModel model,
                                                        final List<VariantContext> variantCalls) {
         if ( refHaplotype == null ) throw new IllegalArgumentException("refHaplotype cannot be null");
         if ( calledHaplotypes == null ) throw new IllegalArgumentException("calledHaplotypes cannot be null");
         if ( !calledHaplotypes.contains(refHaplotype)) throw new IllegalArgumentException("calledHaplotypes must contain the refHaplotype");
         if ( paddedReferenceLoc == null ) throw new IllegalArgumentException("paddedReferenceLoc cannot be null");
         if ( activeRegion == null ) throw new IllegalArgumentException("activeRegion cannot be null");
-        if ( stratifiedReadMap == null ) throw new IllegalArgumentException("stratifiedReadMap cannot be null");
-        if ( stratifiedReadMap.size() != 1 ) throw new IllegalArgumentException("stratifiedReadMap must contain exactly one sample but it contained " + stratifiedReadMap.size());
+        if ( readLikelihoods == null ) throw new IllegalArgumentException("readLikelihoods cannot be null");
+        if ( readLikelihoods.sampleCount() != 1 ) throw new IllegalArgumentException("readLikelihoods must contain exactly one sample but it contained " + readLikelihoods.sampleCount());
         if ( refHaplotype.length() != activeRegion.getExtendedLoc().size() ) throw new IllegalArgumentException("refHaplotype " + refHaplotype.length() + " and activeRegion location size " + activeRegion.getLocation().size() + " are different");
+        if ( ploidyModel == null) throw new IllegalArgumentException("the ploidy model cannot be null");
+        if ( model == null) throw new IllegalArgumentException("the genotyping model cannot be null");
+        final int ploidy = ploidyModel.samplePloidy(0); // the first sample = the only sample in reference-confidence mode.
 
         final GenomeLoc refSpan = activeRegion.getLocation();
-        final List<ReadBackedPileup> refPileups = getPileupsOverReference(refHaplotype, calledHaplotypes, paddedReferenceLoc, activeRegion, refSpan, stratifiedReadMap);
+        final List<ReadBackedPileup> refPileups = getPileupsOverReference(refHaplotype, calledHaplotypes, paddedReferenceLoc, activeRegion, refSpan, readLikelihoods);
         final byte[] ref = refHaplotype.getBases();
         final List<VariantContext> results = new ArrayList<>(refSpan.size());
-        final String sampleName = stratifiedReadMap.keySet().iterator().next();
+        final String sampleName = readLikelihoods.sampleAt(0);
 
         final int globalRefOffset = refSpan.getStart() - activeRegion.getExtendedLoc().getStart();
         for ( final ReadBackedPileup pileup : refPileups ) {
@@ -199,20 +211,20 @@ public class ReferenceConfidenceModel {
                 // otherwise emit a reference confidence variant context
                 final int refOffset = offset + globalRefOffset;
                 final byte refBase = ref[refOffset];
-                final RefVsAnyResult homRefCalc = calcGenotypeLikelihoodsOfRefVsAny(pileup, refBase, (byte)6, null);
+                final RefVsAnyResult homRefCalc = calcGenotypeLikelihoodsOfRefVsAny(sampleName,ploidy,model,pileup, refBase, (byte)6, null);
                 homRefCalc.capByHomRefLikelihood();
 
                 final Allele refAllele = Allele.create(refBase, true);
                 final List<Allele> refSiteAlleles = Arrays.asList(refAllele, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
                 final VariantContextBuilder vcb = new VariantContextBuilder("HC", curPos.getContig(), curPos.getStart(), curPos.getStart(), refSiteAlleles);
-                final GenotypeBuilder gb = new GenotypeBuilder(sampleName, Arrays.asList(refAllele, refAllele));
+                final GenotypeBuilder gb = new GenotypeBuilder(sampleName, GATKVariantContextUtils.homozygousAlleleList(refAllele, ploidy));
                 gb.AD(homRefCalc.AD_Ref_Any);
                 gb.DP(homRefCalc.getDP());
 
                 // genotype likelihood calculation
                 final GenotypeLikelihoods snpGLs = GenotypeLikelihoods.fromLog10Likelihoods(homRefCalc.genotypeLikelihoods);
                 final int nIndelInformativeReads = calcNIndelInformativeReads(pileup, refOffset, ref, indelInformativeDepthIndelSize);
-                final GenotypeLikelihoods indelGLs = getIndelPLs(nIndelInformativeReads);
+                final GenotypeLikelihoods indelGLs = getIndelPLs(ploidy,nIndelInformativeReads);
 
                 // now that we have the SNP and indel GLs, we take the one with the least confidence,
                 // as this is the most conservative estimate of our certainty that we are hom-ref.
@@ -249,23 +261,51 @@ public class ReferenceConfidenceModel {
      * Get indel PLs corresponding to seeing N nIndelInformativeReads at this site
      *
      * @param nInformativeReads the number of reads that inform us about being ref without an indel at this site
+     * @param ploidy the requested ploidy.
      * @return non-null GenotypeLikelihoods given N
      */
-    protected final GenotypeLikelihoods getIndelPLs(final int nInformativeReads) {
-        return indelPLCache[nInformativeReads > MAX_N_INDEL_INFORMATIVE_READS ? MAX_N_INDEL_INFORMATIVE_READS : nInformativeReads];
+    protected final GenotypeLikelihoods getIndelPLs(final int ploidy, final int nInformativeReads) {
+        if (ploidy > MAX_N_INDEL_PLOIDY)
+            throw new IllegalArgumentException("you have hit a current limitation of the GVCF output model that cannot handle ploidies larger than " + MAX_N_INDEL_PLOIDY + " , please let the GATK team about it: " + ploidy);
+        return indelPLCache(ploidy, nInformativeReads > MAX_N_INDEL_INFORMATIVE_READS ? MAX_N_INDEL_INFORMATIVE_READS : nInformativeReads);
     }
 
     protected static final int MAX_N_INDEL_INFORMATIVE_READS = 40; // more than this is overkill because GQs are capped at 99 anyway
-    private static final GenotypeLikelihoods[] indelPLCache = new GenotypeLikelihoods[MAX_N_INDEL_INFORMATIVE_READS + 1];
+    private static final int MAX_N_INDEL_PLOIDY = 20;
+    private static final GenotypeLikelihoods[][] indelPLCache = new GenotypeLikelihoods[MAX_N_INDEL_PLOIDY][];
     private static final double INDEL_ERROR_RATE = -4.5; // 10^-4.5 indel errors per bp
 
-    private void initializeIndelPLCache() {
-        for( int nInformativeReads = 0; nInformativeReads <= MAX_N_INDEL_INFORMATIVE_READS; nInformativeReads++ ) {
-            final double homRef = 0.0;
-            final double het    = MathUtils.LOG_ONE_HALF * nInformativeReads;
-            final double homVar = INDEL_ERROR_RATE * nInformativeReads;
-            indelPLCache[nInformativeReads] = GenotypeLikelihoods.fromLog10Likelihoods(new double[]{homRef, het, homVar});
+    private final GenotypeLikelihoods indelPLCache(final int ploidy, final int nInformativeReads) {
+        GenotypeLikelihoods[] indelPLCacheByPloidy = indelPLCache[ploidy];
+        if (indelPLCacheByPloidy == null)
+            return initializeIndelPLCache(ploidy)[nInformativeReads];
+        else
+            return indelPLCacheByPloidy[nInformativeReads];
+    }
+
+    private synchronized GenotypeLikelihoods[] initializeIndelPLCache(final int ploidy) {
+        // Double-check whether another thread has done the initialization.
+        if (indelPLCache[ploidy] != null)
+            return indelPLCache[ploidy];
+
+        final double denominator =  - MathUtils.Log10Cache.get(ploidy);
+        final GenotypeLikelihoods[] result = new GenotypeLikelihoods[MAX_N_INDEL_INFORMATIVE_READS + 1];
+        result[0] = GenotypeLikelihoods.fromLog10Likelihoods(new double[ploidy + 1]);
+        for( int nInformativeReads = 1; nInformativeReads <= MAX_N_INDEL_INFORMATIVE_READS; nInformativeReads++ ) {
+            final byte indelQual = (byte) Math.round((INDEL_ERROR_RATE * -10));
+            final double refLikelihood = QualityUtils.qualToProbLog10(indelQual);
+            final double altLikelihood = QualityUtils.qualToErrorProbLog10(indelQual);
+            double[] PLs = new double[ploidy + 1];
+            PLs[0] = nInformativeReads * refLikelihood;
+            for (int altCount = 1; altCount <= ploidy; altCount++) {
+                final double refLikelihoodAccum = refLikelihood + MathUtils.Log10Cache.get(ploidy - altCount);
+                final double altLikelihoodAccum = altLikelihood + MathUtils.Log10Cache.get(altCount);
+                PLs[altCount] = nInformativeReads * (MathUtils.approximateLog10SumLog10(refLikelihoodAccum ,altLikelihoodAccum) + denominator);
+            }
+            result[nInformativeReads] = GenotypeLikelihoods.fromLog10Likelihoods(PLs);
         }
+        indelPLCache[ploidy] = result;
+        return result;
     }
 
     /**
@@ -277,6 +317,7 @@ public class ReferenceConfidenceModel {
      * @param hqSoftClips running average data structure (can be null) to collect information about the number of high quality soft clips
      * @return a RefVsAnyResult genotype call
      */
+    @Deprecated
     public RefVsAnyResult calcGenotypeLikelihoodsOfRefVsAny(final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual, final MathUtils.RunningAverage hqSoftClips) {
         final RefVsAnyResult result = new RefVsAnyResult();
 
@@ -304,6 +345,73 @@ public class ReferenceConfidenceModel {
     }
 
     /**
+     * Calculate the genotype likelihoods for the sample in pileup for being hom-ref contrasted with being ref vs. alt
+     *
+     * @param sampleName target sample name.
+     * @param ploidy target sample ploidy.
+     * @param genotypingModel model to calculate likelihoods and genotypes.
+     * @param pileup the read backed pileup containing the data we want to evaluate
+     * @param refBase the reference base at this pileup position
+     * @param minBaseQual the min base quality for a read in the pileup at the pileup position to be included in the calculation
+     * @param hqSoftClips running average data structure (can be null) to collect information about the number of high quality soft clips
+     * @return a RefVsAnyResult genotype call.
+     */
+    public RefVsAnyResult calcGenotypeLikelihoodsOfRefVsAny(final String sampleName, final int ploidy,
+                                                        final GenotypingModel genotypingModel,
+                                                        final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual, final MathUtils.RunningAverage hqSoftClips) {
+        final AlleleList<Allele> alleleList = new IndexedAlleleList<>(Allele.create(refBase,true),GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        // Notice that the sample name is rather irrelevant as this information is never used, just need to be the same in both lines bellow.
+
+        final int maximumReadCount = pileup.getReads().size();
+
+        final List<GATKSAMRecord> reads = new ArrayList<>(maximumReadCount);
+        final double[][] likelihoods = new double[2][maximumReadCount];
+        final int[] adCounts = new int[2];
+        int nextIndex = 0;
+        for (final PileupElement p : pileup) {
+            final byte qual = p.isDeletion() ? REF_MODEL_DELETION_QUAL : p.getQual();
+            if (!p.isDeletion() && qual <= minBaseQual)
+                continue;
+            final GATKSAMRecord read = p.getRead();
+            reads.add(read);
+            final boolean isAlt = p.getBase() != refBase || p.isDeletion() || p.isBeforeDeletionStart()
+                    || p.isAfterDeletionEnd() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip();
+            final int bestAllele;
+            final int worstAllele;
+            if (isAlt) {
+                bestAllele = 1;
+                worstAllele = 0;
+            } else {
+                bestAllele = 0;
+                worstAllele = 1;
+            }
+
+            likelihoods[bestAllele][nextIndex] = QualityUtils.qualToProbLog10(qual);
+            likelihoods[worstAllele][nextIndex++] = QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD;
+            adCounts[bestAllele]++;
+            if (isAlt && hqSoftClips != null && p.isNextToSoftClip())
+                hqSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(read, (byte) 28));
+        }
+
+        final Map<String,List<GATKSAMRecord>> sampleToReads = Collections.singletonMap(sampleName,reads);
+        final ReadLikelihoods<Allele> readLikelihoods = new ReadLikelihoods<>(new IndexedSampleList(sampleName),alleleList,sampleToReads);
+        final ReadLikelihoods.Matrix<Allele> sampleLikelihoods = readLikelihoods.sampleMatrix(0);
+        final int readCount = sampleLikelihoods.readCount();
+        for (int i = 0; i < readCount; i++) {
+            sampleLikelihoods.set(0,i,likelihoods[0][i]);
+            sampleLikelihoods.set(1,i,likelihoods[1][i]);
+        }
+
+        final PloidyModel ploidyModel = new HomogeneousPloidyModel(new IndexedSampleList(sampleName),ploidy);
+        final GenotypingLikelihoods<Allele> genotypingLikelihoods = genotypingModel.calculateLikelihoods(alleleList, new GenotypingData<>(ploidyModel, readLikelihoods));
+        final double[] genotypeLikelihoodArray = genotypingLikelihoods.sampleLikelihoods(0).getAsVector();
+        final RefVsAnyResult result = new RefVsAnyResult(genotypeLikelihoodArray.length);
+        System.arraycopy(genotypeLikelihoodArray,0,result.genotypeLikelihoods,0,genotypeLikelihoodArray.length);
+        System.arraycopy(adCounts,0,result.AD_Ref_Any,0,2);
+        return result;
+    }
+
+    /**
      * Get a list of pileups that span the entire active region span, in order, one for each position
      */
     private List<ReadBackedPileup> getPileupsOverReference(final Haplotype refHaplotype,
@@ -311,15 +419,15 @@ public class ReferenceConfidenceModel {
                                                            final GenomeLoc paddedReferenceLoc,
                                                            final ActiveRegion activeRegion,
                                                            final GenomeLoc activeRegionSpan,
-                                                           final Map<String, PerReadAlleleLikelihoodMap> stratifiedReadMap) {
+                                                           final ReadLikelihoods<Haplotype> readLikelihoods) {
 
         if ( refHaplotype == null ) throw new IllegalArgumentException("refHaplotype cannot be null");
         if ( calledHaplotypes == null ) throw new IllegalArgumentException("calledHaplotypes cannot be null");
         if ( !calledHaplotypes.contains(refHaplotype)) throw new IllegalArgumentException("calledHaplotypes must contain the refHaplotype");
         if ( paddedReferenceLoc == null ) throw new IllegalArgumentException("paddedReferenceLoc cannot be null");
         if ( activeRegion == null ) throw new IllegalArgumentException("activeRegion cannot be null");
-        if ( stratifiedReadMap == null ) throw new IllegalArgumentException("stratifiedReadMap cannot be null");
-        if ( stratifiedReadMap.size() != 1 ) throw new IllegalArgumentException("stratifiedReadMap must contain exactly one sample but it contained " + stratifiedReadMap.size());
+        if ( readLikelihoods == null ) throw new IllegalArgumentException("readLikelihoods cannot be null");
+        if ( readLikelihoods.sampleCount() != 1 ) throw new IllegalArgumentException("readLikelihoods must contain exactly one sample but it contained " + readLikelihoods.sampleCount());
 
         final List<GATKSAMRecord> reads = activeRegion.getReads();
 
@@ -328,7 +436,7 @@ public class ReferenceConfidenceModel {
                 debuggingWriter.addAlignment(read);
 
         final LocusIteratorByState libs = new LocusIteratorByState(reads.iterator(), LocusIteratorByState.NO_DOWNSAMPLING,
-                true, genomeLocParser, samples, false);
+                true, genomeLocParser, SampleListUtils.asSet(samples), false);
 
         final List<ReadBackedPileup> pileups = new LinkedList<>();
         final int startPos = activeRegionSpan.getStart();
