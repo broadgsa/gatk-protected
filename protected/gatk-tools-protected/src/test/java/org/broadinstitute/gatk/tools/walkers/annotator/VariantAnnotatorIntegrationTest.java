@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.PositionalBufferedStream;
+import htsjdk.variant.variantcontext.Genotype;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -349,6 +350,39 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
         Assert.assertFalse(lineIterator.hasNext());
         Assert.assertFalse(lineIteratorAnn.hasNext());
+    }
+
+    @Test
+    public void testStrandAlleleCountsBySample() throws IOException {
+        final WalkerTestSpec spec = new WalkerTestSpec(
+                "-T HaplotypeCaller --disableDithering " +
+                String.format("-R %s -I %s ", REF, CEUTRIO_BAM) +
+                "--no_cmdline_in_header -o %s -L 20:10130000-10134800 " +
+                "-A StrandBiasBySample -A StrandAlleleCountsBySample",
+                1, Arrays.asList("")
+        );
+        spec.disableShadowBCF(); //TODO: Remove when BaseTest.assertAttributesEquals() works with SC
+        final File outputVCF = executeTest("testStrandAlleleCountsBySample", spec).getFirst().get(0);
+
+        //Confirm that SB and SAC are identical for bi-allelic variants
+        final VCFCodec codec = new VCFCodec();
+        final FileInputStream s = new FileInputStream(outputVCF);
+        final LineIterator lineIterator = codec.makeSourceFromStream(new PositionalBufferedStream(s));
+        codec.readHeader(lineIterator);
+
+        while (lineIterator.hasNext()) {
+            final String line = lineIterator.next();
+            Assert.assertFalse(line == null);
+            final VariantContext vc = codec.decode(line);
+
+            if (vc.isBiallelic()) {
+                for (final Genotype g : vc.getGenotypes()) {
+                    Assert.assertTrue(g.hasExtendedAttribute("SB"));
+                    Assert.assertTrue(g.hasExtendedAttribute("SAC"));
+                    Assert.assertEquals(g.getExtendedAttribute("SB").toString(), g.getExtendedAttribute("SAC").toString());
+                }
+            }
+        }
     }
 
     @Test(enabled = false)

@@ -103,7 +103,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
             return;
         }
 
-        logger.info(new String("No StrandBiasBySample annotation or read data was found.  Strand bias annotations will not be output."));
+        logger.info("No StrandBiasBySample annotation or read data was found.  Strand bias annotations will not be output.");
 
     }
 
@@ -306,7 +306,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
      * Does this strand data array pass the minimum threshold for inclusion?
      *
      * @param data  the array
-     * @minCount The minimum threshold of counts in the array
+     * @param minCount The minimum threshold of counts in the array
      * @return true if it passes the minimum threshold, false otherwise
      */
     protected static boolean passesMinimumThreshold(final int[] data, final int minCount) {
