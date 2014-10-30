@@ -67,7 +67,6 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeAlleleCounts;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
 import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 
 import java.util.Arrays;
@@ -121,8 +120,8 @@ public final class AlleleCountBySample extends GenotypeAnnotation {
             AC[alleleIndex - 1] = alleleCount;
             AF[alleleIndex - 1] = ((double) alleleCount) / (double) ploidy;
         }
-        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, Utils.asList(AC));
-        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, Utils.asList(AF));
+        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, AC);
+        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, AF);
     }
 
     @Override
