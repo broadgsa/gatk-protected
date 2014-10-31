@@ -55,7 +55,6 @@ import com.google.caliper.Param;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;

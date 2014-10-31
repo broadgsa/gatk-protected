@@ -52,14 +52,15 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.*;
 
 /**
- * Tests {@link org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList}.
+ * Tests {@link org.broadinstitute.gatk.utils.genotyper.IndexedSampleList}.
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
@@ -119,7 +120,7 @@ public class IndexedSampleListUnitTest {
 
     private static final int[] MAX_SAMPLE_INDEX = { 0, 1, 4, 9, 10000};
 
-    private static final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+    private static final Random rnd = Utils.getRandomGenerator();
 
 
     @DataProvider(name="sampleCountMaxSampleIndexData")

@@ -65,6 +65,8 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorP
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;

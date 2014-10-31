@@ -52,15 +52,12 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.HaplotypeGraph;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.FlexibleHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import org.broadinstitute.gatk.utils.pairhmm.*;
 import org.broadinstitute.gatk.utils.sam.ClippedGATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.testng.Assert;

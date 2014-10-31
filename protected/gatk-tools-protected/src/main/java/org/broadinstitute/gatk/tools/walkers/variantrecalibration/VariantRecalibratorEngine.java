@@ -52,7 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.Utils;
 
 import java.util.List;
 
@@ -113,7 +113,7 @@ public class VariantRecalibratorEngine {
 
             datum.lod = ( evaluateContrastively ?
                             ( Double.isInfinite(datum.lod) ? // positive model said negative infinity
-                                    ( MIN_ACCEPTABLE_LOD_SCORE + GenomeAnalysisEngine.getRandomGenerator().nextDouble() * MIN_ACCEPTABLE_LOD_SCORE ) // Negative infinity lod values are possible when covariates are extremely far away from their tight Gaussians
+                                    ( MIN_ACCEPTABLE_LOD_SCORE + Utils.getRandomGenerator().nextDouble() * MIN_ACCEPTABLE_LOD_SCORE ) // Negative infinity lod values are possible when covariates are extremely far away from their tight Gaussians
                                     : datum.prior + datum.lod - thisLod) // contrastive evaluation: (prior + positive model - negative model)
                             : thisLod ); // positive model only so set the lod and return
         }

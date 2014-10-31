@@ -51,9 +51,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
+import org.broadinstitute.gatk.utils.variant.VCIterable;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
 import org.testng.Assert;
@@ -340,7 +339,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         final List<File> outputFiles = executeTest("testApplyRecalibrationSnpAndIndelTogether", spec).getFirst();
         setPDFsForDeletion(outputFiles);
         final File VCF = outputFiles.get(0);
-        for( final VariantContext VC : GATKVCFUtils.readAllVCs(VCF, new VCFCodec()).getSecond() ) {
+        for( final VariantContext VC : VCIterable.readAllVCs(VCF, new VCFCodec()).getSecond() ) {
             if( VC != null ) {
                 Assert.assertTrue(VC.isNotFiltered()); // there should only be unfiltered records in the output VCF file
             }

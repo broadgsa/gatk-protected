@@ -52,10 +52,10 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;

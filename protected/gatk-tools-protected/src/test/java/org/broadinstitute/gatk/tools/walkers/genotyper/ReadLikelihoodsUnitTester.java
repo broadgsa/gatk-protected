@@ -54,7 +54,9 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 

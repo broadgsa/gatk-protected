@@ -51,10 +51,10 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
@@ -70,7 +70,6 @@ import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 

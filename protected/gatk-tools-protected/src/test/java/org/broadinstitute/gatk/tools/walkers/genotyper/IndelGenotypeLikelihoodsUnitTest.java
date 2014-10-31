@@ -53,7 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.BaseTest;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.engine.walkers.Walker;
 import htsjdk.variant.variantcontext.Allele;
 

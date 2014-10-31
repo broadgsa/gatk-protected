@@ -51,29 +51,22 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMReadGroupRecord;
 import org.broadinstitute.gatk.utils.BaseTest;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
-import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
-import org.broadinstitute.gatk.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.*;
 
 /**

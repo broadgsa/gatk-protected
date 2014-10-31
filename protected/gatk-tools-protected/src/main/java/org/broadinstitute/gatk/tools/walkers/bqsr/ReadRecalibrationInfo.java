@@ -55,7 +55,7 @@ import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.recalibration.EventType;
-import org.broadinstitute.gatk.utils.recalibration.ReadCovariates;
+import org.broadinstitute.gatk.engine.recalibration.ReadCovariates;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 /**

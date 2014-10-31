@@ -58,11 +58,10 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.Feature;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.sam.GATKSAMFileWriter;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.BAQMode;
 import org.broadinstitute.gatk.engine.walkers.ReadWalker;
 import org.broadinstitute.gatk.utils.BaseUtils;
@@ -80,7 +79,7 @@ import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import org.broadinstitute.gatk.utils.sam.NWaySAMFileWriter;
+import org.broadinstitute.gatk.engine.io.NWaySAMFileWriter;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.utils.text.TextFormattingUtils;
 import org.broadinstitute.gatk.utils.text.XReadLines;
@@ -403,7 +402,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
             throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile,ex);
         }
 
-        intervals = intervalsFile.getIntervals(getToolkit()).iterator();
+        intervals = intervalsFile.getIntervals(getToolkit().getGenomeLocParser()).iterator();
 
         currentInterval = intervals.hasNext() ? intervals.next() : null;
 
@@ -991,7 +990,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         else {
             int readsSeen = 0;
             while ( readsSeen++ < MAX_READS_FOR_CONSENSUSES && altConsensesToPopulate.size() <= MAX_CONSENSUSES) {
-                int index = GenomeAnalysisEngine.getRandomGenerator().nextInt(altAlignmentsToTest.size());
+                int index = Utils.getRandomGenerator().nextInt(altAlignmentsToTest.size());
                 AlignedRead aRead = altAlignmentsToTest.remove(index);
                 if ( CHECKEARLY ) createAndAddAlternateConsensus1(aRead, altConsensesToPopulate, reference,leftmostIndex);
                 else createAndAddAlternateConsensus(aRead.getReadBases(), altConsensesToPopulate, reference);

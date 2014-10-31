@@ -54,7 +54,7 @@ package org.broadinstitute.gatk.utils.haplotypeBAMWriter;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMReadGroupRecord;
-import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
+import org.broadinstitute.gatk.utils.sam.GATKSAMFileWriter;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.util.ArrayList;

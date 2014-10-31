@@ -60,7 +60,7 @@ import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.collections.Pair;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

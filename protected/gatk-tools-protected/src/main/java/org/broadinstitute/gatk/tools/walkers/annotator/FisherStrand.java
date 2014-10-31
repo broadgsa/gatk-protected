@@ -52,23 +52,15 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import cern.jet.math.Arithmetic;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.gatk.utils.pileup.PileupElement;
-import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import java.util.*;

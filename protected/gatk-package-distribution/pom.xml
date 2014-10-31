@@ -43,6 +43,11 @@
             <artifactId>gatk-tools-protected</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- slf4j bindings must only be at the package level: http://www.slf4j.org/manual.html -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+        </dependency>
         <!-- Tribble codecs & the variant package (VCF, BCF, and VariantContext) -->
         <dependency>
             <groupId>samtools</groupId>
@@ -73,7 +78,7 @@
         <!-- Required for binary-dist assembly, excluded by shade -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>gatk-engine</artifactId>
+            <artifactId>gatk-utils</artifactId>
             <version>${project.version}</version>
             <classifier>example-resources</classifier>
             <type>tar.bz2</type>

@@ -51,7 +51,7 @@
 
 package org.broadinstitute.gatk.utils.collections;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -73,7 +73,7 @@ public class IntMaxHeapUnitTest {
 
         final IntMaxHeap heap = new IntMaxHeap(initialCapacity);
 
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
 
         for (int i = 0; i < elementCount; i++) {
             final int v = rnd.nextInt();
@@ -85,7 +85,7 @@ public class IntMaxHeapUnitTest {
     public void testEmptynessAndSize(final int initialCapacity, final int elementCount) {
         final IntMaxHeap heap = new IntMaxHeap(initialCapacity);
 
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
 
         Assert.assertEquals(heap.size(),0);
         Assert.assertTrue(heap.isEmpty());
@@ -101,7 +101,7 @@ public class IntMaxHeapUnitTest {
     public void testClear(final int initialCapacity, final int elementCount) {
         final IntMaxHeap heap = new IntMaxHeap(initialCapacity);
 
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
 
         for (int i = 0; i < elementCount; i++) {
             final int v = rnd.nextInt();
@@ -118,7 +118,7 @@ public class IntMaxHeapUnitTest {
         final IntMaxHeap addHeap = new IntMaxHeap(initialCapacity);
         final IntMaxHeap arrayAddHeap = new IntMaxHeap(initialCapacity);
 
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         final int[] values = new int[elementCount];
         for (int i = 0; i < elementCount; i++) {
             final int v = rnd.nextInt();
@@ -135,7 +135,7 @@ public class IntMaxHeapUnitTest {
     public void testRemove(final int initialCapacity, final int elementCount) {
         final IntMaxHeap heap = new IntMaxHeap(initialCapacity);
 
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         final List<Integer> values = new ArrayList<>(elementCount);
         for (int i = 0; i < elementCount; i++) {
             final int v = rnd.nextInt();
@@ -154,7 +154,7 @@ public class IntMaxHeapUnitTest {
     public void testPeek(final int initialCapacity, final int elementCount) {
         final IntMaxHeap heap = new IntMaxHeap(initialCapacity);
 
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
 
         int top  = rnd.nextInt();
         heap.add(top);

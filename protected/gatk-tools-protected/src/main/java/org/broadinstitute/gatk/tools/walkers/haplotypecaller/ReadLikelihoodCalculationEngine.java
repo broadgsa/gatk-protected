@@ -51,7 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;

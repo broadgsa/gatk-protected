@@ -54,9 +54,9 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.tribble.readers.AsciiLineReader;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.testng.Assert;
@@ -246,14 +246,14 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                 Arrays.asList(md5));
         executeTest("test parallelization (single thread)", spec1);
 
-        GenomeAnalysisEngine.resetRandomGenerator();
+        Utils.resetRandomGenerator();
 
         WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
                 myCommand + " -dt NONE -G none --contamination_fraction_to_filter 0.0 -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,075,000 -nt 2", 1,
                 Arrays.asList(md5));
         executeTest("test parallelization (2 threads)", spec2);
 
-        GenomeAnalysisEngine.resetRandomGenerator();
+        Utils.resetRandomGenerator();
 
         WalkerTest.WalkerTestSpec spec3 = new WalkerTest.WalkerTestSpec(
                 myCommand + " -dt NONE -G none --contamination_fraction_to_filter 0.0 -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,075,000 -nt 4", 1,

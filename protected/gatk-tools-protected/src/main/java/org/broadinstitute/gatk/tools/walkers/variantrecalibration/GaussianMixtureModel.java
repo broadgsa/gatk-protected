@@ -53,8 +53,8 @@ package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
 import Jama.Matrix;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.Utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -101,7 +101,7 @@ public class GaussianMixtureModel {
 
         // initialize random Gaussian means // BUGBUG: this is broken up this way to match the order of calls to rand.nextDouble() in the old code
         for( final MultivariateGaussian gaussian : gaussians ) {
-            gaussian.initializeRandomMu( GenomeAnalysisEngine.getRandomGenerator() );
+            gaussian.initializeRandomMu( Utils.getRandomGenerator() );
         }
 
         // initialize means using K-means algorithm
@@ -112,7 +112,7 @@ public class GaussianMixtureModel {
         for( final MultivariateGaussian gaussian : gaussians ) {
             gaussian.pMixtureLog10 = Math.log10( 1.0 / ((double) gaussians.size()) );
             gaussian.sumProb = 1.0 / ((double) gaussians.size());
-            gaussian.initializeRandomSigma( GenomeAnalysisEngine.getRandomGenerator() );
+            gaussian.initializeRandomSigma( Utils.getRandomGenerator() );
             gaussian.hyperParameter_a = priorCounts;
             gaussian.hyperParameter_b = shrinkage;
             gaussian.hyperParameter_lambda = dirichletParameter;
@@ -152,7 +152,7 @@ public class GaussianMixtureModel {
                 if( numAssigned != 0 ) {
                     gaussian.divideEqualsMu( ((double) numAssigned) );
                 } else {
-                    gaussian.initializeRandomMu( GenomeAnalysisEngine.getRandomGenerator() );
+                    gaussian.initializeRandomMu( Utils.getRandomGenerator() );
                 }
             }
         }
@@ -279,7 +279,7 @@ public class GaussianMixtureModel {
             // if it is missing marginalize over the missing dimension by drawing X random values for the missing annotation and averaging the lod
             if( datum.isNull[iii] ) {
                 for( int ttt = 0; ttt < numIterPerMissingAnnotation; ttt++ ) {
-                    datum.annotations[iii] = GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); // draw a random sample from the standard normal distribution
+                    datum.annotations[iii] = Utils.getRandomGenerator().nextGaussian(); // draw a random sample from the standard normal distribution
 
                     // evaluate this random data point
                     int gaussianIndex = 0;

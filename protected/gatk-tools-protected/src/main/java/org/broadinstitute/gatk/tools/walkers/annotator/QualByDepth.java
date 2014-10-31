@@ -51,10 +51,10 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
@@ -189,7 +189,7 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         if ( QD < MAX_QD_BEFORE_FIXING ) {
             return QD;
         } else {
-            return IDEAL_HIGH_QD + GenomeAnalysisEngine.getRandomGenerator().nextGaussian() * JITTER_SIGMA;
+            return IDEAL_HIGH_QD + Utils.getRandomGenerator().nextGaussian() * JITTER_SIGMA;
         }
     }
 

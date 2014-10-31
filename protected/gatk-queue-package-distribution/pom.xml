@@ -80,7 +80,7 @@
         <!-- Required for binary-dist assembly, excluded by shade -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>gatk-engine</artifactId>
+            <artifactId>gatk-utils</artifactId>
             <version>${project.version}</version>
             <classifier>example-resources</classifier>
             <type>tar.bz2</type>
