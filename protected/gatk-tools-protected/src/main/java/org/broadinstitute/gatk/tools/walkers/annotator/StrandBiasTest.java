@@ -192,7 +192,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
      */
     protected static int[][] getSNPContingencyTable(final Map<String, AlignmentContext> stratifiedContexts,
                                                   final Allele ref,
-                                                  final Allele alt,
+                                                  final List<Allele> allAlts,
                                                   final int minQScoreToConsider,
                                                   final int minCount ) {
         int[][] table = new int[2][2];
@@ -207,11 +207,13 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
                 if ( p.getQual() < minQScoreToConsider || p.getMappingQual() < minQScoreToConsider )
                     continue;
 
-                updateTable(myTable, Allele.create(p.getBase(), false), p.getRead(), ref, alt);
+                updateTable(myTable, Allele.create(p.getBase(), false), p.getRead(), ref, allAlts);
             }
 
-            if ( passesMinimumThreshold( myTable, minCount ) )
+            if ( passesMinimumThreshold( myTable, minCount ) ) {
                 copyToMainTable(myTable, table);
+            }
+
         }
 
         return table;
@@ -232,6 +234,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
 
         final Allele ref = vc.getReference();
         final Allele alt = vc.getAltAlleleWithHighestAlleleCount();
+        final List<Allele> allAlts = vc.getAlternateAlleles();
         final int[][] table = new int[2][2];
 
         for (final PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
@@ -239,7 +242,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
             for (final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
                 final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
                 final GATKSAMRecord read = el.getKey();
-                updateTable(myTable, mostLikelyAllele.getAlleleIfInformative(), read, ref, alt);
+                updateTable(myTable, mostLikelyAllele.getAlleleIfInformative(), read, ref, allAlts);
             }
             if ( passesMinimumThreshold(myTable, minCount) )
                 copyToMainTable(myTable, table);
@@ -276,12 +279,13 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
                 ((int) p.getQual()) < QualityUtils.MIN_USABLE_Q_SCORE);
     }
 
-    private static void updateTable(final int[] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final Allele alt) {
+    private static void updateTable(final int[] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final List<Allele> allAlts) {
 
         final boolean matchesRef = allele.equals(ref, true);
-        final boolean matchesAlt = allele.equals(alt, true);
+        final boolean matchesAlt = allele.equals(allAlts.get(0), true);
+        final boolean matchesAnyAlt = allAlts.contains(allele);
 
-        if ( matchesRef || matchesAlt ) {
+        if ( matchesRef || matchesAnyAlt ) {
             final int offset = matchesRef ? 0 : 2;
 
             if ( read.isStrandless() ) {

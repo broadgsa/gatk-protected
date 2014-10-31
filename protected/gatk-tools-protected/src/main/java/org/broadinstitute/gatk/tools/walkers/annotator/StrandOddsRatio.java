@@ -114,7 +114,7 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
     @Override
     protected Map<String, Object> calculateAnnotationFromStratifiedContexts(Map<String, AlignmentContext> stratifiedContexts,
                                                                                      final VariantContext vc){
-        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
+        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAlternateAlleles(), -1, MIN_COUNT);
         final double ratio = calculateSOR(tableNoFiltering);
         return annotationForOneTable(ratio);
     }

@@ -72,8 +72,8 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "646ec07bd026da1e72b5e789f5aa3a3d"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "9acbee336e91cbfc1abeebd41bbcc9dd"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "e696ffc927af7f7a36dc7d49dad2c4f8"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "cb598bee733db0461f6a24d265daed45"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "d875592d1fd8057250dafad793768535"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "c223d6fe112d2bb698811600c3b7f6af"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "dacb94af2632e4dc4a1948306dd1661c"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "ef9093880efedac09b78c8fb26420e84"});
@@ -90,9 +90,9 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "0a982ba98be666d56452791df32109d7"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "5edcfa5ab96bc327783484c2bbe1c06f"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "b60c70fac56f129af78eaff9ad769557"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "83b96e3e364821c51e6a2c2a64616b24"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "f38178834961798d79e7190dbca004bf"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "762dde6b938dd7bb988f132dd9e4b76f"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "1c3570461e96ad6d66c6abb0fd6ee865"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "66019a0914f905522da6bd3b557a57d1"});
 
@@ -113,9 +113,9 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "7db552463cf779644335bfa09fcddf82"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "90600d209cf778fdfca6a844b8ee4acb"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "db3c99786c5726b20dbfe47e31e50d60"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "254b4bed7fc8ef5d3c4cb4ebf4ea73c2"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "3f9e2b721c3bc8a6d76aa75bb7544f28"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "dac179dc0c314e2ac7e39ecb9d334493"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "eac793500fbc7de46259000dbbcdd27d"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "4a431e0e387de3f791318f67d8855b0b"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "1058d3fe6553e07f002f994759c9647d"});
