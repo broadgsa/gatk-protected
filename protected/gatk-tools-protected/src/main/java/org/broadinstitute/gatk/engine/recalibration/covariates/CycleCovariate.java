@@ -55,10 +55,9 @@ import org.broadinstitute.gatk.engine.recalibration.ReadCovariates;
 import org.broadinstitute.gatk.engine.recalibration.RecalibrationArgumentCollection;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.NGSPlatform;
+import org.broadinstitute.gatk.utils.SequencerFlowClass;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-
-import java.util.EnumSet;
 
 /*
  * Copyright (c) 2009 The Broad Institute
@@ -104,9 +103,6 @@ public class CycleCovariate implements StandardCovariate {
     public static final int CUSHION_FOR_INDELS = 4;
     private String default_platform = null;
 
-    private static final EnumSet<NGSPlatform> DISCRETE_CYCLE_PLATFORMS = EnumSet.of(NGSPlatform.ILLUMINA, NGSPlatform.SOLID, NGSPlatform.PACBIO, NGSPlatform.COMPLETE_GENOMICS);
-    private static final EnumSet<NGSPlatform> FLOW_CYCLE_PLATFORMS = EnumSet.of(NGSPlatform.LS454, NGSPlatform.ION_TORRENT);
-
     // Initialize any member variables using the command-line arguments passed to the walkers
     @Override
     public void initialize(final RecalibrationArgumentCollection RAC) {
@@ -126,7 +122,7 @@ public class CycleCovariate implements StandardCovariate {
         final NGSPlatform ngsPlatform = default_platform == null ? read.getNGSPlatform() : NGSPlatform.fromReadGroupPL(default_platform);
 
         // Discrete cycle platforms
-        if (DISCRETE_CYCLE_PLATFORMS.contains(ngsPlatform)) {
+        if (ngsPlatform.getSequencerType() == SequencerFlowClass.DISCRETE) {
             final int readOrderFactor = read.getReadPairedFlag() && read.getSecondOfPairFlag() ? -1 : 1;
             final int increment;
             int cycle;
@@ -149,7 +145,7 @@ public class CycleCovariate implements StandardCovariate {
         }
 
         // Flow cycle platforms
-        else if (FLOW_CYCLE_PLATFORMS.contains(ngsPlatform)) {
+        else if (ngsPlatform.getSequencerType() == SequencerFlowClass.FLOW) {
 
             final byte[] bases = read.getReadBases();
 
