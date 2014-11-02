@@ -81,7 +81,6 @@ import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.engine.io.NWaySAMFileWriter;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
-import org.broadinstitute.gatk.utils.text.TextFormattingUtils;
 import org.broadinstitute.gatk.utils.text.XReadLines;
 import htsjdk.variant.variantcontext.VariantContext;
 
@@ -476,10 +475,8 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
         if ( NO_PG_TAG ) return null;
 
         final SAMProgramRecord programRecord = new SAMProgramRecord(PROGRAM_RECORD_NAME);
-        final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("StingText");
         try {
-            final String version = headerInfo.getString("org.broadinstitute.sting.gatk.version");
-            programRecord.setProgramVersion(version);
+            programRecord.setProgramVersion(CommandLineProgram.getVersionNumber());
         } catch (MissingResourceException e) {
             // this is left empty on purpose (perhaps Andrey knows why?)
         }
