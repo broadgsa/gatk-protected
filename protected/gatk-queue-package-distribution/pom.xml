@@ -15,8 +15,6 @@
 
     <properties>
         <gatk.basedir>${project.basedir}/../..</gatk.basedir>
-        <gatk.unpack.phase>prepare-package</gatk.unpack.phase>
-        <gatk.shade.phase>package</gatk.shade.phase>
         <gatk.binary-dist.name>Queue</gatk.binary-dist.name>
         <app.main.class>org.broadinstitute.gatk.queue.QCommandLine</app.main.class>
     </properties>
@@ -173,11 +171,34 @@
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>executable-jar</id>
+                        <phase>${gatk.jar.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>default-jar</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>unshaded-default-jar</id>
+                        <phase>${gatk.jar.phase}</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
                     <execution>
                         <id>unpack-direct-dependencies</id>
                         <phase>${gatk.unpack.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>executable-jar-lib</id>
+                        <phase>${gatk.jar.phase}</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -187,7 +208,7 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>gatk-executable</id>
+                        <id>package-jar</id>
                         <phase>${gatk.shade.phase}</phase>
                     </execution>
                 </executions>
@@ -209,7 +230,11 @@
                 <artifactId>maven-junction-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>link-binary-jar</id>
+                        <id>link-executable-jar</id>
+                        <phase>${gatk.jar.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>link-package-jar</id>
                         <phase>${gatk.shade.phase}</phase>
                     </execution>
                     <execution>
@@ -238,20 +263,6 @@
     </build>
 
     <profiles>
-        <profile>
-            <id>packagetests-enabled</id>
-            <activation>
-                <property>
-                    <name>gatk.packagetests.enabled</name>
-                    <value>true</value>
-                </property>
-            </activation>
-            <properties>
-                <gatk.jar.phase>none</gatk.jar.phase>
-                <gatk.unpack.phase>none</gatk.unpack.phase>
-                <gatk.shade.phase>none</gatk.shade.phase>
-            </properties>
-        </profile>
         <profile>
             <id>gsadev</id>
             <activation>
