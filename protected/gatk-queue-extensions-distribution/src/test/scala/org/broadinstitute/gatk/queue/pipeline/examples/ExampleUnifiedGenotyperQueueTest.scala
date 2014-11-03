@@ -91,7 +91,7 @@ class ExampleUnifiedGenotyperQueueTest {
       " -R " + BaseTest.hg18Reference,
       " -I " + BaseTest.validationDataLocation + "OV-0930.normal.chunk.bam",
       " -L " + intervalsPath).mkString
-    spec.jobRunners = Seq("Lsf706")
+    spec.jobRunners = Seq("GridEngine")
     QueueTest.executeTest(spec)
   }
 
