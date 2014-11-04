@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -63,7 +64,6 @@ import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import java.util.*;
@@ -87,21 +87,41 @@ import java.util.*;
  */
 
 public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implements RodRequiringAnnotation {
-
+    private final static Logger logger = Logger.getLogger(TransmissionDisequilibriumTest.class);
     private Set<Sample> trios = null;
     private final static int MIN_NUM_VALID_TRIOS = 5; // don't calculate this population-level statistic if there are less than X trios with full genotype likelihood information
+    private boolean walkerIdentityCheckWarningLogged = false;
+    private boolean pedigreeCheckWarningLogged = false;
 
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap){
+
+        // Can only be called from VariantAnnotator
+        if ( !(walker instanceof VariantAnnotator) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getName());
+                else
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
+        // Get trios from the input pedigree file.
         if ( trios == null ) {
-            if ( walker instanceof VariantAnnotator ) {
-                trios =  ((VariantAnnotator) walker).getSampleDB().getChildrenWithParents();
-            } else {
-                throw new UserException("Transmission disequilibrium test annotation can only be used from the Variant Annotator and requires a valid ped file be passed in.");
+            trios = ((VariantAnnotator) walker).getSampleDB().getChildrenWithParents();
+            if (trios == null || trios.isEmpty()) {
+                if ( !pedigreeCheckWarningLogged ) {
+                    logger.warn("Transmission disequilibrium test annotation requires a valid ped file be passed in.");
+                    pedigreeCheckWarningLogged = true;
+                }
+                return null;
             }
         }
 
@@ -125,8 +145,10 @@ public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implemen
     }
 
     // return the descriptions used for the VCF INFO meta field
+    @Override
     public List<String> getKeyNames() { return Arrays.asList("TDT"); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("TDT", VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Test statistic from Wittkowski transmission disequilibrium test.")); }
 
     // Following derivation in http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT

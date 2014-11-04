@@ -51,20 +51,21 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
+
 import org.broadinstitute.gatk.engine.samples.Trio;
 import org.broadinstitute.gatk.engine.walkers.Walker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.RodRequiringAnnotation;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.samples.MendelianViolation;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import java.util.*;
@@ -81,7 +82,7 @@ import java.util.*;
  *     <li>Only reports possible de novos for children whose genotypes have not been tagged as filtered (which is most appropriate if parent likelihoods
  * have already been factored in using PhaseByTransmission).</li>
  *     <li>When multiple trios are present, the annotation is simply the maximum of the likelihood ratios, rather than the strict 1-Prod(1-p_i) calculation, as this can scale poorly for uncertain sites and many trios.</li>
- *     <li>This annotation can only be used from the Variant Annotator.If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect. If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</li>
+ *     <li>This annotation can only be used from the Variant Annotator. If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect. If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</li>
  * </ul>
  *
  * <h3>Related annotations</h3>
@@ -93,6 +94,8 @@ import java.util.*;
 
 public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringAnnotation, ExperimentalAnnotation {
 
+    private final static Logger logger = Logger.getLogger(PossibleDeNovo.class);
+
     private MendelianViolation mendelianViolation = null;
     public static final String HI_CONF_DENOVO_KEY = "hiConfDeNovo";
     public static final String LO_CONF_DENOVO_KEY = "loConfDeNovo";
@@ -101,6 +104,8 @@ public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringA
     private final double percentOfSamplesCutoff = 0.001; //for many, many samples use 0.1% of samples as allele frequency threshold for de novos
     private final int flatNumberOfSamplesCutoff = 4;
     private Set<Trio> trios;
+    private boolean walkerIdentityCheckWarningLogged = false;
+    private boolean pedigreeCheckWarningLogged = false;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -108,14 +113,28 @@ public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringA
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+
+        if ( !(walker instanceof VariantAnnotator ) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getName());
+                else
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
         if ( mendelianViolation == null ) {
             trios = ((Walker) walker).getSampleDB().getTrios();
-            if ( trios.size() > 0 ) {
-                mendelianViolation = new MendelianViolation(((VariantAnnotator)walker).minGenotypeQualityP );
+            if ( trios.isEmpty() ) {
+                if ( !pedigreeCheckWarningLogged ) {
+                    logger.warn("Annotation will not be calculated, must provide a valid PED file (-ped) from the command line.");
+                    pedigreeCheckWarningLogged = true;
+                }
+                return null;
             }
-            else {
-                throw new UserException("Possible de novos annotation can only be used from the Variant Annotator, and must be provided a valid PED file (-ped) from the command line.");
-            }
+            mendelianViolation = new MendelianViolation(((VariantAnnotator)walker).minGenotypeQualityP );
         }
 
         final Map<String,Object> attributeMap = new HashMap<String,Object>(1);
@@ -152,8 +171,10 @@ public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringA
     }
 
     // return the descriptions used for the VCF INFO meta field
+    @Override
     public List<String> getKeyNames() { return Arrays.asList(HI_CONF_DENOVO_KEY,LO_CONF_DENOVO_KEY); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine(HI_CONF_DENOVO_KEY, 1, VCFHeaderLineType.String, "High confidence possible de novo mutation (GQ >= "+hi_GQ_threshold+" for all trio members)=[comma-delimited list of child samples]"),
             new VCFInfoHeaderLine(LO_CONF_DENOVO_KEY, 1, VCFHeaderLineType.String, "Low confidence possible de novo mutation (GQ >= "+lo_GQ_threshold+" for child, GQ > 0 for parents)=[comma-delimited list of child samples]")); }
 

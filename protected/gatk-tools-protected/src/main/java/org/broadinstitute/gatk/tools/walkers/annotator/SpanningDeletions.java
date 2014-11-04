@@ -51,22 +51,21 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotyper;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 /**
@@ -83,13 +82,29 @@ import java.util.Map;
  */
 public class SpanningDeletions extends InfoFieldAnnotation implements StandardAnnotation {
 
+    private final static Logger logger = Logger.getLogger(SpanningDeletions.class);
+    private boolean walkerIdentityCheckWarningLogged = false;
+
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
-        if ( stratifiedContexts.size() == 0 )
+        // Can only call from UnifiedGenotyper
+        if ( !(walker instanceof UnifiedGenotyper) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper, not " + walker.getClass().getName());
+                else
+                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
+        if ( stratifiedContexts.isEmpty() )
             return null;
 
         // not meaningful when we're at an indel location: deletions that start at location N are by definition called at the position  N-1, and at position N-1
@@ -111,7 +126,9 @@ public class SpanningDeletions extends InfoFieldAnnotation implements StandardAn
         return map;
     }
 
+    @Override
     public List<String> getKeyNames() { return Arrays.asList("Dels"); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("Dels", 1, VCFHeaderLineType.Float, "Fraction of Reads Containing Spanning Deletions")); }
 }

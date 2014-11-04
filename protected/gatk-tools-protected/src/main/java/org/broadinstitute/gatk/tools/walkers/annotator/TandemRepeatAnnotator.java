@@ -51,12 +51,15 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.collections.Pair;
@@ -65,10 +68,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Tandem repeat unit composition and counts per allele
@@ -84,15 +84,29 @@ import java.util.Map;
  *
  */
 public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardAnnotation {
+    private final static Logger logger = Logger.getLogger(TandemRepeatAnnotator.class);
     private static final String STR_PRESENT = "STR";
     private static final String REPEAT_UNIT_KEY = "RU";
     private static final String REPEATS_PER_ALLELE_KEY = "RPA";
+    private boolean walkerIdentityCheckWarningLogged = false;
+
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) throws UserException {
+
+        // Can not be called from HaplotypeCaller
+        if ( walker instanceof HaplotypeCaller ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                logger.warn("Annotation will not be calculated, can not be called from HaplotypeCaller");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
         if ( !vc.isIndel())
             return null;
 
@@ -117,10 +131,12 @@ public class TandemRepeatAnnotator extends InfoFieldAnnotation implements Standa
             new VCFInfoHeaderLine(REPEAT_UNIT_KEY, 1, VCFHeaderLineType.String, "Tandem repeat unit (bases)"),
             new VCFInfoHeaderLine(REPEATS_PER_ALLELE_KEY, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.Integer, "Number of times tandem repeat unit is repeated, for each allele (including reference)") };
 
+    @Override
     public List<String> getKeyNames() {
         return Arrays.asList(keyNames);
     }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(descriptions); }
 
 }

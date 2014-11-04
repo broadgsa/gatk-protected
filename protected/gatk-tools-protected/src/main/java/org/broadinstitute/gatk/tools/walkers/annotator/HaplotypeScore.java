@@ -50,7 +50,8 @@
 */
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
-
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotyper;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -86,17 +87,33 @@ import java.util.*;
  * <p>HaplotypeCaller does not output this annotation because it already evaluates haplotype segregation internally. This annotation is only informative (and available) for variants called by Unified Genotyper.</p>
  */
 public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+    private final static Logger logger = Logger.getLogger(HaplotypeScore.class);
+    private boolean walkerIdentityCheckWarningLogged = false;
+
     private final static boolean DEBUG = false;
     private final static int MIN_CONTEXT_WING_SIZE = 10;
     private final static int MAX_CONSENSUS_HAPLOTYPES_TO_CONSIDER = 50;
     private final static char REGEXP_WILDCARD = '.';
 
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+        // Can only call from UnifiedGenotyper
+        if ( !(walker instanceof UnifiedGenotyper) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Must be called from UnifiedGenotyper, not " + walker.getClass().getName());
+                else
+                    logger.warn("Must be called from UnifiedGenotyper");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
         if (vc.isSNP() && stratifiedContexts != null)
             return annotatePileup(ref, stratifiedContexts, vc);
         else
@@ -107,7 +124,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc) {
 
-        if (stratifiedContexts.size() == 0) // size 0 means that call was made by someone else and we have no data here
+        if (stratifiedContexts.isEmpty()) // empty means that call was made by someone else and we have no data here
             return null;
 
         final AlignmentContext context = AlignmentContextUtils.joinContexts(stratifiedContexts.values());
@@ -393,10 +410,12 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         return mismatches - expected;
     }
 
+    @Override
     public List<String> getKeyNames() {
         return Arrays.asList("HaplotypeScore");
     }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
         return Arrays.asList(new VCFInfoHeaderLine("HaplotypeScore", 1, VCFHeaderLineType.Float, "Consistency of the site with at most two segregating haplotypes"));
     }

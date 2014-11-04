@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -63,7 +64,6 @@ import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.engine.samples.MendelianViolation;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import java.util.*;
@@ -93,9 +93,12 @@ import java.util.*;
 
 public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiringAnnotation {
 
+    private final static Logger logger = Logger.getLogger(MVLikelihoodRatio.class);
     private MendelianViolation mendelianViolation = null;
     public static final String MVLR_KEY = "MVLR";
     private Set<Trio> trios;
+    private boolean walkerIdentityCheckWarningLogged = false;
+    private boolean pedigreeCheckWarningLogged = false;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -103,14 +106,30 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+
+        // Can only be called from VariantAnnotator
+        if ( !(walker instanceof VariantAnnotator) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getName());
+                else
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
         if ( mendelianViolation == null ) {
+            // Must have a pedigree file
             trios = ((Walker) walker).getSampleDB().getTrios();
-            if ( trios.size() > 0 ) {
-                mendelianViolation = new MendelianViolation(((VariantAnnotator)walker).minGenotypeQualityP );
+            if ( trios.isEmpty() ) {
+                if ( !pedigreeCheckWarningLogged ) {
+                    logger.warn("Annotation will not be calculated, mendelian violation annotation must provide a valid PED file (-ped) from the command line.");
+                    pedigreeCheckWarningLogged = true;
+                }
+                return null;
             }
-            else {
-                throw new UserException("Mendelian violation annotation can only be used from the Variant Annotator, and must be provided a valid PED file (-ped) from the command line.");
-            }
+            mendelianViolation = new MendelianViolation(((VariantAnnotator)walker).minGenotypeQualityP );
         }
 
         Map<String,Object> attributeMap = new HashMap<String,Object>(1);
@@ -131,9 +150,11 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
         return attributeMap;
     }
 
-    // return the descriptions used for the VCF INFO meta field
+    // return the names and descriptions used for the VCF INFO meta field
+    @Override
     public List<String> getKeyNames() { return Arrays.asList(MVLR_KEY); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine(MVLR_KEY, 1, VCFHeaderLineType.Float, "Mendelian violation likelihood ratio: L[MV] - L[No MV]")); }
 
 

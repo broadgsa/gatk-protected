@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import org.apache.log4j.Logger;
@@ -77,34 +78,33 @@ import java.util.*;
  */
 public abstract class StrandBiasTest extends InfoFieldAnnotation {
     private final static Logger logger = Logger.getLogger(StrandBiasTest.class);
+    private static boolean stratifiedPerReadAlleleLikelihoodMapWarningLogged = false;
+    private static boolean inputVariantContextWarningLogged = false;
+    private static boolean getTableFromSamplesWarningLogged = false;
+    private static boolean decodeSBBSWarningLogged = false;
+
+    protected static final int ARRAY_DIM = 2;
+    protected static final int ARRAY_SIZE = ARRAY_DIM * ARRAY_DIM;
 
     @Override
     public void initialize(final AnnotatorCompatible walker, final GenomeAnalysisEngine toolkit, final Set<VCFHeaderLine> headerLines) {
-        boolean hasSBBSannotation = false;
+        // Does the VCF header contain strand bias (SB) by sample annotation?
         for ( final VCFHeaderLine line : headerLines) {
             if ( line instanceof VCFFormatHeaderLine) {
                 final VCFFormatHeaderLine formatline = (VCFFormatHeaderLine)line;
-                if ( formatline.getID().equals(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME) ) {
-                    hasSBBSannotation = true;
-                    break;
+                if ( formatline.getID().equals(VCFConstants.STRAND_BIAS_KEY) ) {
+                    logger.warn("StrandBiasBySample annotation exists in input VCF header. Attempting to use StrandBiasBySample " +
+                            "values to calculate strand bias annotation values. If no sample has the SB genotype annotation, annotation may still fail.");
+                    return;
                 }
             }
         }
 
-        if (hasSBBSannotation) {
-            logger.info("StrandBiasBySample annotation exists in input VCF header. Attempting to use StrandBiasBySample " +
-                    "values to calculate strand bias annotation values. If no sample has the SB genotype annotation, annotation may still fail.");
-            return;
-        }
-
-        boolean hasReads = toolkit.getReadsDataSource().getReaderIDs().size() > 0;
-        if (hasReads) {
+        // Are there reads from a SAM/BAM file?
+        if (toolkit.getReadsDataSource().getReaderIDs().isEmpty())
+            logger.warn("No StrandBiasBySample annotation or read data was found. Strand bias annotations will not be output.");
+        else
             logger.info("SAM/BAM data was found. Attempting to use read data to calculate strand bias annotations values.");
-            return;
-        }
-
-        logger.info("No StrandBiasBySample annotation or read data was found.  Strand bias annotations will not be output.");
-
     }
 
     @Override
@@ -115,34 +115,37 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
                                         final Map<String,AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+
+        // do not process if not a variant
         if ( !vc.isVariant() )
             return null;
 
+        // if the genotype and strand bias are provided, calculate the annotation from the Genotype (GT) field
         if ( vc.hasGenotypes() ) {
-            boolean hasSB = false;
             for (final Genotype g : vc.getGenotypes()) {
                 if (g.hasAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME)) {
-                    hasSB = true;
-                    break;
+                    return calculateAnnotationFromGTfield(vc.getGenotypes());
                 }
             }
-            if (hasSB)
-                return calculateAnnotationFromGTfield(vc.getGenotypes());
         }
 
-        //stratifiedContexts can come come from VariantAnnotator, but will be size 0 if no reads were provided
-        if (vc.isSNP() && stratifiedContexts != null  && stratifiedContexts.size() > 0) {
+        // if a the variant is a snp and has stratified contexts, calculate the annotation from the stratified contexts
+        //stratifiedContexts can come come from VariantAnnotator, but will be empty if no reads were provided
+        if (vc.isSNP() && stratifiedContexts != null  && !stratifiedContexts.isEmpty()) {
             return calculateAnnotationFromStratifiedContexts(stratifiedContexts, vc);
         }
 
-        //stratifiedPerReadAllelelikelihoodMap can come from HaplotypeCaller call to VariantAnnotatorEngine
+        // calculate the annotation from the stratified per read likelihood map
+        // stratifiedPerReadAllelelikelihoodMap can come from HaplotypeCaller call to VariantAnnotatorEngine
         else if (stratifiedPerReadAlleleLikelihoodMap != null) {
             return calculateAnnotationFromLikelihoodMap(stratifiedPerReadAlleleLikelihoodMap, vc);
         }
-        else
-            // for non-snp variants, we  need per-read likelihoods.
+        else {
+            // for non-snp variants, we need per-read likelihoods.
             // for snps, we can get same result from simple pileup
+            // for indels that do not have a computed strand bias (SB) or strand bias by sample (SBBS)
             return null;
+        }
     }
 
     protected abstract Map<String, Object> calculateAnnotationFromGTfield(final GenotypesContext genotypes);
@@ -161,7 +164,13 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
      * @return the table used for several strand bias tests, will be null if none of the genotypes contain the per-sample SB annotation
      */
     protected int[][] getTableFromSamples( final GenotypesContext genotypes, final int minCount ) {
-        if( genotypes == null ) { throw new IllegalArgumentException("Genotypes cannot be null."); }
+        if( genotypes == null ) {
+            if ( !getTableFromSamplesWarningLogged ) {
+                logger.warn("Genotypes cannot be null.");
+                getTableFromSamplesWarningLogged = true;
+            }
+            return null;
+        }
 
         final int[] sbArray = {0,0,0,0}; // reference-forward-reverse -by- alternate-forward-reverse
         boolean foundData = false;
@@ -195,10 +204,10 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
                                                   final List<Allele> allAlts,
                                                   final int minQScoreToConsider,
                                                   final int minCount ) {
-        int[][] table = new int[2][2];
+        int[][] table = new int[ARRAY_DIM][ARRAY_DIM];
 
         for (final Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
-            final int[] myTable = new int[4];
+            final int[] myTable = new int[ARRAY_SIZE];
             for (final PileupElement p : sample.getValue().getBasePileup()) {
 
                 if ( ! isUsableBase(p) ) // ignore deletions and bad MQ
@@ -229,16 +238,28 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
     public static int[][] getContingencyTable( final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
                                                final VariantContext vc,
                                                final int minCount) {
-        if( stratifiedPerReadAlleleLikelihoodMap == null ) { throw new IllegalArgumentException("stratifiedPerReadAlleleLikelihoodMap cannot be null"); }
-        if( vc == null ) { throw new IllegalArgumentException("input vc cannot be null"); }
+        if( stratifiedPerReadAlleleLikelihoodMap == null ) {
+            if ( !stratifiedPerReadAlleleLikelihoodMapWarningLogged ) {
+                logger.warn("stratifiedPerReadAlleleLikelihoodMap cannot be null");
+                stratifiedPerReadAlleleLikelihoodMapWarningLogged = true;
+            }
+            return null;
+        }
+        if( vc == null ) {
+            if ( !inputVariantContextWarningLogged ) {
+                logger.warn("input vc cannot be null");
+                inputVariantContextWarningLogged = true;
+            }
+            return null;
+        }
 
         final Allele ref = vc.getReference();
         final Allele alt = vc.getAltAlleleWithHighestAlleleCount();
         final List<Allele> allAlts = vc.getAlternateAlleles();
-        final int[][] table = new int[2][2];
+        final int[][] table = new int[ARRAY_DIM][ARRAY_DIM];
 
         for (final PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
-            final int[] myTable = new int[4];
+            final int[] myTable = new int[ARRAY_SIZE];
             for (final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
                 final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
                 final GATKSAMRecord read = el.getKey();
@@ -286,7 +307,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
         final boolean matchesAnyAlt = allAlts.contains(allele);
 
         if ( matchesRef || matchesAnyAlt ) {
-            final int offset = matchesRef ? 0 : 2;
+            final int offset = matchesRef ? 0 : ARRAY_DIM;
 
             if ( read.isStrandless() ) {
                 // a strandless read counts as observations on both strand, at 50% weight, with a minimum of 1
@@ -320,9 +341,9 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
      * @return the array used by the per-sample Strand Bias annotation
      */
     private static int[] encodeSBBS( final String string ) {
-        final int[] array = new int[4];
+        final int[] array = new int[ARRAY_SIZE];
         final StringTokenizer tokenizer = new StringTokenizer(string, ",", false);
-        for( int index = 0; index < 4; index++ ) {
+        for( int index = 0; index < ARRAY_SIZE; index++ ) {
             array[index] = Integer.parseInt(tokenizer.nextToken());
         }
         return array;
@@ -334,8 +355,14 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
      * @return the table used by the StrandOddsRatio annotation
      */
     private static int[][] decodeSBBS( final int[] array ) {
-        if(array.length != 4) { throw new IllegalArgumentException("Expecting a length = 4 strand bias array."); }
-        final int[][] table = new int[2][2];
+        if(array.length != ARRAY_SIZE) {
+            if ( !decodeSBBSWarningLogged ) {
+                logger.warn("Expecting a length = " +  ARRAY_SIZE + " strand bias array.");
+                decodeSBBSWarningLogged = true;
+            }
+            return null;
+        }
+        final int[][] table = new int[ARRAY_DIM][ARRAY_DIM];
         table[0][0] = array[0];
         table[0][1] = array[1];
         table[1][0] = array[2];
