@@ -72,7 +72,6 @@ import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import org.broadinstitute.gatk.utils.text.TextFormattingUtils;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import htsjdk.variant.vcf.VCFConstants;
@@ -222,8 +221,7 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
 
         final SAMProgramRecord programRecord = new SAMProgramRecord(PROGRAM_RECORD_NAME);
         if ( !NO_PG_TAG ) {
-            final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("GATKText");
-            programRecord.setProgramVersion(headerInfo.getString("org.broadinstitute.gatk.tools.version"));
+            programRecord.setProgramVersion(CommandLineProgram.getVersionNumber());
             programRecord.setCommandLine(getToolkit().createApproximateCommandLineArgumentString(getToolkit(), this));
         }
         header.setProgramRecords(Arrays.asList(programRecord));

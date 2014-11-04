@@ -7,7 +7,7 @@
     <dependencySets>
         <dependencySet>
             <includes>
-                <include>org.broadinstitute.gatk:gatk-package-distribution</include>
+                <include>${groupId}:${artifactId}</include>
             </includes>
             <outputFileNameMapping>${gatk.binary-dist.name}.${artifact.extension}</outputFileNameMapping>
         </dependencySet>
@@ -15,7 +15,7 @@
             <outputDirectory>resources</outputDirectory>
             <unpack>true</unpack>
             <includes>
-                <include>org.broadinstitute.gatk:gatk-engine:tar.bz2:example-resources</include>
+                <include>org.broadinstitute.gatk:*:tar.bz2:example-resources</include>
             </includes>
         </dependencySet>
     </dependencySets>
