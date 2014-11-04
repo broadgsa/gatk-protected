@@ -51,48 +51,55 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Number of forward and reverse reads that support REF and ALT alleles
+ * Number of forward and reverse reads that support each allele (including REF)
  *
- * <p>Strand bias is a type of sequencing bias in which one DNA strand is favored over the other, which can result in incorrect evaluation of the amount of evidence observed for one allele vs. the other. The StrandBiasBySample annotation produces read counts per allele and per strand that are used by other annotation modules (FisherStrand and StrandOddsRatio) to estimate strand bias using statistical approaches.
+ * <p>The StrandAlleleCountsBySample annotation produces read counts per allele and per strand.  Note that, as with the <a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_DepthPerAlleleBySample.php">AD</a> annotation, the allele counts here should not be used to make assumptions about the called genotype.</p>
  *
- * <p>This annotation produces 4 values, corresponding to the number of reads that support the following (in that order):</p>
+ * <p>This annotation produces 2 values per allele at each site, corresponding to the number of reads that support the following (in that order):</p>
  * <ul>
  *     <li>the reference allele on the forward strand</li>
  *     <li>the reference allele on the reverse strand</li>
- *     <li>the alternate allele on the forward strand</li>
- *     <li>the alternate allele on the reverse strand</li>
+ *     <li>the first alternate allele on the forward strand</li>
+ *     <li>the first alternate allele on the reverse strand</li>
+ *     <li>the second alternate allele on the forward strand</li>
+ *     <li><i>...etc</i></li>
  * </ul>
  *
  * <h3>Example</h3>
- * <pre>GT:AD:GQ:PL:SB  0/1:53,51:99:1758,0,1835:23,30,33,18</pre>
- * <p>In this example, the reference allele is supported by 23 forward reads and 30 reverse reads, the alternate allele is supported by 33 forward reads and 18 reverse reads.</p>
+ * <pre>GT:AD:GQ:PL:SB:SAC       1/2:1,18,12:99:1022,326,382,537,0,487:1,0,4,8:1,0,3,15,4,8</pre>
+ * <p>In this example, the reference allele is supported by 1 read on the forward strand, the first alternate allele is supported by 3 forward and 15 reverse reads, and the second alternate allele is supported by 4 forward and 8 reverse reads.</p>
  *
  * <h3>Related annotations</h3>
  * <ul>
- *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_FisherStrand.php">FisherStrand</a></b> uses Fisher's Exact Test to evaluate strand bias.</li>
- *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php">StrandOddsRatio</a></b> is an updated form of FisherStrand that uses a symmetric odds ratio calculation.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_DepthPerAlleleBySample.php">DepthPerAlleleBySample</a></b> displays the number of reads supporting each allele, without stratifying by strand.</li>
  * </ul>
  */
 
 
-public class StrandBiasBySample extends GenotypeAnnotation {
+public class StrandAlleleCountsBySample extends GenotypeAnnotation {
 
-    public final static String STRAND_BIAS_BY_SAMPLE_KEY_NAME = "SB";
+    public final static String STRAND_COUNT_BY_SAMPLE_KEY_NAME = "SAC";
 
     @Override
     public void annotate(final RefMetaDataTracker tracker,
@@ -106,18 +113,55 @@ public class StrandBiasBySample extends GenotypeAnnotation {
         if ( ! isAppropriateInput(alleleLikelihoodMap, g) )
             return;
 
-        final int[][] table = FisherStrand.getContingencyTable(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc, 0);
-
-        gb.attribute(STRAND_BIAS_BY_SAMPLE_KEY_NAME, FisherStrand.getContingencyArray(table));
+        gb.attribute(STRAND_COUNT_BY_SAMPLE_KEY_NAME, getStrandCounts(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc));
     }
 
     @Override
-    public List<String> getKeyNames() { return Collections.singletonList(STRAND_BIAS_BY_SAMPLE_KEY_NAME); }
+    public List<String> getKeyNames() { return Collections.singletonList(STRAND_COUNT_BY_SAMPLE_KEY_NAME); }
 
     @Override
-    public List<VCFFormatHeaderLine> getDescriptions() { return Collections.singletonList(new VCFFormatHeaderLine(getKeyNames().get(0), 4, VCFHeaderLineType.Integer, "Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias.")); }
+    public List<VCFFormatHeaderLine> getDescriptions() {
+        return Collections.singletonList(
+                new VCFFormatHeaderLine(getKeyNames().get(0), VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.Integer,
+                        "Number of reads on the forward and reverse strand supporting each allele (including reference)"));
+    }
 
     private boolean isAppropriateInput(final PerReadAlleleLikelihoodMap map, final Genotype g) {
         return ! (map == null || g == null || !g.isCalled());
     }
+
+    /**
+     * This method was inspired by (copied from) StrandBiasTest.getContingencyTable().  Unlike getContingencyTable, it
+     * returns values for all alleles rather than only reference and the most likely allele.  Since this is not useful
+     * for StrandBias calculations, it's here and it skips the Nx2 table format used in that method
+     */
+    private int[] getStrandCounts( final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap, final VariantContext vc) {
+        if( stratifiedPerReadAlleleLikelihoodMap == null ) { throw new IllegalArgumentException("stratifiedPerReadAlleleLikelihoodMap cannot be null"); }
+        if( vc == null ) { throw new IllegalArgumentException("input vc cannot be null"); }
+
+        final int[] table = new int[vc.getNAlleles()*2];
+
+        for (final PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
+            for (final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
+                final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+                final GATKSAMRecord read = el.getKey();
+                if (mostLikelyAllele.isInformative())
+                    updateTable(table, vc.getAlleleIndex(mostLikelyAllele.getAlleleIfInformative()), read);
+            }
+        }
+
+        return table;
+    }
+
+    private void updateTable(final int[] table, final int alleleIndex, final GATKSAMRecord read) {
+        if (alleleIndex < 0 || (alleleIndex+1)*2 > table.length) return;
+        final int offset = alleleIndex * 2;
+
+        //Unstranded reads are not meaningful for this annotation, they can be found in the AD annotation
+        if (!read.isStrandless()) {
+            final boolean isFW = !read.getReadNegativeStrandFlag();
+            table[offset + (isFW ? 0 : 1)]++;
+        }
+    }
+
 }
