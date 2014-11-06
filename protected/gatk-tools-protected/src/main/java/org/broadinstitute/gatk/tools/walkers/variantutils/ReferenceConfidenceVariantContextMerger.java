@@ -315,7 +315,7 @@ public class ReferenceConfidenceVariantContextMerger {
         // we need to get a map done (lazily inside the loop) for each ploidy, up to the maximum possible.
         final int[][] genotypeIndexMapsByPloidy = new int[maximumPloidy + 1][];
         final int maximumAlleleCount = Math.max(remappedAlleles.size(),targetAlleles.size());
-        final int[] indexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, VC.getStart());
+        int[] perSampleIndexesOfRelevantAlleles;
 
         for ( final Genotype g : VC.getGenotypes() ) {
             final String name = g.getSampleName();
@@ -325,11 +325,12 @@ public class ReferenceConfidenceVariantContextMerger {
             final GenotypeBuilder genotypeBuilder = new GenotypeBuilder(g).alleles(GATKVariantContextUtils.noCallAlleles(g.getPloidy()));
             if (g.hasPL()) {
                 // lazy initialization of the genotype index map by ploidy.
+                perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, VC.getStart(), g);
                 final int[] genotypeIndexMapByPloidy = genotypeIndexMapsByPloidy[ploidy] == null
-                            ? GenotypeLikelihoodCalculators.getInstance(ploidy, maximumAlleleCount).genotypeIndexMap(indexesOfRelevantAlleles)
+                            ? GenotypeLikelihoodCalculators.getInstance(ploidy, maximumAlleleCount).genotypeIndexMap(perSampleIndexesOfRelevantAlleles)
                             : genotypeIndexMapsByPloidy[ploidy];
                 final int[] PLs = generatePL(g, genotypeIndexMapByPloidy);
-                final int[] AD = g.hasAD() ? generateAD(g.getAD(), indexesOfRelevantAlleles) : null;
+                final int[] AD = g.hasAD() ? generateAD(g.getAD(), perSampleIndexesOfRelevantAlleles) : null;
                 genotypeBuilder.PL(PLs).AD(AD).noGQ();
             }
             mergedGenotypes.add(genotypeBuilder.make());
@@ -364,27 +365,55 @@ public class ReferenceConfidenceVariantContextMerger {
      *
      * @param remappedAlleles   the list of alleles to evaluate
      * @param targetAlleles     the target list of alleles
-     * @param position          position to use for error messages
+     * @param position          position to output error info
+     * @param g                 genotype from which targetAlleles are derived
      * @return non-null array of ints representing indexes
      */
-    protected static int[] getIndexesOfRelevantAlleles(final List<Allele> remappedAlleles, final List<Allele> targetAlleles, final int position) {
+    protected static int[] getIndexesOfRelevantAlleles(final List<Allele> remappedAlleles, final List<Allele> targetAlleles, final int position, final Genotype g) {
 
         if ( remappedAlleles == null || remappedAlleles.size() == 0 ) throw new IllegalArgumentException("The list of input alleles must not be null or empty");
         if ( targetAlleles == null || targetAlleles.size() == 0 ) throw new IllegalArgumentException("The list of target alleles must not be null or empty");
 
         if ( !remappedAlleles.contains(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE) )
             throw new UserException("The list of input alleles must contain " + GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE + " as an allele but that is not the case at position " + position + "; please use the Haplotype Caller with gVCF output to generate appropriate records");
-        final int indexOfGenericAlt = remappedAlleles.indexOf(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+
+        final int indexOfNonRef = remappedAlleles.indexOf(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+
+        //if the refs don't match then let the non-ref allele be the most likely of the alts
+        //TODO: eventually it would be nice to be able to trim alleles for spanning events to see if they really do have the same ref
+        final boolean refsMatch = targetAlleles.get(0).equals(remappedAlleles.get(0),false);
+        final int indexOfBestAlt;
+        if (!refsMatch && g.hasPL()) {
+            final int[] PLs = g.getPL().clone();
+            PLs[0] = Integer.MAX_VALUE; //don't pick 0/0
+            final int indexOfBestAltPL = MathUtils.minElementIndex(PLs);
+            GenotypeLikelihoods.GenotypeLikelihoodsAllelePair pair = GenotypeLikelihoods.getAllelePair(indexOfBestAltPL);
+            indexOfBestAlt = pair.alleleIndex2;
+        }
+        else
+            indexOfBestAlt = indexOfNonRef;
 
         final int[] indexMapping = new int[targetAlleles.size()];
 
-        // the reference alleles always match up (even if they don't appear to)
+        // the reference likelihoods should always map to each other (even if the alleles don't)
         indexMapping[0] = 0;
 
         // create the index mapping, using the <ALT> allele whenever such a mapping doesn't exist
-        for ( int i = 1; i < targetAlleles.size(); i++ ) {
+        final int targetNonRef = targetAlleles.indexOf(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final boolean targetHasNonRef = targetNonRef != -1;
+        final int lastConcreteAlt = targetHasNonRef ? targetAlleles.size()-2 : targetAlleles.size()-1;
+        for ( int i = 1; i <= lastConcreteAlt; i++ ) {
             final int indexOfRemappedAllele = remappedAlleles.indexOf(targetAlleles.get(i));
-            indexMapping[i] = indexOfRemappedAllele == -1 ? indexOfGenericAlt : indexOfRemappedAllele;
+            indexMapping[i] = indexOfRemappedAllele == -1 ? indexOfNonRef : indexOfRemappedAllele;
+        }
+        if (targetHasNonRef) {
+            if (refsMatch) {
+                final int indexOfRemappedAllele = remappedAlleles.indexOf(targetAlleles.get(targetNonRef));
+                indexMapping[targetNonRef] = indexOfRemappedAllele == -1 ? indexOfNonRef : indexOfRemappedAllele;
+            }
+            else {
+                indexMapping[targetNonRef] = indexOfBestAlt;
+            }
         }
 
         return indexMapping;

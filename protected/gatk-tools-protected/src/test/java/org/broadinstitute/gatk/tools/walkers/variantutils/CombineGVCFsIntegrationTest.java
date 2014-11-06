@@ -206,7 +206,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBasepairResolutionInput() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V " + privateTestDir + "gvcf.basepairResolution.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("6116f3c70cd5288f3e8b89b1953a1e15"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("eb56760419b295651b6d54ba3ad18f52"));
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionInput", spec);
     }
