@@ -90,7 +90,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() {
-        HCTest(CEUTRIO_BAM, "", "bd0c2401f0c0a1f35ca0563a74672116");
+        HCTest(CEUTRIO_BAM, "", "9863e997c4f4be60e7e76a5573ec270f");
     }
 
     @Test
@@ -141,7 +141,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSample() {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "f9388b9a6c8bd76862dc716adfb9fd5d");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "4d8fdb7ae9dd599f8c9f54ae4484ef38");
     }
 
     @Test
@@ -153,7 +153,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerMultiSampleGGA() {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf" +
                 " -isr INTERSECTION -L " + GGA_INTERVALS_FILE,
-                "48b11c06729a99d4d54c5aa99663343c");
+                "e9bc5ddd6e7e530268ffeee4c853f8f0");
     }
 
     @Test
@@ -267,6 +267,19 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     }
 
 
+    private static final String LEFT_ALIGNMENT_BAMOUT_TEST_INPUT = privateTestDir + "/bamout-indel-left-align-bugfix-input.bam";
+
+    private static final String LEFT_ALIGNMENT_BAMOUT_TEST_OUTPUT = privateTestDir + "/bamout-indel-left-align-bugfix-expected-output.bam";
+
+    @Test
+    public void testLeftAlignmentBamOutBugFix() {
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, LEFT_ALIGNMENT_BAMOUT_TEST_INPUT)
+                + " --no_cmdline_in_header -bamout %s -o /dev/null -L 1:11740000-11740700 --allowNonUniqueKmersInRef";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("c19f0e62f90794661f5927c360d50998"));
+        executeTest("LeftAlignmentBamOutBugFix", spec);
+    }
+
+
     // --------------------------------------------------------------------------------------------------------------
     //
     // test dbSNP annotation
@@ -277,7 +290,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,090,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("86fb942473b3f8df2f8865209e551200"));
+                Arrays.asList("f0618b66e088b2d6fd831bb357de933c"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
@@ -294,7 +307,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDBSNPAnnotationWGSGraphBased() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,090,000-10,100,000 -D " + b37dbSNP132, 1,
-                Arrays.asList("b6dab8a6223afeb9d0fa7c178c84c024"));
+                Arrays.asList("1b15b696671a9da000d5ec0372f939a2"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
 
