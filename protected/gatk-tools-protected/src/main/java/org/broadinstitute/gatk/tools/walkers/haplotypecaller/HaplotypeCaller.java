@@ -1046,7 +1046,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,samplesList,reads);
 
         // Realign reads to their best haplotype.
-        final Map<GATKSAMRecord,GATKSAMRecord> readRealignments = realignReadsToTheirBestHaplotype(readLikelihoods, assemblyResult.getPaddedReferenceLoc());
+        final Map<GATKSAMRecord,GATKSAMRecord> readRealignments = realignReadsToTheirBestHaplotype(readLikelihoods, assemblyResult.getReferenceHaplotype(), assemblyResult.getPaddedReferenceLoc());
         readLikelihoods.changeReads(readRealignments);
 
         // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
@@ -1111,7 +1111,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * </p>
      * @return never {@code null}
      */
-    private Map<GATKSAMRecord,GATKSAMRecord> realignReadsToTheirBestHaplotype(final ReadLikelihoods<Haplotype> originalReadLikelihoods, final GenomeLoc paddedReferenceLoc) {
+    private Map<GATKSAMRecord,GATKSAMRecord> realignReadsToTheirBestHaplotype(final ReadLikelihoods<Haplotype> originalReadLikelihoods, final Haplotype refHaplotype, final GenomeLoc paddedReferenceLoc) {
 
         final Collection<ReadLikelihoods<Haplotype>.BestAllele> bestAlleles = originalReadLikelihoods.bestAlleles();
         final Map<GATKSAMRecord,GATKSAMRecord> result = new HashMap<>(bestAlleles.size());
@@ -1120,7 +1120,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             final GATKSAMRecord originalRead = bestAllele.read;
             final Haplotype bestHaplotype = bestAllele.allele;
             final boolean isInformative = bestAllele.isInformative();
-            final GATKSAMRecord realignedRead = AlignmentUtils.createReadAlignedToRef(originalRead,bestHaplotype,paddedReferenceLoc.getStart(),isInformative);
+            final GATKSAMRecord realignedRead = AlignmentUtils.createReadAlignedToRef(originalRead, bestHaplotype, refHaplotype, paddedReferenceLoc.getStart(), isInformative);
             result.put(originalRead,realignedRead);
         }
         return result;

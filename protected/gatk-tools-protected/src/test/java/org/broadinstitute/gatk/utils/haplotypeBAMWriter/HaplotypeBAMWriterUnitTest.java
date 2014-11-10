@@ -177,10 +177,10 @@ public class HaplotypeBAMWriterUnitTest extends BaseTest {
         final GATKSAMRecord originalReadCopy = (GATKSAMRecord)read.clone();
 
         if ( expectedReadCigar == null ) {
-            Assert.assertNull(AlignmentUtils.createReadAlignedToRef(read, haplotype, refStart, true));
+            Assert.assertNull(AlignmentUtils.createReadAlignedToRef(read, haplotype, haplotype, refStart, true));
         } else {
             final Cigar expectedCigar = TextCigarCodec.getSingleton().decode(expectedReadCigar);
-            final GATKSAMRecord alignedRead = AlignmentUtils.createReadAlignedToRef(read, haplotype, refStart, true);
+            final GATKSAMRecord alignedRead = AlignmentUtils.createReadAlignedToRef(read, haplotype, haplotype, refStart, true);
 
             Assert.assertEquals(alignedRead.getReadName(), originalReadCopy.getReadName());
             Assert.assertEquals(alignedRead.getAlignmentStart(), expectedReadStart);
@@ -290,7 +290,7 @@ public class HaplotypeBAMWriterUnitTest extends BaseTest {
     @Test(dataProvider = "ComplexReadAlignedToRef", enabled = !DEBUG)
     public void testReadAlignedToRefComplexAlignment(final int testIndex, final GATKSAMRecord read, final String reference, final Haplotype haplotype, final int expectedMaxMismatches) throws Exception {
         final HaplotypeBAMWriter writer = new CalledHaplotypeBAMWriter(new MockDestination());
-        final GATKSAMRecord alignedRead = AlignmentUtils.createReadAlignedToRef(read, haplotype, 1, true);
+        final GATKSAMRecord alignedRead = AlignmentUtils.createReadAlignedToRef(read, haplotype, new Haplotype(reference.getBytes(),true), 1, true);
         if ( alignedRead != null ) {
             final int mismatches = AlignmentUtils.getMismatchCount(alignedRead, reference.getBytes(), alignedRead.getAlignmentStart() - 1).numMismatches;
             Assert.assertTrue(mismatches <= expectedMaxMismatches,
