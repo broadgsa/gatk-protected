@@ -162,9 +162,9 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
      * @return the augmented table
      */
     private static double[][] augmentContingencyTable(final int[][] table) {
-        double[][] augmentedTable = new double[2][2];
-        for ( int i = 0; i < 2; i++ ) {
-            for ( int j = 0; j < 2; j++ )
+        double[][] augmentedTable = new double[ARRAY_DIM][ARRAY_DIM];
+        for ( int i = 0; i < ARRAY_DIM; i++ ) {
+            for ( int j = 0; j < ARRAY_DIM; j++ )
                 augmentedTable[i][j] = table[i][j] + AUGMENTATION_CONSTANT;
         }
 

@@ -310,7 +310,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                 baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000 " +
                 "-A SnpEff",
                 1,
-                UserException.class);
+                Arrays.asList("037ce3364668ee6527fba80c4f4bff95"));
         executeTest("testSnpEffAnnotationRequestedWithoutRodBinding", spec);
     }
 

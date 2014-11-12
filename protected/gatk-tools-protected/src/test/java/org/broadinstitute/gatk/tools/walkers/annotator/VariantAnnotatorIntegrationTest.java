@@ -55,7 +55,6 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.Genotype;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
 import org.testng.Assert;
@@ -95,7 +94,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testHasAnnotsAsking1() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample2.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("4f7ebd519451a776c1aa61493ff33943"));
+                Arrays.asList("92eb47332dd9d7ee7fbe3120dc39c594"));
         executeTest("test file has annotations, asking for annotations, #1", spec);
     }
 
@@ -103,7 +102,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testHasAnnotsAsking2() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample3.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,050,000", 1,
-                Arrays.asList("8cd16a59e4697beb1c6d75d0b82c8cf5"));
+                Arrays.asList("c367bf7cebd7b26305f8d4736788aec8"));
         executeTest("test file has annotations, asking for annotations, #2", spec);
     }
 
@@ -129,7 +128,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoAnnotsAsking1() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample2empty.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("a4df0258a61170c74c85b3cd516c8153"));
+                Arrays.asList("098dcad8d90d90391755a0191c9db59c"));
         executeTest("test file doesn't have annotations, asking for annotations, #1", spec);
     }
 
@@ -137,7 +136,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoAnnotsAsking2() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,050,000", 1,
-                Arrays.asList("1554af900d1caee1d85824ee85e54398"));
+                Arrays.asList("f3bbfbc179d2e1bae49890f1e9dfde34"));
         executeTest("test file doesn't have annotations, asking for annotations, #2", spec);
     }
 
@@ -145,7 +144,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testExcludeAnnotations() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard -XA FisherStrand -XA ReadPosRankSumTest --variant " + privateTestDir + "vcfexample2empty.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("11935c8d5cc5a170d06f0b624b31079f"));
+                Arrays.asList("7267450fc4d002f75a24ca17278e0950"));
         executeTest("test exclude annotations", spec);
     }
 
@@ -153,7 +152,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testOverwritingHeader() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " -G Standard --variant " + privateTestDir + "vcfexample4.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,001,292", 1,
-                Arrays.asList("06b4127795a67bd26156cc1651f3a98b"));
+                Arrays.asList("18592c72d83ee84e1326acb999518c38"));
         executeTest("test overwriting header", spec);
     }
 
@@ -271,7 +270,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
             "--snpEffFile  " + privateTestDir + "snpEff_unsupported_version_no_gatk_mode.vcf " +
             "-L 1:10001292-10012424",
             1,
-            UserException.class
+            Arrays.asList("87cbf53c65ef4498b721f901f87f0161")
         );
         executeTest("Testing SnpEff annotations (unsupported version, no GATK mode)", spec);
     }
@@ -309,10 +308,13 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
     @Test
     public void testStrandBiasBySample() throws IOException {
+        // pipeline 1: create variant via HalotypeCaller with no default annotations
         final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800";
         final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(""));
         final File outputVCF = executeTest("testStrandBiasBySample", spec).getFirst().get(0);
 
+        // pipeline 2: create variant via HalotypeCaller; include StrandBiasBySample, exclude FisherStrand annotation
+        //             re-Annotate the variant with VariantAnnotator using FisherStrand annotation
         final String baseNoFS = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, CEUTRIO_BAM) + " --no_cmdline_in_header -o %s -L 20:10130000-10134800 -XA FisherStrand -A StrandBiasBySample";
         final WalkerTestSpec specNoFS = new WalkerTestSpec(baseNoFS, 1, Arrays.asList(""));
         specNoFS.disableShadowBCF();

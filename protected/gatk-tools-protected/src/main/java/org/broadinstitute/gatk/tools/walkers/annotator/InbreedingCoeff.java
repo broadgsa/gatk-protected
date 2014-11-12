@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.variant.variantcontext.Allele;
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -85,10 +86,12 @@ import java.util.*;
  */
 public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 
+    private final static Logger logger = Logger.getLogger(InbreedingCoeff.class);
     private static final int MIN_SAMPLES = 10;
     private static final String INBREEDING_COEFFICIENT_KEY_NAME = "InbreedingCoeff";
     private Set<String> founderIds;
     private int sampleCount;
+    private boolean pedigreeCheckWarningLogged = false;
 
     @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
@@ -98,9 +101,19 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
         //If available, get the founder IDs and cache them. the IC will only be computed on founders then.
-        if(founderIds == null && walker != null)
-            founderIds =  ((Walker)walker).getSampleDB().getFounderIds();
-        return makeCoeffAnnotation(vc);
+        if(founderIds == null && walker != null) {
+            founderIds = ((Walker) walker).getSampleDB().getFounderIds();
+        }
+        if ( founderIds == null || founderIds.isEmpty() ) {
+            if ( !pedigreeCheckWarningLogged ) {
+                logger.warn("Annotation will not be calculated, must provide a valid PED file (-ped) from the command line.");
+                pedigreeCheckWarningLogged = true;
+            }
+            return null;
+        }
+        else{
+            return makeCoeffAnnotation(vc);
+        }
     }
 
     protected double calculateIC(final VariantContext vc, final GenotypesContext genotypes) {
@@ -124,7 +137,7 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
             {
                 if (g.isHetNonRef()) {
                     //all likelihoods go to homCount
-                    homCount += 1;
+                    homCount++;
                     continue;
                 }
 
