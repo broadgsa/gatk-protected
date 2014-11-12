@@ -72,13 +72,14 @@ import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.GeneralPloidyFailOverAFCalculatorProvider;
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
@@ -183,7 +184,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
         headerLines.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
         // add the pool values for each genotype
-        VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.MLE_ALLELE_COUNT_KEY, VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
             VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
@@ -265,10 +267,10 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     private VariantContext addGenotypingAnnotations(final Map<String, Object> originalAttributes, final VariantContext newVC) {
         // we want to carry forward the attributes from the original VC but make sure to add the MLE-based annotations
         final Map<String, Object> attrs = new HashMap<>(originalAttributes);
-        attrs.put(VCFConstants.MLE_ALLELE_COUNT_KEY, newVC.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
-        attrs.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, newVC.getAttribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY));
-        if (newVC.hasAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY))
-            attrs.put(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, newVC.getAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY));
+        attrs.put(GATKVCFConstants.MLE_ALLELE_COUNT_KEY, newVC.getAttribute(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
+        attrs.put(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY, newVC.getAttribute(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+        if (newVC.hasAttribute(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY))
+            attrs.put(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY, newVC.getAttribute(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY));
 
         return new VariantContextBuilder(newVC).attributes(attrs).make();
     }
@@ -305,8 +307,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             attrs.remove("SB");
 
             // update PGT for hom vars
-            if ( oldGT.isHomVar() && oldGT.hasExtendedAttribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY) ) {
-                attrs.put(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY, "1|1");
+            if ( oldGT.isHomVar() && oldGT.hasExtendedAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY) ) {
+                attrs.put(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY, "1|1");
             }
 
             // create AD if it's not there

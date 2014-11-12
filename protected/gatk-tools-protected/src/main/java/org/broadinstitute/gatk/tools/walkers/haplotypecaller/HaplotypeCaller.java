@@ -101,9 +101,7 @@ import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
-import org.broadinstitute.gatk.utils.variant.GATKVCFIndexType;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
+import org.broadinstitute.gatk.utils.variant.*;
 
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
@@ -557,9 +555,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="Disable physical phasing", required = false)
     protected boolean doNotRunPhysicalPhasing = false;
 
-    public static final String HAPLOTYPE_CALLER_PHASING_ID_KEY = "PID";
-    public static final String HAPLOTYPE_CALLER_PHASING_GT_KEY = "PGT";
-
     // -----------------------------------------------------------------------------------------------
     // arguments for debugging / developing the haplotype caller
     // -----------------------------------------------------------------------------------------------
@@ -812,10 +807,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // all annotation fields from VariantAnnotatorEngine
         headerInfo.addAll(annotationEngine.getVCFAnnotationDescriptions());
         // all callers need to add these standard annotation header lines
-        VCFStandardHeaderLines.addStandardInfoLines(headerInfo, true,
-                VCFConstants.DOWNSAMPLED_KEY,
-                VCFConstants.MLE_ALLELE_COUNT_KEY,
-                VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.DOWNSAMPLED_KEY));
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
         // all callers need to add these standard FORMAT field header lines
         VCFStandardHeaderLines.addStandardFormatLines(headerInfo, true,
                 VCFConstants.GENOTYPE_KEY,
@@ -824,13 +818,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 VCFConstants.GENOTYPE_PL_KEY);
 
         if ( ! doNotRunPhysicalPhasing ) {
-            headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_ID_KEY, 1, VCFHeaderLineType.String, "Physical phasing ID information, where each unique ID within a given sample (but not across samples) connects records within a phasing group"));
-            headerInfo.add(new VCFFormatHeaderLine(HAPLOTYPE_CALLER_PHASING_GT_KEY, 1, VCFHeaderLineType.String, "Physical phasing haplotype information, describing how the alternate alleles are phased in relation to one another"));
+            headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_ID_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY));
         }
 
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
-        headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotypingEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
+        headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.LOW_QUAL_FILTER_NAME));
 
         initializeReferenceConfidenceModel(samplesList, headerInfo);
 

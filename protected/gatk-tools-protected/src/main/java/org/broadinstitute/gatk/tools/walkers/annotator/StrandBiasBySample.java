@@ -61,7 +61,8 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -92,8 +93,6 @@ import java.util.*;
 
 public class StrandBiasBySample extends GenotypeAnnotation {
 
-    public final static String STRAND_BIAS_BY_SAMPLE_KEY_NAME = "SB";
-
     @Override
     public void annotate(final RefMetaDataTracker tracker,
                          final AnnotatorCompatible walker,
@@ -108,14 +107,14 @@ public class StrandBiasBySample extends GenotypeAnnotation {
 
         final int[][] table = FisherStrand.getContingencyTable(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc, 0);
 
-        gb.attribute(STRAND_BIAS_BY_SAMPLE_KEY_NAME, FisherStrand.getContingencyArray(table));
+        gb.attribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY, FisherStrand.getContingencyArray(table));
     }
 
     @Override
-    public List<String> getKeyNames() { return Collections.singletonList(STRAND_BIAS_BY_SAMPLE_KEY_NAME); }
+    public List<String> getKeyNames() { return Collections.singletonList(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY); }
 
     @Override
-    public List<VCFFormatHeaderLine> getDescriptions() { return Collections.singletonList(new VCFFormatHeaderLine(getKeyNames().get(0), 4, VCFHeaderLineType.Integer, "Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias.")); }
+    public List<VCFFormatHeaderLine> getDescriptions() { return Collections.singletonList(GATKVCFHeaderLines.getFormatLine(getKeyNames().get(0))); }
 
     private boolean isAppropriateInput(final PerReadAlleleLikelihoodMap map, final Genotype g) {
         return ! (map == null || g == null || !g.isCalled());

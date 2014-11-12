@@ -61,8 +61,9 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnot
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
@@ -197,10 +198,10 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
     private final static double IDEAL_HIGH_QD = 30;
     private final static double JITTER_SIGMA = 3;
 
-    public List<String> getKeyNames() { return Arrays.asList("QD"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.QUAL_BY_DEPTH_KEY); }
 
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(new VCFInfoHeaderLine(getKeyNames().get(0), 1, VCFHeaderLineType.Float, "Variant Confidence/Quality by Depth"));
+        return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
 

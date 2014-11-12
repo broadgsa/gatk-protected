@@ -53,8 +53,9 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.Arrays;
 import java.util.List;
@@ -73,10 +74,10 @@ import java.util.List;
  */
 public class LikelihoodRankSumTest extends RankSumTest {
     @Override
-    public List<String> getKeyNames() { return Arrays.asList("LikelihoodRankSum"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.LIKELIHOOD_RANK_SUM_KEY); }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("LikelihoodRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt Vs. Ref haplotype likelihoods")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 
     @Override
     protected Double getElementForRead(final GATKSAMRecord read, final int refLoc, final MostLikelyAllele mostLikelyAllele) {

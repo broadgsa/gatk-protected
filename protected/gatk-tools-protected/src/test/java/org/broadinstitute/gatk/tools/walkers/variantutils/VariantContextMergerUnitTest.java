@@ -55,7 +55,7 @@ import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.testng.Assert;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.DataProvider;
@@ -143,7 +143,7 @@ public class VariantContextMergerUnitTest  extends BaseTest {
 
         // always add the reference and <ALT> alleles
         myAlleles.add(allAlleles.get(0));
-        myAlleles.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        myAlleles.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         // optionally add another alternate allele
         if ( allelesIndex > 0 )
             myAlleles.add(allAlleles.get(allelesIndex));
@@ -180,31 +180,31 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         noCalls.add(Allele.NO_CALL);
         noCalls.add(Allele.NO_CALL);
 
-        final List<Allele> A_ALT = Arrays.asList(Aref, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final List<Allele> A_ALT = Arrays.asList(Aref, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_ALT = new GenotypeBuilder("A").PL(new int[]{0, 100, 1000}).alleles(noCalls).make();
         final VariantContext vcA_ALT = new VariantContextBuilder(VCbase).alleles(A_ALT).genotypes(gA_ALT).make();
         final Allele AAref = Allele.create("AA", true);
-        final List<Allele> AA_ALT = Arrays.asList(AAref, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final List<Allele> AA_ALT = Arrays.asList(AAref, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gAA_ALT = new GenotypeBuilder("AA").PL(new int[]{0, 80, 800}).alleles(noCalls).make();
         final VariantContext vcAA_ALT = new VariantContextBuilder(VCprevBase).alleles(AA_ALT).genotypes(gAA_ALT).make();
         final List<Allele> A_C = Arrays.asList(Aref, C);
         final Genotype gA_C = new GenotypeBuilder("A_C").PL(new int[]{30, 20, 10}).alleles(noCalls).make();
-        final List<Allele> A_C_ALT = Arrays.asList(Aref, C, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final List<Allele> A_C_ALT = Arrays.asList(Aref, C, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_C_ALT = new GenotypeBuilder("A_C").PL(standardPLs).alleles(noCalls).make();
         final VariantContext vcA_C_ALT = new VariantContextBuilder(VCbase).alleles(A_C_ALT).genotypes(gA_C_ALT).make();
-        final List<Allele> A_G_ALT = Arrays.asList(Aref, G, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final List<Allele> A_G_ALT = Arrays.asList(Aref, G, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_G_ALT = new GenotypeBuilder("A_G").PL(standardPLs).alleles(noCalls).make();
         final VariantContext vcA_G_ALT = new VariantContextBuilder(VCbase).alleles(A_G_ALT).genotypes(gA_G_ALT).make();
         final List<Allele> A_C_G = Arrays.asList(Aref, C, G);
         final Genotype gA_C_G = new GenotypeBuilder("A_C_G").PL(new int[]{40, 20, 30, 20, 10, 30}).alleles(noCalls).make();
-        final List<Allele> A_C_G_ALT = Arrays.asList(Aref, C, G, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final List<Allele> A_C_G_ALT = Arrays.asList(Aref, C, G, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_C_G_ALT = new GenotypeBuilder("A_C_G").PL(new int[]{40, 20, 30, 20, 10, 30, 71, 72, 73, 74}).alleles(noCalls).make();
         final VariantContext vcA_C_G_ALT = new VariantContextBuilder(VCbase).alleles(A_C_G_ALT).genotypes(gA_C_G_ALT).make();
-        final List<Allele> A_ATC_ALT = Arrays.asList(Aref, ATC, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final List<Allele> A_ATC_ALT = Arrays.asList(Aref, ATC, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gA_ATC_ALT = new GenotypeBuilder("A_ATC").PL(standardPLs).alleles(noCalls).make();
         final VariantContext vcA_ATC_ALT = new VariantContextBuilder(VCbase).alleles(A_ATC_ALT).genotypes(gA_ATC_ALT).make();
         final Allele A = Allele.create("A", false);
-        final List<Allele> AA_A_ALT = Arrays.asList(AAref, A, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final List<Allele> AA_A_ALT = Arrays.asList(AAref, A, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gAA_A_ALT = new GenotypeBuilder("AA_A").PL(standardPLs).alleles(noCalls).make();
         final VariantContext vcAA_A_ALT = new VariantContextBuilder(VCprevBase).alleles(AA_A_ALT).genotypes(gAA_A_ALT).make();
 

@@ -64,6 +64,8 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -333,7 +335,7 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
             samples = SampleUtils.getSampleList(header, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
             Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(header.values(), true);
             headerLines.add(new VCFHeaderLine("source", "GenotypeAndValidate"));
-            headerLines.add(new VCFInfoHeaderLine("callStatus", 1, VCFHeaderLineType.String, "Value from the validation VCF"));
+            headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.GENOTYPE_AND_VALIDATE_STATUS_KEY));
             vcfWriter.writeHeader(new VCFHeader(headerLines, samples));
         }
 
@@ -496,8 +498,8 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
         }
 
         if (vcfWriter != null && writeVariant) {
-            if (!vcComp.hasAttribute("callStatus")) {
-                vcfWriter.add(new VariantContextBuilder(vcComp).attribute("callStatus", call.isCalledAlt(callConf) ? "ALT" : "REF").make());
+            if (!vcComp.hasAttribute(GATKVCFConstants.GENOTYPE_AND_VALIDATE_STATUS_KEY)) {
+                vcfWriter.add(new VariantContextBuilder(vcComp).attribute(GATKVCFConstants.GENOTYPE_AND_VALIDATE_STATUS_KEY, call.isCalledAlt(callConf) ? "ALT" : "REF").make());
             }
             else
                 vcfWriter.add(vcComp);

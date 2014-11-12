@@ -63,11 +63,12 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnot
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.MathUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -88,7 +89,6 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
 
     private final static Logger logger = Logger.getLogger(InbreedingCoeff.class);
     private static final int MIN_SAMPLES = 10;
-    private static final String INBREEDING_COEFFICIENT_KEY_NAME = "InbreedingCoeff";
     private Set<String> founderIds;
     private int sampleCount;
     private boolean pedigreeCheckWarningLogged = false;
@@ -182,8 +182,8 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
     }
 
     @Override
-    public List<String> getKeyNames() { return Collections.singletonList(INBREEDING_COEFFICIENT_KEY_NAME); }
+    public List<String> getKeyNames() { return Collections.singletonList(GATKVCFConstants.INBREEDING_COEFFICIENT_KEY); }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Collections.singletonList(new VCFInfoHeaderLine(INBREEDING_COEFFICIENT_KEY_NAME, 1, VCFHeaderLineType.Float, "Inbreeding coefficient as estimated from the genotype likelihoods per-sample when compared against the Hardy-Weinberg expectation")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 }

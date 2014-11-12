@@ -56,8 +56,6 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
@@ -66,6 +64,8 @@ import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.Collections;
 import java.util.List;
@@ -99,8 +99,6 @@ import java.util.Map;
 
 public class StrandAlleleCountsBySample extends GenotypeAnnotation {
 
-    public final static String STRAND_COUNT_BY_SAMPLE_KEY_NAME = "SAC";
-
     @Override
     public void annotate(final RefMetaDataTracker tracker,
                          final AnnotatorCompatible walker,
@@ -113,17 +111,15 @@ public class StrandAlleleCountsBySample extends GenotypeAnnotation {
         if ( ! isAppropriateInput(alleleLikelihoodMap, g) )
             return;
 
-        gb.attribute(STRAND_COUNT_BY_SAMPLE_KEY_NAME, getStrandCounts(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc));
+        gb.attribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY, getStrandCounts(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc));
     }
 
     @Override
-    public List<String> getKeyNames() { return Collections.singletonList(STRAND_COUNT_BY_SAMPLE_KEY_NAME); }
+    public List<String> getKeyNames() { return Collections.singletonList(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY); }
 
     @Override
     public List<VCFFormatHeaderLine> getDescriptions() {
-        return Collections.singletonList(
-                new VCFFormatHeaderLine(getKeyNames().get(0), VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.Integer,
-                        "Number of reads on the forward and reverse strand supporting each allele (including reference)"));
+        return Collections.singletonList(GATKVCFHeaderLines.getFormatLine(getKeyNames().get(0)));
     }
 
     private boolean isAppropriateInput(final PerReadAlleleLikelihoodMap map, final Genotype g) {

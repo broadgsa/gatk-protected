@@ -57,8 +57,9 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBa
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -98,8 +99,6 @@ import java.util.*;
 public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotation, ActiveRegionBasedAnnotation {
     private final static double AUGMENTATION_CONSTANT = 1.0;
     private static final int MIN_COUNT = 0;
-
-    private static final String SOR = "SOR";
 
     @Override
     protected Map<String, Object> calculateAnnotationFromGTfield(GenotypesContext genotypes){
@@ -179,16 +178,16 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
      */
     protected Map<String, Object> annotationForOneTable(final double ratio) {
         final Object value = String.format("%.3f", ratio);
-        return Collections.singletonMap(SOR, value);
+        return Collections.singletonMap(getKeyNames().get(0), value);
     }
 
     @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Collections.singletonList(new VCFInfoHeaderLine(SOR, 1, VCFHeaderLineType.Float, "Symmetric Odds Ratio of 2x2 contingency table to detect strand bias"));
+        return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
     @Override
     public List<String> getKeyNames() {
-        return Collections.singletonList(SOR);
+        return Collections.singletonList(GATKVCFConstants.STRAND_ODDS_RATIO_KEY);
     }
 }

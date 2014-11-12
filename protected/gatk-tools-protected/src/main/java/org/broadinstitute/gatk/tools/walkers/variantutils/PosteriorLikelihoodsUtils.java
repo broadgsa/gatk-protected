@@ -54,6 +54,7 @@ package org.broadinstitute.gatk.tools.walkers.variantutils;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFConstants;
@@ -61,8 +62,6 @@ import htsjdk.variant.vcf.VCFConstants;
 import java.util.*;
 
 public class PosteriorLikelihoodsUtils {
-
-    private static final String PHRED_SCALED_POSTERIORS_KEY = "PP";
 
     public static VariantContext calculatePosteriorGLs(final VariantContext vc1,
                                                        final Collection<VariantContext> resources,
@@ -109,12 +108,12 @@ public class PosteriorLikelihoodsUtils {
         //parse the likelihoods for each sample's genotype
         final List<double[]> likelihoods = new ArrayList<>(vc1.getNSamples());
         for ( final Genotype genotype : vc1.getGenotypes() ) {
-            if (!genotype.hasExtendedAttribute(PHRED_SCALED_POSTERIORS_KEY)){
+            if (!genotype.hasExtendedAttribute(GATKVCFConstants.PHRED_SCALED_POSTERIORS_KEY)){
                 likelihoods.add(genotype.hasLikelihoods() ? genotype.getLikelihoods().getAsVector() : null );
 
             }
             else {
-                Object PPfromVCF = genotype.getExtendedAttribute(PHRED_SCALED_POSTERIORS_KEY);
+                Object PPfromVCF = genotype.getExtendedAttribute(GATKVCFConstants.PHRED_SCALED_POSTERIORS_KEY);
                 //parse the PPs into a vector of probabilities
                 if (PPfromVCF instanceof String) {
                     final String PPstring = (String)PPfromVCF;
@@ -153,7 +152,7 @@ public class PosteriorLikelihoodsUtils {
             if ( posteriors.get(genoIdx) != null ) {
                 GATKVariantContextUtils.updateGenotypeAfterSubsetting(vc1.getAlleles(), builder,
                         GATKVariantContextUtils.GenotypeAssignmentMethod.USE_PLS_TO_ASSIGN, posteriors.get(genoIdx), vc1.getAlleles());
-                builder.attribute(PHRED_SCALED_POSTERIORS_KEY,
+                builder.attribute(GATKVCFConstants.PHRED_SCALED_POSTERIORS_KEY,
                         Utils.listFromPrimitives(GenotypeLikelihoods.fromLog10Likelihoods(posteriors.get(genoIdx)).getAsPLs()));
             }
             newContext.add(builder.make());
@@ -162,7 +161,7 @@ public class PosteriorLikelihoodsUtils {
         final List<Integer> priors = Utils.listFromPrimitives(
                 GenotypeLikelihoods.fromLog10Likelihoods(getDirichletPrior(alleleCounts, vc1.getMaxPloidy(2),useFlatPriors)).getAsPLs());
 
-        final VariantContextBuilder builder = new VariantContextBuilder(vc1).genotypes(newContext).attribute("PG", priors);
+        final VariantContextBuilder builder = new VariantContextBuilder(vc1).genotypes(newContext).attribute(GATKVCFConstants.GENOTYPE_PRIOR_KEY, priors);
         // add in the AC, AF, and AN attributes
         VariantContextUtils.calculateChromosomeCounts(builder, true);
         return builder.make();
@@ -266,8 +265,8 @@ public class PosteriorLikelihoodsUtils {
     private static void addAlleleCounts(final Map<Allele,Integer> counts, final VariantContext context, final boolean useAC) {
         final int[] ac;
         //use MLEAC value...
-        if ( context.hasAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY) && ! useAC ) {
-            ac = getAlleleCounts(VCFConstants.MLE_ALLELE_COUNT_KEY, context);
+        if ( context.hasAttribute(GATKVCFConstants.MLE_ALLELE_COUNT_KEY) && ! useAC ) {
+            ac = getAlleleCounts(GATKVCFConstants.MLE_ALLELE_COUNT_KEY, context);
         }
         //...unless specified by the user in useAC or unless MLEAC is absent
         else if ( context.hasAttribute(VCFConstants.ALLELE_COUNT_KEY) ) {
@@ -346,7 +345,7 @@ public class PosteriorLikelihoodsUtils {
         }
         if ( mleList == null )
             throw new IllegalArgumentException(String.format("VCF does not have properly formatted "+
-                    VCFConstants.MLE_ALLELE_COUNT_KEY+" or "+VCFConstants.ALLELE_COUNT_KEY));
+                    GATKVCFConstants.MLE_ALLELE_COUNT_KEY+" or "+VCFConstants.ALLELE_COUNT_KEY));
 
         final int[] mle = new int[mleList.size()];
 

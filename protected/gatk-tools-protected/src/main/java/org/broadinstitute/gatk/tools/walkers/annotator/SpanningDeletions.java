@@ -61,9 +61,10 @@ import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -121,14 +122,14 @@ public class SpanningDeletions extends InfoFieldAnnotation implements StandardAn
                     deletions++;
             }
         }
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%.2f", depth == 0 ? 0.0 : (double)deletions/(double)depth));
         return map;
     }
 
     @Override
-    public List<String> getKeyNames() { return Arrays.asList("Dels"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.SPANNING_DELETIONS_KEY); }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("Dels", 1, VCFHeaderLineType.Float, "Fraction of Reads Containing Spanning Deletions")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 }

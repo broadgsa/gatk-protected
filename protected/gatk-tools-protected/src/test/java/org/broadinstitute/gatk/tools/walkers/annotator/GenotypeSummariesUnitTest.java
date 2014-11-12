@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -82,8 +83,8 @@ public class GenotypeSummariesUnitTest {
         final GenotypeSummaries GS = new GenotypeSummaries();
         final Map<String,Object> resultMap = GS.annotate(null, null, null, null, testVC, null);
 
-        Assert.assertEquals(1, resultMap.get(GenotypeSummaries.NCC)); // 1 no-called called sample
-        Assert.assertEquals(30.0, Double.parseDouble((String)resultMap.get(GenotypeSummaries.GQ_MEAN)), 1E-4); // mean GQ is 30
-        Assert.assertFalse(resultMap.containsKey(GenotypeSummaries.GQ_STDDEV)); // no stddev with only one data point
+        Assert.assertEquals(1, resultMap.get(GATKVCFConstants.NOCALL_CHROM_KEY)); // 1 no-called called sample
+        Assert.assertEquals(30.0, Double.parseDouble((String)resultMap.get(GATKVCFConstants.GQ_MEAN_KEY)), 1E-4); // mean GQ is 30
+        Assert.assertFalse(resultMap.containsKey(GATKVCFConstants.GQ_STDEV_KEY)); // no stddev with only one data point
     }
 }

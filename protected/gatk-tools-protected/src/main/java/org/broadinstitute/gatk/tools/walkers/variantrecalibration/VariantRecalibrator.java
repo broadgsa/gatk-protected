@@ -156,10 +156,6 @@ import java.util.*;
 @PartitionBy(PartitionType.NONE)
 public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDatum>, ExpandingArrayList<VariantDatum>> implements TreeReducible<ExpandingArrayList<VariantDatum>> {
 
-    public static final String VQS_LOD_KEY = "VQSLOD"; // Log odds ratio of being a true variant versus being false under the trained gaussian mixture model
-    public static final String CULPRIT_KEY = "culprit"; // The annotation which was the worst performing in the Gaussian mixture model, likely the reason why the variant was filtered out
-    public static final String NEGATIVE_LABEL_KEY = "NEGATIVE_TRAIN_SITE"; // this variant was used in the negative training set
-    public static final String POSITIVE_LABEL_KEY = "POSITIVE_TRAIN_SITE"; // this variant was used in the positive training set
     private static final String PLOT_TRANCHES_RSCRIPT = "plot_Tranches.R";
 
     @ArgumentCollection private VariantRecalibratorArgumentCollection VRAC = new VariantRecalibratorArgumentCollection();

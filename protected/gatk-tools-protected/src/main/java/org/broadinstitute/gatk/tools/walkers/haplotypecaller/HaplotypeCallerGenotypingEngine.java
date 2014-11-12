@@ -68,6 +68,7 @@ import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.EventMap;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
@@ -121,7 +122,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     @Override
     protected boolean forceKeepAllele(final Allele allele) {
-        return allele == GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE ||
+        return allele == GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE ||
                 configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES ||
                 configuration.emitReferenceConfidence != ReferenceConfidenceMode.NONE;
     }
@@ -262,7 +263,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
 
                 if (emitReferenceConfidence)
-                    readAlleleLikelihoods.addNonReferenceAllele(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                    readAlleleLikelihoods.addNonReferenceAllele(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
 
                 final GenotypesContext genotypes = calculateGLsForThisEvent( readAlleleLikelihoods, mergedVC, noCallAlleles );
                 final VariantContext call = calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel);
@@ -489,7 +490,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * @return true if this variant context is bi-allelic, ignoring the NON-REF symbolic allele, false otherwise
      */
     private static boolean isBiallelic(final VariantContext vc) {
-        return vc.isBiallelic() || (vc.getNAlleles() == 3 && vc.getAlternateAlleles().contains(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE));
+        return vc.isBiallelic() || (vc.getNAlleles() == 3 && vc.getAlternateAlleles().contains(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE));
     }
 
     /**
@@ -514,7 +515,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
     private static VariantContext phaseVC(final VariantContext vc, final String ID, final String phaseGT) {
         final List<Genotype> phasedGenotypes = new ArrayList<>();
         for ( final Genotype g : vc.getGenotypes() )
-            phasedGenotypes.add(new GenotypeBuilder(g).attribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_ID_KEY, ID).attribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY, phaseGT).make());
+            phasedGenotypes.add(new GenotypeBuilder(g).attribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_ID_KEY, ID).attribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY, phaseGT).make());
         return new VariantContextBuilder(vc).genotypes(phasedGenotypes).make();
     }
 
@@ -523,7 +524,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         final List<Allele> originalList = mergedVC.getAlleles();
         final List<Allele> alleleList = new ArrayList<>(originalList.size() + 1);
         alleleList.addAll(mergedVC.getAlleles());
-        alleleList.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        alleleList.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         vcb.alleles(alleleList);
         return vcb.make();
     }
@@ -552,7 +553,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
             readAlleleLikelihoodsForAnnotations = readHaplotypeLikelihoods.marginalize(alleleMapper, loc);
             if (emitReferenceConfidence)
                 readAlleleLikelihoodsForAnnotations.addNonReferenceAllele(
-                        GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                        GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         }
 
         // Skim the filtered map based on the location so that we do not add filtered read that are going to be removed

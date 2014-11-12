@@ -58,9 +58,9 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompa
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.BaseUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -85,14 +85,14 @@ public class GCContent extends InfoFieldAnnotation {
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
         double content = computeGCContent(ref);
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%.2f", content));
         return map;
     }
 
-    public List<String> getKeyNames() { return Arrays.asList("GC"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.GC_CONTENT_KEY); }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("GC", 1, VCFHeaderLineType.Integer, "GC content around the variant (see docs for window size details)")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(); }
 
     public boolean useZeroQualityReads() { return false; }
 

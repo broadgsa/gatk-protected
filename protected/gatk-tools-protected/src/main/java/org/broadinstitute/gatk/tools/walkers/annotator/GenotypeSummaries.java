@@ -61,8 +61,9 @@ import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -73,12 +74,6 @@ import java.util.*;
  */
 
 public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
-
-    public final static String CCC = "CCC";
-    public final static String NCC = "NCC";
-    public final static String HWP = "HWP";
-    public final static String GQ_MEAN = "GQ_MEAN";
-    public final static String GQ_STDDEV = "GQ_STDDEV";
 
     @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
@@ -91,7 +86,7 @@ public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegi
             return null;
 
         final Map<String,Object> returnMap = new HashMap<>();
-        returnMap.put(NCC, vc.getNoCallCount());
+        returnMap.put(GATKVCFConstants.NOCALL_CHROM_KEY, vc.getNoCallCount());
 
         final MathUtils.RunningAverage average = new MathUtils.RunningAverage();
         for( final Genotype g : vc.getGenotypes() ) {
@@ -100,9 +95,9 @@ public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegi
             }
         }
         if( average.observationCount() > 0L ) {
-            returnMap.put(GQ_MEAN, String.format("%.2f", average.mean()));
+            returnMap.put(GATKVCFConstants.GQ_MEAN_KEY, String.format("%.2f", average.mean()));
             if( average.observationCount() > 1L ) {
-                returnMap.put(GQ_STDDEV, String.format("%.2f", average.stddev()));
+                returnMap.put(GATKVCFConstants.GQ_STDEV_KEY, String.format("%.2f", average.stddev()));
             }
         }
 
@@ -111,17 +106,9 @@ public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegi
 
     @Override
     public List<String> getKeyNames() {
-        return Arrays.asList(CCC, NCC, HWP, GQ_MEAN, GQ_STDDEV);
-    }
-
-    @Override
-    public List<VCFInfoHeaderLine> getDescriptions() {
         return Arrays.asList(
-                new VCFInfoHeaderLine(CCC, 1, VCFHeaderLineType.Integer, "Number of called chromosomes"),
-                new VCFInfoHeaderLine(NCC, 1, VCFHeaderLineType.Integer, "Number of no-called samples"),
-                new VCFInfoHeaderLine(HWP, 1, VCFHeaderLineType.Float, "P value from test of Hardy Weinberg Equilibrium"),
-                new VCFInfoHeaderLine(GQ_MEAN, 1, VCFHeaderLineType.Float, "Mean of all GQ values"),
-                new VCFInfoHeaderLine(GQ_STDDEV, 1, VCFHeaderLineType.Float, "Standard deviation of all GQ values")
-        );
+                GATKVCFConstants.NOCALL_CHROM_KEY,
+                GATKVCFConstants.GQ_MEAN_KEY,
+                GATKVCFConstants.GQ_STDEV_KEY);
     }
 }

@@ -64,9 +64,8 @@ import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.samples.MendelianViolation;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 
 import java.util.*;
 
@@ -97,10 +96,8 @@ public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringA
     private final static Logger logger = Logger.getLogger(PossibleDeNovo.class);
 
     private MendelianViolation mendelianViolation = null;
-    public static final String HI_CONF_DENOVO_KEY = "hiConfDeNovo";
-    public static final String LO_CONF_DENOVO_KEY = "loConfDeNovo";
-    private final int hi_GQ_threshold = 20;
-    private final int lo_GQ_threshold = 10;
+    private final int hi_GQ_threshold = 20; //WARNING - If you change this value, update the description in GATKVCFHeaderLines
+    private final int lo_GQ_threshold = 10; //WARNING - If you change this value, update the description in GATKVCFHeaderLines
     private final double percentOfSamplesCutoff = 0.001; //for many, many samples use 0.1% of samples as allele frequency threshold for de novos
     private final int flatNumberOfSamplesCutoff = 4;
     private Set<Trio> trios;
@@ -137,11 +134,11 @@ public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringA
             mendelianViolation = new MendelianViolation(((VariantAnnotator)walker).minGenotypeQualityP );
         }
 
-        final Map<String,Object> attributeMap = new HashMap<String,Object>(1);
+        final Map<String,Object> attributeMap = new HashMap<>(1);
         boolean isHighConfDeNovo = false;
         boolean isLowConfDeNovo = false;
-        final List<String> highConfDeNovoChildren = new ArrayList<String>();
-        final List<String> lowConfDeNovoChildren = new ArrayList<String>();
+        final List<String> highConfDeNovoChildren = new ArrayList<>();
+        final List<String> lowConfDeNovoChildren = new ArrayList<>();
         for ( final Trio trio : trios ) {
             if (vc.isBiallelic() && contextHasTrioLikelihoods(vc,trio) && mendelianViolation.isViolation(trio.getMother(),trio.getFather(),trio.getChild(),vc) )
             {
@@ -164,20 +161,15 @@ public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringA
         final double AFcutoff = Math.max(flatNumberOfSamplesCutoff,percentNumberOfSamplesCutoff);
         final int deNovoAlleleCount = vc.getCalledChrCount(vc.getAlternateAllele(0)); //we assume we're biallelic above so use the first alt
         if ( isHighConfDeNovo  && deNovoAlleleCount < AFcutoff )
-            attributeMap.put(HI_CONF_DENOVO_KEY,highConfDeNovoChildren);
+            attributeMap.put(GATKVCFConstants.HI_CONF_DENOVO_KEY,highConfDeNovoChildren);
         if ( isLowConfDeNovo  && deNovoAlleleCount < AFcutoff )
-            attributeMap.put(LO_CONF_DENOVO_KEY,lowConfDeNovoChildren);
+            attributeMap.put(GATKVCFConstants.LO_CONF_DENOVO_KEY,lowConfDeNovoChildren);
         return attributeMap;
     }
 
     // return the descriptions used for the VCF INFO meta field
     @Override
-    public List<String> getKeyNames() { return Arrays.asList(HI_CONF_DENOVO_KEY,LO_CONF_DENOVO_KEY); }
-
-    @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine(HI_CONF_DENOVO_KEY, 1, VCFHeaderLineType.String, "High confidence possible de novo mutation (GQ >= "+hi_GQ_threshold+" for all trio members)=[comma-delimited list of child samples]"),
-            new VCFInfoHeaderLine(LO_CONF_DENOVO_KEY, 1, VCFHeaderLineType.String, "Low confidence possible de novo mutation (GQ >= "+lo_GQ_threshold+" for child, GQ > 0 for parents)=[comma-delimited list of child samples]")); }
-
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.HI_CONF_DENOVO_KEY, GATKVCFConstants.LO_CONF_DENOVO_KEY); }
 
     private boolean contextHasTrioLikelihoods(VariantContext context, Trio trio) {
         for ( String sample : Arrays.asList(trio.getMaternalID(),trio.getPaternalID(),trio.getChildID()) ) {

@@ -70,6 +70,8 @@ import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -124,12 +126,6 @@ import java.util.*;
 @Downsample(by = DownsampleType.NONE)
 public class DiagnoseTargets extends LocusWalker<Long, Long> {
 
-    private static final String AVG_INTERVAL_DP_KEY = "IDP";
-    private static final String LOW_COVERAGE_LOCI = "LL";
-    private static final String ZERO_COVERAGE_LOCI = "ZL";
-    private static final String GC_CONTENT_KEY = "GC";
-
-
     @Output(doc = "File to which interval statistics should be written")
     private VariantContextWriter vcfWriter = null;
 
@@ -150,8 +146,8 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         if (getToolkit().getIntervals() == null || getToolkit().getIntervals().isEmpty())
             throw new UserException("This tool only works if you provide one or more intervals (use the -L argument). If you want to run whole genome, use -T DepthOfCoverage instead.");
 
-        intervalMap = new LinkedHashMap<GenomeLoc, IntervalStratification>(INITIAL_HASH_SIZE);
-        intervalListIterator = new PeekableIterator<GenomeLoc>(getToolkit().getIntervals().iterator());
+        intervalMap = new LinkedHashMap<>(INITIAL_HASH_SIZE);
+        intervalListIterator = new PeekableIterator<>(getToolkit().getIntervals().iterator());
 
         // get all of the unique sample names for the VCF Header
         samples = ReadUtils.getSAMFileSamples(getToolkit().getSAMFileHeader());
@@ -224,7 +220,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      */
     private void outputFinishedIntervals(final GenomeLoc refLocus, final byte refBase) {
         // output any intervals that were finished
-        final List<GenomeLoc> toRemove = new LinkedList<GenomeLoc>();
+        final List<GenomeLoc> toRemove = new LinkedList<>();
         for (GenomeLoc key : intervalMap.keySet()) {
             if (key.isBefore(refLocus)) {
                 final IntervalStratification intervalStats = intervalMap.get(key);
@@ -263,17 +259,17 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
     private void outputStatsToVCF(final IntervalStratification stats, final Allele refAllele) {
         GenomeLoc interval = stats.getInterval();
 
-        final List<Allele> alleles = new ArrayList<Allele>();
-        final Map<String, Object> attributes = new HashMap<String, Object>();
-        final ArrayList<Genotype> genotypes = new ArrayList<Genotype>();
+        final List<Allele> alleles = new ArrayList<>();
+        final Map<String, Object> attributes = new HashMap<>();
+        final ArrayList<Genotype> genotypes = new ArrayList<>();
 
         for (String sample : samples) {
             final GenotypeBuilder gb = new GenotypeBuilder(sample);
 
             SampleStratification sampleStat = stats.getSampleStatistics(sample);
-            gb.attribute(AVG_INTERVAL_DP_KEY, sampleStat.averageCoverage(interval.size()));
-            gb.attribute(LOW_COVERAGE_LOCI, sampleStat.getNLowCoveredLoci());
-            gb.attribute(ZERO_COVERAGE_LOCI, sampleStat.getNUncoveredLoci());
+            gb.attribute(GATKVCFConstants.AVG_INTERVAL_DP_BY_SAMPLE_KEY, sampleStat.averageCoverage(interval.size()));
+            gb.attribute(GATKVCFConstants.LOW_COVERAGE_LOCI, sampleStat.getNLowCoveredLoci());
+            gb.attribute(GATKVCFConstants.ZERO_COVERAGE_LOCI, sampleStat.getNUncoveredLoci());
             gb.filters(statusToStrings(stats.getSampleStatistics(sample).callableStatuses(), false));
 
             genotypes.add(gb.make());
@@ -283,11 +279,11 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
         VariantContextBuilder vcb = new VariantContextBuilder("DiagnoseTargets", interval.getContig(), interval.getStart(), interval.getStop(), alleles);
 
         vcb = vcb.log10PError(VariantContext.NO_LOG10_PERROR);
-        vcb.filters(new LinkedHashSet<String>(statusToStrings(stats.callableStatuses(), true)));
+        vcb.filters(new LinkedHashSet<>(statusToStrings(stats.callableStatuses(), true)));
 
         attributes.put(VCFConstants.END_KEY, interval.getStop());
-        attributes.put(AVG_INTERVAL_DP_KEY, stats.averageCoverage(interval.size()));
-        attributes.put(GC_CONTENT_KEY, stats.gcContent());
+        attributes.put(GATKVCFConstants.AVG_INTERVAL_DP_KEY, stats.averageCoverage(interval.size()));
+        attributes.put(GATKVCFConstants.INTERVAL_GC_CONTENT_KEY, stats.gcContent());
 
         vcb = vcb.attributes(attributes);
         vcb = vcb.genotypes(genotypes);
@@ -347,7 +343,7 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @return a matching set of strings
      */
     private List<String> statusToStrings(Iterable<CallableStatus> statuses, final boolean isInfoField) {
-        List<String> output = new LinkedList<String>();
+        List<String> output = new LinkedList<>();
 
         for (CallableStatus status : statuses)
             if ( isInfoField || status != CallableStatus.PASS )
@@ -398,19 +394,19 @@ public class DiagnoseTargets extends LocusWalker<Long, Long> {
      * @return A set of VCF header lines
      */
     private static Set<VCFHeaderLine> getHeaderInfo() {
-        Set<VCFHeaderLine> headerLines = new HashSet<VCFHeaderLine>();
+        Set<VCFHeaderLine> headerLines = new HashSet<>();
 
         // INFO fields for overall data
         headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
-        headerLines.add(new VCFInfoHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average depth across the interval. Sum of the depth in a loci divided by interval size."));
-        headerLines.add(new VCFInfoHeaderLine(GC_CONTENT_KEY, 1, VCFHeaderLineType.Float, "GC Content of the interval"));
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.AVG_INTERVAL_DP_KEY));
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.INTERVAL_GC_CONTENT_KEY));
         headerLines.add(new VCFInfoHeaderLine("Diagnose Targets", 0, VCFHeaderLineType.Flag, "DiagnoseTargets mode"));
 
         // FORMAT fields for each genotype
         headerLines.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY));
-        headerLines.add(new VCFFormatHeaderLine(AVG_INTERVAL_DP_KEY, 1, VCFHeaderLineType.Float, "Average sample depth across the interval. Sum of the sample specific depth in all loci divided by interval size."));
-        headerLines.add(new VCFFormatHeaderLine(LOW_COVERAGE_LOCI, 1, VCFHeaderLineType.Integer, "Number of loci for this sample, in this interval with low coverage (below the minimum coverage) but not zero."));
-        headerLines.add(new VCFFormatHeaderLine(ZERO_COVERAGE_LOCI, 1, VCFHeaderLineType.Integer, "Number of loci for this sample, in this interval with zero coverage."));
+        headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.AVG_INTERVAL_DP_BY_SAMPLE_KEY));
+        headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.LOW_COVERAGE_LOCI));
+        headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.ZERO_COVERAGE_LOCI));
 
         // FILTER fields
         for (CallableStatus stat : CallableStatus.values())
