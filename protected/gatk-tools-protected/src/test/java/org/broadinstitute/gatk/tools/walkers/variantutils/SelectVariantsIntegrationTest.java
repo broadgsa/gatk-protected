@@ -378,4 +378,12 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 UserException.class);
         executeTest("InvalidJexl", spec);
     }
+
+    @Test
+    public void testAlleleTrimming() {
+        final String testFile = privateTestDir + "forHardLeftAlignVariantsTest.vcf";
+        final String cmd = "-T SelectVariants -R " + b36KGReference + " -sn NA12878 -env "
+                + testFile + " -o %s --no_cmdline_in_header";
+        WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("69c3f59c132418ec10117aa395addfea"));
+    }
 }
