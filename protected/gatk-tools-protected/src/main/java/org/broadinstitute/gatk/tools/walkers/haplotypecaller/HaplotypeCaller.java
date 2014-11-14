@@ -558,6 +558,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING;
 
     @Hidden
+    @Advanced
+    @Argument(fullName = "pair_hmm_sub_implementation", shortName = "pairHMMSub", doc = "The PairHMM machine dependent sub-implementation to use for genotype likelihood calculations. Usage is intended for test suite use only, normal usage you should rely on the architecture auto-detection", required = false)
+    public PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub = PairHMM.HMM_SUB_IMPLEMENTATION.ENABLE_ALL;
+
+    @Hidden
     @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
     protected String keepRG = null;
 
@@ -887,7 +892,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private ReadLikelihoodCalculationEngine createLikelihoodCalculationEngine() {
         switch (likelihoodEngineImplementation) {
             case PairHMM:
-                return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, pairHMM, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
+                return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, pairHMM, pairHMMSub, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
             case GraphBased:
                 return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate, heterogeneousKmerSizeResolution,SCAC.DEBUG,debugGraphTransformations);
             case Random:

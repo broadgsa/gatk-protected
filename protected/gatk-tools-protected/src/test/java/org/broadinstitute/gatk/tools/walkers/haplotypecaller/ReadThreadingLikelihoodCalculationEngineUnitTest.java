@@ -95,7 +95,8 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
     //final PairHMMLikelihoodCalculationEngine fullPairHMM = new PairHMMLikelihoodCalculationEngine((byte)10, false,
     //        PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3);
     final PairHMMLikelihoodCalculationEngine fullPairHMM = new PairHMMLikelihoodCalculationEngine((byte)10,
-            PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, Double.NEGATIVE_INFINITY,true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
+            PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, PairHMM.HMM_SUB_IMPLEMENTATION.ENABLE_ALL, Double.NEGATIVE_INFINITY,
+            true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
 
     // When using likelihoods it should be around 0.05 since
     // When using maximum-likelihoods it can be as low as 0.00001
