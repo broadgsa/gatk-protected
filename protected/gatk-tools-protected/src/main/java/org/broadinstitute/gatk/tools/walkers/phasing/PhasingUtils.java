@@ -114,33 +114,34 @@ class PhasingUtils {
         final Allele[] site1AllelesArray = gt1.getAlleles().toArray(new Allele[nalleles]);
         final Allele[] site2AllelesArray = gt2.getAlleles().toArray(new Allele[nalleles]);
 
-        final int[] site2Inds = new int[nalleles];
+        final int[] site1ToSite2Inds = new int[nalleles];
         if (gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY) && gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) {
             final String[] hp1 = (String[]) gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY);
             final String[] hp2 = (String[]) gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY);
 
-            final HashMap<String, Integer> site1Inds = new HashMap<String, Integer>();
+            final HashMap<String, Integer> HPnameToSite1Inds = new HashMap<String, Integer>();
             for (int ind1 = 0; ind1 < hp1.length; ++ind1) {
                 final String h1 = hp1[ind1];
-                site1Inds.put(h1, ind1);
+                HPnameToSite1Inds.put(h1, ind1);
             }
 
             for (int ind2 = 0; ind2 < hp2.length; ++ind2) {
                 final String h2 = hp2[ind2];
-                final int ind1 = site1Inds.get(h2);
+                final int ind1 = HPnameToSite1Inds.get(h2);
+
                 if (ind2 != ind1)
                     hapAlleles.requiresSwap = true;
-                site2Inds[ind2] = ind1; // this is OK, since allSamplesAreMergeable()
+                site1ToSite2Inds[ind1] = ind2; // this is OK, since allSamplesAreMergeable()
             }
         }
         else { // gt1.isHom() || gt2.isHom() ; so, we trivially merge the corresponding alleles
-            for (int ind = 0; ind < site2Inds.length; ++ind)
-                site2Inds[ind] = ind;
+            for (int ind = 0; ind < site1ToSite2Inds.length; ++ind)
+                site1ToSite2Inds[ind] = ind;
         }
 
         for (int ind1 = 0; ind1 < nalleles; ++ind1) {
             final Allele all1 = site1AllelesArray[ind1];
-            final int ind2 = site2Inds[ind1];
+            final int ind2 = site1ToSite2Inds[ind1];
             final Allele all2 = site2AllelesArray[ind2]; // this is OK, since alleleSegregationIsKnown(gt1, gt2)
 
             hapAlleles.hapAlleles.add(new AlleleOneAndTwo(all1, all2));
@@ -243,7 +244,10 @@ class PhasingUtils {
     }
 
     static boolean mergeIntoMNPvalidationCheck(GenomeLocParser genomeLocParser, VariantContext vc1, VariantContext vc2) {
-        if (!vc1.isSNP() || !vc2.isSNP())
+	// Can only merge "simple" base strings (i.e., SNPs or MNPs, but not indels):
+	final boolean vc1CanBeMerged = vc1.isSNP() || vc1.isMNP();
+	final boolean vc2CanBeMerged = vc2.isSNP() || vc2.isMNP();
+	if (!vc1CanBeMerged || !vc2CanBeMerged)
             return false;
 
         final GenomeLoc loc1 = GATKVariantContextUtils.getLocation(genomeLocParser, vc1);
@@ -305,9 +309,11 @@ class PhasingUtils {
         if (hp1.length != gt1.getPloidy() || hp2.length != gt2.getPloidy())
             return false;
 
-        Arrays.sort(hp1);
-        Arrays.sort(hp2);
-        return (Arrays.equals(hp1, hp2)); // The haplotype names match (though possibly in a different order)
+	final String[] hp1Copy = Arrays.copyOf(hp1, hp1.length);
+	final String[] hp2Copy = Arrays.copyOf(hp2, hp2.length);
+        Arrays.sort(hp1Copy);
+        Arrays.sort(hp2Copy);
+        return (Arrays.equals(hp1Copy, hp2Copy)); // The haplotype names match (though possibly in a different order)
     }
 
     static boolean someSampleHasDoubleNonReferenceAllele(VariantContext vc1, VariantContext vc2) {
