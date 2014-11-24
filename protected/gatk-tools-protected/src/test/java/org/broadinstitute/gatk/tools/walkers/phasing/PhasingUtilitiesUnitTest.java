@@ -75,7 +75,7 @@ public class PhasingUtilitiesUnitTest extends BaseTest  {
 
     @BeforeClass
     public void init() throws FileNotFoundException {
-        referenceFile = new CachingIndexedFastaSequenceFile(new File("/Users/ronlevine/exampleFASTA/exampleFASTA.fasta"));
+        referenceFile = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
         ref = Allele.create("C", true);
         alt = Allele.create("T", true);
     }
