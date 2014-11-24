@@ -58,7 +58,6 @@ import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
@@ -115,6 +114,7 @@ class PhasingUtils {
         final Allele[] site2AllelesArray = gt2.getAlleles().toArray(new Allele[nalleles]);
 
         final int[] site1ToSite2Inds = new int[nalleles];
+        // If both genotypes have read-backed phasing haplotype identifiers
         if (gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY) && gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) {
             final String[] hp1 = (String[]) gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY);
             final String[] hp2 = (String[]) gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY);
