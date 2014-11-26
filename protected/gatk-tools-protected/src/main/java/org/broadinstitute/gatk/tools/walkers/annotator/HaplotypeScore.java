@@ -106,9 +106,9 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         if ( !(walker instanceof UnifiedGenotyper) ) {
             if ( !walkerIdentityCheckWarningLogged ) {
                 if ( walker != null )
-                    logger.warn("Must be called from UnifiedGenotyper, not " + walker.getClass().getName());
+                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper, not " + walker.getClass().getName());
                 else
-                    logger.warn("Must be called from UnifiedGenotyper");
+                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper");
                 walkerIdentityCheckWarningLogged = true;
             }
             return null;

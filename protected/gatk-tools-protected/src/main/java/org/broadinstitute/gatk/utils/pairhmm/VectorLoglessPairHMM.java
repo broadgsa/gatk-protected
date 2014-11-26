@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.utils.pairhmm;
 
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
@@ -68,12 +69,6 @@ import java.util.Map;
  * Date: 10/16/12
  */
 public class VectorLoglessPairHMM extends JNILoglessPairHMM {
-
-    //For machine capabilities
-    public static final long sse41Mask = 1;
-    public static final long sse42Mask = 2;
-    public static final long avxMask = 4;
-    public static final long enableAll = 0xFFFFFFFFFFFFFFFFl;
 
     //Used to copy references to byteArrays to JNI from reads
     protected class JNIReadDataHolderClass {
@@ -97,25 +92,32 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
      * Bit 2 represents AVX availability
      */
     public native long jniGetMachineType();
-    
+
     /**
      * Function to initialize the fields of JNIReadDataHolderClass and JNIHaplotypeDataHolderClass from JVM.
      * C++ codegets FieldIDs for these classes once and re-uses these IDs for the remainder of the program. Field IDs do not
      * change per JVM session
-     * @param readDataHolderClass class type of JNIReadDataHolderClass
+     *
+     * @param readDataHolderClass      class type of JNIReadDataHolderClass
      * @param haplotypeDataHolderClass class type of JNIHaplotypeDataHolderClass
-     * @param mask mask is a 64 bit integer identical to the one received from jniGetMachineType(). Users can disable usage of some hardware features by zeroing some bits in the mask
-     * */
+     * @param mask                     a 64 bit integer identical to the one received from jniGetMachineType(). Users can disable usage of some hardware features by zeroing bits in the mask
+     */
     private native void jniInitializeClassFieldsAndMachineMask(Class<?> readDataHolderClass, Class<?> haplotypeDataHolderClass, long mask);
 
     private static Boolean isVectorLoglessPairHMMLibraryLoaded = false;
+
     //The constructor is called only once inside PairHMMLikelihoodCalculationEngine
-    public VectorLoglessPairHMM() {
+    public VectorLoglessPairHMM(PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub) throws UserException.HardwareFeatureException {
         super();
 
-        synchronized(isVectorLoglessPairHMMLibraryLoaded) {
+        synchronized (isVectorLoglessPairHMMLibraryLoaded) {
+            // Get the mask for the requested hardware sub-implementation
+            // If a specifically requested hardware feature can not be supported, throw an exception
+            long mask = pairHMMSub.getMask();
+            throwIfHardwareFeatureNotSupported(mask, pairHMMSub);
+
             //Load the library and initialize the FieldIDs
-            if(!isVectorLoglessPairHMMLibraryLoaded) {
+            if (!isVectorLoglessPairHMMLibraryLoaded) {
                 try
                 {
                     //Try loading from Java's library path first
@@ -123,51 +125,53 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                     //implementation without modifying the Java code
                     System.loadLibrary("VectorLoglessPairHMM");
                     logger.info("libVectorLoglessPairHMM found in JVM library path");
-                }
-                catch(UnsatisfiedLinkError ule)
-                {
+                } catch (UnsatisfiedLinkError ule) {
                     //Could not load from Java's library path - try unpacking from jar
                     try
                     {
                         logger.debug("libVectorLoglessPairHMM not found in JVM library path - trying to unpack from GATK jar file");
                         loadLibraryFromJar("/org/broadinstitute/gatk/utils/pairhmm/libVectorLoglessPairHMM.so");
                         logger.info("libVectorLoglessPairHMM unpacked successfully from GATK jar file");
-                    }
-                    catch(IOException ioe)
-                    {
+                    } catch (IOException ioe) {
                         //Throw the UnsatisfiedLinkError to make it clear to the user what failed
                         throw ule;
                     }
                 }
                 logger.info("Using vectorized implementation of PairHMM");
                 isVectorLoglessPairHMMLibraryLoaded = true;
-                jniInitializeClassFieldsAndMachineMask(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, enableAll);        //need to do this only once
+
+                //need to do this only once
+                jniInitializeClassFieldsAndMachineMask(JNIReadDataHolderClass.class, JNIHaplotypeDataHolderClass.class, mask);
             }
         }
     }
 
-    private native void jniInitializeHaplotypes(final int numHaplotypes,  JNIHaplotypeDataHolderClass[] haplotypeDataArray);
+    private native void jniInitializeHaplotypes(final int numHaplotypes, JNIHaplotypeDataHolderClass[] haplotypeDataArray);
+
     //Hold the mapping between haplotype and index in the list of Haplotypes passed to initialize
     //Use this mapping in computeLikelihoods to find the likelihood value corresponding to a given Haplotype
-    private HashMap<Haplotype,Integer> haplotypeToHaplotypeListIdxMap = new HashMap<>();
+    private HashMap<Haplotype, Integer> haplotypeToHaplotypeListIdxMap = new HashMap<>();
     private JNIHaplotypeDataHolderClass[] mHaplotypeDataArray;
+
     @Override
-    public HashMap<Haplotype, Integer> getHaplotypeToHaplotypeListIdxMap() { return haplotypeToHaplotypeListIdxMap; }
-    
+    public HashMap<Haplotype, Integer> getHaplotypeToHaplotypeListIdxMap() {
+        return haplotypeToHaplotypeListIdxMap;
+    }
+
     //Used to transfer data to JNI
     //Since the haplotypes are the same for all calls to computeLikelihoods within a region, transfer the haplotypes only once to the JNI per region
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public void initialize( final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList,
-            final int readMaxLength, final int haplotypeMaxLength ) {
+    public void initialize(final List<Haplotype> haplotypes, final Map<String, List<GATKSAMRecord>> perSampleReadList,
+                           final int readMaxLength, final int haplotypeMaxLength) {
         int numHaplotypes = haplotypes.size();
         mHaplotypeDataArray = new JNIHaplotypeDataHolderClass[numHaplotypes];
         int idx = 0;
         haplotypeToHaplotypeListIdxMap.clear();
-        for(final Haplotype currHaplotype : haplotypes)
-        {
+        for (final Haplotype currHaplotype : haplotypes) {
             mHaplotypeDataArray[idx] = new JNIHaplotypeDataHolderClass();
             mHaplotypeDataArray[idx].haplotypeBases = currHaplotype.getBases();
             haplotypeToHaplotypeListIdxMap.put(currHaplotype, idx);
@@ -175,6 +179,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         }
         jniInitializeHaplotypes(numHaplotypes, mHaplotypeDataArray);
     }
+
     /**
      * Tell JNI to release arrays - really important if native code is directly accessing Java memory, if not
      * accessing Java memory directly, still important to release memory from C++
@@ -194,22 +199,22 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
      * Real compute kernel
      */
     private native void jniComputeLikelihoods(int numReads, int numHaplotypes, JNIReadDataHolderClass[] readDataArray,
-            JNIHaplotypeDataHolderClass[] haplotypeDataArray, double[] likelihoodArray, int maxNumThreadsToUse);
+                                              JNIHaplotypeDataHolderClass[] haplotypeDataArray, double[] likelihoodArray, int maxNumThreadsToUse);
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public void computeLikelihoods( final ReadLikelihoods.Matrix<Haplotype> likelihoods, final List<GATKSAMRecord> processedReads, final Map<GATKSAMRecord,byte[]> gcp ) {
+    public void computeLikelihoods(final ReadLikelihoods.Matrix<Haplotype> likelihoods, final List<GATKSAMRecord> processedReads, final Map<GATKSAMRecord, byte[]> gcp) {
         if (processedReads.isEmpty())
             return;
-        if(doProfiling)
+        if (doProfiling)
             startTime = System.nanoTime();
         int readListSize = processedReads.size();
         int numHaplotypes = likelihoods.alleleCount();
         JNIReadDataHolderClass[] readDataArray = new JNIReadDataHolderClass[readListSize];
         int idx = 0;
-        for(GATKSAMRecord read : processedReads)
-        {
+        for (GATKSAMRecord read : processedReads) {
             readDataArray[idx] = new JNIReadDataHolderClass();
             readDataArray[idx].readBases = read.getReadBases();
             readDataArray[idx].readQuals = read.getBaseQualities();
@@ -219,8 +224,8 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
             ++idx;
         }
 
-        mLikelihoodArray = new double[readListSize*numHaplotypes];      //to store results
-        if(doProfiling)
+        mLikelihoodArray = new double[readListSize * numHaplotypes];      //to store results
+        if (doProfiling)
             threadLocalSetupTimeDiff = (System.nanoTime() - startTime);
         //for(reads)
         //   for(haplotypes)
@@ -228,21 +233,19 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         jniComputeLikelihoods(readListSize, numHaplotypes, readDataArray, mHaplotypeDataArray, mLikelihoodArray, 12);
 
         int readIdx = 0;
-        for(int r = 0; r < readListSize; r++)
-        {
+        for (int r = 0; r < readListSize; r++) {
             int hapIdx = 0;
             for (final Haplotype haplotype : likelihoods.alleles()) {
 
                 //Since the order of haplotypes in the List<Haplotype> and alleleHaplotypeMap is different,
                 //get idx of current haplotype in the list and use this idx to get the right likelihoodValue
                 final int idxInsideHaplotypeList = haplotypeToHaplotypeListIdxMap.get(haplotype);
-                likelihoods.set(hapIdx,r,mLikelihoodArray[readIdx + idxInsideHaplotypeList]);
+                likelihoods.set(hapIdx, r, mLikelihoodArray[readIdx + idxInsideHaplotypeList]);
                 ++hapIdx;
             }
             readIdx += numHaplotypes;
         }
-        if(doProfiling)
-        {
+        if (doProfiling) {
             threadLocalPairHMMComputeTimeDiff = (System.nanoTime() - startTime);
             //synchronized(doProfiling)
             {
@@ -251,29 +254,30 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
             }
         }
     }
-    
+
     /**
      * Print final profiling information from native code
      */
     public native void jniClose();
+
     @Override
-    public void close()
-    {
-        if(doProfiling)
-            System.out.println("Time spent in setup for JNI call : "+(pairHMMSetupTime*1e-9));
+    public void close() {
+        if (doProfiling)
+            System.out.println("Time spent in setup for JNI call : " + (pairHMMSetupTime * 1e-9));
         super.close();
         jniClose();
     }
-   
+
     //Copied from http://frommyplayground.com/how-to-load-native-jni-library-from-jar 
+
     /**
      * Loads library from current JAR archive
-     * 
+     * <p/>
      * The file from JAR is copied into system temporary directory and then loaded. The temporary file is deleted after exiting.
      * Method uses String as filename because the pathname is "abstract", not system-dependent.
-     * 
+     *
      * @param path The filename inside JAR as absolute path (beginning with '/'), e.g. /package/File.ext
-     * @throws IOException If temporary file creation or read/write operation fails
+     * @throws IOException  If temporary file creation or read/write operation fails
      * @throws IllegalArgumentException If source file (param path) does not exist
      * @throws IllegalArgumentException If the path is not absolute or if the filename is shorter than three characters (restriction of {@see File#createTempFile(java.lang.String, java.lang.String)}).
      */
@@ -293,7 +297,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         if (filename != null) {
             parts = filename.split("\\.", 2);
             prefix = parts[0];
-            suffix = (parts.length > 1) ? "."+parts[parts.length - 1] : null; // Thanks, davs! :-)
+            suffix = (parts.length > 1) ? "." + parts[parts.length - 1] : null; // Thanks, davs! :-)
         }
 
         // Check if the filename is okay
@@ -334,5 +338,37 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
 
         // Finally, load the library
         System.load(temp.getAbsolutePath());
+    }
+
+    /**
+     * If the machine does not support the requested hardware feature, throw an exception
+     * <p/>
+     * If requesting a specific hardware feature, check if the machine supports this feature.
+     * If it does not, throw an exception.
+     *
+     * @param mask a 64 bit integer identical to the one received from jniGetMachineType(). Users can disable usage of some hardware features by zeroing some bits in the mask.
+     * @param pairHMMSub the PairHMM machine dependent sub-implementation to use for genotype likelihood calculations
+     * @throws UserException.HardwareFeatureException if the hardware feature is not supported
+     */
+    private void throwIfHardwareFeatureNotSupported(long mask, PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub) throws UserException.HardwareFeatureException
+    {
+        if ( pairHMMSub.getIsSpecificHardwareRequest() ) {
+            if ( !isHardwareFeatureSupported(mask) )
+                throw new UserException.HardwareFeatureException("Machine does not support pairHMM hardware dependent sub-type = " + pairHMMSub);
+        }
+    }
+
+    /**
+     * Check if the machine supports the requested hardware feature
+     * <p/>
+     * Mask the bits for the hardware feature and check if they are set by the machine
+     * If the bits are set, the machine supports this feature
+     *
+     * @param mask a 64 bit integer identical to the one received from jniGetMachineType(). Users can disable usage of some hardware features by zeroing some bits in the mask.
+     * @return true of machine supports the requested hardware feature, false otherwise
+     */
+    private boolean isHardwareFeatureSupported(long mask)
+    {
+        return (mask & jniGetMachineType()) != 0x0;
     }
 }
