@@ -109,7 +109,7 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * Call SNPs and indels simultaneously via local re-assembly of haplotypes in an active region.
+ * Call SNPs and indels simultaneously via local re-assembly of haplotypes in an active region
  *
  * <p>The basic operation of the HaplotypeCaller proceeds as follows:   </p>
  *
@@ -140,6 +140,7 @@ import java.util.*;
  * read data to calculate the likelihoods of each genotype per sample given the read data observed for that
  * sample. The most likely genotype is then assigned to the sample.    </p>
  *
+ *
  * <br />
  * <h3>Input</h3>
  * <p>
@@ -148,7 +149,10 @@ import java.util.*;
  *
  * <h3>Output</h3>
  * <p>
- * VCF file with raw, unfiltered SNP and indel calls. These must be filtered either by variant recalibration (best) or hard-filtering before use in downstream analyses.
+ * VCF file with raw, unfiltered SNP and indel calls. These must be filtered either by variant recalibration (best)
+ * or hard-filtering before use in downstream analyses. If using the reference-confidence model workflow for cohort
+ * analysis, the output is a GVCF file that must first be run through GenotypeGVCFs and then filtering before further
+ * analysis.
  * </p>
  *
  * <h3>Examples</h3>
@@ -158,7 +162,7 @@ import java.util.*;
  * Best Practices documentation for detailed recommendations. </p>
  *
  * <br />
- * <h4>Single-sample all-sites calling on DNAseq (for GVCF-based cohort analysis workflow)</h4>
+ * <h4>Single-sample all-sites calling on DNAseq (for `-ERC GVCF` cohort analysis workflow)</h4>
  * <p>
  * <pre>
  *   java
@@ -210,9 +214,17 @@ import java.util.*;
  * <h3>Caveats</h3>
  * <ul>
  * <li>We have not yet fully tested the interaction between the GVCF-based calling or the multisample calling and the
- * RNAseq-specific functionalities.Use those in combination at your own risk.</li>
+ * RNAseq-specific functionalities. Use those in combination at your own risk.</li>
  * <li>Many users have reported issues running HaplotypeCaller with the -nct argument, so we recommend using Queue to
  * parallelize HaplotypeCaller instead of multithreading.</li>
+ * </ul>
+ *
+ * <h3>Additional Notes</h3>
+ * <ul>
+ *     <li>When working with PCR-free data, be sure to set `-pcr_indel_model NONE` (see argument below).</li>
+ *     <li>When running in `-ERC GVCF` or `-ERC BP_RESOLUTION` modes, the emitting and calling confidence thresholds
+ *     are automatically set to 0. This cannot be overridden by the command line. The thresholds can be set manually
+ *     to the desired levels in the next step of the workflow (GenotypeGVCFs)</li>
  * </ul>
  *
  */
@@ -237,12 +249,12 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Hidden
     @Advanced
     @Argument(fullName="likelihoodCalculationEngine",shortName="likelihoodEngine",
-            doc="what likelihood calculation engine to use to calculate the relative likelihood of reads vs haplotypes",required=false)
+            doc="What likelihood calculation engine to use to calculate the relative likelihood of reads vs haplotypes",required=false)
     protected ReadLikelihoodCalculationEngine.Implementation likelihoodEngineImplementation = ReadLikelihoodCalculationEngine.Implementation.PairHMM;
 
     @Hidden
     @Advanced
-    @Argument(fullName="heterogeneousKmerSizeResolution",shortName="hksr",doc="how to solve heterogeneous kmer situations using the fast method",required=false)
+    @Argument(fullName="heterogeneousKmerSizeResolution",shortName="hksr",doc="How to solve heterogeneous kmer situations using the fast method",required=false)
     protected HeterogeneousKmerSizeResolution heterogeneousKmerSizeResolution = HeterogeneousKmerSizeResolution.COMBO_MIN;
 
     /**
@@ -258,22 +270,22 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * Turning on this mode may result in serious performance cost for the HC.  It's really only appropriate to
      * use in specific areas where you want to better understand why the HC is making specific calls.
      *
-     * The reads are written out containing a HC tag (integer) that encodes which haplotype each read best matches
+     * The reads are written out containing an "HC" tag (integer) that encodes which haplotype each read best matches
      * according to the haplotype caller's likelihood calculation.  The use of this tag is primarily intended
-     * to allow good coloring of reads in IGV.  Simply go to Color Alignments By > Tag and enter HC to more
+     * to allow good coloring of reads in IGV.  Simply go to "Color Alignments By > Tag" and enter "HC" to more
      * easily see which reads go with these haplotype.
      *
      * Note that the haplotypes (called or all, depending on mode) are emitted as single reads covering the entire
      * active region, coming from read HC and a special read group.
      *
-     * Note that only reads that are actually informative about the haplotypes are emitted.  By informative we mean
+     * Note also that only reads that are actually informative about the haplotypes are emitted.  By informative we mean
      * that there's a meaningful difference in the likelihood of the read coming from one haplotype compared to
      * its next best haplotype.
      *
      * The best way to visualize the output of this mode is with IGV.  Tell IGV to color the alignments by tag,
      * and give it the HC tag, so you can see which reads support each haplotype.  Finally, you can tell IGV
-     * to group by sample, which will separate the potential haplotypes from the reads.  All of this can be seen
-     * in the following screenshot: https://www.dropbox.com/s/xvy7sbxpf13x5bp/haplotypecaller%20bamout%20for%20docs.png
+     * to group by sample, which will separate the potential haplotypes from the reads.  All of this can be seen in
+     * <a href="https://www.dropbox.com/s/xvy7sbxpf13x5bp/haplotypecaller%20bamout%20for%20docs.png">this screenshot</a>
      *
      */
     @Advanced
@@ -286,7 +298,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * considered (top 128 max) or just the ones that were selected as alleles and assigned to samples.
      */
     @Advanced
-    @Argument(fullName="bamWriterType", shortName="bamWriterType", doc="Which haplotypes should be written to the BAM?", required = false)
+    @Argument(fullName="bamWriterType", shortName="bamWriterType", doc="Which haplotypes should be written to the BAM", required = false)
     public HaplotypeBAMWriter.Type bamWriterType = HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES;
 
     /**
@@ -322,7 +334,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * filtered in the comp track will be ignored. Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
      */
     @Advanced
-    @Input(fullName="comp", shortName = "comp", doc="comparison VCF file", required=false)
+    @Input(fullName="comp", shortName = "comp", doc="Comparison VCF file", required=false)
     public List<RodBinding<VariantContext>> comps = Collections.emptyList();
     public List<RodBinding<VariantContext>> getCompRodBindings() { return comps; }
 
@@ -332,7 +344,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     public boolean alwaysAppendDbsnpId() { return false; }
 
     /**
-     * Which annotations to add to the output VCF file. The single value 'none' removes the default annotations. See the VariantAnnotator -list argument to view available annotations.
+     * Which annotations to add to the output VCF file. The single value 'none' removes the default annotations.
+     * See the VariantAnnotator -list argument to view available annotations.
      */
     @Advanced
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
@@ -491,11 +504,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected int gcpHMM = 10;
 
     /**
-     * If this flag is provided, the haplotype caller will include unmapped reads (that have chromosomal coordinates) in the assembly and calling
-     * when these reads occur in the region being analyzed.  Typically, for paired end analyses, one pair of the
-     * read can map, but if its pair is too divergent then it may be unmapped and placed next to its mate, taking
-     * the mates contig and alignment start.  If this flag is provided the haplotype caller will see such reads,
-     * and may make use of them in assembly and calling, where possible.
+     * If this flag is provided, the HaplotypeCaller will include unmapped reads (that have chromosomal coordinates) in the assembly and calling
+     * when these reads occur in the region being analyzed.  This situation can occur in paired end analyses, when one read in the read pair
+     * gets mapped but its mate is too divergent. In that case, the mate will be marked as unmapped and placed next to the first read, assigned to the same
+     * contig and alignment start.  If this flag is provided, the HaplotypeCaller will see such reads, and may make use of them in assembly and calling, where possible.
      */
     @Hidden
     @Argument(fullName="includeUmappedReads", shortName="unmapped", doc="Include unmapped reads with chromosomal coordinates", required = false)
@@ -538,10 +550,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected boolean mergeVariantsViaLD = false;
 
     /**
-     * As of GATK 3.3, HaplotypeCaller outputs physical information (see release notes and documentation for details). This argument disables that behavior.
+     * As of GATK 3.3, HaplotypeCaller outputs physical (read-based) information (see version 3.3 release notes and documentation for details). This argument disables that behavior.
      */
     @Advanced
-    @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="Don't try to add physical (read-based) phasing information", required = false)
+    @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="Disable physical phasing", required = false)
     protected boolean doNotRunPhysicalPhasing = false;
 
     public static final String HAPLOTYPE_CALLER_PHASING_ID_KEY = "PID";
@@ -557,13 +569,30 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName = "pair_hmm_implementation", shortName = "pairHMM", doc = "The PairHMM implementation to use for genotype likelihood calculations", required = false)
     public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING;
 
+    /**
+     * This argument is intended for use in the test suite only. It gives developers the ability to select of the
+     * hardware dependent vectorized implementation of the vectorized PairHMM library (pairHMM=VECTOR_LOGLESS_CACHING).
+     * For normal usage, you should rely on the architecture auto-detection.
+     */
     @Hidden
     @Advanced
-    @Argument(fullName = "pair_hmm_sub_implementation", shortName = "pairHMMSub", doc = "The PairHMM machine dependent sub-implementation to use for genotype likelihood calculations. Usage is intended for test suite use only, normal usage you should rely on the architecture auto-detection", required = false)
+    @Argument(fullName = "pair_hmm_sub_implementation", shortName = "pairHMMSub", doc = "The PairHMM machine-dependent sub-implementation to use for genotype likelihood calculations", required = false)
     public PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub = PairHMM.HMM_SUB_IMPLEMENTATION.ENABLE_ALL;
 
+    /**
+     * This argument is intended for use in the test suite only. It gives developers the ability to load different
+     * hardware dependent sub-implementations (-pairHMMSub) of the vectorized PairHMM library (-pairHMM=VECTOR_LOGLESS_CACHING)
+     * for each test. Without this option, the library is only loaded once (for the first test executed in the suite) even if
+     * subsequent tests specify a different implementation.
+     * Each test will output the corresponding library loading messages.
+     */
     @Hidden
-    @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
+    @Advanced
+    @Argument(fullName = "always_load_vector_logless_PairHMM_lib", shortName = "alwaysloadVectorHMM", doc = "Load the vector logless PairHMM library each time a GATK run is initiated in the test suite", required = false)
+    public boolean alwaysLoadVectorLoglessPairHMMLib = false;
+
+    @Hidden
+    @Argument(fullName="keepRG", shortName="keepRG", doc="Only use reads from this read group when making calls (but use all reads to build the assembly)", required = false)
     protected String keepRG = null;
 
     /**
@@ -892,7 +921,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private ReadLikelihoodCalculationEngine createLikelihoodCalculationEngine() {
         switch (likelihoodEngineImplementation) {
             case PairHMM:
-                return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, pairHMM, pairHMMSub, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
+                return new PairHMMLikelihoodCalculationEngine( (byte)gcpHMM, pairHMM, pairHMMSub, alwaysLoadVectorLoglessPairHMMLib, log10GlobalReadMismappingRate, noFpga, pcrErrorModel );
             case GraphBased:
                 return new GraphBasedLikelihoodCalculationEngine( (byte)gcpHMM,log10GlobalReadMismappingRate, heterogeneousKmerSizeResolution,SCAC.DEBUG,debugGraphTransformations);
             case Random:

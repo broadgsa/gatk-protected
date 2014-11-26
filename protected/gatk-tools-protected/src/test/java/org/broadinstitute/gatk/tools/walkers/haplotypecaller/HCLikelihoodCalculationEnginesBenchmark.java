@@ -126,7 +126,7 @@ public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
     public void timeLoglessPairHMM(final int reps) {
         for (int i = 0; i < reps; i++) {
             final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, PairHMM.HMM_SUB_IMPLEMENTATION.ENABLE_ALL,-3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
+                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, PairHMM.HMM_SUB_IMPLEMENTATION.UNVECTORIZED, true, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
             engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
         }
     }
