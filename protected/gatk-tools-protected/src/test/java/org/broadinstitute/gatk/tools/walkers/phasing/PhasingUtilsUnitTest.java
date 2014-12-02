@@ -66,7 +66,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
-public class PhasingUtilitiesUnitTest extends BaseTest  {
+public class PhasingUtilsUnitTest extends BaseTest  {
 
     private final int start = 10;
     private ReferenceSequenceFile referenceFile;
