@@ -107,7 +107,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     private static Boolean isVectorLoglessPairHMMLibraryLoaded = false;
 
     //The constructor is called only once inside PairHMMLikelihoodCalculationEngine
-    public VectorLoglessPairHMM(PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub) throws UserException.HardwareFeatureException {
+    public VectorLoglessPairHMM(final PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub, final boolean alwaysLoadVectorLoglessPairHMMLib) throws UserException.HardwareFeatureException {
         super();
 
         synchronized (isVectorLoglessPairHMMLibraryLoaded) {
@@ -116,8 +116,9 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
             long mask = pairHMMSub.getMask();
             throwIfHardwareFeatureNotSupported(mask, pairHMMSub);
 
-            //Load the library and initialize the FieldIDs
-            if (!isVectorLoglessPairHMMLibraryLoaded) {
+            // Load the library and initialize the FieldIDs
+            // Load if not loaded or if the the always load flag is true
+            if (!isVectorLoglessPairHMMLibraryLoaded || alwaysLoadVectorLoglessPairHMMLib) {
                 try
                 {
                     //Try loading from Java's library path first

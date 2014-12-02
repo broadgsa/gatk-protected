@@ -84,6 +84,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
 
     private final PairHMM.HMM_IMPLEMENTATION hmmType;
     private final PairHMM.HMM_SUB_IMPLEMENTATION hmmSubType;
+    private final boolean alwaysLoadVectorLoglessPairHMMLib;
     private final boolean noFpga;
 
     private final ThreadLocal<PairHMM> pairHMMThreadLocal = new ThreadLocal<PairHMM>() {
@@ -100,7 +101,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
                 case VECTOR_LOGLESS_CACHING:
                     try
                     {
-                        return new VectorLoglessPairHMM(hmmSubType);
+                        return new VectorLoglessPairHMM(hmmSubType, alwaysLoadVectorLoglessPairHMMLib);
                     }
                     catch(UnsatisfiedLinkError ule)
                     {
@@ -108,7 +109,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
                         return new LoglessPairHMM();
                     }
                 case DEBUG_VECTOR_LOGLESS_CACHING:
-                    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING, hmmSubType);
+                    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING, hmmSubType, alwaysLoadVectorLoglessPairHMMLib);
                 case ARRAY_LOGLESS:
                     if (noFpga || !CnyPairHMM.isAvailable())
                         return new ArrayLoglessPairHMM();
@@ -150,6 +151,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
      * @param constantGCP the gap continuation penalty to use with the PairHMM
      * @param hmmType the type of the HMM to use
      * @param hmmSubType the type of the machine dependent sub-implementation of HMM to use
+     * @param alwaysLoadVectorLoglessPairHMMLib always load the vector logless HMM library instead of once
      * @param log10globalReadMismappingRate the global mismapping probability, in log10(prob) units.  A value of
      *                                      -3 means that the chance that a read doesn't actually belong at this
      *                                      location in the genome is 1 in 1000.  The effect of this parameter is
@@ -162,9 +164,10 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
      * @param pcrErrorModel model to correct for PCR indel artifacts
      */
     public PairHMMLikelihoodCalculationEngine( final byte constantGCP, final PairHMM.HMM_IMPLEMENTATION hmmType, final PairHMM.HMM_SUB_IMPLEMENTATION hmmSubType,
-                                               final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
+                                               final boolean alwaysLoadVectorLoglessPairHMMLib, final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
         this.hmmType = hmmType;
         this.hmmSubType = hmmSubType;
+        this.alwaysLoadVectorLoglessPairHMMLib = alwaysLoadVectorLoglessPairHMMLib;
         this.constantGCP = constantGCP;
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
         this.noFpga = noFpga;
