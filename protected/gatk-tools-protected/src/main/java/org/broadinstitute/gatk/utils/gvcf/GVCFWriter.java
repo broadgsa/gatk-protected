@@ -245,15 +245,38 @@ public class GVCFWriter implements VariantContextWriter {
         // create the single Genotype with GQ and DP annotations
         final GenotypeBuilder gb = new GenotypeBuilder(sampleName, GATKVariantContextUtils.homozygousAlleleList(block.getRef(),block.getPloidy()));
         gb.noAD().noPL().noAttributes(); // clear all attributes
-        gb.GQ(block.getMedianGQ());
+
+        final int[] minPLs = block.getMinPLs();
+        gb.PL(minPLs);
+        final int gq = genotypeQualityFromPLs(minPLs);
+        gb.GQ(gq);
         gb.DP(block.getMedianDP());
         gb.attribute(MIN_DP_FORMAT_FIELD, block.getMinDP());
-        gb.PL(block.getMinPLs());
 
         // This annotation is no longer standard
         //gb.attribute(MIN_GQ_FORMAT_FIELD, block.getMinGQ());
 
         return vcb.genotypes(gb.make()).make();
+    }
+
+
+    private int genotypeQualityFromPLs(final int[] minPLs) {
+        int first = minPLs[0];
+        int second = minPLs[1];
+        if (first > second) {
+            second = first;
+            first = minPLs[1];
+        }
+        for (int i = 3; i < minPLs.length; i++) {
+            final int candidate = minPLs[i];
+            if (candidate >= second) continue;
+            if (candidate <= first) {
+                second = first;
+                first = candidate;
+            } else
+                second = candidate;
+        }
+        return second - first;
     }
 
     /**
