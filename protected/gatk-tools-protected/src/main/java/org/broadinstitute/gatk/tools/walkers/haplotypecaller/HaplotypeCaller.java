@@ -59,6 +59,7 @@ import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
+import org.broadinstitute.gatk.engine.io.DirectOutputTracker;
 import org.broadinstitute.gatk.engine.io.stubs.SAMFileWriterStub;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
@@ -1201,6 +1202,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             // Capture any exception that might be thrown, and write out the assembly failure BAM if requested
             if ( captureAssemblyFailureBAM ) {
                 final SAMFileWriter writer = SAMFileWriterStub.createSAMFileWriter("assemblyFailure.bam", getToolkit());
+                new DirectOutputTracker().addOutput((SAMFileWriterStub) writer);
                 for ( final GATKSAMRecord read : activeRegion.getReads() ) {
                     writer.addAlignment(read);
                 }
