@@ -181,11 +181,9 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
         if ( startingStates == null )
             return previousState;
 
-        final int currentPos = startingStates.loc.getStart();
-
         if ( !startingStates.VCs.isEmpty() ) {
             if ( ! okayToSkipThisSite(startingStates, previousState) )
-                endPreviousStates(previousState, currentPos - 1, startingStates, false);
+                endPreviousStates(previousState, startingStates.loc.incPos(-1), startingStates, false);
             previousState.VCs.addAll(startingStates.VCs);
             for(final VariantContext vc : previousState.VCs){
                 previousState.samples.addAll(vc.getSampleNames());
@@ -193,8 +191,8 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
         }
 
-        if ( USE_BP_RESOLUTION || containsEndingContext(previousState.VCs, currentPos) ) {
-            endPreviousStates(previousState, currentPos, startingStates, true);
+        if ( USE_BP_RESOLUTION || containsEndingContext(previousState.VCs, startingStates.loc.getStart()) ) {
+            endPreviousStates(previousState, startingStates.loc, startingStates, true);
         }
 
         return previousState;
@@ -249,26 +247,29 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
     /**
      * Disrupt the VariantContexts so that they all stop at the given pos, write them out, and put the remainder back in the list.
-     *
-     * @param state   the state with list of VariantContexts
-     * @param pos     the target ending position
+     * @param state   the previous state with list of active VariantContexts
+     * @param pos   the position for the starting VCs
      * @param startingStates the state for the starting VCs
+     * @param atCurrentPosition  indicates whether we output a variant at the current position, independent of VCF start/end, i.e. in BP resolution mode
      */
-    private void endPreviousStates(final OverallState state, final int pos, final PositionalState startingStates, boolean atCurrentPosition) {
+    private void endPreviousStates(final OverallState state, final GenomeLoc pos, final PositionalState startingStates, boolean atCurrentPosition) {
 
         final byte refBase = startingStates.refBases[0];
+        //if we're in BP resolution mode or a VC ends at the current position then the reference for the next output VC (refNextBase)
+        // will be advanced one base
         final byte refNextBase = (atCurrentPosition) ? (startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N' ): refBase;
 
         final List<VariantContext> stoppedVCs = new ArrayList<>(state.VCs.size());
 
         for ( int i = state.VCs.size() - 1; i >= 0; i-- ) {
             final VariantContext vc = state.VCs.get(i);
-            if ( vc.getStart() <= pos ) {
+            //the VC for the previous state will be stopped if its position is previous to the current position or it we've moved to a new contig
+            if ( vc.getStart() <= pos.getStart() || !vc.getChr().equals(pos.getContig())) {
 
                 stoppedVCs.add(vc);
 
                 // if it was ending anyways, then remove it from the future state
-                if ( vc.getEnd() == pos) {
+                if ( vc.getEnd() == pos.getStart()) {
                     state.samples.removeAll(vc.getSampleNames());
                     state.VCs.remove(i);
                     continue; //don't try to remove twice
@@ -282,18 +283,18 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
             }
         }
 
-        //if we already output this state in BP resolution mode (reflected by state.prevPos) then skip output
-        GenomeLoc lastWriteLoc = state.prevPos;
-        final int lastWritePos = lastWriteLoc == null ? -1 : lastWriteLoc.getStart();
-        if ( !stoppedVCs.isEmpty() && pos > lastWritePos) {
-            final GenomeLoc gLoc = genomeLocParser.createGenomeLoc(stoppedVCs.get(0).getChr(), pos);
+        //output the stopped VCs if there is no previous output (state.prevPos == null) or our current position is past
+        // the last write position (state.prevPos)
+        //NOTE: BP resolution with have current position == state.prevPos because it gets output via a different control flow
+        if ( !stoppedVCs.isEmpty() &&  (state.prevPos == null || pos.isPast(state.prevPos) )) {
+            final GenomeLoc gLoc = genomeLocParser.createGenomeLoc(stoppedVCs.get(0).getChr(), pos.getStart());
 
             // we need the specialized merge if the site contains anything other than ref blocks
             final VariantContext mergedVC;
             if ( containsTrueAltAllele(stoppedVCs) )
                 mergedVC = ReferenceConfidenceVariantContextMerger.merge(stoppedVCs, gLoc, refBase, false);
             else
-                mergedVC = referenceBlockMerge(stoppedVCs, state, pos);
+                mergedVC = referenceBlockMerge(stoppedVCs, state, pos.getStart());
 
             vcfWriter.add(mergedVC);
             state.prevPos = gLoc;
