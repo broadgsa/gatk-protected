@@ -256,11 +256,8 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
      */
     private void endPreviousStates(final OverallState state, final int pos, final PositionalState startingStates, boolean atCurrentPosition) {
 
-        final byte refBase;
-        if (atCurrentPosition)
-            refBase = startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N';
-        else
-            refBase = startingStates.refBases[0];
+        final byte refBase = startingStates.refBases[0];
+        final byte refNextBase = (atCurrentPosition) ? (startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N' ): refBase;
 
         final List<VariantContext> stoppedVCs = new ArrayList<>(state.VCs.size());
 
@@ -300,7 +297,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
             vcfWriter.add(mergedVC);
             state.prevPos = gLoc;
-            state.refAfterPrevPos = refBase;
+            state.refAfterPrevPos = refNextBase;
         }
     }
 

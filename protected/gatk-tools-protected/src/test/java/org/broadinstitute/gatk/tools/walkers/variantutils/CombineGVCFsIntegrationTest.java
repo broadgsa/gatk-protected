@@ -204,9 +204,19 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testWrongReferenceBaseBugFix() throws Exception {
+        final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input1.vcf"
+                + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input2.vcf") + " -o %s --no_cmdline_in_header");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("04fa9d6084e4b3a7ea2ebe5675561e2f"));
+        spec.disableShadowBCF();
+        executeTest("testWrongReferenceBaseBugFix",spec);
+
+    }
+
+    @Test
     public void testBasepairResolutionInput() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V " + privateTestDir + "gvcf.basepairResolution.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("eb56760419b295651b6d54ba3ad18f52"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d3b3f0c8d8f8ef09475306a7814ddd38"));
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionInput", spec);
     }
