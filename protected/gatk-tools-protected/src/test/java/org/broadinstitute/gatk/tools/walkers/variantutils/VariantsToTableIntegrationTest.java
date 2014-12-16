@@ -114,6 +114,21 @@ public class VariantsToTableIntegrationTest extends WalkerTest {
         executeTest("testGenotypeFields", spec);
     }
 
+    @Test
+    public void testMultiallelicGenotypeFields() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-R " + b37KGReference +
+                        " --variant " + privateTestDir + "multiallelic_gt.vcf" +
+                        " -T VariantsToTable" +
+                        " -F CHROM -F POS -F ID -F REF -F ALT -F QUAL -F MULTI-ALLELIC" +
+                        " -GF PL -GF AD" +
+                        " -SMA" +
+                        " -o %s",
+                1,
+                Arrays.asList("7d38e7adb07eee94405188d145f22bb5"));
+        executeTest("testMultiallelicGenotypeFields", spec);
+    }
+
     @Test(enabled = true)
     public void testGenotypeFieldsWithInline() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
