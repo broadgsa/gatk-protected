@@ -70,21 +70,17 @@ public class PhasingUtilsUnitTest extends BaseTest  {
 
     private final int start = 10;
     private ReferenceSequenceFile referenceFile;
-    private Allele ref;
-    private Allele alt;
 
     @BeforeClass
     public void init() throws FileNotFoundException {
         referenceFile = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
-        ref = Allele.create("C", true);
-        alt = Allele.create("T", false);
     }
 
     @Test
     public void TestMatchHaplotypeAllelesKeyHP() {
 
         final List<Allele> alleleList = new ArrayList<>();
-        alleleList.add(Allele.create("T", true));
+        alleleList.add(Allele.create("T", false));
         alleleList.add(Allele.create("C", false));
         String samelpName = "TC";
         final Genotype genotypeALT = new GenotypeBuilder(samelpName).attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList).make();
@@ -110,9 +106,6 @@ public class PhasingUtilsUnitTest extends BaseTest  {
         // Must match because the same genotype
         PhasingUtils.SameHaplotypeAlleles sameHaplotypeAlleles = PhasingUtils.matchHaplotypeAlleles(genotypeALT, genotypeALT);
 
-        for (int i = 0; i < sameHaplotypeAlleles.hapAlleles.size(); i++)
-            System.out.println(sameHaplotypeAlleles.hapAlleles.get(i));
-
         PhasingUtils.SameHaplotypeAlleles sameHaplotypeAllelesAnswer = new PhasingUtils.SameHaplotypeAlleles();
         sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("T", false), Allele.create("T", false)));
         sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("C", false), Allele.create("C", false)));
@@ -124,10 +117,16 @@ public class PhasingUtilsUnitTest extends BaseTest  {
     public void TestMergeIntoMNPvalidationCheck() {
         String source = new String("test");
         String contig = new String("1");
-        final VariantContext variantContextRef = new VariantContextBuilder(source, contig, start, start, Arrays.asList(ref)).make();
-        final VariantContext variantContextAlt = new VariantContextBuilder(source, contig, start, start, Arrays.asList(alt)).make();
+        final List<Allele> alleleList1 = new ArrayList<>();
+        alleleList1.add(Allele.create("T", true));
+        alleleList1.add(Allele.create("C", false));
+        final List<Allele> alleleList2 = new ArrayList<>();
+        alleleList2.add(Allele.create("A", true));
+        alleleList2.add(Allele.create("CC", false));
+        final VariantContext variantContext1 = new VariantContextBuilder(source, contig, start, start, alleleList1).make();
+        final VariantContext variantContext2 = new VariantContextBuilder(source, contig, start, start, alleleList2).make();
         GenomeLocParser genomeLocParser = new GenomeLocParser(referenceFile);
 
-        Assert.assertFalse(PhasingUtils.mergeIntoMNPvalidationCheck(genomeLocParser, variantContextRef, variantContextAlt));
+        Assert.assertFalse(PhasingUtils.mergeIntoMNPvalidationCheck(genomeLocParser, variantContext1, variantContext1));
     }
 }
