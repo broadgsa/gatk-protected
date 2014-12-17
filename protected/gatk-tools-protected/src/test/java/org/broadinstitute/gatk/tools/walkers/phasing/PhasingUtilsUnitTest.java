@@ -77,16 +77,17 @@ public class PhasingUtilsUnitTest extends BaseTest  {
     public void init() throws FileNotFoundException {
         referenceFile = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
         ref = Allele.create("C", true);
-        alt = Allele.create("T", true);
+        alt = Allele.create("T", false);
     }
 
     @Test
     public void TestMatchHaplotypeAllelesKeyHP() {
 
         final List<Allele> alleleList = new ArrayList<>();
-        alleleList.add(Allele.create("T", false));
+        alleleList.add(Allele.create("T", true));
         alleleList.add(Allele.create("C", false));
-        final Genotype genotypeALT = new GenotypeBuilder("TC").attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList).make();
+        String samelpName = "TC";
+        final Genotype genotypeALT = new GenotypeBuilder(samelpName).attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList).make();
 
         // Must match because the same genotype
         PhasingUtils.SameHaplotypeAlleles sameHaplotypeAlleles = PhasingUtils.matchHaplotypeAlleles(genotypeALT, genotypeALT);

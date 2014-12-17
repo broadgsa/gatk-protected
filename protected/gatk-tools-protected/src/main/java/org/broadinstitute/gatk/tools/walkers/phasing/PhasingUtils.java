@@ -63,31 +63,7 @@ import htsjdk.variant.variantcontext.*;
 import java.util.*;
 
 /**
- * [Short one sentence description of this walker]
- * <p/>
- * <p>
- * [Functionality of this walker]
- * </p>
- * <p/>
- * <h3>Input</h3>
- * <p>
- * [Input description]
- * </p>
- * <p/>
- * <h3>Output</h3>
- * <p>
- * [Output description]
- * </p>
- * <p/>
- * <h3>Examples</h3>
- * <pre>
- *    java
- *      -jar GenomeAnalysisTK.jar
- *      -T $WalkerName
- *  </pre>
- *
- * @author Your Name
- * @since Date created
+ * Utility class for phasing analyis
  */
 class PhasingUtils {
     static VariantContext mergeIntoMNP(GenomeLocParser genomeLocParser, VariantContext vc1, VariantContext vc2, ReferenceSequenceFile referenceFile, AlleleMergeRule alleleMergeRule) {
@@ -105,33 +81,53 @@ class PhasingUtils {
         return reallyMergeIntoMNP(vc1, vc2, referenceFile);
     }
 
-    // Assumes: alleleSegregationIsKnown(gt1, gt2)
+    /**
+     * Find the alleles with the same haplotype
+     *
+     * @param gt1 genotype 1
+     * @param gt2 genotype 2
+     * @return gt1 and gt2 alleles with the same haplotype
+     */
     static SameHaplotypeAlleles matchHaplotypeAlleles(final Genotype gt1, final Genotype gt2) {
+
         final SameHaplotypeAlleles hapAlleles = new SameHaplotypeAlleles();
 
-        final int nalleles = gt1.getPloidy();
-        final Allele[] site1AllelesArray = gt1.getAlleles().toArray(new Allele[nalleles]);
-        final Allele[] site2AllelesArray = gt2.getAlleles().toArray(new Allele[nalleles]);
+        // Skip if can not merge the haplotype alleles
+        if ( !alleleSegregationIsKnown(gt1, gt2) ){
+            return hapAlleles;
+        }
 
-        final int[] site1ToSite2Inds = new int[nalleles];
-        // If both genotypes have read-backed phasing haplotype identifiers
+        // Get the alleles
+        final int numAlleles = gt1.getPloidy();
+        final Allele[] site1AllelesArray = gt1.getAlleles().toArray(new Allele[numAlleles]);
+        final Allele[] site2AllelesArray = gt2.getAlleles().toArray(new Allele[numAlleles]);
+
+        // locations of the same HP attribute in gt2 to gt2
+        final int[] site1ToSite2Inds = new int[numAlleles];
+
+        // If both genotypes have read-backed phasing haplotype identifiers (HP)
+        // Find the gt1 and gt2 alleles with the same haplotpe
         if (gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY) && gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) {
             final String[] hp1 = (String[]) gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY);
             final String[] hp2 = (String[]) gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY);
 
-            final HashMap<String, Integer> HPnameToSite1Inds = new HashMap<String, Integer>();
+            // Map of HP attribute to it's array index
+            final HashMap<String, Integer> hpNameToSite1Inds = new HashMap<String, Integer>();
+
+            // Hp name to index
             for (int ind1 = 0; ind1 < hp1.length; ++ind1) {
-                final String h1 = hp1[ind1];
-                HPnameToSite1Inds.put(h1, ind1);
+                hpNameToSite1Inds.put(hp1[ind1], ind1);
             }
 
+            // Find the index of the gt2 HP attribute in gt1 HP attribute array
             for (int ind2 = 0; ind2 < hp2.length; ++ind2) {
-                final String h2 = hp2[ind2];
-                final int ind1 = HPnameToSite1Inds.get(h2);
+                final int ind1 = hpNameToSite1Inds.get(hp2[ind2]);
 
+                // attributes are not in the same position in both genotypes
                 if (ind2 != ind1)
                     hapAlleles.requiresSwap = true;
-                site1ToSite2Inds[ind1] = ind2; // this is OK, since allSamplesAreMergeable()
+
+                site1ToSite2Inds[ind1] = ind2;
             }
         }
         else { // gt1.isHom() || gt2.isHom() ; so, we trivially merge the corresponding alleles
@@ -139,16 +135,26 @@ class PhasingUtils {
                 site1ToSite2Inds[ind] = ind;
         }
 
-        for (int ind1 = 0; ind1 < nalleles; ++ind1) {
+        // Get the alleles for gt1 and gt2 with the same haplotype
+        for (int ind1 = 0; ind1 < numAlleles; ++ind1) {
             final Allele all1 = site1AllelesArray[ind1];
             final int ind2 = site1ToSite2Inds[ind1];
             final Allele all2 = site2AllelesArray[ind2]; // this is OK, since alleleSegregationIsKnown(gt1, gt2)
 
+            // add the 2 alleles
             hapAlleles.hapAlleles.add(new AlleleOneAndTwo(all1, all2));
         }
 
         return hapAlleles;
     }
+
+    /**
+     *
+     * @param vc1 variant 1
+     * @param vc2 variant 2
+     * @param referenceFile sequence file containing the reference genome
+     * @return variant with the merged MNP
+     */
 
     static VariantContext reallyMergeIntoMNP(VariantContext vc1, VariantContext vc2, ReferenceSequenceFile referenceFile) {
         final int startInter = vc1.getEnd() + 1;
@@ -217,10 +223,23 @@ class PhasingUtils {
         return mergedBuilder.make();
     }
 
+    /**
+     * Merge two variant context names together with an underscore betwwen them
+     *
+     * @param name1 variant 1 name
+     * @param name2 variant 2 name
+     * @return combined variant names
+     */
     static String mergeVariantContextNames(String name1, String name2) {
         return name1 + "_" + name2;
     }
 
+    /**
+     *
+     * @param vc1
+     * @param vc2
+     * @return merged variant atrtributes
+     */
     static Map<String, Object> mergeVariantContextAttributes(VariantContext vc1, VariantContext vc2) {
         Map<String, Object> mergedAttribs = new HashMap<String, Object>();
 
@@ -243,6 +262,14 @@ class PhasingUtils {
         return mergedAttribs;
     }
 
+    /**
+     * Check if variants can be moved into the MNP
+     *
+     * @param genomeLocParser parse the genome locations
+     * @param vc1 variant 1
+     * @param vc2 variant 2
+     * @return true if variants are an SNP or MNP, on the same contig, location 1 is not before location 2, unfiltered, from the same sample set and are called,
+     */
     static boolean mergeIntoMNPvalidationCheck(GenomeLocParser genomeLocParser, VariantContext vc1, VariantContext vc2) {
 	// Can only merge "simple" base strings (i.e., SNPs or MNPs, but not indels):
 	final boolean vc1CanBeMerged = vc1.isSNP() || vc1.isMNP();
@@ -253,18 +280,23 @@ class PhasingUtils {
         final GenomeLoc loc1 = GATKVariantContextUtils.getLocation(genomeLocParser, vc1);
         final GenomeLoc loc2 = GATKVariantContextUtils.getLocation(genomeLocParser, vc2);
 
+        // Must be on same contig
         if (!loc1.onSameContig(loc2))
             return false;
 
+        // Variant 1 location must not be before variant 2
         if (!loc1.isBefore(loc2))
             return false;
 
+        // Variants can not be filtered
         if (vc1.isFiltered() || vc2.isFiltered())
             return false;
 
-        if (!vc1.getSampleNames().equals(vc2.getSampleNames())) // vc1, vc2 refer to different sample sets
+        // Variants must come from the same sample set
+        if (!vc1.getSampleNames().equals(vc2.getSampleNames()))
             return false;
 
+        // All of the variant genotypes must be unfiltered and called
         if (!allGenotypesAreUnfilteredAndCalled(vc1) || !allGenotypesAreUnfilteredAndCalled(vc2))
             return false;
 
@@ -280,6 +312,13 @@ class PhasingUtils {
         return true;
     }
 
+    /**
+     * Check if can merge merge variants if phased or either is a homozygous
+     *
+     * @param vc1 variant 1
+     * @param vc2 variant 2
+     * @return true if variants are phased or either is a homozygous, false otherwise
+     */
     static boolean allSamplesAreMergeable(VariantContext vc1, VariantContext vc2) {
         // Check that each sample's genotype in vc2 is uniquely appendable onto its genotype in vc1:
         for (final Genotype gt1 : vc1.getGenotypes()) {
@@ -292,29 +331,47 @@ class PhasingUtils {
         return true;
     }
 
+    /**
+     * Check if the allele segregation is known
+     *
+     * @param gt1 genotype 1
+     * @param gt2 genotype 2
+     * @return true if genotypes have the same number of chromosomes, haplotype, number of attributes
+     * as chromosomes, and either genotype is homozygous, false otherwise
+     */
     static boolean alleleSegregationIsKnown(Genotype gt1, Genotype gt2) {
+        // If gt1 or gt2 do not have the same number of chromosomes, then can not be merged.
         if (gt1.getPloidy() != gt2.getPloidy())
             return false;
 
-        // If gt1 or gt2 are hom, then could be MERGED:
+        // If gt1 or gt2 are homozygous, then could be merged.
         if (gt1.isHom() || gt2.isHom())
             return true;
 
-        // Otherwise, need to check that alleles from gt1 can be matched up with alleles from gt2:
+        // If gt1 or gt2 do not read backed phasing haplotype, then can not be merged
         if (!gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY) || !gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY))
             return false;
 
+        // If gt1 or gt2 do not same number of HP attributes as chromosomes, then can not be merged.
         final String[] hp1 = (String[]) gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY);
         final String[] hp2 = (String[]) gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY);
         if (hp1.length != gt1.getPloidy() || hp2.length != gt2.getPloidy())
             return false;
 
-	final String[] hp1Copy = Arrays.copyOf(hp1, hp1.length);
-	final String[] hp2Copy = Arrays.copyOf(hp2, hp2.length);
+        // gt1 and gt2 must have the same read backed phasing haplotype identifier attributes to be merged
+	    final String[] hp1Copy = Arrays.copyOf(hp1, hp1.length);
+	    final String[] hp2Copy = Arrays.copyOf(hp2, hp2.length);
         Arrays.sort(hp1Copy);
         Arrays.sort(hp2Copy);
         return (Arrays.equals(hp1Copy, hp2Copy)); // The haplotype names match (though possibly in a different order)
     }
+
+    /**
+     *
+     * @param vc1 variant 1
+     * @param vc2 variant 2
+     * @return true if
+     */
 
     static boolean someSampleHasDoubleNonReferenceAllele(VariantContext vc1, VariantContext vc2) {
         for (final Genotype gt1 : vc1.getGenotypes()) {
@@ -329,6 +386,13 @@ class PhasingUtils {
 
         return false;
     }
+
+    /**
+     *
+     * @param vc1 variant 1
+     * @param vc2 variant 2
+     * @return true if
+     */
 
     static boolean doubleAllelesSegregatePerfectlyAmongSamples(VariantContext vc1, VariantContext vc2) {
         // Check that Alleles at vc1 and at vc2 always segregate together in all samples (including reference):
@@ -365,6 +429,9 @@ class PhasingUtils {
         return true;
     }
 
+    /**
+     *
+     */
     abstract static class AlleleMergeRule {
         // vc1, vc2 are ONLY passed to allelesShouldBeMerged() if mergeIntoMNPvalidationCheck(genomeLocParser, vc1, vc2) AND allSamplesAreMergeable(vc1, vc2):
         abstract public boolean allelesShouldBeMerged(VariantContext vc1, VariantContext vc2);
@@ -374,8 +441,15 @@ class PhasingUtils {
         }
     }
 
+    /**
+     * Class for sore the alleles with the same haplotype
+     */
     static class SameHaplotypeAlleles {
+
+        /// Alleles are not in the same order
         public boolean requiresSwap;
+
+        /// Lisgt of gthe 2 alleles with the same haplotype
         public List<AlleleOneAndTwo> hapAlleles;
 
         public SameHaplotypeAlleles() {
@@ -384,19 +458,41 @@ class PhasingUtils {
         }
     }
 
+    /**
+     * Class for holding 2 alleles
+     */
     static class AlleleOneAndTwo {
+        /// allele 1
         private Allele all1;
+        /// allele2
         private Allele all2;
 
+        /**
+         * Constructor
+         *
+         * @param all1 allele 1
+         * @param all2 allele 2
+         */
         public AlleleOneAndTwo(Allele all1, Allele all2) {
             this.all1 = all1;
             this.all2 = all2;
         }
 
+        /**
+         * Get the hah code for alleles 1 and 2
+         *
+         * @return hasb code for alleles 1 and 2
+         */
         public int hashCode() {
             return all1.hashCode() + all2.hashCode();
         }
 
+        /**
+         * Check if equal to another 2 alleles
+         *
+         * @param other allele to compare to
+         * @return true if equal, false otherwise
+         */
         public boolean equals(Object other) {
             if (!(other instanceof AlleleOneAndTwo))
                 return false;
@@ -406,10 +502,20 @@ class PhasingUtils {
         }
     }
 
+    /**
+     * Class for merging alleles data
+     */
     static class MergedAllelesData {
         private Map<AlleleOneAndTwo, Allele> mergedAlleles;
         private byte[] intermediateBases;
         private int intermediateLength;
+
+        /**
+         *
+         * @param intermediateBases
+         * @param vc1 variant 1
+         * @param vc2 variant 2
+         */
 
         public MergedAllelesData(byte[] intermediateBases, VariantContext vc1, VariantContext vc2) {
             this.mergedAlleles = new HashMap<AlleleOneAndTwo, Allele>(); // implemented equals() and hashCode() for AlleleOneAndTwo
@@ -419,10 +525,23 @@ class PhasingUtils {
             this.ensureMergedAllele(vc1.getReference(), vc2.getReference(), true);
         }
 
+        /**
+         *
+         * @param all1 allele 1
+         * @param all2 allele 2
+         * @return
+         */
         public Allele ensureMergedAllele(Allele all1, Allele all2) {
             return ensureMergedAllele(all1, all2, false); // false <-> since even if all1+all2 = reference, it was already created in the constructor
         }
 
+        /**
+         *
+         * @param all1 allele 1
+         * @param all2 allele 2
+         * @param creatingReferenceForFirstTime
+         * @return
+         */
         private Allele ensureMergedAllele(Allele all1, Allele all2, boolean creatingReferenceForFirstTime) {
             AlleleOneAndTwo all12 = new AlleleOneAndTwo(all1, all2);
             Allele mergedAllele = mergedAlleles.get(all12);
@@ -444,6 +563,10 @@ class PhasingUtils {
             return mergedAllele;
         }
 
+        /**
+         *
+         * @return set of merged alleles values
+         */
         public Set<Allele> getAllMergedAlleles() {
             return new HashSet<Allele>(mergedAlleles.values());
         }
