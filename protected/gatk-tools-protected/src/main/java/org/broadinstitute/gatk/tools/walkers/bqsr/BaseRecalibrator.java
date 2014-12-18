@@ -313,6 +313,12 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
         final boolean[] knownSites = new boolean[readLength];
         Arrays.fill(knownSites, false);
         for( final Feature f : features ) {
+            if ((f.getStart() < read.getSoftStart() && f.getEnd() < read.getSoftStart()) ||
+                (f.getStart() > read.getSoftEnd() && f.getEnd() > read.getSoftEnd())) {
+                // feature is outside clipping window for the read, ignore
+                continue;
+            }
+
             int featureStartOnRead = ReadUtils.getReadCoordinateForReferenceCoordinate(read.getSoftStart(), read.getCigar(), f.getStart(), ReadUtils.ClippingTail.LEFT_TAIL, true); // BUGBUG: should I use LEFT_TAIL here?
             if( featureStartOnRead == ReadUtils.CLIPPING_GOAL_NOT_REACHED ) {
                 featureStartOnRead = 0;
