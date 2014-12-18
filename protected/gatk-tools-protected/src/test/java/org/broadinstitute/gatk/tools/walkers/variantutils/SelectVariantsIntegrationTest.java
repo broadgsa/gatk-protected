@@ -53,8 +53,10 @@ package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.util.Arrays;
 
 public class SelectVariantsIntegrationTest extends WalkerTest {
@@ -280,7 +282,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         String testFile = privateTestDir + "vcfexample.loseAlleleInSelection.vcf";
 
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T SelectVariants --keepOriginalAC -env -R " + b36KGReference + " -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
+                "-T SelectVariants --keepOriginalAC -env -trimAlternates -R " + b36KGReference + " -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
                 1,
                 Arrays.asList("4695c99d96490ed4e5b1568c5b52dea6")
         );
@@ -319,7 +321,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         String testfile = privateTestDir + "multi-allelic.bi-allelicInGIH.vcf";
         String samplesFile = privateTestDir + "GIH.samples.list";
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T SelectVariants -R " + b37KGReference + " -o %s --no_cmdline_in_header -sf " + samplesFile + " --excludeNonVariants --variant " + testfile,
+                "-T SelectVariants -R " + b37KGReference + " -o %s --no_cmdline_in_header -sf " + samplesFile + " --excludeNonVariants -trimAlternates --variant " + testfile,
                 1,
                 Arrays.asList("69862fb97e8e895fe65c7abb14b03cee")
         );
@@ -382,8 +384,35 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     @Test
     public void testAlleleTrimming() {
         final String testFile = privateTestDir + "forHardLeftAlignVariantsTest.vcf";
-        final String cmd = "-T SelectVariants -R " + b36KGReference + " -sn NA12878 -env "
-                + testFile + " -o %s --no_cmdline_in_header";
-        WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("69c3f59c132418ec10117aa395addfea"));
+        final String cmd = "-T SelectVariants -R " + b37KGReference + " -sn NA12878 -env -trimAlternates "
+                + "-V " + testFile + " -o %s --no_cmdline_in_header";
+        WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("9df942000eb18b12d9008c7d9b5c4178"));
+        executeTest("testAlleleTrimming", spec);
+    }
+
+    @DataProvider(name="unusedAlleleTrimmingProvider")
+    public Object[][] unusedAlleleTrimmingProvider() {
+        return new Object[][] {
+                { privateTestDir+"forHardLeftAlignVariantsTest.vcf", "-trimAlternates", "9df942000eb18b12d9008c7d9b5c4178"},
+                { privateTestDir+"forHardLeftAlignVariantsTest.vcf", "", "981b757e3dc6bf3864ac7e493cf9d30d"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT", "8ded359dd87fd498ff38736ea0fa4c28"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -env", "a7e7288dcd779cfac6983069de45b79c"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -trimAlternates", "2e726d06a8d317199e8dda74691948a3"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -env -trimAlternates", "1e5585f86c347da271a79fbfc61ac849"}
+        };
+    }
+
+    @Test(dataProvider = "unusedAlleleTrimmingProvider")
+    public void testUnusedAlleleTrimming(final String vcf, final String extraArgs, final String md5) {
+        final WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants" +
+                        " -R "+b37KGReference +
+                        " -V "+vcf +
+                        " -o %s --no_cmdline_in_header" +
+                        " "+extraArgs,
+                1,
+                Arrays.asList(md5)
+        );
+        executeTest(String.format("testUnusedAlleleTrimming: (%s,%s)", new File(vcf).getName(), extraArgs), spec);
     }
 }
