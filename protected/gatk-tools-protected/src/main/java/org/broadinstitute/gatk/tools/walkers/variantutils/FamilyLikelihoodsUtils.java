@@ -107,9 +107,9 @@ public class FamilyLikelihoodsUtils {
      */
     public void getUpdatedGenotypes(final VariantContext vc, final Genotype motherGenotype, final Genotype fatherGenotype, final Genotype childGenotype, final ArrayList<Genotype> updatedGenotypes){
         //genotypes here can be no call
-        boolean fatherIsCalled = fatherGenotype != null && hasCalledGT(fatherGenotype.getType());
-        boolean motherIsCalled = motherGenotype != null && hasCalledGT(motherGenotype.getType());
-        boolean childIsCalled = childGenotype != null && hasCalledGT(childGenotype.getType());
+        boolean fatherIsCalled = fatherGenotype != null && hasCalledGT(fatherGenotype.getType()) && fatherGenotype.hasLikelihoods();
+        boolean motherIsCalled = motherGenotype != null && hasCalledGT(motherGenotype.getType()) && motherGenotype.hasLikelihoods();
+        boolean childIsCalled = childGenotype != null && hasCalledGT(childGenotype.getType()) && childGenotype.hasLikelihoods();
 
         //default to posteriors equal to likelihoods (flat priors) in case input genotypes are not called
         double[] uninformativeLikelihoods = {ONE_THIRD, ONE_THIRD, ONE_THIRD};
