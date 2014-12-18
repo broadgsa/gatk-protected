@@ -213,6 +213,14 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testUsingExpressionMultiAllele() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations-multiAllele.vcf -G Standard --variant " + privateTestDir + "vcfexample3empty-multiAllele.vcf -E foo.AF -E foo.AC -L " + privateTestDir + "vcfexample3empty-multiAllele.vcf", 1,
+                Arrays.asList("24d56a0fdb4b99b8b2ff193b6ebdc77c"));
+        executeTest("using expression with multi-alleles", spec);
+    }
+
+    @Test
     public void testUsingExpressionWithID() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations.vcf -G Standard --variant " + privateTestDir + "vcfexample3empty.vcf -E foo.ID -L " + privateTestDir + "vcfexample3empty.vcf", 1,
