@@ -56,8 +56,8 @@ import htsjdk.variant.variantcontext.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
@@ -66,7 +66,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
-public class PhasingUtilsUnitTest extends BaseTest  {
+public class PhasingUtilsUnitTest extends BaseTest {
 
     private final int start = 10;
     private ReferenceSequenceFile referenceFile;
@@ -79,54 +79,152 @@ public class PhasingUtilsUnitTest extends BaseTest  {
     @Test
     public void TestMatchHaplotypeAllelesKeyHP() {
 
-        final List<Allele> alleleList = new ArrayList<>();
-        alleleList.add(Allele.create("T", false));
-        alleleList.add(Allele.create("C", false));
-        String samelpName = "TC";
-        final Genotype genotypeALT = new GenotypeBuilder(samelpName).attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList).make();
+        final List<Allele> alleleList1 = new ArrayList<>();
+        alleleList1.add(Allele.create("T", false));
+        alleleList1.add(Allele.create("C", false));
+        final Genotype genotype1 = new GenotypeBuilder("TC").attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList1).make();
 
-        // Must match because the same genotype
-        PhasingUtils.SameHaplotypeAlleles sameHaplotypeAlleles = PhasingUtils.matchHaplotypeAlleles(genotypeALT, genotypeALT);
+        // Attributes in different order
+        final List<Allele> alleleList2 = new ArrayList<>();
+        alleleList2.add(Allele.create("G", false));
+        alleleList2.add(Allele.create("A", false));
+        final Genotype genotype2 = new GenotypeBuilder("GA").attribute("HP", new String[]{"10-2", "10-1"}).alleles(alleleList2).make();
+
+        PhasingUtils.SameHaplotypeAlleles sameHaplotypeAlleles = PhasingUtils.matchHaplotypeAlleles(genotype1, genotype2);
 
         PhasingUtils.SameHaplotypeAlleles sameHaplotypeAllelesAnswer = new PhasingUtils.SameHaplotypeAlleles();
-        sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("T", false), Allele.create("T", false)));
-        sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("C", false), Allele.create("C", false)));
+        sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("T", false), Allele.create("A", false)));
+        sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("C", false), Allele.create("G", false)));
+        sameHaplotypeAllelesAnswer.requiresSwap = true;
+
         Assert.assertEquals(sameHaplotypeAlleles.hapAlleles, sameHaplotypeAllelesAnswer.hapAlleles);
         Assert.assertEquals(sameHaplotypeAlleles.requiresSwap, sameHaplotypeAllelesAnswer.requiresSwap);
     }
 
     @Test
-    public void TestMatchHaplotypeAllelesNotKeyHP() {
+    public void TestMatchHaplotypeAllelesNoKeyHP() {
 
-        final List<Allele> alleleList = new ArrayList<>();
-        alleleList.add(Allele.create("T", false));
-        alleleList.add(Allele.create("C", false));
-        final Genotype genotypeALT = new GenotypeBuilder("TC").PL(new int[]{0, 100, 1000}).alleles(alleleList).make();
+        final List<Allele> alleleList1 = new ArrayList<>();
+        alleleList1.add(Allele.create("T", false));
+        alleleList1.add(Allele.create("C", false));
+        final Genotype genotype1 = new GenotypeBuilder("TC").alleles(alleleList1).make();
+
+        // Attributes in different order
+        final List<Allele> alleleList2 = new ArrayList<>();
+        alleleList2.add(Allele.create("G", false));
+        alleleList2.add(Allele.create("A", false));
+        final Genotype genotype2 = new GenotypeBuilder("GA").alleles(alleleList2).make();
 
         // Must match because the same genotype
-        PhasingUtils.SameHaplotypeAlleles sameHaplotypeAlleles = PhasingUtils.matchHaplotypeAlleles(genotypeALT, genotypeALT);
+        PhasingUtils.SameHaplotypeAlleles sameHaplotypeAlleles = PhasingUtils.matchHaplotypeAlleles(genotype1, genotype2);
 
         PhasingUtils.SameHaplotypeAlleles sameHaplotypeAllelesAnswer = new PhasingUtils.SameHaplotypeAlleles();
-        sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("T", false), Allele.create("T", false)));
-        sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("C", false), Allele.create("C", false)));
+        sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("T", false), Allele.create("G", false)));
+        sameHaplotypeAllelesAnswer.hapAlleles.add(new PhasingUtils.AlleleOneAndTwo(Allele.create("C", false), Allele.create("A", false)));
         Assert.assertEquals(sameHaplotypeAlleles.hapAlleles, sameHaplotypeAllelesAnswer.hapAlleles);
         Assert.assertEquals(sameHaplotypeAlleles.requiresSwap, sameHaplotypeAllelesAnswer.requiresSwap);
     }
 
     @Test
-    public void TestMergeIntoMNPvalidationCheck() {
-        String source = new String("test");
-        String contig = new String("1");
+    public void TestMergeIntoMNPvalidationTrueCheck() {
+        final String contig = new String("1");
         final List<Allele> alleleList1 = new ArrayList<>();
         alleleList1.add(Allele.create("T", true));
         alleleList1.add(Allele.create("C", false));
         final List<Allele> alleleList2 = new ArrayList<>();
         alleleList2.add(Allele.create("A", true));
-        alleleList2.add(Allele.create("CC", false));
-        final VariantContext variantContext1 = new VariantContextBuilder(source, contig, start, start, alleleList1).make();
-        final VariantContext variantContext2 = new VariantContextBuilder(source, contig, start, start, alleleList2).make();
+        alleleList2.add(Allele.create("C", false));
+        final VariantContext vc1 = new VariantContextBuilder("TC", contig, start, start, alleleList1).make();
+        final VariantContext vc2 = new VariantContextBuilder("AC", contig, start+1, start+1, alleleList2).make();
         GenomeLocParser genomeLocParser = new GenomeLocParser(referenceFile);
 
-        Assert.assertFalse(PhasingUtils.mergeIntoMNPvalidationCheck(genomeLocParser, variantContext1, variantContext1));
+        Assert.assertTrue(PhasingUtils.mergeIntoMNPvalidationCheck(genomeLocParser, vc1, vc2));
+    }
+
+    @Test
+    public void TestMergeIntoMNPvalidationCheckLocBefore() {
+        final String contig = new String("1");
+        final List<Allele> alleleList1 = new ArrayList<>();
+        alleleList1.add(Allele.create("T", true));
+        alleleList1.add(Allele.create("C", false));
+        final List<Allele> alleleList2 = new ArrayList<>();
+        alleleList2.add(Allele.create("A", true));
+        alleleList2.add(Allele.create("C", false));
+        final VariantContext vc1 = new VariantContextBuilder("TC", contig, start+1, start+1, alleleList1).make();
+        final VariantContext vc2 = new VariantContextBuilder("AC", contig, start, start, alleleList2).make();
+        GenomeLocParser genomeLocParser = new GenomeLocParser(referenceFile);
+
+        Assert.assertFalse(PhasingUtils.mergeIntoMNPvalidationCheck(genomeLocParser, vc1, vc2));
+    }
+
+    @Test
+    public void TestMergeIntoMNPvalidationDiffContigs() {
+        final String contig1 = new String("1");
+        final String contig2 = new String("2");
+        final List<Allele> alleleList1 = new ArrayList<>();
+        alleleList1.add(Allele.create("T", true));
+        alleleList1.add(Allele.create("C", false));
+        final List<Allele> alleleList2 = new ArrayList<>();
+        alleleList2.add(Allele.create("A", true));
+        alleleList2.add(Allele.create("C", false));
+        final VariantContext vc1 = new VariantContextBuilder("TC", contig1, start+1, start+1, alleleList1).make();
+        final VariantContext vc2 = new VariantContextBuilder("AC", contig2, start, start, alleleList2).make();
+        GenomeLocParser genomeLocParser = new GenomeLocParser(referenceFile);
+
+        Assert.assertFalse(PhasingUtils.mergeIntoMNPvalidationCheck(genomeLocParser, vc1, vc2));
+    }
+
+    @Test
+    public void TestMergeVariantContextNames() {
+        final String result = new String("A_B");
+        Assert.assertEquals(result, PhasingUtils.mergeVariantContextNames("A", "B"));
+    }
+
+    @Test
+    public void TestMergeVariantContextAttributes() {
+        final String contig = new String("1");
+        final List<Allele> alleleList1 = new ArrayList<>();
+        alleleList1.add(Allele.create("T", true));
+        alleleList1.add(Allele.create("C", false));
+        final List<Allele> alleleList2 = new ArrayList<>();
+        alleleList2.add(Allele.create("A", true));
+        alleleList2.add(Allele.create("C", false));
+        final VariantContext vc1 = new VariantContextBuilder("TC", contig, start, start, alleleList1).make();
+        final VariantContext vc2 = new VariantContextBuilder("AC", contig, start+1, start+1, alleleList2).make();
+
+        Assert.assertEquals(0, PhasingUtils.mergeVariantContextAttributes(vc1, vc2).size());
+    }
+
+    @Test
+    public void TestAllSamplesAreMergeableDiffSampleNames() {
+        final String contig = new String("1");
+        final List<Allele> alleleList1 = new ArrayList<>();
+        alleleList1.add(Allele.create("T", true));
+        alleleList1.add(Allele.create("C", false));
+        final List<Allele> alleleList2 = new ArrayList<>();
+        alleleList2.add(Allele.create("A", true));
+        alleleList2.add(Allele.create("C", false));
+
+        final Genotype g1 = new GenotypeBuilder().name("sample1").alleles(alleleList1).make();
+        final VariantContext vc1 = new VariantContextBuilder().chr(contig).id("id1").source("TC").start(start).stop(start).alleles(alleleList1).genotypes(g1).make();
+        Genotype g2 = new GenotypeBuilder().name("sample2").alleles(alleleList2).make();
+        final VariantContext vc2 = new VariantContextBuilder().chr(contig).id("i21").source("AC").start(start).stop(start).alleles(alleleList2).genotypes(g2).make();
+
+        Assert.assertFalse( PhasingUtils.allSamplesAreMergeable(vc1, vc2));
+    }
+
+    @Test
+    public void TestAlleleSegregationIsKnown(){
+
+    }
+
+    @Test
+    public void TestSomeSampleHasDoubleNonReferenceAllele(){
+
+    }
+
+    @Test
+    public void TestDoubleAllelesSegregatePerfectlyAmongSamples(){
+
     }
 }

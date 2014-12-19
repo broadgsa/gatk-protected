@@ -74,7 +74,7 @@ class PhasingUtils {
      * @param vc1 variant 1
      * @param vc2 variant 2
      * @param referenceFile sequence file containing the reference genome
-     * @param alleleMergeRule
+     * @param alleleMergeRule rule for merging variants
      * @return merged variant or null if the variants are NOT an SNP or MNP, on the same contig, variant location 1 is the same or after the  variant location 2,
      * their genotypes do NOT have the same number of chromosomes, haplotype, number of attributes as chromosomes, are both hetrozygous or do not abide by the merge rule
      */
@@ -98,7 +98,7 @@ class PhasingUtils {
     /**
      * Find the alleles with the same haplotype
      * assumes alleleSegregationIsKnown
-     * TODO - should alleleSegregationIsKnown be called within the method?
+     * TODO - should alleleSegregationIsKnown be called within this method?
      *
      * @param gt1 genotype 1
      * @param gt2 genotype 2
@@ -160,13 +160,13 @@ class PhasingUtils {
     }
 
     /**
+     * Merge variants into an MNP
      *
      * @param vc1 variant 1
      * @param vc2 variant 2
      * @param referenceFile sequence file containing the reference genome
      * @return variant with the merged MNP
      */
-
     static VariantContext reallyMergeIntoMNP(VariantContext vc1, VariantContext vc2, ReferenceSequenceFile referenceFile) {
         final int startInter = vc1.getEnd() + 1;
         final int endInter = vc2.getStart() - 1;
@@ -246,25 +246,30 @@ class PhasingUtils {
     }
 
     /**
+     * Get preset attributes and whether they are in vc1 or vc2
+     * TODO: Will always return an empty map because MERGE_OR_ATTRIBS is empty
      *
-     * @param vc1
-     * @param vc2
-     * @return merged variant attributes
+     * @param vc1 variant 1
+     * @param vc2 variant 2
+     * @return whether the preset attributes are in vc1 or vc2
      */
     static Map<String, Object> mergeVariantContextAttributes(VariantContext vc1, VariantContext vc2) {
+        // Map of attribute name to value
         Map<String, Object> mergedAttribs = new HashMap<String, Object>();
 
         final List<VariantContext> vcList = new LinkedList<VariantContext>();
         vcList.add(vc1);
         vcList.add(vc2);
 
+        // Attribute of interest
         //String[] MERGE_OR_ATTRIBS = {VCFConstants.DBSNP_KEY};
         final String[] MERGE_OR_ATTRIBS = {};
         for (String orAttrib : MERGE_OR_ATTRIBS) {
             boolean attribVal = false;
             for (VariantContext vc : vcList) {
+                // Does the variant have the attribute?
                 attribVal = vc.getAttributeAsBoolean(orAttrib, false);
-                if (attribVal) // already true, so no reason to continue:
+                if ( attribVal ) // already true, so no reason to continue:
                     break;
             }
             mergedAttribs.put(orAttrib, attribVal);
@@ -335,6 +340,8 @@ class PhasingUtils {
         // Check that each sample's genotype in vc2 is uniquely appendable onto its genotype in vc1
         for (final Genotype gt1 : vc1.getGenotypes()) {
             final Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
+            if ( gt2 == null ) // gt2 does not have sample name
+                return false;
 
             if (!alleleSegregationIsKnown(gt1, gt2)) // can merge if: phased, or if either is a hom
                 return false;
@@ -385,7 +392,6 @@ class PhasingUtils {
      * @param vc2 variant 2
      * @return true if there is a sample with alternate alleles, false otherwise
      */
-
     static boolean someSampleHasDoubleNonReferenceAllele(VariantContext vc1, VariantContext vc2) {
         for (final Genotype gt1 : vc1.getGenotypes()) {
             final Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
@@ -404,13 +410,12 @@ class PhasingUtils {
     }
 
     /**
-     * Check that Alleles at vc1 and at vc2 always segregate together in all samples (including reference
+     * Check that Alleles at vc1 and at vc2 always segregate together in all samples (including reference)
      *
      * @param vc1 variant 1
      * @param vc2 variant 2
      * @return true if
      */
-
     static boolean doubleAllelesSegregatePerfectlyAmongSamples(VariantContext vc1, VariantContext vc2) {
         final Map<Allele, Allele> allele1ToAllele2 = new HashMap<Allele, Allele>();
         final Map<Allele, Allele> allele2ToAllele1 = new HashMap<Allele, Allele>();
@@ -527,12 +532,12 @@ class PhasingUtils {
         private int intermediateLength;
 
         /**
+         * Constructor
          *
-         * @param intermediateBases
+         * @param intermediateBases array of bases
          * @param vc1 variant 1
          * @param vc2 variant 2
          */
-
         public MergedAllelesData(byte[] intermediateBases, VariantContext vc1, VariantContext vc2) {
             this.mergedAlleles = new HashMap<AlleleOneAndTwo, Allele>(); // implemented equals() and hashCode() for AlleleOneAndTwo
             this.intermediateBases = intermediateBases;
@@ -545,7 +550,7 @@ class PhasingUtils {
          *
          * @param all1 allele 1
          * @param all2 allele 2
-         * @return
+         * @return merged allele
          */
         public Allele ensureMergedAllele(Allele all1, Allele all2) {
             return ensureMergedAllele(all1, all2, false); // false <-> since even if all1+all2 = reference, it was already created in the constructor
