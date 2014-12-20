@@ -264,7 +264,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     @Override
     public void close() {
         if (doProfiling)
-            System.out.println("Time spent in setup for JNI call : " + (pairHMMSetupTime * 1e-9));
+            System.err.println("Time spent in setup for JNI call : " + (pairHMMSetupTime * 1e-9));
         super.close();
         jniClose();
     }
