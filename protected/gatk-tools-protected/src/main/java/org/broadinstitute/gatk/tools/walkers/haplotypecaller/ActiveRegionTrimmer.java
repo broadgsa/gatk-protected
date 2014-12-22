@@ -72,7 +72,7 @@ import java.util.*;
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-class ActiveRegionTrimmer {
+public class ActiveRegionTrimmer {
 
     /**
      * Genome location parser use in order to create and manipulate genomic intervals.
@@ -115,11 +115,11 @@ class ActiveRegionTrimmer {
      */
     @Hidden
     @Argument(fullName="paddingAroundIndels", shortName="paddingAroundIndels", doc = "Include at least this many bases around an event for calling indels", required=false)
-    protected int indelPadding = 150;
+    public int indelPadding = 150;
 
     @Hidden
     @Argument(fullName="paddingAroundSNPs", shortName="paddingAroundSNPs", doc = "Include at least this many bases around an event for calling snps", required=false)
-    protected int snpPadding = 20;
+    public int snpPadding = 20;
 
     /**
      * Holds a reference the trimmer logger.
@@ -143,7 +143,7 @@ class ActiveRegionTrimmer {
      * @throws IllegalArgumentException if the input location parser is {@code null}.
      * @throws UserException.BadArgumentValue if any of the user argument values is invalid.
      */
-    void initialize(final GenomeLocParser glp, final boolean debug, final boolean isGGA, final boolean emitReferenceConfidence) {
+    public void initialize(final GenomeLocParser glp, final boolean debug, final boolean isGGA, final boolean emitReferenceConfidence) {
         if (locParser != null)
             throw new IllegalStateException(getClass().getSimpleName() + " instance initialized twice");
         if (glp == null)
