@@ -80,7 +80,7 @@ public class PhasingUtilsUnitTest extends BaseTest {
 
     @BeforeSuite
     public void init() throws FileNotFoundException {
-        referenceFile = new CachingIndexedFastaSequenceFile(new File("/Users/ronlevine/src/human_g1k_v37.fasta"));
+        referenceFile = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
         alleleList1 = Arrays.asList(Allele.create("T", true), Allele.create("C", false));
         alleleList2 = Arrays.asList(Allele.create("G", true), Allele.create("A", false));
         genotype1 = new GenotypeBuilder().name("sample1").attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList1).make();
