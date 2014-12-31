@@ -557,17 +557,19 @@ class PhasingUtils {
         }
 
         /**
+         * Ensure that the alleles are merged.
+         * Put the bases from all1 before and all2 after the previously merged bases
          *
          * @param all1 allele 1
          * @param all2 allele 2
-         * @param creatingReferenceForFirstTime
+         * @param isRef is this a reference allele
          * @return merged allele
          */
-        private Allele ensureMergedAllele(Allele all1, Allele all2, boolean creatingReferenceForFirstTime) {
+        private Allele ensureMergedAllele(Allele all1, Allele all2, boolean isRef) {
             AlleleOneAndTwo all12 = new AlleleOneAndTwo(all1, all2);
             Allele mergedAllele = mergedAlleles.get(all12);
 
-            if (mergedAllele == null) {
+             if (mergedAllele == null) {
                 final byte[] bases1 = all1.getBases();
                 final byte[] bases2 = all2.getBases();
 
@@ -577,7 +579,7 @@ class PhasingUtils {
                     System.arraycopy(intermediateBases, 0, mergedBases, bases1.length, intermediateLength);
                 System.arraycopy(bases2, 0, mergedBases, bases1.length + intermediateLength, bases2.length);
 
-                mergedAllele = Allele.create(mergedBases, creatingReferenceForFirstTime);
+                mergedAllele = Allele.create(mergedBases, isRef);
                 mergedAlleles.put(all12, mergedAllele);
             }
 
