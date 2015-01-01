@@ -56,6 +56,7 @@ import htsjdk.variant.variantcontext.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -65,7 +66,6 @@ import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.testng.Assert;
 import org.testng.annotations.BeforeSuite;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 class AlwaysTrueMergeRule extends PhasingUtils.AlleleMergeRule {
@@ -93,8 +93,8 @@ public class PhasingUtilsUnitTest extends BaseTest {
         genomeLocParser = new GenomeLocParser(referenceFile);
         alleleList1 = Arrays.asList(Allele.create("T", true), Allele.create("C", false));
         alleleList2 = Arrays.asList(Allele.create("G", true), Allele.create("A", false));
-        genotype1 = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList1).make();
-        genotype2 = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-2", "10-1"}).alleles(alleleList2).make();
+        genotype1 = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-1", "10-2"}).attribute("PQ", 100.0).alleles(alleleList1).make();
+        genotype2 = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-2", "10-1"}).attribute("PQ", 200.0).alleles(alleleList2).make();
         contig = new String("1");
         vc1 = new VariantContextBuilder().chr(contig).id("id1").source("TC").start(start).stop(start).alleles(alleleList1).genotypes(genotype1).make();
         vc2 = new VariantContextBuilder().chr(contig).id("id2").source("GA").start(start+1).stop(start+1).alleles(alleleList2).genotypes(genotype2).make();
@@ -187,13 +187,22 @@ public class PhasingUtilsUnitTest extends BaseTest {
     }
 
     @Test
-    public void TestSomeSampleHasDoubleNonReferenceAllele(){
+    public void TestSomeSampleHasDoubleNonReferenceAlleleTrue(){
+        Genotype genotype = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList2).make();
+        VariantContext vc = new VariantContextBuilder().chr(contig).id("id2").source("GA").start(start+1).stop(start+1).alleles(alleleList2).genotypes(genotype).make();
+        Assert.assertTrue(PhasingUtils.someSampleHasDoubleNonReferenceAllele(vc1, vc));
+    }
+
+    @Test
+    public void TestSomeSampleHasDoubleNonReferenceAlleleFalse(){
         Assert.assertFalse(PhasingUtils.someSampleHasDoubleNonReferenceAllele(vc1, vc2));
     }
 
     @Test
     public void TestDoubleAllelesSegregatePerfectlyAmongSamples(){
-        Assert.assertFalse(PhasingUtils.doubleAllelesSegregatePerfectlyAmongSamples(vc1, vc2));
+        Genotype genotype = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList2).make();
+        VariantContext vc = new VariantContextBuilder().chr(contig).id("id2").source("GA").start(start+1).stop(start+1).alleles(alleleList2).genotypes(genotype).make();
+        Assert.assertTrue(PhasingUtils.doubleAllelesSegregatePerfectlyAmongSamples(vc1, vc));
     }
 
     @Test
@@ -207,18 +216,58 @@ public class PhasingUtilsUnitTest extends BaseTest {
         AlwaysTrueMergeRule alleleMergeRule = new AlwaysTrueMergeRule();
         VariantContext vc = PhasingUtils.mergeIntoMNP(genomeLocParser, vc1, vc2, referenceFile, alleleMergeRule);
 
-        Map<String,Object> attributes = new HashMap<String,Object>();
-        attributes.put("AC", new String[]{"1", "1"});
-        attributes.put("AF", new String[]{"0.5", "0.5"});
-        attributes.put("AN", new String("2"));
         List<Allele> alleleList = Arrays.asList(Allele.create("TG", true), Allele.create("TA", false), Allele.create("CG", false));
-        Genotype genotype = new GenotypeBuilder().name("sample").attributes(attributes).alleles(alleleList).make();
-        final VariantContext vcExpected = new VariantContextBuilder().chr(contig).id("id1;id2").source("TC_AC").start(start).stop(start+1).alleles(alleleList).genotypes(genotype).make();
+        Map<String,Object> attributes = new HashMap<String,Object>(){{
+            put("AC", new ArrayList<Integer>(Arrays.asList(1, 1)));
+            put("AF", new ArrayList<Double>(Arrays.asList(0.5, 0.5)));
+            put("AN", 2);
+        }};
+        final Map<String, Object> extendedAttributes = new HashMap<String, Object>(){{
+            put("PQ", 100.0); put("HP", new String[]{"10-1", "10-2"});
+        }};
+        List<Allele> alleleListMeged = Arrays.asList(Allele.create("TA"), Allele.create("CG"));
+        Genotype genotype = new GenotypeBuilder().name("sample").attributes(extendedAttributes).alleles(alleleListMeged).make();
+        final VariantContext vcExpected = new VariantContextBuilder().chr(contig).id("id1;id2").source("TC_GA").start(start).stop(start+1).alleles(alleleList).genotypes(genotype).attributes(attributes).make();
+        Assert.assertTrue(genotype.sameGenotype(vcExpected.getGenotypes().get("sample")));
+        Assert.assertTrue(vcExpected.hasSameAllelesAs(vc));
+        Assert.assertEquals(vcExpected.getChr(), vc.getChr());
+        Assert.assertEquals(vcExpected.getStart(), vc.getStart());
+        Assert.assertEquals(vcExpected.getEnd(), vc.getEnd());
+        Assert.assertEquals(vcExpected.getID(), vc.getID());
+        Assert.assertEquals(vcExpected.getSource(), vc.getSource());
+        Assert.assertEquals(vcExpected.isFiltered(), vc.isFiltered());
+        Assert.assertEquals(vcExpected.getPhredScaledQual(), vc.getPhredScaledQual());
+        Assert.assertEquals(vcExpected.getAttribute("PQ"), vc.getAttribute("PQ"));
+        Assert.assertEquals(vcExpected.getAttribute("HP"), vc.getAttribute("HP"));
     }
 
     @Test
-    public void TestReallyMergeIntoMNP(final VariantContext vc1, final VariantContext vc2 ){
+    public void TestReallyMergeIntoMNP( ){
         VariantContext vc = PhasingUtils.reallyMergeIntoMNP(vc1, vc2, referenceFile);
+
+        List<Allele> alleleList = Arrays.asList(Allele.create("TG", true), Allele.create("TA", false), Allele.create("CG", false));
+        Map<String,Object> attributes = new HashMap<String,Object>(){{
+            put("AC", new ArrayList<Integer>(Arrays.asList(1, 1)));
+            put("AF", new ArrayList<Double>(Arrays.asList(0.5, 0.5)));
+            put("AN", 2);
+        }};
+        final Map<String, Object> extendedAttributes = new HashMap<String, Object>(){{
+            put("PQ", 100.0); put("HP", new String[]{"10-1", "10-2"});
+        }};
+        List<Allele> alleleListMeged = Arrays.asList(Allele.create("TA"), Allele.create("CG"));
+        Genotype genotype = new GenotypeBuilder().name("sample").attributes(extendedAttributes).alleles(alleleListMeged).make();
+        final VariantContext vcExpected = new VariantContextBuilder().chr(contig).id("id1;id2").source("TC_GA").start(start).stop(start+1).alleles(alleleList).genotypes(genotype).attributes(attributes).make();
+        Assert.assertTrue(genotype.sameGenotype(vcExpected.getGenotypes().get("sample")));
+        Assert.assertTrue(vcExpected.hasSameAllelesAs(vc));
+        Assert.assertEquals(vcExpected.getChr(), vc.getChr());
+        Assert.assertEquals(vcExpected.getStart(), vc.getStart());
+        Assert.assertEquals(vcExpected.getEnd(), vc.getEnd());
+        Assert.assertEquals(vcExpected.getID(), vc.getID());
+        Assert.assertEquals(vcExpected.getSource(), vc.getSource());
+        Assert.assertEquals(vcExpected.isFiltered(), vc.isFiltered());
+        Assert.assertEquals(vcExpected.getPhredScaledQual(), vc.getPhredScaledQual());
+        Assert.assertEquals(vcExpected.getAttribute("PQ"), vc.getAttribute("PQ"));
+        Assert.assertEquals(vcExpected.getAttribute("HP"), vc.getAttribute("HP"));
     }
 
     @Test

@@ -71,8 +71,8 @@ class PhasingUtils {
      * Merge variants into an MNP
      *
      * @param genomeLocParser parse the genome locations
-     * @param vc1 variant 1
-     * @param vc2 variant 2
+     * @param vc1 variant context 1
+     * @param vc2 variant context 2
      * @param referenceFile sequence file containing the reference genome
      * @param alleleMergeRule rule for merging variants
      * @return merged variant or null if the variants are NOT an SNP or MNP, on the same contig, variant location 1 is the same or after the  variant location 2,
@@ -162,8 +162,8 @@ class PhasingUtils {
     /**
      * Merge variants into an MNP
      *
-     * @param vc1 variant 1
-     * @param vc2 variant 2
+     * @param vc1 variant context 1
+     * @param vc2 variant context 2
      * @param referenceFile sequence file containing the reference genome
      * @return variant with the merged MNP
      */
@@ -171,16 +171,21 @@ class PhasingUtils {
         final int startInter = vc1.getEnd() + 1;
         final int endInter = vc2.getStart() - 1;
         byte[] intermediateBases = null;
+
+        // get bases between vc1 and vc2 in the reference sequence
         if (startInter <= endInter) {
             intermediateBases = referenceFile.getSubsequenceAt(vc1.getChr(), startInter, endInter).getBases();
             StringUtil.toUpperCase(intermediateBases);
         }
+
+        // merge the reference bases with vc1 and vc2
         final MergedAllelesData mergeData = new MergedAllelesData(intermediateBases, vc1, vc2); // ensures that the reference allele is added
 
         final GenotypesContext mergedGenotypes = GenotypesContext.create();
         for (final Genotype gt1 : vc1.getGenotypes()) {
             final Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
 
+            // Alleles with the same haplotype
             final SameHaplotypeAlleles hapAlleles = matchHaplotypeAlleles(gt1, gt2);
 
             boolean isPhased = gt1.isPhased() && gt2.isPhased();
@@ -197,6 +202,7 @@ class PhasingUtils {
 
             final Map<String, Object> mergedGtAttribs = new HashMap<String, Object>();
 
+            // get the min read backed phasing quality
             double PQ = Double.MAX_VALUE;
             if (gt1.hasAnyAttribute(ReadBackedPhasing.PQ_KEY)) {
                 PQ = Math.min(PQ, (double) gt1.getAnyAttribute(ReadBackedPhasing.PQ_KEY));
@@ -207,6 +213,7 @@ class PhasingUtils {
             if (PQ != Double.MAX_VALUE)
                 mergedGtAttribs.put(ReadBackedPhasing.PQ_KEY, PQ);
 
+            // get the read backed phasing phasing haplotype identifier
             if (gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) {
                 mergedGtAttribs.put(ReadBackedPhasing.HP_KEY, gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY));
             }
@@ -214,21 +221,24 @@ class PhasingUtils {
                 mergedGtAttribs.put(ReadBackedPhasing.HP_KEY, gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY));
             }
 
+            // make the merged genotype
             final Genotype mergedGt = new GenotypeBuilder(gt1.getSampleName(), mergedAllelesForSample).log10PError(mergedGQ).attributes(mergedGtAttribs).phased(isPhased).make();
             mergedGenotypes.add(mergedGt);
         }
 
+        // get the merged name
         final String mergedName = mergeVariantContextNames(vc1.getSource(), vc2.getSource());
         final double mergedLog10PError = Math.min(vc1.getLog10PError(), vc2.getLog10PError());
         final Set<String> mergedFilters = new HashSet<String>(); // Since vc1 and vc2 were unfiltered, the merged record remains unfiltered
         final Map<String, Object> mergedAttribs = mergeVariantContextAttributes(vc1, vc2);
 
-        // ids
+        // get the merged ID
         final List<String> mergedIDs = new ArrayList<String>();
         if ( vc1.hasID() ) mergedIDs.add(vc1.getID());
         if ( vc2.hasID() ) mergedIDs.add(vc2.getID());
         final String mergedID = mergedIDs.isEmpty() ? VCFConstants.EMPTY_ID_FIELD : Utils.join(VCFConstants.ID_FIELD_SEPARATOR, mergedIDs);
 
+        // make the merged variant context
         final VariantContextBuilder mergedBuilder = new VariantContextBuilder(mergedName, vc1.getChr(), vc1.getStart(), vc2.getEnd(), mergeData.getAllMergedAlleles()).id(mergedID).genotypes(mergedGenotypes).log10PError(mergedLog10PError).filters(mergedFilters).attributes(mergedAttribs);
         VariantContextUtils.calculateChromosomeCounts(mergedBuilder, true);
         return mergedBuilder.make();
@@ -237,8 +247,8 @@ class PhasingUtils {
     /**
      * Merge two variant context names together with an underscore betwwen them
      *
-     * @param name1 variant 1 name
-     * @param name2 variant 2 name
+     * @param name1 variant context 1 name
+     * @param name2 variant context 2 name
      * @return combined variant names
      */
     static String mergeVariantContextNames(String name1, String name2) {
@@ -249,8 +259,8 @@ class PhasingUtils {
      * Get preset attributes and whether they are in vc1 or vc2
      * TODO: Will always return an empty map because MERGE_OR_ATTRIBS is empty
      *
-     * @param vc1 variant 1
-     * @param vc2 variant 2
+     * @param vc1 variant context 1
+     * @param vc2 variant context 2
      * @return whether the preset attributes are in vc1 or vc2
      */
     static Map<String, Object> mergeVariantContextAttributes(VariantContext vc1, VariantContext vc2) {
@@ -282,8 +292,8 @@ class PhasingUtils {
      * Check if variants can be merged into the MNP
      *
      * @param genomeLocParser parse the genome locations
-     * @param vc1 variant 1
-     * @param vc2 variant 2
+     * @param vc1 variant context 1
+     * @param vc2 variant context 2
      * @return true if variants are an SNP or MNP, on the same contig, variant location 1 is not before variant location 2, unfiltered, from the same sample set and are called,
      * false otherwise
      */
@@ -301,7 +311,7 @@ class PhasingUtils {
         if (!loc1.onSameContig(loc2))
             return false;
 
-        // Variant 1 location must not be before variant 2
+        // Variant 1 location must not be before variant context 2
         if (!loc1.isBefore(loc2))
             return false;
 
@@ -332,8 +342,8 @@ class PhasingUtils {
     /**
      * Check if can merge variants
      *
-     * @param vc1 variant 1
-     * @param vc2 variant 2
+     * @param vc1 variant context 1
+     * @param vc2 variant context 2
      * @return true if variants are phased or either is a homozygous, false otherwise
      */
     static boolean allSamplesAreMergeable(VariantContext vc1, VariantContext vc2) {
@@ -386,23 +396,26 @@ class PhasingUtils {
     }
 
     /**
-     * Check of any samples have alternate alleles
+     * Check if some samples have double alternate alleles
      *
-     * @param vc1 variant 1
-     * @param vc2 variant 2
-     * @return true if there is a sample with alternate alleles, false otherwise
+     * @param vc1 variant context 1
+     * @param vc2 variant context 2
+     * @return true if there is a sample with double alternate alleles, false otherwise
      */
     static boolean someSampleHasDoubleNonReferenceAllele(VariantContext vc1, VariantContext vc2) {
         for (final Genotype gt1 : vc1.getGenotypes()) {
+            // gt2 from the same sample as gt1
             final Genotype gt2 = vc2.getGenotype(gt1.getSampleName());
 
-            // Find the alleles with the same haplotype
-            final SameHaplotypeAlleles hapAlleles = matchHaplotypeAlleles(gt1, gt2);
+            if ( gt2 != null ) {
+                // Find the alleles with the same haplotype
+                final SameHaplotypeAlleles hapAlleles = matchHaplotypeAlleles(gt1, gt2);
 
-            // Find corresponding alternate alleles
-            for (AlleleOneAndTwo all1all2 : hapAlleles.hapAlleles) {
-                if (all1all2.all1.isNonReference() && all1all2.all2.isNonReference())
-                    return true;
+                // Find corresponding alternate alleles
+                for (AlleleOneAndTwo all1all2 : hapAlleles.hapAlleles) {
+                    if (all1all2.all1.isNonReference() && all1all2.all2.isNonReference())
+                        return true;
+                }
             }
         }
 
@@ -412,9 +425,9 @@ class PhasingUtils {
     /**
      * Check that Alleles at vc1 and at vc2 always segregate together in all samples (including reference)
      *
-     * @param vc1 variant 1
-     * @param vc2 variant 2
-     * @return true if
+     * @param vc1 variant context 1
+     * @param vc2 variant context 2
+     * @return true if alleles segregate together, false otherwise
      */
     static boolean doubleAllelesSegregatePerfectlyAmongSamples(VariantContext vc1, VariantContext vc2) {
         final Map<Allele, Allele> allele1ToAllele2 = new HashMap<Allele, Allele>();
@@ -535,18 +548,20 @@ class PhasingUtils {
          * Constructor
          *
          * @param intermediateBases array of bases
-         * @param vc1 variant 1
-         * @param vc2 variant 2
+         * @param vc1 variant context 1
+         * @param vc2 variant context 2
          */
         public MergedAllelesData(byte[] intermediateBases, VariantContext vc1, VariantContext vc2) {
             this.mergedAlleles = new HashMap<AlleleOneAndTwo, Allele>(); // implemented equals() and hashCode() for AlleleOneAndTwo
             this.intermediateBases = intermediateBases;
             this.intermediateLength = this.intermediateBases != null ? this.intermediateBases.length : 0;
 
+            // merge the reference bases from vc1 before and vc2 after the reference (intermediate) bases
             this.ensureMergedAllele(vc1.getReference(), vc2.getReference(), true);
         }
 
         /**
+         * Ensure that the alleles are merged. The merged allele is alternate.
          *
          * @param all1 allele 1
          * @param all2 allele 2
@@ -558,11 +573,11 @@ class PhasingUtils {
 
         /**
          * Ensure that the alleles are merged.
-         * Put the bases from all1 before and all2 after the previously merged bases
+         * Put the bases from all1 before and all2 after the intermediate bases
          *
          * @param all1 allele 1
          * @param all2 allele 2
-         * @param isRef is this a reference allele
+         * @param isRef if true, merged allele is reference, if false, merged allele is alternate
          * @return merged allele
          */
         private Allele ensureMergedAllele(Allele all1, Allele all2, boolean isRef) {
