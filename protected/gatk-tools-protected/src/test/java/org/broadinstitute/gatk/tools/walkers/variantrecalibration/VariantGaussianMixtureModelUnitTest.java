@@ -73,7 +73,7 @@ public final class VariantGaussianMixtureModelUnitTest extends BaseTest {
     VariantDatum[] variantData1 = new VariantDatum[N_VARIANTS];
 
     private final File QUAL_DATA = new File(privateTestDir + "tranches.raw.dat");
-    private final double[] TRUTH_SENSITIVITY_CUTS = new double[]{99.9, 99.0, 97.0, 95.0};
+    private final List<Double> TRUTH_SENSITIVITY_CUTS = new ArrayList<Double>(Arrays.asList(99.9, 99.0, 97.0, 95.0));
     private final File EXPECTED_TRANCHES_NEW = new File(privateTestDir + "tranches.6.txt");
     private final File EXPECTED_TRANCHES_OLD = new File(privateTestDir + "tranches.4.txt");
 
@@ -136,7 +136,7 @@ public final class VariantGaussianMixtureModelUnitTest extends BaseTest {
         }
     }
 
-    private static List<Tranche> findMyTranches(ArrayList<VariantDatum> vd, double[] tranches) {
+    private static List<Tranche> findMyTranches(ArrayList<VariantDatum> vd, List<Double> tranches) {
         final int nCallsAtTruth = TrancheManager.countCallsAtTruth( vd, Double.NEGATIVE_INFINITY );
         final TrancheManager.SelectionMetric metric = new TrancheManager.TruthSensitivityMetric( nCallsAtTruth );
         return TrancheManager.findTranches(vd, tranches, metric, VariantRecalibratorArgumentCollection.Mode.SNP);
@@ -153,6 +153,6 @@ public final class VariantGaussianMixtureModelUnitTest extends BaseTest {
     @Test(expectedExceptions = {UserException.class})
     public final void testBadFDR() {
         ArrayList<VariantDatum> vd = readData();
-        List<Tranche> tranches = findMyTranches(vd, new double[]{-1});
+        List<Tranche> tranches = findMyTranches(vd, new ArrayList<Double>(Arrays.asList(-1.0)));
     }
 }
