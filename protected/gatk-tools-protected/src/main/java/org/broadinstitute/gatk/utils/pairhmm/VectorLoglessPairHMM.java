@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.utils.pairhmm;
 
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
@@ -69,6 +70,8 @@ import java.util.Map;
  * Date: 10/16/12
  */
 public class VectorLoglessPairHMM extends JNILoglessPairHMM {
+
+    protected final static Logger logger = Logger.getLogger(VectorLoglessPairHMM.class);
 
     //Used to copy references to byteArrays to JNI from reads
     protected class JNIReadDataHolderClass {
@@ -264,7 +267,7 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
     @Override
     public void close() {
         if (doProfiling)
-            System.err.println("Time spent in setup for JNI call : " + (pairHMMSetupTime * 1e-9));
+            logger.info("Time spent in setup for JNI call : " + (pairHMMSetupTime * 1e-9));
         super.close();
         jniClose();
     }
