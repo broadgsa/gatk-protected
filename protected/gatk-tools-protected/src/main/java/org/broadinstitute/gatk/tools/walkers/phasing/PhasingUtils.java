@@ -68,7 +68,7 @@ import java.util.*;
 class PhasingUtils {
 
     /**
-     * Merge variants into an MNP
+     * Merge variants into a multi-nucleotide polymorphism (MNP)
      *
      * @param genomeLocParser parse the genome locations
      * @param vc1 variant context 1
@@ -160,7 +160,7 @@ class PhasingUtils {
     }
 
     /**
-     * Merge variants into an MNP
+     * Merge variants into a multi-nucleotide polymorphism (MNP)
      *
      * @param vc1 variant context 1
      * @param vc2 variant context 2
@@ -245,23 +245,23 @@ class PhasingUtils {
     }
 
     /**
-     * Merge two variant context names together with an underscore betwwen them
+     * Merge variant context names
      *
      * @param name1 variant context 1 name
      * @param name2 variant context 2 name
-     * @return combined variant names
+     * @return merged variant names (name1_name2)
      */
     static String mergeVariantContextNames(String name1, String name2) {
         return name1 + "_" + name2;
     }
 
     /**
-     * Get preset attributes and whether they are in vc1 or vc2
+     * Get preset attributes and that are in vc1 or vc2
      * TODO: Will always return an empty map because MERGE_OR_ATTRIBS is empty
      *
      * @param vc1 variant context 1
      * @param vc2 variant context 2
-     * @return whether the preset attributes are in vc1 or vc2
+     * @return merged attributes in vc1 or vc2
      */
     static Map<String, Object> mergeVariantContextAttributes(VariantContext vc1, VariantContext vc2) {
         // Map of attribute name to value
@@ -289,7 +289,7 @@ class PhasingUtils {
     }
 
     /**
-     * Check if variants can be merged into the MNP
+     * Check if variants can be merged into the multi-nucleotide polymorphism (MNP)
      *
      * @param genomeLocParser parse the genome locations
      * @param vc1 variant context 1
@@ -340,7 +340,7 @@ class PhasingUtils {
     }
 
     /**
-     * Check if can merge variants
+     * Check if can merge genotypes from the same sample
      *
      * @param vc1 variant context 1
      * @param vc2 variant context 2
@@ -423,7 +423,7 @@ class PhasingUtils {
     }
 
     /**
-     * Check that Alleles at vc1 and at vc2 always segregate together in all samples (including reference)
+     * Check that alleles at vc1 and at vc2 always segregate together in all samples (including reference)
      *
      * @param vc1 variant context 1
      * @param vc2 variant context 2
@@ -464,7 +464,7 @@ class PhasingUtils {
     }
 
     /**
-     * Class for rule for merging variants
+     * Class for variants merging rules
      */
     abstract static class AlleleMergeRule {
         // vc1, vc2 are ONLY passed to allelesShouldBeMerged() if mergeIntoMNPvalidationCheck(genomeLocParser, vc1, vc2) AND allSamplesAreMergeable(vc1, vc2):
@@ -537,11 +537,16 @@ class PhasingUtils {
     }
 
     /**
-     * Class for merging alleles data
+     * Class for merging alleles
      */
     static class MergedAllelesData {
+        /// merged alleles
         private Map<AlleleOneAndTwo, Allele> mergedAlleles;
+
+        /// bases between the alleles
         private byte[] intermediateBases;
+
+        /// number of bases between the alleles
         private int intermediateLength;
 
         /**
@@ -573,7 +578,7 @@ class PhasingUtils {
 
         /**
          * Ensure that the alleles are merged.
-         * Put the bases from all1 before and all2 after the intermediate bases
+         * all1 is before all2, if there is a gap between them, join with the intermediate bases
          *
          * @param all1 allele 1
          * @param all2 allele 2

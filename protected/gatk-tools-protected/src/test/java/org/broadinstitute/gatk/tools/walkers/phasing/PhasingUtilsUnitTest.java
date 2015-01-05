@@ -135,9 +135,9 @@ public class PhasingUtilsUnitTest extends BaseTest {
 
     @Test
     public void TestMergeIntoMNPvalidationCheckLocBefore() {
-        final VariantContext vc1 = new VariantContextBuilder().chr(contig).id("id1").source("TC").start(start+1).stop(start+1).alleles(alleleList1).make();
-        final VariantContext vc2 = new VariantContextBuilder().chr(contig).id("id2").source("GA").start(start).stop(start).alleles(alleleList2).make();
-        Assert.assertFalse(PhasingUtils.mergeIntoMNPvalidationCheck(genomeLocParser, vc1, vc2));
+        final VariantContext vc1before = new VariantContextBuilder().chr(contig).id("id1").source("TC").start(start+1).stop(start+1).alleles(alleleList1).make();
+        final VariantContext vc2after = new VariantContextBuilder().chr(contig).id("id2").source("GA").start(start).stop(start).alleles(alleleList2).make();
+        Assert.assertFalse(PhasingUtils.mergeIntoMNPvalidationCheck(genomeLocParser, vc1before, vc2after));
     }
 
     @Test
@@ -200,8 +200,8 @@ public class PhasingUtilsUnitTest extends BaseTest {
 
     @Test
     public void TestDoubleAllelesSegregatePerfectlyAmongSamples(){
-        Genotype genotype = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList2).make();
-        VariantContext vc = new VariantContextBuilder().chr(contig).id("id2").source("GA").start(start+1).stop(start+1).alleles(alleleList2).genotypes(genotype).make();
+        final Genotype genotype = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-1", "10-2"}).alleles(alleleList2).make();
+        final VariantContext vc = new VariantContextBuilder().chr(contig).id("id2").source("GA").start(start+1).stop(start+1).alleles(alleleList2).genotypes(genotype).make();
         Assert.assertTrue(PhasingUtils.doubleAllelesSegregatePerfectlyAmongSamples(vc1, vc));
     }
 
@@ -213,11 +213,11 @@ public class PhasingUtilsUnitTest extends BaseTest {
 
     @Test
     public void TestMergeIntoMNP(){
-        AlwaysTrueMergeRule alleleMergeRule = new AlwaysTrueMergeRule();
-        VariantContext vc = PhasingUtils.mergeIntoMNP(genomeLocParser, vc1, vc2, referenceFile, alleleMergeRule);
+        final AlwaysTrueMergeRule alleleMergeRule = new AlwaysTrueMergeRule();
+        final VariantContext vc = PhasingUtils.mergeIntoMNP(genomeLocParser, vc1, vc2, referenceFile, alleleMergeRule);
 
-        List<Allele> alleleList = Arrays.asList(Allele.create("TG", true), Allele.create("TA", false), Allele.create("CG", false));
-        Map<String,Object> attributes = new HashMap<String,Object>(){{
+        final List<Allele> alleleList = Arrays.asList(Allele.create("TG", true), Allele.create("TA", false), Allele.create("CG", false));
+        final Map<String,Object> attributes = new HashMap<String,Object>(){{
             put("AC", new ArrayList<Integer>(Arrays.asList(1, 1)));
             put("AF", new ArrayList<Double>(Arrays.asList(0.5, 0.5)));
             put("AN", 2);
@@ -225,8 +225,8 @@ public class PhasingUtilsUnitTest extends BaseTest {
         final Map<String, Object> extendedAttributes = new HashMap<String, Object>(){{
             put("PQ", 100.0); put("HP", new String[]{"10-1", "10-2"});
         }};
-        List<Allele> alleleListMeged = Arrays.asList(Allele.create("TA"), Allele.create("CG"));
-        Genotype genotype = new GenotypeBuilder().name("sample").attributes(extendedAttributes).alleles(alleleListMeged).make();
+        final List<Allele> alleleListMeged = Arrays.asList(Allele.create("TA"), Allele.create("CG"));
+        final Genotype genotype = new GenotypeBuilder().name("sample").attributes(extendedAttributes).alleles(alleleListMeged).make();
         final VariantContext vcExpected = new VariantContextBuilder().chr(contig).id("id1;id2").source("TC_GA").start(start).stop(start+1).alleles(alleleList).genotypes(genotype).attributes(attributes).make();
         Assert.assertTrue(genotype.sameGenotype(vcExpected.getGenotypes().get("sample")));
         Assert.assertTrue(vcExpected.hasSameAllelesAs(vc));
@@ -243,10 +243,10 @@ public class PhasingUtilsUnitTest extends BaseTest {
 
     @Test
     public void TestReallyMergeIntoMNP( ){
-        VariantContext vc = PhasingUtils.reallyMergeIntoMNP(vc1, vc2, referenceFile);
+        final VariantContext vc = PhasingUtils.reallyMergeIntoMNP(vc1, vc2, referenceFile);
 
-        List<Allele> alleleList = Arrays.asList(Allele.create("TG", true), Allele.create("TA", false), Allele.create("CG", false));
-        Map<String,Object> attributes = new HashMap<String,Object>(){{
+        final List<Allele> alleleList = Arrays.asList(Allele.create("TG", true), Allele.create("TA", false), Allele.create("CG", false));
+        final Map<String,Object> attributes = new HashMap<String,Object>(){{
             put("AC", new ArrayList<Integer>(Arrays.asList(1, 1)));
             put("AF", new ArrayList<Double>(Arrays.asList(0.5, 0.5)));
             put("AN", 2);
@@ -254,8 +254,8 @@ public class PhasingUtilsUnitTest extends BaseTest {
         final Map<String, Object> extendedAttributes = new HashMap<String, Object>(){{
             put("PQ", 100.0); put("HP", new String[]{"10-1", "10-2"});
         }};
-        List<Allele> alleleListMeged = Arrays.asList(Allele.create("TA"), Allele.create("CG"));
-        Genotype genotype = new GenotypeBuilder().name("sample").attributes(extendedAttributes).alleles(alleleListMeged).make();
+        final List<Allele> alleleListMeged = Arrays.asList(Allele.create("TA"), Allele.create("CG"));
+        final Genotype genotype = new GenotypeBuilder().name("sample").attributes(extendedAttributes).alleles(alleleListMeged).make();
         final VariantContext vcExpected = new VariantContextBuilder().chr(contig).id("id1;id2").source("TC_GA").start(start).stop(start+1).alleles(alleleList).genotypes(genotype).attributes(attributes).make();
         Assert.assertTrue(genotype.sameGenotype(vcExpected.getGenotypes().get("sample")));
         Assert.assertTrue(vcExpected.hasSameAllelesAs(vc));
@@ -280,8 +280,8 @@ public class PhasingUtilsUnitTest extends BaseTest {
     public void TestEnsureMergedAllele(){
         byte[] intermediateBases = new byte[]{'A','T'};
         final PhasingUtils.MergedAllelesData mergeData = new PhasingUtils.MergedAllelesData(intermediateBases, vc1, vc2);
-        Allele allele = mergeData.ensureMergedAllele(Allele.create("T", true), Allele.create("C", true));
-        Allele expectedAllele = Allele.create(new byte[]{'T', 'A', 'T', 'C'}, false);
+        final Allele allele = mergeData.ensureMergedAllele(Allele.create("T", true), Allele.create("C", true));
+        final Allele expectedAllele = Allele.create(new byte[]{'T', 'A', 'T', 'C'}, false);
         Assert.assertEquals(allele, expectedAllele);
     }
 
