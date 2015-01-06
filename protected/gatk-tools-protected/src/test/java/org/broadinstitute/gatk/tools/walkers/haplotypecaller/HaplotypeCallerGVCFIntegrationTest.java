@@ -126,6 +126,25 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         return tests.toArray(new Object[][]{});
     }
 
+    @DataProvider(name = "MyDataProviderManyploid")
+    public Object[][] makeMyDataProviderManyploid() {
+        List<Object[]> tests = new ArrayList<>();
+
+        final String PCRFreeIntervals = "-L 20:10,000,000-10,010,000";
+        final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
+
+        // this functionality can be adapted to provide input data for whatever you might want in your data
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "d8daf60c68f39875680cc037f264ccc0"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "dd1e6ee5e242fa1caa7f64a9605e4b16"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "a040bb2ebacf5afab3490504730043a1"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "8b44f98c12ed7949d716852e0a21b346"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "4872ba8a27a29c9cac5e5c787ca853b5"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "65fc0938ca7df792a36413465878bc89"});
+
+        return tests.toArray(new Object[][]{});
+    }
+
+
     /**
      * Example testng test using MyDataProvider
      */
@@ -158,6 +177,18 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String commandLine = String.format("-T HaplotypeCaller -ploidy 4 --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s %s -ERC %s --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, bam, intervals, mode, HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
         final String name = "testHCWithGVCFTetraploid bam=" + bam + " intervals= " + intervals + " gvcf= " + mode;
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
+        executeTest(name, spec);
+    }
+
+    /**
+     * Example testng test using MyDataProvider
+     */
+    @Test(dataProvider = "MyDataProviderManyploid", enabled=true)
+    public void testHCWithGVCFManyploid(final String bam, final ReferenceConfidenceMode mode, final String intervals, final String md5) {
+        final String commandLine = String.format("-T HaplotypeCaller -ploidy 33 --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s %s -ERC %s --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
+                HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, bam, intervals, mode, HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+        final String name = "testHCWithGVCFManyploid bam=" + bam + " intervals= " + intervals + " gvcf= " + mode;
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(md5));
         executeTest(name, spec);
     }
