@@ -78,6 +78,7 @@ import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import java.io.FileNotFoundException;
 import java.util.Collections;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  *
@@ -141,8 +142,7 @@ public class SplitNCigarReads extends ReadWalker<GATKSAMRecord, OverhangFixingMa
      * It will emit reads to the underlying writer as needed so we don't need to worry about any of that in this class.
      */
     protected OverhangFixingManager overhangManager;
-    private List<RNAReadTransformer> rnaReadTransformers = Collections.emptyList();
-
+    private List<RNAReadTransformer> rnaReadTransformers = new ArrayList<>();
 
 
     @Override
