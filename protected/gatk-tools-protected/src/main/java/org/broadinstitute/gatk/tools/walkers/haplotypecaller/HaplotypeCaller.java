@@ -235,7 +235,7 @@ import java.util.*;
 @BAQMode(ApplicationTime = ReadTransformer.ApplicationTime.FORBIDDEN)
 @ActiveRegionTraversalParameters(extension=100, maxRegion=300)
 @ReadFilters({HCMappingQualityFilter.class})
-@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=250)
+@Downsample(by= DownsampleType.BY_SAMPLE, toCoverage=500)
 public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, Integer> implements AnnotatorCompatible, NanoSchedulable {
     // -----------------------------------------------------------------------------------------------
     // general haplotype caller arguments
@@ -696,10 +696,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * not reducing coverage at any read start to less than minReadsPerAlignmentStart
      */
     @Argument(fullName = "maxReadsInRegionPerSample", shortName = "maxReadsInRegionPerSample", doc="Maximum reads in an active region", required = false)
-    protected int maxReadsInRegionPerSample = 1000;
+    protected int maxReadsInRegionPerSample = 10000;
 
     @Argument(fullName = "minReadsPerAlignmentStart", shortName = "minReadsPerAlignStart", doc="Minimum number of reads sharing the same alignment start for each genomic location in an active region", required = false)
-    protected int minReadsPerAlignmentStart = 5;
+    protected int minReadsPerAlignmentStart = 10;
 
     private byte MIN_TAIL_QUALITY;
     private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
@@ -1183,6 +1183,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected AssemblyResultSet assembleReads(final ActiveRegion activeRegion, final List<VariantContext> giveAlleles) {
         // Create the reference haplotype which is the bases from the reference that make up the active region
         finalizeActiveRegion(activeRegion); // handle overlapping fragments, clip adapter and low qual tails
+        if( SCAC.DEBUG ) { logger.info("Assembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
 
         final byte[] fullReferenceWithPadding = activeRegion.getActiveRegionReference(referenceReader, REFERENCE_PADDING);
         final GenomeLoc paddedReferenceLoc = getPaddedLoc(activeRegion);
@@ -1300,8 +1301,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     private void finalizeActiveRegion( final ActiveRegion activeRegion ) {
         if (activeRegion.isFinalized()) return;
-
-        if( SCAC.DEBUG ) { logger.info("Assembling " + activeRegion.getLocation() + " with " + activeRegion.size() + " reads:    (with overlap region = " + activeRegion.getExtendedLoc() + ")"); }
 
         // Loop through the reads hard clipping the adaptor and low quality tails
         final List<GATKSAMRecord> readsToUse = new ArrayList<>(activeRegion.getReads().size());
