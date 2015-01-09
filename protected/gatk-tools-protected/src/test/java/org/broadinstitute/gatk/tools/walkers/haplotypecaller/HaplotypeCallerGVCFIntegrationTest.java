@@ -77,9 +77,9 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "646ec07bd026da1e72b5e789f5aa3a3d"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "cb598bee733db0461f6a24d265daed45"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "c53ecb02a41511123dc4e1573dd516f6"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "c223d6fe112d2bb698811600c3b7f6af"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "dacb94af2632e4dc4a1948306dd1661c"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "ef9093880efedac09b78c8fb26420e84"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "9dbe7721ebfba9aefcfbfd1bdd62f2c4"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "4c99694b14beffd694f9738697b8f9d5"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "87d1e673e2512aefdceddd0293e4f346"});
 
         return tests.toArray(new Object[][]{});
     }
@@ -96,10 +96,10 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "83b96e3e364821c51e6a2c2a64616b24"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "f38178834961798d79e7190dbca004bf"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "a6db14e73e0a270b9d3e2035acfc1d2f"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "1c3570461e96ad6d66c6abb0fd6ee865"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "2a5a7057faba3cd488e40186072156af"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "afede7dbbcbe0e1af4abba7fc7bef479"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "853bd2f47496b3e8d1fe85657e4bf812"});
 
-        final String NA12878bandedResolutionMD5 = "46bf5ca5142770a31fe0fbcd1fc988b4";
+        final String NA12878bandedResolutionMD5 = "87900cbed775471f1a7ad6582b0581f9";
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, NA12878bandedResolutionMD5});
         tests.add(new Object[]{NA12878_WEx + " -I " + privateTestDir + "NA20313.highCoverageRegion.bam -sn NA12878",
                 ReferenceConfidenceMode.GVCF, WExIntervals, NA12878bandedResolutionMD5});
@@ -119,9 +119,9 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "254b4bed7fc8ef5d3c4cb4ebf4ea73c2"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "3f9e2b721c3bc8a6d76aa75bb7544f28"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "bfd12d811446cde2466508033cae7122"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "eac793500fbc7de46259000dbbcdd27d"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "dc1b8abd195b75e147ac78fdbd4e2b65"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "124c794c78edfe74558307a203f93294"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "8e35def5c821afa9b6fbeed0aed0a866"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "8cebba1996a2aca29370c4d85f12128c"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "8abc60102776b34e22858ca157c784a9"});
 
         return tests.toArray(new Object[][]{});
     }
@@ -137,9 +137,9 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "d8daf60c68f39875680cc037f264ccc0"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "dd1e6ee5e242fa1caa7f64a9605e4b16"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "a040bb2ebacf5afab3490504730043a1"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "8b44f98c12ed7949d716852e0a21b346"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "4872ba8a27a29c9cac5e5c787ca853b5"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "65fc0938ca7df792a36413465878bc89"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "d5ed4c847250a1096b6a5a2eac61d8dc"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "0d41cee1d7bd3c6df9816cc87a8a9d7c"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "f8775dd95c3b185fc6abdb3ef8da3833"});
 
         return tests.toArray(new Object[][]{});
     }
