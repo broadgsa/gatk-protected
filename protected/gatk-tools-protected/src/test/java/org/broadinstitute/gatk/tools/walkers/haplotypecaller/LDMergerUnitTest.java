@@ -269,8 +269,8 @@ public class LDMergerUnitTest extends BaseTest {
 
     @Test(dataProvider = "R2MergerData")
     public void testR2Merger(final String refS, final String hapS, int nEvents, final String cigar, final String expectedMergedRef, final String expectedMergedAlt, final double r2, final boolean expectMerge) {
-        final Haplotype ref = new Haplotype(refS.getBytes(), true, 0, TextCigarCodec.getSingleton().decode(refS.length() + "M"));
-        final Haplotype hap = new Haplotype(hapS.getBytes(), false, 0, TextCigarCodec.getSingleton().decode(cigar));
+        final Haplotype ref = new Haplotype(refS.getBytes(), true, 0, TextCigarCodec.decode(refS.length() + "M"));
+        final Haplotype hap = new Haplotype(hapS.getBytes(), false, 0, TextCigarCodec.decode(cigar));
         final GenomeLoc loc = new UnvalidatingGenomeLoc("1", 0, 1, ref.length());
 
         final List<Haplotype> haplotypes = Arrays.asList(ref, hap);
@@ -294,9 +294,9 @@ public class LDMergerUnitTest extends BaseTest {
         final String refS = "ACGT";
         final String hapS = "CCGA";
         final String cigar = "4M";
-        final Haplotype ref = new Haplotype(refS.getBytes(), true, 0, TextCigarCodec.getSingleton().decode(refS.length() + "M"));
-        final Haplotype hap1 = new Haplotype(hapS.getBytes(), false, 0, TextCigarCodec.getSingleton().decode(cigar));
-        final Haplotype hap2 = new Haplotype("ACGA".getBytes(), false, 0, TextCigarCodec.getSingleton().decode(cigar));
+        final Haplotype ref = new Haplotype(refS.getBytes(), true, 0, TextCigarCodec.decode(refS.length() + "M"));
+        final Haplotype hap1 = new Haplotype(hapS.getBytes(), false, 0, TextCigarCodec.decode(cigar));
+        final Haplotype hap2 = new Haplotype("ACGA".getBytes(), false, 0, TextCigarCodec.decode(cigar));
         final GenomeLoc loc = new UnvalidatingGenomeLoc("1", 0, 1, ref.length());
 
         final List<Haplotype> haplotypes = Arrays.asList(ref, hap1, hap2);
@@ -321,12 +321,12 @@ public class LDMergerUnitTest extends BaseTest {
         final String refS = "ACGT";
         final String hapS = "TCGA";
         final String cigar = "4M";
-        final Haplotype ref = new Haplotype(refS.getBytes(), true, 0, TextCigarCodec.getSingleton().decode(refS.length() + "M"));
-        final Haplotype hap1 = new Haplotype(hapS.getBytes(), false, 0, TextCigarCodec.getSingleton().decode(cigar));
+        final Haplotype ref = new Haplotype(refS.getBytes(), true, 0, TextCigarCodec.decode(refS.length() + "M"));
+        final Haplotype hap1 = new Haplotype(hapS.getBytes(), false, 0, TextCigarCodec.decode(cigar));
 
         final GenomeLoc loc = new UnvalidatingGenomeLoc("1", 0, 1, ref.length());
         for (final String hap2S : Arrays.asList("GCGA", "TCGG")) {
-            final Haplotype hap2 = new Haplotype(hap2S.getBytes(), false, 0, TextCigarCodec.getSingleton().decode(cigar));
+            final Haplotype hap2 = new Haplotype(hap2S.getBytes(), false, 0, TextCigarCodec.decode(cigar));
 
             final List<Haplotype> haplotypes = Arrays.asList(ref, hap1, hap2);
             final TreeSet<Integer> vcStarts = EventMap.buildEventMapsForHaplotypes(haplotypes, ref.getBases(), loc, false);

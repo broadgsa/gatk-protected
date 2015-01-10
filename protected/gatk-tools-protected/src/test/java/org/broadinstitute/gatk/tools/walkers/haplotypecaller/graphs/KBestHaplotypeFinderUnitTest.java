@@ -452,7 +452,7 @@ public class KBestHaplotypeFinderUnitTest extends BaseTest {
         Cigar expected = new Cigar();
         expected.add(new CigarElement(padSize, CigarOperator.M));
         if ( ! prefix.equals("") ) expected.add(new CigarElement(prefix.length(), CigarOperator.M));
-        for ( final CigarElement elt : TextCigarCodec.getSingleton().decode(midCigar).getCigarElements() ) expected.add(elt);
+        for ( final CigarElement elt : TextCigarCodec.decode(midCigar).getCigarElements() ) expected.add(elt);
         if ( ! end.equals("") ) expected.add(new CigarElement(end.length(), CigarOperator.M));
         expected.add(new CigarElement(padSize, CigarOperator.M));
         expected = AlignmentUtils.consolidateCigar(expected);
@@ -513,7 +513,7 @@ public class KBestHaplotypeFinderUnitTest extends BaseTest {
     public void testLeftAlignCigarSequentiallyAdjacentID() {
         final String ref = "GTCTCTCTCTCTCTCTCTATATATATATATATATTT";
         final String hap = "GTCTCTCTCTCTCTCTCTCTCTATATATATATATTT";
-        final Cigar originalCigar = TextCigarCodec.getSingleton().decode("18M4I12M4D2M");
+        final Cigar originalCigar = TextCigarCodec.decode("18M4I12M4D2M");
 
         final Cigar result = CigarUtils.leftAlignCigarSequentially(originalCigar, ref.getBytes(), hap.getBytes(), 0, 0);
         logger.warn("Result is " + result);
