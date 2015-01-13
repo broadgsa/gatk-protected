@@ -61,6 +61,8 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     private static String CEUtrioFamilyFile = privateTestDir + "CEUtrio.ped";
     private static String CEUtrioTest = privateTestDir + "CEUtrioTest.vcf";
     private static String CEUtrioPopPriorsTest = privateTestDir + "CEUtrioPopPriorsTest.vcf";
+    private static String threeMemberNonTrioFamilyFile = privateTestDir + "threeMemberNonTrio.ped";
+    private static String getThreeMemberNonTrioTest = privateTestDir + "threeMemberNonTrioTest.vcf";
 
     @Test(enabled = true)
     //use the first 20 variants to save time; they have a nice range of AC from 4 to over 4000
@@ -116,6 +118,20 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -supporting " + CEUtrioPopPriorsTest,
                 1,
                 Arrays.asList("781f85f56dac9074c96ace31b09e0f59"));
+        executeTest("testFamilyPriors", spec);
+    }
+
+    @Test(enabled = true)
+    public void testSingleParentFamily() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header " +
+                        " -o %s" +
+                        " -R " + b37KGReference +
+                        " -ped " + threeMemberNonTrioFamilyFile +
+                        " -V " + getThreeMemberNonTrioTest +
+                        " -skipPop",
+                1,
+                Arrays.asList("abfa4332bce9aba911ad2eba34ee9924"));
         executeTest("testFamilyPriors", spec);
     }
 

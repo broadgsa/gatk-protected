@@ -298,7 +298,7 @@ public class FamilyLikelihoodsUtils {
             if(family.size() == 3){
                 for(final Sample familyMember : family){
                     parents = familyMember.getParents();
-                    if(parents.size()>0){
+                    if(parents.size()==2){
                         if(family.containsAll(parents))
                             trios.add(familyMember);
                     }
