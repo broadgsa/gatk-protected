@@ -57,6 +57,8 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.HashMap;
@@ -71,10 +73,6 @@ import java.util.List;
  * Time: 2:51 PM
  */
 public class GVCFWriter implements VariantContextWriter {
-    //
-    // static VCF field names
-    //
-    protected final static String MIN_DP_FORMAT_FIELD = "MIN_DP";
 
     //
     // Final fields initialized in constructor
@@ -151,7 +149,7 @@ public class GVCFWriter implements VariantContextWriter {
     public void writeHeader(VCFHeader header) {
         if ( header == null ) throw new IllegalArgumentException("header cannot be null");
         header.addMetaDataLine(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
-        header.addMetaDataLine(new VCFFormatHeaderLine(MIN_DP_FORMAT_FIELD, 1, VCFHeaderLineType.Integer, "Minimum DP observed within the GVCF block"));
+        header.addMetaDataLine(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.MIN_DP_FORMAT_KEY));
 
         for ( final HomRefBlock partition : GQPartitions ) {
             header.addMetaDataLine(partition.toVCFHeaderLine());
@@ -251,7 +249,7 @@ public class GVCFWriter implements VariantContextWriter {
         final int gq = genotypeQualityFromPLs(minPLs);
         gb.GQ(gq);
         gb.DP(block.getMedianDP());
-        gb.attribute(MIN_DP_FORMAT_FIELD, block.getMinDP());
+        gb.attribute(GATKVCFConstants.MIN_DP_FORMAT_KEY, block.getMinDP());
 
         // This annotation is no longer standard
         //gb.attribute(MIN_GQ_FORMAT_FIELD, block.getMinGQ());
@@ -330,7 +328,7 @@ public class GVCFWriter implements VariantContextWriter {
             }
 
             final Genotype g = vc.getGenotype(0);
-            if ( g.isHomRef() && vc.hasAlternateAllele(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE) && vc.isBiallelic() ) {
+            if ( g.isHomRef() && vc.hasAlternateAllele(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) && vc.isBiallelic() ) {
                 // create bands
                 final VariantContext maybeCompletedBand = addHomRefSite(vc, g);
                 if ( maybeCompletedBand != null ) underlyingWriter.add(maybeCompletedBand);

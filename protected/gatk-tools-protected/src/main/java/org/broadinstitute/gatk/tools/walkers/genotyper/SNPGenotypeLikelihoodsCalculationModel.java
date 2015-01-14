@@ -69,6 +69,7 @@ import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
@@ -202,7 +203,7 @@ public class SNPGenotypeLikelihoodsCalculationModel extends GenotypeLikelihoodsC
             gb.DP(sampleData.depth);
             gb.alleles(noCall);
             if (UAC.annotateAllSitesWithPLs)
-                gb.attribute(UnifiedGenotypingEngine.PL_FOR_ALL_SNP_ALLELES_KEY,GenotypeLikelihoods.fromLog10Likelihoods(MathUtils.normalizeFromLog10(allLikelihoods, false, true)));
+                gb.attribute(GATKVCFConstants.PL_FOR_ALL_SNP_ALLELES_KEY,GenotypeLikelihoods.fromLog10Likelihoods(MathUtils.normalizeFromLog10(allLikelihoods, false, true)));
             genotypes.add(gb.make());
         }
 

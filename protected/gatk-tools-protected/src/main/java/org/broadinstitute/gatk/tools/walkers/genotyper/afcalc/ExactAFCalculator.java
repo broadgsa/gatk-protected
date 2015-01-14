@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.*;
 
@@ -80,9 +81,9 @@ abstract class ExactAFCalculator extends AFCalculator {
     protected static final Comparator<LikelihoodSum> LIKELIHOOD_NON_REF_THEN_SUM_COMPARATOR = new Comparator<LikelihoodSum>() {
         @Override
         public int compare(final LikelihoodSum o1, final LikelihoodSum o2) {
-            if (o1.allele == GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE)
+            if (o1.allele == GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE)
                 return 1;
-            else if (o2.allele == GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE)
+            else if (o2.allele == GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE)
                 return -1;
             else
                 return o1.compareTo(o2);
@@ -182,7 +183,7 @@ abstract class ExactAFCalculator extends AFCalculator {
         final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
 
         final int nonRefAltAlleleIndex = GATKVariantContextUtils.indexOfAltAllele(vc,
-                GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE, false);
+                GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE, false);
         final boolean nonRefAltAllelePresent = nonRefAltAlleleIndex >= 0;
 
         // <NON_REF> should not be considered in the downsizing, so we need to count it out when

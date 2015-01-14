@@ -57,12 +57,13 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.tools.walkers.indels.PairHMMIndelErrorModel;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -85,11 +86,11 @@ import java.util.*;
 public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotation {
 
     @Override
-    public List<String> getKeyNames() { return Arrays.asList("ReadPosRankSum"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.READ_POS_RANK_SUM_KEY); }
 
     @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(new VCFInfoHeaderLine("ReadPosRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias"));
+        return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
     @Override

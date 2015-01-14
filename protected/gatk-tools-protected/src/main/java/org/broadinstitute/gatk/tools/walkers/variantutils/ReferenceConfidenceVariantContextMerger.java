@@ -48,6 +48,7 @@
 * 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
+
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import htsjdk.variant.variantcontext.*;
@@ -58,6 +59,7 @@ import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
@@ -123,7 +125,7 @@ public class ReferenceConfidenceVariantContextMerger {
         }
 
         // Add <NON_REF> to the end if at all required in in the output.
-        if (!removeNonRefSymbolicAllele) finalAlleleSet.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        if (!removeNonRefSymbolicAllele) finalAlleleSet.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
 
         final List<Allele> allelesList = new ArrayList<>(finalAlleleSet);
 
@@ -138,7 +140,7 @@ public class ReferenceConfidenceVariantContextMerger {
                 depth += vc.getAttributeAsInt(VCFConstants.DEPTH_KEY, 0);
             } else { // handle the gVCF case from the HaplotypeCaller
                 for( final Genotype gt : vc.getGenotypes() ) {
-                    depth += (gt.hasExtendedAttribute("MIN_DP") ? Integer.parseInt((String)gt.getAnyAttribute("MIN_DP")) : (gt.hasDP() ? gt.getDP() : 0));
+                    depth += (gt.hasExtendedAttribute(GATKVCFConstants.MIN_DP_FORMAT_KEY) ? Integer.parseInt((String)gt.getAnyAttribute(GATKVCFConstants.MIN_DP_FORMAT_KEY)) : (gt.hasDP() ? gt.getDP() : 0));
                 }
             }
 
@@ -198,8 +200,8 @@ public class ReferenceConfidenceVariantContextMerger {
         attributes.remove(VCFConstants.ALLELE_COUNT_KEY);
         attributes.remove(VCFConstants.ALLELE_FREQUENCY_KEY);
         attributes.remove(VCFConstants.ALLELE_NUMBER_KEY);
-        attributes.remove(VCFConstants.MLE_ALLELE_COUNT_KEY);
-        attributes.remove(VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
+        attributes.remove(GATKVCFConstants.MLE_ALLELE_COUNT_KEY);
+        attributes.remove(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY);
         attributes.remove(VCFConstants.END_KEY);
     }
 
@@ -262,7 +264,7 @@ public class ReferenceConfidenceVariantContextMerger {
             } else if (a.isSymbolic()) {
                 result.add(a);
                 // we always skip <NON_REF> when adding to finalAlleles this is done outside if applies.
-                if (!a.equals(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE))
+                if (!a.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE))
                     finalAlleles.add(a);
             } else if (a.isCalled()) {
                 final Allele newAllele;
@@ -293,7 +295,7 @@ public class ReferenceConfidenceVariantContextMerger {
 
         final List<Allele> result = new ArrayList<>(alleles.size());
         for ( final Allele allele : alleles )
-            result.add(allele.equals(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE) ? allele : Allele.NO_CALL);
+            result.add(allele.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) ? allele : Allele.NO_CALL);
         return result;
     }
 
@@ -374,10 +376,10 @@ public class ReferenceConfidenceVariantContextMerger {
         if ( remappedAlleles == null || remappedAlleles.size() == 0 ) throw new IllegalArgumentException("The list of input alleles must not be null or empty");
         if ( targetAlleles == null || targetAlleles.size() == 0 ) throw new IllegalArgumentException("The list of target alleles must not be null or empty");
 
-        if ( !remappedAlleles.contains(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE) )
-            throw new UserException("The list of input alleles must contain " + GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE + " as an allele but that is not the case at position " + position + "; please use the Haplotype Caller with gVCF output to generate appropriate records");
+        if ( !remappedAlleles.contains(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) )
+            throw new UserException("The list of input alleles must contain " + GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE + " as an allele but that is not the case at position " + position + "; please use the Haplotype Caller with gVCF output to generate appropriate records");
 
-        final int indexOfNonRef = remappedAlleles.indexOf(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final int indexOfNonRef = remappedAlleles.indexOf(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
 
         //if the refs don't match then let the non-ref allele be the most likely of the alts
         //TODO: eventually it would be nice to be able to trim alleles for spanning events to see if they really do have the same ref
@@ -399,7 +401,7 @@ public class ReferenceConfidenceVariantContextMerger {
         indexMapping[0] = 0;
 
         // create the index mapping, using the <ALT> allele whenever such a mapping doesn't exist
-        final int targetNonRef = targetAlleles.indexOf(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final int targetNonRef = targetAlleles.indexOf(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final boolean targetHasNonRef = targetNonRef != -1;
         final int lastConcreteAlt = targetHasNonRef ? targetAlleles.size()-2 : targetAlleles.size()-1;
         for ( int i = 1; i <= lastConcreteAlt; i++ ) {

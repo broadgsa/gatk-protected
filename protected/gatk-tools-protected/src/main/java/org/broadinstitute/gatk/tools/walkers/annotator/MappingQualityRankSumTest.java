@@ -53,9 +53,10 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -80,10 +81,10 @@ import java.util.*;
  */
 public class MappingQualityRankSumTest extends RankSumTest implements StandardAnnotation {
     @Override
-    public List<String> getKeyNames() { return Arrays.asList("MQRankSum"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.MAP_QUAL_RANK_SUM_KEY); }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("MQRankSum", 1, VCFHeaderLineType.Float, "Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 
     @Override
     protected Double getElementForRead(final GATKSAMRecord read, final int refLoc) {

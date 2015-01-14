@@ -62,9 +62,10 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnot
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.RodRequiringAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.engine.samples.MendelianViolation;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -95,7 +96,6 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
 
     private final static Logger logger = Logger.getLogger(MVLikelihoodRatio.class);
     private MendelianViolation mendelianViolation = null;
-    public static final String MVLR_KEY = "MVLR";
     private Set<Trio> trios;
     private boolean walkerIdentityCheckWarningLogged = false;
     private boolean pedigreeCheckWarningLogged = false;
@@ -132,7 +132,7 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
             mendelianViolation = new MendelianViolation(((VariantAnnotator)walker).minGenotypeQualityP );
         }
 
-        Map<String,Object> attributeMap = new HashMap<String,Object>(1);
+        Map<String,Object> attributeMap = new HashMap<>(1);
         //double pNoMV = 1.0;
         double maxMVLR = Double.MIN_VALUE;
         for ( Trio trio : trios ) {
@@ -146,17 +146,16 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
         //double pSomeMV = 1.0-pNoMV;
         //toRet.put("MVLR",Math.log10(pSomeMV)-Math.log10(1.0-pSomeMV));
         if ( Double.compare(maxMVLR,Double.MIN_VALUE) != 0 )
-            attributeMap.put(MVLR_KEY,maxMVLR);
+            attributeMap.put(getKeyNames().get(0), maxMVLR);
         return attributeMap;
     }
 
-    // return the names and descriptions used for the VCF INFO meta field
+    // return the descriptions used for the VCF INFO meta field
     @Override
-    public List<String> getKeyNames() { return Arrays.asList(MVLR_KEY); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.MENDEL_VIOLATION_LR_KEY); }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine(MVLR_KEY, 1, VCFHeaderLineType.Float, "Mendelian violation likelihood ratio: L[MV] - L[No MV]")); }
-
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 
     private boolean contextHasTrioLikelihoods(VariantContext context, Trio trio) {
         for ( String sample : Arrays.asList(trio.getMaternalID(),trio.getPaternalID(),trio.getChildID()) ) {

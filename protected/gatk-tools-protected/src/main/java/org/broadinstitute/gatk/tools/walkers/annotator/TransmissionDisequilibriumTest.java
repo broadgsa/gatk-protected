@@ -61,10 +61,10 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnot
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.RodRequiringAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.MathUtils;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -125,8 +125,8 @@ public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implemen
             }
         }
 
-        final Map<String, Object> toRet = new HashMap<String, Object>(1);
-        final HashSet<Sample> triosToTest = new HashSet<Sample>();
+        final Map<String, Object> toRet = new HashMap<>(1);
+        final HashSet<Sample> triosToTest = new HashSet<>();
 
         for( final Sample child : trios ) {
             final boolean hasAppropriateGenotypes = vc.hasGenotype(child.getID()) && vc.getGenotype(child.getID()).hasLikelihoods() &&
@@ -146,15 +146,15 @@ public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implemen
 
     // return the descriptions used for the VCF INFO meta field
     @Override
-    public List<String> getKeyNames() { return Arrays.asList("TDT"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.TRANSMISSION_DISEQUILIBRIUM_KEY); }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("TDT", VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Test statistic from Wittkowski transmission disequilibrium test.")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 
     // Following derivation in http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT
     private List<Double> calculateTDT( final VariantContext vc, final Set<Sample> triosToTest ) {
 
-        List<Double> pairwiseTDTs = new ArrayList<Double>(10);
+        List<Double> pairwiseTDTs = new ArrayList<>(10);
         final int HomRefIndex = 0;
 
         // for each pair of alleles, add the likelihoods

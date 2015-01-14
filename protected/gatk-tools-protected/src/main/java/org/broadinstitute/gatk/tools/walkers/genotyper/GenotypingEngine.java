@@ -54,11 +54,8 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import htsjdk.variant.variantcontext.*;
-import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.tools.walkers.genotyper.StandardCallerArgumentCollection;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -75,6 +72,8 @@ import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
@@ -85,10 +84,6 @@ import java.util.*;
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
 public abstract class GenotypingEngine<Config extends StandardCallerArgumentCollection> {
-
-    public static final String NUMBER_OF_DISCOVERED_ALLELES_KEY = "NDA";
-
-    public static final String LOW_QUAL_FILTER_NAME = "LowQual";
 
     protected final AFCalculatorProvider afCalculatorProvider   ;
 
@@ -158,7 +153,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     public Set<VCFInfoHeaderLine> getAppropriateVCFInfoHeaders() {
         Set<VCFInfoHeaderLine> headerInfo = new HashSet<>();
         if ( configuration.genotypeArgs.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
-            headerInfo.add(new VCFInfoHeaderLine(UnifiedGenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, 1, VCFHeaderLineType.Integer, "Number of alternate alleles discovered (but not necessarily genotyped) at this site"));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY));
         return headerInfo;
     }
 
@@ -262,7 +257,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         //TODO and change the code below accordingly.
         builder.log10PError(log10Confidence == 0.0 ? -0.0 : log10Confidence);
         if ( ! passesCallThreshold(phredScaledConfidence) )
-            builder.filter(LOW_QUAL_FILTER_NAME);
+            builder.filter(GATKVCFConstants.LOW_QUAL_FILTER_NAME);
 
         // create the genotypes
 
@@ -571,10 +566,6 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      */
     private static AFPriorProvider composeAlleleFrequencyPriorProvider(final int N, final double heterozygosity, final List<Double> inputPriors) {
 
-        final double[] priors = new double[N + 1];
-        double sum = 0.0;
-        final AFPriorProvider result;
-
         if (!inputPriors.isEmpty()) {
             // user-specified priors
             if (inputPriors.size() != N)
@@ -652,17 +643,17 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             attributes.putAll(vc.getAttributes());
         // if the site was down-sampled, record that fact
         if ( !limitedContext && rawContext.hasPileupBeenDownsampled() )
-            attributes.put(VCFConstants.DOWNSAMPLED_KEY, true);
+            attributes.put(GATKVCFConstants.DOWNSAMPLED_KEY, true);
 
         // add the MLE AC and AF annotations
         if ( alleleCountsofMLE.size() > 0 ) {
-            attributes.put(VCFConstants.MLE_ALLELE_COUNT_KEY, alleleCountsofMLE);
+            attributes.put(GATKVCFConstants.MLE_ALLELE_COUNT_KEY, alleleCountsofMLE);
             final ArrayList<Double> MLEfrequencies = calculateMLEAlleleFrequencies(alleleCountsofMLE, genotypes);
-            attributes.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, MLEfrequencies);
+            attributes.put(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY, MLEfrequencies);
         }
 
         if ( configuration.genotypeArgs.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
-            attributes.put(NUMBER_OF_DISCOVERED_ALLELES_KEY, vc.getAlternateAlleles().size());
+            attributes.put(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY, vc.getAlternateAlleles().size());
 
 
         return attributes;
@@ -674,7 +665,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
            for (final Allele a : g.getAlleles())
               if (!a.isNoCall()) AN++;
 
-        final ArrayList<Double> MLEfrequencies = new ArrayList<Double>(alleleCountsofMLE.size());
+        final ArrayList<Double> MLEfrequencies = new ArrayList<>(alleleCountsofMLE.size());
         // the MLEAC is allowed to be larger than the AN (e.g. in the case of all PLs being 0, the GT is ./. but the exact model may arbitrarily choose an AC>1)
         for (final int AC : alleleCountsofMLE )
             MLEfrequencies.add(Math.min(1.0, (double)AC / (double)AN));

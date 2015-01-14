@@ -59,9 +59,10 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnota
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.QualityUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -91,7 +92,6 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
     private final static boolean ENABLE_DEBUGGING = false;
     private final static Logger logger = Logger.getLogger(FisherStrand.class);
 
-    private static final String FS = "FS";
     private static final double MIN_PVALUE = 1E-320;
     private static final int MIN_QUAL_FOR_FILTERED_TEST = 17;
     private static final int MIN_COUNT = ARRAY_DIM;
@@ -151,17 +151,17 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
      */
     protected Map<String, Object> annotationForOneTable(final double pValue) {
         final Object value = String.format("%.3f", QualityUtils.phredScaleErrorRate(Math.max(pValue, MIN_PVALUE))); // prevent INFINITYs
-        return Collections.singletonMap(FS, value);
+        return Collections.singletonMap(getKeyNames().get(0), value);
     }
 
     @Override
     public List<String> getKeyNames() {
-        return Collections.singletonList(FS);
+        return Collections.singletonList(GATKVCFConstants.FISHER_STRAND_KEY);
     }
 
     @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Collections.singletonList(new VCFInfoHeaderLine(FS, 1, VCFHeaderLineType.Float, "Phred-scaled p-value using Fisher's exact test to detect strand bias"));
+        return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
     /**
@@ -269,7 +269,7 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
      */
     private void printTable(final String name, final int[][] table) {
         if ( ENABLE_DEBUGGING ) {
-            final String pValue = (String)annotationForOneTable(pValueForContingencyTable(table)).get(FS);
+            final String pValue = (String)annotationForOneTable(pValueForContingencyTable(table)).get(getKeyNames().get(0));
             logger.info(String.format("FS %s (REF+, REF-, ALT+, ALT-) = (%d, %d, %d, %d) = %s",
                     name, table[0][0], table[0][1], table[1][0], table[1][1], pValue));
         }

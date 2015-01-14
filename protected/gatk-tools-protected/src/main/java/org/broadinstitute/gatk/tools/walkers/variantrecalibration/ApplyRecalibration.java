@@ -69,6 +69,8 @@ import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.io.File;
 import java.util.*;
@@ -255,10 +257,10 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
 
     public static void addVQSRStandardHeaderLines(final Set<VCFHeaderLine> hInfo) {
         hInfo.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
-        hInfo.add(new VCFInfoHeaderLine(VariantRecalibrator.VQS_LOD_KEY, 1, VCFHeaderLineType.Float, "Log odds ratio of being a true variant versus being false under the trained gaussian mixture model"));
-        hInfo.add(new VCFInfoHeaderLine(VariantRecalibrator.CULPRIT_KEY, 1, VCFHeaderLineType.String, "The annotation which was the worst performing in the Gaussian mixture model, likely the reason why the variant was filtered out"));
-        hInfo.add(new VCFInfoHeaderLine(VariantRecalibrator.POSITIVE_LABEL_KEY, 1, VCFHeaderLineType.Flag, "This variant was used to build the positive training set of good variants"));
-        hInfo.add(new VCFInfoHeaderLine(VariantRecalibrator.NEGATIVE_LABEL_KEY, 1, VCFHeaderLineType.Flag, "This variant was used to build the negative training set of bad variants"));
+        hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.VQS_LOD_KEY));
+        hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.CULPRIT_KEY));
+        hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.POSITIVE_LABEL_KEY));
+        hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.NEGATIVE_LABEL_KEY));
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -285,7 +287,7 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
                     throw new UserException("Encountered input variant which isn't found in the input recal file. Please make sure VariantRecalibrator and ApplyRecalibration were run on the same set of input variants. First seen at: " + vc );
                 }
 
-                final String lodString = recalDatum.getAttributeAsString(VariantRecalibrator.VQS_LOD_KEY, null);
+                final String lodString = recalDatum.getAttributeAsString(GATKVCFConstants.VQS_LOD_KEY, null);
                 if( lodString == null ) {
                     throw new UserException("Encountered a malformed record in the input recal file. There is no lod for the record at: " + vc );
                 }
@@ -299,12 +301,12 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
                 VariantContextBuilder builder = new VariantContextBuilder(vc);
 
                 // Annotate the new record with its VQSLOD and the worst performing annotation
-                builder.attribute(VariantRecalibrator.VQS_LOD_KEY, lod);
-                builder.attribute(VariantRecalibrator.CULPRIT_KEY, recalDatum.getAttribute(VariantRecalibrator.CULPRIT_KEY));
-                if ( recalDatum.hasAttribute(VariantRecalibrator.POSITIVE_LABEL_KEY))
-                    builder.attribute(VariantRecalibrator.POSITIVE_LABEL_KEY, true);
-                if ( recalDatum.hasAttribute(VariantRecalibrator.NEGATIVE_LABEL_KEY))
-                    builder.attribute(VariantRecalibrator.NEGATIVE_LABEL_KEY, true);
+                builder.attribute(GATKVCFConstants.VQS_LOD_KEY, lod);
+                builder.attribute(GATKVCFConstants.CULPRIT_KEY, recalDatum.getAttribute(GATKVCFConstants.CULPRIT_KEY));
+                if ( recalDatum.hasAttribute(GATKVCFConstants.POSITIVE_LABEL_KEY))
+                    builder.attribute(GATKVCFConstants.POSITIVE_LABEL_KEY, true);
+                if ( recalDatum.hasAttribute(GATKVCFConstants.NEGATIVE_LABEL_KEY))
+                    builder.attribute(GATKVCFConstants.NEGATIVE_LABEL_KEY, true);
 
                 final String filterString = generateFilterString(lod);
 

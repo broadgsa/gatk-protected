@@ -56,6 +56,7 @@ import htsjdk.samtools.util.StringUtil;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.variantcontext.*;
@@ -116,11 +117,9 @@ class PhasingUtils {
         // locations of the same HP attribute in gt2 to gt2
         final int[] site1ToSite2Inds = new int[numAlleles];
 
-        // If both genotypes have read-backed phasing haplotype identifiers (HP)
-        // Find the gt1 and gt2 alleles with the same haplotpe
-        if (gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY) && gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) {
-            final String[] hp1 = (String[]) gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY);
-            final String[] hp2 = (String[]) gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY);
+        if (gt1.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY) && gt2.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY)) {
+            final String[] hp1 = (String[]) gt1.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY);
+            final String[] hp2 = (String[]) gt2.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY);
 
             // Map of HP attribute to it's array index
             final HashMap<String, Integer> hpNameToSite1Inds = new HashMap<String, Integer>();
@@ -204,21 +203,20 @@ class PhasingUtils {
 
             // get the min read backed phasing quality
             double PQ = Double.MAX_VALUE;
-            if (gt1.hasAnyAttribute(ReadBackedPhasing.PQ_KEY)) {
-                PQ = Math.min(PQ, (double) gt1.getAnyAttribute(ReadBackedPhasing.PQ_KEY));
+            if (gt1.hasAnyAttribute(VCFConstants.PHASE_QUALITY_KEY)) {
+                PQ = Math.min(PQ, (double) gt1.getAnyAttribute(VCFConstants.PHASE_QUALITY_KEY));
             }
-            if (gt2.hasAnyAttribute(ReadBackedPhasing.PQ_KEY)) {
-                PQ = Math.min(PQ, (double) gt2.getAnyAttribute(ReadBackedPhasing.PQ_KEY));
+            if (gt2.hasAnyAttribute(VCFConstants.PHASE_QUALITY_KEY)) {
+                PQ = Math.min(PQ, (double) gt2.getAnyAttribute(VCFConstants.PHASE_QUALITY_KEY));
             }
             if (PQ != Double.MAX_VALUE)
-                mergedGtAttribs.put(ReadBackedPhasing.PQ_KEY, PQ);
+                mergedGtAttribs.put(VCFConstants.PHASE_QUALITY_KEY, PQ);
 
-            // get the read backed phasing phasing haplotype identifier
-            if (gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) {
-                mergedGtAttribs.put(ReadBackedPhasing.HP_KEY, gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY));
+            if (gt1.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY)) {
+                mergedGtAttribs.put(GATKVCFConstants.RBP_HAPLOTYPE_KEY, gt1.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY));
             }
-            else if (gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY)) { // gt1 doesn't have, but merged (so gt1 is hom and can take gt2's haplotype names):
-                mergedGtAttribs.put(ReadBackedPhasing.HP_KEY, gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY));
+            else if (gt2.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY)) { // gt1 doesn't have, but merged (so gt1 is hom and can take gt2's haplotype names):
+                mergedGtAttribs.put(GATKVCFConstants.RBP_HAPLOTYPE_KEY, gt2.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY));
             }
 
             // make the merged genotype
@@ -378,12 +376,12 @@ class PhasingUtils {
             return true;
 
         // If gt1 or gt2 do not have a read backed phasing haplotype, then can not be merged
-        if (!gt1.hasAnyAttribute(ReadBackedPhasing.HP_KEY) || !gt2.hasAnyAttribute(ReadBackedPhasing.HP_KEY))
+        if (!gt1.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY) || !gt2.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY))
             return false;
 
         // If gt1 or gt2 do not same number of HP attributes as chromosomes, then can not be merged.
-        final String[] hp1 = (String[]) gt1.getAnyAttribute(ReadBackedPhasing.HP_KEY);
-        final String[] hp2 = (String[]) gt2.getAnyAttribute(ReadBackedPhasing.HP_KEY);
+        final String[] hp1 = (String[]) gt1.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY);
+        final String[] hp2 = (String[]) gt2.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY);
         if (hp1.length != gt1.getPloidy() || hp2.length != gt2.getPloidy())
             return false;
 

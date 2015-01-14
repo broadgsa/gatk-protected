@@ -71,7 +71,7 @@ import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.smithwaterman.Parameters;
 import org.broadinstitute.gatk.utils.smithwaterman.SWPairwiseAlignment;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -230,7 +230,7 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         }
         Allele altAllele = null;
         for (final Allele allele : updatedVc.getAlleles())
-            if (allele.isSymbolic() && allele.getBaseString().equals(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE_NAME))
+            if (allele.isSymbolic() && allele.getBaseString().equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE_NAME))
                 altAllele = allele;
         Assert.assertNotNull(altAllele);
     }
@@ -521,8 +521,8 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
         int counter = 0;
         for ( final VariantContext call : actualPhasedCalls ) {
             for ( final Genotype g : call.getGenotypes() ) {
-                if ( g.hasExtendedAttribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_ID_KEY) ) {
-                    uniqueGroups.add(g.getExtendedAttribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_ID_KEY).toString());
+                if ( g.hasExtendedAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_ID_KEY) ) {
+                    uniqueGroups.add(g.getExtendedAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_ID_KEY).toString());
                     counter++;
                 }
             }

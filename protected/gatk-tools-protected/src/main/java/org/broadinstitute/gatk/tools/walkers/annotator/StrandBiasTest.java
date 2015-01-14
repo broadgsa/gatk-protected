@@ -70,6 +70,7 @@ import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 
 import java.util.*;
 
@@ -92,7 +93,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
         for ( final VCFHeaderLine line : headerLines) {
             if ( line instanceof VCFFormatHeaderLine) {
                 final VCFFormatHeaderLine formatline = (VCFFormatHeaderLine)line;
-                if ( formatline.getID().equals(VCFConstants.STRAND_BIAS_KEY) ) {
+                if ( formatline.getID().equals(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY) ) {
                     logger.warn("StrandBiasBySample annotation exists in input VCF header. Attempting to use StrandBiasBySample " +
                             "values to calculate strand bias annotation values. If no sample has the SB genotype annotation, annotation may still fail.");
                     return;
@@ -123,7 +124,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
         // if the genotype and strand bias are provided, calculate the annotation from the Genotype (GT) field
         if ( vc.hasGenotypes() ) {
             for (final Genotype g : vc.getGenotypes()) {
-                if (g.hasAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME)) {
+                if (g.hasAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY)) {
                     return calculateAnnotationFromGTfield(vc.getGenotypes());
                 }
             }
@@ -176,11 +177,11 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
         boolean foundData = false;
 
         for( final Genotype g : genotypes ) {
-            if( g.isNoCall() || ! g.hasAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME) )
+            if( g.isNoCall() || ! g.hasAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY) )
                 continue;
 
             foundData = true;
-            final String sbbsString = (String) g.getAnyAttribute(StrandBiasBySample.STRAND_BIAS_BY_SAMPLE_KEY_NAME);
+            final String sbbsString = (String) g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY);
             final int[] data = encodeSBBS(sbbsString);
             if ( passesMinimumThreshold(data, minCount) ) {
                 for( int index = 0; index < sbArray.length; index++ ) {

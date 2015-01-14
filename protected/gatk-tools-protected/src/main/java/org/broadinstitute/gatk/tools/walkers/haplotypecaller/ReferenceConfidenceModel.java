@@ -70,6 +70,7 @@ import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.io.File;
@@ -138,7 +139,7 @@ public class ReferenceConfidenceModel {
     public Set<VCFHeaderLine> getVCFHeaderLines() {
         final Set<VCFHeaderLine> headerLines = new LinkedHashSet<>();
         // TODO - do we need a new kind of VCF Header subclass for specifying arbitrary alternate alleles?
-        headerLines.add(new VCFSimpleHeaderLine(ALTERNATE_ALLELE_STRING, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE_NAME, "Represents any possible alternative allele at this location"));
+        headerLines.add(new VCFSimpleHeaderLine(ALTERNATE_ALLELE_STRING, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE_NAME, "Represents any possible alternative allele at this location"));
         //headerLines.add(new VCFFormatHeaderLine(INDEL_INFORMATIVE_DEPTH, 1, VCFHeaderLineType.Integer, "Number of reads at locus that are informative about an indel of size <= " + indelInformativeDepthIndelSize));
         return headerLines;
     }
@@ -215,7 +216,7 @@ public class ReferenceConfidenceModel {
                 homRefCalc.capByHomRefLikelihood();
 
                 final Allele refAllele = Allele.create(refBase, true);
-                final List<Allele> refSiteAlleles = Arrays.asList(refAllele, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                final List<Allele> refSiteAlleles = Arrays.asList(refAllele, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
                 final VariantContextBuilder vcb = new VariantContextBuilder("HC", curPos.getContig(), curPos.getStart(), curPos.getStart(), refSiteAlleles);
                 final GenotypeBuilder gb = new GenotypeBuilder(sampleName, GATKVariantContextUtils.homozygousAlleleList(refAllele, ploidy));
                 gb.AD(homRefCalc.AD_Ref_Any);
@@ -320,7 +321,7 @@ public class ReferenceConfidenceModel {
     public RefVsAnyResult calcGenotypeLikelihoodsOfRefVsAny(final String sampleName, final int ploidy,
                                                         final GenotypingModel genotypingModel,
                                                         final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual, final MathUtils.RunningAverage hqSoftClips) {
-        final AlleleList<Allele> alleleList = new IndexedAlleleList<>(Allele.create(refBase,true),GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final AlleleList<Allele> alleleList = new IndexedAlleleList<>(Allele.create(refBase,true), GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         // Notice that the sample name is rather irrelevant as this information is never used, just need to be the same in both lines bellow.
 
         final int maximumReadCount = pileup.getReads().size();

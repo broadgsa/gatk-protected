@@ -57,11 +57,11 @@ import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -84,7 +84,7 @@ public class SampleList extends InfoFieldAnnotation {
         if ( vc.isMonomorphicInSamples() || !vc.hasGenotypes() )
             return null;
 
-        StringBuffer samples = new StringBuffer();
+        final StringBuilder samples = new StringBuilder();
         for ( Genotype genotype : vc.getGenotypesOrderedByName() ) {
             if ( genotype.isCalled() && !genotype.isHomRef() ){
                 if ( samples.length() > 0 )
@@ -97,11 +97,11 @@ public class SampleList extends InfoFieldAnnotation {
             return null;
 
         Map<String, Object> map = new HashMap<String, Object>();
-        map.put("Samples", samples.toString());
+        map.put(getKeyNames().get(0), samples.toString());
         return map;
     }
 
-    public List<String> getKeyNames() { return Arrays.asList("Samples"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.SAMPLE_LIST_KEY); }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("Samples", VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "List of polymorphic samples")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 }

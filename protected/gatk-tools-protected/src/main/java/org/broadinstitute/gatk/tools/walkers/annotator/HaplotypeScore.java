@@ -64,7 +64,6 @@ import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
@@ -73,6 +72,8 @@ import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.io.Serializable;
 import java.util.*;
@@ -151,7 +152,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         }
 
         // annotate the score in the info field
-        final Map<String, Object> map = new HashMap<String, Object>();
+        final Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%.4f", scoreRA.mean()));
         return map;
     }
@@ -173,8 +174,8 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
         int haplotypesToCompute = vc.getAlternateAlleles().size() + 1;
 
-        final PriorityQueue<Haplotype> candidateHaplotypeQueue = new PriorityQueue<Haplotype>(100, new HaplotypeComparator());
-        final PriorityQueue<Haplotype> consensusHaplotypeQueue = new PriorityQueue<Haplotype>(MAX_CONSENSUS_HAPLOTYPES_TO_CONSIDER, new HaplotypeComparator());
+        final PriorityQueue<Haplotype> candidateHaplotypeQueue = new PriorityQueue<>(100, new HaplotypeComparator());
+        final PriorityQueue<Haplotype> consensusHaplotypeQueue = new PriorityQueue<>(MAX_CONSENSUS_HAPLOTYPES_TO_CONSIDER, new HaplotypeComparator());
 
         for (final PileupElement p : pileup) {
             final Haplotype haplotypeFromRead = getHaplotypeFromRead(p, contextSize, locus);
@@ -214,7 +215,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
             // The consensus haplotypes are in a quality-ordered priority queue, so the best haplotypes are just the ones at the front of the queue
             final Haplotype haplotype1 = consensusHaplotypeQueue.poll();
 
-            List<Haplotype> hlist = new ArrayList<Haplotype>();
+            List<Haplotype> hlist = new ArrayList<>();
             hlist.add(new Haplotype(haplotype1.getBases(), 60));
 
             for (int k = 1; k < haplotypesToCompute; k++) {
@@ -329,7 +330,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         if (DEBUG) System.out.printf("HAP1: %s%n", haplotypes.get(0));
         if (DEBUG) System.out.printf("HAP2: %s%n", haplotypes.get(1));
 
-        final ArrayList<double[]> haplotypeScores = new ArrayList<double[]>();
+        final ArrayList<double[]> haplotypeScores = new ArrayList<>();
         for (final PileupElement p : pileup) {
             // Score all the reads in the pileup, even the filtered ones
             final double[] scores = new double[haplotypes.size()];
@@ -412,12 +413,12 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
     @Override
     public List<String> getKeyNames() {
-        return Arrays.asList("HaplotypeScore");
+        return Arrays.asList(GATKVCFConstants.HAPLOTYPE_SCORE_KEY);
     }
 
     @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(new VCFInfoHeaderLine("HaplotypeScore", 1, VCFHeaderLineType.Float, "Consistency of the site with at most two segregating haplotypes"));
+        return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
     private static class Haplotype  {

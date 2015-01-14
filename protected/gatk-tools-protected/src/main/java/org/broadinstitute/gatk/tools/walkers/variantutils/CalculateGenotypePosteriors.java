@@ -66,6 +66,8 @@ import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 import htsjdk.variant.variantcontext.*;
@@ -195,7 +197,7 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
      * be used to inform the frequency distribution underying the genotype priors.
      */
     @Input(fullName="supporting", shortName = "supporting", doc="Other callsets to use in generating genotype posteriors", required=false)
-    public List<RodBinding<VariantContext>> supportVariants = new ArrayList<RodBinding<VariantContext>>();
+    public List<RodBinding<VariantContext>> supportVariants = new ArrayList<>();
 
     /**
      * The global prior of a variant site -- i.e. the expected allele frequency distribution knowing only that N alleles
@@ -262,10 +264,6 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
     @Output(doc="File to which variants should be written")
     protected VariantContextWriter vcfWriter = null;
 
-    private final String JOINT_LIKELIHOOD_TAG_NAME = "JL";
-    private final String JOINT_POSTERIOR_TAG_NAME = "JP";
-    private final String PHRED_SCALED_POSTERIORS_KEY = "PP";
-
     private FamilyLikelihoodsUtils famUtils = new FamilyLikelihoodsUtils();
 
     public void initialize() {
@@ -294,8 +292,8 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
             throw new UserException("VCF has no genotypes");
         }
 
-        if ( header.hasInfoLine(VCFConstants.MLE_ALLELE_COUNT_KEY) ) {
-            final VCFInfoHeaderLine mleLine = header.getInfoHeaderLine(VCFConstants.MLE_ALLELE_COUNT_KEY);
+        if ( header.hasInfoLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY) ) {
+            final VCFInfoHeaderLine mleLine = header.getInfoHeaderLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY);
             if ( mleLine.getCountType() != VCFHeaderLineCount.A ) {
                 throw new UserException("VCF does not have a properly formatted MLEAC field: the count type should be \"A\"");
             }
@@ -307,11 +305,11 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
 
         // Initialize VCF header
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
-        headerLines.add(new VCFFormatHeaderLine(PHRED_SCALED_POSTERIORS_KEY, VCFHeaderLineCount.G, VCFHeaderLineType.Integer, "Phred-scaled Posterior Genotype Probabilities"));
-        headerLines.add(new VCFInfoHeaderLine("PG", VCFHeaderLineCount.G, VCFHeaderLineType.Integer, "Genotype Likelihood Prior"));
+        headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.PHRED_SCALED_POSTERIORS_KEY));
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.GENOTYPE_PRIOR_KEY));
         if (!skipFamilyPriors) {
-            headerLines.add(new VCFFormatHeaderLine(JOINT_LIKELIHOOD_TAG_NAME, 1, VCFHeaderLineType.Integer, "Phred-scaled joint likelihood of the genotype combination (before applying family priors)"));
-            headerLines.add(new VCFFormatHeaderLine(JOINT_POSTERIOR_TAG_NAME, 1, VCFHeaderLineType.Integer, "Phred-scaled joint posterior probability of the genotype combination (after applying family priors)"));
+            headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.JOINT_LIKELIHOOD_TAG_NAME));
+            headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.JOINT_POSTERIOR_TAG_NAME));
         }
         headerLines.add(new VCFHeaderLine("source", "CalculateGenotypePosteriors"));
 

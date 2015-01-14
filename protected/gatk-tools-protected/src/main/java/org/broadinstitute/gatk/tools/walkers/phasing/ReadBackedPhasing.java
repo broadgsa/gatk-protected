@@ -65,6 +65,8 @@ import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.GenomeLoc;
@@ -179,14 +181,9 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
 
     private static PreciseNonNegativeDouble ZERO = new PreciseNonNegativeDouble(0.0);
 
-    public static final String PQ_KEY = "PQ";
-    public static final String HP_KEY = "HP";
-
     // In order to detect phase inconsistencies:
     private static final double FRACTION_OF_MEAN_PQ_CHANGES = 0.1; // If the PQ decreases by this fraction of the mean PQ changes (thus far), then this read is inconsistent with previous reads
     private static final double MAX_FRACTION_OF_INCONSISTENT_READS = 0.1; // If there are more than this fraction of inconsistent reads, then flag this site
-
-    public static final String PHASING_INCONSISTENT_KEY = "PhasingInconsistent";
 
     @Argument(fullName = "enableMergePhasedSegregatingPolymorphismsToMNP", shortName = "enableMergeToMNP", doc = "Merge consecutive phased sites into MNP records", required = false)
     protected boolean enableMergePhasedSegregatingPolymorphismsToMNP = false;
@@ -248,9 +245,9 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         hInfo.add(new VCFHeaderLine("reference", getToolkit().getArguments().referenceFile.getName()));
 
         // Phasing-specific INFO fields:
-        hInfo.add(new VCFFormatHeaderLine(PQ_KEY, 1, VCFHeaderLineType.Float, "Read-backed phasing quality"));
-        hInfo.add(new VCFFormatHeaderLine(HP_KEY, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Read-backed phasing haplotype identifiers"));
-        hInfo.add(new VCFInfoHeaderLine(PHASING_INCONSISTENT_KEY, 0, VCFHeaderLineType.Flag, "Are the reads significantly haplotype-inconsistent?"));
+        hInfo.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.PHASE_QUALITY_KEY, true));
+        hInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.RBP_HAPLOTYPE_KEY));
+        hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.RBP_INCONSISTENT_KEY));
 
         // todo -- fix samplesToPhase
         String trackName = variantCollection.variants.getName();
@@ -320,7 +317,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         return new PhasingStatsAndOutput(phaseStats, completedList);
     }
 
-    private static final Set<String> KEYS_TO_KEEP_IN_REDUCED_VCF = new HashSet<String>(Arrays.asList(PQ_KEY));
+    private static final Set<String> KEYS_TO_KEEP_IN_REDUCED_VCF = new HashSet<>(Arrays.asList(VCFConstants.PHASE_QUALITY_KEY));
 
     private VariantContext reduceVCToSamples(VariantContext vc, Set<String> samplesToPhase) {
 //        for ( String sample : samplesToPhase )
@@ -445,15 +442,15 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
                         if (phasedCurGenotypeRelativeToPrevious) {
                             Genotype prevHetGenotype = phaseWindow.phaseRelativeToGenotype();
                             SNPallelePair prevAllelePair = new SNPallelePair(prevHetGenotype);
-                            if (!prevHetGenotype.hasAnyAttribute(HP_KEY))
+                            if (!prevHetGenotype.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY))
                                 throw new ReviewedGATKException("Internal error: missing haplotype markings for previous genotype, even though we put it there...");
-                            String[] prevPairNames = (String[]) prevHetGenotype.getAnyAttribute(HP_KEY);
+                            String[] prevPairNames = (String[]) prevHetGenotype.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY);
 
                             String[] curPairNames = ensurePhasing(allelePair, prevAllelePair, prevPairNames, pr.haplotype);
                             Genotype phasedGt = new GenotypeBuilder(gt)
                                     .alleles(allelePair.getAllelesAsList())
-                                    .attribute(PQ_KEY, pr.phaseQuality)
-                                    .attribute(HP_KEY, curPairNames)
+                                    .attribute(VCFConstants.PHASE_QUALITY_KEY, pr.phaseQuality)
+                                    .attribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY, curPairNames)
                                     .make();
                             uvc.setGenotype(samp, phasedGt);
 
@@ -506,7 +503,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
                         String locStr = Integer.toString(GATKVariantContextUtils.getLocation(getToolkit().getGenomeLocParser(), vc).getStart());
 
                         Genotype startNewHaplotypeGt = new GenotypeBuilder(gt)
-                                .attribute(HP_KEY, new String[]{locStr + "-1", locStr + "-2"})
+                                .attribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY, new String[]{locStr + "-1", locStr + "-2"})
                                 .make();
 
                         uvc.setGenotype(samp, startNewHaplotypeGt);
@@ -1296,7 +1293,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
         }
 
         public void setPhasingInconsistent() {
-            attributes.put(PHASING_INCONSISTENT_KEY, true);
+            attributes.put(GATKVCFConstants.RBP_INCONSISTENT_KEY, true);
         }
     }
 

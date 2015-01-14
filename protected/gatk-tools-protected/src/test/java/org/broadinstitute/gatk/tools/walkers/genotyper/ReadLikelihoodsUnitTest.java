@@ -60,7 +60,7 @@ import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.testng.Assert;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
@@ -451,9 +451,9 @@ public class ReadLikelihoodsUnitTest
         final ReadLikelihoods<Allele> original = new ReadLikelihoods<>(new IndexedSampleList(samples), new IndexedAlleleList<>(alleles), reads);
         final double[][][] originalLikelihoods = fillWithRandomLikelihoods(samples,alleles,original);
         final ReadLikelihoods<Allele> result = original.clone();
-        result.addNonReferenceAllele(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        result.addNonReferenceAllele(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         Assert.assertEquals(result.alleleCount(),original.alleleCount() + 1);
-        Assert.assertEquals(result.alleleIndex(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE),result.alleleCount() - 1);
+        Assert.assertEquals(result.alleleIndex(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE),result.alleleCount() - 1);
         final double[][][] newLikelihoods = new double[originalLikelihoods.length][][];
         for (int s = 0; s < samples.length; s++) {
             newLikelihoods[s] = Arrays.copyOf(originalLikelihoods[s],originalLikelihoods[s].length + 1);

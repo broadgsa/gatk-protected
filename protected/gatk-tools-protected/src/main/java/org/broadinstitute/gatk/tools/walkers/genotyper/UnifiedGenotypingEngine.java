@@ -83,8 +83,6 @@ import java.util.*;
  */
 public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCollection> {
 
-    public static final String PL_FOR_ALL_SNP_ALLELES_KEY = "APL";
-
     private static final int SNP_MODEL = 0;
     private static final int INDEL_MODEL = 1;
 

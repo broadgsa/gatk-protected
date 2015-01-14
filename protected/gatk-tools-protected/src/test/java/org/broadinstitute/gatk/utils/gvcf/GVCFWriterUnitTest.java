@@ -57,6 +57,7 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 import org.testng.Assert;
@@ -95,7 +96,7 @@ public class GVCFWriterUnitTest extends BaseTest {
     private List<Integer> standardPartition = Arrays.asList(1, 10, 20);
     private Allele REF = Allele.create("N", true);
     private Allele ALT = Allele.create("A");
-    private List<Allele> ALLELES = Arrays.asList(REF, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+    private List<Allele> ALLELES = Arrays.asList(REF, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
     private final String SAMPLE_NAME = "XXYYZZ";
 
     @BeforeMethod
@@ -268,10 +269,10 @@ public class GVCFWriterUnitTest extends BaseTest {
         Assert.assertEquals(vc.getStart(), start);
         Assert.assertEquals(vc.getEnd(), stop);
         if ( nonRef ) {
-            Assert.assertNotEquals(vc.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+            Assert.assertNotEquals(vc.getAlternateAllele(0), GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         } else {
             Assert.assertEquals(vc.getNAlleles(), 2);
-            Assert.assertEquals(vc.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+            Assert.assertEquals(vc.getAlternateAllele(0), GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
             Assert.assertEquals(vc.getAttributeAsInt(VCFConstants.END_KEY, -1), stop);
             Assert.assertTrue(vc.hasGenotypes());
             Assert.assertTrue(vc.hasGenotype(SAMPLE_NAME));

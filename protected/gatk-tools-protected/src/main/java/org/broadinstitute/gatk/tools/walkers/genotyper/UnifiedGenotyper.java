@@ -79,6 +79,8 @@ import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.io.PrintStream;
@@ -336,20 +338,19 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
         // add the pool values for each genotype
         if (UAC.genotypeArgs.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY) {
-            headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Integer, "Maximum likelihood expectation (MLE) for the alternate allele count, in the same order as listed, for each individual sample"));
-            headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Maximum likelihood expectation (MLE) for the alternate allele fraction, in the same order as listed, for each individual sample"));
+            headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY));
         }
         if (UAC.referenceSampleName != null) {
-            headerInfo.add(new VCFInfoHeaderLine(VCFConstants.REFSAMPLE_DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Total reference sample depth"));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.REFSAMPLE_DEPTH_KEY));
         }
 
         if (UAC.annotateAllSitesWithPLs) {
-            headerInfo.add(new VCFFormatHeaderLine(UnifiedGenotypingEngine.PL_FOR_ALL_SNP_ALLELES_KEY, 10, VCFHeaderLineType.Integer, "Phred-scaled genotype likelihoods for all 4 possible bases regardless of whether there is statistical evidence for them. Ordering is always PL for AA AC CC GA GC GG TA TC TG TT."));
+            headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.PL_FOR_ALL_SNP_ALLELES_KEY));
         }
-        VCFStandardHeaderLines.addStandardInfoLines(headerInfo, true,
-                VCFConstants.DOWNSAMPLED_KEY,
-                VCFConstants.MLE_ALLELE_COUNT_KEY,
-                VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.DOWNSAMPLED_KEY));
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
 
         // also, check to see whether comp rods were included
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
@@ -364,7 +365,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
-        headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotypingEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
+        headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.LOW_QUAL_FILTER_NAME));
 
         return headerInfo;
     }

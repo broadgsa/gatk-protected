@@ -66,6 +66,7 @@ import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 
 import java.util.*;
 
@@ -428,11 +429,11 @@ public class VariantDataManager {
         for( final VariantDatum datum : data ) {
             VariantContextBuilder builder = new VariantContextBuilder("VQSR", datum.loc.getContig(), datum.loc.getStart(), datum.loc.getStop(), alleles);
             builder.attribute(VCFConstants.END_KEY, datum.loc.getStop());
-            builder.attribute(VariantRecalibrator.VQS_LOD_KEY, String.format("%.4f", datum.lod));
-            builder.attribute(VariantRecalibrator.CULPRIT_KEY, (datum.worstAnnotation != -1 ? annotationKeys.get(datum.worstAnnotation) : "NULL"));
+            builder.attribute(GATKVCFConstants.VQS_LOD_KEY, String.format("%.4f", datum.lod));
+            builder.attribute(GATKVCFConstants.CULPRIT_KEY, (datum.worstAnnotation != -1 ? annotationKeys.get(datum.worstAnnotation) : "NULL"));
 
-            if ( datum.atTrainingSite ) builder.attribute(VariantRecalibrator.POSITIVE_LABEL_KEY, true);
-            if ( datum.atAntiTrainingSite ) builder.attribute(VariantRecalibrator.NEGATIVE_LABEL_KEY, true);
+            if ( datum.atTrainingSite ) builder.attribute(GATKVCFConstants.POSITIVE_LABEL_KEY, true);
+            if ( datum.atAntiTrainingSite ) builder.attribute(GATKVCFConstants.NEGATIVE_LABEL_KEY, true);
 
             recalWriter.add(builder.make());
         }
