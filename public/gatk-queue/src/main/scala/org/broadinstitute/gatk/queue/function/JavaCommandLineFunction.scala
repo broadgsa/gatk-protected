@@ -126,7 +126,7 @@ trait JavaCommandLineFunction extends CommandLineFunction {
     optional("-XX:ParallelGCThreads=", javaGCThreads, spaceSeparated=false),
     optional("-XX:GCTimeLimit=", javaGCTimeLimit, spaceSeparated=false),
     optional("-XX:GCHeapFreeLimit=", javaGCHeapFreeLimit, spaceSeparated=false),
-    required("-Djava.io.tmpdir=", jobTempDir, spaceSeparated=false)).mkString("")
+    required("-Djava.io.tmpdir=", jobLocalDir, spaceSeparated=false)).mkString("")
 
   def commandLine = required("java") +
                     javaOpts +

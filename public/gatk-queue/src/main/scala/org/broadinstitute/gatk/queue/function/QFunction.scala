@@ -65,7 +65,7 @@ trait QFunction extends Logging with QJobReport {
 
   /**
    * Local path available on all machines to store LOCAL temporary files. Not an @Input,
-   * nor an @Output. Currently only used for local intermediate files for composite jobs.
+   * nor an @Output.
    * Needs to be an annotated field so that it's mutated during cloning.
    */
   @Argument(doc="Local path available on all machines to store LOCAL temporary files.")

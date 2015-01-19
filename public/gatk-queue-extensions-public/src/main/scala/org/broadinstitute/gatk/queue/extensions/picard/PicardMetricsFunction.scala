@@ -46,7 +46,7 @@ trait PicardMetricsFunction extends JavaCommandLineFunction {
 
   abstract override def commandLine = super.commandLine +
     repeat("INPUT=", inputBams, spaceSeparated=false) +
-    required("TMP_DIR=" + jobTempDir) +
+    required("TMP_DIR=" + jobLocalDir) +
     optional("VALIDATION_STRINGENCY=", validationStringency, spaceSeparated=false) +
     optional("OUTPUT=", outputFile, spaceSeparated=false) +
     optional("MAX_RECORDS_IN_RAM=", maxRecordsInRam, spaceSeparated=false) +
