@@ -101,6 +101,8 @@ public class BQSRIntegrationTest extends WalkerTest {
 
     private static final String HiSeqBam = privateTestDir + "HiSeq.1mb.1RG.bam";
     private static final String HiSeqInterval = "chr1:10,000,000-10,100,000";
+    private static final String SimpleCigarMatchMismatchBam = privateTestDir + "simpleCigarMatchMismatch.bam";
+    private static final String SimpleCigarMatchMismatchInterval = "1:1-60";
 
     @DataProvider(name = "BQSRTest")
     public Object[][] createBQSRTestData() {
@@ -112,6 +114,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                 {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "b74e75f3c5aa90bd21af1e20f2ac8c40")},
                 {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "e564505aea11464de8ed72890d9ea89a")},
                 {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "380d8be121ffaddd3461ee0ac3d1a76f")},
+                {new BQSRTest(b36KGReference, SimpleCigarMatchMismatchBam, SimpleCigarMatchMismatchInterval, "", "56dfb2918a4cdae3ef9d705a43e85194")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "281682124584ab384f23359934df0c3b")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "0a92fdff5fd26227c29d34eda5a32f49")},
