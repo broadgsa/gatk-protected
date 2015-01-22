@@ -99,7 +99,7 @@ public class SelectVariantsParallelIntegrationTest extends WalkerTest {
             }
             { // AD and PL decoding race condition
                 final String testfile = privateTestDir + "race_condition.vcf";
-                final String args = "-env -sn SAMPLE -L 1:1-10,000,000 -V " + testfile;
+                final String args = "-env -trimAlternates -sn SAMPLE -L 1:1-10,000,000 -V " + testfile;
                 new ParallelSelectTestProvider(b37KGReference, args, "e86c6eb105ecdd3ff026999ffc692821", nt);
             }
         }
