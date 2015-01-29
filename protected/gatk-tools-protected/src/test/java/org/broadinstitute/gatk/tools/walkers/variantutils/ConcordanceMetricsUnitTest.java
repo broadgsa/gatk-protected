@@ -742,4 +742,45 @@ public class ConcordanceMetricsUnitTest extends BaseTest {
         Assert.assertEquals(metrics.getOverallSiteConcordance().get(ConcordanceMetrics.SiteConcordanceType.EVAL_SUPERSET_TRUTH),1);
 
     }
+
+    private Pair<VariantContext,VariantContext> getMonoallelicData() {
+
+        final Allele ref = Allele.create(BaseUtils.Base.T.base,true);
+        final Allele alt = Allele.create(BaseUtils.Base.C.base);
+
+        //Site in eval is monoallelic, both samples are HOM_REF
+        //sample1 in comp is HOM_VAR, sample2 is NO_CALL
+        //None of these should trigger mismatching alleles
+        final GenomeLoc loc = genomeLocParser.createGenomeLoc("chr1",1,1);
+        final VariantContextBuilder site1Comp = new VariantContextBuilder();
+        final VariantContextBuilder site1Eval = new VariantContextBuilder();
+        site1Comp.loc(loc.getContig(), loc.getStart(), loc.getStop());
+        site1Eval.loc(loc.getContig(), loc.getStart(), loc.getStop());
+        site1Comp.alleles(Arrays.asList(ref));
+        site1Eval.alleles(Arrays.asList(ref, alt));
+        site1Comp.genotypes(GenotypeBuilder.create("test2_sample1", Arrays.asList(ref, ref)),
+                GenotypeBuilder.create("test2_sample2", Arrays.asList(ref, ref)));
+        site1Eval.genotypes(GenotypeBuilder.create("test2_sample1",Arrays.asList(alt,alt)),
+                GenotypeBuilder.create("test2_sample2",Arrays.asList(Allele.NO_CALL,Allele.NO_CALL)));
+
+        return new Pair<>(site1Eval.make(), site1Comp.make());
+    }
+
+    @Test
+    public void testMonoallelicSite() {
+        final Pair<VariantContext,VariantContext> data = getMonoallelicData();
+        final VariantContext eval = data.getFirst();
+        final VariantContext truth = data.getSecond();
+        final VCFCodec codec = new VCFCodec();
+        final VCFHeader evalHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_2_HEADER))));
+        final VCFHeader compHeader = (VCFHeader)codec.readActualHeader(codec.makeSourceFromStream(new PositionalBufferedStream(new StringBufferInputStream(TEST_2_HEADER))));
+        final ConcordanceMetrics metrics = new ConcordanceMetrics(evalHeader,compHeader,null);
+        metrics.update(eval,truth);
+
+
+        Assert.assertEquals(metrics.getGenotypeConcordance("test2_sample1").getnMismatchingAlt(),0);
+        Assert.assertEquals(metrics.getGenotypeConcordance("test2_sample2").getnMismatchingAlt(),0);
+        Assert.assertEquals(metrics.getGenotypeConcordance("test2_sample1").getTable()[3][1],1);
+        Assert.assertEquals(metrics.getGenotypeConcordance("test2_sample2").getTable()[0][1],1);
+    }
 }
