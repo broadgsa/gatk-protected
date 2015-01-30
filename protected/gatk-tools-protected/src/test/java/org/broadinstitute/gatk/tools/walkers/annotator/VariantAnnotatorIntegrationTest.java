@@ -60,6 +60,8 @@ import htsjdk.variant.vcf.VCFCodec;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import org.apache.commons.io.FileUtils;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -146,6 +148,18 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
                 baseTestString() + " -G Standard -XA FisherStrand -XA ReadPosRankSumTest --variant " + privateTestDir + "vcfexample2empty.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
                 Arrays.asList("7267450fc4d002f75a24ca17278e0950"));
         executeTest("test exclude annotations", spec);
+    }
+
+    @Test
+    public void testAskingStrandAlleleCountsBySample() throws IOException{
+        String logFileName = new String("testAskingStrandAlleleCountsBySample.log");
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " --variant " + privateTestDir + "vcfexample2.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000 -A StrandAlleleCountsBySample -log " + logFileName, 1,
+                Arrays.asList("0c0c4a219cb487598fb1fbb77db71eca"));
+        executeTest("test file has annotations, adding StrandAlleleCountsBySample annotation", spec);
+
+        File file = new File(logFileName);
+        Assert.assertTrue(FileUtils.readFileToString(file).contains("Annotation will not be calculated, must be called from HaplotyepCaller"));
     }
 
     @Test

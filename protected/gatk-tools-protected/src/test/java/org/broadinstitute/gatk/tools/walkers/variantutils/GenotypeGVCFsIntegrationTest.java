@@ -51,10 +51,21 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.PositionalBufferedStream;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFCodec;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 public class GenotypeGVCFsIntegrationTest extends WalkerTest {
 
@@ -73,6 +84,15 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 1,
                 Arrays.asList("6483df1dfa3a5290ba2dc10cc8e15370"));
         executeTest("testUpdatePGT", spec);
+    }
+
+    @Test(enabled = true)
+    public void testUpdatePGTStrandAlleleCountsBySample() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf -A StrandAlleleCountsBySample", b37KGReference),
+                1,
+                Arrays.asList("4cbc86b7a44cf347eb543558de7b2ee6"));
+        executeTest("testUpdatePGT, adding StrandAlleleCountsBySample annotation", spec);
     }
 
     @Test(enabled = true)
@@ -212,4 +232,65 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 Arrays.asList("9c192402a005216649ff44a36cc7c45c"));
         executeTest("testStandardConf", spec);
     }
+
+    @Test
+    public void testStrandAlleleCountsBySample() throws IOException {
+        //HaplotypeCaller creates gVCF
+        final String CEUTRIO_BAM = validationDataLocation + "CEUTrio.HiSeq.b37.chr20.10_11mb.bam";
+        final WalkerTestSpec specHaplotypeCaller = new WalkerTestSpec(
+                "-T HaplotypeCaller --disableDithering " +
+                        String.format("-R %s -I %s ", b37KGReference, CEUTRIO_BAM) +
+                        "--no_cmdline_in_header -o %s -L 20:10130000-10134800 " +
+                        "-ERC GVCF --sample_name NA12878 -variant_index_type LINEAR " +
+                        "-variant_index_parameter 128000 -A StrandAlleleCountsBySample",
+                1, Arrays.asList("")
+        );
+        specHaplotypeCaller.disableShadowBCF(); //TODO: Remove when BaseTest.assertAttributesEquals() works with SC
+        final File gVCF = executeTest("testStrandAlleleCountsBySampleHaplotypeCaller", specHaplotypeCaller).getFirst().get(0);
+        List<String> gVCFList = getAttributeValues(gVCF, new String("SAC"));
+
+        //Use gVCF from HaplotypeCaller
+        final WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + gVCF.getAbsolutePath(), b37KGReference),
+                1,
+                Arrays.asList(""));
+        final File outputVCF = executeTest("testStrandAlleleCountsBySample", spec).getFirst().get(0);
+        List<String> outputVCFList = getAttributeValues(outputVCF, new String("SAC"));
+
+        // All of the SAC values in the VCF were derived from the gVCF
+        Assert.assertTrue(gVCFList.containsAll(outputVCFList));
+    }
+
+    /**
+     * Returns a list of attribute values from a VCF file
+     *
+     * @param vcfFile VCF file
+     * @param attributeName attribute name
+     *
+     * @throws IOException if the file does not exist or can not be opened
+     *
+     * @return list of attribute values
+     */
+    private List<String> getAttributeValues(final File vcfFile, final String attributeName) throws IOException {
+        final VCFCodec codec = new VCFCodec();
+        final FileInputStream s = new FileInputStream(vcfFile);
+        final LineIterator lineIteratorVCF = codec.makeSourceFromStream(new PositionalBufferedStream(s));
+        codec.readHeader(lineIteratorVCF);
+
+        List<String> attributeValues = new ArrayList<String>();
+        while (lineIteratorVCF.hasNext()) {
+            final String line = lineIteratorVCF.next();
+            Assert.assertFalse(line == null);
+            final VariantContext vc = codec.decode(line);
+
+            for (final Genotype g : vc.getGenotypes()) {
+                if (g.hasExtendedAttribute(attributeName)) {
+                    attributeValues.add((String) g.getExtendedAttribute(attributeName));
+                }
+            }
+        }
+
+        return attributeValues;
+    }
+
 }
