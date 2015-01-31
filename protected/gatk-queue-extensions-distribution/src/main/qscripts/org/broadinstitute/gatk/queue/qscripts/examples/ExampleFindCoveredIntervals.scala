@@ -49,111 +49,28 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.diagnostics;
+package org.broadinstitute.gatk.queue.qscripts.examples
 
-import org.broadinstitute.gatk.utils.commandline.Argument;
-import org.broadinstitute.gatk.utils.commandline.Output;
-import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.engine.walkers.ActiveRegionTraversalParameters;
-import org.broadinstitute.gatk.engine.walkers.ActiveRegionWalker;
-import org.broadinstitute.gatk.engine.walkers.PartitionBy;
-import org.broadinstitute.gatk.engine.walkers.PartitionType;
-import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.activeregion.ActivityProfileState;
-import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
-import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.queue.QScript
+import org.broadinstitute.gatk.queue.extensions.gatk._
 
-import java.io.PrintStream;
+class ExampleFindCoveredIntervals extends QScript {
+  @Input(doc="The reference file for the bam files.", shortName="R")
+  var referenceFile: File = _
 
-/**
- * Outputs a list of intervals that are covered above a given threshold.
- *
- * <p>The list can be used as an interval list for other walkers. Note that if the -uncovered argument is given, the tool will instead output intervals that fail the coverage threshold.</p>
- *
- * <h3>Input</h3>
- * <p>
- * One or more BAM files.
- * </p>
- *
- * <h3>Output</h3>
- * <p>
- * List of covered (or uncovered) intervals.
- * </p>
- *
- * <h3>Example</h3>
- * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -T FindCoveredIntervals \
- *   -R ref.fasta \
- *   -I my_file.bam \
- *   -o output.list
- * </pre>
- *
- */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
-@PartitionBy(value = PartitionType.CONTIG, includeUnmapped = false)
-@ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)
-public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
-    @Output
-    private PrintStream out;
+  @Input(doc="Bam file to genotype.", shortName="I")
+  var bamFile: File = _
 
-    @Argument(fullName = "uncovered", shortName = "u", required = false, doc = "output intervals that fail the coverage threshold instead")
-    private boolean outputUncovered = false;
+  @Output(doc="Bam output", shortName="out")
+  var outFile: File = _
 
-    @Argument(fullName = "coverage_threshold", shortName = "cov", doc = "The minimum allowable coverage to be considered covered", required = false)
-    private int coverageThreshold = 20;
-
-    @Argument(fullName = "minBaseQuality", shortName = "minBQ", doc = "The minimum allowable base quality score to be counted for coverage",required = false)
-    private int minBaseQuality = 0;
-
-    @Argument(fullName = "minMappingQuality", shortName = "minMQ", doc = "The minimum allowable mapping quality score to be counted for coverage",required = false)
-    private int minMappingQuality = 0;
-
-
-
-
-    @Override
-    // Look to see if the region has sufficient coverage
-    public ActivityProfileState isActive(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
-
-        int depth;
-        if(minBaseQuality == 0 && minMappingQuality == 0)
-            depth = context.getBasePileup().getBaseFilteredPileup(coverageThreshold).depthOfCoverage();
-        else
-            depth = context.getBasePileup().getBaseAndMappingFilteredPileup(minBaseQuality,minMappingQuality).depthOfCoverage();
-
-        // note the linear probability scale
-        return new ActivityProfileState(ref.getLocus(), Math.min(depth / coverageThreshold, 1));
-
-    }
-
-    @Override
-    public GenomeLoc map(final org.broadinstitute.gatk.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker tracker) {
-        if ((!outputUncovered && activeRegion.isActive()) || (outputUncovered && !activeRegion.isActive()))
-            return activeRegion.getLocation();
-
-        return null;
-    }
-
-    @Override
-    public Long reduceInit() {
-        return 0L;
-    }
-
-    @Override
-    public Long reduce(final GenomeLoc value, Long reduce) {
-        if (value != null) {
-            out.println(value.toString());
-            reduce++;
-        }
-        return reduce;
-    }
-
-    @Override
-    public void onTraversalDone(Long reduce) {
-        logger.info(String.format("Found %d intervals", reduce));
-    }
+  def script() {
+    val fci = new FindCoveredIntervals
+    fci.R = referenceFile
+    fci.memoryLimit = 2
+    fci.scatterCount = 3
+    fci.I :+= bamFile
+    fci.out = outFile
+    add(fci)
+  }
 }
