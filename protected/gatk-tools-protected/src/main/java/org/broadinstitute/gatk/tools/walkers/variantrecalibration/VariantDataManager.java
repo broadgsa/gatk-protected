@@ -84,6 +84,8 @@ public class VariantDataManager {
     private final VariantRecalibratorArgumentCollection VRAC;
     protected final static Logger logger = Logger.getLogger(VariantDataManager.class);
     protected final List<TrainingSet> trainingSets;
+    private static final double SAFETY_OFFSET = 0.01;     //To use for example as 1/(X + SAFETY_OFFSET) to protect against dividing or taking log of X=0.
+    private static final double PRECISION = 0.01;         //To use mainly with MathUrils.compareDoubles(a,b,PRECISON)
 
     public VariantDataManager( final List<String> annotationKeys, final VariantRecalibratorArgumentCollection VRAC ) {
         this.data = Collections.emptyList();
@@ -334,15 +336,19 @@ public class VariantDataManager {
         int iii = 0;
         for( final String key : annotationKeys ) {
             isNull[iii] = false;
-            annotations[iii] = decodeAnnotation( key, vc, jitter );
+            annotations[iii] = decodeAnnotation( key, vc, jitter, VRAC );
             if( Double.isNaN(annotations[iii]) ) { isNull[iii] = true; }
             iii++;
         }
         datum.annotations = annotations;
         datum.isNull = isNull;
     }
+    /** Transforms an interval [xmin, xmax] to (-inf, +inf) **/
+    private static double logitTransform( final double x, final double xmin, final double xmax) {
+        return Math.log((x - xmin)/(xmax - x));
+    }
 
-    private static double decodeAnnotation( final String annotationKey, final VariantContext vc, final boolean jitter ) {
+    private static double decodeAnnotation( final String annotationKey, final VariantContext vc, final boolean jitter, final VariantRecalibratorArgumentCollection vrac ) {
         double value;
 
         final double LOG_OF_TWO = 0.6931472;
@@ -350,10 +356,20 @@ public class VariantDataManager {
         try {
             value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
             if( Double.isInfinite(value) ) { value = Double.NaN; }
-            if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("InbreedingCoeff") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("SOR") && MathUtils.compareDoubles(value, LOG_OF_TWO, 0.01) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
+            if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("InbreedingCoeff") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("SOR") && MathUtils.compareDoubles(value, LOG_OF_TWO, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
+            if( jitter && annotationKey.equalsIgnoreCase("MQ")) {
+                if( vrac.MQ_CAP > 0) {
+                    value = logitTransform(value, -SAFETY_OFFSET, vrac.MQ_CAP + SAFETY_OFFSET);
+                    if (MathUtils.compareDoubles(value, logitTransform(vrac.MQ_CAP, -SAFETY_OFFSET, vrac.MQ_CAP + SAFETY_OFFSET), PRECISION) == 0 ) {
+                        value += vrac.MQ_JITTER * Utils.getRandomGenerator().nextGaussian();
+                    }
+                } else if( MathUtils.compareDoubles(value, vrac.MQ_CAP, PRECISION) == 0 ) {
+                    value += vrac.MQ_JITTER * Utils.getRandomGenerator().nextGaussian();
+                }
+            }
         } catch( Exception e ) {
             value = Double.NaN; // The VQSR works with missing data by marginalizing over the missing dimension when evaluating the Gaussian mixture model
         }
