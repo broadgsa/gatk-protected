@@ -424,4 +424,20 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                                 " -o %s",
                         1, UserException.HardwareFeatureException.class));
     }
+
+    @Test
+    public void testHaplotypeCallerDcovException(){
+        executeTest("HaplotypeCallerDcovException",
+                new WalkerTest.WalkerTestSpec(
+                        " -T HaplotypeCaller" +
+                                " --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE --maxReadsInRegionPerSample 1000 " +
+                                " --minReadsPerAlignmentStart 5 --maxProbPropagationDistance 50 --activeProbabilityThreshold 0.002 " +
+                                " --no_cmdline_in_header -minPruning 3 -pairHMM VECTOR_LOGLESS_CACHING -pairHMMSub " + HMM_SUB_IMPLEMENTATION +
+                                " -dcov 50" +
+                                " -R " + REF +
+                                " -I " + NA12878_BAM +
+                                " -L " + INTERVALS_FILE +
+                                " -o %s",
+                        1, UserException.CommandLineException.class));
+    }
 }
