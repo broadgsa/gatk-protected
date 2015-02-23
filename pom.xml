@@ -138,6 +138,20 @@
                                 <excludes>${resource.bundle.path}</excludes>
                             </configuration>
                         </execution>
+                        <execution>
+                            <id>src-dependencies</id>
+                            <goals>
+                                <!-- use copy-dependencies instead if you don't want to explode the sources -->
+                                <goal>unpack-dependencies</goal>
+                            </goals>
+                            <phase>none</phase>
+                            <configuration>
+                                <classifier>sources</classifier>
+                                <failOnMissingClassifierArtifact>false</failOnMissingClassifierArtifact>
+                                <outputDirectory>${project.build.directory}/sources</outputDirectory>
+                                <includeGroupIds>${project.groupId}</includeGroupIds>
+                            </configuration>
+                        </execution>
                     </executions>
                 </plugin>
                 <!-- TODO: Change the ResourceBundleExtractorDoclet to not require log4j.properties file -->
@@ -409,6 +423,18 @@
                                 </descriptors>
                             </configuration>
                         </execution>
+                        <execution>
+                            <id>source-dist</id>
+                            <goals>
+                                <goal>single</goal>
+                            </goals>
+                            <phase>none</phase>
+                            <configuration>
+                                <descriptors>
+                                    <descriptor>src/main/assembly/source-dist.xml</descriptor>
+                                </descriptors>
+                            </configuration>
+                        </execution>
                     </executions>
                 </plugin>
 
@@ -452,6 +478,21 @@
                             </configuration>
                         </execution>
                         <execution>
+                            <id>link-source-jar</id>
+                            <goals>
+                                <goal>link</goal>
+                            </goals>
+                            <phase>none</phase>
+                            <configuration>
+                                <links>
+                                    <link>
+                                        <dst>${gatk.basedir}/target/${gatk.binary-dist.name}-sources.${project.packaging}</dst>
+                                        <src>${project.build.directory}/${project.build.finalName}-source-dist.${project.packaging}</src>
+                                    </link>
+                                </links>
+                            </configuration>
+                        </execution>
+                        <execution>
                             <id>link-git-release</id>
                             <goals>
                                 <goal>link</goal>
@@ -460,7 +501,7 @@
                             <configuration>
                                 <links>
                                     <link>
-                                        <dst>${project.build.directory}/${gatk.binary-dist.name}-${build.version}.tar.bz2</dst>
+                                        <dst>${gatk.basedir}/target/${gatk.binary-dist.name}-${build.version}.tar.bz2</dst>
                                         <src>${project.build.directory}/${project.build.finalName}-binary-dist.tar.bz2</src>
                                     </link>
                                 </links>
@@ -613,28 +654,23 @@
                                 <file>${project.build.directory}/${project.build.finalName}.${project.packaging}</file>
                             </configuration>
                         </execution>
+                        <execution>
+                            <id>install-source</id>
+                            <goals>
+                                <goal>install-file</goal>
+                            </goals>
+                            <phase>none</phase>
+                            <configuration>
+                                <classifier>sources</classifier>
+                                <groupId>${project.groupId}</groupId>
+                                <artifactId>${project.artifactId}</artifactId>
+                                <version>${project.version}</version>
+                                <packaging>${project.packaging}</packaging>
+                                <file>${project.build.directory}/${project.build.finalName}-source-dist.${project.packaging}</file>
+                            </configuration>
+                        </execution>
                     </executions>
                 </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>1.4</version>
-                    <executions>
-                      <execution>
-                        <id>enforce-java</id>
-                        <goals>
-                          <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                          <rules>
-                            <requireJavaVersion>
-                              <version>[1.7.0,)</version>
-                            </requireJavaVersion>
-                          </rules>
-                        </configuration>
-                      </execution>
-                    </executions>
-              </plugin>
             </plugins>
         </pluginManagement>
 

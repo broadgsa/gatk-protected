@@ -179,6 +179,10 @@
                         <id>unpack-direct-dependencies</id>
                         <phase>${gatk.unpack.phase}</phase>
                     </execution>
+                    <execution>
+                        <id>src-dependencies</id>
+                        <phase>${gatk.unpack.phase}</phase>
+                    </execution>
                 </executions>
             </plugin>
 
@@ -192,13 +196,16 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <executions>
                     <execution>
                         <id>binary-dist</id>
+                        <phase>${gatk.shade.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>source-dist</id>
                         <phase>${gatk.shade.phase}</phase>
                     </execution>
                 </executions>
@@ -210,6 +217,10 @@
                 <executions>
                     <execution>
                         <id>link-binary-jar</id>
+                        <phase>${gatk.shade.phase}</phase>
+                    </execution>
+                    <execution>
+                        <id>link-source-jar</id>
                         <phase>${gatk.shade.phase}</phase>
                     </execution>
                     <execution>
@@ -231,6 +242,17 @@
                         <id>install-package</id>
                         <phase>install</phase>
                     </execution>
+                    <execution>
+                        <id>install-source</id>
+                        <phase>install</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>2.10</version>
+                <executions>
                 </executions>
             </plugin>
 
