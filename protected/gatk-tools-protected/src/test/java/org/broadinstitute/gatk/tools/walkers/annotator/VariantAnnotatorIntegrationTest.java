@@ -54,9 +54,12 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -160,6 +163,19 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
         File file = new File(logFileName);
         Assert.assertTrue(FileUtils.readFileToString(file).contains("Annotation will not be calculated, must be called from HaplotyepCaller"));
+    }
+
+    @Test
+    public void testAskingGCContent() throws IOException{
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " --variant " + privateTestDir + "vcfexample2.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000 -A GCContent", 1,
+                Arrays.asList("02f634fd978cf2a66738704581508569"));
+        final File outputVCF = executeTest("test file has annotations, adding GCContent annotation", spec).getFirst().get(0);
+        final VCFCodec codec = new VCFCodec();
+        final VCFHeader header = (VCFHeader) codec.readActualHeader(codec.makeSourceFromStream(new FileInputStream(outputVCF)));
+        final VCFHeaderLine infoLineGC = header.getInfoHeaderLine(GATKVCFConstants.GC_CONTENT_KEY);
+        // GC content must be a Float type
+        Assert.assertTrue(infoLineGC.toString().contains("Type=Float"));
     }
 
     @Test
