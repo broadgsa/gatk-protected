@@ -156,6 +156,7 @@ import java.util.*;
 @BAQMode(QualityMode = BAQ.QualityMode.ADD_TAG, ApplicationTime = ReadTransformer.ApplicationTime.ON_INPUT)
 @ReadFilters( {BadMateFilter.class, MappingQualityUnavailableFilter.class} )
 @Reference(window=@Window(start=-200,stop=200))
+@PartitionBy(value = PartitionType.LOCUS, includeUnmapped = false)
 @By(DataSource.REFERENCE)
 // TODO -- When LocusIteratorByState gets cleaned up, we should enable multiple @By sources:
 // TODO -- @By( {DataSource.READS, DataSource.REFERENCE_ORDERED_DATA} )
