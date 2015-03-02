@@ -261,6 +261,23 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         Assert.assertTrue(gVCFList.containsAll(outputVCFList));
     }
 
+    @Test
+    public void testUniquifiedSamples() throws IOException {
+        //two copies of 5 samples; will also test InbreedingCoeff calculation for uniquified samples
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V:sample1 " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
+                        " -V:sample1B " + privateTestDir + "combine.single.sample.pipeline.1.vcf" +
+                        " -V:sample2 " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
+                        " -V:sample2B " + privateTestDir + "combine.single.sample.pipeline.2.vcf" +
+                        " -V:combined1 " + privateTestDir + "combine.single.sample.pipeline.combined.vcf" +
+                        " -V:combined2 " + privateTestDir + "combine.single.sample.pipeline.combined.vcf" +
+                        " --uniquifySamples", b37KGReference),
+                1,
+                Arrays.asList("ef6a96d57434bb63935fa7d9f012da9f"));
+        executeTest("testUniquifiedSamples", spec);
+
+    }
+
     /**
      * Returns a list of attribute values from a VCF file
      *

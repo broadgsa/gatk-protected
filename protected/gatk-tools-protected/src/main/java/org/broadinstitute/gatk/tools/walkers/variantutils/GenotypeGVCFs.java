@@ -60,6 +60,7 @@ import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
 import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
@@ -137,7 +138,15 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     @Argument(fullName="includeNonVariantSites", shortName="allSites", doc="Include loci found to be non-variant after genotyping", required=false)
     public boolean INCLUDE_NON_VARIANTS = false;
 
-    @ArgumentCollection
+    /**
+     * Uniquify all sample names (intended for use with multiple inputs for the same sample)
+     */
+    @Hidden
+    @Advanced
+    @Argument(fullName="uniquifySamples", shortName="uniquifySamples", doc="Assume duplicate samples are present and uniquify all names with '.variant' and file number index")
+    public boolean uniquifySamples = false;
+
+   @ArgumentCollection
     public GenotypeCalculationArgumentCollection genotypeArgs = new GenotypeCalculationArgumentCollection();
 
     /**
@@ -166,13 +175,33 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
 
     public void initialize() {
+        boolean inputsAreTagged = false;
+
         // collect the actual rod bindings into a list for use later
-        for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
+        for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections ) {
             variants.addAll(variantCollection.getRodBindings());
+            if (uniquifySamples) {
+                for (final RodBinding<VariantContext> rb : variantCollection.getRodBindings()) {
+                    //are inputs passed in with -V:fileTag ?
+                    if (!rb.getTags().isEmpty()) inputsAreTagged = true;
+                }
+            }
+        }
+        //RodBinding tags are used in sample uniquification
+        if (inputsAreTagged)
+            logger.warn("Output uniquified VCF may not be suitable for input to CombineSampleData because input VCF(s) contain tags.");
 
         final GenomeAnalysisEngine toolkit = getToolkit();
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(toolkit, variants);
-        final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE));
+
+        final GATKVariantContextUtils.GenotypeMergeType mergeType;
+        if(uniquifySamples) {
+            mergeType = GATKVariantContextUtils.GenotypeMergeType.UNIQUIFY;
+        }
+        else
+            mergeType = GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE;
+
+        final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, mergeType));
         // create the genotyping engine
         genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
                 toolkit.getArguments().BAQMode);
@@ -201,7 +230,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             return null;
 
         final GenomeLoc loc = ref.getLocus();
-        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
+        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true, uniquifySamples);
         if ( combinedVC == null )
             return null;
         return regenotypeVC(tracker, ref, combinedVC);
@@ -334,6 +363,10 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             recoveredGs.add(builder.noAttributes().attributes(attrs).make());
         }
         return recoveredGs;
+    }
+
+    private void checkRODtags() {
+
     }
 
     /**
