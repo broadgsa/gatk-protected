@@ -148,6 +148,16 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     @Argument(fullName="convertToBasePairResolution", shortName="bpResolution", doc = "If specified, convert banded gVCFs to all-sites gVCFs", required=false)
     protected boolean USE_BP_RESOLUTION = false;
 
+    /**
+     * To reduce file sizes our gVCFs group similar reference positions into bands.  However, there are cases when users will want to know that no bands
+     * span across a given genomic position (e.g. when scatter-gathering jobs across a compute farm).  The option below enables users to break bands at
+     * pre-defined positions.  For example, a value of 10,000 would mean that we would ensure that no bands span across chr1:10000, chr1:20000, etc.
+     *
+     * Note that the --convertToBasePairResolution argument is just a special case of this argument with a value of 1.
+     */
+    @Argument(fullName="breakBandsAtMultiplesOf", shortName="breakBandsAtMultiplesOf", doc = "If > 0, reference bands will be broken up at genomic positions that are multiples of this number", required=false)
+    protected int multipleAtWhichToBreakBands = 0;
+
     private GenomeLocParser genomeLocParser;
 
     public void initialize() {
@@ -164,6 +174,10 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
             variants.addAll(variantCollection.getRodBindings());
 
         genomeLocParser = getToolkit().getGenomeLocParser();
+
+        // optimization to prevent mods when we always just want to break bands
+        if ( multipleAtWhichToBreakBands == 1 )
+            USE_BP_RESOLUTION = true;
     }
 
     public PositionalState map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
@@ -192,11 +206,23 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
         }
 
-        if ( USE_BP_RESOLUTION || containsEndingContext(previousState.VCs, startingStates.loc.getStart()) ) {
+        if ( breakBand(startingStates.loc) || containsEndingContext(previousState.VCs, startingStates.loc.getStart()) ) {
             endPreviousStates(previousState, startingStates.loc, startingStates, true);
         }
 
         return previousState;
+    }
+
+    /**
+     * Should we break bands at the given position?
+     *
+     * @param loc  the genomic location to evaluate against
+     *
+     * @return true if we should ensure that bands should be broken at the given position, false otherwise
+     */
+    private boolean breakBand(final GenomeLoc loc) {
+        return USE_BP_RESOLUTION ||
+                (loc != null && multipleAtWhichToBreakBands > 0 && (loc.getStart()+1) % multipleAtWhichToBreakBands == 0);  // add +1 to the loc because we want to break BEFORE this base
     }
 
     /**

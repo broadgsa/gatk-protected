@@ -204,6 +204,14 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testBreakBlocks() throws Exception {
+        final String cmd = baseTestString(" -L 1:69485-69791 --breakBandsAtMultiplesOf 5");
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("3a8e53b8b590eaa2675149ceccb80a7a"));
+        spec.disableShadowBCF();
+        executeTest("testBreakBlocks", spec);
+    }
+
+    @Test
     public void testWrongReferenceBaseBugFix() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input1.vcf"
                 + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input2.vcf") + " -o %s --no_cmdline_in_header");
