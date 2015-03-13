@@ -60,7 +60,6 @@ import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
 import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
@@ -154,7 +153,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      */
     @Advanced
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute.  The single value 'none' removes the default annotations", required=false)
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "GenotypeSummaries", "StrandOddsRatio"}));
+    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "StrandOddsRatio"}));
 
     /**
      * The rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate. Note that dbSNP is not used in any way for the calculations themselves.
@@ -215,6 +214,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         // add the pool values for each genotype
         headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
         headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+        headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.REFERENCE_GENOTYPE_QUALITY));
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
             VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
@@ -311,6 +311,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * 2. propagate DP to AD if not present
      * 3. remove SB if present
      * 4. change the PGT value from "0|1" to "1|1" for homozygous variant genotypes
+     * 5. move GQ to RGQ if the site is monomorphic
      *
      * @param VC            the VariantContext with the Genotypes to fix
      * @param createRefGTs  if true we will also create proper hom ref genotypes since we assume the site is monomorphic
@@ -330,6 +331,12 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
                 depth = Integer.parseInt((String)oldGT.getAnyAttribute("MIN_DP"));
                 builder.DP(depth);
                 attrs.remove("MIN_DP");
+            }
+
+            // move the GQ to RGQ
+            if ( createRefGTs && oldGT.hasGQ() ) {
+                builder.noGQ();
+                attrs.put(GATKVCFConstants.REFERENCE_GENOTYPE_QUALITY, oldGT.getGQ());
             }
 
             // remove SB

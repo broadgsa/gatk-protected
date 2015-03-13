@@ -340,7 +340,7 @@ public class ReferenceConfidenceVariantContextMerger {
                             : genotypeIndexMapsByPloidy[ploidy];
                 final int[] PLs = generatePL(g, genotypeIndexMapByPloidy);
                 final int[] AD = g.hasAD() ? generateAD(g.getAD(), perSampleIndexesOfRelevantAlleles) : null;
-                genotypeBuilder.PL(PLs).AD(AD).noGQ();
+                genotypeBuilder.PL(PLs).AD(AD);
             }
             mergedGenotypes.add(genotypeBuilder.make());
         }
