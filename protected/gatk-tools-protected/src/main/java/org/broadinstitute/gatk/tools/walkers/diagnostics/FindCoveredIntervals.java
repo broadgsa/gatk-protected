@@ -94,7 +94,7 @@ import java.io.PrintStream;
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
-@PartitionBy(value = PartitionType.CONTIG, includeUnmapped = false)
+@PartitionBy(value = PartitionType.CONTIG)
 @ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)
 public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
     @Output
