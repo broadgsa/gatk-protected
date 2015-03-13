@@ -100,7 +100,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "tetraploid-gvcf-3.vcf" +
                         " -L " + privateTestDir + "tetraploid-gvcfs.intervals",
                 1,
-                Arrays.asList("20f55be01d01bed48bf66f354fa72e5b"));
+                Arrays.asList("7b3153135e4f8e1d137d3f4beb46f182"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -112,7 +112,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "diploid-gvcf-3.vcf" +
                         " -L " + privateTestDir + "tetraploid-gvcfs.intervals",
                 1,
-                Arrays.asList("c8bf3da5eb641d0082bdd5f12ea58e1e"));
+                Arrays.asList("4f546634213ece6f08ec9258620b92bb"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -190,7 +190,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testMD5s() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("1df56fdfc71729cc82ba5dbfc75a72c4"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("b7c753452ab0c05f9cee538e420b87fa"));
         spec.disableShadowBCF();
         executeTest("testMD5s", spec);
     }
@@ -198,7 +198,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBasepairResolutionOutput() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791 --convertToBasePairResolution");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("9c8fc4d9e330fbe41a00b7f71a784f4e"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("bb6420ead95da4c72e76ca4bf5860ef0"));
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionOutput", spec);
     }
@@ -206,7 +206,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBreakBlocks() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791 --breakBandsAtMultiplesOf 5");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("3a8e53b8b590eaa2675149ceccb80a7a"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("dd31182124c4b78a8a03edb1e0cf618b"));
         spec.disableShadowBCF();
         executeTest("testBreakBlocks", spec);
     }
@@ -215,7 +215,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     public void testWrongReferenceBaseBugFix() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input1.vcf"
                 + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input2.vcf") + " -o %s --no_cmdline_in_header");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("04fa9d6084e4b3a7ea2ebe5675561e2f"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("75d81c247bef5e394b4a2d4126aee2b3"));
         spec.disableShadowBCF();
         executeTest("testWrongReferenceBaseBugFix",spec);
 
@@ -224,7 +224,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBasepairResolutionInput() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V " + privateTestDir + "gvcf.basepairResolution.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d3b3f0c8d8f8ef09475306a7814ddd38"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("994ff5c219c683635eadc1624cbbda74"));
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionInput", spec);
     }
