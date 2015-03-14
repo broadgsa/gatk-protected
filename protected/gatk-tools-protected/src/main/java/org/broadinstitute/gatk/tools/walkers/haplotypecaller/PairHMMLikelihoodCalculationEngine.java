@@ -129,11 +129,22 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
 
     public enum PCR_ERROR_MODEL {
         /** no specialized PCR error model will be applied; if base insertion/deletion qualities are present they will be used */
-        NONE,
+        NONE(null),
+        /** a most aggressive model will be applied that sacrifices true positives in order to remove more false positives */
+        HOSTILE(1.0),
         /** a more aggressive model will be applied that sacrifices true positives in order to remove more false positives */
-        AGGRESSIVE,
+        AGGRESSIVE(2.0),
         /** a less aggressive model will be applied that tries to maintain a high true positive rate at the expense of allowing more false positives */
-        CONSERVATIVE
+        CONSERVATIVE(3.0);
+
+        private final Double rateFactor;
+
+        /** rate factor is applied to the PCR error model.  Can be null to imply no correction */
+        PCR_ERROR_MODEL(Double rateFactor) {
+            this.rateFactor = rateFactor;
+        }
+        private Double getRateFactor() { return rateFactor; }
+        private boolean hasRateFactor() { return rateFactor != null; }
     }
 
     private final PCR_ERROR_MODEL pcrErrorModel;
@@ -421,14 +432,14 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
     private final RepeatCovariate repeatCovariate = new RepeatLengthCovariate();
 
     private void initializePCRErrorModel() {
-        if ( pcrErrorModel == PCR_ERROR_MODEL.NONE )
+        if ( pcrErrorModel == PCR_ERROR_MODEL.NONE || !pcrErrorModel.hasRateFactor() )
             return;
 
         repeatCovariate.initialize(MAX_STR_UNIT_LENGTH, MAX_REPEAT_LENGTH);
 
         pcrIndelErrorModelCache = new byte[MAX_REPEAT_LENGTH + 1];
 
-        final double rateFactor = pcrErrorModel == PCR_ERROR_MODEL.AGGRESSIVE ? 2.0 : 3.0;
+        final double rateFactor = pcrErrorModel.getRateFactor();
 
         for( int iii = 0; iii <= MAX_REPEAT_LENGTH; iii++ )
             pcrIndelErrorModelCache[iii] = getErrorModelAdjustedQual(iii, rateFactor);

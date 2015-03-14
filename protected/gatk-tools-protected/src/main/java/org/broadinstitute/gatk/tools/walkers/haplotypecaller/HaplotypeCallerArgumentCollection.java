@@ -64,11 +64,11 @@ public class HaplotypeCallerArgumentCollection extends StandardCallerArgumentCol
 
     @Advanced
     @Argument(fullName="debug", shortName="debug", doc="Print out very verbose debug information about each triggering active region", required = false)
-    protected boolean DEBUG;
+    public boolean DEBUG;
 
     @Advanced
     @Argument(fullName="useFilteredReadsForAnnotations", shortName="useFilteredReadsForAnnotations", doc = "Use the contamination-filtered read maps for the purposes of annotating variants", required=false)
-    protected boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = false;
+    public boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = false;
 
     /**
      * The reference confidence mode makes it possible to emit a per-bp or summarized confidence estimate for a site being strictly homozygous-reference.

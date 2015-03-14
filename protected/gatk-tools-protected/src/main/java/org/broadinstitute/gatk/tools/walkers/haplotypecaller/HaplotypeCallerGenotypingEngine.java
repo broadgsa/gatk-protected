@@ -78,7 +78,7 @@ import java.util.*;
  */
 public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeCallerArgumentCollection> {
 
-    private static final int ALLELE_EXTENSION = 2;
+    protected static final int ALLELE_EXTENSION = 2;
     private static final String phase01 = "0|1";
     private static final String phase10 = "1|0";
 
@@ -139,7 +139,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
         private final List<VariantContext> calls;
         private final Set<Haplotype> calledHaplotypes;
 
-        protected CalledHaplotypes(final List<VariantContext> calls, final Set<Haplotype> calledHaplotypes) {
+        public CalledHaplotypes(final List<VariantContext> calls, final Set<Haplotype> calledHaplotypes) {
             if ( calls == null ) throw new IllegalArgumentException("calls cannot be null");
             if ( calledHaplotypes == null ) throw new IllegalArgumentException("calledHaplotypes cannot be null");
             if ( Utils.xor(calls.isEmpty(), calledHaplotypes.isEmpty()) )
@@ -531,7 +531,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
 
     // Builds the read-likelihoods collection to use for annotation considering user arguments and the collection
     // used for genotyping.
-    private ReadLikelihoods<Allele> prepareReadAlleleLikelihoodsForAnnotation(
+    protected ReadLikelihoods<Allele> prepareReadAlleleLikelihoodsForAnnotation(
             final ReadLikelihoods<Haplotype> readHaplotypeLikelihoods,
             final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
             final GenomeLocParser genomeLocParser,
@@ -596,7 +596,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * @param activeAllelesToGenotype alleles we want to ensure are scheduled for genotyping (GGA mode)
      * @return never {@code null} but perhaps an empty list if there is no variants to report.
      */
-    private TreeSet<Integer> decomposeHaplotypesIntoVariantContexts(final List<Haplotype> haplotypes,
+    protected TreeSet<Integer> decomposeHaplotypesIntoVariantContexts(final List<Haplotype> haplotypes,
                                                                     final ReadLikelihoods readLikelihoods,
                                                                     final byte[] ref,
                                                                     final GenomeLoc refLoc,
@@ -628,13 +628,13 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * @param vcs a list of variant contexts
      * @return the list of the sources of vcs in the same order
      */
-    private List<String> makePriorityList(final List<VariantContext> vcs) {
+    protected List<String> makePriorityList(final List<VariantContext> vcs) {
         final List<String> priorityList = new LinkedList<>();
         for ( final VariantContext vc : vcs ) priorityList.add(vc.getSource());
         return priorityList;
     }
 
-    private List<VariantContext> getVCsAtThisLocation(final List<Haplotype> haplotypes,
+    protected List<VariantContext> getVCsAtThisLocation(final List<Haplotype> haplotypes,
                                                       final int loc,
                                                       final List<VariantContext> activeAllelesToGenotype) {
         // the overlapping events to merge into a common reference view
@@ -687,7 +687,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      */
     @Requires({"readLikelihoods!= null", "mergedVC != null"})
     @Ensures("result != null")
-    private GenotypesContext calculateGLsForThisEvent( final ReadLikelihoods<Allele> readLikelihoods, final VariantContext mergedVC, final List<Allele> noCallAlleles ) {
+    protected GenotypesContext calculateGLsForThisEvent( final ReadLikelihoods<Allele> readLikelihoods, final VariantContext mergedVC, final List<Allele> noCallAlleles ) {
         final List<Allele> vcAlleles = mergedVC.getAlleles();
         final AlleleList<Allele> alleleList = readLikelihoods.alleleCount() == vcAlleles.size() ? readLikelihoods : new IndexedAlleleList<>(vcAlleles);
         final GenotypingLikelihoods<Allele> likelihoods = genotypingModel.calculateLikelihoods(alleleList,new GenotypingData<>(ploidyModel,readLikelihoods));

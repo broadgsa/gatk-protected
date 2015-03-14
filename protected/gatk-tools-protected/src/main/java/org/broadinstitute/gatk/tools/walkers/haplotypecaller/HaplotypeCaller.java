@@ -1360,7 +1360,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         return splitReadsBySample(samplesList, reads);
     }
 
-    private static Map<String, List<GATKSAMRecord>> splitReadsBySample( final SampleList samplesList, final Collection<GATKSAMRecord> reads ) {
+    public static Map<String, List<GATKSAMRecord>> splitReadsBySample( final SampleList samplesList, final Collection<GATKSAMRecord> reads ) {
         final Map<String, List<GATKSAMRecord>> returnMap = new HashMap<>();
         final int sampleCount = samplesList.sampleCount();
         for (int i = 0; i < sampleCount; i++)
