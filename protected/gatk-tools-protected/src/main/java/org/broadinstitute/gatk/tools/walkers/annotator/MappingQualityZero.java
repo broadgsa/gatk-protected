@@ -104,7 +104,7 @@ public class MappingQualityZero extends InfoFieldAnnotation implements StandardA
     private Map<String, Object> annotatePileup(final ReferenceContext ref,
                                                final Map<String, AlignmentContext> stratifiedContexts,
                                                final VariantContext vc) {
-        if ( stratifiedContexts.size() == 0 )
+        if ( stratifiedContexts.isEmpty() )
             return null;
 
         int mq0 = 0;
@@ -123,7 +123,7 @@ public class MappingQualityZero extends InfoFieldAnnotation implements StandardA
 
     private Map<String, Object> annotateWithLikelihoods(final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
                                                         final VariantContext vc) {
-        if (stratifiedPerReadAlleleLikelihoodMap == null)
+        if ( stratifiedPerReadAlleleLikelihoodMap == null )
             return null;
 
         int mq0 = 0;
