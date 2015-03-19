@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotyper;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -152,9 +153,9 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
             return null;
 
         final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
-        // Hack: when refContext == null then we know we are coming from the HaplotypeCaller and do not want to do a
-        //  full length-based normalization (because the indel length problem is present only in the UnifiedGenotyper)
-        double QD = -10.0 * vc.getLog10PError() / ((double)standardDepth * indelNormalizationFactor(altAlleleLength, ref != null));
+        // Hack: UnifiedGenotyper (but not HaplotypeCaller or GenotypeGVCFs) over-estimates the quality of long indels
+        //       Penalize the QD calculation for UG indels to compensate for this
+        double QD = -10.0 * vc.getLog10PError() / ((double)standardDepth * indelNormalizationFactor(altAlleleLength, walker instanceof UnifiedGenotyper));
 
         // Hack: see note in the fixTooHighQD method below
         QD = fixTooHighQD(QD);
