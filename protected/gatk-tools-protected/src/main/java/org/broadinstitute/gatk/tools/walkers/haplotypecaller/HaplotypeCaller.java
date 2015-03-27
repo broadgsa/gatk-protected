@@ -57,6 +57,7 @@ import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.io.DirectOutputTracker;
@@ -71,6 +72,7 @@ import org.broadinstitute.gatk.engine.filters.BadMateFilter;
 import org.broadinstitute.gatk.utils.genotyper.*;
 import org.broadinstitute.gatk.utils.sam.GATKSAMFileWriter;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
+import org.broadinstitute.gatk.engine.io.stubs.VariantContextWriterStub;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
@@ -709,10 +711,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     ReferenceConfidenceModel referenceConfidenceModel = null;
 
-    // as determined experimentally Nov-Dec 2013
-    public final static GATKVCFIndexType OPTIMAL_GVCF_INDEX_TYPE = GATKVCFIndexType.LINEAR;
-    public final static int OPTIMAL_GVCF_INDEX_PARAMETER = 128000;
-
     //---------------------------------------------------------------------------------------------------------------
     //
     // initialize
@@ -893,10 +891,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                 throw new UserException.BadArgumentValue("emitRefConfidence", "Can only be used in single sample mode currently. Use the sample_name argument to run on a single sample out of a multi-sample BAM file.");
             headerInfo.addAll(referenceConfidenceModel.getVCFHeaderLines());
             if ( SCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) {
-                // a kluge to enforce the use of this indexing strategy
-                if (getToolkit().getArguments().variant_index_type != OPTIMAL_GVCF_INDEX_TYPE ||
-                        getToolkit().getArguments().variant_index_parameter != OPTIMAL_GVCF_INDEX_PARAMETER) {
-                    throw new UserException.GVCFIndexException(OPTIMAL_GVCF_INDEX_TYPE, OPTIMAL_GVCF_INDEX_PARAMETER);
+                // A kluge to enforce the use of this indexing strategy - must set the gVCF indexing values if not a using a gVCF output file .
+                // An output gVCF file automatically sets the indexing values because it has the .g.vcf extension.
+                if (!GATKVCFUtils.usingGVCFIndexingArguments(getToolkit().getArguments().variant_index_type, getToolkit().getArguments().variant_index_parameter) && !isGVCF()) {
+                    throw new UserException.GVCFIndexException(GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
                 }
 
                 try {
@@ -1403,5 +1401,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
         activeRegion.removeAll( readsToRemove );
 
+    }
+
+    /**
+     * Is writing to an output GVCF file?
+     *
+     * @return true if the VCF output file has a .g.vcf extension
+     */
+    private boolean isGVCF() {
+            return ((VariantContextWriterStub) vcfWriter).getOutputFile().getName().endsWith("." + GATKVCFUtils.GVCF_EXT);
     }
 }

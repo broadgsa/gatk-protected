@@ -362,7 +362,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -dontTrimActiveRegions -ERC GVCF " +
                 "-likelihoodEngine GraphBased -variant_index_type %s -variant_index_parameter %d",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReferenceWithDecoy, privateTestDir + "graphbased_no_such_edge_bug.bam", privateTestDir + "graphbased_no_such_edge_bug.intervals.bed",
-                HaplotypeCaller.OPTIMAL_GVCF_INDEX_TYPE, HaplotypeCaller.OPTIMAL_GVCF_INDEX_PARAMETER);
+                GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(""));
         spec.disableShadowBCF();
         executeTest("testGraphBasedNoSuchEdgeBugFix", spec);
