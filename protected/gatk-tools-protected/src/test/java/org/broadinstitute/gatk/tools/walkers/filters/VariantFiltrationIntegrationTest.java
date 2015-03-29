@@ -145,6 +145,14 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testInvertFilter() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " --filterName ABF -filter 'AlleleBalance < 0.7' --filterName FSF -filter 'FisherStrand == 1.4' --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000 --invert_filter_expression", 1,
+                Arrays.asList("d478fd6bcf0884133fe2a47adf4cd765"));
+        executeTest("test inversion of selection of filter with separate names #2", spec);
+    }
+
+    @Test
     public void testGenotypeFilters1() {
         WalkerTestSpec spec1 = new WalkerTestSpec(
                 baseTestString() + " -G_filter 'GQ == 0.60' -G_filterName foo --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000", 1,
@@ -193,5 +201,14 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
                         + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormat.vcf", 1,
                 Arrays.asList("e10485c7c33d9211d0c1294fd7858476"));
         executeTest("testFilteringDPfromFORMAT", spec);
+    }
+
+    @Test
+    public void testInvertGenotypeFilterExpression() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
+                        + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName highDP -V " + privateTestDir + "filteringDepthInFormat.vcf --invert_genotype_filter_expression", 1,
+                Arrays.asList("d2664870e7145eb73a2295766482c823"));
+        executeTest("testInvertGenotypeFilterExpression", spec);
     }
 }
