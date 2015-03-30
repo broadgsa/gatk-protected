@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -81,7 +82,7 @@ import java.util.*;
  * </ul>
  *
  */
-public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardAnnotation {
+public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
     private final static Logger logger = Logger.getLogger(TandemRepeatAnnotator.class);
     private boolean walkerIdentityCheckWarningLogged = false;
 
@@ -92,15 +93,6 @@ public class TandemRepeatAnnotator extends InfoFieldAnnotation implements Standa
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) throws UserException {
-
-        // Can not be called from HaplotypeCaller
-        if ( walker instanceof HaplotypeCaller ) {
-            if ( !walkerIdentityCheckWarningLogged ) {
-                logger.warn("Annotation will not be calculated, can not be called from HaplotypeCaller");
-                walkerIdentityCheckWarningLogged = true;
-            }
-            return null;
-        }
 
         if ( !vc.isIndel())
             return null;

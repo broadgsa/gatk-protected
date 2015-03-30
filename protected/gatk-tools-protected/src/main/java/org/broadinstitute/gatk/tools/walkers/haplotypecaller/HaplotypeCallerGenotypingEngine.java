@@ -54,6 +54,7 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.AlleleList;
 import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
 import org.broadinstitute.gatk.utils.genotyper.SampleList;
@@ -272,7 +273,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
                     readAlleleLikelihoods = prepareReadAlleleLikelihoodsForAnnotation(readLikelihoods, perSampleFilteredReadList,
                             genomeLocParser, emitReferenceConfidence, alleleMapper, readAlleleLikelihoods, call);
 
-                    VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(tracker,readAlleleLikelihoods, call);
+                    ReferenceContext referenceContext = new ReferenceContext(genomeLocParser, genomeLocParser.createGenomeLoc(mergedVC.getChr(), mergedVC.getStart(), mergedVC.getEnd()), refLoc, ref);
+                    VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(referenceContext, tracker,readAlleleLikelihoods, call);
 
                     if( call.getAlleles().size() != mergedVC.getAlleles().size() )
                        annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);

@@ -443,4 +443,9 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                                 " -o %s",
                         1, UserException.CommandLineException.class));
     }
+
+    @Test
+    public void testHaplotypeCallerTandemRepeatAnnotator() throws IOException{
+        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A TandemRepeatAnnotator -XA MappingQualityZero -XA SpanningDeletions", "ab9907559e5b20dadbb6f24d02b8070c");
+    }
 }
