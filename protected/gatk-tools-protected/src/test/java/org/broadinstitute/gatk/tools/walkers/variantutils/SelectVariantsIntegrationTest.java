@@ -291,6 +291,19 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testKeepOriginalDP() {
+        String testFile = privateTestDir + "CEUtrioTest.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --keepOriginalDP -R " + b37KGReference + " -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("e897097a47aee5516dc4f1c0b9d69037")
+        );
+
+        executeTest("testKeepOriginalDP--" + testFile, spec);
+    }
+
+    @Test
     public void testMultipleRecordsAtOnePosition() {
         String testFile = privateTestDir + "selectVariants.onePosition.vcf";
 
