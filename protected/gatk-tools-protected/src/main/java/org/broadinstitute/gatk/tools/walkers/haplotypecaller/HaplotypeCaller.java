@@ -828,6 +828,9 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         vcfWriter.writeHeader(new VCFHeader(headerInfo, sampleSet));
 
+        //now that we have all the VCF headers, initialize the annotations (this is particularly important to turn off RankSumTest dithering in integration tests)
+        annotationEngine.invokeAnnotationInitializationMethods(headerInfo);
+
         try {
             // fasta reference reader to supplement the edges of the reference sequence
             referenceReader = new CachingIndexedFastaSequenceFile(getToolkit().getArguments().referenceFile);
