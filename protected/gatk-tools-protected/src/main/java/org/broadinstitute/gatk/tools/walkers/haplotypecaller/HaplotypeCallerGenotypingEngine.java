@@ -77,7 +77,7 @@ import java.util.*;
 /**
  * {@link HaplotypeCaller}'s genotyping strategy implementation.
  */
-public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeCallerArgumentCollection> {
+public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBasedCallerArgumentCollection> {
 
     protected static final int ALLELE_EXTENSION = 2;
     private static final String phase01 = "0|1";
@@ -98,7 +98,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<HaplotypeC
      * @param genomeLocParser {@inheritDoc}
      * @param doPhysicalPhasing whether to try physical phasing.
      */
-    public HaplotypeCallerGenotypingEngine(final HaplotypeCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doPhysicalPhasing) {
+    public HaplotypeCallerGenotypingEngine(final AssemblyBasedCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doPhysicalPhasing) {
         super(configuration,samples,genomeLocParser,afCalculatorProvider);
         if (genomeLocParser == null)
             throw new IllegalArgumentException("the genome location parser provided cannot be null");
