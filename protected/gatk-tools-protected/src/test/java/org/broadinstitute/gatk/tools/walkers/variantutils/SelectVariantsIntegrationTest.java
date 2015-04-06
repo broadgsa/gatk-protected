@@ -428,4 +428,64 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         );
         executeTest(String.format("testUnusedAlleleTrimming: (%s,%s)", new File(vcf).getName(), extraArgs), spec);
     }
+
+    /**
+     *  Test with an empty VCF file
+     */
+    @Test
+    public void testEmptyVcfException(){
+        String testfile = privateTestDir + "reallyEmpty.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants" +
+                        " -R " + b36KGReference +
+                        " -V " + testfile +
+                        " -o %s --no_cmdline_in_header",
+                1,
+                UserException.CommandLineException.class
+        );
+        spec.disableShadowBCF();
+
+        executeTest("testEmptyVcfException--" + testfile, spec);
+    }
+
+    /**
+     * Test with a VCF file that is not a file
+     */
+    @Test
+    public void testNotFileVcfException(){
+        String testfile = privateTestDir;
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants" +
+                        " -R " + b36KGReference +
+                        " -V " + testfile +
+                        " -o %s --no_cmdline_in_header",
+                1,
+                UserException.CouldNotReadInputFile.class
+        );
+        spec.disableShadowBCF();
+
+        executeTest("testNotFileVcfException--" + testfile, spec);
+    }
+
+    /**
+     * Test with a VCF file that does not exist
+     */
+    @Test
+    public void testMissingVcfException(){
+        String testfile = "test.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants" +
+                        " -R " + b36KGReference +
+                        " -V " + testfile +
+                        " -o %s --no_cmdline_in_header",
+                1,
+                UserException.CouldNotReadInputFile.class
+        );
+        spec.disableShadowBCF();
+
+        executeTest("testMissingVcfException--" + testfile, spec);
+    }
 }
