@@ -78,6 +78,7 @@ public class VariantContextMergerUnitTest  extends BaseTest {
     Allele ATref;
     Allele Anoref;
     Allele GT;
+    Allele del;
 
     private GenomeLocParser genomeLocParser;
 
@@ -94,6 +95,7 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         ATCATCT = Allele.create("ATCATCT");
         ATref = Allele.create("AT",true);
         Anoref = Allele.create("A",false);
+        del = GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE;
         GT = Allele.create("GT",false);
         genomeLocParser = new GenomeLocParser(new CachingIndexedFastaSequenceFile(new File(hg18Reference)));
     }
@@ -217,6 +219,7 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         final List<Allele> AA_A_ALT = Arrays.asList(AAref, A, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         final Genotype gAA_A_ALT = new GenotypeBuilder("AA_A").PL(standardPLs).alleles(noCalls).make();
         final VariantContext vcAA_A_ALT = new VariantContextBuilder(VCprevBase).alleles(AA_A_ALT).genotypes(gAA_A_ALT).make();
+        final List<Allele> A_C_del = Arrays.asList(Aref, C, del);
 
         // first test the case of a single record
         tests.add(new Object[]{"test00",Arrays.asList(vcA_C_ALT),
@@ -249,18 +252,19 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         // a SNP with a spanning deletion
         tests.add(new Object[]{"test06",Arrays.asList(vcA_C_ALT, vcAA_A_ALT),
                 loc, false, false,
-                new VariantContextBuilder(VCbase).alleles(A_C).genotypes(gA_C, new GenotypeBuilder("AA_A").PL(new int[]{30, 71, 73}).alleles(noCalls).make()).make()});
+                new VariantContextBuilder(VCbase).alleles(A_C_del).genotypes(new GenotypeBuilder("A_C").PL(new int[]{30, 20, 10, 71, 72, 73}).alleles(noCalls).make(),
+                        new GenotypeBuilder("AA_A").PL(new int[]{30, 71, 73, 20, 72, 10}).alleles(noCalls).make()).make()});
 
         // combination of all
         tests.add(new Object[]{"test07",Arrays.asList(vcA_C_ALT, vcA_G_ALT, vcA_ATC_ALT, vcA_C_G_ALT, vcA_ALT, vcAA_ALT, vcAA_A_ALT),
                 loc, false, false,
-                new VariantContextBuilder(VCbase).alleles(Arrays.asList(Aref, C, G, ATC)).genotypes(new GenotypeBuilder("A_C").PL(new int[]{30, 20, 10, 71, 72, 73, 71, 72, 73, 73}).alleles(noCalls).make(),
-                        new GenotypeBuilder("A_G").PL(new int[]{30, 71, 73, 20, 72, 10, 71, 73, 72, 73}).alleles(noCalls).make(),
-                        new GenotypeBuilder("A_ATC").PL(new int[]{30, 71, 73, 71, 73, 73, 20, 72, 72, 10}).alleles(noCalls).make(),
-                        new GenotypeBuilder("A_C_G").PL(new int[]{40,20,30,20,10,30,71,72,73,74}).alleles(noCalls).make(),
-                        new GenotypeBuilder("A").PL(new int[]{0, 100, 1000, 100, 1000, 1000, 100, 1000, 1000, 1000}).alleles(noCalls).make(),
-                        new GenotypeBuilder("AA").PL(new int[]{0, 80, 800, 80, 800, 800, 80, 800, 800, 800}).alleles(noCalls).make(),
-                        new GenotypeBuilder("AA_A").PL(new int[]{30, 71, 73, 71, 73, 73, 71, 73, 73, 73}).alleles(noCalls).make()).make()});
+                new VariantContextBuilder(VCbase).alleles(Arrays.asList(Aref, C, G, ATC, del)).genotypes(new GenotypeBuilder("A_C").PL(new int[]{30, 20, 10, 71, 72, 73, 71, 72, 73, 73, 71, 72, 73, 73, 73}).alleles(noCalls).make(),
+                        new GenotypeBuilder("A_G").PL(new int[]{30, 71, 73, 20, 72, 10, 71, 73, 72, 73, 71, 73, 72, 73, 73}).alleles(noCalls).make(),
+                        new GenotypeBuilder("A_ATC").PL(new int[]{30, 71, 73, 71, 73, 73, 20, 72, 72, 10, 71, 73, 73, 72, 73}).alleles(noCalls).make(),
+                        new GenotypeBuilder("A_C_G").PL(new int[]{40, 20, 30, 20, 10, 30, 71, 72, 73, 74, 71, 72, 73, 74, 74}).alleles(noCalls).make(),
+                        new GenotypeBuilder("A").PL(new int[]{0, 100, 1000, 100, 1000, 1000, 100, 1000, 1000, 1000, 100, 1000, 1000, 1000, 1000}).alleles(noCalls).make(),
+                        new GenotypeBuilder("AA").PL(new int[]{0, 80, 800, 80, 800, 800, 80, 800, 800, 800, 80, 800, 800, 800, 800}).alleles(noCalls).make(),
+                        new GenotypeBuilder("AA_A").PL(new int[]{30, 71, 73, 71, 73, 73, 71, 73, 73, 73, 20, 72, 72, 72, 10}).alleles(noCalls).make()).make()});
 
         // just spanning ref contexts, trying both instances where we want/do not want ref-only contexts
         tests.add(new Object[]{"test08",Arrays.asList(vcAA_ALT),

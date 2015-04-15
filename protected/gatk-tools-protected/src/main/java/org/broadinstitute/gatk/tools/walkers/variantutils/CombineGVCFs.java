@@ -164,6 +164,8 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
         // take care of the VCF headers
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit());
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
+        headerLines.add(new VCFSimpleHeaderLine(GATKVCFConstants.SYMBOLIC_ALLELE_DEFINITION_HEADER_TAG, GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_NAME, "Represents any possible spanning deletion allele at this location"));
+        headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));   // needed for gVCFs without DP tags
 
         final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
         final VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
