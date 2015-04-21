@@ -124,7 +124,7 @@ public class SplitNCigarReadsUnitTest extends BaseTest {
             if(numOfSplits != 0 && isCigarDoesNotHaveEmptyRegionsBetweenNs(cigar)){
 
                 final TestManager manager = new TestManager();
-                GATKSAMRecord read = ReadClipperTestUtils.makeReadFromCigar(cigar);
+                GATKSAMRecord read = ReadClipperTestUtils.makeReadFromCigar(cigar, 0);
                 SplitNCigarReads.splitNCigarRead(read, manager);
                 List<OverhangFixingManager.SplitRead> splitReads = manager.getReadsInQueueForTesting();
                 final int expectedReads = numOfSplits+1;

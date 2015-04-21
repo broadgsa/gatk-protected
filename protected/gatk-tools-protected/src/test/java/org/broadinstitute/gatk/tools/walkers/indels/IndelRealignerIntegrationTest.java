@@ -175,12 +175,13 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
         executeTest("test realigner nWayOut", spec1);
     }
 
-    @Test(expectedExceptions = RuntimeException.class) // because TESTNG wraps UserExceptions in RuntimeExceptions
-    public void testBadCigarString() {
+    @Test
+    public void testBadCigarStringDoesNotFail() {
+        // Just making sure the test runs without an error, don't care about the MD5 value
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T IndelRealigner -R " + b37KGReference + " -I " + privateTestDir + "Realigner.error.bam -L 19:5787200-5787300 -targetIntervals 19:5787205-5787300 -o %s",
                 1,
-                Arrays.asList("FAILFAILFAILFAILFAILFAILFAILFAIL"));
-        executeTest("test bad cigar", spec);
+                Arrays.asList(""));
+        executeTest("test bad cigar string does not fail", spec);
     }
 }
