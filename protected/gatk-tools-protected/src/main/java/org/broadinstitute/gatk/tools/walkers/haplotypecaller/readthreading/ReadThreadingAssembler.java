@@ -124,7 +124,7 @@ public class ReadThreadingAssembler extends LocalAssemblyEngine {
             while ( results.isEmpty() && numIterations <= MAX_KMER_ITERATIONS_TO_ATTEMPT ) {
                 // on the last attempt we will allow low complexity graphs
                 final boolean lastAttempt = numIterations == MAX_KMER_ITERATIONS_TO_ATTEMPT;
-                addResult(results, createGraph(reads, refHaplotype, kmerSize, givenHaplotypes, lastAttempt, lastAttempt));
+                addResult(results, createGraph(reads, refHaplotype, kmerSize, givenHaplotypes, lastAttempt, allowNonUniqueKmersInRef || lastAttempt));
                 kmerSize += KMER_SIZE_ITERATION_INCREASE;
                 numIterations++;
             }
