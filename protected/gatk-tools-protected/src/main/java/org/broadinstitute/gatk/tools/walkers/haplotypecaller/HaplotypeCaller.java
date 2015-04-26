@@ -387,11 +387,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     @Argument(fullName="useAllelesTrigger", shortName="allelesTrigger", doc = "Use additional trigger on variants found in an external alleles file", required=false)
     protected boolean USE_ALLELES_TRIGGER = false;
 
-
-    @Advanced
-    @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="Merge variants together into block substitutions if they are in strong local LD", required = false)
-    protected boolean mergeVariantsViaLD = false;
-
     /**
      * As of GATK 3.3, HaplotypeCaller outputs physical (read-based) information (see version 3.3 release notes and documentation for details). This argument disables that behavior.
      */
@@ -494,6 +489,22 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private final static Allele FAKE_ALT_ALLELE = Allele.create("<FAKE_ALT>", false); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
 
     ReferenceConfidenceModel referenceConfidenceModel = null;
+
+
+    ////////////////////////////////////////////////////////////////////////
+    //// Deprecated Arguments					                        ////
+    //// Keeping them here is meant to provide informative error messages //
+    //// when an argument has been put out of service		            ////
+    ////////////////////////////////////////////////////////////////////////
+    /**
+     * @deprecated
+     * Deprecated: 2015-04-01, J.White
+     * mergeVariantsViaLD = false made final
+     */
+    @Hidden
+    @Deprecated
+    @Argument(fullName="mergeVariantsViaLD", shortName="mergeVariantsViaLD", doc="DEPRECATED; This argument is no longer used in GATK versions 3.4 and newer. Please see the online documentation for the latest usage recommendations.", required = false)
+    static final boolean mergeVariantsViaLD = false;
 
     //---------------------------------------------------------------------------------------------------------------
     //
@@ -654,7 +665,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // create our likelihood calculation engine
         likelihoodCalculationEngine = createLikelihoodCalculationEngine();
 
-        final MergeVariantsAcrossHaplotypes variantMerger = mergeVariantsViaLD ? new LDMerger(HCAC.DEBUG, 10, 1) : new MergeVariantsAcrossHaplotypes();
+        final MergeVariantsAcrossHaplotypes variantMerger = new MergeVariantsAcrossHaplotypes();
 
         genotypingEngine.setCrossHaplotypeEventMerger(variantMerger);
 
