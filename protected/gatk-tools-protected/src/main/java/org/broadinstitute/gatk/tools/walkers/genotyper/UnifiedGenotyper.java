@@ -87,15 +87,13 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * A variant caller which unifies the approaches of several disparate callers -- Works for single-sample and multi-sample data.
+ * Call SNPs and indels on a per-locus basis
  *
  * <p>
- * The GATK Unified Genotyper is a multiple-sample, technology-aware SNP and indel caller. It uses a Bayesian genotype
- * likelihood model to estimate simultaneously the most likely genotypes and allele frequency in a population of N samples,
- * emitting an accurate posterior probability of there being a segregating variant allele at each locus as well as for the
- * genotype of each sample. The system can either emit just the variant sites or complete genotypes (which includes
- * homozygous reference calls) satisfying some phred-scaled confidence value. The genotyper can make accurate calls on
- * both single sample data and multi-sample data.
+ * This tool uses a Bayesian genotype likelihood model to estimate simultaneously the most likely genotypes and
+ * allele frequency in a population of N samples, emitting a genotype for each sample. The system can either emit
+ * just the variant sites or complete genotypes (which includes homozygous reference calls) satisfying some
+ * phred-scaled confidence value.
  * </p>
  *
  * <h3>Input</h3>
@@ -108,47 +106,42 @@ import java.util.*;
  * A raw, unfiltered, highly sensitive callset in VCF format.
  * </p>
  *
- * <h3>Example generic command for multi-sample SNP calling</h3>
+ * <h3>Usage examples</h3>
+ * <h4>Multi-sample SNP calling</h4>
  * <pre>
  * java -jar GenomeAnalysisTK.jar \
- *   -R resources/Homo_sapiens_assembly18.fasta \
  *   -T UnifiedGenotyper \
+ *   -R reference.fasta \
  *   -I sample1.bam [-I sample2.bam ...] \
  *   --dbsnp dbSNP.vcf \
  *   -o snps.raw.vcf \
  *   -stand_call_conf [50.0] \
  *   -stand_emit_conf 10.0 \
- *   -dcov [50 for 4x, 200 for >30x WGS or Whole exome] \
  *   [-L targets.interval_list]
  * </pre>
  *
- * <p>
- * The above command will call all of the samples in your provided BAM files [-I arguments] together and produce a VCF file
- * with sites and genotypes for all samples. The easiest way to get the dbSNP file is from the GATK resource bundle (see Guide FAQs for details). Several
- * arguments have parameters that should be chosen based on the average coverage per sample in your data. See the detailed
- * argument descriptions below.
- * </p>
- *
- * <h3>Example command for generating calls at all sites</h3>
+ * <h4>Generate calls at all sites</h4>
  * <pre>
- * java -jar /path/to/GenomeAnalysisTK.jar \
- *   -l INFO \
- *   -R resources/Homo_sapiens_assembly18.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T UnifiedGenotyper \
- *   -I /DCC/ftp/pilot_data/data/NA12878/alignment/NA12878.SLX.maq.SRP000031.2009_08.bam \
- *   -o my.vcf \
+ *   -R reference.fasta \
+ *   -I input.bam \
+ *   -o raw_variants.vcf \
  *   --output_mode EMIT_ALL_SITES
  * </pre>
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>The system is under active and continuous development. All outputs, the underlying likelihood model, arguments, and
- * file formats are likely to change.</li>
- * <li>The system can be very aggressive in calling variants. In the 1000 genomes project for pilot 2 (deep coverage of ~35x)
- * we expect the raw Qscore > 50 variants to contain at least ~10% FP calls. We use extensive post-calling filters to eliminate
- * most of these FPs. Variant Quality Score Recalibration is a tool to perform this filtering.</li>
- * <li>The generalized ploidy model can be used to handle non-diploid or pooled samples (see the -ploidy argument in the table below).</li>
+ * <li>The caller can be very aggressive in calling variants in order to be very sensitive, so the raw output will
+ * contain many false positives. We use extensive post-calling filters to eliminate most of these FPs. See the documentation on filtering (especially by Variant Quality Score Recalibration) for more details.</li>
+ * <li><b>This tool has been deprecated in favor of HaplotypeCaller, a much more sophisticated variant caller that
+ * produces much better calls, especially on indels, and includes features that allow it to scale to much larger
+ * cohort sizes.</b></li>
  * </ul>
+ *
+ * <h3>Special note on ploidy</h3>
+ * <p>This tool is able to handle almost any ploidy (except very high ploidies in large pooled experiments); the ploidy
+ * can be specified using the -ploidy argument for non-diploid organisms.</p>
  *
  */
 

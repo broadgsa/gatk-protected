@@ -78,7 +78,7 @@ import java.util.Set;
 import static org.broadinstitute.gatk.utils.IndelUtils.isInsideExtendedIndel;
 
 /**
- * Genotypes a dataset and validates the calls of another dataset using the Unified Genotyper.
+ * Genotype and validate a dataset and the calls of another dataset using the Unified Genotyper
  *
  *  <h4>Note that this is an old tool that makes use of the UnifiedGenotyper, which has since been
  *  deprecated in favor of the HaplotypeCaller.</h4>
@@ -182,36 +182,30 @@ import static org.broadinstitute.gatk.utils.IndelUtils.isInsideExtendedIndel;
  *      </li>
  *  </ul>
  *
- * <h3>Examples</h3>
- * <ol>
- *     <li>
- *         Genotypes BAM file from new technology using the VCF as a truth dataset:
- *     </li>
- *
+ * <h3>Usage examples</h3>
+ * <h4>Genotypes BAM file from new technology using the VCF as a truth dataset</h4>
  * <pre>
  *  java
- *      -jar /GenomeAnalysisTK.jar
- *      -T  GenotypeAndValidate
- *      -R human_g1k_v37.fasta
- *      -I myNewTechReads.bam
- *      -alleles handAnnotatedVCF.vcf
- *      -L handAnnotatedVCF.vcf
+ *      -jar GenomeAnalysisTK.jar \
+ *      -T  GenotypeAndValidate \
+ *      -R reference.fasta \
+ *      -I myNewTechReads.bam \
+ *      -alleles handAnnotatedVCF.vcf \
+ *      -L handAnnotatedVCF.vcf \
+ *      -o output.vcf
  * </pre>
  *
- *      <li>
- *          Using a BAM file as the truth dataset:
- *      </li>
- *
+ * <h4>Genotypes BAM file from new technology a BAM file as the truth dataset</h4>
  * <pre>
  *  java
- *      -jar /GenomeAnalysisTK.jar
- *      -T  GenotypeAndValidate
- *      -R human_g1k_v37.fasta
- *      -I myTruthDataset.bam
- *      -alleles callsToValidate.vcf
- *      -L callsToValidate.vcf
- *      -bt
- *      -o gav.vcf
+ *      -jar GenomeAnalysisTK.jar \
+ *      -T  GenotypeAndValidate \
+ *      -R reference.fasta \
+ *      -I myTruthDataset.bam \
+ *      -alleles callsToValidate.vcf \
+ *      -L callsToValidate.vcf \
+ *      -bt \
+ *      -o output.vcf
  * </pre>
  *
  */

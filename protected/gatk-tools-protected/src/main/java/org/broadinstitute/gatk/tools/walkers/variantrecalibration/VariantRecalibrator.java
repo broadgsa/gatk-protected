@@ -111,7 +111,7 @@ import java.util.*;
  * <h3>Inputs</h3>
  * <ul>
  * <li>The input raw variants to be recalibrated.</li>
- * <li>Known, truth, and training sets to be used by the algorithm.</li>
+ * <li>Known, truth, and training sets to be used by the algorithm. See the method documentation for more details.</li>
  * </ul>
  *
  * <h3>Output</h3>
@@ -120,21 +120,22 @@ import java.util.*;
  * <li>A tranches file which shows various metrics of the recalibration callset for slices of the data.</li>
  * </ul>
  *
- * <h3>Example for recalibrating SNPs in exome data</h3>
+ * <h3>Usage example</h3>
+ * <p>Recalibrating SNPs in exome data:</p>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
  *   -T VariantRecalibrator \
- *   -R reference/human_g1k_v37.fasta \
- *   -input NA12878.HiSeq.WGS.bwa.cleaned.raw.subset.b37.vcf \
+ *   -R reference.fasta \
+ *   -input raw_variants.vcf \
  *   -resource:hapmap,known=false,training=true,truth=true,prior=15.0 hapmap_3.3.b37.sites.vcf \
  *   -resource:omni,known=false,training=true,truth=false,prior=12.0 1000G_omni2.5.b37.sites.vcf \
  *   -resource:1000G,known=false,training=true,truth=false,prior=10.0 1000G_phase1.snps.high_confidence.vcf
  *   -resource:dbsnp,known=true,training=false,truth=false,prior=6.0 dbsnp_135.b37.vcf \
  *   -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an InbreedingCoeff \
  *   -mode SNP \
- *   -recalFile path/to/output.recal \
- *   -tranchesFile path/to/output.tranches \
- *   -rscriptFile path/to/output.plots.R
+ *   -recalFile output.recal \
+ *   -tranchesFile output.tranches \
+ *   -rscriptFile output.plots.R
  * </pre>
  *
  * <h3>Caveats</h3>

@@ -139,8 +139,6 @@ import java.util.*;
  * read data to calculate the likelihoods of each genotype per sample given the read data observed for that
  * sample. The most likely genotype is then assigned to the sample.    </p>
  *
- *
- * <br />
  * <h3>Input</h3>
  * <p>
  * Input bam file(s) from which to make calls
@@ -148,13 +146,13 @@ import java.util.*;
  *
  * <h3>Output</h3>
  * <p>
- * VCF file with raw, unfiltered SNP and indel calls. These must be filtered either by variant recalibration (best)
- * or hard-filtering before use in downstream analyses. If using the reference-confidence model workflow for cohort
- * analysis, the output is a GVCF file that must first be run through GenotypeGVCFs and then filtering before further
- * analysis.
+ * Either a VCF or gVCF file with raw, unfiltered SNP and indel calls. Regular VCFs must be filtered either by variant
+ * recalibration (best) or hard-filtering before use in downstream analyses. If using the reference-confidence model
+ * workflow for cohort analysis, the output is a GVCF file that must first be run through GenotypeGVCFs and then
+ * filtering before further analysis.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage examples</h3>
  *
  * <p>These are example commands that show how to run HaplotypeCaller for typical use cases. Square brackets ("[ ]")
  * indicate optional arguments. Note that parameter values shown here may not be the latest recommended; see the
@@ -162,12 +160,11 @@ import java.util.*;
  *
  * <br />
  * <h4>Single-sample all-sites calling on DNAseq (for `-ERC GVCF` cohort analysis workflow)</h4>
- * <p>
  * <pre>
  *   java
  *     -jar GenomeAnalysisTK.jar
  *     -T HaplotypeCaller
- *     -R reference/human_g1k_v37.fasta
+ *     -R reference.fasta
  *     -I sample1.bam \
  *     --emitRefConfidence GVCF \
  *     --variant_index_type LINEAR \
@@ -176,15 +173,13 @@ import java.util.*;
  *     [-L targets.interval_list] \
  *     -o output.raw.snps.indels.g.vcf
  * </pre>
- * </p>
  *
  * <h4>Variant-only calling on DNAseq</h4>
- * <p>
  * <pre>
  *   java
  *     -jar GenomeAnalysisTK.jar
  *     -T HaplotypeCaller
- *     -R reference/human_g1k_v37.fasta
+ *     -R reference.fasta
  *     -I sample1.bam [-I sample2.bam ...] \
  *     [--dbsnp dbSNP.vcf] \
  *     [-stand_call_conf 30] \
@@ -192,23 +187,19 @@ import java.util.*;
  *     [-L targets.interval_list] \
  *     -o output.raw.snps.indels.vcf
  * </pre>
- * </p>
  *
  * <h4>Variant-only calling on RNAseq</h4>
- * <p>
  * <pre>
  *   java
  *     -jar GenomeAnalysisTK.jar
  *     -T HaplotypeCaller
- *     -R reference/human_g1k_v37.fasta
+ *     -R reference.fasta
  *     -I sample1.bam \
- *     -dontUseSoftClippedBases \
  *     [--dbsnp dbSNP.vcf] \
  *     -stand_call_conf 20 \
  *     -stand_emit_conf 20 \
  *     -o output.raw.snps.indels.vcf
  * </pre>
- * </p>
  *
  * <h3>Caveats</h3>
  * <ul>
@@ -217,6 +208,10 @@ import java.util.*;
  * <li>Many users have reported issues running HaplotypeCaller with the -nct argument, so we recommend using Queue to
  * parallelize HaplotypeCaller instead of multithreading.</li>
  * </ul>
+ *
+ * <h3>Special note on ploidy</h3>
+ * <p>This tool is able to handle almost any ploidy (except very high ploidies in large pooled experiments); the ploidy
+ * can be specified using the -ploidy argument for non-diploid organisms.</p>
  *
  * <h3>Additional Notes</h3>
  * <ul>

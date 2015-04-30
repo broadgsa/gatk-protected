@@ -77,26 +77,20 @@ import htsjdk.variant.vcf.*;
 import java.util.*;
 
 /**
- * Calculates genotype posterior likelihoods given panel data
+ * Calculate genotype posterior likelihoods given panel data
  *
  * <p>
  * Given a VCF with genotype likelihoods from the HaplotypeCaller, UnifiedGenotyper, or another source which provides
- * -unbiased- GLs, calculate the posterior genotype state and likelihood given allele frequency information from
- * both the samples themselves and input VCFs describing allele frequencies in related populations.
+ * -unbiased- genotype likelihoods, calculate the posterior genotype state and likelihood given allele frequency
+ * information from both the samples themselves and input VCFs describing allele frequencies in related populations.</p>
  *
- * VCFs to use for informing the genotype likelihoods (e.g. a population-specific VCF from 1000 genomes) should have
- * at least one of:
- * - AC field and AN field
- * - MLEAC field and AN field
- * - genotypes
- *
- * The AF field will not be used in this calculation as it does not provide a way to estimate the confidence interval
+ * <p>The AF field will not be used in this calculation as it does not provide a way to estimate the confidence interval
  * or uncertainty around the allele frequency, while AN provides this necessary information. This uncertainty is
  * modeled by a Dirichlet distribution: that is, the frequency is known up to a Dirichlet distribution with
  * parameters AC1+q,AC2+q,...,(AN-AC1-AC2-...)+q, where "q" is the global frequency prior (typically q << 1). The
  * genotype priors applied then follow a Dirichlet-Multinomial distribution, where 2 alleles per sample are drawn
  * independently. This assumption of independent draws is the assumption Hardy-Weinberg Equilibrium. Thus, HWE is
- * imposed on the likelihoods as a result of CalculateGenotypePosteriors.
+ * imposed on the likelihoods as a result of CalculateGenotypePosteriors.</p>
  *
  * <h3>Input</h3>
  * <p>
@@ -104,26 +98,28 @@ import java.util.*;
  *         <li>A VCF with genotype likelihoods, and optionally genotypes, AC/AN fields, or MLEAC/AN fields</li>
  *         <li>(Optional) A PED pedigree file containing the description of the individuals relationships.</li>
  *     </ul>
- *
  * </p>
  *
  * <p>
  * A collection of VCFs to use for informing allele frequency priors. Each VCF must have one of
- * - AC field and AN field
- * - MLEAC field and AN field
- * - genotypes
+ * </p>
+ * <ul>
+ *     <li>AC field and AN field</li>
+ *     <li>MLEAC field and AN field</li>
+ *     <li>genotypes</li>
+ * </ul>
  * </p>
  *
  * <h3>Output</h3>
- * <p>
- * A new VCF with:
- *  1) Genotype posteriors added to the genotype fields ("PP")
- *  2) Genotypes and GQ assigned according to these posteriors
- *  3) Per-site genotype priors added to the INFO field ("PG")
- *  4) (Optional) Per-site, per-trio joint likelihoods (JL) and joint posteriors (JL) given as Phred-scaled probability
+ * <p>A new VCF with:</p>
+ * <ul>
+ *     <li>Genotype posteriors added to the genotype fields ("PP")</li>
+ *     <li>Genotypes and GQ assigned according to these posteriors</li>
+ *     <li>Per-site genotype priors added to the INFO field ("PG")</li>
+ *     <li>(Optional) Per-site, per-trio joint likelihoods (JL) and joint posteriors (JL) given as Phred-scaled probability
  *  of all genotypes in the trio being correct based on the PLs for JL and the PPs for JP. These annotations are added to
- *  the genotype fields.
- * </p>
+ *  the genotype fields.</li>
+ * </ul>
  *
  * <h3>Notes</h3>
  * <p>
@@ -135,51 +131,57 @@ import java.util.*;
  * the input callset.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage examples</h3>
+ * <h4>Inform the genotype assignment of NA12878 using the 1000G Euro panel</h4>
  * <pre>
- * Inform the genotype assignment of NA12878 using the 1000G Euro panel
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T CalculateGenotypePosteriors \
+ *   -R reference.fasta \
  *   -V NA12878.wgs.HC.vcf \
  *   -supporting 1000G_EUR.genotypes.combined.vcf \
  *   -o NA12878.wgs.HC.posteriors.vcf \
  *
- * Refine the genotypes of a large panel based on the discovered allele frequency
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * <h4>Refine the genotypes of a large panel based on the discovered allele frequency</h4>
+ * <pre>
+ * java -jar GenomeAnalysisTK.jar \
  *   -T CalculateGenotypePosteriors \
+ *   -R reference.fasta \
  *   -V input.vcf \
  *   -o output.withPosteriors.vcf
+ * </pre>
  *
- * Apply frequency and HWE-based priors to the genotypes of a family without including the family allele counts
- * in the allele frequency estimates
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * <h4>Apply frequency and HWE-based priors to the genotypes of a family without including the family allele counts
+ * in the allele frequency estimates the genotypes of a large panel based on the discovered allele frequency</h4>
+ * <pre>
+ * java -jar GenomeAnalysisTK.jar \
  *   -T CalculateGenotypePosteriors \
+ *   -R reference.fasta \
  *   -V input.vcf \
  *   -o output.withPosteriors.vcf \
  *   --ignoreInputSamples
+ * </pre>
  *
- * Calculate the posterior genotypes of a callset, and impose that a variant *not seen* in the external panel
- * is tantamount to being AC=0, AN=100 within that panel
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * <h4>Calculate the posterior genotypes of a callset, and impose that a variant *not seen* in the external panel
+ * is tantamount to being AC=0, AN=100 within that panel</h4>
+ * <pre>
+ * java -jar GenomeAnalysisTK.jar \
  *   -T CalculateGenotypePosteriors \
+ *   -R reference.fasta \
  *   -supporting external.panel.vcf \
  *   -V input.vcf \
- *   -o output.withPosteriors.vcf
+ *   -o output.withPosteriors.vcf \
  *   --numRefSamplesIfNoCall 100
- *   
- * Apply only family priors to a callset
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
- *   -T CalculateGenotypePosteriors \
- *   -V input.vcf \
- *   --skipPopulationPriors
- *   -ped family.ped
- *   -o output.withPosteriors.vcf 
+ * </pre>
  *
+ * <h4>Apply only family priors to a callset</h4>
+ * <pre>
+ * java -jar GenomeAnalysisTK.jar \
+ *   -T CalculateGenotypePosteriors \
+ *   -R reference.fasta \
+ *   -V input.vcf \
+ *   --skipPopulationPriors \
+ *   -ped family.ped \
+ *   -o output.withPosteriors.vcf
  * </pre>
  *
  */

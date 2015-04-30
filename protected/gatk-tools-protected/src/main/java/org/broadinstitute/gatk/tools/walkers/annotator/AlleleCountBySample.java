@@ -75,7 +75,7 @@ import java.util.List;
 /**
  * Allele count and frequency expectation per sample
  *
- * Needs documentation
+ * <p>This annotation calculates the maximum likelihood (ML) number and frequency of alternate alleles for each individual sample at a site. In essence, it is equivalent to calculating the sum of "1"s in a genotype (for a biallelic site).</p>
  *
  */
 @SuppressWarnings("unused")

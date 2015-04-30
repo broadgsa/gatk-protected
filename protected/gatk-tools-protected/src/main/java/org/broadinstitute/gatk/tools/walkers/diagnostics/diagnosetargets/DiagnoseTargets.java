@@ -77,44 +77,36 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * Analyzes coverage distribution and validates read mates for a given interval and sample.
- * <p/>
+ * Analyze coverage distribution and validate read mates per interval and per sample
+ *
  * <p>
- * Used to diagnose regions with bad coverage, mapping, or read mating. Analyzes each sample independently in addition
- * to interval wide analysis.
+ * This tool is useful for diagnosing regions with bad coverage, mapping, or read mate pairs. It analyzes each sample
+ * independently and aggregates results over intervals of interest.
  * </p>
- * <p/>
- * <p/>
  * <h3>Input</h3>
- * <p>
  * <ul>
  * <li>A reference file</li>
  * <li>one or more input BAMs</li>
  * <li>One or more intervals</li>
  * </ul>
- * </p>
- * <p/>
  * <h3>Output</h3>
  * <p>
  * A modified VCF detailing each interval by sample and information for each interval according to the thresholds used.
- * Interval information includes GC Content, average interval depth, callable status among others.
- *
- * If you use the --missing option, you can get as a second output a intervals file with the loci that have missing data.
+ * Interval information includes GC Content, average interval depth, callable status among others. If you use the
+ * --missing option, you can get as a second output a intervals file with the loci that have missing data.
  * This file can then be used as input to QualifyMissingIntervals for full qualification and interpretation of why
  * the data is missing.
  * </p>
- * <p/>
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- *    java
- *      -jar GenomeAnalysisTK.jar
+ *    java -jar GenomeAnalysisTK.jar
  *              -T DiagnoseTargets \
  *              -R reference.fasta \
- *              -o output.vcf \
  *              -I sample1.bam \
  *              -I sample2.bam \
  *              -I sample3.bam \
- *              -L intervals.interval_list
+ *              -L intervals.interval_list \
+ *              -o output.vcf
  *  </pre>
  *
  * @author Mauricio Carneiro, Roger Zurawicki

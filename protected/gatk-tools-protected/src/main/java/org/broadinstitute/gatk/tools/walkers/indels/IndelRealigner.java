@@ -91,10 +91,10 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Performs local realignment of reads to correct misalignments due to the presence of indels.
+ * Perform local realignment of reads around indels
  *
  * <p>
- * The local realignment tool is designed to consume one or more BAM files and to locally realign reads such that the number of mismatching bases
+ * The local realignment process is designed to consume one or more BAM files and to locally realign reads such that the number of mismatching bases
  * is minimized across all the reads. In general, a large percent of regions requiring local realignment are due to the presence of an insertion
  * or deletion (indels) in the individual's genome with respect to the reference genome.  Such alignment artifacts result in many bases mismatching
  * the reference near the misalignment, which are easily mistaken as SNPs.  Moreover, since read mapping algorithms operate on each read independently,
@@ -105,12 +105,13 @@ import java.util.*;
  * appropriate alternate reference (i.e. indel) exists.  Following local realignment, the GATK tool Unified Genotyper can be used to sensitively and
  * specifically identify indels.
  * </p>
- *     <ol>There are 2 steps to the realignment process:
+ *  <p>There are 2 steps to the realignment process:</p>
+ *     <ol>
  *     <li>Determining (small) suspicious intervals which are likely in need of realignment (see the RealignerTargetCreator tool)</li>
  *     <li>Running the realigner over those intervals (IndelRealigner)</li>
  *     </ol>
  * <p>
- * For more details, see http://www.broadinstitute.org/gatk/guide/article?id=38
+ * For more details, see <a href="http://www.broadinstitute.org/gatk/guide/article?id=38">the indel realignment method documentation</a>.
  * </p>
  *
  * <h3>Input</h3>
@@ -123,26 +124,24 @@ import java.util.*;
  * A realigned version of your input BAM file(s).
  * </p>
  *
- * <h3>Example</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx4g -jar GenomeAnalysisTK.jar \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T IndelRealigner \
- *   -R ref.fasta \
+ *   -R reference.fasta \
  *   -I input.bam \
+ *   --known indels.vcf \
  *   -targetIntervals intervalListFromRTC.intervals \
- *   -o realignedBam.bam \
- *   [-known /path/to/indels.vcf] \
- *   [-compress 0]    (this argument recommended to speed up the process *if* this is only a temporary file; otherwise, use the default value)
+ *   -o realignedBam.bam
  * </pre>
  *
  * <h3>Caveats</h3>
- *
- * <ul><li>
- * An important note: the input bam(s), reference, and known indel file(s) should be the same ones used for the RealignerTargetCreator step.
- * </li><li>
- * Another important note: because reads produced from the 454 technology inherently contain false indels, the realigner will not currently work with them
- * (or with reads from similar technologies).
- * </li></ul>
+ * <ul>
+ *     <li>The input BAM(s), reference, and known indel file(s) should be the same ones to be used for the IndelRealigner step.</li>
+ *     <li>Because reads produced from the 454 technology inherently contain false indels, the realigner will not work with them
+ * (or with reads from similar technologies).</li>
+ *     <li>This tool also ignores MQ0 reads and reads with consecutive indel operators in the CIGAR string.</li>
+ * </ul>
  *
  * @author ebanks
  */

@@ -86,49 +86,49 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * First pass of the base quality score recalibration -- Generates recalibration table based on various user-specified covariates (such as read group, reported quality score, machine cycle, and nucleotide context).
+ * Generate base recalibration table to compensate for systematic errors
  *
  * <p>
- * This walker is designed to work as the first pass in a two-pass processing step. It does a by-locus traversal operating
+ * This tool is designed to work as the first pass in a two-pass processing step. It does a by-locus traversal operating
  * only at sites that are not in dbSNP. We assume that all reference mismatches we see are therefore errors and indicative
- * of poor base quality. This walker generates tables based on various user-specified covariates (such as read group,
- * reported quality score, cycle, and context). Since there is a large amount of data one can then calculate an empirical
+ * of poor base quality. This tool generates tables based on various user-specified covariates (such as read group,
+ * reported quality score, cycle, and context). Since there is a large amount of data, one can then calculate an empirical
  * probability of error given the particular covariates seen at this site, where p(error) = num mismatches / num observations.
  * The output file is a table (of the several covariate values, num observations, num mismatches, empirical quality score).
+ * </p>
  * <p>
- * Note: ReadGroupCovariate and QualityScoreCovariate are required covariates and will be added for the user regardless of whether or not they were specified.
- *
- * <p>
+ * Note: ReadGroupCovariate and QualityScoreCovariate are required covariates and will be added regardless of whether
+ * or not they were specified.
+ * </p>
  *
  * <h3>Input</h3>
  * <p>
- * The input read data whose base quality scores need to be assessed.
+ * A BAM file containing data that needs to be recalibrated.
  * <p>
- * A database of known polymorphic sites to skip over.
+ * A database of known polymorphic sites to mask out.
  * </p>
  *
  * <h3>Output</h3>
- * <p>
- * A GATK Report file with many tables:
- * <ol>
+ * <p>A GATKReport file with many tables:</p>
+ * <ul>
  *     <li>The list of arguments</li>
  *     <li>The quantized qualities table</li>
  *     <li>The recalibration table by read group</li>
  *     <li>The recalibration table by quality score</li>
  *     <li>The recalibration table for all the optional covariates</li>
- * </ol>
- *
- * The GATK Report is intended to be easy to read by humans or computers. Check out the documentation of the GATKReport to learn how to manipulate this table.
+ * </ul>
+ *<p>
+ * The GATKReport table format is intended to be easy to read by both humans and computer languages (especially R).
+ * Check out the documentation of the GATKReport (in the FAQs) to learn how to manipulate this table.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx4g -jar GenomeAnalysisTK.jar \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T BaseRecalibrator \
+ *   -R reference.fasta \
  *   -I my_reads.bam \
- *   -R resources/Homo_sapiens_assembly18.fasta \
- *   -knownSites bundle/hg18/dbsnp_132.hg18.vcf \
- *   -knownSites another/optional/setOfSitesToMask.vcf \
+ *   -knownSites latest_dbsnp.vcf \
  *   -o recal_data.table
  * </pre>
  */
@@ -139,16 +139,16 @@ import java.util.List;
 @PartitionBy(PartitionType.READ)
 public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSchedulable {
     /**
-     * all the command line arguments for BQSR and it's covariates
+     * all the command line arguments for BQSR and its covariates
      */
     @ArgumentCollection
     private final RecalibrationArgumentCollection RAC = new RecalibrationArgumentCollection();
 
     /**
-     * When you have nct > 1, BQSR uses nct times more memory to compute its recalibration tables, for efficiency
+     * When you use nct > 1, BQSR uses nct times more memory to compute its recalibration tables, for efficiency
      * purposes.  If you have many covariates, and therefore are using a lot of memory, you can use this flag
      * to safely access only one table.  There may be some CPU cost, but as long as the table is really big
-     * there should be relatively little CPU costs.
+     * the cost should be relatively reasonable.
      */
     @Argument(fullName = "lowMemoryMode", shortName="lowMemoryMode", doc="Reduce memory usage in multi-threaded code at the expense of threading efficiency", required = false)
     public boolean lowMemoryMode = false;
@@ -171,7 +171,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
 
     private int minimumQToUse;
 
-    private static final String NO_DBSNP_EXCEPTION = "This calculation is critically dependent on being able to skip over known variant sites. Please provide a VCF file containing known sites of genetic variation.";
+    private static final String NO_DBSNP_EXCEPTION = "This calculation is critically dependent on being able to mask out known variant sites. Please provide a VCF file containing known sites of genetic variation.";
 
     private BAQ baq; // BAQ the reads on the fly to generate the alignment uncertainty vector
     private IndexedFastaSequenceFile referenceReader; // fasta reference reader for use with BAQ calculation

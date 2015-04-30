@@ -68,8 +68,17 @@ import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import java.util.*;
 
 /**
- * Genotype summary statistics
+ * Summarize genotype statistics from all samples at the site level
  *
+ * <p>This annotation collects several genotype-level statistics from all samples and summarizes them in the INFO field. The following statistics are collected:</p>
+ * <ul>
+ *     <li>Number of called chromosomes (should amount to ploidy * called samples)</li>
+ *     <li>Number of no-called samples</li>
+ *     <li>p-value from Hardy-Weinberg Equilibrium test</li>
+ *     <li>Mean of all GQ values</li>
+ *     <li>Standard deviation of all GQ values</li>
+ * </ul>
+ * <h3>Note</h3>
  * <p>These summaries can all be recomputed from the genotypes on the fly but it is a lot faster to add them here as INFO field annotations.</p>
  */
 
