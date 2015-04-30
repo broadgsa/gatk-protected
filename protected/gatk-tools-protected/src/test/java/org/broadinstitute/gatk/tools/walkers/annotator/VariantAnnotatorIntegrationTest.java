@@ -344,6 +344,17 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         executeTest("Testing InbreedingCoeff annotation with PED file", spec);
     }
 
+    @Test(enabled = true)
+    public void testAlleleTrimming() {
+        final String MD5 = "5f4b8dcbd4ec3b773486945e5b38e7f3";
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantAnnotator -R " + b37KGReference + " -A InbreedingCoeff --variant:vcf " + privateTestDir + "alleleTrim.vcf.gz" +
+                        " -L 1:26608870-26608875 -no_cmdline_in_header --resource:exac " + privateTestDir +  "exacAlleleTrim.vcf.gz  -E exac.AC_Adj" +
+                        "  -o %s", 1,
+                Arrays.asList(MD5));
+        executeTest("Testing allele trimming annotation", spec);
+    }
+
     @Test
     public void testStrandBiasBySample() throws IOException {
         // pipeline 1: create variant via HalotypeCaller with no default annotations
