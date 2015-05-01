@@ -298,7 +298,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
-    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator", "MappingQualityZero"}));
+    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{"MappingQualityZero", "MappingQualityZeroBySample"}));
 
     /**
      * Which groups of annotations to add to the output VCF file. The single value 'none' removes the default group. See

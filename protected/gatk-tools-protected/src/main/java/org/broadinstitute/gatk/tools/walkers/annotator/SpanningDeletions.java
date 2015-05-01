@@ -55,7 +55,7 @@ import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotyper;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardUGAnnotation;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
@@ -76,12 +76,12 @@ import java.util.*;
  *
  * <h3>Caveats</h3>
  * <ul>
- *     <li>This annotation is not compatible with HaplotypeCaller; its purpose is to compensate for the UnifiedGenotyper's inability to integrate SNPs and indels in the same model (unlike HaplotypeCaller)</li>
+ *     <li>In its current form, this annotation is not compatible with HaplotypeCaller. It is only meant to be used with UnifiedGenotyper, as its purpose is to compensate for the UnifiedGenotyper's inability to integrate SNPs and indels in the same model (unlike HaplotypeCaller).</li>
  *     <li>By default, the UnifiedGenotyper will not call variants where the fraction of spanning deletions is above a certain threshold. This threshold can be adjusted using the `--max_deletion_fraction` argument.</li>
  * </ul>
  *
  */
-public class SpanningDeletions extends InfoFieldAnnotation implements StandardAnnotation {
+public class SpanningDeletions extends InfoFieldAnnotation implements StandardUGAnnotation {
 
     private final static Logger logger = Logger.getLogger(SpanningDeletions.class);
     private boolean walkerIdentityCheckWarningLogged = false;

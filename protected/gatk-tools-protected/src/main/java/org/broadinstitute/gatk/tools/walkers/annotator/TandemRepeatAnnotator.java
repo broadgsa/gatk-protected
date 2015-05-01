@@ -58,7 +58,7 @@ import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardUGAnnotation;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
@@ -76,13 +76,13 @@ import java.util.*;
  *
  * <p>A tandem repeat unit is composed of one or more nucleotides that are repeated multiple times in series. Repetitive sequences are difficult to map to the reference because they are associated with multiple alignment possibilities. Knowing the number of repeat units in a set of tandem repeats tells you the number of different positions the tandem repeat can be placed in. The observation of many tandem repeat units multiplies the number of possible representations that can be made of the region.
  *
- * <h3>Caveats</h3>
+ * <h3>Caveat</h3>
  * <ul>
  *     <li>This annotation is currently not compatible with HaplotypeCaller.</li>
  * </ul>
  *
  */
-public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardUGAnnotation, ActiveRegionBasedAnnotation {
     private final static Logger logger = Logger.getLogger(TandemRepeatAnnotator.class);
     private boolean walkerIdentityCheckWarningLogged = false;
 
