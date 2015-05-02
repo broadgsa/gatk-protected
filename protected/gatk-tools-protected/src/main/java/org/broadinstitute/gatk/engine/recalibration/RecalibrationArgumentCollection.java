@@ -158,24 +158,28 @@ public class RecalibrationArgumentCollection implements Cloneable {
     /**
      * A default base qualities to use as a prior (reported quality) in the mismatch covariate model. This value will replace all base qualities in the read for this default value. Negative value turns it off. [default is off]
      */
+    @Advanced
     @Argument(fullName = "mismatches_default_quality", shortName = "mdq", doc = "default quality for the base mismatches covariate", required = false)
     public byte MISMATCHES_DEFAULT_QUALITY = -1;
 
     /**
      * A default base qualities to use as a prior (reported quality) in the insertion covariate model. This parameter is used for all reads without insertion quality scores for each base. [default is on]
      */
+    @Advanced
     @Argument(fullName = "insertions_default_quality", shortName = "idq", doc = "default quality for the base insertions covariate", required = false)
     public byte INSERTIONS_DEFAULT_QUALITY = 45;
 
     /**
      * A default base qualities to use as a prior (reported quality) in the mismatch covariate model. This value will replace all base qualities in the read for this default value. Negative value turns it off. [default is on]
      */
+    @Advanced
     @Argument(fullName = "deletions_default_quality", shortName = "ddq", doc = "default quality for the base deletions covariate", required = false)
     public byte DELETIONS_DEFAULT_QUALITY = 45;
 
     /**
      * Reads with low quality bases on either tail (beginning or end) will not be considered in the context. This parameter defines the quality below which (inclusive) a tail is considered low quality
      */
+    @Advanced
     @Argument(fullName = "low_quality_tail", shortName = "lqt", doc = "minimum quality for the bases in the tail of the reads to be considered", required = false)
     public byte LOW_QUAL_TAIL = 2;
 
@@ -183,17 +187,19 @@ public class RecalibrationArgumentCollection implements Cloneable {
      * BQSR generates a quantization table for quick quantization later by subsequent tools. BQSR does not quantize the base qualities, this is done by the engine with the -qq or -BQSR options.
      * This parameter tells BQSR the number of levels of quantization to use to build the quantization table.
      */
+    @Advanced
     @Argument(fullName = "quantizing_levels", shortName = "ql", required = false, doc = "number of distinct quality scores in the quantized output")
     public int QUANTIZING_LEVELS = 16;
 
     /**
      * The tag name for the binary tag covariate (if using it)
      */
+    @Advanced
     @Argument(fullName = "binary_tag_name", shortName = "bintag", required = false, doc = "the binary tag covariate name if using it")
     public String BINARY_TAG_NAME = null;
 
-    /*
-     * whether GATK report tables should have rows in sorted order, starting from leftmost column
+    /**
+     * Whether GATK report tables should have rows in sorted order, starting from leftmost column
      */
     @Argument(fullName = "sort_by_all_columns", shortName = "sortAllCols", doc = "Sort the rows in the tables of reports", required = false)
     public Boolean SORT_BY_ALL_COLUMNS  = false;
@@ -219,7 +225,7 @@ public class RecalibrationArgumentCollection implements Cloneable {
     public PrintStream RECAL_TABLE_UPDATE_LOG = null;
 
     /**
-     * The repeat covariate will use a context of this size to calculate it's covariate value for base insertions and deletions
+     * The repeat covariate will use a context of this size to calculate its covariate value for base insertions and deletions
      */
     @Hidden
     @Argument(fullName = "max_str_unit_length", shortName = "maxstr", doc = "Max size of the k-mer context to be used for repeat covariates", required = false)

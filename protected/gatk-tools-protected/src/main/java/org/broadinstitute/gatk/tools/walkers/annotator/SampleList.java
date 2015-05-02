@@ -69,9 +69,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * List of samples that are polymorphic at a given site
+ * List samples that are non-reference at a given site
  *
- * <p>The output is a list of the samples that are genotyped as having one or more variant alleles. This allows you to easily determine which samples are polymorphic and compare them to samples that are homozygous-reference.</p>
+ * <p>The output is a list of the samples that are genotyped as having one or more variant alleles. This allows you to easily determine which samples are non-reference (heterozygous or homozygous-variant) and compare them to samples that are homozygous-reference.</p>
  */
 public class SampleList extends InfoFieldAnnotation {
 

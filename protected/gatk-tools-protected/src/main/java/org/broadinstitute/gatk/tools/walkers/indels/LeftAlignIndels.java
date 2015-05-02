@@ -66,30 +66,35 @@ import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 
 /**
- * Left-aligns indels from reads in a bam file.
+ * Left-align indels within reads in a bam file
  *
- * <p>
- * LeftAlignIndels is a tool that takes a bam file and left-aligns any indels inside it.  The same indel can often be
- * placed at multiple positions and still represent the same haplotype.  While a standard convention is to place an
- * indel at the left-most position this doesn't always happen, so this tool can be used to left-align them.
+ * <p>This tool left-aligns any indels within read cigars in order to standardize representation when there are multiple valid
+ * representations possible (i.e. where the same indel can be placed at multiple positions and still represent the same haplotype).
+ * The standard convention is to place an indel at the left-most position possible, but this is not always followed, so
+ * this tool can be used to correct the representation of indels.</p>
+ *
+ * <h3>Note</h3>
+ * <p>This is only really needed when calling variants with legacy locus-based tools such as UnifiedGenotyper. With more
+ * sophisticated tools (like HaplotypeCaller) that involve reconstructing haplotypes (eg through reassembly), the problem
+ * of multiple valid representations is handled internally and does not need to be corrected explicitly.</p>
  *
  * <h3>Input</h3>
  * <p>
- * A bam file to left-align.
+ * A bam file with mapped reads.
  * </p>
  *
  * <h3>Output</h3>
  * <p>
- * A left-aligned bam.
+ * A bam file in which indels have been left-aligned where appropriate.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx3g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
+ *   -R reference.fasta \
  *   -T LeftAlignIndels \
- *   -I input.bam \
- *   -o output.vcf
+ *   -I reads.bam \
+ *   -o output_with_leftaligned_indels.bam
  * </pre>
  *
  */

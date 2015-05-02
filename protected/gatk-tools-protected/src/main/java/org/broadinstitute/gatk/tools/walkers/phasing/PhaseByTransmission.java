@@ -78,17 +78,25 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * Computes the most likely genotype combination and phases trios and parent/child pairs
+ * Compute the most likely genotype combination and phasing for trios and parent/child pairs
  *
  * <p>
- * PhaseByTransmission is a GATK tool that 1) computes the most likely genotype combination and phases trios and parent/child pairs given their genotype likelihoods and a mutation prior and 2) phases
- * all sites were parent/child transmission can be inferred unambiguously. It reports the genotype combination (and hence phasing) probability.
- * Ambiguous sites are:
+ * This tool performs two functions:
+ * </p>
+ * <ol>
+ *     <li>Compute the most likely genotype combination of trios and parent/child pairs given their genotype likelihoods and a mutation prior;</li>
+ *     <li>Phase all sites were parent/child transmission can be inferred unambiguously. </li>
+ * </ol>
+ *
+ * <p>The tool ultimately reports the genotype combination (and hence phasing) probability.</p>
+ *
+ * <h4>Ambiguous sites are:</h4>
  * <ul>
  *     <li>Sites where all individuals are heterozygous</li>
  *     <li>Sites where there is a Mendelian violation</li>
  * </ul>
- * Missing genotypes are handled as follows:
+ *
+ * <h4>Missing genotypes are handled as follows:</h4>
  * <ul>
  *     <li>In parent/child pairs: If an individual genotype is missing at one site, the other one is phased if it is homozygous. No phasing probability is emitted.</li>
  *     <li>In trios: If the child is missing, parents are treated as separate individuals and phased if homozygous. No phasing probability is emitted.</li>
@@ -104,26 +112,26 @@ import java.util.*;
  * </ul>
  * </p>
  *
- * <h2>Options</h2>
- * <p>
+ * <h3>Important options</h3>
  *     <ul>
- *         <li>MendelianViolationsFile: An optional argument for reporting. If a file is specified, all sites that remain in mendelian violation after being assigned the most likely genotype
- *         combination will be reported there. Information reported: chromosome, position, filter, allele count in VCF, family, transmission probability,
- *         and each individual genotype, depth, allelic depth and likelihoods.</li>
+ *         <li>MendelianViolationsFile: An optional argument for reporting. If a file is specified, all sites that
+ *         remain in mendelian violation after being assigned the most likely genotype combination will be reported
+ *         there. Information reported: chromosome, position, filter, allele count in VCF, family, transmission
+ *         probability, and each individual genotype, depth, allelic depth and likelihoods.</li>
  *         <li>DeNovoPrior: Mutation prio; default is 1e-8</li>
  *     </ul>
- * </p>
  *
  * <h3>Output</h3>
  * <p>
- * An VCF with genotypes recalibrated as most likely under the familial constraint and phased by descent where non ambiguous..
+ * An VCF with genotypes recalibrated as most likely under the familial constraint and phased by descent (where non
+ * ambiguous).
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T PhaseByTransmission \
+ *   -R reference.fasta \
  *   -V input.vcf \
  *   -ped input.ped \
  *   -o output.vcf

@@ -85,22 +85,19 @@ import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import java.util.*;
 
 /**
- * Genotypes any number of gVCF files that were produced by the Haplotype Caller into a single joint VCF file.
+ * Perform joint genotyping on gVCF files produced by HaplotypeCaller
  *
  * <p>
- * GenotypeGVCFs merges gVCF records that were produced as part of the reference model-based variant discovery pipeline (see documentation for more details) using
- * the '-ERC GVCF' or '-ERC BP_RESOLUTION' mode of the HaplotypeCaller.  This tool performs the multi-sample joint aggregation
- * step and merges the records together in a sophisticated manner.
- *
- * At all positions of the target, this tool will combine all spanning records, produce correct genotype likelihoods,
- * re-genotype the newly merged record, and then re-annotate it.
- *
- * Note that this tool cannot work with just any gVCF files - they must have been produced with the HaplotypeCaller,
- * which uses a sophisticated reference model to produce accurate genotype likelihoods for every position in the target.
+ * GenotypeGVCFs merges gVCF records that were produced as part of the Best Practices workflow for variant discovery
+ * (see Best Practices documentation for more details) using the '-ERC GVCF' or '-ERC BP_RESOLUTION' mode of the
+ * HaplotypeCaller, or result from combining such gVCF files using CombineGVCFs. This tool performs the multi-sample
+ * joint aggregation step and merges the records together in a sophisticated manner: at each position of the input
+ * gVCFs, this tool will combine all spanning records, produce correct genotype likelihoods, re-genotype the newly
+ * merged record, and then re-annotate it.</p>
  *
  * <h3>Input</h3>
  * <p>
- * One or more Haplotype Caller gVCFs to genotype.
+ * One or more HaplotypeCaller gVCFs to genotype.
  * </p>
  *
  * <h3>Output</h3>
@@ -108,15 +105,24 @@ import java.util.*;
  * A combined, genotyped VCF.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T GenotypeGVCFs \
- *   --variant gvcf1.vcf \
- *   --variant gvcf2.vcf \
+ *   -R reference.fasta \
+ *   --variant sample1.g.vcf \
+ *   --variant sample2.g.vcf \
  *   -o output.vcf
  * </pre>
+ *
+ * <h3>Caveat</h3>
+ * <p>Only gVCF files produced by HaplotypeCaller (or CombineGVCFs) can be used as input for this tool. Some other
+ * programs produce files that they call gVCFs but those lack some important information (accurate genotype likelihoods
+ * for every position) that GenotypeGVCFs requires for its operation.</p>
+ *
+ * <h3>Special note on ploidy</h3>
+ * <p>This tool is able to handle any ploidy (or mix of ploidies) intelligently; there is no need to specify ploidy
+ * for non-diploid organisms.</p>
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )

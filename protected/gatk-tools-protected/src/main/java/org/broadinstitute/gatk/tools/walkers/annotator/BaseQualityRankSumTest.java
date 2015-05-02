@@ -63,7 +63,7 @@ import java.util.*;
 
 
 /**
- * Rank Sum Test of REF vs. ALT base quality scores
+ * Rank Sum Test of REF versus ALT base quality scores
  *
  * <p>This variant-level annotation tests compares the base qualities of the data supporting the reference allele with those supporting the alternate allele. The ideal result is a value close to zero, which indicates there is little to no difference. A negative value indicates that the bases supporting the alternate allele have lower quality scores than those supporting the reference allele. Conversely, a positive value indicates that the bases supporting the alternate allele have higher quality scores than those supporting the reference allele. Finding a statistically significant difference either way suggests that the sequencing process may have been biased or affected by an artifact.</p>
  *

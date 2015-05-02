@@ -87,13 +87,17 @@ import java.util.*;
 import static org.broadinstitute.gatk.engine.GATKVCFUtils.getVCFHeadersFromRods;
 
 /**
- * Walks along all variant ROD loci, caching a user-defined window of VariantContext sites, and then finishes phasing them when they go out of range (using upstream and downstream reads).
+ * Annotate physical phasing information
  *
- * The current implementation works for diploid SNPs, and will transparently (but properly) ignore other sites.
+ * <p>This tool identifies haplotypes based on the overlap between reads and uses this information to generate physical
+ * phasing information for variants within these haplotypes.</p>
  *
- * The underlying algorithm is based on building up 2^n local haplotypes,
- * where n is the number of heterozygous SNPs in the local region we expected to find phase-informative reads (and assumes a maximum value of maxPhaseSites, a user parameter).
- * Then, these 2^n haplotypes are used to determine, with sufficient certainty (the assigned PQ score), to which haplotype the alleles of a genotype at a particular locus belong (denoted by the HP tag).
+ * <p>It operates by walking along all variant ROD loci, caching a user-defined window of VariantContext sites, and
+ * then finishes phasing them when they go out of range (using upstream and downstream reads). The underlying algorithm
+ * is based on building up 2^n local haplotypes, where n is the number of heterozygous SNPs in the local region we
+ * expected to find phase-informative reads (and assumes a maximum value of maxPhaseSites, a user parameter). Then,
+ * these 2^n haplotypes are used to determine, with sufficient certainty (the assigned PQ score), to which haplotype
+ * the alleles of a genotype at a particular locus belong (denoted by the HP tag).</p>
  *
  * <p>
  * Performs physical phasing of SNP calls, based on sequencing reads.
@@ -109,18 +113,20 @@ import static org.broadinstitute.gatk.engine.GATKVCFUtils.getVCFHeadersFromRods;
  * Phased VCF file.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- *    java
- *      -jar GenomeAnalysisTK.jar
- *      -T ReadBackedPhasing
- *      -R reference.fasta
- *      -I reads.bam
- *      --variant SNPs.vcf
- *      -L SNPs.vcf
- *      -o phased_SNPs.vcf
+ *    java -jar GenomeAnalysisTK.jar \
+ *      -T ReadBackedPhasing \
+ *      -R reference.fasta \
+ *      -I reads.bam \
+ *      --variant SNPs.vcf \
+ *      -L SNPs.vcf \
+ *      -o phased_SNPs.vcf \
  *      --phaseQualityThresh 20.0
  * </pre>
+ *
+ * <h3>Caveat</h3>
+ * <p>The current implementation works for diploid SNPs, and will transparently (but properly) ignore other sites.</p>
  *
  * @author Menachem Fromer
  * @since July 2010

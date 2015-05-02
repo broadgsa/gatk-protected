@@ -76,8 +76,6 @@ import java.util.*;
  * <h3>Statistical notes</h3>
  * <p>The calculation is based on the derivation described in <a href="http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT">http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT</a>.</p>
  *
- * <p>Note that this annotation requires a valid ped file.</p>
- *
  * <h3>Caveat</h3>
  * <ul>
  *     <li>This annotation requires a valid pedigree file.</li>

@@ -82,7 +82,11 @@ import java.util.*;
  * <p>The calculation is a continuous generalization of the Hardy-Weinberg test for disequilibrium that works well with limited coverage per sample. The output is a Phred-scaled p-value derived from running the HW test for disequilibrium with PL values. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
  *
  * <h3>Caveats</h3>
- * <h4>Note that the Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</h4>
+ * <ul>
+ * <li>The Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
+ * <li>This annotation is used in variant recalibration, but may not be appropriate for that purpose if the cohort being analyzed contains many closely related individuals.</li>
+ * <li>This annotation requires a valid pedigree file.</li>
+ * </ul>
  *
  */
 public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {

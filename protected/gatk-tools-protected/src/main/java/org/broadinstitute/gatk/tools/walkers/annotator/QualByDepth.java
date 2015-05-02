@@ -80,7 +80,7 @@ import java.util.*;
  * <h3>Statistical notes</h3>
  * <p>The calculation only takes into account coverage from samples genotyped as having the variant allele(s). This removes the influence of any homozygous-reference samples that might be present in the same cohort, which would otherwise penalize the call unfairly.</p>
  *
- * <h3>Caveats</h3>
+ * <h3>Caveat</h3>
  * <p>This annotation can only be calculated for sites for which at least one sample was genotyped as carrying a variant allele.</p>
  *
  * <h3>Related annotations</h3>

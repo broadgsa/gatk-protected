@@ -73,9 +73,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Number of forward and reverse reads that support each allele (including REF)
+ * Number of forward and reverse reads that support each allele
  *
- * <p>The StrandAlleleCountsBySample annotation produces read counts per allele and per strand.  Note that, as with the <a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_DepthPerAlleleBySample.php">AD</a> annotation, the allele counts here should not be used to make assumptions about the called genotype.</p>
+ * <p>The StrandAlleleCountsBySample annotation produces read counts per allele (including (REF) and per strand.  Note that, as with the <a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_DepthPerAlleleBySample.php">AD</a> annotation, the allele counts here should not be used to make assumptions about the called genotype.</p>
  *
  * <p>This annotation produces 2 values per allele at each site, corresponding to the number of reads that support the following (in that order):</p>
  * <ul>

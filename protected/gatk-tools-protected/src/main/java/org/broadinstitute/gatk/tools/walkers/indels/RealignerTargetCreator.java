@@ -77,54 +77,59 @@ import java.util.List;
 import java.util.TreeSet;
 
 /**
- * Emits intervals for the Local Indel Realigner to target for realignment.
+ * Define intervals to target for local realignment
  *
  * <p>
- * The local realignment tool is designed to consume one or more BAM files and to locally realign reads such that the number of mismatching bases
+ * The local realignment process is designed to consume one or more BAM files and to locally realign reads such that the number of mismatching bases
  * is minimized across all the reads. In general, a large percent of regions requiring local realignment are due to the presence of an insertion
  * or deletion (indels) in the individual's genome with respect to the reference genome.  Such alignment artifacts result in many bases mismatching
  * the reference near the misalignment, which are easily mistaken as SNPs.  Moreover, since read mapping algorithms operate on each read independently,
  * it is impossible to place reads on the reference genome such that mismatches are minimized across all reads.  Consequently, even when some reads are
  * correctly mapped with indels, reads covering the indel near just the start or end of the read are often incorrectly mapped with respect the true indel,
  * also requiring realignment.  Local realignment serves to transform regions with misalignments due to indels into clean reads containing a consensus
- * indel suitable for standard variant discovery approaches.  Unlike most mappers, this walker uses the full alignment context to determine whether an
- * appropriate alternate reference (i.e. indel) exists.  Following local realignment, the GATK tool Unified Genotyper can be used to sensitively and
- * specifically identify indels.
- * <p>
- *     <ol>There are 2 steps to the realignment process:
+ * indel suitable for standard variant discovery approaches.  Unlike most mappers, this tool uses the full alignment context to determine whether an
+ * appropriate alternate reference (i.e. indel) exists.
+ * </p>
+ *     <p>There are 2 steps to the realignment process:</p>
+ *     <ol>
  *     <li>Determining (small) suspicious intervals which are likely in need of realignment (RealignerTargetCreator)</li>
  *     <li>Running the realigner over those intervals (see the IndelRealigner tool)</li>
  *     </ol>
  *     <p>
- * Important note 1: the input BAM(s), reference, and known indel file(s) should be the same ones to be used for the IndelRealigner step.
  * <p>
- * Important note 2: when multiple potential indels are found by the tool in the same general region, the tool will choose the most likely
- * one for realignment to the exclusion of the others.  This is a known limitation of the tool.
- * <p>
- * Important note 3: because reads produced from the 454 technology inherently contain false indels, the realigner will not currently work with them
- * (or with reads from similar technologies).   This tool also ignores MQ0 reads and reads with consecutive indel operators in the CIGAR string.
+ *     For more details, see <a href="http://www.broadinstitute.org/gatk/guide/article?id=38">the indel realignment method documentation</a>.
+ * </p>
  *
- * <h3>Input</h3>
+ * <h3>Inputs</h3>
  * <p>
- * One or more aligned BAM files and optionally one or more lists of known indels.
+ * One or more aligned BAM files and optionally, one or more lists of known indels.
  * </p>
  *
  * <h3>Output</h3>
  * <p>
- * A list of target intervals to pass to the Indel Realigner.
+ * A list of target intervals to pass to the IndelRealigner.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T RealignerTargetCreator \
- *   -R ref.fasta \
+ *   -R reference.fasta \
  *   -I input.bam \
- *   -o forIndelRealigner.intervals \
- *   [--known /path/to/indels.vcf]
+ *   --known indels.vcf \
+ *   -o forIndelRealigner.intervals
  * </pre>
  *
- * @author ebanks
+ * <h3>Notes</h3>
+ * <ul>
+ *     <li>The input BAM(s), reference, and known indel file(s) should be the same ones to be used for the IndelRealigner step.</li>
+ *     <li>When multiple potential indels are found by the tool in the same general region, the tool will choose the most likely
+ *          one for realignment to the exclusion of the others.  This is a known limitation of the tool.</li>
+ *     <li>Because reads produced from the 454 technology inherently contain false indels, the realigner will not work with them
+ * (or with reads from similar technologies).</li>
+ *     <li>This tool also ignores MQ0 reads and reads with consecutive indel operators in the CIGAR string.</li>
+ * </ul>
+ *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_DATA, extraDocs = {CommandLineGATK.class} )
 @ReadFilters({MappingQualityZeroFilter.class, MappingQualityUnavailableFilter.class, BadMateFilter.class, Platform454Filter.class})

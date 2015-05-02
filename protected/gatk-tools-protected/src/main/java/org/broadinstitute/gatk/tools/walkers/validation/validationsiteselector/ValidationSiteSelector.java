@@ -73,22 +73,28 @@ import java.util.*;
 
 
 /**
- * Randomly selects VCF records according to specified options.
+ * Randomly select variant records according to specified options
  *
  * <p>
- * ValidationSiteSelectorWalker is intended for use in experiments where we sample data randomly from a set of variants, for example
- * in order to choose sites for a follow-up validation study.
+ * This tool is intended for use in experiments where we sample data randomly from a set of variants, for example
+ * in order to choose sites for a follow-up validation study.</p>
  *
- * Sites are selected randomly but within certain restrictions. There are two main sources of restrictions
- * a) Sample restrictions. A user can specify a set of samples, and we will only consider sites which are polymorphic within such given sample subset.
- * These sample restrictions can be given as a set of individual samples, a text file (each line containing a sample name), or a regular expression.
- * A user can additionally specify whether samples will be considered based on their genotypes (a non-reference genotype means that such sample is polymorphic in that variant,
- * and hence that variant will be considered for inclusion in set), or based on their PLs.
- * b) A user can additionally specify a sampling method based on allele frequency. Two sampling methods are currently supported.
- * 1. Uniform sampling will just sample uniformly from variants polymorphic in selected samples.
- * 2. Sampling based on Allele Frequency spectrum will ensure that output sites have the same AF distribution as the input set.
- *
- * User can additionally restrict output to a particular type of variant (SNP, Indel, etc.)
+ * <p>Sites are selected randomly but within certain restrictions. There are two main sources of restrictions:</p>
+ * <ul>
+ *     <li><b>Sample restrictions:</b> A user can specify a set of samples, and we will only consider sites which are
+ *     polymorphic within the given sample subset. These sample restrictions can be given as a set of individual
+ *     samples, a text file (each line containing a sample name), or a regular expression. A user can additionally
+ *     specify whether samples will be considered based on their genotypes (a non-reference genotype means that the
+ *     sample is polymorphic in that variant, and hence that variant will be considered for inclusion in set), or
+ *     based on their PLs.</li>
+ *     <li><b>Sampling methods:</b>
+ *          <ol>
+ *              <li>Uniform sampling will just sample uniformly from variants that are polymorphic in selected samples</li>
+ *              <li>Sampling based on Allele Frequency spectrum will ensure that output sites have the same AF distribution as the input set</li>
+ *          </ol>
+ *     </li>
+ *     <li>Variant type (SNP, Indel, etc.)</li>
+ * </ul>
  *
  * <h3>Input</h3>
  * <p>
@@ -100,29 +106,30 @@ import java.util.*;
  * A sites-only VCF with the desired number of randomly selected sites.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage examples</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T ValidationSiteSelectorWalker \
- *   --variant input1.vcf \
- *   --variant input2.vcf \
+ *   -R reference.fasta \
+ *   -V input1.vcf \
+ *   -V input2.vcf \
  *   -sn NA12878 \
  *   -o output.vcf \
  *   --numValidationSites 200   \
- *   -sampleMode  POLY_BASED_ON_GT \
+ *   -sampleMode POLY_BASED_ON_GT \
  *   -freqMode KEEP_AF_SPECTRUM
- *
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * </pre>
+ * <pre>
+ * java -jar GenomeAnalysisTK.jar \
  *   -T ValidationSiteSelectorWalker \
- *   --variant:foo input1.vcf \
- *   --variant:bar input2.vcf \
+ *   -R reference.fasta \
+ *   -V:foo input1.vcf \
+ *   -V:bar input2.vcf \
  *   --numValidationSites 200 \
  *   -sf samples.txt \
  *   -o output.vcf \
  *   -sampleMode  POLY_BASED_ON_GT \
-  *   -freqMode UNIFORM
+  *   -freqMode UNIFORM \
  *   -selectType INDEL
  * </pre>
  *

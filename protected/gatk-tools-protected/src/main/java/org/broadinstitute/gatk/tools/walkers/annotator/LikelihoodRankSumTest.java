@@ -61,7 +61,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Rank Sum Test of per-read likelihoods of REF vs. ALT reads
+ * Rank Sum Test of per-read likelihoods of REF versus ALT reads
  *
  * <p>This variant-level annotation compares the likelihoods of reads to their best haplotype match, between reads that support the reference allele and those that support the alternate allele. The ideal result is a value close to zero, which indicates there is little to no difference.  A negative value indicates that the reads supporting the alternate allele have lower likelihoods to their best haplotype match than those supporting the reference allele. Conversely, a positive value indicates that the reads supporting the alternate allele have higher likelihoods to their best haplotype match than those supporting the reference allele. Finding a statistically significant difference either way suggests that the sequencing and/or mapping process may have been biased or affected by an artifact.</p>
  *

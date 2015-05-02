@@ -74,37 +74,38 @@ import htsjdk.variant.vcf.*;
 import java.util.*;
 
 /**
- * Combines any number of gVCF files that were produced by the Haplotype Caller into a single joint gVCF file.
+ * Combine per-sample gVCF files produced by HaplotypeCaller into a multi-sample gVCF file
  *
  * <p>
  * CombineGVCFs is meant to be used for hierarchical merging of gVCFs that will eventually be input into GenotypeGVCFs.
  * One would use this tool when needing to genotype too large a number of individual gVCFs; instead of passing them
  * all in to GenotypeGVCFs, one would first use CombineGVCFs on smaller batches of samples and then pass these combined
- * gVCFs to GenotypeGVCFs.
- *
- * Note that this tool cannot work with just any gVCF files - they must have been produced with the Haplotype Caller
- * as part of the "single sample discovery" pipeline using the '-ERC GVCF' mode, which uses a sophisticated reference
- * model to produce accurate genotype likelihoods for every position in the target.
+ * gVCFs to GenotypeGVCFs.</p>
  *
  * <h3>Input</h3>
  * <p>
- * One or more Haplotype Caller gVCFs to combine.
+ * Two or more Haplotype Caller gVCFs to combine.
  * </p>
  *
  * <h3>Output</h3>
  * <p>
- * A combined VCF.
+ * A combined multisample gVCF.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T CombineGVCFs \
- *   --variant gvcf1.vcf \
- *   --variant gvcf2.vcf \
- *   -o mergeGvcf.vcf
+ *   -R reference.fasta \
+ *   --variant sample1.g.vcf \
+ *   --variant sample2.g.vcf \
+ *   -o cohort.g.vcf
  * </pre>
+ *
+ * <h3>Caveat</h3>
+ * <p>Only gVCF files produced by HaplotypeCaller (or CombineGVCFs) can be used as input for this tool. Some other
+ * programs produce files that they call gVCFs but those lack some important information (accurate genotype likelihoods
+ * for every position) that GenotypeGVCFs requires for its operation.</p>
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )

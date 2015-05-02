@@ -113,11 +113,11 @@ import java.util.*;
  * <li>A recalibrated VCF file in which each variant of the requested type is annotated with its VQSLOD and marked as filtered if the score is below the desired quality level.</li>
  * </ul>
  *
- * <h3>Example for filtering SNPs</h3>
+ * <h3>Usage example for filtering SNPs</h3>
  * <pre>
  * java -Xmx3g -jar GenomeAnalysisTK.jar \
  *   -T ApplyRecalibration \
- *   -R reference/human_g1k_v37.fasta \
+ *   -R reference.fasta \
  *   -input NA12878.HiSeq.WGS.bwa.cleaned.raw.subset.b37.vcf \
  *   --ts_filter_level 99.0 \
  *   -tranchesFile path/to/output.tranches \
