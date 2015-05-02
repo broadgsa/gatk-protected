@@ -57,7 +57,7 @@ import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardUGAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -79,7 +79,7 @@ import java.util.Map;
  * <p>This anotation gives you the count of all reads that have MAPQ = 0 across all samples. The count of reads with MAPQ0 can be used for quality control; high counts typically indicate regions where it is difficult to make confident calls.</p>
  *
  * <h3>Caveat</h3>
- * <p>This annotation is excluded by HaplotypeCaller because HC filters out all reads with MQ0 upfront, so the annotation would always return a value of 0 anyway.</p>
+ * <p>It is not useful to apply this annotation with HaplotypeCaller because HC filters out all reads with MQ0 upfront, so the annotation will always return a value of 0.</p>
  *
  * <h3>Related annotations</h3>
  * <ul>
@@ -88,7 +88,7 @@ import java.util.Map;
  * </ul>
  *
  */
-public class MappingQualityZero extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+public class MappingQualityZero extends InfoFieldAnnotation implements StandardUGAnnotation, ActiveRegionBasedAnnotation {
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
