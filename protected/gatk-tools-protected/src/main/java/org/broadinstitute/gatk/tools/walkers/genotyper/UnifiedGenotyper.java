@@ -219,7 +219,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
      * Keep in mind that RODRequiringAnnotations are not intended to be used as a group, because they require specific ROD inputs.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls.  The single value 'none' removes the default group", required=false)
-    protected String[] annotationClassesToUse = { "Standard" };
+    protected String[] annotationClassesToUse = { "Standard", "StandardUG" };
 
     // the calculation arguments
     private UnifiedGenotypingEngine genotypingEngine = null;

@@ -293,12 +293,16 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"ClippingRankSumTest", "DepthPerSampleHC"}));
 
     /**
-     * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the -A or -G arguments,
-     * so these annotations will be excluded even if they are explicitly included with the other options.
+     * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the
+     * -A or -G arguments, so these annotations will be excluded even if they are explicitly included with the other
+     * options. When HaplotypeCaller is run with -ERC GVCF or -ERC BP_RESOLUTION, some annotations are excluded from the
+     * output by default because they will only be meaningful once they have been recalculated by GenotypeGVCFs. As
+     * of version 3.3 this concerns ChromosomeCounts, FisherStrand, StrandOddsRatio and QualByDepth.
+     *
      */
     @Advanced
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
-    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{"SpanningDeletions", "TandemRepeatAnnotator", "MappingQualityZero"}));
+    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{}));
 
     /**
      * Which groups of annotations to add to the output VCF file. The single value 'none' removes the default group. See
@@ -506,7 +510,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         }
 
         if (dontGenotype && emitReferenceConfidence())
-            throw new UserException("You cannot request gVCF output and do not genotype at the same time");
+            throw new UserException("You cannot request gVCF output and 'do not genotype' at the same time");
 
         if ( emitReferenceConfidence() ) {
 
