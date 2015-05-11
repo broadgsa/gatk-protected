@@ -444,8 +444,22 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                         1, UserException.CommandLineException.class));
     }
 
+    @Test 
+    public void testHaplotypeCallerMergeVariantsViaLDException(){
+        executeTest("HaplotypeCallerMergeVariantsViaLDException",
+                new WalkerTest.WalkerTestSpec(
+                        " -T HaplotypeCaller" +
+                                " -R " + REF +
+                                " -I " + NA12878_BAM +
+                                " -L " + INTERVALS_FILE +
+				" --mergeVariantsViaLD " +
+                                " -o %s",
+                        1, UserException.DeprecatedArgument.class));
+    }
+
     @Test
     public void testHaplotypeCallerTandemRepeatAnnotator() throws IOException{
         HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A TandemRepeatAnnotator -XA MappingQualityZero -XA SpanningDeletions", "481787c9275ab9f2e2b53025805472b7");
     }
 }
+
