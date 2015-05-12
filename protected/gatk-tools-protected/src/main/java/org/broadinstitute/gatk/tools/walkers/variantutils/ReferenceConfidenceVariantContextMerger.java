@@ -113,20 +113,27 @@ public class ReferenceConfidenceVariantContextMerger {
         final Map<String, List<Comparable>> annotationMap = new LinkedHashMap<>();
         final GenotypesContext genotypes = GenotypesContext.create();
 
-        final int variantContextCount = VCs.size();
         // In this list we hold the mapping of each variant context alleles.
-        final List<Pair<VariantContext,List<Allele>>> vcAndNewAllelePairs = new ArrayList<>(variantContextCount);
+        final List<Pair<VariantContext,List<Allele>>> vcAndNewAllelePairs = new ArrayList<>(VCs.size());
+        // Keep track of whether we saw a spanning deletion and a non-spanning event
+        boolean sawSpanningDeletion = false;
+        boolean sawNonSpanningEvent = false;
+
         // cycle through and add info from the other VCs
         for ( final VariantContext vc : VCs ) {
 
             // if this context doesn't start at the current location then it must be a spanning event (deletion or ref block)
             final boolean isSpanningEvent = loc.getStart() != vc.getStart();
+            // record whether it's also a spanning deletion/event (we know this because the VariantContext type is no
+            // longer "symbolic" but "mixed" because there are real alleles mixed in with the symbolic non-ref allele)
+            sawSpanningDeletion |= ( isSpanningEvent && vc.isMixed() ) || vc.getAlternateAlleles().contains(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE);
+            sawNonSpanningEvent |= ( !isSpanningEvent && vc.isMixed() );
 
-            vcAndNewAllelePairs.add(new Pair<>(vc,isSpanningEvent ? replaceWithNoCalls(vc.getAlleles())
-                    : remapAlleles(vc.getAlleles(), refAllele, finalAlleleSet)));
+            vcAndNewAllelePairs.add(new Pair<>(vc, isSpanningEvent ? replaceWithNoCallsAndDels(vc) : remapAlleles(vc, refAllele, finalAlleleSet)));
         }
 
-        // Add <NON_REF> to the end if at all required in in the output.
+        // Add <DEL> and <NON_REF> to the end if at all required in in the output.
+        if ( sawSpanningDeletion && (sawNonSpanningEvent || !removeNonRefSymbolicAllele) ) finalAlleleSet.add(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE);
         if (!removeNonRefSymbolicAllele) finalAlleleSet.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
 
         final List<Allele> allelesList = new ArrayList<>(finalAlleleSet);
@@ -171,11 +178,25 @@ public class ReferenceConfidenceVariantContextMerger {
 
         final String ID = rsIDs.isEmpty() ? VCFConstants.EMPTY_ID_FIELD : Utils.join(",", rsIDs);
 
+        // note that in order to calculate the end position, we need a list of alleles that doesn't include anything symbolic
         final VariantContextBuilder builder = new VariantContextBuilder().source(name).id(ID).alleles(allelesList)
-                .chr(loc.getContig()).start(loc.getStart()).computeEndFromAlleles(allelesList, loc.getStart(), loc.getStart())
+                .chr(loc.getContig()).start(loc.getStart()).computeEndFromAlleles(nonSymbolicAlleles(allelesList), loc.getStart(), loc.getStart())
                 .genotypes(genotypes).unfiltered().attributes(new TreeMap<>(attributes)).log10PError(CommonInfo.NO_LOG10_PERROR);  // we will need to re-genotype later
 
         return builder.make();
+    }
+
+    /**
+     * @param list  the original alleles list
+     * @return a non-null list of non-symbolic alleles
+     */
+    private static List<Allele> nonSymbolicAlleles(final List<Allele> list) {
+        final List<Allele> result = new ArrayList<>(list.size());
+        for ( final Allele allele : list ) {
+            if ( !allele.isSymbolic() )
+                result.add(allele);
+        }
+        return result;
     }
 
     /**
@@ -246,27 +267,28 @@ public class ReferenceConfidenceVariantContextMerger {
      *     collects alternative alleles present in variant context and add them to the {@code finalAlleles} set.
      * </li></ul>
      *
-     * @param vcAlleles the variant context allele list.
-     * @param refAllele final reference allele.
+     * @param vc           the variant context.
+     * @param refAllele    final reference allele.
      * @param finalAlleles where to add the final set of non-ref called alleles.
      * @return never {@code null}
      */
     //TODO as part of a larger refactoring effort {@link #remapAlleles} can be merged with {@link GATKVariantContextUtils#remapAlleles}.
-    private static List<Allele> remapAlleles(final List<Allele> vcAlleles, final Allele refAllele, final LinkedHashSet<Allele> finalAlleles) {
-        final Allele vcRef = vcAlleles.get(0);
-        if (!vcRef.isReference()) throw new IllegalStateException("the first allele of the vc allele list must be reference");
+    private static List<Allele> remapAlleles(final VariantContext vc, final Allele refAllele, final LinkedHashSet<Allele> finalAlleles) {
+
+        final Allele vcRef = vc.getReference();
         final byte[] refBases = refAllele.getBases();
         final int extraBaseCount = refBases.length - vcRef.getBases().length;
         if (extraBaseCount < 0) throw new IllegalStateException("the wrong reference was selected");
-        final List<Allele> result = new ArrayList<>(vcAlleles.size());
 
-        for (final Allele a : vcAlleles) {
-            if (a.isReference()) {
-                result.add(refAllele);
-            } else if (a.isSymbolic()) {
+        final List<Allele> result = new ArrayList<>(vc.getNAlleles());
+        result.add(refAllele);
+
+        for (final Allele a : vc.getAlternateAlleles()) {
+            if (a.isSymbolic()) {
                 result.add(a);
-                // we always skip <NON_REF> when adding to finalAlleles this is done outside if applies.
-                if (!a.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE))
+                // we always skip <NON_REF> when adding to finalAlleles; this is done outside if applies.
+                // we also skip <*DEL> if there isn't a real alternate allele.
+                if ( !a.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) && !vc.isSymbolic() )
                     finalAlleles.add(a);
             } else if (a.isCalled()) {
                 final Allele newAllele;
@@ -287,17 +309,31 @@ public class ReferenceConfidenceVariantContextMerger {
     }
 
     /**
-     * Replaces any alleles in the list with NO CALLS, except for the generic ALT allele
+     * Replaces any alleles in the VariantContext with NO CALLS or the symbolic deletion allele as appropriate, except for the generic ALT allele
      *
-     * @param alleles list of alleles to replace
+     * @param vc   VariantContext with the alleles to replace
      * @return non-null list of alleles
      */
-    private static List<Allele> replaceWithNoCalls(final List<Allele> alleles) {
-        if ( alleles == null ) throw new IllegalArgumentException("list of alleles cannot be null");
+    private static List<Allele> replaceWithNoCallsAndDels(final VariantContext vc) {
+        if ( vc == null ) throw new IllegalArgumentException("VariantContext cannot be null");
 
-        final List<Allele> result = new ArrayList<>(alleles.size());
-        for ( final Allele allele : alleles )
-            result.add(allele.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) ? allele : Allele.NO_CALL);
+        final List<Allele> result = new ArrayList<>(vc.getNAlleles());
+
+        // no-call the reference allele
+        result.add(Allele.NO_CALL);
+
+        // handle the alternate alleles
+        for ( final Allele allele : vc.getAlternateAlleles() ) {
+            final Allele replacement;
+            if ( allele.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) )
+                replacement = allele;
+            else if ( allele.length() < vc.getReference().length() )
+                replacement = GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE;
+            else
+                replacement = Allele.NO_CALL;
+
+            result.add(replacement);
+        }
         return result;
     }
 
@@ -387,42 +423,15 @@ public class ReferenceConfidenceVariantContextMerger {
             throw new UserException("The list of input alleles must contain " + GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE + " as an allele but that is not the case at position " + position + "; please use the Haplotype Caller with gVCF output to generate appropriate records");
 
         final int indexOfNonRef = remappedAlleles.indexOf(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
-
-        //if the refs don't match then let the non-ref allele be the most likely of the alts
-        //TODO: eventually it would be nice to be able to trim alleles for spanning events to see if they really do have the same ref
-        final boolean refsMatch = targetAlleles.get(0).equals(remappedAlleles.get(0),false);
-        final int indexOfBestAlt;
-        if (!refsMatch && g.hasPL()) {
-            final int[] PLs = g.getPL().clone();
-            PLs[0] = Integer.MAX_VALUE; //don't pick 0/0
-            final int indexOfBestAltPL = MathUtils.minElementIndex(PLs);
-            GenotypeLikelihoods.GenotypeLikelihoodsAllelePair pair = GenotypeLikelihoods.getAllelePair(indexOfBestAltPL);
-            indexOfBestAlt = pair.alleleIndex2;
-        }
-        else
-            indexOfBestAlt = indexOfNonRef;
-
         final int[] indexMapping = new int[targetAlleles.size()];
 
         // the reference likelihoods should always map to each other (even if the alleles don't)
         indexMapping[0] = 0;
 
-        // create the index mapping, using the <ALT> allele whenever such a mapping doesn't exist
-        final int targetNonRef = targetAlleles.indexOf(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
-        final boolean targetHasNonRef = targetNonRef != -1;
-        final int lastConcreteAlt = targetHasNonRef ? targetAlleles.size()-2 : targetAlleles.size()-1;
-        for ( int i = 1; i <= lastConcreteAlt; i++ ) {
+        // create the index mapping, using the <NON-REF> allele whenever such a mapping doesn't exist
+        for ( int i = 1; i < targetAlleles.size(); i++ ) {
             final int indexOfRemappedAllele = remappedAlleles.indexOf(targetAlleles.get(i));
             indexMapping[i] = indexOfRemappedAllele == -1 ? indexOfNonRef : indexOfRemappedAllele;
-        }
-        if (targetHasNonRef) {
-            if (refsMatch) {
-                final int indexOfRemappedAllele = remappedAlleles.indexOf(targetAlleles.get(targetNonRef));
-                indexMapping[targetNonRef] = indexOfRemappedAllele == -1 ? indexOfNonRef : indexOfRemappedAllele;
-            }
-            else {
-                indexMapping[targetNonRef] = indexOfBestAlt;
-            }
         }
 
         return indexMapping;

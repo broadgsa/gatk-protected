@@ -88,9 +88,6 @@ import java.util.*;
  */
 public class ReferenceConfidenceModel {
 
-    //public final static String INDEL_INFORMATIVE_DEPTH = "CD"; // temporarily taking this extra genotype level information out for now
-    public final static String ALTERNATE_ALLELE_STRING = "ALT"; // arbitrary alternate allele
-
     private final GenomeLocParser genomeLocParser;
 
     private final SampleList samples;
@@ -138,9 +135,7 @@ public class ReferenceConfidenceModel {
      */
     public Set<VCFHeaderLine> getVCFHeaderLines() {
         final Set<VCFHeaderLine> headerLines = new LinkedHashSet<>();
-        // TODO - do we need a new kind of VCF Header subclass for specifying arbitrary alternate alleles?
-        headerLines.add(new VCFSimpleHeaderLine(ALTERNATE_ALLELE_STRING, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE_NAME, "Represents any possible alternative allele at this location"));
-        //headerLines.add(new VCFFormatHeaderLine(INDEL_INFORMATIVE_DEPTH, 1, VCFHeaderLineType.Integer, "Number of reads at locus that are informative about an indel of size <= " + indelInformativeDepthIndelSize));
+        headerLines.add(new VCFSimpleHeaderLine(GATKVCFConstants.SYMBOLIC_ALLELE_DEFINITION_HEADER_TAG, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE_NAME, "Represents any possible alternative allele at this location"));
         return headerLines;
     }
 
