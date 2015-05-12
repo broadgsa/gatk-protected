@@ -187,7 +187,10 @@ final class HomRefBlock {
     }
 
     public VCFHeaderLine toVCFHeaderLine() {
-        return new VCFHeaderLine("GVCFBlock", "minGQ=" + getGQLowerBound() + "(inclusive),maxGQ=" + getGQUpperBound() + "(exclusive)");
+        // Need to uniquify the key for the header line using the min/max GQ, since
+        // VCFHeader does not allow lines with duplicate keys.
+        final String key = String.format("GVCFBlock%d-%d", getGQLowerBound(), getGQUpperBound());
+        return new VCFHeaderLine(key, "minGQ=" + getGQLowerBound() + "(inclusive),maxGQ=" + getGQUpperBound() + "(exclusive)");
     }
 
     /**

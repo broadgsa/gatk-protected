@@ -48,7 +48,7 @@
         </dependency>
         <!-- Tribble codecs & the variant package (VCF, BCF, and VariantContext) -->
         <dependency>
-            <groupId>samtools</groupId>
+            <groupId>com.github.samtools</groupId>
             <artifactId>htsjdk</artifactId>
         </dependency>
         <!-- Workaround - depend on the logger impl required by JEXL -->

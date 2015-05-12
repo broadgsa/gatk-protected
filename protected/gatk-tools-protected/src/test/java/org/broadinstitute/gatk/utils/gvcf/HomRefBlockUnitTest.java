@@ -167,4 +167,10 @@ public class HomRefBlockUnitTest extends BaseTest {
         final VariantContext testVC = new VariantContextBuilder(vc).chr(contig).start(pos).stop(pos).make();
         Assert.assertEquals(band.isContiguous(testVC), expected);
     }
+
+    @Test
+    public void testToVCFHeaderLine() {
+        final HomRefBlock band = new HomRefBlock(vc, 10, 20, HomoSapiensConstants.DEFAULT_PLOIDY);
+        Assert.assertEquals(band.toVCFHeaderLine().getKey(), "GVCFBlock10-20", "Wrong key for HomRefBlock " + band);
+    }
 }
