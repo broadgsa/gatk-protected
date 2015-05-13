@@ -480,4 +480,15 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testMultipleSpanningDeletionsMD5", spec);
     }
+
+    @Test(enabled = true)
+    public void testSpanningDeletionDoesNotGetGenotypedWithNoOtherAlleles() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
+                        " -V " + privateTestDir + "spanningDel.delOnly.g.vcf",
+                1,
+                Arrays.asList("46169d08f93e5ff57856c7b64717314b"));
+        spec.disableShadowBCF();
+        executeTest("testSpanningDeletionDoesNotGetGenotypedWithNoOtherAlleles", spec);
+    }
 }

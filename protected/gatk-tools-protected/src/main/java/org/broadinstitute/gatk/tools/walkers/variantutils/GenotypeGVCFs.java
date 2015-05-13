@@ -261,7 +261,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         // only re-genotype polymorphic sites
         if ( result.isVariant() ) {
             VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
-            if ( regenotypedVC == null) {
+            if ( ! isProperlyPolymorphic(regenotypedVC) ) {
                 if (!INCLUDE_NON_VARIANTS)
                     return null;
             }
@@ -293,6 +293,16 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         }
 
         return result;
+    }
+
+    /**
+     * Determines whether the provided VariantContext has real alternate alleles
+     *
+     * @param vc  the VariantContext to evaluate
+     * @return true if it has proper alternate alleles, false otherwise
+     */
+    private boolean isProperlyPolymorphic(final VariantContext vc) {
+        return ( vc != null && !vc.isSymbolic() );
     }
 
     /**
