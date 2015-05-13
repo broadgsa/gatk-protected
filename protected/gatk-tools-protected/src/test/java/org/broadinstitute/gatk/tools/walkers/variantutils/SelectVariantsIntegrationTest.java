@@ -64,6 +64,9 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         return "-T SelectVariants -R " + b36KGReference + " -L 1 -o %s --no_cmdline_in_header" + args;
     }
 
+    private static final String sampleExclusionMD5 = "eea22fbf1e490e59389a663c3d6a6537";
+    private static final String invertSelectionMD5 = "831bc0a5a723b0681a910d668ff3757b";
+
     @Test
     public void testDiscordanceNoSampleSpecified() {
         String testFile = privateTestDir + "NA12878.hg19.example1.vcf";
@@ -150,6 +153,9 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         executeTest("testNonExistingSelection--" + testfile, spec);
     }
 
+    /**
+     * Test excluding samples from file and sample name
+     */
     @Test
     public void testSampleExclusionFromFileAndSeparateSample() {
         String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
@@ -162,9 +168,12 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         );
         spec.disableShadowBCF();
 
-        executeTest("testSampleExclusion--" + testfile, spec);
+        executeTest("testSampleExclusionFromFileAndSeparateSample--" + testfile, spec);
     }
 
+    /**
+     * Test excluding samples from file
+     */
     @Test
     public void testSampleExclusionJustFromFile() {
         String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
@@ -177,9 +186,46 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         );
         spec.disableShadowBCF();
 
-        executeTest("testSampleExclusion--" + testfile, spec);
+        executeTest("testSampleExclusionJustFromFile--" + testfile, spec);
     }
 
+    /**
+     * Test excluding samples from expression
+     */
+    @Test
+    public void testSampleExclusionJustFromExpression() {
+        String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b36KGReference + " -L 1:1-1000000 -o %s --no_cmdline_in_header -xl_se '[CDH]' --variant " + testfile,
+                1,
+                Arrays.asList(sampleExclusionMD5)
+        );
+        spec.disableShadowBCF();
+
+        executeTest("testSampleExclusionJustFromExpression--" + testfile, spec);
+    }
+
+    /**
+     * Test excluding samples from negation expression
+     */
+    @Test
+    public void testSampleExclusionJustFromNegationExpression() {
+        String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b36KGReference + " -L 1:1-1000000 -o %s --no_cmdline_in_header -se '[^CDH]' --variant " + testfile,
+                1,
+                Arrays.asList(sampleExclusionMD5)
+        );
+        spec.disableShadowBCF();
+
+        executeTest("testSampleExclusionJustFromRegexExpression--" + testfile, spec);
+    }
+
+    /**
+     * Test including samples that are not in the VCF
+     */
     @Test
     public void testSampleInclusionWithNonexistingSamples() {
         String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
@@ -194,7 +240,6 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
 
         executeTest("testSampleInclusionWithNonexistingSamples--" + testfile, spec);
     }
-
 
     @Test
     public void testConcordance() {
@@ -212,6 +257,9 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         executeTest("testConcordance--" + testFile, spec);
     }
 
+    /**
+     * Test including variant types.
+     */
     @Test
     public void testVariantTypeSelection() {
         String testFile = privateTestDir + "complexExample1.vcf";
@@ -219,23 +267,42 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b36KGReference + " -restrictAllelesTo MULTIALLELIC -selectType MIXED --variant " + testFile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("ca2b70e3171420b08b0a2659bfe2a794")
+                Arrays.asList("2c50ab2ae96fae40bfc2b8398fc5e54e")
         );
 
         executeTest("testVariantTypeSelection--" + testFile, spec);
     }
 
+    /**
+     * Test excluding indels that are larger than the specified size
+     */
     @Test
-    public void testIndelLengthSelection() {
+    public void testMaxIndelLengthSelection() {
         String testFile = privateTestDir + "complexExample1.vcf";
 
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T SelectVariants -R " + b36KGReference + " -selectType INDEL --variant " + testFile + " -o %s --no_cmdline_in_header --maxIndelSize 3",
+                "-T SelectVariants -R " + b36KGReference + " -selectType INDEL --variant " + testFile + " -o %s --no_cmdline_in_header --maxIndelSize 2",
                 1,
-                Arrays.asList("004589868ca5dc887e2dff876b4cc797")
+                Arrays.asList("2c50ab2ae96fae40bfc2b8398fc5e54e")
         );
 
-        executeTest("testIndelLengthSelection--" + testFile, spec);
+        executeTest("testMaxIndelLengthSelection--" + testFile, spec);
+    }
+
+    /**
+     * Test excluding indels that are smaller than the specified size
+     */
+    @Test
+    public void testMinIndelLengthSelection() {
+        String testFile = privateTestDir + "complexExample1.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b36KGReference + " -selectType INDEL --variant " + testFile + " -o %s --no_cmdline_in_header --minIndelSize 2",
+                1,
+                Arrays.asList("fa5f3eb4f0fc5cedc93e6c519c0c8bcb")
+        );
+
+        executeTest("testMinIndelLengthSelection--" + testFile, spec);
     }
 
     @Test
@@ -487,5 +554,115 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
 
         executeTest("testMissingVcfException--" + testfile, spec);
+    }
+
+    /**
+     * Test inverting the variant selection criteria
+     */
+    @Test
+    public void testInvertSelection() {
+        String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
+        String samplesFile = validationDataLocation + "SelectVariants.samples.txt";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -sn A -se '[CDH]' -sf " + samplesFile + " -env -ef -select 'DP < 20000' --invert_selection --variant " + testfile),
+                1,
+                Arrays.asList(invertSelectionMD5)
+        );
+        spec.disableShadowBCF();
+        executeTest("testInvertSelection--" + testfile, spec);
+    }
+
+    /**
+     * Test inverting the variant JEXL selection criteria
+     */
+    @Test
+    public void testInvertJexlSelection() {
+        String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
+        String samplesFile = validationDataLocation + "SelectVariants.samples.txt";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -sn A -se '[CDH]' -sf " + samplesFile + " -env -ef -select 'DP >= 20000'--variant " + testfile),
+                1,
+                Arrays.asList(invertSelectionMD5)
+        );
+        spec.disableShadowBCF();
+        executeTest("testInvertJexlSelection--" + testfile, spec);
+    }
+
+    /**
+     * Test selecting variants with IDs
+     */
+    @Test
+    public void testKeepSelectionID() {
+        String testFile = privateTestDir + "complexExample1.vcf";
+        String idFile = privateTestDir + "complexExample1.vcf.id";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -IDs " + idFile + " --variant " + testFile),
+                1,
+                Arrays.asList("2c50ab2ae96fae40bfc2b8398fc5e54e")
+        );
+        spec.disableShadowBCF();
+        executeTest("testKeepSelectionID--" + testFile, spec);
+    }
+
+    /**
+     * Test excluding variants with IDs
+     */
+    @Test
+    public void testExcludeSelectionID() {
+        String testFile = privateTestDir + "complexExample1.vcf";
+        String idFile = privateTestDir + "complexExample1.vcf.id";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -xlIDs " + idFile + " --variant " + testFile),
+                1,
+                Arrays.asList("77514a81233e1bbc0f5e47b0fb76a89a")
+        );
+        spec.disableShadowBCF();
+        executeTest("testExcludeSelectionID--" + testFile, spec);
+    }
+
+    /**
+     * Test excluding variant types
+     */
+    @Test
+    public void testExcludeSelectionType() {
+        String testFile = privateTestDir + "complexExample1.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b36KGReference + " -xlSelectType SNP --variant " + testFile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("fa5f3eb4f0fc5cedc93e6c519c0c8bcb")
+        );
+
+        executeTest("testExcludeSelectionType--" + testFile, spec);
+    }
+
+    @Test
+    public void testMendelianViolationSelection() {
+        String testFile = privateTestDir + "CEUtrioTest.vcf";
+        String pedFile = privateTestDir + "CEUtrio.ped";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R "+b37KGReference + " -mv -mvq 0 --variant  " + testFile + " -ped " + pedFile + " -o %s  --no_cmdline_in_header",
+                1,
+                Arrays.asList("406243096074a417d2aa103bd3d13e01"));
+
+        executeTest("testMendelianViolationSelection--" + testFile, spec);
+    }
+
+    @Test
+    public void testInvertMendelianViolationSelection() {
+        String testFile = privateTestDir + "CEUtrioTest.vcf";
+        String pedFile = privateTestDir + "CEUtrio.ped";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R "+b37KGReference + " -mv -mvq 0 -inv_mv --variant  " + testFile + " -ped " + pedFile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("35921fb2dedca0ead83027a66b725794"));
+
+        executeTest("testMendelianViolationSelection--" + testFile, spec);
     }
 }
