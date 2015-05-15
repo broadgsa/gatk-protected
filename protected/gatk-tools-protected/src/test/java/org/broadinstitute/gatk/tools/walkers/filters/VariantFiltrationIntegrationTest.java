@@ -147,9 +147,17 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
     @Test
     public void testInvertFilter() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString() + " --filterName ABF -filter 'AlleleBalance < 0.7' --filterName FSF -filter 'FisherStrand == 1.4' --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000 --invert_filter_expression", 1,
+                baseTestString() + " --filterName ABF -filter 'AlleleBalance < 0.7' --filterName FSF -filter 'FisherStrand == 1.4' --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000 --invertFilterExpression", 1,
                 Arrays.asList("d478fd6bcf0884133fe2a47adf4cd765"));
         executeTest("test inversion of selection of filter with separate names #2", spec);
+    }
+
+    @Test
+    public void testInvertJexlFilter() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " --filterName ABF -filter 'AlleleBalance >= 0.7' --filterName FSF -filter 'FisherStrand != 1.4' --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000", 1,
+                Arrays.asList("6fa6cd89bfc8b6b4dfc3da25eb36d08b")); // Differs from testInvertFilter() because their VCF header FILTER description uses the -filter argument. Their filter statuses are identical.
+        executeTest("test inversion of selection of filter via JEXL with separate names #2", spec);
     }
 
     @Test
@@ -207,8 +215,40 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
     public void testInvertGenotypeFilterExpression() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
-                        + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName highDP -V " + privateTestDir + "filteringDepthInFormat.vcf --invert_genotype_filter_expression", 1,
+                        + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName highDP -V " + privateTestDir + "filteringDepthInFormat.vcf --invertGenotypeFilterExpression", 1,
                 Arrays.asList("d2664870e7145eb73a2295766482c823"));
         executeTest("testInvertGenotypeFilterExpression", spec);
+    }
+
+    @Test
+    public void testInvertJexlGenotypeFilterExpression() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
+                        + " --genotypeFilterExpression 'DP >= 8' --genotypeFilterName highDP -V " + privateTestDir + "filteringDepthInFormat.vcf", 1,
+                Arrays.asList("8ddd8f3b5ee351c4ab79cb186b1d45ba")); // Differs from testInvertFilter because FILTER description uses the -genotypeFilterExpression argument
+        executeTest("testInvertJexlGenotypeFilterExpression", spec);
+    }
+
+    @Test
+    public void testSetFilteredGtoNocall() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
+                        + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormat.vcf --setFilteredGtToNocall", 1,
+                Arrays.asList("9ff801dd726eb4fc562b278ccc6854b1"));
+        executeTest("testSetFilteredGtoNocall", spec);
+    }
+
+    @Test
+    public void testSetVcfFilteredGtoNocall() {
+        String testfile = privateTestDir + "filteredSamples.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --setFilteredGtToNocall -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("81b99386a64a8f2b857a7ef2bca5856e")
+        );
+
+        spec.disableShadowBCF();
+        executeTest("testSetVcfFilteredGtoNocall--" + testfile, spec);
     }
 }
