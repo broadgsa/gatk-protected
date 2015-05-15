@@ -84,7 +84,7 @@ public class ValidationSiteSelectorIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(sampleNone + freqUnif + "--variant " + testfile),
                 1,
-                Arrays.asList("658c70cbb93faed8ca18e51cd6dd593f")
+                Arrays.asList("19fe0e3297bfd502911608490222a2fd")
         );
 
         executeTest("testNoSampleSelectionFreqUniform--" + testfile, spec);
@@ -96,7 +96,7 @@ public class ValidationSiteSelectorIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(sampleNone + freqAF + "--variant " + testfile),
                 1,
-                Arrays.asList("90411433ea42846352b767da735af53b")
+                Arrays.asList("91a7f3bf452241040646e61ee6ab1a23")
         );
 
         executeTest("testNoSampleSelectionFreqAF--" + testfile, spec);
@@ -108,7 +108,7 @@ public class ValidationSiteSelectorIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(sampleGT + freqUnif + "--variant " + testfile),
                 1,
-                Arrays.asList("2afabd447185cf017f60c85380902117")
+                Arrays.asList("faae3baf1feb76877fcb81c01b5d44f3")
         );
 
         executeTest("testPolyGTFreqUniform--" + testfile, spec);
@@ -120,7 +120,7 @@ public class ValidationSiteSelectorIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(sampleGT + freqAF + "--variant " + testfile),
                 1,
-                Arrays.asList("381e1a2f0e1908b4d7cba5d6361cf5aa")
+                Arrays.asList("d2ba4e3e76f87e2c1a12d82e7a3dc595")
         );
 
         executeTest("testPolyGTFreqAF--" + testfile, spec);
@@ -132,7 +132,7 @@ public class ValidationSiteSelectorIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(sampleGL + freqAF + "--variant " + testfile),
                 1,
-                Arrays.asList("381e1a2f0e1908b4d7cba5d6361cf5aa")
+                Arrays.asList("d2ba4e3e76f87e2c1a12d82e7a3dc595")
         );
 
         executeTest("testPolyGLFreqAF--" + testfile, spec);
