@@ -52,21 +52,21 @@
 package org.broadinstitute.gatk.tools.walkers.rnaseq;
 
 import htsjdk.samtools.*;
+import org.broadinstitute.gatk.engine.io.NWaySAMFileWriter;
 import org.broadinstitute.gatk.utils.commandline.Advanced;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Hidden;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.sam.GATKSAMFileWriter;
 import org.broadinstitute.gatk.engine.iterators.RNAReadTransformer;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.DataSource;
 import org.broadinstitute.gatk.engine.walkers.ReadWalker;
 import org.broadinstitute.gatk.engine.walkers.Requires;
-import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.clipping.ReadClipper;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
@@ -78,19 +78,41 @@ import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import java.io.FileNotFoundException;
 import java.util.Collections;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  *
- * Splits reads that contain Ns in their cigar string (e.g. spanning splicing events).
+ * Splits reads that contain Ns in their CIGAR string
  *
- * Identifies all N cigar elements and creates k+1 new reads (where k is the number of N cigar elements).
- * The first read includes the bases that are to the left of the first N element, while the part of the read that is to the right of the N
- * (including the Ns) is hard clipped and so on for the rest of the new reads.
+ * <p>This tool identifies all N cigar elements in sequence reads, and creates k+1 new reads
+ * (where k is the number of N cigar elements) that correspond to the segments of the original read beside/between
+ * the splicing events represented by the Ns in the original CIGAR. The first read includes the bases that are to the
+ * left of the first N element, while the part of the read that is to the right of the N (including the Ns) is hard
+ * clipped, and so on for the rest of the new reads.</p>
  *
+ * <h3>Input</h3>
+ * <p>
+ * One or more bam files.
+ * </p>
  *
- * User: ami
- * Date: 11/14/13
- * Time: 11:52 AM
+ * <h3>Output</h3>
+ * <p>
+ * A single processed bam file.
+ * </p>
+ *
+ * <h3>Usage example</h3>
+ * <pre>
+ * java -jar GenomeAnalysisTK.jar \
+ *   -T SplitNCigarReads \
+ *   -R reference.fasta \
+ *   -I input.bam \
+ *   -o output.bam \
+ *   -U ALLOW_N_CIGARS
+ *
+ * <h3>Note</h3>
+ * <p>When this tool is used as part of the RNAseq best practices, the command should include mapping quality
+ * reassignment. See the Best Practices documentation for details.</p>
+ *
  */
 
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_DATA, extraDocs = {CommandLineGATK.class} )
@@ -141,8 +163,7 @@ public class SplitNCigarReads extends ReadWalker<GATKSAMRecord, OverhangFixingMa
      * It will emit reads to the underlying writer as needed so we don't need to worry about any of that in this class.
      */
     protected OverhangFixingManager overhangManager;
-    private List<RNAReadTransformer> rnaReadTransformers = Collections.emptyList();
-
+    private List<RNAReadTransformer> rnaReadTransformers = new ArrayList<>();
 
 
     @Override
@@ -156,7 +177,7 @@ public class SplitNCigarReads extends ReadWalker<GATKSAMRecord, OverhangFixingMa
         }
         if ( !NO_PG_TAG ) {
             // we don't want to assume that reads will be written in order by the manager because in deep, deep pileups it won't work
-            Utils.setupWriter(writer, toolkit, toolkit.getSAMFileHeader(), false, this, PROGRAM_RECORD_NAME);
+            NWaySAMFileWriter.setupWriter(writer, toolkit, toolkit.getSAMFileHeader(), false, this, PROGRAM_RECORD_NAME);
         }
 
         try {

@@ -57,22 +57,21 @@ import cern.jet.random.engine.MersenneTwister;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.engine.walkers.Reference;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.sam.GATKSAMFileWriter;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import org.broadinstitute.gatk.utils.text.TextFormattingUtils;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import htsjdk.variant.vcf.VCFConstants;
@@ -80,22 +79,24 @@ import htsjdk.variant.vcf.VCFConstants;
 import java.util.*;
 
 /**
- * Generates simulated reads for variants
+ * Generate simulated reads for variants
  *
  * <p>Given a set of variants, this tool will generate simulated reads that support the input variants.</p>
  *
- * <h3>Caveats</h3>
- * <p>For practical reasons, only bi-allelic variants that are not too close to the ends of contigs (< 1/2 read length) are supported; all others will simply be ignored.</p>
+ * <h3>Caveat</h3>
+ * <p>For practical reasons, only bi-allelic variants that are not too close to the ends of contigs
+ * (< 1/2 read length) are supported; all others will simply be ignored.</p>
  *
  * <h3>Input</h3>
  * <p>A VCF file containing variants.</p>
  *
  * <h3>Output</h3>
- * <p>A BAM file containing simulated sequence reads that support the input variants, with the requested error rate and coverage depth.</p>
+ * <p>A BAM file containing simulated sequence reads that support the input variants, with the requested error rate
+ * and coverage depth.</p>
  *
- * <h3>Example</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T SimulateReadsForVariants \
  *   -R reference.fasta \
  *   -V input_variants.vcf \
@@ -106,7 +107,6 @@ import java.util.*;
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class}, gotoDev = HelpConstants.EB)
-
 @Reference(window=@Window(start=-200,stop=200))
 public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
     private static Logger logger = Logger.getLogger(SimulateReadsForVariants.class);
@@ -175,7 +175,7 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
 
     // randomness related variables
     private static final long RANDOM_SEED = 1252863495;
-    private static final Random ran = GenomeAnalysisEngine.getRandomGenerator();
+    private static final Random ran = Utils.getRandomGenerator();
     private Poisson poissonRandom = null;
 
     // samples and read groups
@@ -222,8 +222,7 @@ public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
 
         final SAMProgramRecord programRecord = new SAMProgramRecord(PROGRAM_RECORD_NAME);
         if ( !NO_PG_TAG ) {
-            final ResourceBundle headerInfo = TextFormattingUtils.loadResourceBundle("GATKText");
-            programRecord.setProgramVersion(headerInfo.getString("org.broadinstitute.gatk.tools.version"));
+            programRecord.setProgramVersion(CommandLineProgram.getVersionNumber());
             programRecord.setCommandLine(getToolkit().createApproximateCommandLineArgumentString(getToolkit(), this));
         }
         header.setProgramRecords(Arrays.asList(programRecord));

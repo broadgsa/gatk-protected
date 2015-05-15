@@ -52,15 +52,12 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.HaplotypeGraph;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
-import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
-import org.broadinstitute.gatk.utils.pairhmm.FlexibleHMM;
-import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import org.broadinstitute.gatk.utils.pairhmm.*;
 import org.broadinstitute.gatk.utils.sam.ClippedGATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.testng.Assert;
@@ -98,7 +95,8 @@ public class ReadThreadingLikelihoodCalculationEngineUnitTest extends ActiveRegi
     //final PairHMMLikelihoodCalculationEngine fullPairHMM = new PairHMMLikelihoodCalculationEngine((byte)10, false,
     //        PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3);
     final PairHMMLikelihoodCalculationEngine fullPairHMM = new PairHMMLikelihoodCalculationEngine((byte)10,
-            PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, Double.NEGATIVE_INFINITY,true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
+            PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, PairHMM.HMM_SUB_IMPLEMENTATION.UNVECTORIZED, true, Double.NEGATIVE_INFINITY,
+            true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
 
     // When using likelihoods it should be around 0.05 since
     // When using maximum-likelihoods it can be as low as 0.00001

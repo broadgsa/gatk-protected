@@ -56,15 +56,17 @@ import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.samples.Sample;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.utils.QualityUtils;
-import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
@@ -76,17 +78,25 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * Computes the most likely genotype combination and phases trios and parent/child pairs
+ * Compute the most likely genotype combination and phasing for trios and parent/child pairs
  *
  * <p>
- * PhaseByTransmission is a GATK tool that 1) computes the most likely genotype combination and phases trios and parent/child pairs given their genotype likelihoods and a mutation prior and 2) phases
- * all sites were parent/child transmission can be inferred unambiguously. It reports the genotype combination (and hence phasing) probability.
- * Ambiguous sites are:
+ * This tool performs two functions:
+ * </p>
+ * <ol>
+ *     <li>Compute the most likely genotype combination of trios and parent/child pairs given their genotype likelihoods and a mutation prior;</li>
+ *     <li>Phase all sites were parent/child transmission can be inferred unambiguously. </li>
+ * </ol>
+ *
+ * <p>The tool ultimately reports the genotype combination (and hence phasing) probability.</p>
+ *
+ * <h4>Ambiguous sites are:</h4>
  * <ul>
  *     <li>Sites where all individuals are heterozygous</li>
  *     <li>Sites where there is a Mendelian violation</li>
  * </ul>
- * Missing genotypes are handled as follows:
+ *
+ * <h4>Missing genotypes are handled as follows:</h4>
  * <ul>
  *     <li>In parent/child pairs: If an individual genotype is missing at one site, the other one is phased if it is homozygous. No phasing probability is emitted.</li>
  *     <li>In trios: If the child is missing, parents are treated as separate individuals and phased if homozygous. No phasing probability is emitted.</li>
@@ -102,26 +112,26 @@ import java.util.*;
  * </ul>
  * </p>
  *
- * <h2>Options</h2>
- * <p>
+ * <h3>Important options</h3>
  *     <ul>
- *         <li>MendelianViolationsFile: An optional argument for reporting. If a file is specified, all sites that remain in mendelian violation after being assigned the most likely genotype
- *         combination will be reported there. Information reported: chromosome, position, filter, allele count in VCF, family, transmission probability,
- *         and each individual genotype, depth, allelic depth and likelihoods.</li>
+ *         <li>MendelianViolationsFile: An optional argument for reporting. If a file is specified, all sites that
+ *         remain in mendelian violation after being assigned the most likely genotype combination will be reported
+ *         there. Information reported: chromosome, position, filter, allele count in VCF, family, transmission
+ *         probability, and each individual genotype, depth, allelic depth and likelihoods.</li>
  *         <li>DeNovoPrior: Mutation prio; default is 1e-8</li>
  *     </ul>
- * </p>
  *
  * <h3>Output</h3>
  * <p>
- * An VCF with genotypes recalibrated as most likely under the familial constraint and phased by descent where non ambiguous..
+ * An VCF with genotypes recalibrated as most likely under the familial constraint and phased by descent (where non
+ * ambiguous).
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T PhaseByTransmission \
+ *   -R reference.fasta \
  *   -V input.vcf \
  *   -ped input.ped \
  *   -o output.vcf
@@ -146,7 +156,6 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
     @Output
     protected VariantContextWriter vcfWriter = null;
 
-    private final String TRANSMISSION_PROBABILITY_TAG_NAME = "TP";
     private final String SOURCE_NAME = "PhaseByTransmission";
 
     public final double NO_TRANSMISSION_PROB = -1.0;
@@ -414,7 +423,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
            Map<String, Object> genotypeAttributes = new HashMap<String, Object>();
            genotypeAttributes.putAll(genotype.getExtendedAttributes());
            if(transmissionProb>NO_TRANSMISSION_PROB)
-                genotypeAttributes.put(TRANSMISSION_PROBABILITY_TAG_NAME, phredScoreTransmission);
+                genotypeAttributes.put(GATKVCFConstants.TRANSMISSION_PROBABILITY_KEY, phredScoreTransmission);
 
             ArrayList<Allele> phasedAlleles = new ArrayList<Allele>(2);
             for(Allele allele : phasedGenotype.getAlleles()){
@@ -461,7 +470,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
 
         Set<VCFHeaderLine> headerLines = new HashSet<VCFHeaderLine>();
         headerLines.addAll(GATKVCFUtils.getHeaderFields(this.getToolkit()));
-        headerLines.add(new VCFFormatHeaderLine(TRANSMISSION_PROBABILITY_TAG_NAME, 1, VCFHeaderLineType.Integer, "Phred score of the genotype combination and phase given that the genotypes are correct"));
+        headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.TRANSMISSION_PROBABILITY_KEY));
         headerLines.add(new VCFHeaderLine("source", SOURCE_NAME));
         vcfWriter.writeHeader(new VCFHeader(headerLines, vcfSamples));
 
@@ -879,7 +888,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
                     updateTrioMetricsCounters(phasedMother,phasedFather,phasedChild,mvCount,metricsCounters);
                     mvfLine = String.format("%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
                             vc.getChr(),vc.getStart(),vc.getAttribute(VCFConstants.ALLELE_COUNT_KEY),sample.getFamilyID(),
-                            phasedMother.getExtendedAttribute(TRANSMISSION_PROBABILITY_TAG_NAME),phasedMother.getGenotypeString(),phasedMother.getDP(),printAD(phasedMother.getAD()),
+                            phasedMother.getExtendedAttribute(GATKVCFConstants.TRANSMISSION_PROBABILITY_KEY),phasedMother.getGenotypeString(),phasedMother.getDP(),printAD(phasedMother.getAD()),
                             phasedMother.getLikelihoodsString(), phasedFather.getGenotypeString(),phasedFather.getDP(),printAD(phasedFather.getAD()),phasedFather.getLikelihoodsString(),
                             phasedChild.getGenotypeString(),phasedChild.getDP(),printAD(phasedChild.getAD()),phasedChild.getLikelihoodsString());
                     if(!(phasedMother.getType()==mother.getType() && phasedFather.getType()==father.getType() && phasedChild.getType()==child.getType()))
@@ -891,7 +900,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
                         metricsCounters.put(NUM_GENOTYPES_MODIFIED,metricsCounters.get(NUM_GENOTYPES_MODIFIED)+1);
                     mvfLine = String.format("%s\t%d\t%s\t%s\t%s\t%s:%s:%s:%s\t.\t.\t.\t.\t%s\t%s\t%s\t%s",
                             vc.getChr(),vc.getStart(),vc.getAttribute(VCFConstants.ALLELE_COUNT_KEY),sample.getFamilyID(),
-                            phasedMother.getExtendedAttribute(TRANSMISSION_PROBABILITY_TAG_NAME),phasedMother.getGenotypeString(),phasedMother.getDP(),printAD(phasedMother.getAD()),phasedMother.getLikelihoodsString(),
+                            phasedMother.getExtendedAttribute(GATKVCFConstants.TRANSMISSION_PROBABILITY_KEY),phasedMother.getGenotypeString(),phasedMother.getDP(),printAD(phasedMother.getAD()),phasedMother.getLikelihoodsString(),
                             phasedChild.getGenotypeString(),phasedChild.getDP(),printAD(phasedChild.getAD()),phasedChild.getLikelihoodsString());
                 }
             }
@@ -902,7 +911,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMa
                     metricsCounters.put(NUM_GENOTYPES_MODIFIED,metricsCounters.get(NUM_GENOTYPES_MODIFIED)+1);
                 mvfLine =   String.format("%s\t%d\t%s\t%s\t%s\t.\t.\t.\t.\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
                         vc.getChr(),vc.getStart(),vc.getAttribute(VCFConstants.ALLELE_COUNT_KEY),sample.getFamilyID(),
-                        phasedFather.getExtendedAttribute(TRANSMISSION_PROBABILITY_TAG_NAME),phasedFather.getGenotypeString(),phasedFather.getDP(),printAD(phasedFather.getAD()),phasedFather.getLikelihoodsString(),
+                        phasedFather.getExtendedAttribute(GATKVCFConstants.TRANSMISSION_PROBABILITY_KEY),phasedFather.getGenotypeString(),phasedFather.getDP(),printAD(phasedFather.getAD()),phasedFather.getLikelihoodsString(),
                         phasedChild.getGenotypeString(),phasedChild.getDP(),printAD(phasedChild.getAD()),phasedChild.getLikelihoodsString());
             }
 

@@ -53,14 +53,10 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.*;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.locusiterator.LocusIteratorByState;
-import org.broadinstitute.gatk.utils.BaseUtils;
-import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.GenomeLocParser;
-import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
@@ -247,10 +243,10 @@ public class ArtificialReadPileupTestProvider {
         double errorProbability = QualityUtils.qualToErrorProb((byte)phredScaledErrorRate);
 
         for (int k=0; k < readBases.length; k++) {
-            if (GenomeAnalysisEngine.getRandomGenerator().nextDouble() < errorProbability) {
+            if (Utils.getRandomGenerator().nextDouble() < errorProbability) {
                 // random offset
                 int offset = BaseUtils.simpleBaseToBaseIndex(readBases[k]);          //0..3
-                offset += (GenomeAnalysisEngine.getRandomGenerator().nextInt(3)+1);  // adds 1,2 or 3
+                offset += (Utils.getRandomGenerator().nextInt(3)+1);  // adds 1,2 or 3
                 offset %= 4;
                 readBases[k] = BaseUtils.baseIndexToSimpleBase(offset);
 

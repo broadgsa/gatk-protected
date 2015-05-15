@@ -53,8 +53,8 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -129,7 +129,7 @@ public class GenotypeLikelihoodCalculatorUnitTest {
 
     @Test(dataProvider = "ploidyAndMaximumAlleleAndNewMaximumAlleleData")
     public void testGenotypeIndexMap(final int ploidy, final int oldAlleleCount, final int newAlleleCount) {
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         final int maxAlleleCount = Math.max(oldAlleleCount,newAlleleCount);
         final int[] alleleMap = new int[newAlleleCount];
         final Map<Integer,Set<Integer>> reverseMap = new HashMap<>(oldAlleleCount);

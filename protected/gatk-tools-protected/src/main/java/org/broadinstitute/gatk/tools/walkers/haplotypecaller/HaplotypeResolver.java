@@ -56,9 +56,9 @@ import org.broadinstitute.gatk.utils.commandline.Input;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.utils.commandline.RodBinding;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.Reference;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.Window;
@@ -82,16 +82,17 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
 import java.util.*;
 
 /**
- * Haplotype-based resolution of variants in 2 different eval files.
+ * Haplotype-based resolution of variants in separate callsets.
  *
  * <p>
- * HaplotypeResolver is a tool that takes 2 VCF files and constructs haplotypes based on the variants inside them.
+ * HaplotypeResolver is a tool that takes two VCF files and constructs haplotypes based on the variants inside them.
  * From that, it can resolve potential differences in variant calls that are inherently the same (or similar) variants.
  * Records are annotated with the set and status attributes.
+ * </p>
  *
  * <h3>Input</h3>
  * <p>
- * 2 variant files to resolve.
+ * Two variant files to resolve.
  * </p>
  *
  * <h3>Output</h3>
@@ -99,11 +100,11 @@ import java.util.*;
  * A single consensus VCF.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx1g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T HaplotypeResolver \
+ *   -R reference.fasta \
  *   -V:v1 input1.vcf \
  *   -V:v2 input2.vcf \
  *   -o output.vcf

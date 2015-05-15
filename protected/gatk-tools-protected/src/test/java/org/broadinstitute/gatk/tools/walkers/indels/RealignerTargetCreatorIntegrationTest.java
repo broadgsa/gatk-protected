@@ -100,4 +100,14 @@ public class RealignerTargetCreatorIntegrationTest extends WalkerTest {
                  Arrays.asList("5206cee6c01b299417bf2feeb8b3dc96"));
         executeTest("test rods only", spec3);
     }
+
+    @Test()
+    public void testBadCigarStringDoesNotFail() {
+        // Just making sure the test runs without an error, don't care about the MD5 value
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T RealignerTargetCreator -R " + b37KGReference + " -I " + privateTestDir + "Realigner.error.bam -L 19:5787200-5787300 -o %s",
+                1,
+                Arrays.asList(""));
+        executeTest("test bad cigar string string does not fail", spec);
+    }
 }

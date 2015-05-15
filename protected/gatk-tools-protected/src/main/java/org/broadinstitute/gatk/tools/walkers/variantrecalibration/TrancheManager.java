@@ -165,12 +165,12 @@ public class TrancheManager {
         }
     }
 
-    public static List<Tranche> findTranches( final List<VariantDatum> data, final double[] tranches, final SelectionMetric metric, final VariantRecalibratorArgumentCollection.Mode model ) {
+    public static List<Tranche> findTranches( final List<VariantDatum> data, final List<Double> tranches, final SelectionMetric metric, final VariantRecalibratorArgumentCollection.Mode model ) {
         return findTranches( data, tranches, metric, model, null );
     }
 
-    public static List<Tranche> findTranches( final List<VariantDatum> data, final double[] trancheThresholds, final SelectionMetric metric, final VariantRecalibratorArgumentCollection.Mode model, final File debugFile ) {
-        logger.info(String.format("Finding %d tranches for %d variants", trancheThresholds.length, data.size()));
+    public static List<Tranche> findTranches( final List<VariantDatum> data, final List<Double> trancheThresholds, final SelectionMetric metric, final VariantRecalibratorArgumentCollection.Mode model, final File debugFile ) {
+        logger.info(String.format("Finding %d tranches for %d variants", trancheThresholds.size(), data.size()));
 
         Collections.sort( data, new VariantDatum.VariantDatumLODComparator() );
         metric.calculateRunningMetric(data);

@@ -53,14 +53,15 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * Rank Sum Test of per-read likelihoods of REF vs. ALT reads
+ * Rank Sum Test of per-read likelihoods of REF versus ALT reads
  *
  * <p>This variant-level annotation compares the likelihoods of reads to their best haplotype match, between reads that support the reference allele and those that support the alternate allele. The ideal result is a value close to zero, which indicates there is little to no difference.  A negative value indicates that the reads supporting the alternate allele have lower likelihoods to their best haplotype match than those supporting the reference allele. Conversely, a positive value indicates that the reads supporting the alternate allele have higher likelihoods to their best haplotype match than those supporting the reference allele. Finding a statistically significant difference either way suggests that the sequencing and/or mapping process may have been biased or affected by an artifact.</p>
  *
@@ -73,10 +74,10 @@ import java.util.List;
  */
 public class LikelihoodRankSumTest extends RankSumTest {
     @Override
-    public List<String> getKeyNames() { return Arrays.asList("LikelihoodRankSum"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.LIKELIHOOD_RANK_SUM_KEY); }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("LikelihoodRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt Vs. Ref haplotype likelihoods")); }
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 
     @Override
     protected Double getElementForRead(final GATKSAMRecord read, final int refLoc, final MostLikelyAllele mostLikelyAllele) {

@@ -56,17 +56,17 @@ import com.google.java.contract.Requires;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedAlleleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pairhmm.*;
-import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatCovariate;
-import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatLengthCovariate;
+import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatCovariate;
+import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.io.File;
@@ -78,13 +78,13 @@ import java.util.*;
 public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalculationEngine {
     private final static Logger logger = Logger.getLogger(PairHMMLikelihoodCalculationEngine.class);
 
-    public static final byte BASE_QUALITY_SCORE_THRESHOLD = (byte) 18; // Base quals less than this value are squashed down to min possible qual
-
     private final byte constantGCP;
 
     private final double log10globalReadMismappingRate;
 
     private final PairHMM.HMM_IMPLEMENTATION hmmType;
+    private final PairHMM.HMM_SUB_IMPLEMENTATION hmmSubType;
+    private final boolean alwaysLoadVectorLoglessPairHMMLib;
     private final boolean noFpga;
 
     private final ThreadLocal<PairHMM> pairHMMThreadLocal = new ThreadLocal<PairHMM>() {
@@ -101,15 +101,15 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
                 case VECTOR_LOGLESS_CACHING:
                     try
                     {
-                        return new VectorLoglessPairHMM();
+                        return new VectorLoglessPairHMM(hmmSubType, alwaysLoadVectorLoglessPairHMMLib);
                     }
                     catch(UnsatisfiedLinkError ule)
                     {
-                        logger.debug("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
+                        logger.warn("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
                         return new LoglessPairHMM();
                     }
                 case DEBUG_VECTOR_LOGLESS_CACHING:
-                    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING);
+                    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING, hmmSubType, alwaysLoadVectorLoglessPairHMMLib);
                 case ARRAY_LOGLESS:
                     if (noFpga || !CnyPairHMM.isAvailable())
                         return new ArrayLoglessPairHMM();
@@ -129,11 +129,22 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
 
     public enum PCR_ERROR_MODEL {
         /** no specialized PCR error model will be applied; if base insertion/deletion qualities are present they will be used */
-        NONE,
+        NONE(null),
+        /** a most aggressive model will be applied that sacrifices true positives in order to remove more false positives */
+        HOSTILE(1.0),
         /** a more aggressive model will be applied that sacrifices true positives in order to remove more false positives */
-        AGGRESSIVE,
+        AGGRESSIVE(2.0),
         /** a less aggressive model will be applied that tries to maintain a high true positive rate at the expense of allowing more false positives */
-        CONSERVATIVE
+        CONSERVATIVE(3.0);
+
+        private final Double rateFactor;
+
+        /** rate factor is applied to the PCR error model.  Can be null to imply no correction */
+        PCR_ERROR_MODEL(Double rateFactor) {
+            this.rateFactor = rateFactor;
+        }
+        private Double getRateFactor() { return rateFactor; }
+        private boolean hasRateFactor() { return rateFactor != null; }
     }
 
     private final PCR_ERROR_MODEL pcrErrorModel;
@@ -150,6 +161,8 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
      *
      * @param constantGCP the gap continuation penalty to use with the PairHMM
      * @param hmmType the type of the HMM to use
+     * @param hmmSubType the type of the machine dependent sub-implementation of HMM to use
+     * @param alwaysLoadVectorLoglessPairHMMLib always load the vector logless HMM library instead of once
      * @param log10globalReadMismappingRate the global mismapping probability, in log10(prob) units.  A value of
      *                                      -3 means that the chance that a read doesn't actually belong at this
      *                                      location in the genome is 1 in 1000.  The effect of this parameter is
@@ -159,9 +172,13 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
      *                                      reference haplotype gets a score of -100 from the pairhmm it will be
      *                                      assigned a likelihood of -13.
      * @param noFpga disable FPGA acceleration
+     * @param pcrErrorModel model to correct for PCR indel artifacts
      */
-    public PairHMMLikelihoodCalculationEngine( final byte constantGCP, final PairHMM.HMM_IMPLEMENTATION hmmType, final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
+    public PairHMMLikelihoodCalculationEngine( final byte constantGCP, final PairHMM.HMM_IMPLEMENTATION hmmType, final PairHMM.HMM_SUB_IMPLEMENTATION hmmSubType,
+                                               final boolean alwaysLoadVectorLoglessPairHMMLib, final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
         this.hmmType = hmmType;
+        this.hmmSubType = hmmSubType;
+        this.alwaysLoadVectorLoglessPairHMMLib = alwaysLoadVectorLoglessPairHMMLib;
         this.constantGCP = constantGCP;
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
         this.noFpga = noFpga;
@@ -189,7 +206,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
     private void capMinimumReadQualities(GATKSAMRecord read, byte[] readQuals, byte[] readInsQuals, byte[] readDelQuals) {
         for( int kkk = 0; kkk < readQuals.length; kkk++ ) {
             readQuals[kkk] = (byte) Math.min( 0xff & readQuals[kkk], read.getMappingQuality()); // cap base quality by mapping quality, as in UG
-            readQuals[kkk] = ( readQuals[kkk] < BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
+            readQuals[kkk] = ( readQuals[kkk] < PairHMM.BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE : readQuals[kkk] );
             readInsQuals[kkk] = ( readInsQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readInsQuals[kkk] );
             readDelQuals[kkk] = ( readDelQuals[kkk] < QualityUtils.MIN_USABLE_Q_SCORE ? QualityUtils.MIN_USABLE_Q_SCORE : readDelQuals[kkk] );
         }
@@ -415,14 +432,14 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
     private final RepeatCovariate repeatCovariate = new RepeatLengthCovariate();
 
     private void initializePCRErrorModel() {
-        if ( pcrErrorModel == PCR_ERROR_MODEL.NONE )
+        if ( pcrErrorModel == PCR_ERROR_MODEL.NONE || !pcrErrorModel.hasRateFactor() )
             return;
 
         repeatCovariate.initialize(MAX_STR_UNIT_LENGTH, MAX_REPEAT_LENGTH);
 
         pcrIndelErrorModelCache = new byte[MAX_REPEAT_LENGTH + 1];
 
-        final double rateFactor = pcrErrorModel == PCR_ERROR_MODEL.AGGRESSIVE ? 2.0 : 3.0;
+        final double rateFactor = pcrErrorModel.getRateFactor();
 
         for( int iii = 0; iii <= MAX_REPEAT_LENGTH; iii++ )
             pcrIndelErrorModelCache[iii] = getErrorModelAdjustedQual(iii, rateFactor);

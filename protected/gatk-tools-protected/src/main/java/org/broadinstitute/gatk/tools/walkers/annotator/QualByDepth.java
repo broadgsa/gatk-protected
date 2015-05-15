@@ -51,18 +51,20 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotyper;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
@@ -78,7 +80,7 @@ import java.util.*;
  * <h3>Statistical notes</h3>
  * <p>The calculation only takes into account coverage from samples genotyped as having the variant allele(s). This removes the influence of any homozygous-reference samples that might be present in the same cohort, which would otherwise penalize the call unfairly.</p>
  *
- * <h3>Caveats</h3>
+ * <h3>Caveat</h3>
  * <p>This annotation can only be calculated for sites for which at least one sample was genotyped as carrying a variant allele.</p>
  *
  * <h3>Related annotations</h3>
@@ -151,9 +153,9 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
             return null;
 
         final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
-        // Hack: when refContext == null then we know we are coming from the HaplotypeCaller and do not want to do a
-        //  full length-based normalization (because the indel length problem is present only in the UnifiedGenotyper)
-        double QD = -10.0 * vc.getLog10PError() / ((double)standardDepth * indelNormalizationFactor(altAlleleLength, ref != null));
+        // Hack: UnifiedGenotyper (but not HaplotypeCaller or GenotypeGVCFs) over-estimates the quality of long indels
+        //       Penalize the QD calculation for UG indels to compensate for this
+        double QD = -10.0 * vc.getLog10PError() / ((double)standardDepth * indelNormalizationFactor(altAlleleLength, walker instanceof UnifiedGenotyper));
 
         // Hack: see note in the fixTooHighQD method below
         QD = fixTooHighQD(QD);
@@ -189,7 +191,7 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         if ( QD < MAX_QD_BEFORE_FIXING ) {
             return QD;
         } else {
-            return IDEAL_HIGH_QD + GenomeAnalysisEngine.getRandomGenerator().nextGaussian() * JITTER_SIGMA;
+            return IDEAL_HIGH_QD + Utils.getRandomGenerator().nextGaussian() * JITTER_SIGMA;
         }
     }
 
@@ -197,10 +199,10 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
     private final static double IDEAL_HIGH_QD = 30;
     private final static double JITTER_SIGMA = 3;
 
-    public List<String> getKeyNames() { return Arrays.asList("QD"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.QUAL_BY_DEPTH_KEY); }
 
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(new VCFInfoHeaderLine(getKeyNames().get(0), 1, VCFHeaderLineType.Float, "Variant Confidence/Quality by Depth"));
+        return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
 

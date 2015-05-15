@@ -52,7 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.SeqGraph;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;

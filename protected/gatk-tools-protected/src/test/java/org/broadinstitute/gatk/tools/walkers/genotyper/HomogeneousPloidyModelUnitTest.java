@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;

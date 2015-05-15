@@ -54,10 +54,10 @@ package org.broadinstitute.gatk.tools.walkers.diagnostics;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.engine.report.GATKReport;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.report.GATKReport;
 import org.broadinstitute.gatk.engine.walkers.LocusWalker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
@@ -71,17 +71,16 @@ import java.util.LinkedList;
 import java.util.Map;
 
 /**
- * Simple walker to plot the coverage distribution per base
+ * Evaluate coverage distribution per base
  *
  * <p>
- *  Features of this walker:
- *  <li>includes a smart counting of uncovered bases without visiting the uncovered loci</li>
- *  <li>includes reads with deletions in the loci (optionally can be turned off)</li>
+ * This tool reports the distribution of coverage per base. It includes reads with deletions in the counts unless
+ * otherwise specified. Quality filters can be applied before the coverage is calculated.
  * </p>
  *
  * <h3>Input</h3>
  * <p>
- * The BAM file and an optional interval list (works for WGS as well)
+ * The BAM file and an optional interval list
  * </p>
  *
  * <h3>Output</h3>
@@ -89,13 +88,13 @@ import java.util.Map;
  * A GATK Report with the coverage distribution per base
  *
  * <p/>
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx4g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
+ *   -R reference.fasta \
  *   -T BaseCoverageDistribution \
  *   -I myData.bam \
- *   -L interesting.intervals \
+ *   -L intervals.list \
  *   -fd \
  *   -o report.grp
  * </pre>
@@ -106,34 +105,34 @@ import java.util.Map;
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 public class BaseCoverageDistribution extends LocusWalker<ArrayList<Integer>, Map<Integer, ArrayList<Long>>> {
     /**
-     * The output GATK Report table
+     * The name of the file to output the GATK Report table. See the FAQs for more information on the GATK Report format.
      */
-    @Output(doc = "The output GATK Report table")
+    @Output(doc = "Output filename")
     private PrintStream out;
 
     /**
      * Whether or not a deletion should be counted towards the coverage of a site
      */
-    @Argument(required = false, shortName="del", fullName = "include_deletions", doc ="whether or not to include reads with deletions on the loci in the pileup")
+    @Argument(required = false, shortName="del", fullName = "include_deletions", doc ="Include reads with deletions")
     private boolean includeDeletions = true;
 
     /**
-     * Whether or not to calculate and output a filtered coverage distribution. Bases will be filtered according to the
+     * Whether or not to apply quality filters before calculating coverage distribution. Filtering will use the
      * minimum_mapping_quality and minimum_base_quality parameters below.
      */
-    @Argument(required = false, shortName="fd", fullName = "filtered_distribution", doc ="calculate and report the filtered coverage distribution of bases")
+    @Argument(required = false, shortName="fd", fullName = "filtered_distribution", doc ="Apply quality filters")
     private boolean calculateFilteredDistribution = false;
 
     /**
      * The minimum mapping quality a read must have to be counted towards the filtered coverage of a site
      */
-    @Argument(required = false, shortName="mmq", fullName = "minimum_mapping_quality", doc ="minimum mapping quality of a read to include it in the filtered coverage distribution")
+    @Argument(required = false, shortName="mmq", fullName = "minimum_mapping_quality", doc ="Minimum read mapping quality of a read to pass filters")
     private byte minMappingQuality = 20;
 
     /**
      * The minimum base quality a base must have to be counted towards the filtered coverage of a site
      */
-    @Argument(required = false, shortName="mbq", fullName = "minimum_base_quality", doc ="minimum base quality of a base to include it in the filtered coverage distribution")
+    @Argument(required = false, shortName="mbq", fullName = "minimum_base_quality", doc ="Minimum base quality to pass filters")
     private byte minBaseQuality = 17;
 
     private GenomeLoc previousLocus = null;

@@ -51,22 +51,22 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotyper;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardUGAnnotation;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 /**
@@ -76,20 +76,36 @@ import java.util.Map;
  *
  * <h3>Caveats</h3>
  * <ul>
- *     <li>This annotation is not compatible with HaplotypeCaller; its purpose is to compensate for the UnifiedGenotyper's inability to integrate SNPs and indels in the same model (unlike HaplotypeCaller)</li>
+ *     <li>In its current form, this annotation is not compatible with HaplotypeCaller. It is only meant to be used with UnifiedGenotyper, as its purpose is to compensate for the UnifiedGenotyper's inability to integrate SNPs and indels in the same model (unlike HaplotypeCaller).</li>
  *     <li>By default, the UnifiedGenotyper will not call variants where the fraction of spanning deletions is above a certain threshold. This threshold can be adjusted using the `--max_deletion_fraction` argument.</li>
  * </ul>
  *
  */
-public class SpanningDeletions extends InfoFieldAnnotation implements StandardAnnotation {
+public class SpanningDeletions extends InfoFieldAnnotation implements StandardUGAnnotation {
 
+    private final static Logger logger = Logger.getLogger(SpanningDeletions.class);
+    private boolean walkerIdentityCheckWarningLogged = false;
+
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
-        if ( stratifiedContexts.size() == 0 )
+        // Can only call from UnifiedGenotyper
+        if ( !(walker instanceof UnifiedGenotyper) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper, not " + walker.getClass().getName());
+                else
+                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
+        if ( stratifiedContexts.isEmpty() )
             return null;
 
         // not meaningful when we're at an indel location: deletions that start at location N are by definition called at the position  N-1, and at position N-1
@@ -106,12 +122,14 @@ public class SpanningDeletions extends InfoFieldAnnotation implements StandardAn
                     deletions++;
             }
         }
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%.2f", depth == 0 ? 0.0 : (double)deletions/(double)depth));
         return map;
     }
 
-    public List<String> getKeyNames() { return Arrays.asList("Dels"); }
+    @Override
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.SPANNING_DELETIONS_KEY); }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("Dels", 1, VCFHeaderLineType.Float, "Fraction of Reads Containing Spanning Deletions")); }
+    @Override
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 }

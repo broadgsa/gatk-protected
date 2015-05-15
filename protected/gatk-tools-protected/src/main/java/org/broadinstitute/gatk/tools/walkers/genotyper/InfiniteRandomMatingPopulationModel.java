@@ -53,6 +53,9 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.AlleleListPermutation;
+import org.broadinstitute.gatk.utils.genotyper.AlleleListUtils;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 
 import java.util.ArrayList;

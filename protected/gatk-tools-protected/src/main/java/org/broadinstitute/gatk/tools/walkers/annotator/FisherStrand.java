@@ -52,24 +52,17 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import cern.jet.math.Arithmetic;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.QualityUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.gatk.utils.pileup.PileupElement;
-import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -99,10 +92,9 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
     private final static boolean ENABLE_DEBUGGING = false;
     private final static Logger logger = Logger.getLogger(FisherStrand.class);
 
-    private static final String FS = "FS";
     private static final double MIN_PVALUE = 1E-320;
     private static final int MIN_QUAL_FOR_FILTERED_TEST = 17;
-    private static final int MIN_COUNT = 2;
+    private static final int MIN_COUNT = ARRAY_DIM;
 
     @Override
     protected Map<String, Object> calculateAnnotationFromGTfield(final GenotypesContext genotypes){
@@ -113,8 +105,8 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
     @Override
     protected Map<String, Object> calculateAnnotationFromStratifiedContexts(final Map<String, AlignmentContext> stratifiedContexts,
                                                                                      final VariantContext vc){
-        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
-        final int[][] tableFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), MIN_QUAL_FOR_FILTERED_TEST, MIN_COUNT);
+        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAlternateAlleles(), -1, MIN_COUNT);
+        final int[][] tableFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAlternateAlleles(), MIN_QUAL_FOR_FILTERED_TEST, MIN_COUNT);
         printTable("unfiltered", tableNoFiltering);
         printTable("filtered", tableFiltering);
         return pValueForBestTable(tableFiltering, tableNoFiltering);
@@ -159,15 +151,17 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
      */
     protected Map<String, Object> annotationForOneTable(final double pValue) {
         final Object value = String.format("%.3f", QualityUtils.phredScaleErrorRate(Math.max(pValue, MIN_PVALUE))); // prevent INFINITYs
-        return Collections.singletonMap(FS, value);
+        return Collections.singletonMap(getKeyNames().get(0), value);
     }
 
+    @Override
     public List<String> getKeyNames() {
-        return Collections.singletonList(FS);
+        return Collections.singletonList(GATKVCFConstants.FISHER_STRAND_KEY);
     }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Collections.singletonList(new VCFInfoHeaderLine(FS, 1, VCFHeaderLineType.Float, "Phred-scaled p-value using Fisher's exact test to detect strand bias"));
+        return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
     /**
@@ -176,16 +170,20 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
      * @return the array used by the per-sample Strand Bias annotation
      */
     public static List<Integer> getContingencyArray( final int[][] table ) {
-        if(table.length != 2) { throw new IllegalArgumentException("Expecting a 2x2 strand bias table."); }
-        if(table[0].length != 2) { throw new IllegalArgumentException("Expecting a 2x2 strand bias table."); }
-        final List<Integer> list = new ArrayList<>(4); // TODO - if we ever want to do something clever with multi-allelic sites this will need to change
+        if(table.length != ARRAY_DIM || table[0].length != ARRAY_DIM) {
+            logger.warn("Expecting a " + ARRAY_DIM + "x" + ARRAY_DIM + " strand bias table.");
+            return null;
+        }
+
+        final List<Integer> list = new ArrayList<>(ARRAY_SIZE); // TODO - if we ever want to do something clever with multi-allelic sites this will need to change
         list.add(table[0][0]);
         list.add(table[0][1]);
         list.add(table[1][0]);
         list.add(table[1][1]);
         return list;
     }
-    private Double pValueForContingencyTable(int[][] originalTable) {
+
+    public static Double pValueForContingencyTable(int[][] originalTable) {
         final int[][] normalizedTable = normalizeContingencyTable(originalTable);
 
         int[][] table = copyContingencyTable(normalizedTable);
@@ -239,9 +237,9 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
 
         final double normalizationFactor = (double)sum / TARGET_TABLE_SIZE;
 
-        final int[][] normalized = new int[2][2];
-        for ( int i = 0; i < 2; i++ ) {
-            for ( int j = 0; j < 2; j++ )
+        final int[][] normalized = new int[ARRAY_DIM][ARRAY_DIM];
+        for ( int i = 0; i < ARRAY_DIM; i++ ) {
+            for ( int j = 0; j < ARRAY_DIM; j++ )
                 normalized[i][j] = (int)(table[i][j] / normalizationFactor);
         }
 
@@ -249,10 +247,10 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
     }
 
     private static int [][] copyContingencyTable(int [][] t) {
-        int[][] c = new int[2][2];
+        int[][] c = new int[ARRAY_DIM][ARRAY_DIM];
 
-        for ( int i = 0; i < 2; i++ )
-            for ( int j = 0; j < 2; j++ )
+        for ( int i = 0; i < ARRAY_DIM; i++ )
+            for ( int j = 0; j < ARRAY_DIM; j++ )
                 c[i][j] = t[i][j];
 
         return c;
@@ -271,28 +269,28 @@ public class FisherStrand extends StrandBiasTest implements StandardAnnotation, 
      */
     private void printTable(final String name, final int[][] table) {
         if ( ENABLE_DEBUGGING ) {
-            final String pValue = (String)annotationForOneTable(pValueForContingencyTable(table)).get(FS);
+            final String pValue = (String)annotationForOneTable(pValueForContingencyTable(table)).get(getKeyNames().get(0));
             logger.info(String.format("FS %s (REF+, REF-, ALT+, ALT-) = (%d, %d, %d, %d) = %s",
                     name, table[0][0], table[0][1], table[1][0], table[1][1], pValue));
         }
     }
 
     private static boolean rotateTable(int[][] table) {
-        table[0][0] -= 1;
-        table[1][0] += 1;
+        table[0][0]--;
+        table[1][0]++;
 
-        table[0][1] += 1;
-        table[1][1] -= 1;
+        table[0][1]++;
+        table[1][1]--;
 
         return (table[0][0] >= 0 && table[1][1] >= 0);
     }
 
     private static boolean unrotateTable(int[][] table) {
-        table[0][0] += 1;
-        table[1][0] -= 1;
+        table[0][0]++;
+        table[1][0]--;
 
-        table[0][1] -= 1;
-        table[1][1] += 1;
+        table[0][1]--;
+        table[1][1]++;
 
         return (table[0][1] >= 0 && table[1][0] >= 0);
     }

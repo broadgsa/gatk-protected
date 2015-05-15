@@ -50,11 +50,12 @@
 */
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
-
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotyper;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
@@ -63,16 +64,16 @@ import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.io.Serializable;
 import java.util.*;
@@ -87,17 +88,33 @@ import java.util.*;
  * <p>HaplotypeCaller does not output this annotation because it already evaluates haplotype segregation internally. This annotation is only informative (and available) for variants called by Unified Genotyper.</p>
  */
 public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+    private final static Logger logger = Logger.getLogger(HaplotypeScore.class);
+    private boolean walkerIdentityCheckWarningLogged = false;
+
     private final static boolean DEBUG = false;
     private final static int MIN_CONTEXT_WING_SIZE = 10;
     private final static int MAX_CONSENSUS_HAPLOTYPES_TO_CONSIDER = 50;
     private final static char REGEXP_WILDCARD = '.';
 
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+        // Can only call from UnifiedGenotyper
+        if ( !(walker instanceof UnifiedGenotyper) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper, not " + walker.getClass().getName());
+                else
+                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
         if (vc.isSNP() && stratifiedContexts != null)
             return annotatePileup(ref, stratifiedContexts, vc);
         else
@@ -108,7 +125,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc) {
 
-        if (stratifiedContexts.size() == 0) // size 0 means that call was made by someone else and we have no data here
+        if (stratifiedContexts.isEmpty()) // empty means that call was made by someone else and we have no data here
             return null;
 
         final AlignmentContext context = AlignmentContextUtils.joinContexts(stratifiedContexts.values());
@@ -135,7 +152,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         }
 
         // annotate the score in the info field
-        final Map<String, Object> map = new HashMap<String, Object>();
+        final Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%.4f", scoreRA.mean()));
         return map;
     }
@@ -157,8 +174,8 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
 
         int haplotypesToCompute = vc.getAlternateAlleles().size() + 1;
 
-        final PriorityQueue<Haplotype> candidateHaplotypeQueue = new PriorityQueue<Haplotype>(100, new HaplotypeComparator());
-        final PriorityQueue<Haplotype> consensusHaplotypeQueue = new PriorityQueue<Haplotype>(MAX_CONSENSUS_HAPLOTYPES_TO_CONSIDER, new HaplotypeComparator());
+        final PriorityQueue<Haplotype> candidateHaplotypeQueue = new PriorityQueue<>(100, new HaplotypeComparator());
+        final PriorityQueue<Haplotype> consensusHaplotypeQueue = new PriorityQueue<>(MAX_CONSENSUS_HAPLOTYPES_TO_CONSIDER, new HaplotypeComparator());
 
         for (final PileupElement p : pileup) {
             final Haplotype haplotypeFromRead = getHaplotypeFromRead(p, contextSize, locus);
@@ -198,7 +215,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
             // The consensus haplotypes are in a quality-ordered priority queue, so the best haplotypes are just the ones at the front of the queue
             final Haplotype haplotype1 = consensusHaplotypeQueue.poll();
 
-            List<Haplotype> hlist = new ArrayList<Haplotype>();
+            List<Haplotype> hlist = new ArrayList<>();
             hlist.add(new Haplotype(haplotype1.getBases(), 60));
 
             for (int k = 1; k < haplotypesToCompute; k++) {
@@ -313,7 +330,7 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         if (DEBUG) System.out.printf("HAP1: %s%n", haplotypes.get(0));
         if (DEBUG) System.out.printf("HAP2: %s%n", haplotypes.get(1));
 
-        final ArrayList<double[]> haplotypeScores = new ArrayList<double[]>();
+        final ArrayList<double[]> haplotypeScores = new ArrayList<>();
         for (final PileupElement p : pileup) {
             // Score all the reads in the pileup, even the filtered ones
             final double[] scores = new double[haplotypes.size()];
@@ -394,12 +411,14 @@ public class HaplotypeScore extends InfoFieldAnnotation implements StandardAnnot
         return mismatches - expected;
     }
 
+    @Override
     public List<String> getKeyNames() {
-        return Arrays.asList("HaplotypeScore");
+        return Arrays.asList(GATKVCFConstants.HAPLOTYPE_SCORE_KEY);
     }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(new VCFInfoHeaderLine("HaplotypeScore", 1, VCFHeaderLineType.Float, "Consistency of the site with at most two segregating haplotypes"));
+        return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
     private static class Haplotype  {

@@ -52,9 +52,13 @@
 package org.broadinstitute.gatk.tools.walkers.bqsr;
 
 import com.google.java.contract.Requires;
+import org.broadinstitute.gatk.engine.recalibration.ReadCovariates;
+import org.broadinstitute.gatk.engine.recalibration.RecalDatum;
+import org.broadinstitute.gatk.engine.recalibration.RecalUtils;
+import org.broadinstitute.gatk.engine.recalibration.RecalibrationTables;
 import org.broadinstitute.gatk.utils.collections.NestedIntegerArray;
 import org.broadinstitute.gatk.utils.recalibration.*;
-import org.broadinstitute.gatk.utils.recalibration.covariates.Covariate;
+import org.broadinstitute.gatk.engine.recalibration.covariates.Covariate;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.io.PrintStream;

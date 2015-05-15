@@ -51,24 +51,23 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardUGAnnotation;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.collections.Pair;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.VariantContext;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Tandem repeat unit composition and counts per allele
@@ -77,50 +76,48 @@ import java.util.Map;
  *
  * <p>A tandem repeat unit is composed of one or more nucleotides that are repeated multiple times in series. Repetitive sequences are difficult to map to the reference because they are associated with multiple alignment possibilities. Knowing the number of repeat units in a set of tandem repeats tells you the number of different positions the tandem repeat can be placed in. The observation of many tandem repeat units multiplies the number of possible representations that can be made of the region.
  *
- * <h3>Caveats</h3>
+ * <h3>Caveat</h3>
  * <ul>
  *     <li>This annotation is currently not compatible with HaplotypeCaller.</li>
  * </ul>
  *
  */
-public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardAnnotation {
-    private static final String STR_PRESENT = "STR";
-    private static final String REPEAT_UNIT_KEY = "RU";
-    private static final String REPEATS_PER_ALLELE_KEY = "RPA";
+public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardUGAnnotation, ActiveRegionBasedAnnotation {
+    private final static Logger logger = Logger.getLogger(TandemRepeatAnnotator.class);
+    private boolean walkerIdentityCheckWarningLogged = false;
+
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) throws UserException {
+
         if ( !vc.isIndel())
             return null;
 
-        Pair<List<Integer>,byte[]> result = GATKVariantContextUtils.getNumTandemRepeatUnits(vc, ref.getForwardBases());
+        final Pair<List<Integer>,byte[]> result = GATKVariantContextUtils.getNumTandemRepeatUnits(vc, ref.getForwardBases());
         if (result == null)
             return null;
 
-        byte[] repeatUnit = result.second;
-        List<Integer> numUnits = result.first;
+        final byte[] repeatUnit = result.second;
+        final List<Integer> numUnits = result.first;
 
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put(STR_PRESENT,true);
-        map.put(REPEAT_UNIT_KEY,new String(repeatUnit));
-        map.put(REPEATS_PER_ALLELE_KEY, numUnits);
+        final Map<String, Object> map = new HashMap<>();
+        map.put(GATKVCFConstants.STR_PRESENT_KEY, true);
+        map.put(GATKVCFConstants.REPEAT_UNIT_KEY, new String(repeatUnit));
+        map.put(GATKVCFConstants.REPEATS_PER_ALLELE_KEY, numUnits);
 
         return map;
     }
 
-    protected static final String[] keyNames = {STR_PRESENT, REPEAT_UNIT_KEY,REPEATS_PER_ALLELE_KEY };
-    protected static final VCFInfoHeaderLine[] descriptions = {
-            new VCFInfoHeaderLine(STR_PRESENT, 0, VCFHeaderLineType.Flag, "Variant is a short tandem repeat"),
-            new VCFInfoHeaderLine(REPEAT_UNIT_KEY, 1, VCFHeaderLineType.String, "Tandem repeat unit (bases)"),
-            new VCFInfoHeaderLine(REPEATS_PER_ALLELE_KEY, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.Integer, "Number of times tandem repeat unit is repeated, for each allele (including reference)") };
-
+    @Override
     public List<String> getKeyNames() {
-        return Arrays.asList(keyNames);
+        return Arrays.asList(
+                GATKVCFConstants.STR_PRESENT_KEY,
+                GATKVCFConstants.REPEAT_UNIT_KEY,
+                GATKVCFConstants.REPEATS_PER_ALLELE_KEY);
     }
-
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(descriptions); }
 
 }

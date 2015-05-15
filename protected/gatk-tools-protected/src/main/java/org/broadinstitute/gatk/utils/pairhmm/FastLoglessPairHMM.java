@@ -51,7 +51,6 @@
 
 package org.broadinstitute.gatk.utils.pairhmm;
 
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.PairHMMLikelihoodCalculationEngine;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
@@ -398,7 +397,7 @@ public class FastLoglessPairHMM extends LoglessPairHMM  implements FlexibleHMM {
         for (int kkk = 0; kkk < readQuals.length; kkk++) {
             readQuals[kkk] = (byte) Math.min(0xff & readQuals[kkk],
                     mq); // cap base quality by mapping
-            readQuals[kkk] = (byte) (readQuals[kkk] < PairHMMLikelihoodCalculationEngine.BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE
+            readQuals[kkk] = (byte) (readQuals[kkk] < BASE_QUALITY_SCORE_THRESHOLD ? QualityUtils.MIN_USABLE_Q_SCORE
                     : Math.max(QualityUtils.MIN_USABLE_Q_SCORE,readQuals[kkk]));
             readInsQuals[kkk] = (byte) Math.max(QualityUtils.MIN_USABLE_Q_SCORE,readInsQuals[kkk]);
             readDelQuals[kkk] = (byte) Math.max(QualityUtils.MIN_USABLE_Q_SCORE,readDelQuals[kkk]);

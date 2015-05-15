@@ -92,6 +92,14 @@ public class SplitNCigarReadsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testSplitsFixNDN() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "splitNCigarReadsSnippet.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS -fixNDN", 1,
+                Arrays.asList("4ee1c1a64847e2b2f660a3a86f9d7e32"));
+        executeTest("test fix NDN", spec);
+    }
+
+    @Test
     public void testSplitsWithOverhangsNotClipping() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T SplitNCigarReads --doNotFixOverhangs -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,

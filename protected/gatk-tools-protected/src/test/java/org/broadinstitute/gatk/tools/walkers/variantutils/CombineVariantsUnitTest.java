@@ -52,7 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import htsjdk.tribble.readers.PositionalBufferedStream;
-import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;

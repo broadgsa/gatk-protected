@@ -51,9 +51,9 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
@@ -70,7 +70,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Total depth of coverage per sample (in FORMAT) and over all samples (in INFO).
+ * Total depth of coverage per sample and over all samples.
  *
  * <p>This annotation is used to provide counts of read depth at two different levels, with some important differences. At the sample level (FORMAT), the DP value is the count of reads that passed the caller's internal quality control metrics (such as MAPQ > 17, for example). At the site level (INFO), the DP value is the unfiltered depth over all samples.</p>
  *
@@ -78,7 +78,7 @@ import java.util.Map;
  *
  * <h3>Caveats</h3>
  * <ul>
- *     <li>If downsampling is enabled (as is done by default for some analyses to remove excessive coverage), the depth of coverage effectively seen by the caller may be inferior to the actual depth of coverage in the original file. If using `-dcov D`, the maximum depth that can be seen for N samples will be N * D.</li>
+ *     <li>If downsampling is enabled (as is done by default for some analyses to remove excessive coverage), the depth of coverage effectively seen by the caller may be inferior to the actual depth of coverage in the original file. If using "-dcov D", the maximum depth that can be seen for N samples will be N * D.</li>
  * </ul>
  *
  * <h3>Related annotations</h3>

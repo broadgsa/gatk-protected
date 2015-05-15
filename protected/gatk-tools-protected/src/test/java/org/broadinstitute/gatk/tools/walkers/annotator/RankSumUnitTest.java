@@ -51,8 +51,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.utils.MannWhitneyU;
+import org.broadinstitute.gatk.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -81,9 +81,9 @@ public class RankSumUnitTest {
         makeDistribution(distribution20_40, 40, skew, observations/2);
 
         // shuffle the observations
-        Collections.shuffle(distribution20, GenomeAnalysisEngine.getRandomGenerator());
-        Collections.shuffle(distribution30, GenomeAnalysisEngine.getRandomGenerator());
-        Collections.shuffle(distribution20_40, GenomeAnalysisEngine.getRandomGenerator());
+        Collections.shuffle(distribution20, Utils.getRandomGenerator());
+        Collections.shuffle(distribution30, Utils.getRandomGenerator());
+        Collections.shuffle(distribution20_40, Utils.getRandomGenerator());
     }
 
     private static void makeDistribution(final List<Integer> result, final int target, final int skew, final int numObservations) {

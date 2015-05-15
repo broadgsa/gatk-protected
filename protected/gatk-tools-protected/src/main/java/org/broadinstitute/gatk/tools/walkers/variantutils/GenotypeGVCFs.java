@@ -58,9 +58,12 @@ import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.Reference;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.TreeReducible;
@@ -69,35 +72,32 @@ import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.GeneralPloidyFailOverAFCalculatorProvider;
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
 import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import org.broadinstitute.gatk.utils.variant.ReferenceConfidenceVariantContextMerger;
 
 import java.util.*;
 
 /**
- * Genotypes any number of gVCF files that were produced by the Haplotype Caller into a single joint VCF file.
+ * Perform joint genotyping on gVCF files produced by HaplotypeCaller
  *
  * <p>
- * GenotypeGVCFs merges gVCF records that were produced as part of the reference model-based variant discovery pipeline (see documentation for more details) using
- * the '-ERC GVCF' or '-ERC BP_RESOLUTION' mode of the HaplotypeCaller.  This tool performs the multi-sample joint aggregation
- * step and merges the records together in a sophisticated manner.
- *
- * At all positions of the target, this tool will combine all spanning records, produce correct genotype likelihoods,
- * re-genotype the newly merged record, and then re-annotate it.
- *
- * Note that this tool cannot work with just any gVCF files - they must have been produced with the HaplotypeCaller,
- * which uses a sophisticated reference model to produce accurate genotype likelihoods for every position in the target.
+ * GenotypeGVCFs merges gVCF records that were produced as part of the Best Practices workflow for variant discovery
+ * (see Best Practices documentation for more details) using the '-ERC GVCF' or '-ERC BP_RESOLUTION' mode of the
+ * HaplotypeCaller, or result from combining such gVCF files using CombineGVCFs. This tool performs the multi-sample
+ * joint aggregation step and merges the records together in a sophisticated manner: at each position of the input
+ * gVCFs, this tool will combine all spanning records, produce correct genotype likelihoods, re-genotype the newly
+ * merged record, and then re-annotate it.</p>
  *
  * <h3>Input</h3>
  * <p>
- * One or more Haplotype Caller gVCFs to genotype.
+ * One or more HaplotypeCaller gVCFs to genotype.
  * </p>
  *
  * <h3>Output</h3>
@@ -105,15 +105,24 @@ import java.util.*;
  * A combined, genotyped VCF.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T GenotypeGVCFs \
- *   --variant gvcf1.vcf \
- *   --variant gvcf2.vcf \
+ *   -R reference.fasta \
+ *   --variant sample1.g.vcf \
+ *   --variant sample2.g.vcf \
  *   -o output.vcf
  * </pre>
+ *
+ * <h3>Caveat</h3>
+ * <p>Only gVCF files produced by HaplotypeCaller (or CombineGVCFs) can be used as input for this tool. Some other
+ * programs produce files that they call gVCFs but those lack some important information (accurate genotype likelihoods
+ * for every position) that GenotypeGVCFs requires for its operation.</p>
+ *
+ * <h3>Special note on ploidy</h3>
+ * <p>This tool is able to handle any ploidy (or mix of ploidies) intelligently; there is no need to specify ploidy
+ * for non-diploid organisms.</p>
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
@@ -134,7 +143,15 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     @Argument(fullName="includeNonVariantSites", shortName="allSites", doc="Include loci found to be non-variant after genotyping", required=false)
     public boolean INCLUDE_NON_VARIANTS = false;
 
-    @ArgumentCollection
+    /**
+     * Uniquify all sample names (intended for use with multiple inputs for the same sample)
+     */
+    @Hidden
+    @Advanced
+    @Argument(fullName="uniquifySamples", shortName="uniquifySamples", doc="Assume duplicate samples are present and uniquify all names with '.variant' and file number index")
+    public boolean uniquifySamples = false;
+
+   @ArgumentCollection
     public GenotypeCalculationArgumentCollection genotypeArgs = new GenotypeCalculationArgumentCollection();
 
     /**
@@ -142,7 +159,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      */
     @Advanced
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute.  The single value 'none' removes the default annotations", required=false)
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "GenotypeSummaries", "StrandOddsRatio"}));
+    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "StrandOddsRatio"}));
 
     /**
      * The rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate. Note that dbSNP is not used in any way for the calculations themselves.
@@ -163,13 +180,33 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
 
     public void initialize() {
+        boolean inputsAreTagged = false;
+
         // collect the actual rod bindings into a list for use later
-        for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections )
+        for ( final RodBindingCollection<VariantContext> variantCollection : variantCollections ) {
             variants.addAll(variantCollection.getRodBindings());
+            if (uniquifySamples) {
+                for (final RodBinding<VariantContext> rb : variantCollection.getRodBindings()) {
+                    //are inputs passed in with -V:fileTag ?
+                    if (!rb.getTags().isEmpty()) inputsAreTagged = true;
+                }
+            }
+        }
+        //RodBinding tags are used in sample uniquification
+        if (inputsAreTagged)
+            logger.warn("Output uniquified VCF may not be suitable for input to CombineSampleData because input VCF(s) contain tags.");
 
         final GenomeAnalysisEngine toolkit = getToolkit();
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(toolkit, variants);
-        final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE));
+
+        final GATKVariantContextUtils.GenotypeMergeType mergeType;
+        if(uniquifySamples) {
+            mergeType = GATKVariantContextUtils.GenotypeMergeType.UNIQUIFY;
+        }
+        else
+            mergeType = GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE;
+
+        final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, mergeType));
         // create the genotyping engine
         genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
                 toolkit.getArguments().BAQMode);
@@ -180,8 +217,13 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
         headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
         headerLines.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
-        // add the pool values for each genotype
-        VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.MLE_ALLELE_COUNT_KEY, VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
+
+        // add headers for annotations added by this tool
+        headerLines.add(new VCFSimpleHeaderLine(GATKVCFConstants.SYMBOLIC_ALLELE_DEFINITION_HEADER_TAG, GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_NAME, "Represents any possible spanning deletion allele at this location"));
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+        headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.REFERENCE_GENOTYPE_QUALITY));
+        headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));   // needed for gVCFs without DP tags
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
             VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
@@ -197,7 +239,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             return null;
 
         final GenomeLoc loc = ref.getLocus();
-        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true);
+        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true, uniquifySamples);
         if ( combinedVC == null )
             return null;
         return regenotypeVC(tracker, ref, combinedVC);
@@ -219,7 +261,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         // only re-genotype polymorphic sites
         if ( result.isVariant() ) {
             VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
-            if ( regenotypedVC == null) {
+            if ( ! isProperlyPolymorphic(regenotypedVC) ) {
                 if (!INCLUDE_NON_VARIANTS)
                     return null;
             }
@@ -254,6 +296,16 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     }
 
     /**
+     * Determines whether the provided VariantContext has real alternate alleles
+     *
+     * @param vc  the VariantContext to evaluate
+     * @return true if it has proper alternate alleles, false otherwise
+     */
+    private boolean isProperlyPolymorphic(final VariantContext vc) {
+        return ( vc != null && !vc.isSymbolic() );
+    }
+
+    /**
      * Add genotyping-based annotations to the new VC
      *
      * @param originalAttributes the non-null annotations from the original VC
@@ -263,10 +315,10 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     private VariantContext addGenotypingAnnotations(final Map<String, Object> originalAttributes, final VariantContext newVC) {
         // we want to carry forward the attributes from the original VC but make sure to add the MLE-based annotations
         final Map<String, Object> attrs = new HashMap<>(originalAttributes);
-        attrs.put(VCFConstants.MLE_ALLELE_COUNT_KEY, newVC.getAttribute(VCFConstants.MLE_ALLELE_COUNT_KEY));
-        attrs.put(VCFConstants.MLE_ALLELE_FREQUENCY_KEY, newVC.getAttribute(VCFConstants.MLE_ALLELE_FREQUENCY_KEY));
-        if (newVC.hasAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY))
-            attrs.put(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY, newVC.getAttribute(GenotypingEngine.NUMBER_OF_DISCOVERED_ALLELES_KEY));
+        attrs.put(GATKVCFConstants.MLE_ALLELE_COUNT_KEY, newVC.getAttribute(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
+        attrs.put(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY, newVC.getAttribute(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+        if (newVC.hasAttribute(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY))
+            attrs.put(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY, newVC.getAttribute(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY));
 
         return new VariantContextBuilder(newVC).attributes(attrs).make();
     }
@@ -278,6 +330,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * 2. propagate DP to AD if not present
      * 3. remove SB if present
      * 4. change the PGT value from "0|1" to "1|1" for homozygous variant genotypes
+     * 5. move GQ to RGQ if the site is monomorphic
      *
      * @param VC            the VariantContext with the Genotypes to fix
      * @param createRefGTs  if true we will also create proper hom ref genotypes since we assume the site is monomorphic
@@ -299,12 +352,18 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
                 attrs.remove("MIN_DP");
             }
 
+            // move the GQ to RGQ
+            if ( createRefGTs && oldGT.hasGQ() ) {
+                builder.noGQ();
+                attrs.put(GATKVCFConstants.REFERENCE_GENOTYPE_QUALITY, oldGT.getGQ());
+            }
+
             // remove SB
             attrs.remove("SB");
 
             // update PGT for hom vars
-            if ( oldGT.isHomVar() && oldGT.hasExtendedAttribute(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY) ) {
-                attrs.put(HaplotypeCaller.HAPLOTYPE_CALLER_PHASING_GT_KEY, "1|1");
+            if ( oldGT.isHomVar() && oldGT.hasExtendedAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY) ) {
+                attrs.put(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY, "1|1");
             }
 
             // create AD if it's not there
@@ -330,6 +389,10 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             recoveredGs.add(builder.noAttributes().attributes(attrs).make());
         }
         return recoveredGs;
+    }
+
+    private void checkRODtags() {
+
     }
 
     /**

@@ -92,14 +92,14 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
     protected HashMap<String, BufferedWriter> filenameToWriter = new HashMap<String, BufferedWriter>();
 
     private JNILoglessPairHMM jniPairHMM = null;
-    public DebugJNILoglessPairHMM(final PairHMM.HMM_IMPLEMENTATION hmmType) {
+    public DebugJNILoglessPairHMM(final PairHMM.HMM_IMPLEMENTATION hmmType, PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub, final boolean alwaysLoadVectorLoglessPairHMMLib) {
         super();
         switch(hmmType) {
             case VECTOR_LOGLESS_CACHING:
-                jniPairHMM = new VectorLoglessPairHMM();
+                jniPairHMM = new VectorLoglessPairHMM(pairHMMSub, alwaysLoadVectorLoglessPairHMMLib);
                 break;
             default:
-                throw new UserException.BadArgumentValue("pairHMM","Specified JNIPairHMM implementation is unrecognized or incompatible with     the HaplotypeCaller. Acceptable options are VECTOR_LOGLESS_CACHING"); 
+                throw new UserException.BadArgumentValue("pairHMM","Specified JNIPairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are VECTOR_LOGLESS_CACHING");
         }
     }
 

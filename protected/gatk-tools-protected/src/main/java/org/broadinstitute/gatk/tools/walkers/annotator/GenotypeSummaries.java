@@ -51,35 +51,38 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
 /**
- * Genotype summary statistics
+ * Summarize genotype statistics from all samples at the site level
  *
+ * <p>This annotation collects several genotype-level statistics from all samples and summarizes them in the INFO field. The following statistics are collected:</p>
+ * <ul>
+ *     <li>Number of called chromosomes (should amount to ploidy * called samples)</li>
+ *     <li>Number of no-called samples</li>
+ *     <li>p-value from Hardy-Weinberg Equilibrium test</li>
+ *     <li>Mean of all GQ values</li>
+ *     <li>Standard deviation of all GQ values</li>
+ * </ul>
+ * <h3>Note</h3>
  * <p>These summaries can all be recomputed from the genotypes on the fly but it is a lot faster to add them here as INFO field annotations.</p>
  */
 
 public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
-
-    public final static String CCC = "CCC";
-    public final static String NCC = "NCC";
-    public final static String HWP = "HWP";
-    public final static String GQ_MEAN = "GQ_MEAN";
-    public final static String GQ_STDDEV = "GQ_STDDEV";
 
     @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
@@ -92,7 +95,7 @@ public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegi
             return null;
 
         final Map<String,Object> returnMap = new HashMap<>();
-        returnMap.put(NCC, vc.getNoCallCount());
+        returnMap.put(GATKVCFConstants.NOCALL_CHROM_KEY, vc.getNoCallCount());
 
         final MathUtils.RunningAverage average = new MathUtils.RunningAverage();
         for( final Genotype g : vc.getGenotypes() ) {
@@ -101,9 +104,9 @@ public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegi
             }
         }
         if( average.observationCount() > 0L ) {
-            returnMap.put(GQ_MEAN, String.format("%.2f", average.mean()));
+            returnMap.put(GATKVCFConstants.GQ_MEAN_KEY, String.format("%.2f", average.mean()));
             if( average.observationCount() > 1L ) {
-                returnMap.put(GQ_STDDEV, String.format("%.2f", average.stddev()));
+                returnMap.put(GATKVCFConstants.GQ_STDEV_KEY, String.format("%.2f", average.stddev()));
             }
         }
 
@@ -112,17 +115,9 @@ public class GenotypeSummaries extends InfoFieldAnnotation implements ActiveRegi
 
     @Override
     public List<String> getKeyNames() {
-        return Arrays.asList(CCC, NCC, HWP, GQ_MEAN, GQ_STDDEV);
-    }
-
-    @Override
-    public List<VCFInfoHeaderLine> getDescriptions() {
         return Arrays.asList(
-                new VCFInfoHeaderLine(CCC, 1, VCFHeaderLineType.Integer, "Number of called chromosomes"),
-                new VCFInfoHeaderLine(NCC, 1, VCFHeaderLineType.Integer, "Number of no-called samples"),
-                new VCFInfoHeaderLine(HWP, 1, VCFHeaderLineType.Float, "P value from test of Hardy Weinberg Equilibrium"),
-                new VCFInfoHeaderLine(GQ_MEAN, 1, VCFHeaderLineType.Float, "Mean of all GQ values"),
-                new VCFInfoHeaderLine(GQ_STDDEV, 1, VCFHeaderLineType.Float, "Standard deviation of all GQ values")
-        );
+                GATKVCFConstants.NOCALL_CHROM_KEY,
+                GATKVCFConstants.GQ_MEAN_KEY,
+                GATKVCFConstants.GQ_STDEV_KEY);
     }
 }

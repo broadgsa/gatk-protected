@@ -55,7 +55,6 @@ package org.broadinstitute.gatk.utils.pairhmm;
 // the imports for unit testing.
 
 import org.broadinstitute.gatk.utils.BaseTest;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
@@ -252,8 +251,8 @@ public class PairHMMUnitTest extends BaseTest {
 
     @DataProvider(name = "OptimizedLikelihoodTestProvider")
     public Object[][] makeOptimizedLikelihoodTests() {
-        GenomeAnalysisEngine.resetRandomGenerator();
-        final Random random = GenomeAnalysisEngine.getRandomGenerator();
+        Utils.resetRandomGenerator();
+        final Random random = Utils.getRandomGenerator();
         final List<Integer> baseQuals = EXTENSIVE_TESTING ? Arrays.asList(10, 30, 40, 60) : Arrays.asList(30);
         final List<Integer> indelQuals = EXTENSIVE_TESTING ? Arrays.asList(20, 40, 60) : Arrays.asList(40);
         final List<Integer> gcps = EXTENSIVE_TESTING ? Arrays.asList(10, 20, 30) : Arrays.asList(10);

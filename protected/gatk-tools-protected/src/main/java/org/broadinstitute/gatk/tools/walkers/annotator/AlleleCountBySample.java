@@ -54,21 +54,19 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeAlleleCounts;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
 import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -77,17 +75,17 @@ import java.util.List;
 /**
  * Allele count and frequency expectation per sample
  *
- * Needs documentation
+ * <p>This annotation calculates the maximum likelihood (ML) number and frequency of alternate alleles for each individual sample at a site. In essence, it is equivalent to calculating the sum of "1"s in a genotype (for a biallelic site).</p>
  *
  */
 @SuppressWarnings("unused")
 public final class AlleleCountBySample extends GenotypeAnnotation {
 
-    private final static List<String> keyNames = Collections.unmodifiableList(Arrays.asList(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY,VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY));
+    private final static List<String> keyNames = Collections.unmodifiableList(Arrays.asList(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY,GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY));
 
     private final static List<VCFFormatHeaderLine> descriptors = Collections.unmodifiableList(Arrays.asList(
-            new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Integer, "Maximum likelihood expectation (MLE) for the alternate allele count, in the same order as listed, for each individual sample"),
-            new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Maximum likelihood expectation (MLE) for the alternate allele fraction, in the same order as listed, for each individual sample")
+            GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY),
+            GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY)
     ));
 
     @Override
@@ -121,8 +119,8 @@ public final class AlleleCountBySample extends GenotypeAnnotation {
             AC[alleleIndex - 1] = alleleCount;
             AF[alleleIndex - 1] = ((double) alleleCount) / (double) ploidy;
         }
-        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, Utils.asList(AC));
-        gb.attribute(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, Utils.asList(AF));
+        gb.attribute(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, AC);
+        gb.attribute(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, AF);
     }
 
     @Override

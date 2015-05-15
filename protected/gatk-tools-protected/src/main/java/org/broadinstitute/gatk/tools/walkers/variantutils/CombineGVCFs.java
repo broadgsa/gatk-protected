@@ -53,58 +53,59 @@ package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.Reference;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
-import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
-import org.broadinstitute.gatk.utils.variant.ReferenceConfidenceVariantContextMerger;
 
 import java.util.*;
 
 /**
- * Combines any number of gVCF files that were produced by the Haplotype Caller into a single joint gVCF file.
+ * Combine per-sample gVCF files produced by HaplotypeCaller into a multi-sample gVCF file
  *
  * <p>
  * CombineGVCFs is meant to be used for hierarchical merging of gVCFs that will eventually be input into GenotypeGVCFs.
  * One would use this tool when needing to genotype too large a number of individual gVCFs; instead of passing them
  * all in to GenotypeGVCFs, one would first use CombineGVCFs on smaller batches of samples and then pass these combined
- * gVCFs to GenotypeGVCFs.
- *
- * Note that this tool cannot work with just any gVCF files - they must have been produced with the Haplotype Caller
- * as part of the "single sample discovery" pipeline using the '-ERC GVCF' mode, which uses a sophisticated reference
- * model to produce accurate genotype likelihoods for every position in the target.
+ * gVCFs to GenotypeGVCFs.</p>
  *
  * <h3>Input</h3>
  * <p>
- * One or more Haplotype Caller gVCFs to combine.
+ * Two or more Haplotype Caller gVCFs to combine.
  * </p>
  *
  * <h3>Output</h3>
  * <p>
- * A combined VCF.
+ * A combined multisample gVCF.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T CombineGVCFs \
- *   --variant gvcf1.vcf \
- *   --variant gvcf2.vcf \
- *   -o mergeGvcf.vcf
+ *   -R reference.fasta \
+ *   --variant sample1.g.vcf \
+ *   --variant sample2.g.vcf \
+ *   -o cohort.g.vcf
  * </pre>
+ *
+ * <h3>Caveat</h3>
+ * <p>Only gVCF files produced by HaplotypeCaller (or CombineGVCFs) can be used as input for this tool. Some other
+ * programs produce files that they call gVCFs but those lack some important information (accurate genotype likelihoods
+ * for every position) that GenotypeGVCFs requires for its operation.</p>
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
@@ -113,10 +114,14 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
     protected final class PositionalState {
         final List<VariantContext> VCs;
+        final Set<String> samples = new HashSet<>();
         final byte[] refBases;
         final GenomeLoc loc;
         public PositionalState(final List<VariantContext> VCs, final byte[] refBases, final GenomeLoc loc) {
             this.VCs = VCs;
+            for(final VariantContext vc : VCs){
+                samples.addAll(vc.getSampleNames());
+            }
             this.refBases = refBases;
             this.loc = loc;
         }
@@ -124,6 +129,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
     protected final class OverallState {
         final LinkedList<VariantContext> VCs = new LinkedList<>();
+        final Set<String> samples = new HashSet<>();
         GenomeLoc prevPos = null;
         byte refAfterPrevPos;
 
@@ -143,12 +149,24 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     @Argument(fullName="convertToBasePairResolution", shortName="bpResolution", doc = "If specified, convert banded gVCFs to all-sites gVCFs", required=false)
     protected boolean USE_BP_RESOLUTION = false;
 
+    /**
+     * To reduce file sizes our gVCFs group similar reference positions into bands.  However, there are cases when users will want to know that no bands
+     * span across a given genomic position (e.g. when scatter-gathering jobs across a compute farm).  The option below enables users to break bands at
+     * pre-defined positions.  For example, a value of 10,000 would mean that we would ensure that no bands span across chr1:10000, chr1:20000, etc.
+     *
+     * Note that the --convertToBasePairResolution argument is just a special case of this argument with a value of 1.
+     */
+    @Argument(fullName="breakBandsAtMultiplesOf", shortName="breakBandsAtMultiplesOf", doc = "If > 0, reference bands will be broken up at genomic positions that are multiples of this number", required=false)
+    protected int multipleAtWhichToBreakBands = 0;
+
     private GenomeLocParser genomeLocParser;
 
     public void initialize() {
         // take care of the VCF headers
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(getToolkit());
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
+        headerLines.add(new VCFSimpleHeaderLine(GATKVCFConstants.SYMBOLIC_ALLELE_DEFINITION_HEADER_TAG, GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_NAME, "Represents any possible spanning deletion allele at this location"));
+        headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));   // needed for gVCFs without DP tags
 
         final Set<String> samples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
         final VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
@@ -159,6 +177,10 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
             variants.addAll(variantCollection.getRodBindings());
 
         genomeLocParser = getToolkit().getGenomeLocParser();
+
+        // optimization to prevent mods when we always just want to break bands
+        if ( multipleAtWhichToBreakBands == 1 )
+            USE_BP_RESOLUTION = true;
     }
 
     public PositionalState map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
@@ -177,30 +199,50 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
         if ( startingStates == null )
             return previousState;
 
-        final int currentPos = startingStates.loc.getStart();
-
         if ( !startingStates.VCs.isEmpty() ) {
-            if ( ! okayToSkipThisSite(currentPos, previousState.prevPos) )
-                endPreviousStates(previousState, currentPos - 1, startingStates.refBases[0]);
+            if ( ! okayToSkipThisSite(startingStates, previousState) )
+                endPreviousStates(previousState, startingStates.loc.incPos(-1), startingStates, false);
             previousState.VCs.addAll(startingStates.VCs);
+            for(final VariantContext vc : previousState.VCs){
+                previousState.samples.addAll(vc.getSampleNames());
+            }
+
         }
 
-        if ( USE_BP_RESOLUTION || containsEndingContext(previousState.VCs, currentPos) ) {
-            endPreviousStates(previousState, currentPos, startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N');
+        if ( breakBand(startingStates.loc) || containsEndingContext(previousState.VCs, startingStates.loc.getStart()) ) {
+            endPreviousStates(previousState, startingStates.loc, startingStates, true);
         }
 
         return previousState;
     }
 
     /**
+     * Should we break bands at the given position?
+     *
+     * @param loc  the genomic location to evaluate against
+     *
+     * @return true if we should ensure that bands should be broken at the given position, false otherwise
+     */
+    private boolean breakBand(final GenomeLoc loc) {
+        return USE_BP_RESOLUTION ||
+                (loc != null && multipleAtWhichToBreakBands > 0 && (loc.getStart()+1) % multipleAtWhichToBreakBands == 0);  // add +1 to the loc because we want to break BEFORE this base
+    }
+
+    /**
      * Is it okay to skip the given position?
      *
-     * @param thisPos      this position
-     * @param lastPosRun   the last position for which we created a VariantContext
+     * @param startingStates  state information for this position
+     * @param previousState   state information for the last position for which we created a VariantContext
      * @return true if it is okay to skip this position, false otherwise
      */
-    private boolean okayToSkipThisSite(final int thisPos, final GenomeLoc lastPosRun) {
-        return lastPosRun != null && thisPos == lastPosRun.getStart() + 1;
+    private boolean okayToSkipThisSite(final PositionalState startingStates, final OverallState previousState) {
+        final int thisPos = startingStates.loc.getStart();
+        final GenomeLoc lastPosRun = previousState.prevPos;
+        Set<String> intersection = new HashSet<String>(startingStates.samples);
+        intersection.retainAll(previousState.samples);
+
+        //if there's a starting VC with a sample that's already in a current VC, don't skip this position
+        return lastPosRun != null && thisPos == lastPosRun.getStart() + 1 && intersection.isEmpty();
     }
 
     /**
@@ -235,40 +277,58 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
 
     /**
      * Disrupt the VariantContexts so that they all stop at the given pos, write them out, and put the remainder back in the list.
-     *
-     * @param state   the state with list of VariantContexts
-     * @param pos     the target ending position
-     * @param refBase the reference base to use at the position AFTER pos
+     * @param state   the previous state with list of active VariantContexts
+     * @param pos   the position for the starting VCs
+     * @param startingStates the state for the starting VCs
+     * @param atCurrentPosition  indicates whether we output a variant at the current position, independent of VCF start/end, i.e. in BP resolution mode
      */
-    private void endPreviousStates(final OverallState state, final int pos, final byte refBase) {
+    private void endPreviousStates(final OverallState state, final GenomeLoc pos, final PositionalState startingStates, boolean atCurrentPosition) {
+
+        final byte refBase = startingStates.refBases[0];
+        //if we're in BP resolution mode or a VC ends at the current position then the reference for the next output VC (refNextBase)
+        // will be advanced one base
+        final byte refNextBase = (atCurrentPosition) ? (startingStates.refBases.length > 1 ? startingStates.refBases[1] : (byte)'N' ): refBase;
 
         final List<VariantContext> stoppedVCs = new ArrayList<>(state.VCs.size());
 
         for ( int i = state.VCs.size() - 1; i >= 0; i-- ) {
             final VariantContext vc = state.VCs.get(i);
-            if ( vc.getStart() <= pos ) {
+            //the VC for the previous state will be stopped if its position is previous to the current position or it we've moved to a new contig
+            if ( vc.getStart() <= pos.getStart() || !vc.getChr().equals(pos.getContig())) {
 
                 stoppedVCs.add(vc);
 
                 // if it was ending anyways, then remove it from the future state
-                if ( isEndingContext(vc, pos) )
+                if ( vc.getEnd() == pos.getStart()) {
+                    state.samples.removeAll(vc.getSampleNames());
                     state.VCs.remove(i);
+                    continue; //don't try to remove twice
+                }
+
+                //if ending vc is the same sample as a starting VC, then remove it from the future state
+                if(startingStates.VCs.size() > 0 && !atCurrentPosition && startingStates.samples.containsAll(vc.getSampleNames())) {
+                    state.samples.removeAll(vc.getSampleNames());
+                    state.VCs.remove(i);
+                }
             }
         }
 
-        if ( !stoppedVCs.isEmpty() ) {
-            final GenomeLoc gLoc = genomeLocParser.createGenomeLoc(stoppedVCs.get(0).getChr(), pos);
+        //output the stopped VCs if there is no previous output (state.prevPos == null) or our current position is past
+        // the last write position (state.prevPos)
+        //NOTE: BP resolution with have current position == state.prevPos because it gets output via a different control flow
+        if ( !stoppedVCs.isEmpty() &&  (state.prevPos == null || pos.isPast(state.prevPos) )) {
+            final GenomeLoc gLoc = genomeLocParser.createGenomeLoc(stoppedVCs.get(0).getChr(), pos.getStart());
 
             // we need the specialized merge if the site contains anything other than ref blocks
             final VariantContext mergedVC;
             if ( containsTrueAltAllele(stoppedVCs) )
-                mergedVC = ReferenceConfidenceVariantContextMerger.merge(stoppedVCs, gLoc, refBase, false);
+                mergedVC = ReferenceConfidenceVariantContextMerger.merge(stoppedVCs, gLoc, refBase, false, false);
             else
-                mergedVC = referenceBlockMerge(stoppedVCs, state, pos);
+                mergedVC = referenceBlockMerge(stoppedVCs, state, pos.getStart());
 
             vcfWriter.add(mergedVC);
             state.prevPos = gLoc;
-            state.refAfterPrevPos = refBase;
+            state.refAfterPrevPos = refNextBase;
         }
     }
 
@@ -308,7 +368,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
                 genotypes.add(new GenotypeBuilder(g).alleles(GATKVariantContextUtils.noCallAlleles(g.getPloidy())).make());
         }
 
-        return new VariantContextBuilder("", first.getChr(), start, end, Arrays.asList(refAllele, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE)).attributes(attrs).genotypes(genotypes).make();
+        return new VariantContextBuilder("", first.getChr(), start, end, Arrays.asList(refAllele, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE)).attributes(attrs).genotypes(genotypes).make();
     }
 
     /**

@@ -51,13 +51,14 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -91,6 +92,11 @@ import java.util.*;
  *
  */
 public class DepthPerSampleHC extends GenotypeAnnotation {
+    private final static Logger logger = Logger.getLogger(DepthPerSampleHC.class);
+    private boolean alleleLikelihoodMapSubsetWarningLogged = false;
+    boolean[] warningsLogged = new boolean[4];
+
+    @Override
     public void annotate(final RefMetaDataTracker tracker,
                          final AnnotatorCompatible walker,
                          final ReferenceContext ref,
@@ -98,26 +104,29 @@ public class DepthPerSampleHC extends GenotypeAnnotation {
                          final VariantContext vc,
                          final Genotype g,
                          final GenotypeBuilder gb,
-                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-        if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
-            return;
+                         final PerReadAlleleLikelihoodMap alleleLikelihoodMap){
 
-        if (alleleLikelihoodMap == null )
-            throw new IllegalStateException("DepthPerSampleHC can only be used with likelihood based annotations in the HaplotypeCaller");
+        if ( !AnnotationUtils.isAppropriateInput(walker, alleleLikelihoodMap, g, warningsLogged, logger) ) {
+            return;
+        }
 
         // the depth for the HC is the sum of the informative alleles at this site.  It's not perfect (as we cannot
         // differentiate between reads that align over the event but aren't informative vs. those that aren't even
         // close) but it's a pretty good proxy and it matches with the AD field (i.e., sum(AD) = DP).
         int dp = 0;
 
-        if ( alleleLikelihoodMap.isEmpty() ) {
-            // there are no reads
-        } else {
+        // there are reads
+        if ( !alleleLikelihoodMap.isEmpty() ) {
             final Set<Allele> alleles = new HashSet<>(vc.getAlleles());
 
             // make sure that there's a meaningful relationship between the alleles in the perReadAlleleLikelihoodMap and our VariantContext
-            if ( ! alleleLikelihoodMap.getAllelesSet().containsAll(alleles) )
-                throw new IllegalStateException("VC alleles " + alleles + " not a strict subset of per read allele map alleles " + alleleLikelihoodMap.getAllelesSet());
+            if ( !alleleLikelihoodMap.getAllelesSet().containsAll(alleles) ) {
+                if ( !alleleLikelihoodMapSubsetWarningLogged ) {
+                    logger.warn("VC alleles " + alleles + " not a strict subset of per read allele map alleles " + alleleLikelihoodMap.getAllelesSet());
+                    alleleLikelihoodMapSubsetWarningLogged = true;
+                }
+                return;
+            }
 
             for (Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : alleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
                 final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue(), alleles);
@@ -130,10 +139,12 @@ public class DepthPerSampleHC extends GenotypeAnnotation {
         }
     }
 
+    @Override
     public List<String> getKeyNames() {
         return Collections.singletonList(VCFConstants.DEPTH_KEY);
     }
 
+    @Override
     public List<VCFFormatHeaderLine> getDescriptions() {
         return Collections.singletonList(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY));
     }

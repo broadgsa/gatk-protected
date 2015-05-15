@@ -52,9 +52,10 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.Walker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
@@ -62,11 +63,12 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnot
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.MathUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -80,15 +82,21 @@ import java.util.*;
  * <p>The calculation is a continuous generalization of the Hardy-Weinberg test for disequilibrium that works well with limited coverage per sample. The output is a Phred-scaled p-value derived from running the HW test for disequilibrium with PL values. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
  *
  * <h3>Caveats</h3>
- * <h4>Note that the Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</h4>
+ * <ul>
+ * <li>The Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
+ * <li>This annotation is used in variant recalibration, but may not be appropriate for that purpose if the cohort being analyzed contains many closely related individuals.</li>
+ * <li>This annotation requires a valid pedigree file.</li>
+ * </ul>
  *
  */
 public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 
+    private final static Logger logger = Logger.getLogger(InbreedingCoeff.class);
     private static final int MIN_SAMPLES = 10;
-    private static final String INBREEDING_COEFFICIENT_KEY_NAME = "InbreedingCoeff";
     private Set<String> founderIds;
     private int sampleCount;
+    private boolean pedigreeCheckWarningLogged = false;
+    private boolean didUniquifiedSampleNameCheck = false;
 
     @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
@@ -98,9 +106,24 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
         //If available, get the founder IDs and cache them. the IC will only be computed on founders then.
-        if(founderIds == null && walker != null)
-            founderIds =  ((Walker)walker).getSampleDB().getFounderIds();
-        return makeCoeffAnnotation(vc);
+        if(founderIds == null && walker != null) {
+            founderIds = ((Walker) walker).getSampleDB().getFounderIds();
+        }
+        //if none of the "founders" are in the vc samples, assume we uniquified the samples upstream and they are all founders
+        if (!didUniquifiedSampleNameCheck) {
+            checkSampleNames(vc);
+            didUniquifiedSampleNameCheck = true;
+        }
+        if ( founderIds == null || founderIds.isEmpty() ) {
+            if ( !pedigreeCheckWarningLogged ) {
+                logger.warn("Annotation will not be calculated, must provide a valid PED file (-ped) from the command line.");
+                pedigreeCheckWarningLogged = true;
+            }
+            return null;
+        }
+        else{
+            return makeCoeffAnnotation(vc);
+        }
     }
 
     protected double calculateIC(final VariantContext vc, final GenotypesContext genotypes) {
@@ -124,7 +147,7 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
             {
                 if (g.isHetNonRef()) {
                     //all likelihoods go to homCount
-                    homCount += 1;
+                    homCount++;
                     continue;
                 }
 
@@ -168,9 +191,25 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
         return Collections.singletonMap(getKeyNames().get(0), (Object)String.format("%.4f", F));
     }
 
-    @Override
-    public List<String> getKeyNames() { return Collections.singletonList(INBREEDING_COEFFICIENT_KEY_NAME); }
+    //this method is intended to reconcile uniquified sample names
+    // it comes into play when calling this annotation from GenotypeGVCFs with --uniquifySamples because founderIds
+    // is derived from the sampleDB, which comes from the input sample names, but vc will have uniquified (i.e. different)
+    // sample names. Without this check, the founderIds won't be found in the vc and the annotation won't be calculated.
+    protected void checkSampleNames(final VariantContext vc) {
+        Set<String> vcSamples = new HashSet<>();
+        vcSamples.addAll(vc.getSampleNames());
+        if (!vcSamples.isEmpty()) {
+            if (founderIds!=null) {
+                vcSamples.removeAll(founderIds);
+                if (vcSamples.equals(vc.getSampleNames()))
+                    founderIds = vc.getSampleNames();
+            }
+        }
+    }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() { return Collections.singletonList(new VCFInfoHeaderLine(INBREEDING_COEFFICIENT_KEY_NAME, 1, VCFHeaderLineType.Float, "Inbreeding coefficient as estimated from the genotype likelihoods per-sample when compared against the Hardy-Weinberg expectation")); }
+    public List<String> getKeyNames() { return Collections.singletonList(GATKVCFConstants.INBREEDING_COEFFICIENT_KEY); }
+
+    @Override
+    public List<VCFInfoHeaderLine> getDescriptions() { return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 }

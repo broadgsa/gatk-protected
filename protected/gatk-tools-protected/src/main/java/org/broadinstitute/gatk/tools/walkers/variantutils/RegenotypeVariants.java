@@ -52,24 +52,24 @@
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleList;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.TreeReducible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
-import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -84,13 +84,14 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Regenotypes the variants from a VCF.  VCF records must contain PLs or GLs.
+ * Regenotypes the variants from a VCF containing PLs or GLs.
  *
  * <p>
- * This tool triggers re-genotyping of the samples through the Exact Allele Frequency calculation model.  Note that this is truly the
- * mathematically correct way to select samples from a larger set (especially when calls were generated from low coverage sequencing data);
- * using the hard genotypes to select (i.e. the default mode of SelectVariants) can lead to false positives when errors are confused for
- * variants in the original genotyping.  This functionality used to comprise the --regenotype option in SelectVariants but we pulled it out
+ * This tool triggers re-genotyping of the samples through the Exact Allele Frequency calculation model.  Note that
+ * this is truly the mathematically correct way to select samples from a larger set (especially when calls were
+ * generated from low coverage sequencing data); using the hard genotypes to select (i.e. the default mode of
+ * SelectVariants) can lead to false positives when errors are confused for variants in the original genotyping.
+ * This functionality used to comprise the --regenotype option in SelectVariants but we pulled it out
  * into its own tool for technical purposes.
  *
  * <h3>Input</h3>
@@ -103,11 +104,11 @@ import java.util.Set;
  * A re-genotyped VCF.
  * </p>
  *
- * <h3>Examples</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
- *   -R ref.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T RegenotypeVariants \
+ *   -R reference.fasta \
  *   --variant input.vcf \
  *   -o output.vcf
  * </pre>

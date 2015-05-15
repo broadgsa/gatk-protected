@@ -55,14 +55,14 @@ import htsjdk.samtools.*;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFSimpleHeaderLine;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
-import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.*;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.locusiterator.LocusIteratorByState;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
@@ -70,6 +70,7 @@ import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.io.File;
@@ -86,9 +87,6 @@ import java.util.*;
  * Time: 12:52 PM
  */
 public class ReferenceConfidenceModel {
-
-    //public final static String INDEL_INFORMATIVE_DEPTH = "CD"; // temporarily taking this extra genotype level information out for now
-    public final static String ALTERNATE_ALLELE_STRING = "ALT"; // arbitrary alternate allele
 
     private final GenomeLocParser genomeLocParser;
 
@@ -137,9 +135,7 @@ public class ReferenceConfidenceModel {
      */
     public Set<VCFHeaderLine> getVCFHeaderLines() {
         final Set<VCFHeaderLine> headerLines = new LinkedHashSet<>();
-        // TODO - do we need a new kind of VCF Header subclass for specifying arbitrary alternate alleles?
-        headerLines.add(new VCFSimpleHeaderLine(ALTERNATE_ALLELE_STRING, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE_NAME, "Represents any possible alternative allele at this location"));
-        //headerLines.add(new VCFFormatHeaderLine(INDEL_INFORMATIVE_DEPTH, 1, VCFHeaderLineType.Integer, "Number of reads at locus that are informative about an indel of size <= " + indelInformativeDepthIndelSize));
+        headerLines.add(new VCFSimpleHeaderLine(GATKVCFConstants.SYMBOLIC_ALLELE_DEFINITION_HEADER_TAG, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE_NAME, "Represents any possible alternative allele at this location"));
         return headerLines;
     }
 
@@ -215,7 +211,7 @@ public class ReferenceConfidenceModel {
                 homRefCalc.capByHomRefLikelihood();
 
                 final Allele refAllele = Allele.create(refBase, true);
-                final List<Allele> refSiteAlleles = Arrays.asList(refAllele, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                final List<Allele> refSiteAlleles = Arrays.asList(refAllele, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
                 final VariantContextBuilder vcb = new VariantContextBuilder("HC", curPos.getContig(), curPos.getStart(), curPos.getStart(), refSiteAlleles);
                 final GenotypeBuilder gb = new GenotypeBuilder(sampleName, GATKVariantContextUtils.homozygousAlleleList(refAllele, ploidy));
                 gb.AD(homRefCalc.AD_Ref_Any);
@@ -265,26 +261,23 @@ public class ReferenceConfidenceModel {
      * @return non-null GenotypeLikelihoods given N
      */
     protected final GenotypeLikelihoods getIndelPLs(final int ploidy, final int nInformativeReads) {
-        if (ploidy > MAX_N_INDEL_PLOIDY)
-            throw new IllegalArgumentException("you have hit a current limitation of the GVCF output model that cannot handle ploidies larger than " + MAX_N_INDEL_PLOIDY + " , please let the GATK team about it: " + ploidy);
         return indelPLCache(ploidy, nInformativeReads > MAX_N_INDEL_INFORMATIVE_READS ? MAX_N_INDEL_INFORMATIVE_READS : nInformativeReads);
     }
 
     protected static final int MAX_N_INDEL_INFORMATIVE_READS = 40; // more than this is overkill because GQs are capped at 99 anyway
-    private static final int MAX_N_INDEL_PLOIDY = 20;
-    private static final GenotypeLikelihoods[][] indelPLCache = new GenotypeLikelihoods[MAX_N_INDEL_PLOIDY][];
+    private static final int INITIAL_INDEL_LK_CACHE_PLOIDY_CAPACITY = 20;
+    private static GenotypeLikelihoods[][] indelPLCache = new GenotypeLikelihoods[INITIAL_INDEL_LK_CACHE_PLOIDY_CAPACITY + 1][];
     private static final double INDEL_ERROR_RATE = -4.5; // 10^-4.5 indel errors per bp
 
     private final GenotypeLikelihoods indelPLCache(final int ploidy, final int nInformativeReads) {
-        GenotypeLikelihoods[] indelPLCacheByPloidy = indelPLCache[ploidy];
-        if (indelPLCacheByPloidy == null)
-            return initializeIndelPLCache(ploidy)[nInformativeReads];
-        else
-            return indelPLCacheByPloidy[nInformativeReads];
+        return initializeIndelPLCache(ploidy)[nInformativeReads];
     }
 
     private synchronized GenotypeLikelihoods[] initializeIndelPLCache(final int ploidy) {
-        // Double-check whether another thread has done the initialization.
+
+        if (indelPLCache.length <= ploidy)
+            indelPLCache = Arrays.copyOf(indelPLCache,ploidy << 1);
+
         if (indelPLCache[ploidy] != null)
             return indelPLCache[ploidy];
 
@@ -311,42 +304,6 @@ public class ReferenceConfidenceModel {
     /**
      * Calculate the genotype likelihoods for the sample in pileup for being hom-ref contrasted with being ref vs. alt
      *
-     * @param pileup the read backed pileup containing the data we want to evaluate
-     * @param refBase the reference base at this pileup position
-     * @param minBaseQual the min base quality for a read in the pileup at the pileup position to be included in the calculation
-     * @param hqSoftClips running average data structure (can be null) to collect information about the number of high quality soft clips
-     * @return a RefVsAnyResult genotype call
-     */
-    @Deprecated
-    public RefVsAnyResult calcGenotypeLikelihoodsOfRefVsAny(final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual, final MathUtils.RunningAverage hqSoftClips) {
-        final RefVsAnyResult result = new RefVsAnyResult();
-
-        for( final PileupElement p : pileup ) {
-            final byte qual = (p.isDeletion() ? REF_MODEL_DELETION_QUAL : p.getQual());
-            if( p.isDeletion() || qual > minBaseQual ) {
-                int AA = 0; final int AB = 1; int BB = 2;
-                if( p.getBase() != refBase || p.isDeletion() || p.isBeforeDeletionStart() || p.isAfterDeletionEnd() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip() ) {
-                    AA = 2;
-                    BB = 0;
-                    if( hqSoftClips != null && p.isNextToSoftClip() ) {
-                        hqSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(p.getRead(), (byte) 28));
-                    }
-                    result.AD_Ref_Any[1]++;
-                } else {
-                    result.AD_Ref_Any[0]++;
-                }
-                result.genotypeLikelihoods[AA] += QualityUtils.qualToProbLog10(qual);
-                result.genotypeLikelihoods[AB] += MathUtils.approximateLog10SumLog10( QualityUtils.qualToProbLog10(qual) + MathUtils.LOG_ONE_HALF, QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD + MathUtils.LOG_ONE_HALF );
-                result.genotypeLikelihoods[BB] += QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD;
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Calculate the genotype likelihoods for the sample in pileup for being hom-ref contrasted with being ref vs. alt
-     *
      * @param sampleName target sample name.
      * @param ploidy target sample ploidy.
      * @param genotypingModel model to calculate likelihoods and genotypes.
@@ -359,7 +316,7 @@ public class ReferenceConfidenceModel {
     public RefVsAnyResult calcGenotypeLikelihoodsOfRefVsAny(final String sampleName, final int ploidy,
                                                         final GenotypingModel genotypingModel,
                                                         final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual, final MathUtils.RunningAverage hqSoftClips) {
-        final AlleleList<Allele> alleleList = new IndexedAlleleList<>(Allele.create(refBase,true),GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+        final AlleleList<Allele> alleleList = new IndexedAlleleList<>(Allele.create(refBase,true), GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
         // Notice that the sample name is rather irrelevant as this information is never used, just need to be the same in both lines bellow.
 
         final int maximumReadCount = pileup.getReads().size();

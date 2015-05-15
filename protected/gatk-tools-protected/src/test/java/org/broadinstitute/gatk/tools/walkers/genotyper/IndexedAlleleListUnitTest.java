@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -61,7 +62,7 @@ import java.util.*;
 import static org.broadinstitute.gatk.tools.walkers.genotyper.AlleleListUnitTester.assertAlleleList;
 
 /**
- * Tests {@link org.broadinstitute.gatk.tools.walkers.genotyper.IndexedSampleList}.
+ * Tests {@link org.broadinstitute.gatk.utils.genotyper.IndexedSampleList}.
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */

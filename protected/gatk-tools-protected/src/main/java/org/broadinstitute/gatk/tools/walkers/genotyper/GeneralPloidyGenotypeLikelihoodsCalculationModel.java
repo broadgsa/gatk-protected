@@ -52,19 +52,19 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import htsjdk.variant.vcf.VCFConstants;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.util.*;
@@ -287,7 +287,7 @@ public abstract class GeneralPloidyGenotypeLikelihoodsCalculationModel extends G
         final HashMap<String, Object> attributes = new HashMap<String, Object>();
 
         if (UAC.referenceSampleName != null && perLaneErrorModels != null)
-            attributes.put(VCFConstants.REFSAMPLE_DEPTH_KEY, ErrorModel.getTotalReferenceDepth(perLaneErrorModels));
+            attributes.put(GATKVCFConstants.REFSAMPLE_DEPTH_KEY, ErrorModel.getTotalReferenceDepth(perLaneErrorModels));
 
         builder.attributes(attributes);
         // create the genotypes; no-call everyone for now

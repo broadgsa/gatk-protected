@@ -57,6 +57,7 @@ import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.utils.GeneralUtils;
 import htsjdk.variant.variantcontext.*;
@@ -73,17 +74,13 @@ public class FamilyLikelihoodsUtils {
 
     //Matrix of priors for all genotype combinations
     final private EnumMap<GenotypeType,EnumMap<GenotypeType,EnumMap<GenotypeType,Integer>>> mvCountMatrix =
-            new EnumMap<GenotypeType,EnumMap<GenotypeType,EnumMap<GenotypeType,Integer>>>(GenotypeType.class);
+            new EnumMap<>(GenotypeType.class);
 
     final int NUM_CALLED_GENOTYPETYPES = 3; //HOM_REF, HET, and HOM_VAR
 
     double[] configurationLikelihoodsMatrix = new double[NUM_CALLED_GENOTYPETYPES*NUM_CALLED_GENOTYPETYPES*NUM_CALLED_GENOTYPETYPES];
 
-    ArrayList<Sample> trios = new ArrayList<Sample>();
-
-    private final String JOINT_LIKELIHOOD_TAG_NAME = "JL";
-    private final String JOINT_POSTERIOR_TAG_NAME = "JP";
-    private final String PHRED_SCALED_POSTERIORS_KEY = "PP";
+    ArrayList<Sample> trios = new ArrayList<>();
 
     public final double NO_JOINT_VALUE = -1.0;
 
@@ -107,9 +104,9 @@ public class FamilyLikelihoodsUtils {
      */
     public void getUpdatedGenotypes(final VariantContext vc, final Genotype motherGenotype, final Genotype fatherGenotype, final Genotype childGenotype, final ArrayList<Genotype> updatedGenotypes){
         //genotypes here can be no call
-        boolean fatherIsCalled = fatherGenotype != null && hasCalledGT(fatherGenotype.getType());
-        boolean motherIsCalled = motherGenotype != null && hasCalledGT(motherGenotype.getType());
-        boolean childIsCalled = childGenotype != null && hasCalledGT(childGenotype.getType());
+        boolean fatherIsCalled = fatherGenotype != null && hasCalledGT(fatherGenotype.getType()) && fatherGenotype.hasLikelihoods();
+        boolean motherIsCalled = motherGenotype != null && hasCalledGT(motherGenotype.getType()) && motherGenotype.hasLikelihoods();
+        boolean childIsCalled = childGenotype != null && hasCalledGT(childGenotype.getType()) && childGenotype.hasLikelihoods();
 
         //default to posteriors equal to likelihoods (flat priors) in case input genotypes are not called
         double[] uninformativeLikelihoods = {ONE_THIRD, ONE_THIRD, ONE_THIRD};
@@ -158,10 +155,10 @@ public class FamilyLikelihoodsUtils {
         }
 
         //Add the joint trio calculations
-        final Map<String, Object> genotypeAttributes = new HashMap<String, Object>();
+        final Map<String, Object> genotypeAttributes = new HashMap<>();
         genotypeAttributes.putAll(genotype.getExtendedAttributes());
-        genotypeAttributes.put(JOINT_LIKELIHOOD_TAG_NAME, phredScaledJL);
-        genotypeAttributes.put(JOINT_POSTERIOR_TAG_NAME, phredScaledJP);
+        genotypeAttributes.put(GATKVCFConstants.JOINT_LIKELIHOOD_TAG_NAME, phredScaledJL);
+        genotypeAttributes.put(GATKVCFConstants.JOINT_POSTERIOR_TAG_NAME, phredScaledJP);
 
         final GenotypeBuilder builder = new GenotypeBuilder(genotype);
 
@@ -171,7 +168,7 @@ public class FamilyLikelihoodsUtils {
         GATKVariantContextUtils.updateGenotypeAfterSubsetting(vc.getAlleles(), builder,
                 GATKVariantContextUtils.GenotypeAssignmentMethod.USE_PLS_TO_ASSIGN, log10Posteriors, vc.getAlleles());
 
-        builder.attribute(PHRED_SCALED_POSTERIORS_KEY,
+        builder.attribute(GATKVCFConstants.PHRED_SCALED_POSTERIORS_KEY,
                 Utils.listFromPrimitives(GenotypeLikelihoods.fromLog10Likelihoods(log10Posteriors).getAsPLs()));
         builder.attributes(genotypeAttributes);
         return builder.make();
@@ -231,7 +228,7 @@ public class FamilyLikelihoodsUtils {
                 }
                 break;
             default:
-                throw new UserException(String.format("%d does not indicate a valid trio FamilyMember -- use 0 for mother, 1 for father, 2 for child",recalcInd));
+                throw new UserException(String.format("%d does not indicate a valid trio FamilyMember -- use 0 for mother, 1 for father, 2 for child",recalcInd.ordinal()));
         }
 
         recalcPosteriors[0] = MathUtils.log10sumLog10(marginalOverChangedHR,0);
@@ -262,7 +259,7 @@ public class FamilyLikelihoodsUtils {
                 continue;
             }
 
-            final ArrayList<Genotype> trioGenotypes = new ArrayList<Genotype>(3);
+            final ArrayList<Genotype> trioGenotypes = new ArrayList<>(3);
             updateFamilyGenotypes(vc, mother, father, child, trioGenotypes);
 
             //replace uses sample names to match genotypes, so order doesn't matter
@@ -282,12 +279,12 @@ public class FamilyLikelihoodsUtils {
     private ArrayList<Sample> setTrios(Set<String> vcfSamples, Map<String,Set<Sample>> families){
         Set<Sample> family;
         ArrayList<Sample> parents;
-        final ArrayList<Sample> trios = new ArrayList<Sample>();
+        final ArrayList<Sample> trios = new ArrayList<>();
         for(final Map.Entry<String,Set<Sample>> familyEntry : families.entrySet()){
             family = familyEntry.getValue();
 
             // Since getFamilies(vcfSamples) above still returns parents of samples in the VCF even if those parents are not in the VCF, need to subset down here:
-            final Set<Sample> familyMembersInVCF = new TreeSet<Sample>();
+            final Set<Sample> familyMembersInVCF = new TreeSet<>();
             for(final Sample familyMember : family){
                 if (vcfSamples.contains(familyMember.getID())) {
                     familyMembersInVCF.add(familyMember);
@@ -298,7 +295,7 @@ public class FamilyLikelihoodsUtils {
             if(family.size() == 3){
                 for(final Sample familyMember : family){
                     parents = familyMember.getParents();
-                    if(parents.size()>0){
+                    if(parents.size()==2){
                         if(family.containsAll(parents))
                             trios.add(familyMember);
                     }
@@ -331,7 +328,7 @@ public class FamilyLikelihoodsUtils {
         if(child == GenotypeType.NO_CALL || child == GenotypeType.UNAVAILABLE)
             return 0;
         //Add parents with genotypes for the evaluation
-        final ArrayList<GenotypeType> parents = new ArrayList<GenotypeType>();
+        final ArrayList<GenotypeType> parents = new ArrayList<>();
         if (!(mother == GenotypeType.NO_CALL || mother == GenotypeType.UNAVAILABLE))
             parents.add(mother);
         if (!(father == GenotypeType.NO_CALL || father == GenotypeType.UNAVAILABLE))
@@ -426,11 +423,11 @@ public class FamilyLikelihoodsUtils {
 
     //Get a Map of genotype (log10)likelihoods
     private EnumMap<GenotypeType,Double> getLikelihoodsAsMapSafeNull(Genotype genotype){
-        final EnumMap<GenotypeType,Double> likelihoodsMap = new EnumMap<GenotypeType, Double>(GenotypeType.class);
+        final EnumMap<GenotypeType,Double> likelihoodsMap = new EnumMap<>(GenotypeType.class);
         double[] likelihoods;
 
-        if (genotype != null && hasCalledGT(genotype.getType()) && genotype.hasExtendedAttribute(PHRED_SCALED_POSTERIORS_KEY)) {
-            Object GPfromVCF = genotype.getExtendedAttribute(PHRED_SCALED_POSTERIORS_KEY);
+        if (genotype != null && hasCalledGT(genotype.getType()) && genotype.hasExtendedAttribute(GATKVCFConstants.PHRED_SCALED_POSTERIORS_KEY)) {
+            Object GPfromVCF = genotype.getExtendedAttribute(GATKVCFConstants.PHRED_SCALED_POSTERIORS_KEY);
             //parse the GPs into a vector of probabilities
             final String[] likelihoodsAsStringVector = ((String)GPfromVCF).split(",");
             final double[] likelihoodsAsVector = new double[likelihoodsAsStringVector.length];

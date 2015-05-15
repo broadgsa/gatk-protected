@@ -53,7 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.samtools.SAMUtils;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.engine.walkers.Walker;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.MathUtils;

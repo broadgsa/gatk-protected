@@ -51,18 +51,15 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -72,11 +69,11 @@ import java.util.*;
  * <p>Strand bias is a type of sequencing bias in which one DNA strand is favored over the other, which can result in incorrect evaluation of the amount of evidence observed for one allele vs. the other. The StrandOddsRatio annotation is one of several methods that aims to evaluate whether there is strand bias in the data. It is an updated form of the Fisher Strand Test that is better at taking into account large amounts of data in high coverage situations. It is used to determine if there is strand bias between forward and reverse strands for the reference or alternate allele.</p>
  *
  * <h3>Statistical notes</h3>
- * <p> Odds Ratios in the 2x2 contingency table below are
+ * <p> Odds Ratios in the 2x2 contingency table below are</p>
  *
  * $$ R = \frac{X[0][0] * X[1][1]}{X[0][1] * X[1][0]} $$
  *
- * and its inverse:
+ * <p>and its inverse:</p>
  *
  * <table>
  *      <tr><td>&nbsp;</td><td>+ strand </td><td>- strand</td></tr>
@@ -84,12 +81,16 @@ import java.util.*;
  *      <tr><td>ALT;</td><td>X[1][0]</td><td>X[1][1]</td></tr>
  * </table>
  *
- * The sum R + 1/R is used to detect a difference in strand bias for REF and for ALT (the sum makes it symmetric). A high value is indicative of large difference where one entry is very small compared to the others. A scale factor of refRatio/altRatio where
+ * <p>The sum R + 1/R is used to detect a difference in strand bias for REF and for ALT (the sum makes it symmetric). A high value is indicative of large difference where one entry is very small compared to the others. A scale factor of refRatio/altRatio where</p>
+ *
  * $$ refRatio = \frac{max(X[0][0], X[0][1])}{min(X[0][0], X[0][1} $$
- * and
+ *
+ * <p>and </p>
+ *
  * $$ altRatio = \frac{max(X[1][0], X[1][1])}{min(X[1][0], X[1][1]} $$
- * ensures that the annotation value is large only.
- * </p>
+ *
+ * <p>ensures that the annotation value is large only. </p>
+ *
  * <p>See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
  *
  * <h3>Related annotations</h3>
@@ -102,8 +103,6 @@ import java.util.*;
 public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotation, ActiveRegionBasedAnnotation {
     private final static double AUGMENTATION_CONSTANT = 1.0;
     private static final int MIN_COUNT = 0;
-
-    private static final String SOR = "SOR";
 
     @Override
     protected Map<String, Object> calculateAnnotationFromGTfield(GenotypesContext genotypes){
@@ -118,7 +117,7 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
     @Override
     protected Map<String, Object> calculateAnnotationFromStratifiedContexts(Map<String, AlignmentContext> stratifiedContexts,
                                                                                      final VariantContext vc){
-        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAltAlleleWithHighestAlleleCount(), -1, MIN_COUNT);
+        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAlternateAlleles(), -1, MIN_COUNT);
         final double ratio = calculateSOR(tableNoFiltering);
         return annotationForOneTable(ratio);
     }
@@ -166,9 +165,9 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
      * @return the augmented table
      */
     private static double[][] augmentContingencyTable(final int[][] table) {
-        double[][] augmentedTable = new double[2][2];
-        for ( int i = 0; i < 2; i++ ) {
-            for ( int j = 0; j < 2; j++ )
+        double[][] augmentedTable = new double[ARRAY_DIM][ARRAY_DIM];
+        for ( int i = 0; i < ARRAY_DIM; i++ ) {
+            for ( int j = 0; j < ARRAY_DIM; j++ )
                 augmentedTable[i][j] = table[i][j] + AUGMENTATION_CONSTANT;
         }
 
@@ -183,16 +182,16 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
      */
     protected Map<String, Object> annotationForOneTable(final double ratio) {
         final Object value = String.format("%.3f", ratio);
-        return Collections.singletonMap(SOR, value);
+        return Collections.singletonMap(getKeyNames().get(0), value);
     }
 
     @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Collections.singletonList(new VCFInfoHeaderLine(SOR, 1, VCFHeaderLineType.Float, "Symmetric Odds Ratio of 2x2 contingency table to detect strand bias"));
+        return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
     @Override
     public List<String> getKeyNames() {
-        return Collections.singletonList(SOR);
+        return Collections.singletonList(GATKVCFConstants.STRAND_ODDS_RATIO_KEY);
     }
 }

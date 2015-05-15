@@ -53,8 +53,8 @@ package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.vcf.VCFConstants;
@@ -66,6 +66,7 @@ import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 
 import java.util.*;
 
@@ -116,7 +117,7 @@ public class VariantDataManager {
             varianceVector[iii] = theSTD;
             for( final VariantDatum datum : data ) {
                 // Transform each data point via: (x - mean) / standard deviation
-                datum.annotations[iii] = ( datum.isNull[iii] ? 0.1 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian() : ( datum.annotations[iii] - theMean ) / theSTD );
+                datum.annotations[iii] = ( datum.isNull[iii] ? 0.1 * Utils.getRandomGenerator().nextGaussian() : ( datum.annotations[iii] - theMean ) / theSTD );
             }
         }
         if( foundZeroVarianceAnnotation ) {
@@ -251,7 +252,7 @@ public class VariantDataManager {
             logger.warn( "WARNING: Training with very few variant sites! Please check the model reporting PDF to ensure the quality of the model is reliable." );
         } else if( trainingData.size() > VRAC.MAX_NUM_TRAINING_DATA ) {
             logger.warn( "WARNING: Very large training set detected. Downsampling to " + VRAC.MAX_NUM_TRAINING_DATA + " training variants." );
-            Collections.shuffle(trainingData, GenomeAnalysisEngine.getRandomGenerator());
+            Collections.shuffle(trainingData, Utils.getRandomGenerator());
             return trainingData.subList(0, VRAC.MAX_NUM_TRAINING_DATA);
         }
         return trainingData;
@@ -299,13 +300,13 @@ public class VariantDataManager {
 
     public List<VariantDatum> getRandomDataForPlotting( final int numToAdd, final List<VariantDatum> trainingData, final List<VariantDatum> antiTrainingData, final List<VariantDatum> evaluationData ) {
         final List<VariantDatum> returnData = new ExpandingArrayList<>();
-        Collections.shuffle(trainingData, GenomeAnalysisEngine.getRandomGenerator());
-        Collections.shuffle(antiTrainingData, GenomeAnalysisEngine.getRandomGenerator());
-        Collections.shuffle(evaluationData, GenomeAnalysisEngine.getRandomGenerator());
+        Collections.shuffle(trainingData, Utils.getRandomGenerator());
+        Collections.shuffle(antiTrainingData, Utils.getRandomGenerator());
+        Collections.shuffle(evaluationData, Utils.getRandomGenerator());
         returnData.addAll(trainingData.subList(0, Math.min(numToAdd, trainingData.size())));
         returnData.addAll(antiTrainingData.subList(0, Math.min(numToAdd, antiTrainingData.size())));
         returnData.addAll(evaluationData.subList(0, Math.min(numToAdd, evaluationData.size())));
-        Collections.shuffle(returnData, GenomeAnalysisEngine.getRandomGenerator());
+        Collections.shuffle(returnData, Utils.getRandomGenerator());
         return returnData;
     }
 
@@ -349,10 +350,10 @@ public class VariantDataManager {
         try {
             value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
             if( Double.isInfinite(value) ) { value = Double.NaN; }
-            if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("InbreedingCoeff") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("SOR") && MathUtils.compareDoubles(value, LOG_OF_TWO, 0.01) == 0 ) { value += 0.01 * GenomeAnalysisEngine.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
+            if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("InbreedingCoeff") && MathUtils.compareDoubles(value, 0.0, 0.01) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase("SOR") && MathUtils.compareDoubles(value, LOG_OF_TWO, 0.01) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
         } catch( Exception e ) {
             value = Double.NaN; // The VQSR works with missing data by marginalizing over the missing dimension when evaluating the Gaussian mixture model
         }
@@ -428,11 +429,11 @@ public class VariantDataManager {
         for( final VariantDatum datum : data ) {
             VariantContextBuilder builder = new VariantContextBuilder("VQSR", datum.loc.getContig(), datum.loc.getStart(), datum.loc.getStop(), alleles);
             builder.attribute(VCFConstants.END_KEY, datum.loc.getStop());
-            builder.attribute(VariantRecalibrator.VQS_LOD_KEY, String.format("%.4f", datum.lod));
-            builder.attribute(VariantRecalibrator.CULPRIT_KEY, (datum.worstAnnotation != -1 ? annotationKeys.get(datum.worstAnnotation) : "NULL"));
+            builder.attribute(GATKVCFConstants.VQS_LOD_KEY, String.format("%.4f", datum.lod));
+            builder.attribute(GATKVCFConstants.CULPRIT_KEY, (datum.worstAnnotation != -1 ? annotationKeys.get(datum.worstAnnotation) : "NULL"));
 
-            if ( datum.atTrainingSite ) builder.attribute(VariantRecalibrator.POSITIVE_LABEL_KEY, true);
-            if ( datum.atAntiTrainingSite ) builder.attribute(VariantRecalibrator.NEGATIVE_LABEL_KEY, true);
+            if ( datum.atTrainingSite ) builder.attribute(GATKVCFConstants.POSITIVE_LABEL_KEY, true);
+            if ( datum.atAntiTrainingSite ) builder.attribute(GATKVCFConstants.NEGATIVE_LABEL_KEY, true);
 
             recalWriter.add(builder.make());
         }

@@ -70,6 +70,9 @@ public class HaplotypeCallerModesIntegrationTest extends WalkerTest {
     //
     // --------------------------------------------------------------------------------------------------------------
 
+    final static String HMM_SUB_IMPLEMENTATION = "UNVECTORIZED";
+    final static String ALWAYS_LOAD_VECTOR_HMM = "-alwaysloadVectorHMM";
+
     @Test
     public void HCTestBamWriterCalledHaplotypes() {
         HCTestBamWriter(HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES, ""); // current MD5 = 9a2b6157f14b44b872a77f4e75c56023
@@ -82,7 +85,7 @@ public class HaplotypeCallerModesIntegrationTest extends WalkerTest {
 
     public void HCTestBamWriter(final HaplotypeBAMWriter.Type type, final String md5) {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam -o /dev/null " +
+                "-T HaplotypeCaller -pairHMMSub " + HMM_SUB_IMPLEMENTATION + " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I " + privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam -o /dev/null " +
                         "-bamout %s -L 20:10,000,000-10,010,000 -bamWriterType " + type, 1,
                 Arrays.asList(md5));
         executeTest("HC writing bams with mode " + type, spec);

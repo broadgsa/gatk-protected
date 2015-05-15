@@ -61,8 +61,8 @@ import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
-import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatCovariate;
-import org.broadinstitute.gatk.utils.recalibration.covariates.RepeatLengthCovariate;
+import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatCovariate;
+import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatLengthCovariate;
 import htsjdk.variant.variantcontext.*;
 import org.testng.Assert;
 import org.testng.annotations.BeforeSuite;
@@ -138,7 +138,7 @@ public class PairHMMLikelihoodCalculationEngineUnitTest extends BaseTest {
     public void createPcrErrorModelTest(final String repeat, final int repeatLength) {
 
         final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte)0,
-                PairHMM.HMM_IMPLEMENTATION.ORIGINAL, 0.0, true,
+                PairHMM.HMM_IMPLEMENTATION.ORIGINAL, PairHMM.HMM_SUB_IMPLEMENTATION.UNVECTORIZED, false, 0.0, true,
                 PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.CONSERVATIVE);
 
         final String readString = Utils.dupString(repeat, repeatLength);

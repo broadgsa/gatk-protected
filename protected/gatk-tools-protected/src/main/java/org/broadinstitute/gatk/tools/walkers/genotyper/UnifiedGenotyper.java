@@ -58,40 +58,42 @@ import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.downsampling.AlleleBiasedDownsamplingUtils;
-import org.broadinstitute.gatk.engine.downsampling.DownsampleType;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.downsampling.AlleleBiasedDownsamplingUtils;
+import org.broadinstitute.gatk.utils.downsampling.DownsampleType;
 import org.broadinstitute.gatk.engine.filters.BadMateFilter;
 import org.broadinstitute.gatk.engine.filters.MappingQualityUnavailableFilter;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
-import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.baq.BAQ;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.sam.ReadUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.io.PrintStream;
 import java.util.*;
 
 /**
- * A variant caller which unifies the approaches of several disparate callers -- Works for single-sample and multi-sample data.
+ * Call SNPs and indels on a per-locus basis
  *
  * <p>
- * The GATK Unified Genotyper is a multiple-sample, technology-aware SNP and indel caller. It uses a Bayesian genotype
- * likelihood model to estimate simultaneously the most likely genotypes and allele frequency in a population of N samples,
- * emitting an accurate posterior probability of there being a segregating variant allele at each locus as well as for the
- * genotype of each sample. The system can either emit just the variant sites or complete genotypes (which includes
- * homozygous reference calls) satisfying some phred-scaled confidence value. The genotyper can make accurate calls on
- * both single sample data and multi-sample data.
+ * This tool uses a Bayesian genotype likelihood model to estimate simultaneously the most likely genotypes and
+ * allele frequency in a population of N samples, emitting a genotype for each sample. The system can either emit
+ * just the variant sites or complete genotypes (which includes homozygous reference calls) satisfying some
+ * phred-scaled confidence value.
  * </p>
  *
  * <h3>Input</h3>
@@ -104,47 +106,42 @@ import java.util.*;
  * A raw, unfiltered, highly sensitive callset in VCF format.
  * </p>
  *
- * <h3>Example generic command for multi-sample SNP calling</h3>
+ * <h3>Usage examples</h3>
+ * <h4>Multi-sample SNP calling</h4>
  * <pre>
  * java -jar GenomeAnalysisTK.jar \
- *   -R resources/Homo_sapiens_assembly18.fasta \
  *   -T UnifiedGenotyper \
+ *   -R reference.fasta \
  *   -I sample1.bam [-I sample2.bam ...] \
  *   --dbsnp dbSNP.vcf \
  *   -o snps.raw.vcf \
  *   -stand_call_conf [50.0] \
  *   -stand_emit_conf 10.0 \
- *   -dcov [50 for 4x, 200 for >30x WGS or Whole exome] \
  *   [-L targets.interval_list]
  * </pre>
  *
- * <p>
- * The above command will call all of the samples in your provided BAM files [-I arguments] together and produce a VCF file
- * with sites and genotypes for all samples. The easiest way to get the dbSNP file is from the GATK resource bundle (see Guide FAQs for details). Several
- * arguments have parameters that should be chosen based on the average coverage per sample in your data. See the detailed
- * argument descriptions below.
- * </p>
- *
- * <h3>Example command for generating calls at all sites</h3>
+ * <h4>Generate calls at all sites</h4>
  * <pre>
- * java -jar /path/to/GenomeAnalysisTK.jar \
- *   -l INFO \
- *   -R resources/Homo_sapiens_assembly18.fasta \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T UnifiedGenotyper \
- *   -I /DCC/ftp/pilot_data/data/NA12878/alignment/NA12878.SLX.maq.SRP000031.2009_08.bam \
- *   -o my.vcf \
+ *   -R reference.fasta \
+ *   -I input.bam \
+ *   -o raw_variants.vcf \
  *   --output_mode EMIT_ALL_SITES
  * </pre>
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>The system is under active and continuous development. All outputs, the underlying likelihood model, arguments, and
- * file formats are likely to change.</li>
- * <li>The system can be very aggressive in calling variants. In the 1000 genomes project for pilot 2 (deep coverage of ~35x)
- * we expect the raw Qscore > 50 variants to contain at least ~10% FP calls. We use extensive post-calling filters to eliminate
- * most of these FPs. Variant Quality Score Recalibration is a tool to perform this filtering.</li>
- * <li>The generalized ploidy model can be used to handle non-diploid or pooled samples (see the -ploidy argument in the table below).</li>
+ * <li>The caller can be very aggressive in calling variants in order to be very sensitive, so the raw output will
+ * contain many false positives. We use extensive post-calling filters to eliminate most of these FPs. See the documentation on filtering (especially by Variant Quality Score Recalibration) for more details.</li>
+ * <li><b>This tool has been deprecated in favor of HaplotypeCaller, a much more sophisticated variant caller that
+ * produces much better calls, especially on indels, and includes features that allow it to scale to much larger
+ * cohort sizes.</b></li>
  * </ul>
+ *
+ * <h3>Special note on ploidy</h3>
+ * <p>This tool is able to handle almost any ploidy (except very high ploidies in large pooled experiments); the ploidy
+ * can be specified using the -ploidy argument for non-diploid organisms.</p>
  *
  */
 
@@ -152,6 +149,7 @@ import java.util.*;
 @BAQMode(QualityMode = BAQ.QualityMode.ADD_TAG, ApplicationTime = ReadTransformer.ApplicationTime.ON_INPUT)
 @ReadFilters( {BadMateFilter.class, MappingQualityUnavailableFilter.class} )
 @Reference(window=@Window(start=-200,stop=200))
+@PartitionBy(value = PartitionType.LOCUS, includeUnmapped = false)
 @By(DataSource.REFERENCE)
 // TODO -- When LocusIteratorByState gets cleaned up, we should enable multiple @By sources:
 // TODO -- @By( {DataSource.READS, DataSource.REFERENCE_ORDERED_DATA} )
@@ -221,7 +219,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
      * Keep in mind that RODRequiringAnnotations are not intended to be used as a group, because they require specific ROD inputs.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls.  The single value 'none' removes the default group", required=false)
-    protected String[] annotationClassesToUse = { "Standard" };
+    protected String[] annotationClassesToUse = { "Standard", "StandardUG" };
 
     // the calculation arguments
     private UnifiedGenotypingEngine genotypingEngine = null;
@@ -267,7 +265,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             sampleNameSet = Collections.singleton(GenotypeLikelihoodsCalculationModel.DUMMY_SAMPLE_NAME);
         } else {
             // get all of the unique sample names
-            sampleNameSet = SampleUtils.getSAMFileSamples(toolkit.getSAMFileHeader());
+            sampleNameSet = ReadUtils.getSAMFileSamples(toolkit.getSAMFileHeader());
             if ( UAC.referenceSampleName != null )
                 sampleNameSet.remove(UAC.referenceSampleName);
         }
@@ -334,20 +332,19 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
         // add the pool values for each genotype
         if (UAC.genotypeArgs.samplePloidy != GATKVariantContextUtils.DEFAULT_PLOIDY) {
-            headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Integer, "Maximum likelihood expectation (MLE) for the alternate allele count, in the same order as listed, for each individual sample"));
-            headerInfo.add(new VCFFormatHeaderLine(VCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY, VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Maximum likelihood expectation (MLE) for the alternate allele fraction, in the same order as listed, for each individual sample"));
+            headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_COUNT_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.MLE_PER_SAMPLE_ALLELE_FRACTION_KEY));
         }
         if (UAC.referenceSampleName != null) {
-            headerInfo.add(new VCFInfoHeaderLine(VCFConstants.REFSAMPLE_DEPTH_KEY, 1, VCFHeaderLineType.Integer, "Total reference sample depth"));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.REFSAMPLE_DEPTH_KEY));
         }
 
         if (UAC.annotateAllSitesWithPLs) {
-            headerInfo.add(new VCFFormatHeaderLine(UnifiedGenotypingEngine.PL_FOR_ALL_SNP_ALLELES_KEY, 10, VCFHeaderLineType.Integer, "Phred-scaled genotype likelihoods for all 4 possible bases regardless of whether there is statistical evidence for them. Ordering is always PL for AA AC CC GA GC GG TA TC TG TT."));
+            headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.PL_FOR_ALL_SNP_ALLELES_KEY));
         }
-        VCFStandardHeaderLines.addStandardInfoLines(headerInfo, true,
-                VCFConstants.DOWNSAMPLED_KEY,
-                VCFConstants.MLE_ALLELE_COUNT_KEY,
-                VCFConstants.MLE_ALLELE_FREQUENCY_KEY);
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.DOWNSAMPLED_KEY));
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
+        headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
 
         // also, check to see whether comp rods were included
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
@@ -362,7 +359,7 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
 
         // FILTER fields are added unconditionally as it's not always 100% certain the circumstances
         // where the filters are used.  For example, in emitting all sites the lowQual field is used
-        headerInfo.add(new VCFFilterHeaderLine(UnifiedGenotypingEngine.LOW_QUAL_FILTER_NAME, "Low quality"));
+        headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.LOW_QUAL_FILTER_NAME));
 
         return headerInfo;
     }

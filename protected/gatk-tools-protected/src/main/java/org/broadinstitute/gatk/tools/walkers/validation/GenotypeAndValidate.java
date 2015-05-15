@@ -57,13 +57,15 @@ import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
-import org.broadinstitute.gatk.utils.SampleUtils;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -76,7 +78,7 @@ import java.util.Set;
 import static org.broadinstitute.gatk.utils.IndelUtils.isInsideExtendedIndel;
 
 /**
- * Genotypes a dataset and validates the calls of another dataset using the Unified Genotyper.
+ * Genotype and validate a dataset and the calls of another dataset using the Unified Genotyper
  *
  *  <h4>Note that this is an old tool that makes use of the UnifiedGenotyper, which has since been
  *  deprecated in favor of the HaplotypeCaller.</h4>
@@ -180,36 +182,30 @@ import static org.broadinstitute.gatk.utils.IndelUtils.isInsideExtendedIndel;
  *      </li>
  *  </ul>
  *
- * <h3>Examples</h3>
- * <ol>
- *     <li>
- *         Genotypes BAM file from new technology using the VCF as a truth dataset:
- *     </li>
- *
+ * <h3>Usage examples</h3>
+ * <h4>Genotypes BAM file from new technology using the VCF as a truth dataset</h4>
  * <pre>
  *  java
- *      -jar /GenomeAnalysisTK.jar
- *      -T  GenotypeAndValidate
- *      -R human_g1k_v37.fasta
- *      -I myNewTechReads.bam
- *      -alleles handAnnotatedVCF.vcf
- *      -L handAnnotatedVCF.vcf
+ *      -jar GenomeAnalysisTK.jar \
+ *      -T  GenotypeAndValidate \
+ *      -R reference.fasta \
+ *      -I myNewTechReads.bam \
+ *      -alleles handAnnotatedVCF.vcf \
+ *      -L handAnnotatedVCF.vcf \
+ *      -o output.vcf
  * </pre>
  *
- *      <li>
- *          Using a BAM file as the truth dataset:
- *      </li>
- *
+ * <h4>Genotypes BAM file from new technology a BAM file as the truth dataset</h4>
  * <pre>
  *  java
- *      -jar /GenomeAnalysisTK.jar
- *      -T  GenotypeAndValidate
- *      -R human_g1k_v37.fasta
- *      -I myTruthDataset.bam
- *      -alleles callsToValidate.vcf
- *      -L callsToValidate.vcf
- *      -bt
- *      -o gav.vcf
+ *      -jar GenomeAnalysisTK.jar \
+ *      -T  GenotypeAndValidate \
+ *      -R reference.fasta \
+ *      -I myTruthDataset.bam \
+ *      -alleles callsToValidate.vcf \
+ *      -L callsToValidate.vcf \
+ *      -bt \
+ *      -o output.vcf
  * </pre>
  *
  */
@@ -333,7 +329,7 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
             samples = SampleUtils.getSampleList(header, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
             Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(header.values(), true);
             headerLines.add(new VCFHeaderLine("source", "GenotypeAndValidate"));
-            headerLines.add(new VCFInfoHeaderLine("callStatus", 1, VCFHeaderLineType.String, "Value from the validation VCF"));
+            headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.GENOTYPE_AND_VALIDATE_STATUS_KEY));
             vcfWriter.writeHeader(new VCFHeader(headerLines, samples));
         }
 
@@ -496,8 +492,8 @@ public class GenotypeAndValidate extends RodWalker<GenotypeAndValidate.CountedDa
         }
 
         if (vcfWriter != null && writeVariant) {
-            if (!vcComp.hasAttribute("callStatus")) {
-                vcfWriter.add(new VariantContextBuilder(vcComp).attribute("callStatus", call.isCalledAlt(callConf) ? "ALT" : "REF").make());
+            if (!vcComp.hasAttribute(GATKVCFConstants.GENOTYPE_AND_VALIDATE_STATUS_KEY)) {
+                vcfWriter.add(new VariantContextBuilder(vcComp).attribute(GATKVCFConstants.GENOTYPE_AND_VALIDATE_STATUS_KEY, call.isCalledAlt(callConf) ? "ALT" : "REF").make());
             }
             else
                 vcfWriter.add(vcComp);

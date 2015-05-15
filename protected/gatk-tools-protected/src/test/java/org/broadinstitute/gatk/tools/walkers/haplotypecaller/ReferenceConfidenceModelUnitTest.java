@@ -60,12 +60,15 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileupImpl;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMReadGroupRecord;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 import org.testng.Assert;
@@ -390,7 +393,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                                 refModel.getStart() - call.getStart() + 1), refModel.getReference().getBaseString(), "" + data.getRefHap()); // the reference must be the same.
                     Assert.assertTrue(refModel.getGenotype(0).getGQ() <= 0); // No confidence in the reference hom-ref call across the deletion
                     Assert.assertEquals(refModel.getAlleles().size(),2); // the reference and the lonelly <NON_REF>
-                    Assert.assertEquals(refModel.getAlleles().get(1),GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                    Assert.assertEquals(refModel.getAlleles().get(1), GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
                 } else {
                     Assert.assertEquals(refModel, call, "Should have found call " + call + " but found " + refModel + " instead");
                 }
@@ -401,7 +404,7 @@ public class ReferenceConfidenceModelUnitTest extends BaseTest {
                 Assert.assertEquals(refModel.getEnd(), loc.getStart() + i);
                 Assert.assertFalse(refModel.hasLog10PError());
                 Assert.assertEquals(refModel.getAlternateAlleles().size(), 1);
-                Assert.assertEquals(refModel.getAlternateAllele(0), GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                Assert.assertEquals(refModel.getAlternateAllele(0), GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
                 Assert.assertTrue(refModel.hasGenotype(sample));
 
                 final Genotype g = refModel.getGenotype(sample);

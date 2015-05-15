@@ -56,10 +56,11 @@ import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculationResult;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.BaseUtils;
@@ -81,8 +82,6 @@ import java.util.*;
  * {@link UnifiedGenotyper}'s genotyping strategy implementation.
  */
 public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCollection> {
-
-    public static final String PL_FOR_ALL_SNP_ALLELES_KEY = "APL";
 
     private static final int SNP_MODEL = 0;
     private static final int INDEL_MODEL = 1;

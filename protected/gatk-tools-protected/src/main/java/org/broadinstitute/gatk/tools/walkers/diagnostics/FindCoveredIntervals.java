@@ -54,9 +54,9 @@ package org.broadinstitute.gatk.tools.walkers.diagnostics;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.ActiveRegionTraversalParameters;
 import org.broadinstitute.gatk.engine.walkers.ActiveRegionWalker;
 import org.broadinstitute.gatk.engine.walkers.PartitionBy;
@@ -69,9 +69,10 @@ import org.broadinstitute.gatk.utils.help.HelpConstants;
 import java.io.PrintStream;
 
 /**
- * Outputs a list of intervals that are covered above a given threshold.
+ * Outputs a list of intervals that are covered above a given threshold
  *
- * <p>The list can be used as an interval list for other walkers. Note that if the -uncovered argument is given, the tool will instead output intervals that fail the coverage threshold.</p>
+ * <p>The output list can be used as an interval list for other tools. Note that if the -uncovered argument is given, the
+ * logic will be inverted and the tool will instead output intervals that fail the coverage threshold.</p>
  *
  * <h3>Input</h3>
  * <p>
@@ -85,16 +86,16 @@ import java.io.PrintStream;
  *
  * <h3>Example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T FindCoveredIntervals \
- *   -R ref.fasta \
+ *   -R reference.fasta \
  *   -I my_file.bam \
  *   -o output.list
  * </pre>
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
-@PartitionBy(PartitionType.CONTIG)
+@PartitionBy(value = PartitionType.CONTIG)
 @ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)
 public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
     @Output

@@ -54,7 +54,6 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
-import htsjdk.variant.vcf.VCFConstants;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACcounts;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.ExactACset;
 import org.broadinstitute.gatk.utils.MathUtils;
@@ -62,6 +61,7 @@ import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 
 import java.util.*;
 
@@ -319,7 +319,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
             iterator.next();
         }
         if (VERBOSE) {
-            System.out.println(VCFConstants.MLE_ALLELE_COUNT_KEY + ": " + Arrays.toString(mlInd));
+            System.out.println(GATKVCFConstants.MLE_ALLELE_COUNT_KEY + ": " + Arrays.toString(mlInd));
         }
         return new Pair<int[], Double>(mlInd,maxVal);
     }

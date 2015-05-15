@@ -53,8 +53,8 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.genotyper.*;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -93,7 +93,7 @@ public class InfiniteRandomMatingPopulationModelUnitTest {
     }
 
     private AlleleList<Allele> discardAllelesAtRandom(final AlleleList<Allele> likelihoods, final int discardAlleleCount) {
-        final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+        final Random rnd = Utils.getRandomGenerator();
         final ArrayList<Allele> subset = new ArrayList<>(AlleleListUtils.asList(likelihoods));
         for (int i = 0; i < discardAlleleCount; i++) {
             subset.remove(rnd.nextInt(subset.size()));

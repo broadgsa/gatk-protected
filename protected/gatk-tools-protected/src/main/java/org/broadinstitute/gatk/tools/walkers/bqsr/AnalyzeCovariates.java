@@ -56,17 +56,17 @@ import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Input;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.recalibration.RecalUtils;
-import org.broadinstitute.gatk.utils.recalibration.RecalibrationReport;
-import org.broadinstitute.gatk.utils.recalibration.BaseRecalibration;
+import org.broadinstitute.gatk.engine.recalibration.RecalUtils;
+import org.broadinstitute.gatk.engine.recalibration.RecalibrationReport;
+import org.broadinstitute.gatk.engine.recalibration.BaseRecalibration;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -76,28 +76,31 @@ import java.util.Map;
 
 
 /**
- * Tool to analyze and evaluate base recalibration tables.
+ * Create plots to visualize base recalibration results
+ *
  * <p/>
- * It generates plots to assess the quality of a recalibration run.
+ * This tool generates plots for visualizing the quality of a recalibration run.
+ * </p>
  *
  * <h3>Input</h3>
  *
- * The tool can take up to three different sets of recalibration tables.
+ * <p>The tool can take up to three different sets of recalibration tables.
  * The resulting plots will be overlaid on top of each other to make
- * comparisons easy.
+ * comparisons easy.</p>
  *
+ * <br/>
  * <table style="text-align: left">
  *     <thead>
  *       <tr><th>Set</th><th>Argument</th><th>Label</th><th>Color</th><th>Description</th></tr>
  *     </thead>
  *     <tbody>
- *       <tr><td>Original</td><td>-before</td><td>BEFORE</td><td style="color: #ff34b3">Maroon1</td>
+ *       <tr><td>Original</td><td>-before</td><td>BEFORE</td><td style="color: #ff34b3">Pink</td>
  *         <td>First pass recalibration
- *             tables obtained from applying {@link BaseRecalibration}
+ *             tables obtained from applying BaseRecalibration
  *             on the original alignment.</td></tr>
  *       <tr><td>Recalibrated</td><td>-after</td><td>AFTER</td><td style="color: #0000ff">Blue</td>
  *         <td>Second pass recalibration tables
- *             results from the application of {@link BaseRecalibration}
+ *             results from the application of BaseRecalibration
  *             on the alignment recalibrated using the first pass tables</td></tr>
  *       <tr><td>Input</td><td>-BQSR</td><td>BQSR</td><td style="color: #000000">Black</td>
  *           <td>Any recalibration table without a specific role</td></tr>
@@ -105,32 +108,19 @@ import java.util.Map;
  * </table>
  * <br/>
  *
- * You need to specify one set at least. Multiple sets need to have the same values for the following parameters:
+ * <p>You need to specify at least one set. Multiple sets need to have the same values for the following parameters:
  * <br/></br>
  * <i>covariate (order is not important), no_standard_covs, run_without_dbsnp, solid_recal_mode,
  * solid_nocall_strategy, mismatches_context_size, mismatches_default_quality, deletions_default_quality,
  * insertions_default_quality, maximum_cycle_value, low_quality_tail, default_platform, force_platform,
  * quantizing_levels</i> and <i>binary_tag_name</i>
+ * </p>
+ *
  * <h3>Output</h3>
  *
- * Currently this tool generates two outputs:
+ * <p>A pdf document with plots that show the quality of the recalibration, and an optional csv file that contains a table with all the data required to generate those plots.</p>
  *
- * <dl>
- *   <dt style="font-weight: normal">-plots <i>my-report.pdf</i></dt>
- *   <dd>A pdf document that encloses plots to assess the quality of the recalibration.</dd>
- *   <dt style="font-weight: normal">-csv <i>my-report.csv</i></dt>
- *   <dd>A csv file that contains a table with all the data required to generate those plots.</dd>
- * </dl>
- *
- * You need to specify at least one of them.
- *
- * <h3>Other Arguments</h3>
- *
- * <h4>-ignoreLMT, --ignoreLastModificationTimes</h4>
- *
- * when set, no warning message will be displayed in the -before recalibration table file is older than the -after one.
- *
- * <h3>Examples</h3>
+ * <h3>Usage examples</h3>
  *
  *
  * <h4>Plot a single recalibration table</h4>
@@ -142,7 +132,7 @@ import java.util.Map;
  *      -plots BQSR.pdf
  * </pre>
  *
- * <h4>Plot before (first pass) and after (second pass) recalibration table to compare them</h4>
+ * <h4>Plot before (first pass) and after (second pass) recalibration tables to compare them</h4>
  *
  * <pre>
  * java -jar GenomeAnalysisTK.jar \
@@ -157,8 +147,8 @@ import java.util.Map;
  *
  * <pre>
  *
- * # You can ignore the before/after semantics completely if you like (if you do add -ignoreLMT
- * # to avoid a possible warning), but all tables should have been generated using the same parameters.
+ * # You can ignore the before/after semantics completely if you like (if you do, add -ignoreLMT
+ * # to avoid a possible warning), but all tables must have been generated using the same parameters.
  *
  * java -jar GenomeAnalysisTK.jar \
  *      -T AnalyzeCovariates \
@@ -173,31 +163,29 @@ import java.util.Map;
  * <h4>Full BQSR quality assessment pipeline</h4>
  *
  * <pre>
- * # Generate the first pass recalibration table file.
+ * # Generate the first pass recalibration table file
  * java -jar GenomeAnalysisTK.jar \
  *      -T BaseRecalibrator \
- *      -R myreference.fasta \
+ *      -R reference.fasta \
  *      -I myinput.bam \
- *      -knownSites bundle/my-trusted-snps.vcf \ # optional but recommendable
- *      -knownSites bundle/my-trusted-indels.vcf \ # optional but recommendable
- *      ... other options
+ *      -knownSites bundle/my-trusted-snps.vcf \ # optional but recommended
+ *      -knownSites bundle/my-trusted-indels.vcf \ # optional but recommended
  *      -o firstpass.table
  *
- * # Generate the second pass recalibration table file.
+ * # Generate the second pass recalibration table file
  * java -jar GenomeAnalysisTK.jar \
  *      -T BaseRecalibrator \
- *      -BQSR firstpass.table \
- *      -R myreference.fasta \
+ *      -R reference.fasta \
  *      -I myinput.bam \
  *      -knownSites bundle/my-trusted-snps.vcf \
  *      -knownSites bundle/my-trusted-indels.vcf \
- *      ... other options \
+ *      -BQSR firstpass.table \
  *      -o secondpass.table
  *
- * # Finally generate the plots and also keep a copy of the csv (optional).
+ * # Finally generate the plots and also keep a copy of the csv (optional)
  * java -jar GenomeAnalysisTK.jar \
  *      -T AnalyzeCovariates \
- *      -R myrefernce.fasta \
+ *      -R reference.fasta \
  *      -before firstpass.table \
  *      -after secondpass.table \
  *      -csv BQSR.csv \ # optional
@@ -251,14 +239,14 @@ public final class AnalyzeCovariates extends RodWalker<AnalyzeCovariates.None,An
 
     /**
      * Convenience reference to the RECAL_BQSR_FILE argument value.
-     * <p/>
+     *
      * This field value is resolved by {@link #initialize()}.
      */
     protected File bqsrFile = null;
 
     /**
      * Checks inputs and argument values.
-     * <p/>
+     *
      * Notice that this routine will not validate the content of files. It may have some minor side effects as
      * the output of warning messages back to the user.
      *
@@ -370,7 +358,6 @@ public final class AnalyzeCovariates extends RodWalker<AnalyzeCovariates.None,An
     /**
      * Generates the plots using the external R script.
      *
-     * <p/>
      * If <code>plotsFile</code> is <code>null</code>, it does not perform any plotting.
      *
      * @param csvFile the intermediary csv file.
@@ -453,9 +440,9 @@ public final class AnalyzeCovariates extends RodWalker<AnalyzeCovariates.None,An
 
     /**
      * Creates a map with all input recalibration files indexed by their "role".
-     * <p/>
+     *
      * The key is the role and the value the corresponding report file.
-     * <p/>
+     *
      * Roles: "Before" (recalibration), "After" (recalibration), "BQSR" (the tool standard argument recalibration file)
      *
      * @return never <code>null</code>
@@ -523,7 +510,7 @@ public final class AnalyzeCovariates extends RodWalker<AnalyzeCovariates.None,An
 
     /**
      * Returns the csv file to use.
-     * <p/>
+     *
      * This is the the one specified by the user if any or a temporary file
      * that will be deleted as soon as the VM exists by default.
      *

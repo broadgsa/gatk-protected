@@ -51,38 +51,11 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
-import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
-import org.broadinstitute.gatk.utils.commandline.Advanced;
-import org.broadinstitute.gatk.utils.commandline.Argument;
-
 /**
  * Set of arguments for the {@link HaplotypeCaller}
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class HaplotypeCallerArgumentCollection extends StandardCallerArgumentCollection {
-
-    @Advanced
-    @Argument(fullName="debug", shortName="debug", doc="Print out very verbose debug information about each triggering active region", required = false)
-    protected boolean DEBUG;
-
-    @Advanced
-    @Argument(fullName="useFilteredReadsForAnnotations", shortName="useFilteredReadsForAnnotations", doc = "Use the contamination-filtered read maps for the purposes of annotating variants", required=false)
-    protected boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = false;
-
-    /**
-     * The reference confidence mode makes it possible to emit a per-bp or summarized confidence estimate for a site being strictly homozygous-reference.
-     * See http://www.broadinstitute.org/gatk/guide/article?id=2940 for more details of how this works.
-     * Note that if you set -ERC GVCF, you also need to set -variant_index_type LINEAR and -variant_index_parameter 128000 (with those exact values!).
-     * This requirement is a temporary workaround for an issue with index compression.
-     */
-    @Advanced
-    @Argument(fullName="emitRefConfidence", shortName="ERC", doc="Mode for emitting reference confidence scores", required = false)
-    protected ReferenceConfidenceMode emitReferenceConfidence = ReferenceConfidenceMode.NONE;
-
-    @Override
-    public HaplotypeCallerArgumentCollection clone() {
-        return (HaplotypeCallerArgumentCollection) super.clone();
-    }
+public class HaplotypeCallerArgumentCollection extends AssemblyBasedCallerArgumentCollection {
 
 }

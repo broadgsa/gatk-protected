@@ -101,17 +101,20 @@ public class BQSRIntegrationTest extends WalkerTest {
 
     private static final String HiSeqBam = privateTestDir + "HiSeq.1mb.1RG.bam";
     private static final String HiSeqInterval = "chr1:10,000,000-10,100,000";
+    private static final String SimpleCigarMatchMismatchBam = privateTestDir + "simpleCigarMatchMismatch.bam";
+    private static final String SimpleCigarMatchMismatchInterval = "1:1-60";
 
     @DataProvider(name = "BQSRTest")
     public Object[][] createBQSRTestData() {
         return new Object[][]{
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "f805a0020eea987b79f314fa99913806")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "86075d3856eb06816a0dd81af55e421f")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "155802237e1fc7a001398b8f4bcf4b72")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "38c7916cc019fe8d134df67639422b42")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "b74e75f3c5aa90bd21af1e20f2ac8c40")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "e564505aea11464de8ed72890d9ea89a")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "380d8be121ffaddd3461ee0ac3d1a76f")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "fc9df1faf67bab70d32f89bcf4fa39db")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "73ec38eb23b1739ecef8194cbb1132a3")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "2d5721193ed4410d1a7d8db467a1fa05")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "16df7f1745f17f190c9fc33c475b91d8")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "01811003ae811ee74c4b8d3eb5e992fe")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "5e0eea6b0b300fbd2edabc3506ad3a60")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "8500b9747c16cb8eb17082163bdb8069")},
+                {new BQSRTest(b36KGReference, SimpleCigarMatchMismatchBam, SimpleCigarMatchMismatchInterval, "", "56dfb2918a4cdae3ef9d705a43e85194")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "281682124584ab384f23359934df0c3b")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "0a92fdff5fd26227c29d34eda5a32f49")},
@@ -193,12 +196,12 @@ public class BQSRIntegrationTest extends WalkerTest {
     public Object[][] createPRTestData() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{1, new PRTest(" -qq -1", "fcc136b877fbde38791533b0f1ae39e4")});
-        tests.add(new Object[]{1, new PRTest(" -qq 6", "f21b537c1689b8051b878ea5cc9b61a0")});
-        tests.add(new Object[]{1, new PRTest(" -DIQ", "1d04a242bf825177d6a45eff9fbed647")});
+        tests.add(new Object[]{1, new PRTest(" -qq -1", "ce09e16466151bb37305dbfd5dc88f35")});
+        tests.add(new Object[]{1, new PRTest(" -qq 6", "2d12f3d48b1797ea0671e28a435527fe")});
+        tests.add(new Object[]{1, new PRTest(" -DIQ", "f3dbf3ae2725f1e7aa8ae61a09beac51")});
 
         for ( final int nct : Arrays.asList(1, 2, 4) ) {
-            tests.add(new Object[]{nct, new PRTest("", "b6f343ac69c63cdb49205c13e67297fc")});
+            tests.add(new Object[]{nct, new PRTest("", "0746ae12c106a8af0b3b01f22e9efcba")});
         }
 
         return tests.toArray(new Object[][]{});

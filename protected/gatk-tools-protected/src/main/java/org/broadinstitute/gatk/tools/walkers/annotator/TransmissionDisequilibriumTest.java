@@ -51,21 +51,20 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.samples.Sample;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.RodRequiringAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.MathUtils;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -77,8 +76,6 @@ import java.util.*;
  * <h3>Statistical notes</h3>
  * <p>The calculation is based on the derivation described in <a href="http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT">http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT</a>.</p>
  *
- * <p>Note that this annotation requires a valid ped file.</p>
- *
  * <h3>Caveat</h3>
  * <ul>
  *     <li>This annotation requires a valid pedigree file.</li>
@@ -88,26 +85,46 @@ import java.util.*;
  */
 
 public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implements RodRequiringAnnotation {
-
+    private final static Logger logger = Logger.getLogger(TransmissionDisequilibriumTest.class);
     private Set<Sample> trios = null;
     private final static int MIN_NUM_VALID_TRIOS = 5; // don't calculate this population-level statistic if there are less than X trios with full genotype likelihood information
+    private boolean walkerIdentityCheckWarningLogged = false;
+    private boolean pedigreeCheckWarningLogged = false;
 
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap){
+
+        // Can only be called from VariantAnnotator
+        if ( !(walker instanceof VariantAnnotator) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getName());
+                else
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
+                walkerIdentityCheckWarningLogged = true;
+            }
+            return null;
+        }
+
+        // Get trios from the input pedigree file.
         if ( trios == null ) {
-            if ( walker instanceof VariantAnnotator ) {
-                trios =  ((VariantAnnotator) walker).getSampleDB().getChildrenWithParents();
-            } else {
-                throw new UserException("Transmission disequilibrium test annotation can only be used from the Variant Annotator and requires a valid ped file be passed in.");
+            trios = ((VariantAnnotator) walker).getSampleDB().getChildrenWithParents();
+            if (trios == null || trios.isEmpty()) {
+                if ( !pedigreeCheckWarningLogged ) {
+                    logger.warn("Transmission disequilibrium test annotation requires a valid ped file be passed in.");
+                    pedigreeCheckWarningLogged = true;
+                }
+                return null;
             }
         }
 
-        final Map<String, Object> toRet = new HashMap<String, Object>(1);
-        final HashSet<Sample> triosToTest = new HashSet<Sample>();
+        final Map<String, Object> toRet = new HashMap<>(1);
+        final HashSet<Sample> triosToTest = new HashSet<>();
 
         for( final Sample child : trios ) {
             final boolean hasAppropriateGenotypes = vc.hasGenotype(child.getID()) && vc.getGenotype(child.getID()).hasLikelihoods() &&
@@ -126,14 +143,16 @@ public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implemen
     }
 
     // return the descriptions used for the VCF INFO meta field
-    public List<String> getKeyNames() { return Arrays.asList("TDT"); }
+    @Override
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.TRANSMISSION_DISEQUILIBRIUM_KEY); }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("TDT", VCFHeaderLineCount.A, VCFHeaderLineType.Float, "Test statistic from Wittkowski transmission disequilibrium test.")); }
+    @Override
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 
     // Following derivation in http://en.wikipedia.org/wiki/Transmission_disequilibrium_test#A_modified_version_of_the_TDT
     private List<Double> calculateTDT( final VariantContext vc, final Set<Sample> triosToTest ) {
 
-        List<Double> pairwiseTDTs = new ArrayList<Double>(10);
+        List<Double> pairwiseTDTs = new ArrayList<>(10);
         final int HomRefIndex = 0;
 
         // for each pair of alleles, add the likelihoods

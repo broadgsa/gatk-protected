@@ -53,7 +53,7 @@ package org.broadinstitute.gatk.utils.haplotypeBAMWriter;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMTag;
-import org.broadinstitute.gatk.engine.io.GATKSAMFileWriter;
+import org.broadinstitute.gatk.utils.sam.GATKSAMFileWriter;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;

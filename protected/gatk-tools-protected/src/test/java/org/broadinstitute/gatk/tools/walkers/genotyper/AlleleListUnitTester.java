@@ -52,8 +52,10 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.utils.RandomDNA;
+import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
 import org.testng.Assert;
 import org.testng.SkipException;
 
@@ -69,15 +71,15 @@ import java.util.Set;
  */
 public class AlleleListUnitTester {
 
-    private static final Random rnd = GenomeAnalysisEngine.getRandomGenerator();
+    private static final Random rnd = Utils.getRandomGenerator();
     private static final RandomDNA rndDNA = new RandomDNA(rnd);
 
     /**
      * Test that the contents of an allele-list are the ones expected.
      * <p/>
      * <p>
-     * This method perform various consistency check involving all the {@link org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList} interface methods.
-     * Therefore calling this method is equivalent to a thorough check of the {@link org.broadinstitute.gatk.tools.walkers.genotyper.AlleleList} aspect of
+     * This method perform various consistency check involving all the {@link org.broadinstitute.gatk.utils.genotyper.AlleleList} interface methods.
+     * Therefore calling this method is equivalent to a thorough check of the {@link org.broadinstitute.gatk.utils.genotyper.AlleleList} aspect of
      * the {@code actual} argument.
      * </p>
      *

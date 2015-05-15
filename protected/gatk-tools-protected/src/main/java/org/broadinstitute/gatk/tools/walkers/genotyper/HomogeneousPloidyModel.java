@@ -51,6 +51,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+
 /**
 * {@link PloidyModel} implementation tailored to work with a homogeneous constant ploidy
 * across samples and positions.

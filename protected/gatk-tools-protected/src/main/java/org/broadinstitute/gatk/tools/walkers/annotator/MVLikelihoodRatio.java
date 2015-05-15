@@ -51,27 +51,28 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.samples.Trio;
 import org.broadinstitute.gatk.engine.walkers.Walker;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.RodRequiringAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.utils.MendelianViolation;
-import htsjdk.variant.vcf.VCFHeaderLineType;
+import org.broadinstitute.gatk.engine.samples.MendelianViolation;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
 /**
  * Likelihood of being a Mendelian Violation
  *
- * <p>This annotation uses the likelihoods of the genotype calls to assess whether a site is transmitted from parents to offspring according to Mendelian rules. The output is the likelihood of the site being a Mendelian violation, which can be tentatively interpreted either as an indication of error (in the genotype calls) or as a possible <em><de novo/em> mutation. The higher the output value, the more likely there is to be a Mendelian violation. Note that only positive values indicating likely MVs will be annotated; if the value for a given site is negative (indicating that there is no violation) the annotation is not written to the file.</p>
+ * <p>This annotation uses the likelihoods of the genotype calls to assess whether a site is transmitted from parents to offspring according to Mendelian rules. The output is the likelihood of the site being a Mendelian violation, which can be tentatively interpreted either as an indication of error (in the genotype calls) or as a possible <em><de novo</em> mutation. The higher the output value, the more likely there is to be a Mendelian violation. Note that only positive values indicating likely MVs will be annotated; if the value for a given site is negative (indicating that there is no violation) the annotation is not written to the file.</p>
  *
  * <h3>Statistical notes</h3>
  * <p>This annotation considers all possible combinations of all possible genotypes (homozygous-reference, heterozygous, and homozygous-variant) for each member of a trio, which amounts to 27 possible combinations. Using the Phred-scaled genotype likelihoods (PL values) from each individual, the likelihood of each combination is calculated, and the result contributes to the likelihood of the corresponding case (mendelian violation or non-violation) depending on which set it belongs to. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
@@ -81,7 +82,7 @@ import java.util.*;
  *     <li>The calculation assumes that the organism is diploid.</li>
  *     <li>This annotation requires a valid pedigree file.</li>
  *     <li>When multiple trios are present, the annotation is simply the maximum of the likelihood ratios, rather than the strict 1-Prod(1-p_i) calculation, as this can scale poorly for uncertain sites and many trios.</li>
- *     <li>This annotation can only be used from the Variant Annotator. If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect. If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</li>
+ *     <li>This annotation can only be used from the VariantAnnotator. If you attempt to use it from the UnifiedGenotyper, the run will fail with an error message to that effect. If you attempt to use it from the HaplotypeCaller, the run will complete successfully but the annotation will not be added to any variants.</li>
  * </ul>
  *
  * <h3>Related annotations</h3>
@@ -93,9 +94,11 @@ import java.util.*;
 
 public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiringAnnotation {
 
+    private final static Logger logger = Logger.getLogger(MVLikelihoodRatio.class);
     private MendelianViolation mendelianViolation = null;
-    public static final String MVLR_KEY = "MVLR";
     private Set<Trio> trios;
+    private boolean walkerIdentityCheckWarningLogged = false;
+    private boolean pedigreeCheckWarningLogged = false;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -103,17 +106,33 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
-        if ( mendelianViolation == null ) {
-            trios = ((Walker) walker).getSampleDB().getTrios();
-            if ( trios.size() > 0 ) {
-                mendelianViolation = new MendelianViolation(((VariantAnnotator)walker).minGenotypeQualityP );
+
+        // Can only be called from VariantAnnotator
+        if ( !(walker instanceof VariantAnnotator) ) {
+            if ( !walkerIdentityCheckWarningLogged ) {
+                if ( walker != null )
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getName());
+                else
+                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
+                walkerIdentityCheckWarningLogged = true;
             }
-            else {
-                throw new UserException("Mendelian violation annotation can only be used from the Variant Annotator, and must be provided a valid PED file (-ped) from the command line.");
-            }
+            return null;
         }
 
-        Map<String,Object> attributeMap = new HashMap<String,Object>(1);
+        if ( mendelianViolation == null ) {
+            // Must have a pedigree file
+            trios = ((Walker) walker).getSampleDB().getTrios();
+            if ( trios.isEmpty() ) {
+                if ( !pedigreeCheckWarningLogged ) {
+                    logger.warn("Annotation will not be calculated, mendelian violation annotation must provide a valid PED file (-ped) from the command line.");
+                    pedigreeCheckWarningLogged = true;
+                }
+                return null;
+            }
+            mendelianViolation = new MendelianViolation(((VariantAnnotator)walker).minGenotypeQualityP );
+        }
+
+        Map<String,Object> attributeMap = new HashMap<>(1);
         //double pNoMV = 1.0;
         double maxMVLR = Double.MIN_VALUE;
         for ( Trio trio : trios ) {
@@ -127,15 +146,16 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
         //double pSomeMV = 1.0-pNoMV;
         //toRet.put("MVLR",Math.log10(pSomeMV)-Math.log10(1.0-pSomeMV));
         if ( Double.compare(maxMVLR,Double.MIN_VALUE) != 0 )
-            attributeMap.put(MVLR_KEY,maxMVLR);
+            attributeMap.put(getKeyNames().get(0), maxMVLR);
         return attributeMap;
     }
 
     // return the descriptions used for the VCF INFO meta field
-    public List<String> getKeyNames() { return Arrays.asList(MVLR_KEY); }
+    @Override
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.MENDEL_VIOLATION_LR_KEY); }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine(MVLR_KEY, 1, VCFHeaderLineType.Float, "Mendelian violation likelihood ratio: L[MV] - L[No MV]")); }
-
+    @Override
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 
     private boolean contextHasTrioLikelihoods(VariantContext context, Trio trio) {
         for ( String sample : Arrays.asList(trio.getMaternalID(),trio.getPaternalID(),trio.getChildID()) ) {

@@ -57,17 +57,18 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.tools.walkers.indels.PairHMMIndelErrorModel;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
 /**
- * Rank Sum Test for relative positioning of REF vs. ALT alleles within reads
+ * Rank Sum Test for relative positioning of REF versus ALT alleles within reads
  *
  * <p>This variant-level annotation tests whether there is evidence of bias in the position of alleles within the reads that support them, between the reference and alternate alleles. Seeing an allele only near the ends of reads is indicative of error, because that is where sequencers tend to make the most errors. However, some variants located near the edges of sequenced regions will necessarily be covered by the ends of reads, so we can't just set an absolute "minimum distance from end of read" threshold. That is why we use a rank sum test to evaluate whether there is a difference in how well the reference allele and the alternate allele are supported.</p>
  *
@@ -85,11 +86,11 @@ import java.util.*;
 public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotation {
 
     @Override
-    public List<String> getKeyNames() { return Arrays.asList("ReadPosRankSum"); }
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.READ_POS_RANK_SUM_KEY); }
 
     @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(new VCFInfoHeaderLine("ReadPosRankSum", 1, VCFHeaderLineType.Float, "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias"));
+        return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }
 
     @Override

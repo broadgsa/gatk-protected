@@ -52,7 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import com.google.java.contract.Requires;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.tools.walkers.indels.PairHMMIndelErrorModel;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.MathUtils;

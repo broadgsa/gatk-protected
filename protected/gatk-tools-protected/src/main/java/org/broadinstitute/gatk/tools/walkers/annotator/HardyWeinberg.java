@@ -52,25 +52,23 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.tribble.util.popgen.HardyWeinbergCalculation;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.WorkInProgressAnnotation;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.QualityUtils;
-import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 /**
@@ -83,17 +81,20 @@ import java.util.Map;
  *
  * <h3>Caveats</h3>
  * <ul>
- *     <li>This annotation requires multiple samples and a valid pedigree file.</li>
+ *     <li>This annotation requires multiple samples.</li>
  *     <li>This is an experimental annotation. As such, it is unsupported; we do not make any guarantees that it will work properly, and you use it at your own risk.</li>
  *     <li>Low confidence genotypes are ignored, which may adversely affect HW ratios. More analysis is needed to determine the right thing to do when the genotyper cannot decide whether a given sample is heterozygous or homozygous variant.</li>
  * </ul>
  */
 public class HardyWeinberg extends InfoFieldAnnotation implements ExperimentalAnnotation {
 
+    private final static Logger logger = Logger.getLogger(HardyWeinberg.class);
     private static final int MIN_SAMPLES = 10;
     private static final int MIN_GENOTYPE_QUALITY = 10;
     private static final int MIN_LOG10_PERROR = MIN_GENOTYPE_QUALITY / 10;
+    private boolean warningLogged = false;
 
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
@@ -102,8 +103,13 @@ public class HardyWeinberg extends InfoFieldAnnotation implements ExperimentalAn
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
 
         final GenotypesContext genotypes = vc.getGenotypes();
-        if ( genotypes == null || genotypes.size() < MIN_SAMPLES )
+        if ( genotypes == null || genotypes.size() < MIN_SAMPLES ) {
+            if ( !warningLogged ) {
+                logger.warn("Too few genotypes");
+                warningLogged = true;
+            }
             return null;
+        }
 
         int refCount = 0;
         int hetCount = 0;
@@ -132,12 +138,14 @@ public class HardyWeinberg extends InfoFieldAnnotation implements ExperimentalAn
 
         double pvalue = HardyWeinbergCalculation.hwCalculate(refCount, hetCount, homCount);
         //System.out.println(refCount + " " + hetCount + " " + homCount + " " + pvalue);
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%.1f", QualityUtils.phredScaleErrorRate(pvalue)));
         return map;
     }
 
-    public List<String> getKeyNames() { return Arrays.asList("HW"); }
+    @Override
+    public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.HARDY_WEINBERG_KEY); }
 
-    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(new VCFInfoHeaderLine("HW", 1, VCFHeaderLineType.Float, "Phred-scaled p-value for Hardy-Weinberg violation")); }
+    @Override
+    public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 }

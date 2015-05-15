@@ -56,7 +56,7 @@ import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.GATKArgumentCollection;
 import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
-import org.broadinstitute.gatk.engine.arguments.StandardCallerArgumentCollection;
+import org.broadinstitute.gatk.tools.walkers.genotyper.StandardCallerArgumentCollection;
 
 /**
  * A single fixed instance AF calculator provider.

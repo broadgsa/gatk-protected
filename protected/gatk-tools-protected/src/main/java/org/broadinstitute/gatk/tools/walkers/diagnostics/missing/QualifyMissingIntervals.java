@@ -56,11 +56,11 @@ import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Gather;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.engine.report.GATKReport;
-import org.broadinstitute.gatk.engine.report.GATKReportGatherer;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.report.GATKReport;
+import org.broadinstitute.gatk.utils.report.GATKReportGatherer;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.GenomeLocSortedSet;
@@ -74,9 +74,9 @@ import java.io.PrintStream;
 import java.util.List;
 
 /**
- * Walks along reference and calculates a few metrics for each interval.
+ * Collect quality metrics for a set of intervals
  *
- * Metrics:
+ * <p>This tool collects the following metrics:</p>
  * <ul>
  *     <li>Average Base Quality</li>
  *     <li>Average Mapping Quality</li>
@@ -88,9 +88,11 @@ import java.util.List;
  *     <li>Length of the uncovered interval</li>
  * </ul>
  *
+ * <p>It is meant to be run on a set of intervals that have been identified as problematic in earlier stages of quality control and are considered "missing" from the sequence dataset.</p>
+ *
  * <h3>Input</h3>
  * <p>
- *  A reference file (for GC content), the input bam file (for base and mapping quality calculation), the missing intervals (in the -L), the baits/targets used to sequence (in the -targets) and a bed file with the coding sequence intervals of the genome (in the -cds)
+ *  A reference file (for GC content), the input bam file (for base and mapping quality calculation), the missing intervals (in the -L), the baits/targets used to sequence (in the -targets) and a bed file with the coding sequence intervals of the genome (in the -cds).
  * </p>
  *
  * <h3>Output</h3>
@@ -98,11 +100,11 @@ import java.util.List;
  *  GC content, distance from the end of the target, coding sequence intersection, mapping and base quality averages and average depth per "missing" interval.
  * </p>
  *
- * <h3>Example</h3>
+ * <h3>Usage example</h3>
  * <pre>
- * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T QualifyMissingIntervals \
- *   -R ref.fasta \
+ *   -R reference.fasta \
  *   -I input.bam \
  *   -o output.grp \
  *   -L input.intervals \

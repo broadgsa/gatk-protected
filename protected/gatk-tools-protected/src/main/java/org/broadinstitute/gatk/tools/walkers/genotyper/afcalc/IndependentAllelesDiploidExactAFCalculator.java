@@ -56,7 +56,7 @@ import com.google.java.contract.Requires;
 import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
 import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 
 import java.util.*;
 
@@ -195,7 +195,7 @@ import java.util.*;
         else {
             final VariantContextBuilder vcb = new VariantContextBuilder(vc);
             final Allele reference = vcb.getAlleles().get(0);
-            vcb.alleles(Arrays.asList(reference, GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE));
+            vcb.alleles(Arrays.asList(reference, GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE));
             final int genotypeCount = GenotypeLikelihoodCalculators.genotypeCount(2, vc.getNAlleles());
             final double[] hetLikelihoods = new double[vc.getNAlleles() - 1];
             final double[] homAltLikelihoods = new double[genotypeCount - hetLikelihoods.length - 1];
@@ -213,7 +213,7 @@ import java.util.*;
                         else if (oldAllele.isNoCall())
                             newAlleles.add(Allele.NO_CALL);
                         else
-                            newAlleles.add(GATKVariantContextUtils.NON_REF_SYMBOLIC_ALLELE);
+                            newAlleles.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
                     }
                     gb.alleles(newAlleles);
                 }

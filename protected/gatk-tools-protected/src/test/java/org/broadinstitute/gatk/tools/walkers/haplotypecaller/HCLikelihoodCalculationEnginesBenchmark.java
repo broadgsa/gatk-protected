@@ -53,8 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import com.google.caliper.Param;
 import com.google.caliper.SimpleBenchmark;
-import org.broadinstitute.gatk.tools.walkers.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.pairhmm.ActiveRegionTestDataSet;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.utils.pairhmm.FastLoglessPairHMM;
 import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
 
@@ -127,7 +126,7 @@ public class HCLikelihoodCalculationEnginesBenchmark extends SimpleBenchmark {
     public void timeLoglessPairHMM(final int reps) {
         for (int i = 0; i < reps; i++) {
             final PairHMMLikelihoodCalculationEngine engine = new PairHMMLikelihoodCalculationEngine((byte) 10,
-                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
+                    PairHMM.HMM_IMPLEMENTATION.LOGLESS_CACHING, PairHMM.HMM_SUB_IMPLEMENTATION.UNVECTORIZED, true, -3, true, PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.NONE);
             engine.computeReadLikelihoods(dataSet.assemblyResultSet(), SampleListUtils.singletonList("anonymous"), Collections.singletonMap("anonymous", dataSet.readList()));
         }
     }

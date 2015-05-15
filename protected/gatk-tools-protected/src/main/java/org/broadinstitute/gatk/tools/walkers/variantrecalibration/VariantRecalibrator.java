@@ -53,10 +53,9 @@ package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.contexts.AlignmentContext;
-import org.broadinstitute.gatk.engine.contexts.ReferenceContext;
-import org.broadinstitute.gatk.engine.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.PartitionBy;
 import org.broadinstitute.gatk.engine.walkers.PartitionType;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
@@ -81,60 +80,74 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * Create a Gaussian mixture model by looking at the annotations values over a high quality subset of the input call set and then evaluate all input variants.
+ * Build a recalibration model to score variant quality for filtering purposes
  *
  * <p>
- * This walker is the first pass in a two-stage processing step. This walker is designed to be used in conjunction with the ApplyRecalibration walker.
+ * This tool performs the first pass in a two-stage process called VQSR; the second pass is performed by the
+ * <a href='https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_variantrecalibration_ApplyRecalibration.php'>ApplyRecalibration</a> tool.
+ * In brief, the first pass consists of creating a Gaussian mixture model by looking at the distribution of annotation
+ * values over a high quality subset of the input call set, and then scoring all input variants according to the model.
+ * The second pass consists of filtering variants based on score cutoffs identified in the first pass.
  *</p>
  *
  * <p>
  * The purpose of the variant recalibrator is to assign a well-calibrated probability to each variant call in a call set.
  * You can then create highly accurate call sets by filtering based on this single estimate for the accuracy of each call.
  * The approach taken by variant quality score recalibration is to develop a continuous, covarying estimate of the relationship
- * between SNP call annotations (QD, MQ, HaplotypeScore, and ReadPosRankSum, for example) and the probability that a SNP is a true genetic
+ * between SNP call annotations (such as QD, MQ, and ReadPosRankSum, for example) and the probability that a SNP is a true genetic
  * variant versus a sequencing or data processing artifact. This model is determined adaptively based on "true sites" provided
- * as input, typically HapMap 3 sites and those sites found to be polymorphic on the Omni 2.5M SNP chip array. This adaptive
+ * as input, typically HapMap 3 sites and those sites found to be polymorphic on the Omni 2.5M SNP chip array (in humans). This adaptive
  * error model can then be applied to both known and novel variation discovered in the call set of interest to evaluate the
  * probability that each call is real. The score that gets added to the INFO field of each variant is called the VQSLOD. It is
  * the log odds ratio of being a true variant versus being false under the trained Gaussian mixture model.
  * </p>
  *
+ * <p>VQSR is probably the hardest part of the Best Practices to get right, so be sure to read the
+ * <a href='https://www.broadinstitute.org/gatk/guide/article?id=39'>method documentation</a>,
+ * <a href='https://www.broadinstitute.org/gatk/guide/article?id=1259'>parameter recommendations</a> and
+ * <a href='https://www.broadinstitute.org/gatk/guide/article?id=2805'>tutorial</a> to really understand what these
+ * tools and how to use them for best results on your own data.</p>
+ *
  * <h3>Inputs</h3>
- * <p>
- * The input raw variants to be recalibrated.
- * <p>
- * Known, truth, and training sets to be used by the algorithm. How these various sets are used is described below.
+ * <ul>
+ * <li>The input raw variants to be recalibrated.</li>
+ * <li>Known, truth, and training sets to be used by the algorithm. See the method documentation for more details.</li>
+ * </ul>
  *
  * <h3>Output</h3>
- * <p>
- * A recalibration table file in VCF format that is used by the ApplyRecalibration walker.
- * <p>
- * A tranches file which shows various metrics of the recalibration callset as a function of making several slices through the data.
+ * <ul>
+ * <li>A recalibration table file that will be used by the ApplyRecalibration tool.</li>
+ * <li>A tranches file which shows various metrics of the recalibration callset for slices of the data.</li>
+ * </ul>
  *
- * <h3>Example</h3>
+ * <h3>Usage example</h3>
+ * <p>Recalibrating SNPs in exome data:</p>
  * <pre>
  * java -Xmx4g -jar GenomeAnalysisTK.jar \
  *   -T VariantRecalibrator \
- *   -R reference/human_g1k_v37.fasta \
- *   -input NA12878.HiSeq.WGS.bwa.cleaned.raw.subset.b37.vcf \
+ *   -R reference.fasta \
+ *   -input raw_variants.vcf \
  *   -resource:hapmap,known=false,training=true,truth=true,prior=15.0 hapmap_3.3.b37.sites.vcf \
  *   -resource:omni,known=false,training=true,truth=false,prior=12.0 1000G_omni2.5.b37.sites.vcf \
+ *   -resource:1000G,known=false,training=true,truth=false,prior=10.0 1000G_phase1.snps.high_confidence.vcf
  *   -resource:dbsnp,known=true,training=false,truth=false,prior=6.0 dbsnp_135.b37.vcf \
- *   -an QD -an HaplotypeScore -an MQRankSum -an ReadPosRankSum -an FS -an MQ -an InbreedingCoeff \
+ *   -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an InbreedingCoeff \
  *   -mode SNP \
- *   -recalFile path/to/output.recal \
- *   -tranchesFile path/to/output.tranches \
- *   -rscriptFile path/to/output.plots.R
+ *   -recalFile output.recal \
+ *   -tranchesFile output.tranches \
+ *   -rscriptFile output.plots.R
  * </pre>
  *
- * <h3>Caveat</h3>
+ * <h3>Caveats</h3>
  *
  * <ul>
  * <li>The values used in the example above are only meant to show how the command lines are composed.
  * They are not meant to be taken as specific recommendations of values to use in your own work, and they may be
  * different from the values cited elsewhere in our documentation. For the latest and greatest recommendations on
- * how to set parameter values for you own analyses, please read the Best Practices section of the documentation.</li>
- *
+ * how to set parameter values for you own analyses, please read the Best Practices section of the documentation,
+ * especially the <a href='https://www.broadinstitute.org/gatk/guide/article?id=1259'>FAQ document</a> on VQSR parameters.</li>
+ * <li>Whole genomes and exomes take slightly different parameters, so make sure you adapt your commands accordingly! See the documents linked above for details.</li>
+ * <li>If you work with small datasets (e.g. targeted capture experiments or small number of exomes), you will run into problems. Read the docs linked above for advice on how to deal with those issues.</li>
  * <li>In order to create the model reporting plots Rscript needs to be in your environment PATH (this is the scripting version of R, not the interactive version).
  * See <a target="r-project" href="http://www.r-project.org">http://www.r-project.org</a> for more info on how to download and install R.</li>
  * </ul>
@@ -144,10 +157,6 @@ import java.util.*;
 @PartitionBy(PartitionType.NONE)
 public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDatum>, ExpandingArrayList<VariantDatum>> implements TreeReducible<ExpandingArrayList<VariantDatum>> {
 
-    public static final String VQS_LOD_KEY = "VQSLOD"; // Log odds ratio of being a true variant versus being false under the trained gaussian mixture model
-    public static final String CULPRIT_KEY = "culprit"; // The annotation which was the worst performing in the Gaussian mixture model, likely the reason why the variant was filtered out
-    public static final String NEGATIVE_LABEL_KEY = "NEGATIVE_TRAIN_SITE"; // this variant was used in the negative training set
-    public static final String POSITIVE_LABEL_KEY = "POSITIVE_TRAIN_SITE"; // this variant was used in the positive training set
     private static final String PLOT_TRANCHES_RSCRIPT = "plot_Tranches.R";
 
     @ArgumentCollection private VariantRecalibratorArgumentCollection VRAC = new VariantRecalibratorArgumentCollection();
@@ -204,20 +213,20 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      * See the input VCF file's INFO field for a list of all available annotations.
      */
     @Argument(fullName="use_annotation", shortName="an", doc="The names of the annotations which should used for calculations", required=true)
-    private String[] USE_ANNOTATIONS = null;
+    private List<String> USE_ANNOTATIONS = new ArrayList<String>();
 
     /**
      * Add truth sensitivity slices through the call set at the given values. The default values are 100.0, 99.9, 99.0, and 90.0
      * which will result in 4 estimated tranches in the final call set: the full set of calls (100% sensitivity at the accessible
      * sites in the truth set), a 99.9% truth sensitivity tranche, along with progressively smaller tranches at 99% and 90%.
      */
-    @Argument(fullName="TStranche", shortName="tranche", doc="The levels of novel false discovery rate (FDR, implied by ti/tv) at which to slice the data. (in percent, that is 1.0 for 1 percent)", required=false)
-    private double[] TS_TRANCHES = new double[] {100.0, 99.9, 99.0, 90.0};
+    @Argument(fullName="TStranche", shortName="tranche", doc="The levels of truth sensitivity at which to slice the data. (in percent, that is 1.0 for 1 percent)", required=false)
+    private List<Double> TS_TRANCHES = new ArrayList<Double>(Arrays.asList(100.0, 99.9, 99.0, 90.0));
     /**
      * For this to work properly, the -ignoreFilter argument should also be applied to the ApplyRecalibration command.
      */
     @Argument(fullName="ignore_filter", shortName="ignoreFilter", doc="If specified, the variant recalibrator will also use variants marked as filtered by the specified filter name in the input VCF file", required=false)
-    private String[] IGNORE_INPUT_FILTERS = null;
+    private List<String> IGNORE_INPUT_FILTERS = new ArrayList<String>();
     @Argument(fullName="ignore_all_filters", shortName="ignoreAllFilters", doc="If specified, the variant recalibrator will ignore all input filters. Useful to rerun the VQSR from a filtered output file.", required=false)
     private boolean IGNORE_ALL_FILTERS = false;
     @Output(fullName="rscript_file", shortName="rscriptFile", doc="The output rscript file generated by the VQSR to aid in visualization of the input data and learned model", required=false, defaultToStdout=false)
@@ -251,7 +260,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
     @Override
     public void initialize() {
-        dataManager = new VariantDataManager( new ArrayList<>(Arrays.asList(USE_ANNOTATIONS)), VRAC );
+        dataManager = new VariantDataManager( new ArrayList<>(USE_ANNOTATIONS), VRAC );
 
         if (RSCRIPT_FILE != null && !RScriptExecutor.RSCRIPT_EXISTS)
             Utils.warnUser(logger, String.format(
@@ -259,7 +268,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                     RSCRIPT_FILE));
 
         if( IGNORE_INPUT_FILTERS != null ) {
-            ignoreInputFilterSet.addAll( Arrays.asList(IGNORE_INPUT_FILTERS) );
+            ignoreInputFilterSet.addAll( IGNORE_INPUT_FILTERS );
         }
 
         try {
@@ -284,7 +293,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         recalWriter.writeHeader( new VCFHeader(hInfo) );
 
         for( int iii = 0; iii < REPLICATE * 2; iii++ ) {
-            replicate.add(GenomeAnalysisEngine.getRandomGenerator().nextDouble());
+            replicate.add(Utils.getRandomGenerator().nextDouble());
         }
 
         // collect the actual rod bindings into a list for use later
@@ -416,7 +425,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         dataManager.writeOutRecalibrationTable( recalWriter );
         if( RSCRIPT_FILE != null ) {
             logger.info( "Writing out visualization Rscript file...");
-            createVisualizationScript( dataManager.getRandomDataForPlotting( 1000, positiveTrainingData, negativeTrainingData, dataManager.getEvaluationData() ), goodModel, badModel, 0.0, dataManager.getAnnotationKeys().toArray(new String[USE_ANNOTATIONS.length]) );
+            createVisualizationScript( dataManager.getRandomDataForPlotting( 1000, positiveTrainingData, negativeTrainingData, dataManager.getEvaluationData() ), goodModel, badModel, 0.0, dataManager.getAnnotationKeys().toArray(new String[USE_ANNOTATIONS.size()]) );
         }
 
         if(VRAC.MODE == VariantRecalibratorArgumentCollection.Mode.INDEL) {
