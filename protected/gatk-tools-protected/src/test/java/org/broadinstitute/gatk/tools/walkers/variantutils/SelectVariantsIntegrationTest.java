@@ -64,8 +64,10 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         return "-T SelectVariants -R " + b36KGReference + " -L 1 -o %s --no_cmdline_in_header" + args;
     }
 
-    private static final String sampleExclusionMD5 = "eea22fbf1e490e59389a663c3d6a6537";
-    private static final String invertSelectionMD5 = "831bc0a5a723b0681a910d668ff3757b";
+    private static final String SAMPLE_EXCLUSION_MD5 = "eea22fbf1e490e59389a663c3d6a6537";
+    private static final String INVERT_SELECTION_MD5 = "831bc0a5a723b0681a910d668ff3757b";
+    private static final String MAX_FILTERED_GT_SELECTION_MD5 = "0365de1bbf7c037be00badace0a74d02";
+    private static final String MIN_FILTERED_GT_SELECTION_MD5 = "fcee8c8caa0696a6675961bb12664878";
 
     @Test
     public void testDiscordanceNoSampleSpecified() {
@@ -199,7 +201,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b36KGReference + " -L 1:1-1000000 -o %s --no_cmdline_in_header -xl_se '[CDH]' --variant " + testfile,
                 1,
-                Arrays.asList(sampleExclusionMD5)
+                Arrays.asList(SAMPLE_EXCLUSION_MD5)
         );
         spec.disableShadowBCF();
 
@@ -216,7 +218,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b36KGReference + " -L 1:1-1000000 -o %s --no_cmdline_in_header -se '[^CDH]' --variant " + testfile,
                 1,
-                Arrays.asList(sampleExclusionMD5)
+                Arrays.asList(SAMPLE_EXCLUSION_MD5)
         );
         spec.disableShadowBCF();
 
@@ -557,7 +559,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     }
 
     /**
-     * Test inverting the variant selection criteria
+     * Test inverting the variant selection criteria by the -invertSelect argument
      */
     @Test
     public void testInvertSelection() {
@@ -565,16 +567,16 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         String samplesFile = validationDataLocation + "SelectVariants.samples.txt";
 
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString(" -sn A -se '[CDH]' -sf " + samplesFile + " -env -ef -select 'DP < 20000' --invert_selection --variant " + testfile),
+                baseTestString(" -sn A -se '[CDH]' -sf " + samplesFile + " -env -ef -select 'DP < 20000' -invertSelect --variant " + testfile),
                 1,
-                Arrays.asList(invertSelectionMD5)
+                Arrays.asList(INVERT_SELECTION_MD5)
         );
         spec.disableShadowBCF();
         executeTest("testInvertSelection--" + testfile, spec);
     }
 
     /**
-     * Test inverting the variant JEXL selection criteria
+     * Test inverting the variant selection criteria by inverting the JEXL expression logic following -select
      */
     @Test
     public void testInvertJexlSelection() {
@@ -584,7 +586,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -sn A -se '[CDH]' -sf " + samplesFile + " -env -ef -select 'DP >= 20000'--variant " + testfile),
                 1,
-                Arrays.asList(invertSelectionMD5)
+                Arrays.asList(INVERT_SELECTION_MD5)
         );
         spec.disableShadowBCF();
         executeTest("testInvertJexlSelection--" + testfile, spec);
@@ -659,10 +661,76 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         String pedFile = privateTestDir + "CEUtrio.ped";
 
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T SelectVariants -R "+b37KGReference + " -mv -mvq 0 -inv_mv --variant  " + testFile + " -ped " + pedFile + " -o %s --no_cmdline_in_header",
+                "-T SelectVariants -R "+b37KGReference + " -mv -mvq 0 -invMv --variant  " + testFile + " -ped " + pedFile + " -o %s --no_cmdline_in_header",
                 1,
                 Arrays.asList("35921fb2dedca0ead83027a66b725794"));
 
         executeTest("testMendelianViolationSelection--" + testFile, spec);
+    }
+
+    @Test
+    public void testMaxFilteredGenotypesSelection() {
+        String testfile = privateTestDir + "filteredSamples.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --maxFilteredGenotypes 1 -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList(MAX_FILTERED_GT_SELECTION_MD5)
+        );
+        spec.disableShadowBCF();
+        executeTest("testMaxFilteredGenotypesSelection--" + testfile, spec);
+    }
+
+    @Test
+    public void testMinFilteredGenotypesSelection() {
+        String testfile = privateTestDir + "filteredSamples.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --minFilteredGenotypes 2 -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList(MIN_FILTERED_GT_SELECTION_MD5)
+        );
+        spec.disableShadowBCF();
+        executeTest("testMinFilteredGenotypesSelection--" + testfile, spec);
+    }
+
+    @Test
+    public void testMaxFractionFilteredGenotypesSelection() {
+        String testfile = privateTestDir + "filteredSamples.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --maxFractionFilteredGenotypes 0.4 -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList(MAX_FILTERED_GT_SELECTION_MD5)
+        );
+        spec.disableShadowBCF();
+        executeTest("testMaxFractionFilteredGenotypesSelection--" + testfile, spec);
+    }
+
+    @Test
+    public void testMinFractionFilteredGenotypesSelection() {
+        String testfile = privateTestDir + "filteredSamples.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --minFractionFilteredGenotypes 0.6 -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList(MIN_FILTERED_GT_SELECTION_MD5)
+        );
+        spec.disableShadowBCF();
+        executeTest("testMinFractionFilteredGenotypesSelection--" + testfile, spec);
+    }
+
+    @Test
+    public void testSetFilteredGtoNocall() {
+        String testfile = privateTestDir + "filteredSamples.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --setFilteredGtToNocall -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("81b99386a64a8f2b857a7ef2bca5856e")
+        );
+
+        spec.disableShadowBCF();
+        executeTest("testSetFilteredGtoNocall--" + testfile, spec);
     }
 }
