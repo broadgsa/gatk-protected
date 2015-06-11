@@ -565,7 +565,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
          public void testAlleleSpecificAnnotations() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("69b5d245a7411ab45e6bd211cc09a53d"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("f62ae282ec8e32f6104ef84237b8a5a4"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }
@@ -575,7 +575,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations_oneSample() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("14ecc30b631afce3e3029484c9ee7b92"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("1eefb0ed407b9071f09f9189c9ad45cf"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }
