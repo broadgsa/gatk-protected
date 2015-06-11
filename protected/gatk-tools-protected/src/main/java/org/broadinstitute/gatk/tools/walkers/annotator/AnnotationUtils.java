@@ -51,17 +51,39 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMRecord;
 import htsjdk.variant.variantcontext.Genotype;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.indels.PairHMMIndelErrorModel;
+import org.broadinstitute.gatk.tools.walkers.variantutils.CombineGVCFs;
+import org.broadinstitute.gatk.tools.walkers.variantutils.GenotypeGVCFs;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 public class AnnotationUtils {
 
-    public static final String ANNOTATION_HC_WARN_MSG = " annotation will not be calculated, must be called from HaplotyepCaller";
+    public static final String ANNOTATION_HC_WARN_MSG = " annotation will not be calculated, must be called from HaplotypeCaller";
     public static final int WARNINGS_LOGGED_SIZE = 3;
+
+    /**
+     * Checks if the walker is compatible with allele-specific annotations
+     */
+     public static boolean walkerSupportsAlleleSpecificAnnotations(final AnnotatorCompatible walker) {
+         return ((walker instanceof HaplotypeCaller) || (walker instanceof CombineGVCFs) || (walker instanceof GenotypeGVCFs));
+     }
+
+    /**
+     * Checks if the walker should get raw annotation data
+     */
+    public static boolean walkerRequiresRawData(final AnnotatorCompatible walker) {
+        return ((walker instanceof HaplotypeCaller && ((HaplotypeCaller) walker).emitReferenceConfidence()) || walker instanceof CombineGVCFs);
+    }
 
     /**
      * Checks if the input data is appropriate
@@ -128,5 +150,99 @@ public class AnnotationUtils {
         }
 
         return true;
+    }
+
+
+    /**
+     * Get the position of a variant within a read with respect to the closer end, accounting for hard clipped bases and low quality ends
+     * Used by ReadPosRankSum annotations
+     *
+     * @param read  a read containing the variant
+     * @param initialReadPosition   the position based on the modified, post-hard-clipped CIGAR
+     * @return read position
+     */
+    public static int getFinalVariantReadPosition(final GATKSAMRecord read, final int initialReadPosition) {
+        final int numAlignedBases = getNumAlignedBases(read);
+
+        int readPos = initialReadPosition;
+        //TODO: this doesn't work for the middle-right position if we index from zero
+        if (initialReadPosition > numAlignedBases / 2) {
+            readPos = numAlignedBases - (initialReadPosition + 1);
+        }
+        return readPos;
+
+    }
+
+    /**
+     *
+     * @param read  a read containing the variant
+     * @return  the number of hard clipped and low qual bases at the read start (where start is the leftmost end w.r.t. the reference)
+     */
+    public static int getNumClippedBasesAtStart(final SAMRecord read) {
+        // check for hard clips (never consider these bases):
+        final Cigar c = read.getCigar();
+        final CigarElement first = c.getCigarElement(0);
+
+        int numStartClippedBases = 0;
+        if (first.getOperator() == CigarOperator.H) {
+            numStartClippedBases = first.getLength();
+        }
+        final byte[] unclippedReadBases = read.getReadBases();
+        final byte[] unclippedReadQuals = read.getBaseQualities();
+
+        // Do a stricter base clipping than provided by CIGAR string, since this one may be too conservative,
+        // and may leave a string of Q2 bases still hanging off the reads.
+        //TODO: this code may not even get used because HaplotypeCaller already hard clips low quality tails
+        for (int i = numStartClippedBases; i < unclippedReadBases.length; i++) {
+            if (unclippedReadQuals[i] < PairHMMIndelErrorModel.BASE_QUAL_THRESHOLD)
+                numStartClippedBases++;
+            else
+                break;
+
+        }
+
+        return numStartClippedBases;
+    }
+
+
+    /**
+     *
+     * @param read  a read containing the variant
+     * @return  number of non-hard clipped, aligned bases (excluding low quality bases at either end)
+     */
+    //TODO: this is bizarre -- this code counts hard clips, but then subtracts them from the read length, which already doesn't count hard clips
+    public static int getNumAlignedBases(final GATKSAMRecord read) {
+        return read.getReadLength() - getNumClippedBasesAtStart(read) - getNumClippedBasesAtEnd(read);
+    }
+
+
+    /**
+     *
+     * @param read  a read containing the variant
+     * @return  number of hard clipped and low qual bases at the read end (where end is right end w.r.t. the reference)
+     */
+    public static int getNumClippedBasesAtEnd(final GATKSAMRecord read) {
+        // check for hard clips (never consider these bases):
+        final Cigar c = read.getCigar();
+        CigarElement last = c.getCigarElement(c.numCigarElements() - 1);
+
+        int numEndClippedBases = 0;
+        if (last.getOperator() == CigarOperator.H) {
+            numEndClippedBases = last.getLength();
+        }
+        final byte[] unclippedReadBases = read.getReadBases();
+        final byte[] unclippedReadQuals = read.getBaseQualities();
+
+        // Do a stricter base clipping than provided by CIGAR string, since this one may be too conservative,
+        // and may leave a string of Q2 bases still hanging off the reads.
+        //TODO: this code may not even get used because HaplotypeCaller already hard clips low quality tails
+        for (int i = unclippedReadBases.length - numEndClippedBases - 1; i >= 0; i--) {
+            if (unclippedReadQuals[i] < PairHMMIndelErrorModel.BASE_QUAL_THRESHOLD)
+                numEndClippedBases++;
+            else
+                break;
+        }
+
+        return numEndClippedBases;
     }
 }

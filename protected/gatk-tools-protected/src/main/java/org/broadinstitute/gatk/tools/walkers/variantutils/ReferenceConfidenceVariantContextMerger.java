@@ -53,13 +53,17 @@ package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFConstants;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.annotator.AlleleSpecificAnnotationData;
+import org.broadinstitute.gatk.tools.walkers.annotator.ReducibleAnnotationData;
+import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
-import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
@@ -72,6 +76,8 @@ import java.util.*;
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
 public class ReferenceConfidenceVariantContextMerger {
+
+    private final static Logger logger = Logger.getLogger(ReferenceConfidenceVariantContextMerger.class);
 
     private static Comparable combineAnnotationValues( final List<Comparable> array ) {
         return MathUtils.median(array); // right now we take the median but other options could be explored
@@ -89,10 +95,10 @@ public class ReferenceConfidenceVariantContextMerger {
      * @return new VariantContext representing the merge of all VCs or null if it not relevant
      */
     public static VariantContext merge(final List<VariantContext> VCs, final GenomeLoc loc, final Byte refBase, final boolean removeNonRefSymbolicAllele,
-                                       final boolean samplesAreUniquified) {
+                                       final boolean samplesAreUniquified, final VariantAnnotatorEngine annotatorEngine) {
         // this can happen if e.g. you are using a dbSNP file that spans a region with no gVCFs
-        if ( VCs == null || VCs.isEmpty() )
-            return null;
+        if ( VCs == null || VCs.isEmpty() ) {
+            return null; }
 
         // establish the baseline info (sometimes from the first VC)
         final VariantContext first = VCs.get(0);
@@ -100,8 +106,8 @@ public class ReferenceConfidenceVariantContextMerger {
 
         // ref allele
         final Allele refAllele = determineReferenceAlleleGivenReferenceBase(VCs, loc, refBase);
-        if ( refAllele == null )
-            return null;
+        if ( refAllele == null ) {
+            return null; }
 
         // FinalAlleleSet contains the alleles of the new resulting VC
         // Using linked set in order to guarantee a stable order
@@ -112,7 +118,7 @@ public class ReferenceConfidenceVariantContextMerger {
         final Map<String, Object> attributes = new LinkedHashMap<>();
         final Set<String> rsIDs = new LinkedHashSet<>(1); // most of the time there's one id
         int depth = 0;
-        final Map<String, List<Comparable>> annotationMap = new LinkedHashMap<>();
+        final Map<String, List<ReducibleAnnotationData>> annotationMap = new LinkedHashMap<>();
         final GenotypesContext genotypes = GenotypesContext.create();
 
         // In this list we hold the mapping of each variant context alleles.
@@ -156,28 +162,42 @@ public class ReferenceConfidenceVariantContextMerger {
                 }
             }
 
-            if ( loc.getStart() != vc.getStart() )
+            if ( loc.getStart() != vc.getStart() ) {
                 continue;
+            }
 
             // special case ID (just preserve it)
             if ( vc.hasID() ) rsIDs.add(vc.getID());
 
-            // add attributes
-            addReferenceConfidenceAttributes(vc.getAttributes(), annotationMap);
+            // add attributes to annotationMap, store all info field annotations as AlleleSpecificAnnotationData in case they can be parsed that way
+            addReferenceConfidenceAttributes(pair, annotationMap);
         }
 
-        // when combining annotations use the median value from all input VCs which had annotations provided
-        for ( final Map.Entry<String, List<Comparable>> p : annotationMap.entrySet() ) {
+        //combine the annotations that are reducible and remove them from annotationMap
+        Map<String, Object> combinedAnnotations = new HashMap<>();
+        if (annotatorEngine != null) {
+            combinedAnnotations = annotatorEngine.combineAnnotations(allelesList, annotationMap);
+        }
+        attributes.putAll(combinedAnnotations);
+
+        // remove stale AC and AF based attributes (including MLEAC and MLEAF lists)
+        //these will be recalculated after genotyping
+        removeStaleAttributesAfterMerge(annotationMap);
+
+        //annotatorEngine.combineAnnotations removed the successfully combined annotations, so now parse those that are left
+        //here we're assuming that things that are left are scalars per sample
+        Map<String, List<Comparable>> parsedAnnotationMap = parseRemainingAnnotations(annotationMap);
+
+        // when combining remaining annotations use the median value from all input VCs which had annotations provided
+        for ( final Map.Entry<String, List<Comparable>> p : parsedAnnotationMap.entrySet() ) {
             if ( ! p.getValue().isEmpty() ) {
                 attributes.put(p.getKey(), combineAnnotationValues(p.getValue()));
             }
         }
 
-        if ( depth > 0 )
+        if ( depth > 0 ) {
             attributes.put(VCFConstants.DEPTH_KEY, String.valueOf(depth));
-
-        // remove stale AC and AF based attributes
-        removeStaleAttributesAfterMerge(attributes);
+        }
 
         final String ID = rsIDs.isEmpty() ? VCFConstants.EMPTY_ID_FIELD : Utils.join(",", rsIDs);
 
@@ -190,14 +210,48 @@ public class ReferenceConfidenceVariantContextMerger {
     }
 
     /**
+     * parse the annotations that were not identified as reducible annotations and combined by the annotation engine
+     * @param annotationMap the map of info field annotation names and the list of their data from the merged VCs
+     * @return  info field data parsed as ints or doubles
+     */
+    private static Map<String, List<Comparable>> parseRemainingAnnotations(final Map<String, List<ReducibleAnnotationData>> annotationMap) {
+        final Map<String, List<Comparable>> parsedAnnotations = new HashMap<>();
+        for (Map.Entry<String, List<ReducibleAnnotationData>> currentData : annotationMap.entrySet()) {
+            List<Comparable> annotationValues = new ArrayList<>();
+            for (ReducibleAnnotationData value : currentData.getValue()) {
+                try {
+                    final String stringValue = value.getRawData();
+                    if (stringValue.contains(".")) {
+                        annotationValues.add(Double.parseDouble(stringValue));
+                    } else if (Character.isDigit(stringValue.charAt(0))){
+                        annotationValues.add(Integer.parseInt(stringValue));
+                    //TODO: uncomment this to parse dbSNP membership annotation once allele-specific merging for that attribute is added
+                    /*} else if (Character.isLetter(stringValue.charAt(0))) {
+                        if (stringValue.equalsIgnoreCase("true"))
+                            annotationValues.add(true);
+                        else if (stringValue.equalsIgnoreCase("false"))
+                            annotationValues.add(false);*/
+                    }
+
+                } catch (final NumberFormatException e) {
+                    logger.warn("WARNING: remaining (non-reducible) annotations are assumed to be ints or doubles or booleans, but " + value.getRawData() + " doesn't parse and will not be annotated in the final VC.");
+                }
+            }
+            parsedAnnotations.put(currentData.getKey(),annotationValues);
+        }
+        return parsedAnnotations;
+    }
+
+    /**
      * @param list  the original alleles list
      * @return a non-null list of non-symbolic alleles
      */
     private static List<Allele> nonSymbolicAlleles(final List<Allele> list) {
         final List<Allele> result = new ArrayList<>(list.size());
         for ( final Allele allele : list ) {
-            if ( !allele.isSymbolic() )
+            if ( !allele.isSymbolic() ) {
                 result.add(allele);
+            }
         }
         return result;
     }
@@ -212,8 +266,9 @@ public class ReferenceConfidenceVariantContextMerger {
      */
     private static Allele determineReferenceAlleleGivenReferenceBase(final List<VariantContext> VCs, final GenomeLoc loc, final Byte refBase) {
         final Allele refAllele = GATKVariantContextUtils.determineReferenceAllele(VCs, loc);
-        if ( refAllele == null )
-            return ( refBase == null ? null : Allele.create(refBase, true) );
+        if ( refAllele == null ) {
+            return (refBase == null ? null : Allele.create(refBase, true));
+        }
         return refAllele;
     }
 
@@ -222,7 +277,7 @@ public class ReferenceConfidenceVariantContextMerger {
      *
      * @param attributes the attribute map
      */
-    private static void removeStaleAttributesAfterMerge(final Map<String, Object> attributes) {
+    private static void removeStaleAttributesAfterMerge(final Map<String, List<ReducibleAnnotationData>> attributes) {
         attributes.remove(VCFConstants.ALLELE_COUNT_KEY);
         attributes.remove(VCFConstants.ALLELE_FREQUENCY_KEY);
         attributes.remove(VCFConstants.ALLELE_NUMBER_KEY);
@@ -234,31 +289,35 @@ public class ReferenceConfidenceVariantContextMerger {
     /**
      * Adds attributes to the global map from the new context in a sophisticated manner
      *
-     * @param myAttributes               attributes to add from
+     * @param pair                      VariantContext/Allele list pair from which to get attributes
      * @param annotationMap              map of annotations for combining later
      */
-    private static void addReferenceConfidenceAttributes(final Map<String, Object> myAttributes,
-                                                         final Map<String, List<Comparable>> annotationMap) {
+    private static void addReferenceConfidenceAttributes(Pair<VariantContext,List<Allele>> pair,
+                                                         final Map<String, List<ReducibleAnnotationData>> annotationMap) {
+        final Map<String, Object> myAttributes = pair.getFirst().getAttributes(); //these are the info field attributes of the VC in pair
+        final List<Allele> sampleAlleles = pair.getSecond();
+
         for ( final Map.Entry<String, Object> p : myAttributes.entrySet() ) {
             final String key = p.getKey();
-            final Object value = p.getValue();
+            //allele-specific attributes will always be in list form because they've already been parsed per-allele
+            //non-allele-specific attributes (DP, etc.) will be a list of length 1
+            final List<Object> valueList = pair.getFirst().getAttributeAsList(key);
 
-            // add the annotation values to a list for combining later
-            List<Comparable> values = annotationMap.get(key);
-            if( values == null ) {
-                values = new ArrayList<>();
-                annotationMap.put(key, values);
+            // add the existing annotation values to a list for combining later
+            List<ReducibleAnnotationData> rawValuesList = annotationMap.get(key);
+            if( rawValuesList == null ) {
+                rawValuesList = new ArrayList<>();
+                annotationMap.put(key, rawValuesList);
             }
-            try {
-                final String stringValue = value.toString();
-                // Branch to avoid unintentional, implicit type conversions that occur with the ? operator.
-                if (stringValue.contains("."))
-                    values.add(Double.parseDouble(stringValue));
-                else
-                    values.add(Integer.parseInt(stringValue));
-            } catch (final NumberFormatException e) {
-                // nothing to do
+            String combinedString = "";
+            for(int i=0; i < valueList.size(); i++) {
+                if (i > 0)
+                    combinedString += ",";
+                combinedString += valueList.get(i);
             }
+            ReducibleAnnotationData pairData = new AlleleSpecificAnnotationData(sampleAlleles, combinedString);
+            rawValuesList.add(pairData);
+            annotationMap.put(key, rawValuesList);
         }
     }
 
@@ -364,30 +423,34 @@ public class ReferenceConfidenceVariantContextMerger {
         // the map is different depending on the ploidy, so in order to keep this method flexible (mixed ploidies)
         // we need to get a map done (lazily inside the loop) for each ploidy, up to the maximum possible.
         final int[][] genotypeIndexMapsByPloidy = new int[maximumPloidy + 1][];
-        final int maximumAlleleCount = Math.max(remappedAlleles.size(), targetAlleles.size());
+        final int maximumAlleleCount = Math.max(remappedAlleles.size(),targetAlleles.size());
+        int[] perSampleIndexesOfRelevantAlleles;
 
-        for ( final Genotype g : vc.getGenotypes() ) {
+        for (final Genotype g : vc.getGenotypes()) {
             final String name;
             if (samplesAreUniquified)
-               name = g.getSampleName() + "." + vc.getSource();
+                name = g.getSampleName() + "." + vc.getSource();
             else
-               name = g.getSampleName();
+                name = g.getSampleName();
             final int ploidy = g.getPloidy();
             final GenotypeBuilder genotypeBuilder = new GenotypeBuilder(g).alleles(GATKVariantContextUtils.noCallAlleles(g.getPloidy()));
             genotypeBuilder.name(name);
             final boolean hasPL = g.hasPL();
             final boolean hasSAC = g.hasExtendedAttribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY);
-            if ( hasPL || hasSAC ) {
-                final int[] perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, vc.getStart(), g);
+            if (hasPL || hasSAC) {
+                perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, vc.getStart(), g);
                 if (g.hasPL()) {
-                    // genotype index map by ploidy.
-                    final int[] genotypeIndexMapByPloidy = GenotypeLikelihoodCalculators.getInstance(ploidy, maximumAlleleCount).genotypeIndexMap(perSampleIndexesOfRelevantAlleles);
+                    // lazy initialization of the genotype index map by ploidy.
+
+                    final int[] genotypeIndexMapByPloidy = genotypeIndexMapsByPloidy[ploidy] == null
+                            ? GenotypeLikelihoodCalculators.getInstance(ploidy, maximumAlleleCount).genotypeIndexMap(perSampleIndexesOfRelevantAlleles)
+                            : genotypeIndexMapsByPloidy[ploidy];
                     final int[] PLs = generatePL(g, genotypeIndexMapByPloidy);
                     final int[] AD = g.hasAD() ? generateAD(g.getAD(), perSampleIndexesOfRelevantAlleles) : null;
                     genotypeBuilder.PL(PLs).AD(AD);
                 }
                 if (g.hasExtendedAttribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY)) {
-                    final List<Integer>  sacIndexesToUse = adaptToSACIndexes(perSampleIndexesOfRelevantAlleles);
+                    final List<Integer> sacIndexesToUse = adaptToSACIndexes(perSampleIndexesOfRelevantAlleles);
                     final int[] SACs = GATKVariantContextUtils.makeNewSACs(g, sacIndexesToUse);
                     genotypeBuilder.attribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY, SACs);
                 }
@@ -397,24 +460,25 @@ public class ReferenceConfidenceVariantContextMerger {
     }
 
     /**
-     * Adapt the relevant alleles to the SAC indexes
-     *
-     * @param perSampleIndexesOfRelevantAlleles
-     * @return SAC indexes
+      * Adapt the relevant alleles to the SAC indexes
+      *
+      * @param perSampleIndexesOfRelevantAlleles
+      * @return SAC indexes
      */
-    private static List<Integer> adaptToSACIndexes(final int[] perSampleIndexesOfRelevantAlleles){
-        if ( perSampleIndexesOfRelevantAlleles == null )
+    private static List<Integer> adaptToSACIndexes(final int[] perSampleIndexesOfRelevantAlleles) {
+        if (perSampleIndexesOfRelevantAlleles == null)
             throw new IllegalArgumentException("The per sample index of relevant alleles must not be null");
 
-        final List<Integer>  sacIndexesToUse = new ArrayList(2*perSampleIndexesOfRelevantAlleles.length);
+        final List<Integer> sacIndexesToUse = new ArrayList(2 * perSampleIndexesOfRelevantAlleles.length);
 
-        for ( int item : perSampleIndexesOfRelevantAlleles ) {
-            sacIndexesToUse.add(new Integer(2*item));
-            sacIndexesToUse.add(new Integer(2*item+1));
+        for (int item : perSampleIndexesOfRelevantAlleles) {
+            sacIndexesToUse.add(new Integer(2 * item));
+            sacIndexesToUse.add(new Integer(2 * item + 1));
         }
 
-        return  sacIndexesToUse;
+        return sacIndexesToUse;
     }
+
 
     /**
      * Composes a new likelihood array given the original genotype and the genotype index map.
@@ -439,8 +503,8 @@ public class ReferenceConfidenceVariantContextMerger {
     }
 
     /**
-     * Determines the allele mapping from remappedAlleles to the targetAlleles, substituting the generic "<ALT>" as appropriate.
-     * If the myAlleles set does not contain "<ALT>" as an allele, it throws an exception.
+     * Determines the allele mapping from myAlleles to the targetAlleles, substituting the generic "<ALT>" as appropriate.
+     * If the remappedAlleles set does not contain "<ALT>" as an allele, it throws an exception.
      *
      * @param remappedAlleles   the list of alleles to evaluate
      * @param targetAlleles     the target list of alleles
@@ -450,7 +514,7 @@ public class ReferenceConfidenceVariantContextMerger {
      */
     protected static int[] getIndexesOfRelevantAlleles(final List<Allele> remappedAlleles, final List<Allele> targetAlleles, final int position, final Genotype g) {
 
-        if ( remappedAlleles == null || remappedAlleles.isEmpty() ) throw new IllegalArgumentException("The list of input alleles must not be null or empty");
+        if ( remappedAlleles == null || remappedAlleles.isEmpty()) throw new IllegalArgumentException("The list of input alleles must not be null or empty");
         if ( targetAlleles == null || targetAlleles.isEmpty() ) throw new IllegalArgumentException("The list of target alleles must not be null or empty");
 
         if ( !remappedAlleles.contains(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) )

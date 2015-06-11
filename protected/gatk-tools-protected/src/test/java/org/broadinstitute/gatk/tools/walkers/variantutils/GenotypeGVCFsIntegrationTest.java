@@ -259,7 +259,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + gVCF.getAbsolutePath(), b37KGReference),
                 1,
-                Arrays.asList("b81a94763ea9714ed6289acd3d39c4cf"));
+                Arrays.asList("81ae1bc09f9cd34b0b37ae3cb4b09bc8"));
         spec.disableShadowBCF();  //TODO: Remove when BaseTest.assertAttributesEquals() works with SAC
         executeTest("testStrandAlleleCountsBySample", spec);
     }
@@ -559,5 +559,24 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 1,
                 Arrays.asList("d617884b08ee85816f1ba1acf11f1738"));
         executeTest("testSetZeroRGQsToNoCall", spec);
+    }
+
+    @Test
+         public void testAlleleSpecificAnnotations() {
+        final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
+                + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("69b5d245a7411ab45e6bd211cc09a53d"));
+        spec.disableShadowBCF();
+        executeTest("testAlleleSpecificAnnotations", spec);
+    }
+
+    @Test
+    //make sure none of the assumptions about things being merged as lists break the single-sample case
+    public void testAlleleSpecificAnnotations_oneSample() {
+        final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
+                + privateTestDir + "NA12878.AS.chr20snippet.g.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("14ecc30b631afce3e3029484c9ee7b92"));
+        spec.disableShadowBCF();
+        executeTest("testAlleleSpecificAnnotations", spec);
     }
 }

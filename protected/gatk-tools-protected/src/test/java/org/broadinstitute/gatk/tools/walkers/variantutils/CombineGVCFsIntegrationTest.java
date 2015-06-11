@@ -272,4 +272,13 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionInput", spec);
     }
+
+    @Test
+    public void testAlleleSpecificAnnotations() throws Exception {
+        final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -V "
+                + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("f06d60332cd46036813f652de6d807c9"));
+        spec.disableShadowBCF();
+        executeTest("testAlleleSpecificAnnotations", spec);
+    }
 }

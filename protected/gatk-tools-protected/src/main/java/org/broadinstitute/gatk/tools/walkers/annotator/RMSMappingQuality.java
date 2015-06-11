@@ -51,22 +51,21 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.utils.MathUtils;
-import org.broadinstitute.gatk.utils.QualityUtils;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.*;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
+import org.broadinstitute.gatk.tools.walkers.variantutils.CombineGVCFs;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
@@ -74,7 +73,9 @@ import java.util.*;
 /**
  * Root Mean Square of the mapping quality of reads across all samples.
  *
- * <p>This annotation provides an estimation of the overall mapping quality of reads supporting a variant call, averaged over all samples in a cohort.</p>
+ * <p>This annotation provides an estimation of the overall mapping quality of reads supporting a variant call. It produce both raw data (sum of square and num of total reads) and the calculated root mean square.</p>
+ *
+ * The raw data is used to accurately calculate the root mean square when combining more than one sample.
  *
  * <h3>Statistical notes</h3>
  * <p>The root mean square is equivalent to the mean of the mapping qualities plus the standard deviation of the mapping qualities.</p>
@@ -85,51 +86,89 @@ import java.util.*;
  * </ul>
  *
  */
-public class RMSMappingQuality extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+public class RMSMappingQuality extends RMSAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation, ReducibleAnnotation {
 
-    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
-                                        final AnnotatorCompatible walker,
-                                        final ReferenceContext ref,
-                                        final Map<String, AlignmentContext> stratifiedContexts,
-                                        final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
+    @Override //this needs an override because MQ is a VCF standard so it's headerline is in a different place
+    public List<VCFInfoHeaderLine> getDescriptions() {
+        final List<VCFInfoHeaderLine> headerLines = new ArrayList<>();
+        //only HC in GVCF mode should get the raw header line
+        if ((callingWalker instanceof HaplotypeCaller && ((HaplotypeCaller) callingWalker).emitReferenceConfidence()) || callingWalker instanceof CombineGVCFs)
+            headerLines.add(GATKVCFHeaderLines.getInfoLine(getRawKeyName()));
+        headerLines.add(VCFStandardHeaderLines.getInfoLine(getKeyNames().get(0)));
+        return headerLines;
+    }
 
-        final List<Integer> qualities = new ArrayList<>();
+    public List<String> getKeyNames() { return Arrays.asList(
+            VCFConstants.RMS_MAPPING_QUALITY_KEY);
+    }
+
+    public String getRawKeyName() { return GATKVCFConstants.RAW_RMS_MAPPING_QUALITY_KEY;}
+
+    @Override
+    public void calculateRawData(final VariantContext vc, final Map<String, PerReadAlleleLikelihoodMap> pralm, final ReducibleAnnotationData rawAnnotations) {
+        Double squareSum = 0.0;
+        if ( pralm.size() == 0 )
+            return;
+
+        for ( final PerReadAlleleLikelihoodMap perReadLikelihoods : pralm.values() ) {
+            for ( final GATKSAMRecord read : perReadLikelihoods.getStoredElements() ) {
+                int mq = read.getMappingQuality();
+                if ( mq != QualityUtils.MAPPING_QUALITY_UNAVAILABLE ) {
+                    squareSum += mq * mq;
+                }
+            }
+        }
+        rawAnnotations.putAttribute(Allele.NO_CALL,squareSum);
+    }
+
+    //this version applies to non-HaplotypeCaller annotators
+    @Override
+    protected void calculateRawData(final Map<String, AlignmentContext> stratifiedContexts,
+                                  final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                  final ReducibleAnnotationData myData) {
+
+        Double squareSum = 0.0;
         if ( stratifiedContexts != null ) {
             if ( stratifiedContexts.size() == 0 )
-                return null;
+                return;
 
             for ( final Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
                 final AlignmentContext context = sample.getValue();
-                for ( final PileupElement p : context.getBasePileup() )
-                    fillMappingQualitiesFromPileup(p.getRead().getMappingQuality(), qualities);
+                for ( final PileupElement p : context.getBasePileup() ) {
+                    int mq = p.getRead().getMappingQuality();
+                    if ( mq != QualityUtils.MAPPING_QUALITY_UNAVAILABLE ) {
+                        squareSum += mq * mq;
+                    }
+                }
             }
+            myData.putAttribute(Allele.NO_CALL,squareSum);
         }
         else if (perReadAlleleLikelihoodMap != null) {
-            if ( perReadAlleleLikelihoodMap.size() == 0 )
-                return null;
-
-            for ( final PerReadAlleleLikelihoodMap perReadLikelihoods : perReadAlleleLikelihoodMap.values() ) {
-                for ( final GATKSAMRecord read : perReadLikelihoods.getStoredElements() )
-                    fillMappingQualitiesFromPileup(read.getMappingQuality(), qualities);
-            }
-        }
-        else
-            return null;
-
-        final double rms = MathUtils.rms(qualities);
-        return Collections.singletonMap(getKeyNames().get(0), (Object)String.format("%.2f", rms));
-    }
-
-    private static void fillMappingQualitiesFromPileup(final int mq, final List<Integer> qualities) {
-        if ( mq != QualityUtils.MAPPING_QUALITY_UNAVAILABLE ) {
-            qualities.add(mq);
+            calculateRawData((VariantContext) null, perReadAlleleLikelihoodMap, myData);
         }
     }
 
-    public List<String> getKeyNames() { return Arrays.asList(VCFConstants.RMS_MAPPING_QUALITY_KEY); }
-
-    public List<VCFInfoHeaderLine> getDescriptions() {
-        return Arrays.asList(VCFStandardHeaderLines.getInfoLine(getKeyNames().get(0)));
+    @Override
+    public String makeRawAnnotationString(final List<Allele> vcAlleles, final Map<Allele, Number> perAlleleData) {
+        return String.format("%.2f", perAlleleData.get(Allele.NO_CALL));
     }
+
+    @Override
+    public String makeFinalizedAnnotationString(final VariantContext vc, final Map<Allele, Number> perAlleleData, final Map<String, AlignmentContext> stratifiedContexts, final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+        if ((stratifiedContexts != null && !stratifiedContexts.isEmpty()) || perReadAlleleLikelihoodMap != null) {
+            int numOfReads = getNumOfReads(vc, perReadAlleleLikelihoodMap, stratifiedContexts);
+            return String.format("%.2f", Math.sqrt((double) perAlleleData.get(Allele.NO_CALL) / numOfReads));
+        }
+        else {
+            return makeFinalizedAnnotationString(vc, perAlleleData);
+        }
+    }
+
+    @Override
+    public String makeFinalizedAnnotationString(final VariantContext vc, final Map<Allele, Number> perAlleleData) {
+        int numOfReads = getNumOfReads(vc, null, null);
+        return String.format("%.2f", Math.sqrt((double)perAlleleData.get(Allele.NO_CALL)/numOfReads));
+    }
+
+
 }
