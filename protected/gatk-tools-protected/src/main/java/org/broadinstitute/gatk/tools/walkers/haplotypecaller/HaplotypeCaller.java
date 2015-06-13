@@ -1204,9 +1204,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     /**
      * Is writing to an output GVCF file?
      *
-     * @return true if the VCF output file has a .g.vcf extension
+     * @return true if the VCF output file has a .g.vcf or .g.vcf.gz extension
      */
     private boolean isGVCF() {
-            return ((VariantContextWriterStub) vcfWriter).getOutputFile().getName().endsWith("." + GATKVCFUtils.GVCF_EXT);
+        String fileName = ((VariantContextWriterStub) vcfWriter).getOutputFile().getName();
+        return ( fileName.endsWith("." + GATKVCFUtils.GVCF_EXT) || fileName.endsWith("." + GATKVCFUtils.GVCF_GZ_EXT) );
     }
 }
