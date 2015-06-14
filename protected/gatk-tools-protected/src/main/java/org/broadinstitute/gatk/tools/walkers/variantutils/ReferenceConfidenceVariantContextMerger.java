@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFConstants;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.MathUtils;
@@ -431,11 +432,70 @@ public class ReferenceConfidenceVariantContextMerger {
 
         // create the index mapping, using the <NON-REF> allele whenever such a mapping doesn't exist
         for ( int i = 1; i < targetAlleles.size(); i++ ) {
-            final int indexOfRemappedAllele = remappedAlleles.indexOf(targetAlleles.get(i));
+            final Allele targetAllele = targetAlleles.get(i);
+
+            // if there’s more than 1 DEL allele then we need to use the best one
+            if ( targetAllele == Allele.SPAN_DEL && g.hasPL() ) {
+                final int occurrences = Collections.frequency(remappedAlleles, Allele.SPAN_DEL);
+                if ( occurrences > 1 ) {
+                    final int indexOfBestDel = indexOfBestDel(remappedAlleles, g.getPL(), g.getPloidy());
+                    indexMapping[i] = ( indexOfBestDel == -1 ? indexOfNonRef : indexOfBestDel );
+                    continue;
+                }
+            }
+
+            final int indexOfRemappedAllele = remappedAlleles.indexOf(targetAllele);
             indexMapping[i] = indexOfRemappedAllele == -1 ? indexOfNonRef : indexOfRemappedAllele;
         }
 
         return indexMapping;
+    }
+
+    /**
+     * Returns the index of the best spanning deletion allele based on AD counts
+     *
+     * @param alleles   the list of alleles
+     * @param PLs       the list of corresponding PL values
+     * @param ploidy    the ploidy of the sample
+     * @return the best index or -1 if not found
+     */
+    private static int indexOfBestDel(final List<Allele> alleles, final int[] PLs, final int ploidy) {
+        int bestIndex = -1;
+        int bestPL = Integer.MAX_VALUE;
+
+        for ( int i = 0; i < alleles.size(); i++ ) {
+            if ( alleles.get(i) == Allele.SPAN_DEL ) {
+                final int homAltIndex = findHomIndex(i, ploidy, alleles.size());
+                final int PL = PLs[homAltIndex];
+                if ( PL < bestPL ) {
+                    bestIndex = i;
+                    bestPL = PL;
+                }
+            }
+        }
+
+        return bestIndex;
+    }
+
+    /**
+     * Returns the index of the PL that represents the homozygous genotype of the given i'th allele
+     *
+     * @param i           the index of the allele with the list of alleles
+     * @param ploidy      the ploidy of the sample
+     * @param numAlleles  the total number of alleles
+     * @return the hom index
+     */
+    private static int findHomIndex(final int i, final int ploidy, final int numAlleles) {
+        // some quick optimizations for the common case
+        if ( ploidy == 2 )
+            return i + (i * (i + 1) / 2);   // this is straight from the VCF spec on PLs
+        if ( ploidy == 1 )
+            return i;
+
+        final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(ploidy, numAlleles);
+        final int[] alleleIndexes = new int[ploidy];
+        Arrays.fill(alleleIndexes, i);
+        return calculator.allelesToIndex(alleleIndexes);
     }
 
     /**
