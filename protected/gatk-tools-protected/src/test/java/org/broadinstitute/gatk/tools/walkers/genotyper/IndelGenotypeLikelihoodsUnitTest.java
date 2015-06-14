@@ -129,7 +129,7 @@ public class IndelGenotypeLikelihoodsUnitTest extends BaseTest {
         eventLength = 5;
         alleles = getConsensusAlleles(eventLength,true,10,0.1, altBases);
 
-        Assert.assertEquals(alleles.size(),0);
+        Assert.assertEquals(alleles.size(),2);
 
     }
     

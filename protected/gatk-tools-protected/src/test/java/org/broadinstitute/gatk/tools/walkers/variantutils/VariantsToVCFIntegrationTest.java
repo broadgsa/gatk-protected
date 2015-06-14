@@ -68,23 +68,6 @@ import java.util.ArrayList;
 public class VariantsToVCFIntegrationTest extends WalkerTest {
 
     @Test
-    public void testVariantsToVCFUsingDbsnpInput() {
-        List<String> md5 = new ArrayList<String>();
-        md5.add("72e6ce7aff7dec7ca9e7580be7ddd435");
-
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-R " + b36KGReference +
-                        " --variant:OldDbsnp " + GATKDataLocation + "Comparisons/Validated/dbSNP/dbsnp_129_b36.rod" +
-                        " -T VariantsToVCF" +
-                        " -L 1:1-30,000,000" +
-                        " -o %s" +
-                        " --no_cmdline_in_header",
-                1, // just one output file
-                md5);
-        executeTest("testVariantsToVCFUsingDbsnpInput", spec).getFirst();
-    }
-
-    @Test
     public void testVariantsToVCFUsingGeliInput() {
         List<String> md5 = new ArrayList<String>();
         md5.add("22373883afa2221b5a4f75a50f30f26b");

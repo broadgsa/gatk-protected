@@ -126,14 +126,15 @@ public class ReferenceConfidenceVariantContextMerger {
             final boolean isSpanningEvent = loc.getStart() != vc.getStart();
             // record whether it's also a spanning deletion/event (we know this because the VariantContext type is no
             // longer "symbolic" but "mixed" because there are real alleles mixed in with the symbolic non-ref allele)
-            sawSpanningDeletion |= ( isSpanningEvent && vc.isMixed() ) || vc.getAlternateAlleles().contains(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE);
+            sawSpanningDeletion |= ( isSpanningEvent && vc.isMixed() ) || vc.getAlternateAlleles().contains(Allele.SPAN_DEL) ||
+                    vc.getAlternateAlleles().contains(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED );
             sawNonSpanningEvent |= ( !isSpanningEvent && vc.isMixed() );
 
             vcAndNewAllelePairs.add(new Pair<>(vc, isSpanningEvent ? replaceWithNoCallsAndDels(vc) : remapAlleles(vc, refAllele, finalAlleleSet)));
         }
 
         // Add <DEL> and <NON_REF> to the end if at all required in in the output.
-        if ( sawSpanningDeletion && (sawNonSpanningEvent || !removeNonRefSymbolicAllele) ) finalAlleleSet.add(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE);
+        if ( sawSpanningDeletion && (sawNonSpanningEvent || !removeNonRefSymbolicAllele) ) finalAlleleSet.add(Allele.SPAN_DEL);
         if (!removeNonRefSymbolicAllele) finalAlleleSet.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
 
         final List<Allele> allelesList = new ArrayList<>(finalAlleleSet);
@@ -328,7 +329,7 @@ public class ReferenceConfidenceVariantContextMerger {
             if ( allele.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) )
                 replacement = allele;
             else if ( allele.length() < vc.getReference().length() )
-                replacement = GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE;
+                replacement = Allele.SPAN_DEL;
             else
                 replacement = Allele.NO_CALL;
 
