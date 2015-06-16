@@ -223,6 +223,39 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testMultipleSpanningDeletionsForOneSample() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CombineGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
+                        " -V " + privateTestDir + "spanningDel.many.g.vcf",
+                1,
+                Arrays.asList("5c88e10211def13ba847c29d0fe9e191"));
+        spec.disableShadowBCF();
+        executeTest("testMultipleSpanningDeletionsForOneSample", spec);
+    }
+
+    @Test
+    public void testMultipleSpanningDeletionsForOneSampleHaploid() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CombineGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
+                        " -V " + privateTestDir + "spanningDel.many.haploid.g.vcf",
+                1,
+                Arrays.asList("76fc5f6b949ac0b893061828af800bf8"));
+        spec.disableShadowBCF();
+        executeTest("testMultipleSpanningDeletionsForOneSampleHaploid", spec);
+    }
+
+    @Test
+    public void testMultipleSpanningDeletionsForOneSampleTetraploid() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CombineGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
+                        " -V " + privateTestDir + "spanningDel.many.tetraploid.g.vcf",
+                1,
+                Arrays.asList("0ec79471550ec5e30540f68cb0651b14"));
+        spec.disableShadowBCF();
+        executeTest("testMultipleSpanningDeletionsForOneSampleTetraploid", spec);
+    }
+
+    @Test
     public void testWrongReferenceBaseBugFix() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input1.vcf"
                 + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input2.vcf") + " -o %s --no_cmdline_in_header");
