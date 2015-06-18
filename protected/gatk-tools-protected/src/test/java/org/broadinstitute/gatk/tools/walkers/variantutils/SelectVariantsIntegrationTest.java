@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -732,5 +733,40 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
 
         spec.disableShadowBCF();
         executeTest("testSetFilteredGtoNocall--" + testfile, spec);
+    }
+    @Test
+    public void testSACSimpleDiploid() {
+        String testfile = privateTestDir + "261_S01_raw_variants_gvcf.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -trimAlternates",
+                1,
+                Arrays.asList("c9d297e7758bf5681270029401cc97c2"));
+        spec.disableShadowBCF();
+        executeTest("testSACSimpleDiploid", spec);
+    }
+
+    @Test
+    public void testSACDiploid() {
+        String testfile = privateTestDir + "diploid-multisample-sac.g.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -sn NA12891 -trimAlternates",
+                1,
+                Arrays.asList("7aecb079b16448f0377b6b03069b2994"));
+        spec.disableShadowBCF();
+        executeTest("testSACDiploid", spec);
+    }
+
+    @Test
+    public void testSACNonDiploid() {
+        String testfile = privateTestDir + "tetraploid-multisample-sac.g.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -sn NA12891 -trimAlternates",
+                1,
+                ReviewedGATKException.class);
+        spec.disableShadowBCF();
+        executeTest("testSACNonDiploid", spec);
     }
 }

@@ -317,10 +317,6 @@ public class GenotypeLikelihoodCalculators {
     public static GenotypeLikelihoodCalculator getInstance(final int ploidy,
                                                    final int alleleCount) {
         checkPloidyAndMaximumAllele(ploidy, alleleCount);
-        if (alleleCount < 0)
-            throw new IllegalArgumentException("the allele count cannot be negative");
-        if (ploidy < 0)
-            throw new IllegalArgumentException("the ploidy count cannot be negative");
 
         // Non-thread safe (fast) check on tables capacities,
         // if not enough capacity we expand the tables in a thread-safe manner:

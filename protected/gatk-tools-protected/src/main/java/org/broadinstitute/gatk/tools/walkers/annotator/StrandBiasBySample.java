@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import org.apache.log4j.Logger;
+import org.apache.commons.lang.StringUtils;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -99,7 +100,7 @@ import java.util.*;
 
 public class StrandBiasBySample extends GenotypeAnnotation {
     private final static Logger logger = Logger.getLogger(StrandBiasBySample.class);
-    boolean[] warningsLogged = new boolean[4];
+    private final boolean[] warningsLogged = new boolean[AnnotationUtils.WARNINGS_LOGGED_SIZE];
 
     @Override
     public void annotate(final RefMetaDataTracker tracker,
@@ -110,8 +111,7 @@ public class StrandBiasBySample extends GenotypeAnnotation {
                          final Genotype g,
                          final GenotypeBuilder gb,
                          final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-
-        if (!AnnotationUtils.isAppropriateInput(walker, alleleLikelihoodMap, g, warningsLogged, logger)) {
+        if (!AnnotationUtils.isAppropriateInput(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY, walker, alleleLikelihoodMap, g, warningsLogged, logger)) {
             return;
         }
 

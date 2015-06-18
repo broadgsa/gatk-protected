@@ -49,84 +49,51 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.annotator;
+package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.Genotype;
-import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFCodec;
 
-public class AnnotationUtils {
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-    public static final String ANNOTATION_HC_WARN_MSG = " annotation will not be calculated, must be called from HaplotyepCaller";
-    public static final int WARNINGS_LOGGED_SIZE = 3;
+public class VariantUtils {
 
     /**
-     * Checks if the input data is appropriate
+     * Returns a list of attribute values from a VCF file
      *
-     * @param annotation the input genotype annotation key name(s)
-     * @param walker input walker
-     * @param map input map for each read, holds underlying alleles represented by an aligned read, and corresponding relative likelihood.
-     * @param g input genotype
-     * @param warningsLogged array that enforces the warning is logged once for each caller
-     * @param logger logger specific for each caller
+     * @param vcfFile VCF file
+     * @param attributeName attribute name
      *
-     * @return true if the walker is a HaplotypeCaller, the likelihood map is non-null and the genotype is non-null and called, false otherwise
-     * @throws IllegalArgumentException if annotation, walker, g, warningsLogged, or logger are null.
-     * @throws ReviewedGATKException if the size of warningsLogged is less than 3.
+     * @throws IOException if the file does not exist or can not be opened
+     *
+     * @return list of attribute values
      */
-    public static boolean isAppropriateInput(final String annotation, final AnnotatorCompatible walker, final PerReadAlleleLikelihoodMap map, final Genotype g, final boolean[] warningsLogged, final Logger logger) {
+    public static List<String> getAttributeValues(final File vcfFile, final String attributeName) throws IOException {
+        final VCFCodec codec = new VCFCodec();
+        final FileInputStream s = new FileInputStream(vcfFile);
+        final LineIterator lineIteratorVCF = codec.makeSourceFromStream(new PositionalBufferedStream(s));
+        codec.readHeader(lineIteratorVCF);
 
-        if ( annotation == null ){
-            throw new IllegalArgumentException("The input annotation cannot be null");
-        }
+        List<String> attributeValues = new ArrayList<String>();
+        while (lineIteratorVCF.hasNext()) {
+            final String line = lineIteratorVCF.next();
+            final VariantContext vc = codec.decode(line);
 
-        if ( walker == null ) {
-            throw new IllegalArgumentException("The input walker cannot be null");
-        }
-
-        if ( g == null ) {
-            throw new IllegalArgumentException("The input genotype cannot be null");
-        }
-
-        if ( warningsLogged == null ){
-            throw new IllegalArgumentException("The input warnings logged cannot be null");
-        }
-
-        if ( logger == null ){
-            throw new IllegalArgumentException("The input logger cannot be null");
-        }
-
-        if ( warningsLogged.length < WARNINGS_LOGGED_SIZE ){
-            throw new ReviewedGATKException("Warnings logged array must have at least " + WARNINGS_LOGGED_SIZE + " elements, but has " + warningsLogged.length);
-        }
-
-        if ( !(walker instanceof HaplotypeCaller) ) {
-            if ( !warningsLogged[0] ) {
-                logger.warn(annotation + ANNOTATION_HC_WARN_MSG + ", not " + walker.getClass().getSimpleName());
-                warningsLogged[0] = true;
+            for (final Genotype g : vc.getGenotypes()) {
+                if (g.hasExtendedAttribute(attributeName)) {
+                    attributeValues.add((String) g.getExtendedAttribute(attributeName));
+                }
             }
-            return false;
         }
 
-        if ( map == null ){
-            if ( !warningsLogged[1] ) {
-                logger.warn("Annotation will not be calculated, can only be used with likelihood based annotations in the HaplotypeCaller");
-                warningsLogged[1] = true;
-            }
-            return false;
-        }
-
-        if ( !g.isCalled() ){
-            if ( !warningsLogged[2] ) {
-                logger.warn("Annotation will not be calculated, genotype is not called");
-                warningsLogged[2] = true;
-            }
-            return false;
-        }
-
-        return true;
+        s.close();
+        return attributeValues;
     }
 }

@@ -59,6 +59,7 @@ import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
+import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
@@ -90,7 +91,7 @@ public class ReferenceConfidenceVariantContextMerger {
     public static VariantContext merge(final List<VariantContext> VCs, final GenomeLoc loc, final Byte refBase, final boolean removeNonRefSymbolicAllele,
                                        final boolean samplesAreUniquified) {
         // this can happen if e.g. you are using a dbSNP file that spans a region with no gVCFs
-        if ( VCs == null || VCs.size() == 0 )
+        if ( VCs == null || VCs.isEmpty() )
             return null;
 
         // establish the baseline info (sometimes from the first VC)
@@ -134,7 +135,7 @@ public class ReferenceConfidenceVariantContextMerger {
             vcAndNewAllelePairs.add(new Pair<>(vc, isSpanningEvent ? replaceWithNoCallsAndDels(vc) : remapAlleles(vc, refAllele, finalAlleleSet)));
         }
 
-        // Add <DEL> and <NON_REF> to the end if at all required in in the output.
+        // Add <DEL> and <NON_REF> to the end if at all required in the output.
         if ( sawSpanningDeletion && (sawNonSpanningEvent || !removeNonRefSymbolicAllele) ) finalAlleleSet.add(Allele.SPAN_DEL);
         if (!removeNonRefSymbolicAllele) finalAlleleSet.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
 
@@ -349,44 +350,70 @@ public class ReferenceConfidenceVariantContextMerger {
      * This method assumes that none of the alleles in the VC overlaps with any of the alleles in the set.
      *
      * @param mergedGenotypes       the genotypes context to add to
-     * @param VC                    the Variant Context for the sample
+     * @param vc                    the Variant Context for the sample
      * @param remappedAlleles       the list of remapped alleles for the sample
      * @param targetAlleles         the list of target alleles
      * @param samplesAreUniquified  true if sample names have been uniquified
      */
     private static void mergeRefConfidenceGenotypes(final GenotypesContext mergedGenotypes,
-                                                    final VariantContext VC,
+                                                    final VariantContext vc,
                                                     final List<Allele> remappedAlleles,
                                                     final List<Allele> targetAlleles,
                                                     final boolean samplesAreUniquified) {
-        final int maximumPloidy = VC.getMaxPloidy(GATKVariantContextUtils.DEFAULT_PLOIDY);
+        final int maximumPloidy = vc.getMaxPloidy(GATKVariantContextUtils.DEFAULT_PLOIDY);
         // the map is different depending on the ploidy, so in order to keep this method flexible (mixed ploidies)
         // we need to get a map done (lazily inside the loop) for each ploidy, up to the maximum possible.
         final int[][] genotypeIndexMapsByPloidy = new int[maximumPloidy + 1][];
-        final int maximumAlleleCount = Math.max(remappedAlleles.size(),targetAlleles.size());
-        int[] perSampleIndexesOfRelevantAlleles;
+        final int maximumAlleleCount = Math.max(remappedAlleles.size(), targetAlleles.size());
 
-        for ( final Genotype g : VC.getGenotypes() ) {
+        for ( final Genotype g : vc.getGenotypes() ) {
             final String name;
             if (samplesAreUniquified)
-               name = g.getSampleName() + "." + VC.getSource();
+               name = g.getSampleName() + "." + vc.getSource();
             else
                name = g.getSampleName();
             final int ploidy = g.getPloidy();
             final GenotypeBuilder genotypeBuilder = new GenotypeBuilder(g).alleles(GATKVariantContextUtils.noCallAlleles(g.getPloidy()));
             genotypeBuilder.name(name);
-            if (g.hasPL()) {
-                // lazy initialization of the genotype index map by ploidy.
-                perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, VC.getStart(), g);
-                final int[] genotypeIndexMapByPloidy = genotypeIndexMapsByPloidy[ploidy] == null
-                            ? GenotypeLikelihoodCalculators.getInstance(ploidy, maximumAlleleCount).genotypeIndexMap(perSampleIndexesOfRelevantAlleles)
-                            : genotypeIndexMapsByPloidy[ploidy];
-                final int[] PLs = generatePL(g, genotypeIndexMapByPloidy);
-                final int[] AD = g.hasAD() ? generateAD(g.getAD(), perSampleIndexesOfRelevantAlleles) : null;
-                genotypeBuilder.PL(PLs).AD(AD);
+            final boolean hasPL = g.hasPL();
+            final boolean hasSAC = g.hasExtendedAttribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY);
+            if ( hasPL || hasSAC ) {
+                final int[] perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, vc.getStart(), g);
+                if (g.hasPL()) {
+                    // genotype index map by ploidy.
+                    final int[] genotypeIndexMapByPloidy = GenotypeLikelihoodCalculators.getInstance(ploidy, maximumAlleleCount).genotypeIndexMap(perSampleIndexesOfRelevantAlleles);
+                    final int[] PLs = generatePL(g, genotypeIndexMapByPloidy);
+                    final int[] AD = g.hasAD() ? generateAD(g.getAD(), perSampleIndexesOfRelevantAlleles) : null;
+                    genotypeBuilder.PL(PLs).AD(AD);
+                }
+                if (g.hasExtendedAttribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY)) {
+                    final List<Integer>  sacIndexesToUse = adaptToSACIndexes(perSampleIndexesOfRelevantAlleles);
+                    final int[] SACs = GATKVariantContextUtils.makeNewSACs(g, sacIndexesToUse);
+                    genotypeBuilder.attribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY, SACs);
+                }
             }
             mergedGenotypes.add(genotypeBuilder.make());
         }
+    }
+
+    /**
+     * Adapt the relevant alleles to the SAC indexes
+     *
+     * @param perSampleIndexesOfRelevantAlleles
+     * @return SAC indexes
+     */
+    private static List<Integer> adaptToSACIndexes(final int[] perSampleIndexesOfRelevantAlleles){
+        if ( perSampleIndexesOfRelevantAlleles == null )
+            throw new IllegalArgumentException("The per sample index of relevant alleles must not be null");
+
+        final List<Integer>  sacIndexesToUse = new ArrayList(2*perSampleIndexesOfRelevantAlleles.length);
+
+        for ( int item : perSampleIndexesOfRelevantAlleles ) {
+            sacIndexesToUse.add(new Integer(2*item));
+            sacIndexesToUse.add(new Integer(2*item+1));
+        }
+
+        return  sacIndexesToUse;
     }
 
     /**
@@ -412,7 +439,7 @@ public class ReferenceConfidenceVariantContextMerger {
     }
 
     /**
-     * Determines the allele mapping from myAlleles to the targetAlleles, substituting the generic "<ALT>" as appropriate.
+     * Determines the allele mapping from remappedAlleles to the targetAlleles, substituting the generic "<ALT>" as appropriate.
      * If the myAlleles set does not contain "<ALT>" as an allele, it throws an exception.
      *
      * @param remappedAlleles   the list of alleles to evaluate
@@ -423,8 +450,8 @@ public class ReferenceConfidenceVariantContextMerger {
      */
     protected static int[] getIndexesOfRelevantAlleles(final List<Allele> remappedAlleles, final List<Allele> targetAlleles, final int position, final Genotype g) {
 
-        if ( remappedAlleles == null || remappedAlleles.size() == 0 ) throw new IllegalArgumentException("The list of input alleles must not be null or empty");
-        if ( targetAlleles == null || targetAlleles.size() == 0 ) throw new IllegalArgumentException("The list of target alleles must not be null or empty");
+        if ( remappedAlleles == null || remappedAlleles.isEmpty() ) throw new IllegalArgumentException("The list of input alleles must not be null or empty");
+        if ( targetAlleles == null || targetAlleles.isEmpty() ) throw new IllegalArgumentException("The list of target alleles must not be null or empty");
 
         if ( !remappedAlleles.contains(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) )
             throw new UserException("The list of input alleles must contain " + GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE + " as an allele but that is not the case at position " + position + "; please use the Haplotype Caller with gVCF output to generate appropriate records");
