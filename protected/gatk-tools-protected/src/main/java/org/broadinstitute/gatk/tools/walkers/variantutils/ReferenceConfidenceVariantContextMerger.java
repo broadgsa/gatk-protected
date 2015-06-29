@@ -288,9 +288,14 @@ public class ReferenceConfidenceVariantContextMerger {
         for (final Allele a : vc.getAlternateAlleles()) {
             if (a.isSymbolic()) {
                 result.add(a);
-                // we always skip <NON_REF> when adding to finalAlleles; this is done outside if applies.
-                // we also skip <*DEL> if there isn't a real alternate allele.
+                // we always skip <NON_REF> when adding to finalAlleles; this is done outside if it applies.
+                // we also skip <*:DEL> if there isn't a real alternate allele.
                 if ( !a.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) && !vc.isSymbolic() )
+                    finalAlleles.add(a);
+            } else if ( a == Allele.SPAN_DEL ) {
+                result.add(a);
+                // we skip * if there isn't a real alternate allele.
+                if ( !vc.isBiallelic() )
                     finalAlleles.add(a);
             } else if (a.isCalled()) {
                 final Allele newAllele;
