@@ -502,4 +502,16 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testSpanningDeletionDoesNotGetGenotypedWithNoOtherAlleles", spec);
     }
+
+    @Test(enabled = true)
+    public void testGenotypingSpanningDeletionOverSpan() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
+                        " -V " + privateTestDir + "spanningDel.delOverSpan.1.g.vcf -V " +
+                        privateTestDir + "spanningDel.delOverSpan.2.g.vcf",
+                0,
+                Arrays.asList(""));     // we do not care about the md5; we just want to make sure it doesn't blow up with an error
+        spec.disableShadowBCF();
+        executeTest("testGenotypingSpanningDeletionOverSpan", spec);
+    }
 }
