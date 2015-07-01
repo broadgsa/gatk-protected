@@ -363,12 +363,16 @@ class PhasingUtils {
      *
      * @param gt1 genotype 1
      * @param gt2 genotype 2
-     * @return true if genotypes have the same number of chromosomes, haplotype, number of attributes
+     * @return true if genotypes have the same number of chromosomes, haplotype, phased, number of attributes
      * as chromosomes, and either genotype is homozygous, false otherwise
      */
     static boolean alleleSegregationIsKnown(Genotype gt1, Genotype gt2) {
         // If gt1 or gt2 do not have the same number of chromosomes, then can not be merged.
         if (gt1.getPloidy() != gt2.getPloidy())
+            return false;
+
+        // If gt1 or gt2 are not phased, then can not be merged.
+        if (!gt1.isPhased() || !gt2.isPhased())
             return false;
 
         // If gt1 or gt2 are homozygous, then could be merged.
