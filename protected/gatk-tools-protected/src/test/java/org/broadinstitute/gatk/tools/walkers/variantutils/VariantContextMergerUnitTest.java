@@ -95,7 +95,7 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         ATCATCT = Allele.create("ATCATCT");
         ATref = Allele.create("AT",true);
         Anoref = Allele.create("A",false);
-        del = GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE;
+        del = Allele.SPAN_DEL;
         GT = Allele.create("GT",false);
         genomeLocParser = new GenomeLocParser(new CachingIndexedFastaSequenceFile(new File(hg18Reference)));
     }

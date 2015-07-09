@@ -250,12 +250,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final GenomeLoc loc = genomeLocParser.createGenomeLoc(vc);
         final List<Allele> outputAlleles = outputAlternativeAlleles.outputAlleles(vc.getReference());
         final VariantContextBuilder builder = new VariantContextBuilder(callSourceString(), loc.getContig(), loc.getStart(), loc.getStop(), outputAlleles);
-
-        // Seems that when log10PError is 0.0, you must pass -0.0 to get a nice output at the other end otherwise is a "-0".
-        // Truth is that this should be fixed in the "variant" dependency code but perhaps it can be amended also in the VariantContextWriter.
-        //TODO Please remove this comment when this has been fixed (PT https://www.pivotaltracker.com/story/show/69492530)
-        //TODO and change the code below accordingly.
-        builder.log10PError(log10Confidence == 0.0 ? -0.0 : log10Confidence);
+        
+        builder.log10PError(log10Confidence);
         if ( ! passesCallThreshold(phredScaledConfidence) )
             builder.filter(GATKVCFConstants.LOW_QUAL_FILTER_NAME);
 
