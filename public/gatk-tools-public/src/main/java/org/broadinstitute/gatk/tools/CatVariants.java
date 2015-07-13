@@ -259,7 +259,6 @@ public class CatVariants extends CommandLineProgram {
                     continue;
                 }
                 VariantContext vc = it.next();
-                //int firstPosition = vc.getStart();
                 reader.close();
                 priorityQueue.add(new Pair<>(vc,file));
             }
@@ -324,18 +323,15 @@ public class CatVariants extends CommandLineProgram {
     	
     	VariantContextComparator comp;
     	
-    	public PositionComparator(SAMSequenceDictionary dict){
+    	public PositionComparator(final SAMSequenceDictionary dict){
     		comp = new VariantContextComparator(dict);
     	}
 
         @Override
-        public int compare(Pair<VariantContext,File> p1, Pair<VariantContext,File> p2) {
+        public int compare(final Pair<VariantContext,File> p1, final Pair<VariantContext,File> p2) {
             VariantContext startPositionP1 = p1.getFirst();
             VariantContext startPositionP2 = p2.getFirst();
             return comp.compare(startPositionP1, startPositionP2);
-            //if (startPositionP1  == startPositionP2)
-            //    return 0;
-            //return startPositionP1 < startPositionP2 ? -1 : 1 ;
         }
     }
 }
