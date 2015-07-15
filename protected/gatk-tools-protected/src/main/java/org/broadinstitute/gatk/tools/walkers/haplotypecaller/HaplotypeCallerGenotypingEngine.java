@@ -85,7 +85,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
-    private final boolean doPhysicalPhasing;
+    protected final boolean doPhysicalPhasing;
 
     private final GenotypingModel genotypingModel;
 

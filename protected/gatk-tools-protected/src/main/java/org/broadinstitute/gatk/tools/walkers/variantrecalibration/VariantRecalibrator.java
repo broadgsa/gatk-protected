@@ -99,7 +99,7 @@ import java.util.*;
  * as input, typically HapMap 3 sites and those sites found to be polymorphic on the Omni 2.5M SNP chip array (in humans). This adaptive
  * error model can then be applied to both known and novel variation discovered in the call set of interest to evaluate the
  * probability that each call is real. The score that gets added to the INFO field of each variant is called the VQSLOD. It is
- * the log odds ratio of being a true variant versus being false under the trained Gaussian mixture model.
+ * the log odds of being a true variant versus being false under the trained Gaussian mixture model.
  * </p>
  *
  * <p>VQSR is probably the hardest part of the Best Practices to get right, so be sure to read the

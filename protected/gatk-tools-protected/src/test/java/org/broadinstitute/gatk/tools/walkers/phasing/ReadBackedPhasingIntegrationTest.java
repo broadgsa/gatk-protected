@@ -138,7 +138,21 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                         + " -L chr20:332341-802503",
                 1,
                 Arrays.asList("ac41d1aa9c9a67c07d894f485c29c574"));
-        executeTest("Use trio-phased VCF, adding read-backed phasing infomration in HP tag (as is now standard for RBP) [TEST SEVEN]", spec);
+        executeTest("Use trio-phased VCF, adding read-backed phasing information in HP tag (as is now standard for RBP) [TEST SEVEN]", spec);
     }
 
+    @Test
+    public void testDoNotMergeUnphasedSNPs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T ReadBackedPhasing" +
+                " -R " + hg19Reference +
+                " -I " + privateTestDir + "S17C1-8.KRAS.bam" +
+                " --variant " + privateTestDir + "S17C1-8_bwa_mutect_filtered.vcf" +
+                "  --phaseQualityThresh 20.0 -enableMergeToMNP -maxDistMNP 3 -L 12:25398281-25398284" +
+                " -o %s" +
+                " --no_cmdline_in_header",
+                1,
+                Arrays.asList("59ee67d657ee955477bca94d07014ac3"));
+        executeTest("Do not merge unphased SNPs", spec);
+    }
 }
