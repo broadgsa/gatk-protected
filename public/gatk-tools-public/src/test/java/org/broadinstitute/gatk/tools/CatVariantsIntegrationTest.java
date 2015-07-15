@@ -27,7 +27,16 @@ package org.broadinstitute.gatk.tools;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.IndexFactory;
 import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 import htsjdk.tribble.AbstractFeatureReader;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+
 import org.apache.commons.lang.StringUtils;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.BaseTest;
@@ -46,6 +55,8 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -169,6 +180,94 @@ public class CatVariantsIntegrationTest {
         pc.execAndCheck(ps);
     }
 
+    @DataProvider(name = "SortingTest")
+    public Object[][] makeVariantSortingTestProvider() {
+    	// Make all of our variants REF==A and ALT==T
+    	Allele Aref = Allele.create("A", true);
+    	Allele Talt = Allele.create("T");
+    	List<Allele> varAlleles = Arrays.asList(Aref, Talt);
+    	
+    	// First, let's make a couple of variants
+    	VariantContext vc1_10 = new VariantContextBuilder("Source", "1", 10, 10, varAlleles).make();
+    	VariantContext vc1_30 = new VariantContextBuilder("Source", "1", 30, 30, varAlleles).make();
+    	VariantContext vc2_20 = new VariantContextBuilder("Source", "2", 20, 20, varAlleles).make();
+    	
+    	File vc1_10_fn = BaseTest.createTempFile("CatVariantsSortingTest1", "vcf");
+    	File vc1_30_fn = BaseTest.createTempFile("CatVariantsSortingTest1", "vcf");
+    	File vc2_20_fn = BaseTest.createTempFile("CatVariantsSortingTest1", "vcf");
+    	
+    	// And now, write exactly one variant per file
+    	VariantContextWriterBuilder builder = new VariantContextWriterBuilder();
+
+    	VCFHeader stdHeader = VCFStandardHeaderLines.repairStandardHeaderLines(new VCFHeader());
+    	
+        VariantContextWriter vc1_10_w = builder
+            .setOutputFile(vc1_10_fn)
+            .build();
+        vc1_10_w.writeHeader(stdHeader);
+        vc1_10_w.add(vc1_10);
+        vc1_10_w.close();
+       
+        VariantContextWriter vc1_30_w = builder
+            .setOutputFile(vc1_30_fn)
+            .build();
+        vc1_30_w.writeHeader(stdHeader);
+        vc1_30_w.add(vc1_30);
+        vc1_30_w.close();
+       
+        VariantContextWriter vc2_20_w = builder
+            .setOutputFile(vc2_20_fn)
+            .build();
+        vc2_20_w.writeHeader(stdHeader);
+        vc2_20_w.add(vc2_20);
+        vc2_20_w.close();
+    	
+    	// and return them in an unsorted order to make sure the sorting works as advertised
+    	return new Object[][]{ 
+    			{Arrays.asList(vc1_30_fn, vc2_20_fn, vc1_10_fn), 
+    		     Arrays.asList(vc1_10, vc1_30, vc2_20) } 
+    		};        
+    }
+    
+    @Test(dataProvider = "SortingTest")    
+    public void testVariantSorting(final List<File> fileInput, final List<VariantContext> sortedVariants) throws IOException {
+        String inputCmd = "-V " + StringUtils.join(fileInput, " -V ");
+        
+        File combinedFile = BaseTest.createTempFile("CatVariantsSortingTestCombo", ".vcf"); 
+        	
+        String cmdLine = String.format("java -cp \"%s\" %s -R %s %s -out %s",
+                StringUtils.join(RuntimeUtils.getAbsoluteClassPaths(), File.pathSeparatorChar),
+                CatVariants.class.getCanonicalName(),
+                BaseTest.b37KGReference,
+                inputCmd,
+                combinedFile);
+
+        ProcessController pc = ProcessController.getThreadLocal();
+        ProcessSettings ps = new ProcessSettings(Utils.escapeExpressions(cmdLine));
+        pc.execAndCheck(ps);
+	
+        // Now, we need to check and ensure that the chromosome and position of 
+        // each variant read in the combined file is exactly what we expect in 
+        // the sortedVariants input
+        VCFFileReader comboReader = new VCFFileReader(combinedFile);
+        Iterator<VariantContext> sortedIter = sortedVariants.iterator();
+        for(VariantContext vc : comboReader){
+        	// we should have the same number of variants in the combined file
+        	// as the list passed to us
+        	Assert.assertTrue(sortedIter.hasNext());
+        	VariantContext nextSortvc = sortedIter.next();
+        	
+        	// we should get the same contig and start position for each
+        	// variant read!
+        	Assert.assertEquals(vc.getContig(), nextSortvc.getContig());
+        	Assert.assertEquals(vc.getStart(), nextSortvc.getStart());
+        }
+        
+        // finally, we should NOT have any variants left in the sortedVariants list
+        Assert.assertFalse(sortedIter.hasNext());
+                
+    }
+    
     //
     //
     // IndexCreator tests
