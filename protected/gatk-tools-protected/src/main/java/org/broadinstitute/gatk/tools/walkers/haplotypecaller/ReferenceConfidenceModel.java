@@ -491,20 +491,12 @@ public class ReferenceConfidenceModel {
         // consider each indel size up to max in term, checking if an indel that deletes either the ref bases (deletion
         // or read bases (insertion) would fit as well as the origin baseline sum of mismatching quality scores
         for ( int indelSize = 1; indelSize <= maxIndelSize; indelSize++ ) {
-            for ( final boolean checkInsertion : Arrays.asList(true, false) ) {
-                final int readI, refI;
-                if ( checkInsertion ) {
-                    readI = readStart + indelSize;
-                    refI = refStart;
-                } else {
-                    readI = readStart;
-                    refI = refStart + indelSize;
-                }
-
-                final int score = sumMismatchingQualities(readBases, readQuals, readI, refBases, refI, baselineMMSum);
-                if ( score <= baselineMMSum )
-                    return false;
-            }
+            // check insertions:
+            if (sumMismatchingQualities(readBases, readQuals, readStart + indelSize, refBases, refStart, baselineMMSum) <= baselineMMSum)
+                return false;
+            // check deletions:
+            if (sumMismatchingQualities(readBases, readQuals, readStart, refBases, refStart + indelSize, baselineMMSum) <= baselineMMSum)
+                return false;
         }
 
         return true;
