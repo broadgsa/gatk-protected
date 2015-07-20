@@ -62,8 +62,7 @@ import java.util.Random;
  *
  * @author Valentin Ruano-Rubio &lt;valentin@broadinstitute.org&gt;
  */
-public class
-        RandomDNA {
+public class RandomDNA {
 
     private Random random;
 
@@ -124,6 +123,22 @@ public class
                 case 3: destination[i] = 'T'; break;
                 default: throw new IllegalStateException("this cannot be happening!!!");
             }
+        }
+    }
+
+    /**
+     * Returns a single random base.
+     * @return any of 'A', 'C', 'G' or 'T'.
+     */
+    public byte nextBase() {
+        final int index = random.nextInt(4);
+        switch (index) {
+            case 0: return 'A';
+            case 1: return 'C';
+            case 2: return 'G';
+            case 3: return 'T';
+            default:
+                throw new IllegalStateException("this cannot be happening!!!");
         }
     }
 
