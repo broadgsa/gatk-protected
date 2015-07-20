@@ -118,7 +118,9 @@ import java.util.*;
  *         remain in mendelian violation after being assigned the most likely genotype combination will be reported
  *         there. Information reported: chromosome, position, filter, allele count in VCF, family, transmission
  *         probability, and each individual genotype, depth, allelic depth and likelihoods.</li>
- *         <li>DeNovoPrior: Mutation prio; default is 1e-8</li>
+ *         <li>DeNovoPrior: Prior probability of de novo mutations. The default value of 1e-8 is fairly stringent, so if
+ *         you are interested in maximizing sensitivity at the expense of specificity (i.e. are ok with seeing some false
+ *         positives as long as all true positives are detected) you will need to relax this value.</li>
  *     </ul>
  *
  * <h3>Output</h3>
