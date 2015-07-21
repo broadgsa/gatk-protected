@@ -52,7 +52,6 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading;
 
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.KMerCounter;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.Kmer;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.graphs.*;
 import org.broadinstitute.gatk.utils.BaseUtils;
@@ -442,14 +441,17 @@ public class ReadThreadingGraph extends DanglingChainMergingGraph implements Kme
      */
     static protected Collection<Kmer> determineNonUniqueKmers(final SequenceForKmers seqForKmers, final int kmerSize) {
         // count up occurrences of kmers within each read
-        final KMerCounter counter = new KMerCounter(kmerSize);
+
         final int stopPosition = seqForKmers.stop - kmerSize;
+        final Set<Kmer> result = new LinkedHashSet<>(stopPosition + 1);
+        final Set<Kmer> allKmers = new HashSet<>(stopPosition + 1);
         for ( int i = 0; i <= stopPosition; i++ ) {
             final Kmer kmer = new Kmer(seqForKmers.sequence, i, kmerSize);
-            counter.addKmer(kmer, 1);
+            if (!allKmers.add(kmer)) {
+                result.add(kmer);
+            }
         }
-
-        return counter.getKmersWithCountsAtLeast(2);
+        return result;
     }
 
     @Override

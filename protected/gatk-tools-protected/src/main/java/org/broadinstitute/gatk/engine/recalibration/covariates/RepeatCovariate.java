@@ -113,6 +113,11 @@ public abstract class RepeatCovariate implements ExperimentalCovariate {
 
     }
 
+    /**
+     * Please use {@link org.broadinstitute.gatk.utils.variant.TandemRepeatFinder#findMostRelevantTandemRepeatUnitAt(int)}
+     * @deprecated
+     */
+    @Deprecated
     public Pair<byte[], Integer> findTandemRepeatUnits(byte[] readBases, int offset) {
         int maxBW = 0;
         byte[] bestBWRepeatUnit = new byte[]{readBases[offset]};

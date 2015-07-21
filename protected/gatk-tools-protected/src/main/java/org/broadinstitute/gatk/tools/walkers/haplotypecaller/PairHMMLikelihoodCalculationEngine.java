@@ -56,18 +56,17 @@ import com.google.java.contract.Requires;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.utils.genotyper.AlleleList;
-import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
-import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pairhmm.*;
-import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatCovariate;
-import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.TandemRepeatFinder;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -428,14 +427,11 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
     protected static final int MIN_ADJUSTED_QSCORE = 10;
     protected static final double INITIAL_QSCORE = 40.0;
 
-    private byte[] pcrIndelErrorModelCache = new byte[MAX_REPEAT_LENGTH * MAX_STR_UNIT_LENGTH + 1];
-    private final RepeatCovariate repeatCovariate = new RepeatLengthCovariate();
+    private byte[] pcrIndelErrorModelCache = null;
 
     private void initializePCRErrorModel() {
         if ( pcrErrorModel == PCR_ERROR_MODEL.NONE || !pcrErrorModel.hasRateFactor() )
             return;
-
-        repeatCovariate.initialize(MAX_STR_UNIT_LENGTH, MAX_REPEAT_LENGTH);
 
         pcrIndelErrorModelCache = new byte[MAX_REPEAT_LENGTH + 1];
 
@@ -449,12 +445,15 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
         return (byte) Math.max(MIN_ADJUSTED_QSCORE, MathUtils.fastRound( INITIAL_QSCORE - Math.exp(((double) repeatLength) / (rateFactor * Math.PI)) + 1.0 ));
     }
 
-    protected void applyPCRErrorModel( final byte[] readBases, final byte[] readInsQuals, final byte[] readDelQuals ) {
+
+
+    protected void applyPCRErrorModel(final byte[] readBases, final byte[] readInsQuals, final byte[] readDelQuals ) {
         if ( pcrErrorModel == PCR_ERROR_MODEL.NONE )
             return;
 
+        final TandemRepeatFinder repeatFinder = new TandemRepeatFinder(readBases, MAX_STR_UNIT_LENGTH, MAX_REPEAT_LENGTH);
         for ( int iii = 1; iii < readBases.length; iii++ ) {
-            final int repeatLength = repeatCovariate.findTandemRepeatUnits(readBases, iii-1).getSecond();
+            final int repeatLength = repeatFinder.findMostRelevantTandemRepeatUnitAt(iii - 1).getRepeatCount();
             readInsQuals[iii-1] = (byte) Math.min(0xff & readInsQuals[iii-1], 0xff & pcrIndelErrorModelCache[repeatLength]);
             readDelQuals[iii-1] = (byte) Math.min(0xff & readDelQuals[iii-1], 0xff & pcrIndelErrorModelCache[repeatLength]);
         }
