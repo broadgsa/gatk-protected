@@ -196,7 +196,7 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
 
     /**
      * Supporting external panels. Allele counts from these panels (taken from AC,AN or MLEAC,AN or raw genotypes) will
-     * be used to inform the frequency distribution underying the genotype priors.
+     * be used to inform the frequency distribution underying the genotype priors. These files must be VCF 4.2 spec or later.
      */
     @Input(fullName="supporting", shortName = "supporting", doc="Other callsets to use in generating genotype posteriors", required=false)
     public List<RodBinding<VariantContext>> supportVariants = new ArrayList<>();
