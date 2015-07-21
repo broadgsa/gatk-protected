@@ -76,11 +76,6 @@ import java.util.*;
  *
  * <p>A tandem repeat unit is composed of one or more nucleotides that are repeated multiple times in series. Repetitive sequences are difficult to map to the reference because they are associated with multiple alignment possibilities. Knowing the number of repeat units in a set of tandem repeats tells you the number of different positions the tandem repeat can be placed in. The observation of many tandem repeat units multiplies the number of possible representations that can be made of the region.
  *
- * <h3>Caveat</h3>
- * <ul>
- *     <li>This annotation is currently not compatible with HaplotypeCaller.</li>
- * </ul>
- *
  */
 public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardUGAnnotation, ActiveRegionBasedAnnotation {
     private final static Logger logger = Logger.getLogger(TandemRepeatAnnotator.class);
