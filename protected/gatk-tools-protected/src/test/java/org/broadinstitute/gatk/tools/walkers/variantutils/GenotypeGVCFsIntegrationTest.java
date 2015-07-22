@@ -514,4 +514,15 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testGenotypingSpanningDeletionOverSpan", spec);
     }
+
+    @Test(enabled = true)
+    public void testBadADPropagationHaploidBugTest() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
+                " -V " + privateTestDir + "ad-bug-input.vcf",
+                1,
+                Arrays.asList("ba04d9401d330ed8e31fdacc8b720d12"));
+        spec.disableShadowBCF();
+        executeTest("testBadADPropagationHaploidBugTest", spec);
+    }
 }
