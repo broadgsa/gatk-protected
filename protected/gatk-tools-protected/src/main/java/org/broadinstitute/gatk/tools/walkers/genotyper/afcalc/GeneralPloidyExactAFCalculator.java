@@ -66,9 +66,6 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
 
     static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 100; // if PL vectors longer than this # of elements, don't log them
 
-
-    private final static boolean VERBOSE = false;
-
     protected GeneralPloidyExactAFCalculator() {
     }
 
@@ -229,9 +226,6 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
 
             // clean up memory
             indexesToACset.remove(ACset.getACcounts());
-            if ( VERBOSE )
-                System.out.printf(" *** removing used set=%s%n", ACset.getACcounts());
-
         }
         return newPool;
     }
@@ -300,68 +294,6 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
         return log10LofK;
     }
 
-
-//    /**
-//     * Naive combiner of two multiallelic pools - number of alt alleles must be the same.
-//     * Math is generalization of biallelic combiner.
-//     *
-//     * For vector K representing an allele count conformation,
-//     * Pr(D | AC = K) = Sum_G Pr(D|AC1 = G) Pr (D|AC2=K-G) * F(G,K)
-//     * where F(G,K) = choose(m1,[g0 g1 ...])*choose(m2,[...]) / choose(m1+m2,[k1 k2 ...])
-//     * @param originalPool                    First log-likelihood pool GL vector
-//     * @param yy                    Second pool GL vector
-//     * @param ploidy1               Ploidy of first pool (# of chromosomes in it)
-//     * @param ploidy2               Ploidy of second pool
-//     * @param numAlleles            Number of alleles
-//     * @param log10AlleleFrequencyPriors Array of biallelic priors
-//     * @param resultTracker                Af calculation result object
-//     */
-//    public static void combineMultiallelicPoolNaively(CombinedPoolLikelihoods originalPool, double[] yy, int ploidy1, int ploidy2, int numAlleles,
-//                                                      final double[] log10AlleleFrequencyPriors,
-//                                                      final AFCalcResultTracker resultTracker) {
-///*
-//        final int dim1 = GenotypeLikelihoods.numLikelihoods(numAlleles, ploidy1);
-//        final int dim2 = GenotypeLikelihoods.numLikelihoods(numAlleles, ploidy2);
-//
-//        if (dim1 != originalPool.getLength() || dim2 != yy.length)
-//            throw new ReviewedGATKException("BUG: Inconsistent vector length");
-//
-//        if (ploidy2 == 0)
-//            return;
-//
-//        final int newPloidy = ploidy1 + ploidy2;
-//
-//        // Say L1(K) = Pr(D|AC1=K) * choose(m1,K)
-//        // and L2(K) = Pr(D|AC2=K) * choose(m2,K)
-//        GeneralPloidyGenotypeLikelihoods.SumIterator firstIterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(numAlleles,ploidy1);
-//        final double[] x = originalPool.getLikelihoodsAsVector(true);
-//        while(firstIterator.hasNext()) {
-//            x[firstIterator.getLinearIndex()] += MathUtils.log10MultinomialCoefficient(ploidy1,firstIterator.getCurrentVector());
-//            firstIterator.next();
-//        }
-//
-//        GeneralPloidyGenotypeLikelihoods.SumIterator secondIterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(numAlleles,ploidy2);
-//        final double[] y = yy.clone();
-//        while(secondIterator.hasNext()) {
-//            y[secondIterator.getLinearIndex()] += MathUtils.log10MultinomialCoefficient(ploidy2,secondIterator.getCurrentVector());
-//            secondIterator.next();
-//        }
-//
-//        // initialize output to -log10(choose(m1+m2,[k1 k2...])
-//        final int outputDim = GenotypeLikelihoods.numLikelihoods(numAlleles, newPloidy);
-//        final GeneralPloidyGenotypeLikelihoods.SumIterator outputIterator = new GeneralPloidyGenotypeLikelihoods.SumIterator(numAlleles,newPloidy);
-//
-//
-//        // Now, result(K) =  logSum_G (L1(G)+L2(K-G)) where G are all possible vectors that sum UP to K
-//        while(outputIterator.hasNext()) {
-//            final ExactACset set = new ExactACset(1, new ExactACcounts(outputIterator.getCurrentAltVector()));
-//            double likelihood = computeLofK(set, x,y, log10AlleleFrequencyPriors, numAlleles, ploidy1, ploidy2, result);
-//
-//            originalPool.add(likelihood, set, outputIterator.getLinearIndex());
-//            outputIterator.next();
-//        }
-//*/
-//    }
 
     /**
      * Compute likelihood of a particular AC conformation and update AFresult object
@@ -479,8 +411,9 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
      *                                          for a sample.
      * @param allelesToUse                      alleles to subset
      * @param assignGenotypes                   true: assign hard genotypes, false: leave as no-call
-     * @return                                  GenotypesContext with new PLs
+     * @return                                  GenotypesContext with new PLs and AD.
      */
+    @Override
     public GenotypesContext subsetAlleles(final VariantContext vc, final int defaultPloidy,
                                           final List<Allele> allelesToUse,
                                           final boolean assignGenotypes) {
@@ -544,8 +477,7 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
             }
         }
 
-        return newGTs;
-
+        return GATKVariantContextUtils.fixADFromSubsettedAlleles(newGTs, vc, allelesToUse);
     }
 
     /**
