@@ -665,7 +665,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 1,
                 Arrays.asList("35921fb2dedca0ead83027a66b725794"));
 
-        executeTest("testMendelianViolationSelection--" + testFile, spec);
+        executeTest("testInvertMendelianViolationSelection--" + testFile, spec);
     }
 
     @Test
