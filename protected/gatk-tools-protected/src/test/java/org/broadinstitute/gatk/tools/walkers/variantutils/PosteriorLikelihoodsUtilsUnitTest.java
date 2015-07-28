@@ -134,7 +134,7 @@ public class PosteriorLikelihoodsUtilsUnitTest extends BaseTest {
     private VariantContext makeVC(String source, List<Allele> alleles, Genotype... genotypes) {
         int start = 10;
         int stop = start; // alleles.contains(ATC) ? start + 3 : start;
-        return new VariantContextBuilder(source, "1", start, stop, alleles).genotypes(Arrays.asList(genotypes)).filters(null).make();
+        return new VariantContextBuilder(source, "1", start, stop, alleles).genotypes(Arrays.asList(genotypes)).filters((String)null).make();
     }
 
     @Test
