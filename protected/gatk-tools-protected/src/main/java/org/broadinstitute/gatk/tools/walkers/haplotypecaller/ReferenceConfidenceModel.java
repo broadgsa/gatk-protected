@@ -97,7 +97,26 @@ public class ReferenceConfidenceModel {
     private final static boolean WRITE_DEBUGGING_BAM = false;
     private final SAMFileWriter debuggingWriter;
 
-    private final static byte REF_MODEL_DELETION_QUAL = (byte) 30;
+    /**
+     * Surrogate quality score for no base calls.
+     * <p>
+     * This is the quality assigned to deletion (so without its own base-call quality) pile-up elements,
+     * when assessing the confidence on the hom-ref call at that site.
+     * </p>
+     */
+    private final static byte REF_MODEL_DELETION_QUAL = 30;
+
+    /**
+     * Base calls with quality threshold lower than this number won't be considered when assessing the
+     * confidence on the hom-ref call.
+     */
+    private final static byte BASE_QUAL_THRESHOLD = 6;
+
+    /**
+     * Only base calls with quality strictly greater than this constant,
+     * will be considered high quality if they are part of a soft-clip.
+     */
+    private final static byte HQ_BASE_QUALITY_SOFTCLIP_THRESHOLD = 28;
 
     /**
      * Create a new ReferenceConfidenceModel
@@ -146,7 +165,6 @@ public class ReferenceConfidenceModel {
     public void close() {
         if ( debuggingWriter != null ) debuggingWriter.close();
     }
-
 
     /**
      * Calculate the reference confidence for a single sample given the its read data
@@ -209,7 +227,7 @@ public class ReferenceConfidenceModel {
                 // Assume infinite population on a single sample.
                 final int refOffset = offset + globalRefOffset;
                 final byte refBase = ref[refOffset];
-                final RefVsAnyResult homRefCalc = calcGenotypeLikelihoodsOfRefVsAny(ploidy, pileup, refBase, (byte)6, null);
+                final RefVsAnyResult homRefCalc = calcGenotypeLikelihoodsOfRefVsAny(ploidy, pileup, refBase, BASE_QUAL_THRESHOLD, null);
                 homRefCalc.capByHomRefLikelihood();
 
                 final Allele refAllele = Allele.create(refBase, true);
@@ -269,7 +287,26 @@ public class ReferenceConfidenceModel {
     protected static final int MAX_N_INDEL_INFORMATIVE_READS = 40; // more than this is overkill because GQs are capped at 99 anyway
     private static final int INITIAL_INDEL_LK_CACHE_PLOIDY_CAPACITY = 20;
     private static GenotypeLikelihoods[][] indelPLCache = new GenotypeLikelihoods[INITIAL_INDEL_LK_CACHE_PLOIDY_CAPACITY + 1][];
+
+    /**
+     * Indel error rate for the indel model used to assess the confidence on the hom-ref call.
+     */
     private static final double INDEL_ERROR_RATE = -4.5; // 10^-4.5 indel errors per bp
+
+    /**
+     * Phred scaled qual value that corresponds to the {@link #INDEL_ERROR_RATE indel error rate}.
+     */
+    private static final byte INDEL_QUAL = (byte) Math.round((INDEL_ERROR_RATE * -10.0));
+
+    /**
+     * No indel likelihood (ref allele) used in the indel model to assess the confidence on the hom-ref call.
+     */
+    private static final double NO_INDEL_LIKELIHOOD = QualityUtils.qualToProbLog10(INDEL_QUAL);
+
+    /**
+     * Indel likelihood (alt. allele) used in the indel model to assess the confidence on the hom-ref call.
+     */
+    private static final double INDEL_LIKELIHOOD = QualityUtils.qualToErrorProbLog10(INDEL_QUAL);
 
     private final GenotypeLikelihoods indelPLCache(final int ploidy, final int nInformativeReads) {
         return initializeIndelPLCache(ploidy)[nInformativeReads];
@@ -287,14 +324,11 @@ public class ReferenceConfidenceModel {
         final GenotypeLikelihoods[] result = new GenotypeLikelihoods[MAX_N_INDEL_INFORMATIVE_READS + 1];
         result[0] = GenotypeLikelihoods.fromLog10Likelihoods(new double[ploidy + 1]);
         for( int nInformativeReads = 1; nInformativeReads <= MAX_N_INDEL_INFORMATIVE_READS; nInformativeReads++ ) {
-            final byte indelQual = (byte) Math.round((INDEL_ERROR_RATE * -10));
-            final double refLikelihood = QualityUtils.qualToProbLog10(indelQual);
-            final double altLikelihood = QualityUtils.qualToErrorProbLog10(indelQual);
             double[] PLs = new double[ploidy + 1];
-            PLs[0] = nInformativeReads * refLikelihood;
+            PLs[0] = nInformativeReads * NO_INDEL_LIKELIHOOD;
             for (int altCount = 1; altCount <= ploidy; altCount++) {
-                final double refLikelihoodAccum = refLikelihood + MathUtils.Log10Cache.get(ploidy - altCount);
-                final double altLikelihoodAccum = altLikelihood + MathUtils.Log10Cache.get(altCount);
+                final double refLikelihoodAccum = NO_INDEL_LIKELIHOOD + MathUtils.Log10Cache.get(ploidy - altCount);
+                final double altLikelihoodAccum = INDEL_LIKELIHOOD + MathUtils.Log10Cache.get(altCount);
                 PLs[altCount] = nInformativeReads * (MathUtils.approximateLog10SumLog10(refLikelihoodAccum ,altLikelihoodAccum) + denominator);
             }
             result[nInformativeReads] = GenotypeLikelihoods.fromLog10Likelihoods(PLs);
@@ -361,7 +395,7 @@ public class ReferenceConfidenceModel {
                             referenceLikelihood + MathUtils.Log10Cache.get(j),
                             nonRefLikelihood + MathUtils.Log10Cache.get(i));
         if (isAlt && hqSoftClips != null && element.isNextToSoftClip())
-            hqSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(element.getRead(), (byte) 28));
+            hqSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(element.getRead(), HQ_BASE_QUALITY_SOFTCLIP_THRESHOLD));
     }
 
     /**
