@@ -480,8 +480,39 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private byte MIN_TAIL_QUALITY;
     private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
 
-    // the minimum length of a read we'd consider using for genotyping
-    private final static int MIN_READ_LENGTH = 10;
+    /**
+     * Minimum (exclusive) average number of high quality bases per soft-clip to consider that a set of soft-clips is a
+     * high quality set.
+     */
+    private static final double AVERAGE_HQ_SOFTCLIPS_HQ_BASES_THRESHOLD = 6.0;
+
+    /**
+     * Maximum-mininum confidence on a variant to exist to consider the position as a potential variant harbouring locus
+     * when looking for active regions.
+     */
+    private static final double MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY = 4.0;
+
+    /**
+     * Minimum ploidy assumed when looking for loci that may harbour variation to identify active regions.
+     * <p>
+     * By default we take the putative ploidy provided by the user, but this turned out to be too insensitive
+     * for low ploidy, notoriously with haploid samples. Therefore we impose this minimum.
+     * </p>
+     */
+    private static final int MINIMUM_PUTATIVE_PLOIDY_FOR_ACTIVE_REGION_DISCOVERY = 2;
+
+
+    /**
+     * Reads with length lower than this number, after clipping off overhands outside the active region,
+     * won't be considered for genotyping.
+     */
+    private final static int READ_LENGTH_FILTER_THRESHOLD = 10;
+
+    /**
+     * Reads with mapping quality lower than this number won't be considered for genotyping, even if they have
+     * passed earlier filters (e.g. the walkers' own min MQ filter).
+     */
+    private static final int READ_QUALITY_FILTER_THRESHOLD = 20;
 
     private SampleList samplesList;
 
@@ -569,14 +600,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final UnifiedArgumentCollection simpleUAC = HCAC.cloneTo(UnifiedArgumentCollection.class);
         simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
         simpleUAC.genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
-        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
-        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = Math.min(MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min(MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
         // Seems that at least with some test data we can lose genuine haploid variation if we use
         // UGs engine with ploidy == 1
-        simpleUAC.genotypeArgs.samplePloidy = Math.max(2, HCAC.genotypeArgs.samplePloidy);
+        simpleUAC.genotypeArgs.samplePloidy = Math.max(MINIMUM_PUTATIVE_PLOIDY_FOR_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.samplePloidy);
 
         activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(simpleUAC,
                 FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(),simpleUAC,logger), toolkit);
@@ -783,7 +814,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final VariantCallContext vcOut = activeRegionEvaluationGenotyperEngine.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.SNP);
         final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
 
-        return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
+        return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > AVERAGE_HQ_SOFTCLIPS_HQ_BASES_THRESHOLD ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -1138,7 +1169,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private Set<GATKSAMRecord> filterNonPassingReads( final ActiveRegion activeRegion ) {
         final Set<GATKSAMRecord> readsToRemove = new LinkedHashSet<>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
-            if( rec.getReadLength() < MIN_READ_LENGTH || rec.getMappingQuality() < 20 || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
+            if( rec.getReadLength() < READ_LENGTH_FILTER_THRESHOLD || rec.getMappingQuality() < READ_QUALITY_FILTER_THRESHOLD || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
                 readsToRemove.add(rec);
             }
         }
