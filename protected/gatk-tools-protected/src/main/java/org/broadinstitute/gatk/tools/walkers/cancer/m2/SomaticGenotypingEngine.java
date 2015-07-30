@@ -78,12 +78,16 @@ import java.util.*;
 public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
 
     protected M2ArgumentCollection MTAC;
+    private TumorPowerCalculator strandArtifactPowerCalculator;
 
     private final static Logger logger = Logger.getLogger(SomaticGenotypingEngine.class);
 
     public SomaticGenotypingEngine(final M2ArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doPhysicalPhasing, final M2ArgumentCollection MTAC) {
         super(configuration, samples, genomeLocParser, afCalculatorProvider, doPhysicalPhasing);
         this.MTAC = MTAC;
+        // coverage related initialization
+        double powerConstantEps = Math.pow(10, -1 * (MTAC.POWER_CONSTANT_QSCORE/10));
+        strandArtifactPowerCalculator = new TumorPowerCalculator(powerConstantEps, MTAC.STRAND_ARTIFACT_LOD_THRESHOLD, 0.0f);
     }
 
     /**
@@ -224,6 +228,17 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
 
                 double[] tumorGLs = getVariableGenotypeLikelihoods(mergedVC, tumorPRALM, originalNormalReadQualities, afs);
 
+                PerReadAlleleLikelihoodMap forwardPRALM = new PerReadAlleleLikelihoodMap();
+                PerReadAlleleLikelihoodMap reversePRALM = new PerReadAlleleLikelihoodMap();
+                splitPRALMintoForwardAndReverseReads(tumorPRALM, forwardPRALM, reversePRALM);
+
+                // TODO: TS uncomment and fix
+//                double f_fwd = estimateAlleleFraction(mergedVC, forwardPRALM);
+//                double[] tumorGLs_fwd = getVariableGenotypeLikelihoods(mergedVC, forwardPRALM, f_fwd);
+//
+//                double f_rev = estimateAlleleFraction(mergedVC, reversePRALM);
+//                double[] tumorGLs_rev = getVariableGenotypeLikelihoods(mergedVC, reversePRALM, f_rev);
+
                 PerReadAlleleLikelihoodMap normalPRALM = null;
                 double[] normalGLs = null;
                 if (hasNormal) {
@@ -253,6 +268,12 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
 
                 double[] normalLods = new double[numAlts];
 
+                // TODO: TS extend fwd-rev approach for multiple alt alleles
+//                int REF = 0, HET = 1;
+//                double tumorLod = tumorGLs[HET] - tumorGLs[REF];
+//                double tumorLod_fwd = tumorGLs_fwd[HET] - tumorGLs_fwd[REF];
+//                double tumorLod_rev = tumorGLs_rev[HET] - tumorGLs_rev[REF];
+//                double normalLod = 0;
                 if (hasNormal) {
                     GenomeLoc eventGenomeLoc = genomeLocParser.createGenomeLoc(activeRegionWindow.getContig(), loc);
                     Collection<VariantContext> cosmicVC = tracker.getValues(cosmicRod, eventGenomeLoc);
@@ -277,8 +298,26 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                     }
                 }
 
+                // TS: if more than one passing alt alleles, filter it out, so doesn't matter which one we pick
+
                 final double tumorLod = tumorLods[lodInd];
                 final double normalLod = normalLods[lodInd];
+
+                double tumorSBpower_fwd;
+                double tumorSBpower_rev;
+
+                // TODO: TS fix
+//                try {
+//                    tumorSBpower_fwd = strandArtifactPowerCalculator.cachingPowerCalculation(forwardPRALM.getNumberOfStoredElements(), f_fwd);
+//                    tumorSBpower_rev = strandArtifactPowerCalculator.cachingPowerCalculation(reversePRALM.getNumberOfStoredElements(), f_rev);
+//                }
+//                catch (Throwable t) {
+//                    System.err.println("Error processing " + activeRegionWindow.getContig() + ":" + loc);
+//                    t.printStackTrace(System.err);
+//
+//                    throw new RuntimeException(t);
+//                }
+
 
                 VariantContext call = null;
                 if (tumorLod >= MTAC.INITIAL_TUMOR_LOD_THRESHOLD && normalLod >= INIT_NORMAL_LOD_THRESHOLD) {
@@ -289,6 +328,20 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                     }
 
                     int haplotypeCount = alleleMapper.get(mergedVC.getAlternateAllele(lodInd)).size();
+                    // TODO: TS revisit
+//                    callVcb.attribute("TLOD_FWD",tumorLod_fwd);
+//                    callVcb.attribute("TLOD_REV",tumorLod_rev);
+//                    if ( (tumorSBpower_fwd >= MTAC.STRAND_ARTIFACT_POWER_THRESHOLD && tumorLod_fwd < MTAC.STRAND_ARTIFACT_LOD_THRESHOLD) ||
+//                            (tumorSBpower_rev >= MTAC.STRAND_ARTIFACT_POWER_THRESHOLD && tumorLod_rev < MTAC.STRAND_ARTIFACT_LOD_THRESHOLD) )
+//                        callVcb.filter("M1_STRAND_BIAS");
+
+                    // TODO: TS revisit
+//                    if ( (tumorSBpower_fwd >= MTAC.STRAND_ARTIFACT_POWER_THRESHOLD && tumorLod_fwd < MTAC.STRAND_ARTIFACT_LOD_THRESHOLD) ||
+//                            (tumorSBpower_rev >= MTAC.STRAND_ARTIFACT_POWER_THRESHOLD && tumorLod_rev < MTAC.STRAND_ARTIFACT_LOD_THRESHOLD) )
+//                        callVcb.filter("M1_STRAND_BIAS");
+//
+//                    // FIXME: can simply get first alternate since above we only deal with Bi-allelic sites...
+//                    int haplotypeCount = alleleMapper.get(mergedVC.getAlternateAllele(0)).size();
                     callVcb.attribute(GATKVCFConstants.HAPLOTYPE_COUNT_KEY, haplotypeCount);
                     callVcb.attribute(GATKVCFConstants.TUMOR_LOD_KEY, tumorLod);
                     callVcb.attribute(GATKVCFConstants.NORMAL_LOD_KEY, normalLod);
@@ -544,6 +597,39 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
             }
         }
     }
+
+    private void splitPRALMintoForwardAndReverseReads(final PerReadAlleleLikelihoodMap original, final PerReadAlleleLikelihoodMap forward, final PerReadAlleleLikelihoodMap reverse) {
+        Map<GATKSAMRecord, Map<Allele, Double>> origMap = original.getLikelihoodReadMap();
+        Map<GATKSAMRecord, Map<Allele, Double>> fwdMap = forward.getLikelihoodReadMap();
+        Map<GATKSAMRecord, Map<Allele, Double>> revMap = reverse.getLikelihoodReadMap();
+
+        // iterate through the reads, assign reads and likelihoods to the forward or reverse maps based on the read's strand
+        Set<GATKSAMRecord> forwardReads = new HashSet<>();
+        Set<GATKSAMRecord> reverseReads = new HashSet<>();
+
+        for(GATKSAMRecord rec : origMap.keySet()) {
+            if (rec.isStrandless())
+                continue;
+            if (rec.getReadNegativeStrandFlag())
+                reverseReads.add(rec);
+            else
+                forwardReads.add(rec);
+        }
+
+        final Iterator<Map.Entry<GATKSAMRecord, Map<Allele, Double>>> it = origMap.entrySet().iterator();
+        while ( it.hasNext() ) {
+            final Map.Entry<GATKSAMRecord, Map<Allele, Double>> record = it.next();
+            if(forwardReads.contains(record.getKey())) {
+                fwdMap.put(record.getKey(), record.getValue());
+                //logM2Debug("Dropping read " + record.getKey() + " due to overlapping read fragment rules");
+            }
+            else if (reverseReads.contains(record.getKey())){
+                revMap.put(record.getKey(),record.getValue());
+            }
+        }
+
+    }
+
 
     // Move to utility class so we can use one shared with HaplotypeCallerGenotypingEngine
     private VariantContext addNonRefSymbolicAllele(final VariantContext mergedVC) {

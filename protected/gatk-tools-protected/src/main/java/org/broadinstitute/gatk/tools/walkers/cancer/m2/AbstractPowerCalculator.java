@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2016 Broad Institute, Inc.
+* Copyright 2012-2014 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -51,99 +51,50 @@
 
 package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.AssemblyBasedCallerArgumentCollection;
-import org.broadinstitute.gatk.utils.commandline.Advanced;
-import org.broadinstitute.gatk.utils.commandline.Argument;
-import org.broadinstitute.gatk.utils.commandline.Hidden;
+import java.util.HashMap;
 
-public class M2ArgumentCollection extends AssemblyBasedCallerArgumentCollection {
-    @Advanced
-    @Argument(fullName="m2debug", shortName="m2debug", doc="Print out very verbose M2 debug information", required = false)
-    public boolean M2_DEBUG = false;
+public class AbstractPowerCalculator {
+    protected HashMap<PowerCacheKey, Double> cache = new HashMap<PowerCacheKey, Double>();
+    protected double constantEps;
+    protected double constantLodThreshold;
 
-    /**
-     * Artifact detection mode is used to prepare a panel of normals. This maintains the specified tumor LOD threshold,
-     * but disables the remaining pragmatic filters. See usage examples above for more information.
-     */
-    @Advanced
-    @Argument(fullName = "artifact_detection_mode", required = false, doc="Enable artifact detection for creating panels of normals")
-    public boolean ARTIFACT_DETECTION_MODE = false;
+    protected static class PowerCacheKey {
+        private int n;
+        private double delta;
 
-    /**
-     * This is the LOD threshold that a variant must pass in the tumor to be emitted to the VCF. Note that the variant may pass this threshold yet still be annotated as FILTERed based on other criteria.
-     */
-    @Argument(fullName = "initial_tumor_lod", required = false, doc = "Initial LOD threshold for calling tumor variant")
-    public double INITIAL_TUMOR_LOD_THRESHOLD = 4.0;
+        public PowerCacheKey(int n, double delta) {
+            this.n = n;
+            this.delta = delta;
+        }
 
-    /**
-     * This is the LOD threshold corresponding to the minimum amount of reference evidence in the normal for a variant to be considered somatic and emitted in the VCF
-     */
-    @Argument(fullName = "initial_normal_lod", required = false, doc = "Initial LOD threshold for calling normal variant")
-    public double INITIAL_NORMAL_LOD_THRESHOLD = 0.5;
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
 
-    /**
-     * Only variants with tumor LODs exceeding this threshold can pass filtering.
-     */
-    @Argument(fullName = "tumor_lod", required = false, doc = "LOD threshold for calling tumor variant")
-    public double TUMOR_LOD_THRESHOLD = 6.3;
+            PowerCacheKey that = (PowerCacheKey) o;
 
-    /**
-     * This is a measure of the minimum evidence to support that a variant observed in the tumor is not also present in the normal.
-     */
-    @Argument(fullName = "normal_lod", required = false, doc = "LOD threshold for calling normal non-germline")
-    public double NORMAL_LOD_THRESHOLD = 2.2;
+            if (Double.compare(that.delta, delta) != 0) return false;
+            if (n != that.n) return false;
 
-    /**
-     * The LOD threshold for the normal is typically made more strict if the variant has been seen in dbSNP (i.e. another
-     * normal sample). We thus require MORE evidence that a variant is NOT seen in this tumor's normal if it has been observed as a germline variant before.
-     */
-    @Argument(fullName = "dbsnp_normal_lod", required = false, doc = "LOD threshold for calling normal non-variant at dbsnp sites")
-    public double NORMAL_DBSNP_LOD_THRESHOLD = 5.5;
+            return true;
+        }
 
-    /**
-     * This argument is used for the internal "alt_allele_in_normal" filter.
-     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
-     **/
-    @Argument(fullName = "max_alt_alleles_in_normal_count", required = false, doc="Threshold for maximum alternate allele counts in normal")
-    public int MAX_ALT_ALLELES_IN_NORMAL_COUNT = 1;
+        @Override
+        public int hashCode() {
+            int result;
+            long temp;
+            result = n;
+            temp = delta != +0.0d ? Double.doubleToLongBits(delta) : 0L;
+            result = 31 * result + (int) (temp ^ (temp >>> 32));
+            return result;
+        }
+    }
 
-    /**
-     * This argument is used for the internal "alt_allele_in_normal" filter.
-     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
-     */
-    @Argument(fullName = "max_alt_alleles_in_normal_qscore_sum", required = false, doc="Threshold for maximum alternate allele quality score sum in normal")
-    public int MAX_ALT_ALLELES_IN_NORMAL_QSCORE_SUM = 20;
+    protected static double calculateLogLikelihood(int depth, int alts, double eps, double f) {
+        double a = (depth-alts) * Math.log10(f*eps + (1d-f)*(1d-eps));
+        double b = (alts) * Math.log10(f*(1d-eps) + (1d-f)*eps);
+        return (a+b);
+    }
 
-    /**
-     * This argument is used for the internal "alt_allele_in_normal" filter.
-     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
-     */
-    @Argument(fullName = "max_alt_allele_in_normal_fraction", required = false, doc="Threshold for maximum alternate allele fraction in normal")
-    public double MAX_ALT_ALLELE_IN_NORMAL_FRACTION = 0.03;
-
-    /**
-     * This argument is used for the M1-style strand bias filter
-     */
-    @Argument(fullName="power_constant_qscore", doc="Phred scale quality score constant to use in power calculations", required=false)
-    public int POWER_CONSTANT_QSCORE = 30;
-
-    @Hidden
-    @Argument(fullName = "strand_artifact_lod", required = false, doc = "LOD threshold for calling strand bias")
-    public float STRAND_ARTIFACT_LOD_THRESHOLD = 2.0f;
-
-    @Hidden
-    @Argument(fullName = "strand_artifact_power_threshold", required = false, doc = "power threshold for calling strand bias")
-    public float STRAND_ARTIFACT_POWER_THRESHOLD = 0.9f;
-
-    /**
-     * This argument is used for the M1-style read position filter
-     */
-    @Argument(fullName = "pir_median_threshold", required = false, doc="threshold for clustered read position artifact median")
-    public double PIR_MEDIAN_THRESHOLD = 10;
-
-    /**
-     * This argument is used for the M1-style read position filter
-     */
-    @Argument(fullName = "pir_mad_threshold", required = false, doc="threshold for clustered read position artifact MAD")
-    public double PIR_MAD_THRESHOLD = 3;
 }
