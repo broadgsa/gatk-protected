@@ -279,7 +279,7 @@ public class ConstrainedMateFixingManager {
         // fix mates, as needed
         // Since setMateInfo can move reads, we potentially need to remove the mate, and requeue
         // it to ensure proper sorting
-        if ( newRead.getReadPairedFlag() && !newRead.getNotPrimaryAlignmentFlag() ) {
+        if ( isMateFixableRead(newRead) ) {
             SAMRecordHashObject mate = forMateMatching.get(newRead.getReadName());
             if ( mate != null ) {
                 // 1. Frustratingly, Picard's setMateInfo() method unaligns (by setting the reference contig
@@ -307,13 +307,9 @@ public class ConstrainedMateFixingManager {
                             reQueueMate = false;
                     }
 
-                    // we've already seen our mate -- set the mate info and remove it from the map
-                    // Via Nils Homer:
-                    //   There will be two SamPairUtil.setMateInfo functions.  The default will not update the mate
-                    //   cigar tag; in fact, it will remove it if it is present.  An alternative SamPairUtil.setMateInfo
-                    //   function takes a boolean as an argument ("addMateCigar") and will add/update the mate cigar if
-                    //   set to true.  This is the one you want to use.
-                    SamPairUtil.setMateInfo(mate.record, newRead, null, true);
+                    // we've already seen our mate -- set the mate info and remove it from the map;
+                    // add/update the mate cigar if appropriate
+                    SamPairUtil.setMateInfo(mate.record, newRead, true);
                     if ( reQueueMate ) waitingReads.add(mate.record);
                 }
 
@@ -362,6 +358,16 @@ public class ConstrainedMateFixingManager {
         } catch (IllegalArgumentException e) {
             throw new UserException("If the maximum allowable reads in memory is too small, it may cause reads to be written out of order when trying to write the BAM; please see the --maxReadsInMemory argument for details.  " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Is the given read one for which we can fix its mate?
+     *
+     * @param read  the read
+     * @return true if we could fix its mate, false otherwise
+     */
+    protected boolean isMateFixableRead(final SAMRecord read) {
+        return read.getReadPairedFlag() && !read.isSecondaryOrSupplementary();
     }
 
     /**
