@@ -293,7 +293,19 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
      * @return the VariantCallContext object
      */
     public VariantCallContext calculateGenotypes(VariantContext vc) {
-        return calculateGenotypes(null, null, null, null, vc, GenotypeLikelihoodsCalculationModel.Model.valueOf("SNP"), null);
+        final VariantContext.Type type = vc.getType();
+        final GenotypeLikelihoodsCalculationModel.Model model;
+        /**
+         * Query the VariantContext for the appropriate model.  If type == MIXED, one would want to use model = BOTH.
+         * However GenotypingEngine.getAlleleFrequencyPriors throws an exception if you give it anything but a SNP or INDEL model.
+         */
+        if ( type == VariantContext.Type.INDEL ) {
+            model = GenotypeLikelihoodsCalculationModel.Model.INDEL;
+        } else {
+            model = GenotypeLikelihoodsCalculationModel.Model.SNP;
+        }
+
+        return calculateGenotypes(null, null, null, null, vc, model, null);
     }
 
 
