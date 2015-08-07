@@ -52,7 +52,9 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.AFPriorProvider;
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingEngine;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import htsjdk.variant.variantcontext.*;
@@ -111,6 +113,7 @@ public class AFCalculatorTestBuilder {
 
     public double[] makePriors() {
         final int nPriorValues = 2*nSamples+1;
+        final double human_theta = 0.001;
 
         switch ( priorType ) {
             case flat:
@@ -118,8 +121,9 @@ public class AFCalculatorTestBuilder {
 
             //TODO break dependency with human... avoid special reference to this species.
             case human:
-                final double[] humanPriors = new double[nPriorValues];
-                GenotypingEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
+
+                final AFPriorProvider log10priorProvider = GenotypingEngine.composeAlleleFrequencyPriorProvider(2*nSamples, human_theta, new ArrayList<Double>());
+                final double[] humanPriors = log10priorProvider.forTotalPloidy(2*nSamples);
                 return humanPriors;
             default:
                 throw new RuntimeException("Unexpected type " + priorType);

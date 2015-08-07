@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import htsjdk.variant.variantcontext.*;
 import org.apache.commons.lang.ArrayUtils;
+import org.broadinstitute.gatk.tools.walkers.genotyper.AFPriorProvider;
 import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.MathUtils;
@@ -197,10 +198,14 @@ public class AFCalculationUnitTest extends BaseTest {
         for ( final int nSamples : Arrays.asList(1, 2, 3, 4) ) {
             List<AFCalculator> calcs = createAFCalculators(Arrays.asList(AFCalculatorImplementation.values()), MAX_ALT_ALLELES, PLOIDY);
 
+            //number of entries in the priors array, one for AC=[0,2*nSamples]
             final int nPriorValues = 2*nSamples+1;
+            //total number of chromosomes in our samples -- here we're assuming diploid
+            final int totalPloidy = 2*nSamples;
+            final double theta = 0.001;
             final double[] flatPriors = MathUtils.normalizeFromLog10(new double[nPriorValues], true);  // flat priors
-            final double[] humanPriors = new double[nPriorValues];
-            UnifiedGenotypingEngine.computeAlleleFrequencyPriors(nPriorValues - 1, humanPriors, 0.001, new ArrayList<Double>());
+            final AFPriorProvider log10priorProvider = UnifiedGenotypingEngine.composeAlleleFrequencyPriorProvider(totalPloidy, theta, new ArrayList<Double>());
+            final double[] humanPriors = log10priorProvider.forTotalPloidy(totalPloidy);
 
             for ( final double[] priors : Arrays.asList(flatPriors, humanPriors) ) { // , humanPriors) ) {
                 for ( AFCalculator model : calcs ) {
@@ -609,16 +614,16 @@ public class AFCalculationUnitTest extends BaseTest {
             final Genotype AB = makePL(Arrays.asList(A,C), REF_PL, 0, 10000);
 
             final double[] flatPriors = new double[]{0.0,0.0,0.0};
-            final double[] noPriors = new double[3];
             // test that function computeAlleleFrequency correctly operates when the flat prior option is set
             // computeAlleleFrequencyPriors takes linear priors
             final ArrayList<Double> inputPrior = new ArrayList<Double>();
             inputPrior.add(1.0/3);
             inputPrior.add(1.0/3);
-            UnifiedGenotypingEngine.computeAlleleFrequencyPriors(2, noPriors, 0.0, inputPrior);
+            final AFPriorProvider log10priorProvider = UnifiedGenotypingEngine.composeAlleleFrequencyPriorProvider(2, 0.0, inputPrior);
+            final double[] noPriors = log10priorProvider.forTotalPloidy(2);
 
             GetGLsTest cfgFlatPrior = new GetGLsTest(model, 1, Arrays.asList(AB), flatPriors, "flatPrior");
-            GetGLsTest cfgNoPrior = new GetGLsTest(model, 1, Arrays.asList(AB), flatPriors, "noPrior");
+            GetGLsTest cfgNoPrior = new GetGLsTest(model, 1, Arrays.asList(AB), noPriors, "noPrior");
             final AFCalculationResult resultTrackerFlat = cfgFlatPrior.execute();
             final AFCalculationResult resultTrackerNoPrior = cfgNoPrior.execute();
 
