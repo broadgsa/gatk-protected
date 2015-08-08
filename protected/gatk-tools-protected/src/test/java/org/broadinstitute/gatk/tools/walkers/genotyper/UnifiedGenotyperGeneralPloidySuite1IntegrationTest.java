@@ -74,16 +74,16 @@ public class UnifiedGenotyperGeneralPloidySuite1IntegrationTest extends WalkerTe
 
     @Test(enabled = true)
     public void testBOTH_GGA_Pools() {
-        executor.PC_LSV_Test(String.format("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_BOTH_GGA", "BOTH", "ba1412a226b7261b1430d1a2ad3ab5e2");
+        executor.PC_LSV_Test(String.format("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_BOTH_GGA", "BOTH", "36456ac23382fadde9047f1daf06ba43");
     }
 
     @Test(enabled = true)
     public void testINDEL_GGA_Pools() {
-        executor.PC_LSV_Test(String.format("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_INDEL_GGA", "INDEL", "05834d7716eba5846aa6cbb51d4cd892");
+        executor.PC_LSV_Test(String.format("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 24 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s", LSV_ALLELES), "LSV_INDEL_GGA", "INDEL", "38302eecda79cb64182661675304df5a");
     }
 
     @Test(enabled = true)
     public void testINDEL_maxAltAlleles2_ploidy1_Pools_noRef() {
-        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "4488717e2ab49bfc83abd6c49d3b1a08");
+        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "ab572a288022bd95accc5762530ac239");
     }
 }

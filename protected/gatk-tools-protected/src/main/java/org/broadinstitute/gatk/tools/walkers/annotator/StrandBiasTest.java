@@ -181,8 +181,16 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
                 continue;
 
             foundData = true;
-            final String sbbsString = (String) g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY);
-            final int[] data = encodeSBBS(sbbsString);
+            int[] data;
+            if ( g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY).getClass().equals(String.class)) {
+                final String sbbsString = (String) g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY);
+                data = encodeSBBS(sbbsString);
+            } else if (g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY).getClass().equals(ArrayList.class)) {
+                ArrayList sbbsList = (ArrayList) g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY);
+                data = encodeSBBS(sbbsList);
+            } else
+                throw new IllegalArgumentException("Unexpected " + GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY + " type");
+
             if ( passesMinimumThreshold(data, minCount) ) {
                 for( int index = 0; index < sbArray.length; index++ ) {
                     sbArray[index] += data[index];
@@ -347,6 +355,20 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
         for( int index = 0; index < ARRAY_SIZE; index++ ) {
             array[index] = Integer.parseInt(tokenizer.nextToken());
         }
+        return array;
+    }
+
+    /**
+     * Helper function to parse the genotype annotation into the SB annotation array
+     * @param arrayList the ArrayList returned from StrandBiasBySample.annotate()
+     * @return the array used by the per-sample Strand Bias annotation
+     */
+    private static int[] encodeSBBS( final ArrayList<Integer> arrayList ) {
+        final int[] array = new int[ARRAY_SIZE];
+        int index = 0;
+        for ( Integer item : arrayList )
+            array[index++] = item.intValue();
+
         return array;
     }
 

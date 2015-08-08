@@ -123,10 +123,6 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
                 continue;
 
             // if we have the AD values for this sample, let's make sure that the variant depth is greater than 1!
-            // TODO -- If we like how this is working and want to apply it to a situation other than the single sample HC pipeline,
-            // TODO --  then we will need to modify the annotateContext() - and related - routines in the VariantAnnotatorEngine
-            // TODO --  so that genotype-level annotations are run first (to generate AD on the samples) and then the site-level
-            // TODO --  annotations must come afterwards (so that QD can use the AD).
             if ( genotype.hasAD() ) {
                 final int[] AD = genotype.getAD();
                 final int totalADdepth = (int)MathUtils.sum(AD);
