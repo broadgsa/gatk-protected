@@ -70,7 +70,7 @@ public class VariantsToVCFIntegrationTest extends WalkerTest {
     @Test
     public void testVariantsToVCFUsingGeliInput() {
         List<String> md5 = new ArrayList<String>();
-        md5.add("22373883afa2221b5a4f75a50f30f26b");
+        md5.add("c73bcc3658b4a4d8bd9d794069d41dbd");
 
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b36KGReference +
@@ -88,7 +88,7 @@ public class VariantsToVCFIntegrationTest extends WalkerTest {
     @Test
     public void testGenotypesToVCFUsingGeliInput() {
         List<String> md5 = new ArrayList<String>();
-        md5.add("738eb66dbc400dcd1786cd9e49902e8c");
+        md5.add("a1771924b58dd633620114ef0f462acb");
 
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b36KGReference +
@@ -106,7 +106,7 @@ public class VariantsToVCFIntegrationTest extends WalkerTest {
     @Test
     public void testGenotypesToVCFUsingHapMapInput() {
         List<String> md5 = new ArrayList<String>();
-        md5.add("67656672acc264156f5a3e01e5cac61a");
+        md5.add("970157c9e15c53a6e50faaad41227487");
 
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b36KGReference +
@@ -123,7 +123,7 @@ public class VariantsToVCFIntegrationTest extends WalkerTest {
     @Test
     public void testGenotypesToVCFUsingVCFInput() {
         List<String> md5 = new ArrayList<String>();
-        md5.add("21084d32ce7ac5df3cee1730bfaaf71c");
+        md5.add("975830cb2bff58c7df426bbf09a08244");
 
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b36KGReference +

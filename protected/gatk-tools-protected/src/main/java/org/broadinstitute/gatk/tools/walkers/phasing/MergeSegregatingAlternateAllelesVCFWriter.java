@@ -457,6 +457,14 @@ class MergeSegregatingAlternateAllelesVCFWriter implements VariantContextWriter 
             return sb.toString();
         }
     }
+
+    /**
+     * Check the return from PrintStream.checkError() if underlying stream for a java.io.PrintStream
+     * @return false, no error since the underlying stream is not a java.io.PrintStream
+     */
+    public boolean checkError(){
+        return false;
+    }
 }
 
 
