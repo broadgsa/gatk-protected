@@ -81,7 +81,7 @@ import java.util.*;
  *
  * <p>
  * Given a VCF with genotype likelihoods from the HaplotypeCaller, UnifiedGenotyper, or another source which provides
- * -unbiased- genotype likelihoods, calculate the posterior genotype state and likelihood given allele frequency
+ * <b>unbiased</b> genotype likelihoods, calculate the posterior genotype state and likelihood given allele frequency
  * information from both the samples themselves and input VCFs describing allele frequencies in related populations.</p>
  *
  * <p>The AF field will not be used in this calculation as it does not provide a way to estimate the confidence interval
@@ -139,7 +139,8 @@ import java.util.*;
  *   -R reference.fasta \
  *   -V NA12878.wgs.HC.vcf \
  *   -supporting 1000G_EUR.genotypes.combined.vcf \
- *   -o NA12878.wgs.HC.posteriors.vcf \
+ *   -o NA12878.wgs.HC.posteriors.vcf 
+ * </pre>
  *
  * <h4>Refine the genotypes of a large panel based on the discovered allele frequency</h4>
  * <pre>
