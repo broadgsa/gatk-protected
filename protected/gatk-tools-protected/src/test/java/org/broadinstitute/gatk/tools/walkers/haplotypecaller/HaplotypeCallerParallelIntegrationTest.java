@@ -69,7 +69,7 @@ public class HaplotypeCallerParallelIntegrationTest extends WalkerTest {
         List<Object[]> tests = new ArrayList<>();
 
         for ( final int nct : Arrays.asList(1, 2, 4) ) {
-            tests.add(new Object[]{nct, "8bcf149228e8845915733d6fd889a141"});
+            tests.add(new Object[]{nct, "07f969acede5e0ad7e1e94f4383af2a9"});
         }
 
         return tests.toArray(new Object[][]{});

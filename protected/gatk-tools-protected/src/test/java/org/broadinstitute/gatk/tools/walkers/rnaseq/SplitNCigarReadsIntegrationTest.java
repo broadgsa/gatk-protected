@@ -87,7 +87,7 @@ public class SplitNCigarReadsIntegrationTest extends WalkerTest {
     public void testSplitsWithOverhangs() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
-                Arrays.asList("2832abc680c6b5a0219702ad5bf22f01"));
+                Arrays.asList("72fbeb2043f005e1698e21563f0625a9"));
         executeTest("test splits with overhangs", spec);
     }
 
@@ -95,7 +95,7 @@ public class SplitNCigarReadsIntegrationTest extends WalkerTest {
     public void testSplitsFixNDN() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T SplitNCigarReads -R " + b37KGReference + " -I " + privateTestDir + "splitNCigarReadsSnippet.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS -fixNDN", 1,
-                Arrays.asList("4ee1c1a64847e2b2f660a3a86f9d7e32"));
+                Arrays.asList("add7012d5e814d6cfd32f6cac1eb8ce3"));
         executeTest("test fix NDN", spec);
     }
 
@@ -103,7 +103,7 @@ public class SplitNCigarReadsIntegrationTest extends WalkerTest {
     public void testSplitsWithOverhangsNotClipping() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T SplitNCigarReads --doNotFixOverhangs -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
-                Arrays.asList("59783610006bf7a1ccae57ee2016123b"));
+                Arrays.asList("6a55ac0a945e010bf03e1dd8f7749417"));
         executeTest("test splits with overhangs not clipping", spec);
     }
 
@@ -111,7 +111,7 @@ public class SplitNCigarReadsIntegrationTest extends WalkerTest {
     public void testSplitsWithOverhangs0Mismatches() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T SplitNCigarReads --maxMismatchesInOverhang 0 -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
-                Arrays.asList("7547a5fc41ebfd1bbe62ce854b37b6ef"));
+                Arrays.asList("8a577047955ff9edca3caf1f6e545d3e"));
         executeTest("test splits with overhangs 0 mismatches", spec);
     }
 
@@ -119,7 +119,7 @@ public class SplitNCigarReadsIntegrationTest extends WalkerTest {
     public void testSplitsWithOverhangs5BasesInOverhang() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T SplitNCigarReads --maxBasesInOverhang 5 -R " + b37KGReference + " -I " + privateTestDir + "NA12878.RNAseq.bam -o %s --no_pg_tag -U ALLOW_N_CIGAR_READS", 1,
-                Arrays.asList("f222eb02b003c08d4a606ab1bcb7931b"));
+                Arrays.asList("bdd822868b88063cf50c6336ed1a5e64"));
         executeTest("test splits with overhangs 5 bases in overhang", spec);
     }
 }

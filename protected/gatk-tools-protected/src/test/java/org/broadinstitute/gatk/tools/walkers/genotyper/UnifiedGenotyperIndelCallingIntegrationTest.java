@@ -78,7 +78,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,500,000",
                 1,
-                Arrays.asList("8e0ba82e36df60fd0122818d0227041b"));
+                Arrays.asList("1d8b3a95f31364f8a88590b90e085558"));
         executeTest(String.format("test indel caller in SLX"), spec);
     }
 
@@ -92,7 +92,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                         " -minIndelCnt 1" +
                         " -L 1:10,000,000-10,100,000",
                 1,
-                Arrays.asList("02ed507c8c1d289b6c0092899b1b839e"));
+                Arrays.asList("f71ee7c0757b1c1fcf9390b2fbfc12ae"));
 
         executeTest(String.format("test indel caller in SLX with low min allele count"), spec);
     }
@@ -105,7 +105,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,500,000",
                 1,
-                Arrays.asList("2b87723c03c46987dc3ee6d82f893c23"));
+                Arrays.asList("b75617d7557dd2b67fd8d74ed53b31ff"));
 
         executeTest(String.format("test indel calling, multiple technologies"), spec);
     }
@@ -115,7 +115,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + privateTestDir + "indelAllelesForUG.vcf -I " + validationDataLocation +
                         "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,100,000", 1,
-                Arrays.asList("1bd415ee64fa01039e7b623fbd2ae838"));
+                Arrays.asList("e626454b67d56380b288671e57844616"));
         executeTest("test MultiSample Pilot2 indels with alleles passed in", spec);
     }
 
@@ -125,7 +125,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                 baseCommandIndels + " --output_mode EMIT_ALL_SITES --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles "
                         + privateTestDir + "indelAllelesForUG.vcf -I " + validationDataLocation +
                         "pilot2_daughters.chr20.10k-11k.bam -o %s -L 20:10,000,000-10,100,000", 1,
-                Arrays.asList("4833c9b471cab8ce5bc5747f8cb1548d"));
+                Arrays.asList("1c66d5c77701f36182ead88a0bc8bed7"));
         executeTest("test MultiSample Pilot2 indels with alleles passed in and emitting all sites", spec);
     }
 
@@ -140,7 +140,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec2 = new WalkerTest.WalkerTestSpec(
                 baseCommandIndels + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -alleles " + result.get(0).getAbsolutePath() + " -I " + validationDataLocation +
                         "low_coverage_CEU.chr1.10k-11k.bam -o %s -L " + result.get(0).getAbsolutePath(), 1,
-                Arrays.asList("781d305993aedcc1a4c199a5c63ac54c"));
+                Arrays.asList("ed618b3c82e86cdf80f4865d838a7aaa"));
         executeTest("test MultiSample Pilot1 CEU indels using GENOTYPE_GIVEN_ALLELES", spec2);
     }
 
@@ -150,7 +150,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommandIndelsb37 + " --genotyping_mode GENOTYPE_GIVEN_ALLELES -out_mode EMIT_ALL_SITES -alleles " + privateTestDir + vcf + " -I " + validationDataLocation +
                         "NA12878.HiSeq.WGS.bwa.cleaned.recal.hg19.20.bam -o %s -L " + validationDataLocation + vcf, 1,
-                Arrays.asList("0bc38748e786259e7fd4e199ccdd7287"));
+                Arrays.asList("088ebba243dada6453bb8a9398e4ad24"));
         executeTest("test GENOTYPE_GIVEN_ALLELES with no evidence in reads", spec);
     }
 
@@ -162,7 +162,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 20:10,000,000-10,100,000",
                 1,
-                Arrays.asList("0313e91607166767b7f1b1d6fcdf9263"));
+                Arrays.asList("9eaa295625e025099ce3b235590f7b6a"));
 
         executeTest(String.format("test UG with base indel quality scores"), spec);
     }
@@ -181,7 +181,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
     public void testMinIndelFraction0() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 assessMinIndelFraction + " -minIndelFrac 0.0", 1,
-                Arrays.asList("003243a8cc024cb297f86cc84de91be5"));
+                Arrays.asList("a6c3f664391f0f4a6e8afb3dfa68e871"));
         executeTest("test minIndelFraction 0.0", spec);
     }
 
@@ -189,7 +189,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
     public void testMinIndelFraction25() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 assessMinIndelFraction + " -minIndelFrac 0.25", 1,
-                Arrays.asList("d9fcd63e9eed692850eb49e124176648"));
+                Arrays.asList("acf4f7a8ebfaee05fc229340d1a3be7c"));
         executeTest("test minIndelFraction 0.25", spec);
     }
 
@@ -197,7 +197,7 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
     public void testMinIndelFraction100() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 assessMinIndelFraction + " -minIndelFrac 1", 1,
-                Arrays.asList("49821450356b4b398f3bcb688e13af36"));
+                Arrays.asList("1d1cd231a2eee6338bd3a320b01bac3c"));
         executeTest("test minIndelFraction 1.0", spec);
     }
 

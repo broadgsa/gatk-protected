@@ -70,7 +70,7 @@ public class NanoSchedulerIntegrationTest extends WalkerTest {
 
         for ( final int nt : Arrays.asList(1, 2) )
             for ( final int nct : Arrays.asList(1, 2) ) {
-                tests.add(new Object[]{ "BOTH",  "18418ddc2bdbe20c38ece6dd18535be7", nt, nct });
+                tests.add(new Object[]{ "BOTH",  "52f590f6b37a1b3b12042ae917738965", nt, nct });
             }
 
         return tests.toArray(new Object[][]{});

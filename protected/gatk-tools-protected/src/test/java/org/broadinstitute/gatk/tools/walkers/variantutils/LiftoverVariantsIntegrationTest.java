@@ -67,7 +67,7 @@ public class LiftoverVariantsIntegrationTest extends WalkerTest {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T LiftoverVariants -o %s -R " + b36KGReference + " --variant " + privateTestDir + "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.500.noheader.vcf -chain " + validationDataLocation + "b36ToHg19.broad.over.chain -dict /seq/references/Homo_sapiens_assembly19/v0/Homo_sapiens_assembly19.dict",
                  1,
-                 Arrays.asList("7d5f91fcf419211ae9eca6c66dcec0e6"));
+                 Arrays.asList("eb38adfffb7913fa761c5c579b885ea2"));
          executeTest("test b36 to hg19", spec);
     }
 
@@ -76,7 +76,7 @@ public class LiftoverVariantsIntegrationTest extends WalkerTest {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T LiftoverVariants -o %s -R " + b36KGReference + " --variant " + privateTestDir + "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.500.noheader.unsortedSamples.vcf -chain " + validationDataLocation + "b36ToHg19.broad.over.chain -dict /seq/references/Homo_sapiens_assembly19/v0/Homo_sapiens_assembly19.dict",
                  1,
-                 Arrays.asList("29dab3555e7f1ee6a60e267b00215a11"));
+                 Arrays.asList("f40e078fd5fb1d4107738a4f2f602902"));
          executeTest("test b36 to hg19, unsorted samples", spec);
     }
 
@@ -85,7 +85,7 @@ public class LiftoverVariantsIntegrationTest extends WalkerTest {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T LiftoverVariants -o %s -R " + hg18Reference + " --variant:vcf " + privateTestDir + "liftover_test.vcf -chain " + validationDataLocation + "hg18ToHg19.broad.over.chain -dict /seq/references/Homo_sapiens_assembly19/v0/Homo_sapiens_assembly19.dict",
                  1,
-                 Arrays.asList("7e7bad0e1890753a01303c09a38ceb8d"));
+                 Arrays.asList("186a675c9758c1b83a1232399e18d8fe"));
          executeTest("test hg18 to hg19, unsorted", spec);
     }
 
@@ -94,7 +94,7 @@ public class LiftoverVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FilterLiftedVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "liftover_indel_test.vcf --no_cmdline_in_header",
                 1,
-                Arrays.asList("0909a953291a5e701194668c9b8833ab"));
+                Arrays.asList("303e3df3bf737feaff397b4eeb037ecb"));
         executeTest("test liftover filtering of indels", spec);
     }
 

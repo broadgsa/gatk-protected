@@ -66,7 +66,7 @@ public class RegenotypeVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T RegenotypeVariants -R " + b36KGReference + " --variant " + testFile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("46ff472fc7ef6734ad01170028d5924a")
+                Arrays.asList("88118ebd39d6576aa1171082d8f37cd8")
         );
 
         executeTest("testRegenotype--" + testFile, spec);
