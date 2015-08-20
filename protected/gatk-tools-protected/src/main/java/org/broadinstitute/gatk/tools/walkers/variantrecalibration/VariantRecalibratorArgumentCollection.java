@@ -167,7 +167,7 @@ public class VariantRecalibratorArgumentCollection {
             "to make the blob more Gaussian-like and (2) The transformed MQ=X are jittered to break the peak into a narrow Gaussian." +
             "Beware that IndelRealigner, if used, adds 10 to MQ for successfully realigned indels." +
             "We recommend to use --read-filter ReassignOriginalMQAfterIndelRealignment with HaplotypeCaller, but if not, use a MQCap=max+10 to take that into account." +
-            "If this option is not used, or if MQCap is set to 0, MQ will not be transformed.")
+            "If this option is not used, or if MQCap is set to 0, MQ will not be transformed.", required=false)
     public int MQ_CAP = 0;
     /**
      * The following 2 arguments are hidden because they are only for testing different jitter amounts with and without logit transform.
