@@ -77,7 +77,8 @@ public class VariantRecalibratorArgumentCollection {
         throw new ReviewedGATKException("VariantRecalibrator mode string is unrecognized, input = " + input);
     }
     /**
-     * Use either SNP for recalibrating only SNPs (emitting indels untouched in the output VCF) or INDEL for indels (emitting SNPs untouched in the output VCF). There is also a BOTH option for recalibrating both SNPs and indels simultaneously, but this is meant for testing purposes only and should not be used in actual analyses.
+     * Use either SNP for recalibrating only SNPs (emitting indels untouched in the output VCF) or INDEL for indels (emitting SNPs untouched in the output VCF).
+     * There is also a BOTH option for recalibrating both SNPs and indels simultaneously, but this is meant for testing purposes only and should not be used in actual analyses.
      */
     @Argument(fullName = "mode", shortName = "mode", doc = "Recalibration mode to employ", required = true)
     public VariantRecalibratorArgumentCollection.Mode MODE = VariantRecalibratorArgumentCollection.Mode.SNP;
@@ -157,6 +158,30 @@ public class VariantRecalibratorArgumentCollection {
     @Advanced
     @Argument(fullName="badLodCutoff", shortName="badLodCutoff", doc="LOD score cutoff for selecting bad variants", required=false)
     public double BAD_LOD_CUTOFF = -5.0;
+
+    @Advanced
+    @Argument(fullName="MQCapForLogitJitterTransform", shortName = "MQCap", doc="MQ is capped at a \"max\" value (60 for bwa-mem) when the alignment is considered perfect." +
+            "Since often a huge proportion of reads are perfectly mapped, this yields a distribution with a blob < max and a huge peak at max" +
+            "This is not good for the mixture of Gaussian VQSR model and has been observed to yield a ROC curve with a jump." +
+            "Using MQCap = X has 2 effects:  (1) MQs are transformed by a scaled logit on [0,X] (+ epsilon to avoid division by zero)" +
+            "to make the blob more Gaussian-like and (2) The transformed MQ=X are jittered to break the peak into a narrow Gaussian." +
+            "Beware that IndelRealigner, if used, adds 10 to MQ for successfully realigned indels." +
+            "We recommend to use --read-filter ReassignOriginalMQAfterIndelRealignment with HaplotypeCaller, but if not, use a MQCap=max+10 to take that into account." +
+            "If this option is not used, or if MQCap is set to 0, MQ will not be transformed.")
+    public int MQ_CAP = 0;
+    /**
+     * The following 2 arguments are hidden because they are only for testing different jitter amounts with and without logit transform.
+     * Once this will have been tested, and the correct jitter amount chosen (perhaps as a function of the logit range [0,max]) they can be removed.
+     */
+    @Hidden
+    @Advanced
+    @Argument(fullName = "no_MQ_logit", shortName = "NoMQLogit", doc="MQ is by default transformed to log[(MQ_cap + epsilon - MQ)/(MQ + epsilon)] to make it more Gaussian-like.  Use this flag to not do that.", required = false)
+    public boolean NO_MQ_LOGIT = false;
+
+    @Hidden
+    @Advanced
+    @Argument(fullName="MQ_jitter", shortName="MQJitt", doc="Amount of jitter (as a factor to a Normal(0,1) noise) to add to the MQ capped values", required = false)
+    public double MQ_JITTER = 0.05;
 
     /////////////////////////////
     // Deprecated Arguments
