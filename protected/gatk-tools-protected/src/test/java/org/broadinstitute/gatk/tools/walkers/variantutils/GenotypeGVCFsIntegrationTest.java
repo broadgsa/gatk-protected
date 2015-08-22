@@ -56,7 +56,9 @@ import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
+import org.apache.commons.io.FileUtils;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.broadinstitute.gatk.tools.walkers.annotator.AnnotationUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -87,12 +89,16 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test(enabled = true)
-    public void testUpdatePGTStrandAlleleCountsBySample() {
+    public void testUpdatePGTStrandAlleleCountsBySample() throws IOException{
+        final String logFileName = new String("testUpdatePGTStrandAlleleCountsBySample.log");
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf -A StrandAlleleCountsBySample", b37KGReference),
+                baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf -A StrandAlleleCountsBySample -log " + logFileName, b37KGReference),
                 1,
                 Arrays.asList("5deed67f8eb10cbd4429d70e0c26ef7c"));
-        executeTest("testUpdatePGT, adding StrandAlleleCountsBySample annotation", spec);
+        executeTest("testUpdatePGTStrandAlleleCountsBySample", spec);
+
+        File file = new File(logFileName);
+        Assert.assertTrue(FileUtils.readFileToString(file).contains(AnnotationUtils.ANNOTATION_HC_WARN_MSG));
     }
 
     @Test(enabled = true)
@@ -246,20 +252,16 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         "-variant_index_parameter 128000 -A StrandAlleleCountsBySample",
                 1, Arrays.asList("")
         );
-        specHaplotypeCaller.disableShadowBCF(); //TODO: Remove when BaseTest.assertAttributesEquals() works with SC
+        specHaplotypeCaller.disableShadowBCF(); //TODO: Remove when BaseTest.assertAttributesEquals() works with SAC
         final File gVCF = executeTest("testStrandAlleleCountsBySampleHaplotypeCaller", specHaplotypeCaller).getFirst().get(0);
-        List<String> gVCFList = getAttributeValues(gVCF, new String("SAC"));
 
         //Use gVCF from HaplotypeCaller
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + gVCF.getAbsolutePath(), b37KGReference),
                 1,
-                Arrays.asList(""));
-        final File outputVCF = executeTest("testStrandAlleleCountsBySample", spec).getFirst().get(0);
-        List<String> outputVCFList = getAttributeValues(outputVCF, new String("SAC"));
-
-        // All of the SAC values in the VCF were derived from the gVCF
-        Assert.assertTrue(gVCFList.containsAll(outputVCFList));
+                Arrays.asList("382e800e004139f861acf1e54767b104"));
+        spec.disableShadowBCF();  //TODO: Remove when BaseTest.assertAttributesEquals() works with SAC
+        executeTest("testStrandAlleleCountsBySample", spec);
     }
 
     @Test
@@ -519,10 +521,32 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testBadADPropagationHaploidBugTest() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
-                " -V " + privateTestDir + "ad-bug-input.vcf",
+                        " -V " + privateTestDir + "ad-bug-input.vcf",
                 1,
                 Arrays.asList("027f96584e91ca8255764fbf38293963"));
         spec.disableShadowBCF();
         executeTest("testBadADPropagationHaploidBugTest", spec);
+    }
+
+    @Test(enabled = true)
+    public void testSAC() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
+                        " -V " + privateTestDir + "261_S01_raw_variants_gvcf.vcf",
+                1,
+                Arrays.asList("09da4a0fb937efab228413d1162fde2d"));
+        spec.disableShadowBCF();
+        executeTest("testSAC", spec);
+    }
+
+    @Test(enabled = true)
+    public void testSACMultisampleTetraploid() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
+                        " -V " + privateTestDir + "tetraploid-multisample-sac.g.vcf",
+                1,
+                Arrays.asList("a8b7b300d6d5345b7b02b86d75671756"));
+        spec.disableShadowBCF();
+        executeTest("testSACMultisampleTetraploid", spec);
     }
 }

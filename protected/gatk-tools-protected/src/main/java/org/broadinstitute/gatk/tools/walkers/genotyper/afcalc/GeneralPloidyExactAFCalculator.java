@@ -59,6 +59,7 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalcula
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 
 import java.util.*;
 
@@ -71,7 +72,7 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
 
     @Override
     protected GenotypesContext reduceScopeGenotypes(final VariantContext vc, final int defaultPloidy, final List<Allele> allelesToUse) {
-        return subsetAlleles(vc,defaultPloidy,allelesToUse,false);
+        return subsetAlleles(vc, defaultPloidy, allelesToUse, false);
     }
 
     @Override
@@ -405,79 +406,125 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
 
     /**
      * From a given variant context, extract a given subset of alleles, and update genotype context accordingly,
-     * including updating the PL's, and assign genotypes accordingly
+     * including updating the PLs, ADs and SACs, and assign genotypes accordingly
      * @param vc                                variant context with alleles and genotype likelihoods
      * @param defaultPloidy                     ploidy to assume in case that {@code vc} does not contain that information
      *                                          for a sample.
      * @param allelesToUse                      alleles to subset
      * @param assignGenotypes                   true: assign hard genotypes, false: leave as no-call
-     * @return                                  GenotypesContext with new PLs and AD.
+     * @return                                  GenotypesContext with new PLs, SACs and AD.
      */
     @Override
     public GenotypesContext subsetAlleles(final VariantContext vc, final int defaultPloidy,
                                           final List<Allele> allelesToUse,
                                           final boolean assignGenotypes) {
-        // the genotypes with PLs
-        final GenotypesContext oldGTs = vc.getGenotypes();
 
-        // samples
-        final List<String> sampleIndices = oldGTs.getSampleNamesOrderedByName();
+        final GenotypesContext result = GenotypesContext.create();
 
-        // the new genotypes to create
-        final GenotypesContext newGTs = GenotypesContext.create();
+        // Subset genotypes for each sample
+        for (final Genotype g : vc.getGenotypes()) // If it really needs to process order by sample name do so.
+            result.add(subsetGenotypeAlleles(g, allelesToUse, vc, defaultPloidy, assignGenotypes));
+        return GATKVariantContextUtils.fixADFromSubsettedAlleles(result, vc, allelesToUse);
+    }
+
+    /**
+     * From a given genotype, extract a given subset of alleles and update genotype PLs and SACs.
+     * @param g                                 genotype to subset
+     * @param allelesToUse                      alleles to subset
+     * @param vc                                variant context with alleles and genotypes
+     * @param defaultPloidy                     ploidy to assume in case that {@code vc} does not contain that information for a sample.
+     * @param assignGenotypes                   true: assign hard genotypes, false: leave as no-call
+     * @return                                  Genotypes with new PLs and SACs
+     */
+    private Genotype subsetGenotypeAlleles(final Genotype g, final List<Allele> allelesToUse, final VariantContext vc, final int defaultPloidy,
+                                           boolean assignGenotypes) {
+        final int ploidy = g.getPloidy() <= 0 ? defaultPloidy : g.getPloidy();
+        if (!g.hasLikelihoods())
+            return GenotypeBuilder.create(g.getSampleName(),GATKVariantContextUtils.noCallAlleles(ploidy));
+        else {
+            // subset likelihood alleles
+            final double[] newLikelihoods = subsetLikelihoodAlleles(g, allelesToUse, vc, ploidy);
+            if (MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL)
+                return GenotypeBuilder.create(g.getSampleName(), GATKVariantContextUtils.noCallAlleles(ploidy));
+            else  // just now we would care about newSACs
+                return subsetGenotypeAllelesWithLikelihoods(g, allelesToUse, vc, ploidy, assignGenotypes, newLikelihoods);
+        }
+    }
+
+    /**
+     * From a given genotype, extract a given subset of alleles and return the new PLs
+     * @param g                                 genotype to subset
+     * @param allelesToUse                      alleles to subset
+     * @param vc                                variant context with alleles and genotypes
+     * @param ploidy                            number of chromosomes
+     * @return                                  the subsetted PLs
+     */
+    private double[] subsetLikelihoodAlleles(final Genotype g, final List<Allele> allelesToUse, final VariantContext vc, final int ploidy){
 
         // we need to determine which of the alternate alleles (and hence the likelihoods) to use and carry forward
         final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
         final int numNewAltAlleles = allelesToUse.size() - 1;
 
+        // create the new likelihoods array from the alleles we are allowed to use
+        final double[] originalLikelihoods = g.getLikelihoods().getAsVector();
 
-        // create the new genotypes
-        for ( int k = 0; k < oldGTs.size(); k++ ) {
-            final Genotype g = oldGTs.get(sampleIndices.get(k));
-            final int declaredPloidy = g.getPloidy();
-            final int ploidy = declaredPloidy <= 0 ? defaultPloidy : declaredPloidy;
-            if ( !g.hasLikelihoods() ) {
-                newGTs.add(GenotypeBuilder.create(g.getSampleName(),GATKVariantContextUtils.noCallAlleles(ploidy)));
-                continue;
-            }
-
-            // create the new likelihoods array from the alleles we are allowed to use
-            final double[] originalLikelihoods = g.getLikelihoods().getAsVector();
-            double[] newLikelihoods;
-
-            // Optimization: if # of new alt alleles = 0 (pure ref call), keep original likelihoods so we skip normalization
-            // and subsetting
-            if ( numOriginalAltAlleles == numNewAltAlleles || numNewAltAlleles == 0) {
-                newLikelihoods = originalLikelihoods;
-            } else {
-                newLikelihoods = GeneralPloidyGenotypeLikelihoods.subsetToAlleles(originalLikelihoods, ploidy, vc.getAlleles(), allelesToUse);
-
-                // might need to re-normalize
-                newLikelihoods = MathUtils.normalizeFromLog10(newLikelihoods, false, true);
-            }
-
-            // if there is no mass on the (new) likelihoods, then just no-call the sample
-            if ( MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL ) {
-                newGTs.add(GenotypeBuilder.create(g.getSampleName(), GATKVariantContextUtils.noCallAlleles(ploidy)));
-            }
-            else {
-                final GenotypeBuilder gb = new GenotypeBuilder(g);
-
-                if ( numNewAltAlleles == 0 )
-                    gb.noPL();
-                else
-                    gb.PL(newLikelihoods);
-
-                // if we weren't asked to assign a genotype, then just no-call the sample
-                if ( !assignGenotypes || MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL )
-                    gb.alleles(GATKVariantContextUtils.noCallAlleles(ploidy));
-                else
-                    assignGenotype(gb, newLikelihoods, allelesToUse, ploidy);
-                newGTs.add(gb.make());
-            }
+        if ( numOriginalAltAlleles != numNewAltAlleles ) {
+            // might need to re-normalize the new likelihoods
+            return MathUtils.normalizeFromLog10(GeneralPloidyGenotypeLikelihoods.subsetToAlleles(originalLikelihoods, ploidy, vc.getAlleles(), allelesToUse),
+                    false, true);
         }
+        else
+            return originalLikelihoods;
+    }
 
-        return GATKVariantContextUtils.fixADFromSubsettedAlleles(newGTs, vc, allelesToUse);
+    /**
+     * From a given genotype, subset the PLs and SACs
+     * @param g                                 genotype to subset
+     * @param allelesToUse                      alleles to subset
+     * @param vc                                variant context with alleles and genotypes
+     * @param ploidy                            number of chromosomes
+     * @param assignGenotypes                   true: assign hard genotypes, false: leave as no-call
+     * @param newLikelihoods                    the PL values
+     * @return genotype with the subsetted PLsL and SACs
+     */
+    private Genotype subsetGenotypeAllelesWithLikelihoods(final Genotype g, final List<Allele> allelesToUse, final VariantContext vc, int ploidy,
+                                                          final boolean assignGenotypes, final double[] newLikelihoods) {
+
+        final GenotypeBuilder gb = new GenotypeBuilder(g);
+
+        // add likelihoods
+        gb.PL(newLikelihoods);
+
+        // get and add subsetted SACs
+        final int[] newSACs = subsetSACAlleles(g, allelesToUse, vc);
+        if (newSACs != null)
+            gb.attribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY, newSACs);
+        if (assignGenotypes)
+            assignGenotype(gb, newLikelihoods, allelesToUse, ploidy);
+        else
+            gb.alleles(GATKVariantContextUtils.noCallAlleles(ploidy));
+
+        return gb.make();
+    }
+
+    /**
+     * From a given genotype, extract a given subset of alleles and return the new SACs
+     * @param g                             genotype to subset
+     * @param allelesToUse                  alleles to subset
+     * @param vc                            variant context with alleles and genotypes
+     * @return                              the subsetted SACs
+     */
+    private int[] subsetSACAlleles(final Genotype g, final List<Allele> allelesToUse, final VariantContext vc){
+
+        if ( !g.hasExtendedAttribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY) )
+            return null;
+
+        // we need to determine which of the alternate alleles (and hence the likelihoods) to use and carry forward
+        final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
+        final int numNewAltAlleles = allelesToUse.size() - 1;
+        final List<Integer> sacIndexesToUse = numOriginalAltAlleles == numNewAltAlleles ? null : GATKVariantContextUtils.determineSACIndexesToUse(vc, allelesToUse);
+
+        return GATKVariantContextUtils.makeNewSACs(g, sacIndexesToUse);
     }
 
     /**
@@ -485,7 +532,7 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
      *
      * @param newLikelihoods       the PL array
      * @param allelesToUse         the list of alleles to choose from (corresponding to the PLs)
-     * @param numChromosomes        Number of chromosomes per pool
+     * @param numChromosomes       Number of chromosomes per pool
      */
     private void assignGenotype(final GenotypeBuilder gb,
                                 final double[] newLikelihoods,

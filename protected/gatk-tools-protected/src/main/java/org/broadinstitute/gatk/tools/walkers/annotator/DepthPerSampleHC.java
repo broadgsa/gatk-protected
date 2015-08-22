@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
@@ -94,7 +95,7 @@ import java.util.*;
 public class DepthPerSampleHC extends GenotypeAnnotation {
     private final static Logger logger = Logger.getLogger(DepthPerSampleHC.class);
     private boolean alleleLikelihoodMapSubsetWarningLogged = false;
-    boolean[] warningsLogged = new boolean[4];
+    private final boolean[] warningsLogged = new boolean[AnnotationUtils.WARNINGS_LOGGED_SIZE];
 
     @Override
     public void annotate(final RefMetaDataTracker tracker,
@@ -106,7 +107,7 @@ public class DepthPerSampleHC extends GenotypeAnnotation {
                          final GenotypeBuilder gb,
                          final PerReadAlleleLikelihoodMap alleleLikelihoodMap){
 
-        if ( !AnnotationUtils.isAppropriateInput(walker, alleleLikelihoodMap, g, warningsLogged, logger) ) {
+        if ( !AnnotationUtils.isAppropriateInput(VCFConstants.DEPTH_KEY , walker, alleleLikelihoodMap, g, warningsLogged, logger) ) {
             return;
         }
 

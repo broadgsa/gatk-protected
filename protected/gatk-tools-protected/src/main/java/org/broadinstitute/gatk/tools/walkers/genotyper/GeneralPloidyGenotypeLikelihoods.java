@@ -143,11 +143,11 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
      * of form int[] -> double (to be more precise, IntArrayWrapper -> Double).
      * For a given ploidy (chromosome count) and number of alleles, we need a form to iterate deterministically
      * across all possible allele conformations.
-     * Problem equivalent to listing in determistic order all possible ways in which N integers will sum to P,
+     * Problem equivalent to listing in deterministic order all possible ways in which N integers will sum to P,
      * where N is number of alleles and P is number of chromosomes.
      * There's an option to list all integers so that sum will be UP to P.
      * For example, with P=2,N=2, restrictSumTo = 2 iterator will produce
-     * [2 0 ] [1 1] [ 0 2]
+     * [2 0] [1 1] [0 2]
      *
      *
      */
@@ -331,7 +331,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
      * @param numChromosomes        Ploidy (number of chromosomes describing PL's)
      * @param originalAlleles       List of original alleles
      * @param allelesToSubset       Alleles to subset
-     * @return                      Vector of new PL's, ordered accorrding to SumIterator's ordering
+     * @return                      Vector of new PL's, ordered according to SumIterator's ordering
      */
     public static double[] subsetToAlleles(final double[] oldLikelihoods, final int numChromosomes,
                                                    final List<Allele> originalAlleles, final List<Allele> allelesToSubset) {
@@ -339,13 +339,11 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
         int newPLSize = GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(allelesToSubset.size(), numChromosomes);
         double[] newPLs = new double[newPLSize];
 
-
         int idx = 0;
         // First fill boolean array stating whether each original allele is present in new mapping
         final boolean [] allelePresent = new boolean[originalAlleles.size()];
         for ( Allele allele : originalAlleles )
             allelePresent[idx++] = allelesToSubset.contains(allele);
-
 
         // compute mapping from old idx to new idx
         // This might be needed in case new allele set is not ordered in the same way as old set

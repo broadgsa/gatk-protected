@@ -163,7 +163,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         executeTest("test file has annotations, adding StrandAlleleCountsBySample annotation", spec);
 
         File file = new File(logFileName);
-        Assert.assertTrue(FileUtils.readFileToString(file).contains("Annotation will not be calculated, must be called from HaplotyepCaller"));
+        Assert.assertTrue(FileUtils.readFileToString(file).contains(AnnotationUtils.ANNOTATION_HC_WARN_MSG));
     }
 
     @Test
