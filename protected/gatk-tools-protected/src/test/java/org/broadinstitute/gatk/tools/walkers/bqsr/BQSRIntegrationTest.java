@@ -52,6 +52,8 @@
 package org.broadinstitute.gatk.tools.walkers.bqsr;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.broadinstitute.gatk.utils.commandline.ArgumentException;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -199,7 +201,8 @@ public class BQSRIntegrationTest extends WalkerTest {
         tests.add(new Object[]{1, new PRTest(" -qq -1", "8a38828e3b14ce067614d4248e3ea95a")});
         tests.add(new Object[]{1, new PRTest(" -qq 6", "e4f23250b2c87f0d68d042cc3d2ec1d3")});
         tests.add(new Object[]{1, new PRTest(" -DIQ", "2dfa45f004d3a371fd290ed67fbdf573")});
-
+        tests.add(new Object[]{1, new PRTest(" --useOriginalQualities -SQQ 10 -SQQ 20 -SQQ 30", "4882354d9e603f9bbe7c9591bba0a573")});
+        tests.add(new Object[]{1, new PRTest(" --useOriginalQualities -SQQ 10 -SQQ 20 -SQQ 30 -RDQ", "6ffdfc4593e83f7c234b6249412433af")});
         for ( final int nct : Arrays.asList(1, 2, 4) ) {
             tests.add(new Object[]{nct, new PRTest("", "6451093cadfc14d7359617b2a7ea6db8")});
         }
@@ -263,5 +266,37 @@ public class BQSRIntegrationTest extends WalkerTest {
                 1,
                 UserException.class);
         executeTest("testPRFailWithBadPL", spec);
+    }
+
+    @Test
+    public void testPRWithConflictingArguments_qqAndSQQ() {
+        // -qq and -SQQ shouldn't be able to be run in the same command
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T PrintReads" +
+                        " -R " + hg18Reference +
+                        " -I " + HiSeqBam +
+                        " -L " + HiSeqInterval +
+                        " -qq 4 -SQQ 9" +
+                        " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.highMaxCycle.table" +
+                        " -o /dev/null",
+                0,
+                ArgumentException.class);
+        executeTest("testPRWithConflictingArguments_qqAndSQQ", spec);
+    }
+
+    @Test
+    public void testPRWithConflictingArguments_qlAndSQQ() {
+        // Arguments -SQQ and -ql conflict and should throw an exception
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T PrintReads" +
+                        " -R " + hg18Reference +
+                        " -I " + HiSeqBam +
+                        " -L " + HiSeqInterval +
+                        " -SQQ 4 -q1 4 " +
+                        " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.lowMaxCycle.table" +
+                        " -o /dev/null",
+                0,
+                ArgumentException.class);
+        executeTest("testPRWithConflictingArguments_qlAndSQQ", spec);
     }
 }
