@@ -51,6 +51,11 @@
 
 package org.broadinstitute.gatk.tools.walkers.indels;
 
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalList;
+import org.apache.commons.io.FilenameUtils;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Input;
@@ -61,6 +66,7 @@ import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.filters.*;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
@@ -70,7 +76,9 @@ import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.VariantContext;
 
-import java.io.PrintStream;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -143,7 +151,7 @@ public class RealignerTargetCreator extends RodWalker<RealignerTargetCreator.Eve
      * The target intervals for realignment.
      */
     @Output
-    protected PrintStream out;
+    protected File out;
 
     /**
      * Any number of VCF files representing known SNPs and/or indels.  Could be e.g. dbSNP and/or official 1000 Genomes indel calls.
@@ -276,8 +284,24 @@ public class RealignerTargetCreator extends RodWalker<RealignerTargetCreator.Eve
         if ( sum.right != null && sum.right.isReportableEvent() )
             sum.intervals.add(sum.right.getLoc());
 
-        for ( GenomeLoc loc : sum.intervals )
-            out.println(loc);
+        if ( FilenameUtils.getExtension(out.getName()).equals("interval_list") ) {
+            final SAMFileHeader masterSequenceDictionaryHeader = new SAMFileHeader();
+            masterSequenceDictionaryHeader.setSequenceDictionary(getToolkit().getMasterSequenceDictionary());
+            final IntervalList intervalList = new IntervalList(masterSequenceDictionaryHeader);
+            for ( GenomeLoc loc : sum.intervals ) {
+                intervalList.add(new Interval(loc.getContig(), loc.getStart(), loc.getStop()));
+            }
+            intervalList.write(out);
+        } else {
+            try ( BufferedWriter bufferedWriter = IOUtil.openFileForBufferedWriting(out) ) {
+                for ( GenomeLoc loc : sum.intervals ) {
+                    bufferedWriter.write(loc.toString());
+                    bufferedWriter.newLine();
+                }
+            } catch (final IOException e) {
+                throw new GATKException("Error writing out intervals to file: " + out.getAbsolutePath(), e);
+            }
+        }
     }
 
     public EventPair reduceInit() {
