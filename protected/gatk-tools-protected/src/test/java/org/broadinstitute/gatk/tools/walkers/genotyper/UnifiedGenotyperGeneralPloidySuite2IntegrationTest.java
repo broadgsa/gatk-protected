@@ -63,16 +63,16 @@ public class UnifiedGenotyperGeneralPloidySuite2IntegrationTest extends WalkerTe
 
     @Test(enabled = true)
     public void testINDEL_maxAltAlleles2_ploidy3_Pools_noRef() {
-        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","984c5d3252b6efc82f87a51fafee2a83");
+        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 3","LSV_INDEL_DISC_NOREF_p3","INDEL","0bd730fa290df403b8117016da8eebef");
     }
 
     @Test(enabled = true)
     public void testMT_SNP_DISCOVERY_sp4() {
-        executor.PC_MT_Test(CEUTRIO_BAM, "-A AlleleCountBySample -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","7ef8e488a8125126a3411df7d3f6167a");
+        executor.PC_MT_Test(CEUTRIO_BAM, "-A AlleleCountBySample -maxAltAlleles 1 -ploidy 8", "MT_SNP_DISCOVERY_sp4","4b58f34d7aa4a7b652e4a07bac19d23e");
     }
 
     @Test(enabled = true)
     public void testMT_SNP_GGA_sp10() {
-        executor.PC_MT_Test(CEUTRIO_BAM, String.format("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "b18e9c44b3c834d1ca8bf03951cf0c33");
+        executor.PC_MT_Test(CEUTRIO_BAM, String.format("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 20 -gt_mode GENOTYPE_GIVEN_ALLELES  -out_mode EMIT_ALL_SITES -alleles %s",NA12891_CALLS), "MT_SNP_GGA_sp10", "af9b5e39536a1177a0202269b516674c");
     }
 }
