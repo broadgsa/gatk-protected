@@ -259,7 +259,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + gVCF.getAbsolutePath(), b37KGReference),
                 1,
-                Arrays.asList("382e800e004139f861acf1e54767b104"));
+                Arrays.asList("b81a94763ea9714ed6289acd3d39c4cf"));
         spec.disableShadowBCF();  //TODO: Remove when BaseTest.assertAttributesEquals() works with SAC
         executeTest("testStrandAlleleCountsBySample", spec);
     }
