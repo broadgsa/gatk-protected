@@ -394,7 +394,7 @@ public class IndelRealigner extends ReadWalker<Integer, Integer> {
             throw new RuntimeException("Entropy threshold must be a fraction between 0 and 1");
 
         try {
-            referenceReader = new CachingIndexedFastaSequenceFile(getToolkit().getArguments().referenceFile);
+            referenceReader = new CachingIndexedFastaSequenceFile(getToolkit().getArguments().referenceFile, false, true);
         }
         catch(FileNotFoundException ex) {
             throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile,ex);
