@@ -93,7 +93,10 @@ public class PosteriorLikelihoodsUtils {
             }
 
             //add zero allele counts for any reference alleles not seen in priors (if applicable)
-            totalAlleleCounts.put(vc1.getReference(),totalAlleleCounts.get(vc1.getReference())+numRefSamplesFromMissingResources);
+            int existingRefCounts = 0;
+            if (totalAlleleCounts.containsKey(vc1.getReference()))
+                existingRefCounts += totalAlleleCounts.get(vc1.getReference());
+            totalAlleleCounts.put(vc1.getReference(),existingRefCounts+numRefSamplesFromMissingResources);
         }
 
         // now extract the counts of the alleles present within vc1, and in order
