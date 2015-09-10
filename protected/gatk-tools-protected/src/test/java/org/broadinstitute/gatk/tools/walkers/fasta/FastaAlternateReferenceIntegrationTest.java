@@ -115,13 +115,33 @@ public class FastaAlternateReferenceIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testIndelsAndSnpMask() {
+    public void testSnpMask() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + b36dbSNP129 + " --snpmask:vcf " + b36dbSNP129 + " -L 1:10,271,272-10,271,302 -o %s",
+                1,
+                Arrays.asList("01a0dffc62fc940c97e29276457f1ff0"));
+        executeTest("test snp mask", spec);
+    }
+
+    @Test
+    public void testSnpMaskPriority() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + b36dbSNP129 + " --snpmaskPriority --snpmask:vcf " + b36dbSNP129 + " -L 1:10,271,272-10,271,302 -o %s",
+                1,
+                Arrays.asList("0950493e5038f7d588034ce4dd21292a"));
+        executeTest("test snp mask priority", spec);
+    }
+
+    @Test
+         public void testIndelsAndSnpMask() {
 
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + validationDataLocation + "NA12878.chr1_10mb_11mb.slx.indels.vcf4 --snpmask:vcf " + b36dbSNP129 + " -L 1:10,075,000-10,075,380 -L 1:10,093,447-10,093,847 -L 1:10,271,252-10,271,452 -o %s",
-                 1,
-                 Arrays.asList("375efb2feb017f01339f680fdffac6cd"));
-        executeTest("test indels", spec);
+                1,
+                Arrays.asList("375efb2feb017f01339f680fdffac6cd"));
+        executeTest("test indels and snp mask", spec);
     }
 
     @Test
