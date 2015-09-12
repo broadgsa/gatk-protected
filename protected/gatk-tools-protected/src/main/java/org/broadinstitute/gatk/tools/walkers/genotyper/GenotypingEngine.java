@@ -238,10 +238,13 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final double phredScaledConfidence = (-10.0 * log10Confidence) + 0.0;
 
         // return a null call if we don't pass the confidence cutoff or the most likely allele frequency is zero
-        if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission())
+        if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission()) {
             // technically, at this point our confidence in a reference call isn't accurately estimated
             //  because it didn't take into account samples with no data, so let's get a better estimate
-            return limitedContext ? null : estimateReferenceConfidence(vc, stratifiedContexts, getModelTheta(model), true, PoFGT0);
+            double[] AFpriors = getAlleleFrequencyPriors(vc, defaultPloidy, model);
+            final int INDEX_FOR_AC_EQUALS_1 = 1;
+            return limitedContext ? null : estimateReferenceConfidence(vc, stratifiedContexts, AFpriors[INDEX_FOR_AC_EQUALS_1], true, PoFGT0);
+        }
 
         // start constructing the resulting VC
         final GenomeLocParser genomeLocParser = this.genomeLocParser != null || refContext == null ? this.genomeLocParser : refContext.getGenomeLocParser();
@@ -375,25 +378,6 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
                         && QualityUtils.phredScaleErrorRate(PofF) >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING);
     }
 
-    /**
-     * Based in the model used, returns the appropriate heterozygosity argument value.
-     * @param model genotyping model.
-     *
-     * @return a valid heterozygosity in (0,1).
-     */
-    private double getModelTheta(final GenotypeLikelihoodsCalculationModel.Model model) {
-        switch (model) {
-            case SNP:
-            case GENERALPLOIDYSNP:
-                return configuration.genotypeArgs.snpHeterozygosity;
-            case INDEL:
-            case GENERALPLOIDYINDEL:
-                return configuration.genotypeArgs.indelHeterozygosity;
-            default:
-                throw new IllegalArgumentException("Unexpected GenotypeCalculationModel " + model);
-        }
-    }
-
 
     /**
      * Checks whether the variant context has too many alternative alleles for progress to genotyping the site.
@@ -473,7 +457,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      */
     protected abstract boolean forceSiteEmission();
 
-    protected final VariantCallContext estimateReferenceConfidence(VariantContext vc, Map<String, AlignmentContext> contexts, double theta, boolean ignoreCoveredSamples, double initialPofRef) {
+    protected final VariantCallContext estimateReferenceConfidence(VariantContext vc, Map<String, AlignmentContext> contexts, double log10OfTheta, boolean ignoreCoveredSamples, double initialPofRef) {
         if ( contexts == null )
             return null;
 
@@ -487,7 +471,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             if ( ignoreCoveredSamples && context != null )
                 continue;
             final int depth = context == null ? 0 : context.getBasePileup().depthOfCoverage();
-            log10POfRef += estimateLog10ReferenceConfidenceForOneSample(depth, theta);
+            log10POfRef += estimateLog10ReferenceConfidenceForOneSample(depth, log10OfTheta);
         }
 
         return new VariantCallContext(vc, QualityUtils.phredScaleLog10CorrectRate(log10POfRef) >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING, false);
@@ -523,16 +507,13 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * Assumes the sample is diploid
      *
      * @param depth the depth of the sample
-     * @param theta the heterozygosity of this species (between 0 and 1)
-     *
-     * @throws IllegalArgumentException if {@code depth} is less than 0 or {@code theta} is not in the (0,1) range.
+     * @param log10OfTheta the heterozygosity of this species (in log10-space)
      *
      * @return a valid log10 probability of the sample being hom-ref
      */
     @Ensures("MathUtils.goodLog10Probability(result)")
-    protected final double estimateLog10ReferenceConfidenceForOneSample(final int depth, final double theta) {
-        if (theta <= 0 || theta >= 1) throw new IllegalArgumentException("theta must be greater than 0 and less than 1");
-        final double log10PofNonRef = Math.log10(theta / 2.0) + getRefBinomialProbLog10(depth);
+    protected final double estimateLog10ReferenceConfidenceForOneSample(final int depth, final double log10OfTheta) {
+        final double log10PofNonRef = log10OfTheta + getRefBinomialProbLog10(depth);
         return MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));
     }
 
@@ -558,14 +539,19 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @param heterozygosity                   default heterozygosity to use, if inputPriors is empty
      * @param inputPriors                      Input priors to use (in which case heterozygosity is ignored)
      *
+     * @throws IllegalArgumentException if {@code inputPriors} has size != {@code N} or any entry in {@code inputPriors} is not in the (0,1) range.
+     *
      * @return never {@code null}.
      */
-    private static AFPriorProvider composeAlleleFrequencyPriorProvider(final int N, final double heterozygosity, final List<Double> inputPriors) {
+    public static AFPriorProvider composeAlleleFrequencyPriorProvider(final int N, final double heterozygosity, final List<Double> inputPriors) {
 
         if (!inputPriors.isEmpty()) {
             // user-specified priors
             if (inputPriors.size() != N)
                 throw new UserException.BadArgumentValue("inputPrior","Invalid length of inputPrior vector: vector length must be equal to # samples +1 ");
+            for (final Double prior : inputPriors) {
+                if (prior <= 0 || prior >= 1) throw new UserException.BadArgumentValue("inputPrior","inputPrior vector values must be greater than 0 and less than 1");
+            }
             return new CustomAFPriorProvider(inputPriors);
         }
         else
