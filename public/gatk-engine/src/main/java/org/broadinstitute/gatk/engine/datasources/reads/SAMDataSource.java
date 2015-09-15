@@ -29,6 +29,7 @@ import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.*;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.sra.SRAAccession;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -51,7 +52,6 @@ import org.broadinstitute.gatk.utils.interval.IntervalMergingRule;
 import org.broadinstitute.gatk.utils.iterators.GATKSAMIterator;
 import org.broadinstitute.gatk.utils.iterators.GATKSAMIteratorAdapter;
 import org.broadinstitute.gatk.utils.sam.GATKSAMReadGroupRecord;
-import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecordIterator;
 import org.broadinstitute.gatk.utils.sam.SAMReaderID;
 
@@ -310,7 +310,7 @@ public class SAMDataSource {
 
         // Determine the sort order.
         for(SAMReaderID readerID: readerIDs) {
-            if (! readerID.getSamFile().canRead() )
+            if (!SRAAccession.isValid(readerID.getSamFile().getPath()) && !readerID.getSamFile().canRead() )
                 throw new UserException.CouldNotReadInputFile(readerID.getSamFile(),"file is not present or user does not have appropriate permissions.  " +
                         "Please check that the file is present and readable and try again.");
 
@@ -384,8 +384,16 @@ public class SAMDataSource {
 
         for(SAMReaderID id: readerIDs) {
             File indexFile = findIndexFile(id.getSamFile());
-            if(indexFile != null)
-                bamIndices.put(id,new GATKBAMIndex(indexFile, samSequenceDictionary));
+            if(indexFile != null) {
+                bamIndices.put(id, new GATKBAMIndexFromFile(indexFile, samSequenceDictionary));
+                continue;
+            }
+
+            // if index file is not found, try SamReader indexing interface
+            SamReader reader = readers.getReader(id);
+            if (reader.indexing().hasBrowseableIndex()) {
+                bamIndices.put(id, new GATKBAMIndexFromDataSource(id.getSamFile(), reader.getFileHeader(), reader.indexing().getBrowseableIndex()));
+            }
         }
 
         resourcePool.releaseReaders(readers);
@@ -1122,12 +1130,17 @@ public class SAMDataSource {
             try {
                 if (threadAllocation.getNumIOThreads() > 0)
                     blockInputStream = new BlockInputStream(dispatcher,readerID,false);
-                reader = SamReaderFactory.makeDefault()
+                SamReaderFactory factory = SamReaderFactory.makeDefault()
                         .referenceSequence(referenceFile)
                         .validationStringency(validationStringency)
                         .setOption(SamReaderFactory.Option.EAGERLY_DECODE, false)
-                        .setOption(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS, true)
-                        .open(readerID.getSamFile());
+                        .setOption(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS, true);
+
+                if (SRAAccession.isValid(readerID.getSamFile().getPath())) {
+                    reader = factory.open(SamInputResource.of(new SRAAccession(readerID.getSamFile().getPath())));
+                } else {
+                    reader = factory.open(readerID.getSamFile());
+                }
 
             } catch ( RuntimeIOException e ) {
                 throw new UserException.CouldNotReadInputFile(readerID.getSamFile(), e);
