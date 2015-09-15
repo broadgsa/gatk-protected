@@ -244,10 +244,18 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testUsingExpressionAlleleMisMatch() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " --resourceAlleleConcordance --resource:foo " + privateTestDir + "targetAnnotations.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty-mod.vcf -E foo.AF -L " + privateTestDir + "vcfexample3empty-mod.vcf", 1,
+                Arrays.asList("6f288c4b672ac3a22cb2385981f51d75"));
+        executeTest("using expression allele mismatch", spec);
+    }
+
+    @Test
     public void testUsingExpressionMultiAllele() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations-multiAllele.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty-multiAllele.vcf -E foo.AF -E foo.AC -L " + privateTestDir + "vcfexample3empty-multiAllele.vcf", 1,
-                Arrays.asList("04280ba5accc0479c627c16902e54dd7"));
+                Arrays.asList("af92a439f092f45da10adac0f9c8fc8f"));
         executeTest("using expression with multi-alleles", spec);
     }
 
