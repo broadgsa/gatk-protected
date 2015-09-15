@@ -72,7 +72,7 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "fc09bd1a934a6bd0af6fed52e78cfd9a");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "c652334e4b9e422d3a96f2f4d221a163");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
@@ -84,7 +84,7 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     // TODO -- need a better symbolic allele test
     @Test
     public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "327b8a6d9ab5b92c036651cbf3192940");
+        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "8a83ab27177f0b7adf50031f061f9cd7");
     }
 
     private void HCTestComplexGGA(String bam, String args, String md5) {
@@ -96,13 +96,13 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleGGAComplex() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "17c8bc400af71cf3311f903cf1bb3ffc");
+                "2a5de432f04198737732064206c7d63d");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "3af98489eeafc4379c8bcc409cb87d36");
+                "afaa41101f492d37f57bb18cc638c6bc");
     }
 
     private void HCTestComplexConsensusMode(String bam, String args, String md5) {
@@ -114,7 +114,7 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
     @Test
     public void testHaplotypeCallerMultiSampleConsensusModeComplex() {
         HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538 -L 20:133041-133161 -L 20:300207-300337",
-                "b4ffbfad682d68db29075a538de5eeab");
+                "d42ba795fe346d8372cae3c00c9c2f23");
     }
 
 }

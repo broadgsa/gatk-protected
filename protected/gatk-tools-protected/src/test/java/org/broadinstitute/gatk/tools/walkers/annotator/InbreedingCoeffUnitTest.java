@@ -113,32 +113,32 @@ public class InbreedingCoeffUnitTest {
     public void testInbreedingCoeffForMultiallelicVC() {
         //make sure that compound gets (with no ref) don't add to het count
         VariantContext test1 = makeVC("1",Arrays.asList(Aref,T,C),
-                makeG("s1",Aref,T,2530,0,7099,366,3056,14931),
-                makeG("s2",T,T,7099,2530,0,7099,366,3056,14931),
-                makeG("s3",T,C,7099,2530,7099,3056,0,14931),
-                makeG("s4",Aref,T,2530,0,7099,366,3056,14931),
-                makeG("s5",T,T,7099,2530,0,7099,366,3056,14931),
-                makeG("s6",Aref,T,2530,0,7099,366,3056,14931),
-                makeG("s7",T,T,7099,2530,0,7099,366,3056,14931),
-                makeG("s8",Aref,T,2530,0,7099,366,3056,14931),
-                makeG("s9",T,T,7099,2530,0,7099,366,3056,14931),
-                makeG("s10",Aref,T,2530,0,7099,366,3056,14931));
+                makeG("s1", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s2", T, T, 7099, 2530, 0, 7099, 366, 3056),
+                makeG("s3", T, C, 7099, 2530, 7099, 3056, 0, 14931),
+                makeG("s4", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s5", T, T, 7099, 2530, 0, 7099, 366, 3056),
+                makeG("s6", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s7", T, T, 7099, 2530, 0, 7099, 366, 3056),
+                makeG("s8", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s9", T, T, 7099, 2530, 0, 7099, 366, 3056),
+                makeG("s10", Aref, T, 2530, 0, 7099, 366, 3056, 14931));
 
         final double ICresult1 = new InbreedingCoeff().calculateIC(test1, test1.getGenotypes());
         Assert.assertEquals(ICresult1, -0.3333333, DELTA_PRECISION, "Pass");
 
         //make sure that hets with different alternate alleles all get counted
         VariantContext test2 = makeVC("2", Arrays.asList(Aref,T,C),
-            makeG("s1",Aref,C,4878,1623,11297,0,7970,8847),
-            makeG("s2",Aref,T,2530,0,7099,366,3056,14931),
-            makeG("s3",Aref,T,3382,0,6364,1817,5867,12246),
-            makeG("s4",Aref,T,2488,0,9110,3131,9374,12505),
-            makeG("s5",Aref,C,4530,2006,18875,0,6847,23949),
-            makeG("s6",Aref,T,5325,0,18692,389,16014,24570),
-            makeG("s7",Aref,T,2936,0,29743,499,21979,38630),
-            makeG("s8",Aref,T,6902,0,8976,45,5844,9061),
-            makeG("s9",Aref,T,5732,0,10876,6394,11408,17802),
-            makeG("s10",Aref,T,2780,0,25045,824,23330,30939));
+                makeG("s1", Aref, C, 4878, 1623, 11297, 0, 7970, 8847),
+                makeG("s2", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s3", Aref, T, 3382, 0, 6364, 1817, 5867, 12246),
+                makeG("s4", Aref, T, 2488, 0, 9110, 3131, 9374, 12505),
+                makeG("s5", Aref, C, 4530, 2006, 18875, 0, 6847, 23949),
+                makeG("s6", Aref, T, 5325, 0, 18692, 389, 16014, 24570),
+                makeG("s7", Aref, T, 2936, 0, 29743, 499, 21979, 38630),
+                makeG("s8", Aref, T, 6902, 0, 8976, 45, 5844, 9061),
+                makeG("s9", Aref, T, 5732, 0, 10876, 6394, 11408, 17802),
+                makeG("s10", Aref, T, 2780, 0, 25045, 824, 23330, 30939));
 
         final double ICresult2 = new InbreedingCoeff().calculateIC(test2, test2.getGenotypes());
         Assert.assertEquals(ICresult2, -1.0, DELTA_PRECISION, "Pass");
