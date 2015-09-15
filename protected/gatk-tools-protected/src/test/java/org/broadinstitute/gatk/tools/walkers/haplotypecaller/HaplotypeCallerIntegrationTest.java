@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -207,7 +208,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     private void HCTestNearbySmallIntervals(String bam, String args, String md5) {
         try {
-            final IndexedFastaSequenceFile fasta = new IndexedFastaSequenceFile(new File(b37KGReference));
+            final ReferenceSequenceFile fasta = new IndexedFastaSequenceFile(new File(b37KGReference));
             final GenomeLocParser parser = new GenomeLocParser(fasta.getSequenceDictionary());
 
             final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, bam) + " -L 20:10,001,603-10,001,642 -L 20:10,001,653-10,001,742 --no_cmdline_in_header -o %s";

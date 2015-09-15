@@ -51,9 +51,9 @@
 
 package org.broadinstitute.gatk.tools.walkers.bqsr;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.tribble.Feature;
 import org.broadinstitute.gatk.engine.recalibration.*;
 import org.broadinstitute.gatk.engine.walkers.*;
@@ -194,7 +194,7 @@ public class BaseRecalibrator extends ReadWalker<Long, Long> implements NanoSche
     private static final String NO_DBSNP_EXCEPTION = "This calculation is critically dependent on being able to mask out known variant sites. Please provide a VCF file containing known sites of genetic variation.";
 
     private BAQ baq; // BAQ the reads on the fly to generate the alignment uncertainty vector
-    private IndexedFastaSequenceFile referenceReader; // fasta reference reader for use with BAQ calculation
+    private ReferenceSequenceFile referenceReader; // fasta reference reader for use with BAQ calculation
     private final static byte NO_BAQ_UNCERTAINTY = (byte)'@';
 
     /**
