@@ -26,6 +26,7 @@
 package org.broadinstitute.gatk.engine.datasources.reads.utilities;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.commandline.CommandLineProgram;
 import org.broadinstitute.gatk.utils.commandline.Input;
@@ -88,7 +89,7 @@ public class FindLargeShards extends CommandLineProgram {
     @Override
     public int execute() throws IOException {
         // initialize reference
-        IndexedFastaSequenceFile refReader = new IndexedFastaSequenceFile(referenceFile);
+        ReferenceSequenceFile refReader = new IndexedFastaSequenceFile(referenceFile);
         GenomeLocParser genomeLocParser = new GenomeLocParser(refReader);        
 
         // initialize reads

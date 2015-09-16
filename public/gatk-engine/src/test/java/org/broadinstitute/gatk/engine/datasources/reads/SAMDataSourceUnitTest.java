@@ -27,6 +27,7 @@ package org.broadinstitute.gatk.engine.datasources.reads;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.*;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.commandline.Tags;
 import org.broadinstitute.gatk.utils.ValidationExclusion;
@@ -64,7 +65,7 @@ public class SAMDataSourceUnitTest extends BaseTest {
 
     private List<SAMReaderID> readers;
     private File referenceFile;
-    private IndexedFastaSequenceFile seq;
+    private ReferenceSequenceFile seq;
     private GenomeLocParser genomeLocParser;
 
     /**

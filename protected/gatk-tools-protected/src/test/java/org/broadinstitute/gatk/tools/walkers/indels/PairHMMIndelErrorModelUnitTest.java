@@ -54,6 +54,7 @@ package org.broadinstitute.gatk.tools.walkers.indels;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.UnvalidatingGenomeLoc;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
@@ -76,7 +77,7 @@ public class PairHMMIndelErrorModelUnitTest extends BaseTest {
 
     @BeforeClass
     public void setup() throws FileNotFoundException {
-        final IndexedFastaSequenceFile seq = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
+        final ReferenceSequenceFile seq = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
         header = ArtificialSAMUtils.createArtificialSamHeader(seq.getSequenceDictionary());
     }
 

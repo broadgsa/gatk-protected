@@ -31,6 +31,7 @@ package org.broadinstitute.gatk.utils.activeregion;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
@@ -51,7 +52,7 @@ import java.util.*;
 public class ActiveRegionUnitTest extends BaseTest {
     private final static boolean DEBUG = false;
     private GenomeLocParser genomeLocParser;
-    private IndexedFastaSequenceFile seq;
+    private ReferenceSequenceFile seq;
     private String contig;
     private int contigLength;
 

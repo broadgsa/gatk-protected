@@ -31,6 +31,7 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMUtils;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
@@ -521,7 +522,7 @@ public class BAQ {
         }
     }
 
-     public BAQCalculationResult calcBAQFromHMM(SAMRecord read, IndexedFastaSequenceFile refReader) {
+     public BAQCalculationResult calcBAQFromHMM(SAMRecord read, ReferenceSequenceFile refReader) {
         // start is alignment start - band width / 2 - size of first I element, if there is one.  Stop is similar
         int offset = getBandWidth() / 2;
         long readStart = includeClippedBases ? read.getUnclippedStart() : read.getAlignmentStart();
@@ -664,7 +665,7 @@ public class BAQ {
      * @param calculationType
      * @return BQ qualities for use, in case qmode is DONT_MODIFY
      */
-    public byte[] baqRead(SAMRecord read, IndexedFastaSequenceFile refReader, CalculationMode calculationType, QualityMode qmode ) {
+    public byte[] baqRead(SAMRecord read, ReferenceSequenceFile refReader, CalculationMode calculationType, QualityMode qmode ) {
         if ( DEBUG ) System.out.printf("BAQ %s read %s%n", calculationType, read.getReadName());
 
         byte[] BAQQuals = read.getBaseQualities();      // in general we are overwriting quals, so just get a pointer to them

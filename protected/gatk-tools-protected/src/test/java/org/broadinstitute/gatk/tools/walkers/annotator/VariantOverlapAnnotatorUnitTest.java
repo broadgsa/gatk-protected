@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.commandline.RodBinding;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
@@ -71,7 +72,7 @@ import java.util.*;
 
 public class VariantOverlapAnnotatorUnitTest extends BaseTest {
     private GenomeLocParser genomeLocParser;
-    private IndexedFastaSequenceFile seq;
+    private ReferenceSequenceFile seq;
 
     @BeforeClass
     public void setup() throws FileNotFoundException {

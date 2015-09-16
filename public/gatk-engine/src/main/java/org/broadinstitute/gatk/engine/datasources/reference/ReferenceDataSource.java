@@ -27,6 +27,7 @@ package org.broadinstitute.gatk.engine.datasources.reference;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.engine.datasources.reads.LocusShard;
 import org.broadinstitute.gatk.engine.datasources.reads.SAMDataSource;
 import org.broadinstitute.gatk.engine.datasources.reads.Shard;
@@ -46,7 +47,7 @@ import java.util.List;
  * Looks for fai and dict files, and tries to create them if they don't exist
  */
 public class ReferenceDataSource {
-    private IndexedFastaSequenceFile reference;
+    private ReferenceSequenceFile reference;
 
     /** our log, which we want to capture anything from this class */
     protected static final org.apache.log4j.Logger logger = org.apache.log4j.Logger.getLogger(ReferenceDataSource.class);
@@ -63,7 +64,7 @@ public class ReferenceDataSource {
      * Get indexed fasta file
      * @return IndexedFastaSequenceFile that was created from file
      */
-    public IndexedFastaSequenceFile getReference() {
+    public ReferenceSequenceFile getReference() {
         return this.reference;
     }
 
