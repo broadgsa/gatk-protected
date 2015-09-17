@@ -28,8 +28,10 @@ package org.broadinstitute.gatk.engine.datasources.reads;
 import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.*;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.sra.SRAAccession;
+import htsjdk.samtools.sra.SRAIndexedSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -377,9 +379,14 @@ public class SAMDataSource {
         if (referenceFile == null) {
             samSequenceDictionary = mergedHeader.getSequenceDictionary();
         } else {
-            samSequenceDictionary = ReferenceSequenceFileFactory.
-                    getReferenceSequenceFile(referenceFile).
-                    getSequenceDictionary();
+            ReferenceSequenceFile ref;
+            // maybe it is SRA file?
+            if (SRAAccession.isValid(referenceFile.getPath())) {
+                ref = new SRAIndexedSequenceFile(new SRAAccession(referenceFile.getPath()));
+            } else {
+                ref = ReferenceSequenceFileFactory.getReferenceSequenceFile(referenceFile);
+            }
+            samSequenceDictionary = ref.getSequenceDictionary();
         }
 
         for(SAMReaderID id: readerIDs) {
@@ -1131,15 +1138,15 @@ public class SAMDataSource {
                 if (threadAllocation.getNumIOThreads() > 0)
                     blockInputStream = new BlockInputStream(dispatcher,readerID,false);
                 SamReaderFactory factory = SamReaderFactory.makeDefault()
-                        .referenceSequence(referenceFile)
                         .validationStringency(validationStringency)
-                        .setOption(SamReaderFactory.Option.EAGERLY_DECODE, false)
-                        .setOption(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS, true);
+                        .setOption(SamReaderFactory.Option.EAGERLY_DECODE, false);
 
                 if (SRAAccession.isValid(readerID.getSamFile().getPath())) {
                     reader = factory.open(SamInputResource.of(new SRAAccession(readerID.getSamFile().getPath())));
                 } else {
-                    reader = factory.open(readerID.getSamFile());
+                    reader = factory.referenceSequence(referenceFile)
+                        .setOption(SamReaderFactory.Option.INCLUDE_SOURCE_IN_RECORDS, true)
+                        .open(readerID.getSamFile());
                 }
 
             } catch ( RuntimeIOException e ) {
