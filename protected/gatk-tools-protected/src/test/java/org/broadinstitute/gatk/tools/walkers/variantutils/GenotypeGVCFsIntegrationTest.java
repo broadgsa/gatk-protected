@@ -145,7 +145,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " --includeNonVariantSites -L 20:10,030,000-10,033,000 -L 20:10,386,000-10,386,500", b37KGReference),
                 1,
-                Arrays.asList("92513f9a6f34829ef455a379e87e09cd"));
+                Arrays.asList("13c24e54c17e667a9647066aed54da76"));
         executeTest("combineSingleSamplePipelineGVCF_includeNonVariants", spec);
     }
 
@@ -548,5 +548,16 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 Arrays.asList("a8b7b300d6d5345b7b02b86d75671756"));
         spec.disableShadowBCF();
         executeTest("testSACMultisampleTetraploid", spec);
+    }
+
+    @Test(enabled = true)
+    public void testSetZeroRGQsToNoCall() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + privateTestDir + "set.zero.RGQs.no.call.sample1.g.vcf" +
+                        " -V " + privateTestDir + "set.zero.RGQs.no.call.sample2.g.vcf" +
+                        " -L chr16:1279274-1279874 -allSites", hg19ReferenceWithChrPrefixInChromosomeNames),
+                1,
+                Arrays.asList("2daf1956e9d4d5f522fa953c6b4a23a4"));
+        executeTest("testSetZeroRGQsToNoCall", spec);
     }
 }
