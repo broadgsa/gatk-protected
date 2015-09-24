@@ -557,7 +557,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V " + privateTestDir + "set.zero.RGQs.no.call.sample2.g.vcf" +
                         " -L chr16:1279274-1279874 -allSites", hg19ReferenceWithChrPrefixInChromosomeNames),
                 1,
-                Arrays.asList("2daf1956e9d4d5f522fa953c6b4a23a4"));
+                Arrays.asList("d617884b08ee85816f1ba1acf11f1738"));
         executeTest("testSetZeroRGQsToNoCall", spec);
     }
 }
