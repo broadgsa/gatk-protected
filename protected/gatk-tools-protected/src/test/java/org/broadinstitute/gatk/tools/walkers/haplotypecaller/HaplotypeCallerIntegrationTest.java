@@ -452,7 +452,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                                 " -R " + REF +
                                 " -I " + NA12878_BAM +
                                 " -L " + INTERVALS_FILE +
-				" --mergeVariantsViaLD " +
+				                " --mergeVariantsViaLD " +
                                 " -o %s",
                         1, UserException.DeprecatedArgument.class));
     }
@@ -460,6 +460,11 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerTandemRepeatAnnotator() throws IOException{
         HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A TandemRepeatAnnotator -XA MappingQualityZero -XA SpanningDeletions", "2c108ecdc73e1158310dcdab1abf3e66");
+    }
+
+    @Test
+    public void testHBaseCountsBySample() throws IOException{
+        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A BaseCountsBySample", "f55b64e7457ed40dc8d56c499de9d516");
     }
 }
 
