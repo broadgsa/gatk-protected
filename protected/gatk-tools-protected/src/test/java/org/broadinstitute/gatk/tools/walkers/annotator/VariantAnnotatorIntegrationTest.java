@@ -260,6 +260,15 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testFilterInExpression(){
+        /* The order of filters in the output seems platform-dependent. May need to change htsjdk to make the order consistent across platforms. [Sato] */
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString() + " --resource:foo " + privateTestDir + "annotationResourceWithFilter.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty-multiAllele.vcf -E foo.FILTER -L " + privateTestDir + "vcfexample3empty-multiAllele.vcf", 1,
+                Arrays.asList("77bc144fd432b8886ab19ed20bfb9396"));
+        executeTest("annotate a vcf with the FILTER field of another vcf", spec);
+    }
+
+    @Test
     public void testUsingExpressionWithID() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty.vcf -E foo.ID -L " + privateTestDir + "vcfexample3empty.vcf", 1,
