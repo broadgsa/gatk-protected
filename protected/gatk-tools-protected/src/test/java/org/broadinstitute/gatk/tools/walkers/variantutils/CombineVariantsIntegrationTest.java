@@ -229,7 +229,7 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
         // Just checking that this does not fail, hence no output files and MD5
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T CombineVariants --no_cmdline_in_header -o %s "
-                        + " -R " + hg19RefereneWithChrPrefixInChromosomeNames
+                        + " -R " + hg19ReferenceWithChrPrefixInChromosomeNames
                         + " -V " + privateTestDir + "WES-chr1.DEL.vcf"
                         + " -V " + privateTestDir + "WGS-chr1.DEL.vcf"
                         + " -genotypeMergeOptions UNIQUIFY",

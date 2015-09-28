@@ -382,8 +382,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
                 final int ploidy = oldGT.getPloidy();
                 final List<Allele> refAlleles = Collections.nCopies(ploidy,VC.getReference());
 
-                //keep 0 depth samples as no-call
-                if (depth > 0) {
+                //keep 0 depth samples and 0 GQ samples as no-call
+                if (depth > 0 && oldGT.hasGQ() && oldGT.getGQ() > 0) {
                     builder.alleles(refAlleles);
                 }
 
