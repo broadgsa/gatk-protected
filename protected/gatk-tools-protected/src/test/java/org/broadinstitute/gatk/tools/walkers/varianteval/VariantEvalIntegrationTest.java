@@ -335,7 +335,7 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                 " --eval " + validationDataLocation + "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.vcf" +
                 " --comp:comp_genotypes " + privateTestDir + "yri.trio.gatk.ug.head.vcf";
         WalkerTestSpec spec = new WalkerTestSpec(withSelect(tests, "DP < 50", "DP50") + " " + extraArgs + " -ST CpG -o %s",
-                1, Arrays.asList("4b9dcbce0717285e3c0c736c1bed744c"));
+                1, Arrays.asList("eaa3708d9db22fca0844a652bb73b82f"));
         executeTestParallel("testSelect1", spec);
     }
 
@@ -377,7 +377,7 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                            " --dbsnp " + b37dbSNP132 +
                            " --eval:evalBI " + variantEvalTestDataRoot + "ALL.20100201.chr20.bi.sites.vcf" +
                            " -noST -ST Novelty -o %s";
-        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("112bb3221688acad83f29542bfb33151"));
+        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("fe9dcf4933a645f55be1cb0e33497e49"));
         executeTestParallel("testEvalTrackWithoutGenotypes",spec);
     }
 
@@ -404,7 +404,7 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                 " --eval:evalBI " + variantEvalTestDataRoot + "ALL.20100201.chr20.bi.sites.vcf" +
                 " --eval:evalBC " + variantEvalTestDataRoot + "ALL.20100201.chr20.bc.sites.vcf" +
                 " -noST -ST Novelty -o %s";
-        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("81dcdde458c1ebb9aa35289ea8f12bc8"));
+        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("8dfdec264fcff9472bdee7d223fdb3ca"));
         executeTestParallel("testMultipleEvalTracksWithoutGenotypes",spec);
     }
 
@@ -586,7 +586,7 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                                         "-o %s"
                                 ),
                                 1,
-                                Arrays.asList("f8460af997436a5ce4407fefb0e2724d")
+                                Arrays.asList("af317f1ea1b80e5d4bc4f2d8523ef73d")
                               );
         executeTest("testModernVCFWithLargeIndels", spec);
     }
