@@ -237,4 +237,18 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                 Arrays.asList(""));
         executeTest("combineSymbolicVariants: ", spec);
     }
+
+    @Test
+    public void combineSpanningDels() {
+        // Just checking that this does not fail, hence no output files and MD5
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CombineVariants --no_cmdline_in_header -o %s "
+                        + " -R " + b37KGReference
+                        + " -V " + privateTestDir + "test.spanningdel.combine.1.vcf "
+                        + " -V " + privateTestDir + "test.spanningdel.combine.2.vcf "
+                        + " -genotypeMergeOptions UNIQUIFY",
+                0,
+                Arrays.asList(""));
+        executeTest("combineSpanningDels: ", spec);
+    }
 }
