@@ -102,7 +102,7 @@ public class AFCalculationResult {
                                final Map<Allele, Double> log10pRefByAllele) {
         if ( allelesUsedInGenotyping == null || allelesUsedInGenotyping.size() < 1 ) throw new IllegalArgumentException("allelesUsedInGenotyping must be non-null list of at least 1 value " + allelesUsedInGenotyping);
         if ( alleleCountsOfMLE == null ) throw new IllegalArgumentException("alleleCountsOfMLE cannot be null");
-        if ( alleleCountsOfMLE.length != allelesUsedInGenotyping.size() - 1) throw new IllegalArgumentException("alleleCountsOfMLE.length " + alleleCountsOfMLE.length + " != allelesUsedInGenotyping.size() " + allelesUsedInGenotyping.size());
+        if ( alleleCountsOfMLE.length != allelesUsedInGenotyping.size() - 1) throw new IllegalArgumentException("alleleCountsOfMLE.length " + alleleCountsOfMLE.length + " != number of alternate alleles used in genotyping " + (allelesUsedInGenotyping.size() - 1));
         if ( nEvaluations < 0 ) throw new IllegalArgumentException("nEvaluations must be >= 0 but saw " + nEvaluations);
         if ( log10LikelihoodsOfAC.length != 2 ) throw new IllegalArgumentException("log10LikelihoodsOfAC must have length equal 2");
         if ( log10PriorsOfAC.length != 2 ) throw new IllegalArgumentException("log10PriorsOfAC must have length equal 2");
