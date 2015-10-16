@@ -66,17 +66,36 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forLeftAlignVariantsTest.vcf --no_cmdline_in_header",
                  1,
-                 Arrays.asList("dd238fe14b4a495a489907c1e021221e"));
+                 Arrays.asList("5d82f53b036d9a0fca170e5be68d5ab2"));
          executeTest("test left alignment", spec);
     }
 
     @Test
-    public void testLeftAlignmentWithTrimmingAndMultialleliecs() {
+    public void testLeftAlignmentDontTrim() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --no_cmdline_in_header -trim -split",
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forLeftAlignVariantsTest.vcf --dontTrimAlleles --no_cmdline_in_header",
+                1,
+                Arrays.asList("dd238fe14b4a495a489907c1e021221e"));
+        executeTest("test left alignment, don't trim", spec);
+    }
+
+    @Test
+    public void testLeftAlignmentWithMultialleliecs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --no_cmdline_in_header -split",
                 1,
                 Arrays.asList("534bea653d4a0e59e74f4107c1768558"));
-        executeTest("test left alignment with trimming and hard multiple alleles", spec);
+        executeTest("test left alignment with hard multiple alleles", spec);
+
+    }
+
+    @Test
+    public void testLeftAlignmentDontTrimWithMultialleliecs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --dontTrimAlleles --no_cmdline_in_header -split",
+                1,
+                Arrays.asList("189b8136ee62b54bf7b227e99c892440"));
+        executeTest("test left alignment with hard multiple alleles, don't trim", spec);
 
     }
 }
