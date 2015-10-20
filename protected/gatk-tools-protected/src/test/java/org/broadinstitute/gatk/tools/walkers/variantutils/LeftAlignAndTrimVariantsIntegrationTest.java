@@ -136,9 +136,8 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --no_cmdline_in_header -split",
                 1,
-                Arrays.asList("534bea653d4a0e59e74f4107c1768558"));
+                Arrays.asList("1158324223c312e4767fcefe9dde2fe1"));
         executeTest("test left alignment with hard multiple alleles", spec);
-
     }
 
     @Test
@@ -146,8 +145,34 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --dontTrimAlleles --no_cmdline_in_header -split",
                 1,
-                Arrays.asList("189b8136ee62b54bf7b227e99c892440"));
+                Arrays.asList("923cb1d06e2d0d9a98cda8f8f637d108"));
         executeTest("test left alignment with hard multiple alleles, don't trim", spec);
+    }
 
+    @Test
+    public void testLeftAlignmentWithMultialleliecGenotypes() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "multiallele-gt.vcf --no_cmdline_in_header -split",
+                1,
+                Arrays.asList("f7be485b0cc7b8db75b7139f31c0708d"));
+        executeTest("test left alignment of multiple alleles with genoptypes", spec);
+    }
+
+    @Test
+    public void testLeftAlignmentWithMultialleliecGenotypesHetNoRef() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "multiallele-gt-het-noref.vcf --no_cmdline_in_header -split",
+                1,
+                Arrays.asList("cd686641ab7fe491a0acc7ff07535192"));
+        executeTest("test left alignment of multiple alleles with genoptypes, including het-noref", spec);
+    }
+
+    @Test
+    public void testLeftAlignmentWithMultialleliecGenotypesKeepOriginalAC() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "multiallele-gt.vcf --no_cmdline_in_header -split -keepOriginalAC",
+                1,
+                Arrays.asList("5da4ca9705fbb63446c1d317f7b6cae0"));
+        executeTest("test left alignment of multiple alleles with genoptypes, keep original AC", spec);
     }
 }
