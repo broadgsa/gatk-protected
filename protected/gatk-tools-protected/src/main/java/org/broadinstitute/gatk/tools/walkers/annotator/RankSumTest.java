@@ -51,7 +51,6 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.*;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -61,8 +60,6 @@ import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.MannWhitneyU;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.Allele;
@@ -79,7 +76,6 @@ import java.util.*;
 //TODO: will eventually implement ReducibleAnnotation in order to preserve accuracy for CombineGVCFs and GenotypeGVCFs -- see RMSAnnotation.java for an example of an abstract ReducibleAnnotation
 public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
     static final boolean DEBUG = false;
-    protected boolean useDithering = true;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -122,13 +118,7 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
         if ( refQuals.isEmpty() && altQuals.isEmpty() )
             return null;
 
-        final MannWhitneyU mannWhitneyU = new MannWhitneyU(useDithering);
-        for (final Double qual : altQuals) {
-            mannWhitneyU.add(qual, MannWhitneyU.USet.SET1);
-        }
-        for (final Double qual : refQuals) {
-            mannWhitneyU.add(qual, MannWhitneyU.USet.SET2);
-        }
+        final MannWhitneyU mannWhitneyU = new MannWhitneyU();
 
         if (DEBUG) {
             System.out.format("%s, REF QUALS:", this.getClass().getName());
@@ -142,12 +132,24 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
 
         }
         // we are testing that set1 (the alt bases) have lower quality scores than set2 (the ref bases)
-        final Pair<Double, Double> testResults = mannWhitneyU.runOneSidedTest(MannWhitneyU.USet.SET1);
+        final MannWhitneyU.Result result = mannWhitneyU.test(convertToArray(altQuals), convertToArray(refQuals), MannWhitneyU.TestType.FIRST_DOMINATES);
+        final double zScore = result.getZ();
+
 
         final Map<String, Object> map = new HashMap<>();
-        if (!Double.isNaN(testResults.first))
-            map.put(getKeyNames().get(0), String.format("%.3f", testResults.first));
+        if (!Double.isNaN(zScore))
+            map.put(getKeyNames().get(0), String.format("%.3f", zScore));
         return map;
+    }
+
+    public static double[] convertToArray(List<Double> list){
+        double[] ret = new double[list.size()];
+        Iterator<Double> iterator = list.iterator();
+        for (int i = 0; i < ret.length; i++)
+        {
+            ret[i] = iterator.next().doubleValue();
+        }
+        return ret;
     }
 
     private void fillQualsFromPileup(final List<Allele> alleles,
@@ -255,14 +257,4 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
                 read.getMappingQuality() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE );
     }
 
-    /**
-     * Initialize the rank sum test annotation using walker and engine information. Right now this checks to see if
-     * engine randomization is turned off, and if so does not dither.
-     * @param walker            the walker
-     * @param toolkit           the GATK engine
-     * @param headerLines       the header lines
-     */
-    public void initialize ( AnnotatorCompatible walker, GenomeAnalysisEngine toolkit, Set<VCFHeaderLine> headerLines ) {
-        useDithering = ! toolkit.getArguments().disableDithering;
-    }
 }
