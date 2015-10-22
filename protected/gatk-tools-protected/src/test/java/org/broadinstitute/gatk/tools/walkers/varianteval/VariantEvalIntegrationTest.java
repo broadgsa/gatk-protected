@@ -350,6 +350,17 @@ public class VariantEvalIntegrationTest extends WalkerTest {
         executeTestParallel("testVEMendelianViolationEvaluator" + vcfFile, spec);
     }
 
+    @Test
+    public void testMVEvalFamilyStrat() {
+        String vcfFile = "/PhaseByTransmission/PhaseByTransmission.IntegrationTest.TP.vcf";
+        String pedFile = "/PhaseByTransmission/PhaseByTransmission.IntegrationTest.goodFamilies.ped";
+
+        WalkerTestSpec spec = new WalkerTestSpec("-R "+b37KGReference+ " -T VariantEval -ped " + privateTestDir + pedFile + " -eval " + privateTestDir + vcfFile + " -noEV -noST -ST Family -EV MendelianViolationEvaluator -o %s",
+                1,
+                Arrays.asList("d599d3e6b308ac06b2c2e003cf596328"));
+        executeTestParallel("testMVEvalFamilyStrat", spec);
+    }
+
 
     private static String withSelect(String cmd, String select, String name) {
         return String.format("%s -select '%s' -selectName %s", cmd, select, name);
