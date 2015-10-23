@@ -159,7 +159,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      */
     @Advanced
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to recompute.  The single value 'none' removes the default annotations", required=false)
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "StrandOddsRatio"}));
+    protected List<String> annotationsToUse = new ArrayList<>();
 
     /**
      * Which groups of annotations to add to the output VCF file. The single value 'none' removes the default group. See
@@ -168,7 +168,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected String[] annotationGroupsToUse = {};
+    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{"Standard"}));
 
 
     /**
@@ -217,11 +217,13 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             mergeType = GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE;
 
         final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, mergeType));
-        // create the genotyping engine
-        genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
-                toolkit.getArguments().BAQMode);
         // create the annotation engine
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationGroupsToUse), annotationsToUse, Collections.<String>emptyList(), this, toolkit);
+        annotationEngine = new VariantAnnotatorEngine(annotationGroupsToUse, annotationsToUse, Collections.<String>emptyList(), this, toolkit);
+
+        // create the genotyping engine
+        boolean doAlleleSpecificGenotyping = annotationsToUse.contains(GATKVCFConstants.AS_QUAL_BY_DEPTH_KEY) || annotationGroupsToUse.contains("AS_Standard");
+                genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
+                toolkit.getArguments().BAQMode, doAlleleSpecificGenotyping);
 
         // take care of the VCF headers
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
@@ -341,6 +343,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         attrs.put(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY, newVC.getAttribute(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
         if (newVC.hasAttribute(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY))
             attrs.put(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY, newVC.getAttribute(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY));
+        if (newVC.hasAttribute(GATKVCFConstants.AS_QUAL_KEY))
+            attrs.put(GATKVCFConstants.AS_QUAL_KEY, newVC.getAttribute(GATKVCFConstants.AS_QUAL_KEY));
 
         return new VariantContextBuilder(newVC).attributes(attrs).make();
     }

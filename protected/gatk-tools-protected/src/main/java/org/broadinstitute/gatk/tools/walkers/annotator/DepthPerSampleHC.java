@@ -56,6 +56,7 @@ import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardHCAnnotation;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
@@ -93,7 +94,7 @@ import java.util.*;
  * </ul>
  *
  */
-public class DepthPerSampleHC extends GenotypeAnnotation {
+public class DepthPerSampleHC extends GenotypeAnnotation implements StandardHCAnnotation{
     private final static Logger logger = Logger.getLogger(DepthPerSampleHC.class);
     private boolean alleleLikelihoodMapSubsetWarningLogged = false;
     private final boolean[] warningsLogged = new boolean[AnnotationUtils.WARNINGS_LOGGED_SIZE];

@@ -112,10 +112,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      *                    sample set will be used instead.
      * @param genomeLocParser the genome-loc-parser
      *
+     * @param doAlleleSpecificCalcs
      * @throws IllegalArgumentException if any of {@code samples}, {@code configuration} or {@code genomeLocParser} is {@code null}.
      */
     protected GenotypingEngine(final Config configuration, final SampleList samples,
-                               final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider) {
+                               final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doAlleleSpecificCalcs) {
 
         if (configuration == null)
             throw new IllegalArgumentException("the configuration cannot be null");
@@ -137,6 +138,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         this.genomeLocParser = genomeLocParser;
     }
 
+    protected GenotypingEngine(final Config configuration, final SampleList samples,
+                               final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider) {
+        this(configuration, samples, genomeLocParser, afCalculatorProvider, false);
+    }
+
     /**
      * Changes the logger for this genotyper engine.
      *
@@ -151,7 +157,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     }
 
     public Set<VCFInfoHeaderLine> getAppropriateVCFInfoHeaders() {
-        Set<VCFInfoHeaderLine> headerInfo = new HashSet<>();
+        final Set<VCFInfoHeaderLine> headerInfo = new HashSet<>();
         if ( configuration.genotypeArgs.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
             headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY));
         return headerInfo;
@@ -191,7 +197,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             throw new IllegalArgumentException("vc cannot be null");
         if (model == null)
             throw new IllegalArgumentException("the model cannot be null");
-        return calculateGenotypes(null,null,null,null,vc,model,false,null);
+        return calculateGenotypes(null,null,null,null,vc,model,false,null, false);
     }
 
     /**
@@ -210,7 +216,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
                                                  final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
                                                  final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Model model,
                                                  final boolean inheritAttributesFromInputVC,
-                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                 final boolean doAlleleSpecificCalcs) {
 
         final boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
         // if input VC can't be genotyped, exit with either null VCC or, in case where we need to emit all sites, an empty call
@@ -227,7 +234,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final double PoFGT0 = Math.pow(10, AFresult.getLog10PosteriorOfAFGT0());
 
         // note the math.abs is necessary because -10 * 0.0 => -0.0 which isn't nice
-        double log10Confidence =
+        final double log10Confidence =
                 ! outputAlternativeAlleles.siteIsMonomorphic ||
                     configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES || configuration.annotateAllSitesWithPLs
                         ? AFresult.getLog10PosteriorOfAFEq0() + 0.0
@@ -241,7 +248,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission()) {
             // technically, at this point our confidence in a reference call isn't accurately estimated
             //  because it didn't take into account samples with no data, so let's get a better estimate
-            double[] AFpriors = getAlleleFrequencyPriors(vc, defaultPloidy, model);
+            final double[] AFpriors = getAlleleFrequencyPriors(vc, defaultPloidy, model);
             final int INDEX_FOR_AC_EQUALS_1 = 1;
             return limitedContext ? null : estimateReferenceConfidence(vc, stratifiedContexts, AFpriors[INDEX_FOR_AC_EQUALS_1], true, PoFGT0);
         }
@@ -265,7 +272,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
         // *** note that calculating strand bias involves overwriting data structures, so we do that last
         final Map<String, Object> attributes = composeCallAttributes(inheritAttributesFromInputVC, vc, rawContext, stratifiedContexts, tracker, refContext,
-                outputAlternativeAlleles.alternativeAlleleMLECounts(), outputAlternativeAlleles.siteIsMonomorphic, AFresult, outputAlternativeAlleles.outputAlleles(vc.getReference()),genotypes,model,perReadAlleleLikelihoodMap);
+                outputAlternativeAlleles.alternativeAlleleMLECounts(), outputAlternativeAlleles.siteIsMonomorphic, AFresult, outputAlternativeAlleles.outputAlleles(vc.getReference()), genotypes, model, perReadAlleleLikelihoodMap, doAlleleSpecificCalcs);
 
         builder.attributes(attributes);
 
@@ -337,8 +344,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final List<Allele> alleles = afcr.getAllelesUsedInGenotyping();
 
         final int alternativeAlleleCount = alleles.size() - 1;
-        Allele[] outputAlleles = new Allele[alternativeAlleleCount];
-        int[] mleCounts = new int[alternativeAlleleCount];
+        final Allele[] outputAlleles = new Allele[alternativeAlleleCount];
+        final int[] mleCounts = new int[alternativeAlleleCount];
         int outputAlleleCount = 0;
         boolean siteIsMonomorphic = true;
         for (final Allele alternativeAllele : alleles) {
@@ -615,7 +622,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
                                                        final AlignmentContext rawContext, final Map<String, AlignmentContext> stratifiedContexts, final RefMetaDataTracker tracker, final ReferenceContext refContext, final List<Integer> alleleCountsofMLE, final boolean bestGuessIsRef,
                                                        final AFCalculationResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
-                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                       final boolean doAlleleSpecificCalcs) {
         final HashMap<String, Object> attributes = new HashMap<>();
 
         final boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
@@ -637,6 +645,22 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if ( configuration.genotypeArgs.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
             attributes.put(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY, vc.getAlternateAlleles().size());
 
+        //since we don't have access to the AnnotationEngine, this argument tells us whether we need per-allele QUALs for downstream annotations
+        if (doAlleleSpecificCalcs){
+            List<Double> perAlleleQuals = new ArrayList<>();
+            //Per-allele quals are not calculated for biallelic sites
+            if (AFresult.getAllelesUsedInGenotyping().size() > 2) {
+                for (final Allele a : allAllelesToUse) {
+                    if (a.isNonReference())
+                        perAlleleQuals.add(AFresult.getLog10PosteriorOfAFEq0ForAllele(a));
+                }
+            }
+            else {
+                perAlleleQuals.add(AFresult.getLog10PosteriorOfAFEq0());
+            }
+
+            attributes.put(GATKVCFConstants.AS_QUAL_KEY, perAlleleQuals);
+        }
 
         return attributes;
     }

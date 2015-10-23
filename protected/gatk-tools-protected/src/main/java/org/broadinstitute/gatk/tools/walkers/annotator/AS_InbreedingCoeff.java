@@ -52,51 +52,67 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import org.apache.commons.math.stat.StatUtils;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.walkers.Walker;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AS_StandardAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.utils.MathUtils;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypesContext;
-import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
-
 /**
- * Phred-scaled p-value for exact test of excess heterozygosity.
- * Using implementation from
- * Wigginton JE, Cutler DJ, Abecasis GR. A Note on Exact Tests of Hardy-Weinberg Equilibrium. American Journal of Human Genetics. 2005;76(5):887-893.
+ * Allele-specific, likelihood-based test for the inbreeding among samples
+ *
+ * <p>This annotation estimates whether there is evidence of inbreeding in a population. The higher the score, the higher the chance that there is inbreeding.</p>
+ *
+ * <h3>Statistical notes</h3>
+ * <p>The calculation is a continuous generalization of the Hardy-Weinberg test for disequilibrium that works well with limited coverage per sample. The output is the F statistic from running the HW test for disequilibrium with PL values. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
+ *
+ * <h3>Caveats</h3>
+ * <ul>
+ * <li>The Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
+ * <li>This annotation can take a valid pedigree file to specify founders.</li>
+ * </ul>
+ *
  */
-public class ExcessHet extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
-    private final static Logger logger = Logger.getLogger(ExcessHet.class);
-    private final double minNeededValue = 1.0E-16;
+//TODO: this can't extend InbreedingCoeff because that one is Standard and it would force this to be output all the time; should fix code duplication nonetheless
+public class AS_InbreedingCoeff extends InfoFieldAnnotation implements AS_StandardAnnotation {
+
+    private final static Logger logger = Logger.getLogger(InbreedingCoeff.class);
+    protected static final int MIN_SAMPLES = 10;
     private Set<String> founderIds;
-    private final boolean RETURN_ROUNDED = true;
-    private int sampleCount = -1;
+    private boolean didUniquifiedSampleNameCheck = false;
+    final private boolean RETURN_ROUNDED = false;
+    protected HeterozygosityUtils heterozygosityUtils;
 
     @Override
     public void initialize ( AnnotatorCompatible walker, GenomeAnalysisEngine toolkit, Set<VCFHeaderLine> headerLines ) {
-        //If available, get the founder IDs and cache them. The ExcessHet value will only be computed on founders then.
-        //excessHet respects pedigree files, but doesn't require a minimum number of samples
+        //If available, get the founder IDs and cache them. the IC will only be computed on founders then.
         if(founderIds == null && walker != null) {
             founderIds = ((Walker) walker).getSampleDB().getFounderIds();
         }
-
+        if(walker != null && (((Walker) walker).getSampleDB().getSamples().size() < MIN_SAMPLES || (!founderIds.isEmpty() && founderIds.size() < MIN_SAMPLES)))
+            logger.warn("Annotation will not be calculated. InbreedingCoeff requires at least " + MIN_SAMPLES + " unrelated samples.");
+        //intialize a HeterozygosityUtils before annotating for use in unit tests
+        heterozygosityUtils = new HeterozygosityUtils(RETURN_ROUNDED);
     }
+
+    @Override
+    public List<String> getKeyNames() { return Collections.singletonList(GATKVCFConstants.AS_INBREEDING_COEFFICIENT_KEY); }
+
+    @Override
+    public List<VCFInfoHeaderLine> getDescriptions() { return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0))); }
 
     @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
@@ -104,155 +120,54 @@ public class ExcessHet extends InfoFieldAnnotation implements StandardAnnotation
                                         final ReferenceContext ref,
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                        final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
 
-        return makeEHAnnotation(vc);
+        //create a new HeterozygosityUtils to store data for each VariantContext, i.e. each annotate() call
+        heterozygosityUtils = new HeterozygosityUtils(RETURN_ROUNDED);
+
+        //if none of the "founders" are in the vc samples, assume we uniquified the samples upstream and they are all founders
+        if (!didUniquifiedSampleNameCheck) {
+            founderIds = AnnotationUtils.validateFounderIDs(founderIds, vc);
+            didUniquifiedSampleNameCheck = true;
+        }
+        return makeCoeffAnnotation(vc);
     }
 
-    protected double calculateEH(final VariantContext vc, final GenotypesContext genotypes) {
-        HeterozygosityUtils heterozygosityUtils = new HeterozygosityUtils(RETURN_ROUNDED);
-        final double[] genotypeCountsDoubles = heterozygosityUtils.getGenotypeCountsForRefVsAllAlts(vc, genotypes);
-        sampleCount = heterozygosityUtils.getSampleCount();
-        final int[] genotypeCounts = new int[genotypeCountsDoubles.length];
-        for(int i = 0; i < genotypeCountsDoubles.length; i++) {
-            genotypeCounts[i] = (int)genotypeCountsDoubles[i];
+    protected Map<String, Object> makeCoeffAnnotation(final VariantContext vc) {
+        final List<Allele> altAlleles = vc.getAlternateAlleles();
+        final List<Double> ICvalues = new ArrayList<>();
+
+        for (final Allele a : altAlleles) {
+            ICvalues.add(calculateIC(vc, a));
         }
-
-        double pval = exactTest(genotypeCounts);
-
-        //If the actual phredPval would be infinity we will probably still filter out just a very large number
-        if (pval == 0) {
-            return Integer.MAX_VALUE;
-        }
-        double phredPval = -10.0 * Math.log10(pval);
-
-        return phredPval;
-    }
-
-    /**
-     * Note that this method is not accurate for very small p-values. Beyond 1.0E-16 there is no guarantee that the
-     * p-value is accurate, just that it is in fact smaller than 1.0E-16 (and therefore we should filter it). It would
-     * be more computationally expensive to calculate accuracy beyond a given threshold. Here we have enough accuracy
-     * to filter anything below a p-value of 10E-6.
-     *
-     * @param genotypeCounts Number of observed genotypes (n_aa, n_ab, n_bb)
-     * @return Right sided p-value or the probability of getting the observed or higher number of hets given the sample
-     * size (N) and the observed number of allele a (rareCopies)
-     */
-    protected double exactTest(final int[] genotypeCounts) {
-        if (genotypeCounts.length != 3) {
-            throw new IllegalStateException("Input genotype counts must be length 3 for the number of genotypes with {2, 1, 0} ref alleles.");
-        }
-        final int REF_INDEX = 0;
-        final int HET_INDEX = 1;
-        final int VAR_INDEX = 2;
-
-        final int refCount = genotypeCounts[REF_INDEX];
-        final int hetCount = genotypeCounts[HET_INDEX];
-        final int homCount = genotypeCounts[VAR_INDEX];
-
-        if (hetCount < 0 || refCount < 0 || homCount < 0) {
-            throw new IllegalArgumentException("Genotype counts cannot be less than 0");
-        }
-
-        //Split into observed common allele and rare allele
-        final int obsHomR;
-        final int obsHomC;
-        if (refCount < homCount) {
-            obsHomR = refCount;
-            obsHomC = homCount;
-        } else {
-            obsHomR = homCount;
-            obsHomC = refCount;
-        }
-
-        final int rareCopies = 2 * obsHomR + hetCount;
-        final int N = hetCount + obsHomC + obsHomR;
-
-        //If the probability distribution has only 1 point, then the mid p-value is .5
-        if (rareCopies <= 1) {
-            return .5;
-        }
-
-        double[] probs = new double[rareCopies + 1];
-
-        //Find (something close to the) mode for the midpoint
-        int mid = (int) Math.floor(((double) rareCopies * (2.0 * (double) N - (double) rareCopies)) / (2.0 * (double) N - 1.0));
-        if ((mid % 2) != (rareCopies % 2)) {
-            mid++;
-        }
-
-        probs[mid] = 1.0;
-        double mysum = 1.0;
-
-        //Calculate probabilities from midpoint down
-        int currHets = mid;
-        int currHomR = (rareCopies - mid) / 2;
-        int currHomC = N - currHets - currHomR;
-
-        while (currHets >= 2) {
-            double potentialProb = probs[currHets] * (double) currHets * ((double) currHets - 1.0) / (4.0 * ((double) currHomR + 1.0) * ((double) currHomC + 1.0));
-            if (potentialProb < minNeededValue) {
-                break;
-            }
-
-            probs[currHets - 2] = potentialProb;
-            mysum = mysum + probs[currHets - 2];
-
-            //2 fewer hets means one additional homR and homC each
-            currHets = currHets - 2;
-            currHomR = currHomR + 1;
-            currHomC = currHomC + 1;
-        }
-
-        //Calculate probabilities from midpoint up
-        currHets = mid;
-        currHomR = (rareCopies - mid) / 2;
-        currHomC = N - currHets - currHomR;
-
-        while (currHets <= rareCopies - 2) {
-            double potentialProb = probs[currHets] * 4.0 * (double) currHomR * (double) currHomC / (((double) currHets + 2.0) * ((double) currHets + 1.0));
-            if (potentialProb < minNeededValue) {
-                break;
-            }
-
-            probs[currHets + 2] = potentialProb;
-            mysum = mysum + probs[currHets + 2];
-
-            //2 more hets means 1 fewer homR and homC each
-            currHets = currHets + 2;
-            currHomR = currHomR - 1;
-            currHomC = currHomC - 1;
-        }
-
-        double rightPval = probs[hetCount] / (2.0 * mysum);
-        //Check if we observed the highest possible number of hets
-        if (hetCount == rareCopies) {
-            return rightPval;
-        }
-        rightPval = rightPval + StatUtils.sum(Arrays.copyOfRange(probs, hetCount + 1, probs.length)) / mysum;
-
-        return (rightPval);
-    }
-
-    protected Map<String, Object> makeEHAnnotation(final VariantContext vc) {
-        final GenotypesContext genotypes = (founderIds == null || founderIds.isEmpty()) ? vc.getGenotypes() : vc.getGenotypes(founderIds);
-        if (genotypes == null || !vc.isVariant())
+        if (heterozygosityUtils.getSampleCount() < MIN_SAMPLES)
             return null;
-        double EH = calculateEH(vc, genotypes);
-        if (sampleCount < 1)
-            return null;
-        return Collections.singletonMap(getKeyNames().get(0), (Object) String.format("%.4f", EH));
+        return Collections.singletonMap(getKeyNames().get(0), (Object) AnnotationUtils.encodeValueList(ICvalues, "%.4f"));
     }
 
-    @Override
-    public List<String> getKeyNames() {
-        return Collections.singletonList(GATKVCFConstants.EXCESS_HET_KEY);
-    }
+    protected double calculateIC(final VariantContext vc, final Allele altAllele) {
+        final int AN = vc.getCalledChrCount();
+        final double altAF;
 
-    @Override
-    public List<VCFInfoHeaderLine> getDescriptions() {
-        return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
-    }
+        final double hetCount = heterozygosityUtils.getHetCount(vc, altAllele);
 
+        final double F;
+        //shortcut to get a value closer to the non-alleleSpecific value for bialleleics
+        if (vc.isBiallelic()) {
+            double refAC = heterozygosityUtils.getAlleleCount(vc, vc.getReference());
+            double altAC = heterozygosityUtils.getAlleleCount(vc, altAllele);
+            double refAF = refAC/(altAC+refAC);
+            altAF = 1 - refAF;
+            F = 1.0 - (hetCount / (2.0 * refAF * altAF * (double) heterozygosityUtils.getSampleCount())); // inbreeding coefficient
+        }
+        else {
+            //compare number of hets for this allele (and any other second allele) with the expectation based on AFs
+            //derive the altAF from the likelihoods to account for any accumulation of fractional counts from non-primary likelihoods,
+            //e.g. for a GQ10 variant, the probability of the call will be ~0.9 and the second best call will be ~0.1 so adding up those 0.1s for het counts can dramatically change the AF compared with integer counts
+            altAF = heterozygosityUtils.getAlleleCount(vc, altAllele)/ (double) AN;
+            F = 1.0 - (hetCount / (2.0 * (1 - altAF) * altAF * (double) heterozygosityUtils.getSampleCount())); // inbreeding coefficient
+        }
+
+        return F;
+    }
 }

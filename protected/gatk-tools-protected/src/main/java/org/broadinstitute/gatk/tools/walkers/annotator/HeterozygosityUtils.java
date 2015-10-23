@@ -51,208 +51,186 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import org.apache.commons.math.stat.StatUtils;
-import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.walkers.Walker;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.utils.MathUtils;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypesContext;
-import htsjdk.variant.variantcontext.VariantContext;
-import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
-
-import java.util.*;
-
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Phred-scaled p-value for exact test of excess heterozygosity.
- * Using implementation from
- * Wigginton JE, Cutler DJ, Abecasis GR. A Note on Exact Tests of Hardy-Weinberg Equilibrium. American Journal of Human Genetics. 2005;76(5):887-893.
+ * A class containing utility methods used in the calculation of annotations related to cohort heterozygosity, e.g. InbreedingCoefficient and ExcessHet
+ * Stores sample count to make sure we never have to iterate the genotypes more than once
+ * Should be reinitialized for each VariantContext
  */
-public class ExcessHet extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
-    private final static Logger logger = Logger.getLogger(ExcessHet.class);
-    private final double minNeededValue = 1.0E-16;
-    private Set<String> founderIds;
-    private final boolean RETURN_ROUNDED = true;
-    private int sampleCount = -1;
+public class HeterozygosityUtils {
 
-    @Override
-    public void initialize ( AnnotatorCompatible walker, GenomeAnalysisEngine toolkit, Set<VCFHeaderLine> headerLines ) {
-        //If available, get the founder IDs and cache them. The ExcessHet value will only be computed on founders then.
-        //excessHet respects pedigree files, but doesn't require a minimum number of samples
-        if(founderIds == null && walker != null) {
-            founderIds = ((Walker) walker).getSampleDB().getFounderIds();
-        }
+    final public static int REF_INDEX = 0;
+    final public static int HET_INDEX = 1;
+    final public static int VAR_INDEX = 2;
 
-    }
+    protected int sampleCount = -1;
+    private Map<Allele, Double> hetCounts;
+    private Map<Allele, Double> alleleCounts;
+    boolean returnRounded = false;
 
-    @Override
-    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
-                                        final AnnotatorCompatible walker,
-                                        final ReferenceContext ref,
-                                        final Map<String, AlignmentContext> stratifiedContexts,
-                                        final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
-
-        return makeEHAnnotation(vc);
-    }
-
-    protected double calculateEH(final VariantContext vc, final GenotypesContext genotypes) {
-        HeterozygosityUtils heterozygosityUtils = new HeterozygosityUtils(RETURN_ROUNDED);
-        final double[] genotypeCountsDoubles = heterozygosityUtils.getGenotypeCountsForRefVsAllAlts(vc, genotypes);
-        sampleCount = heterozygosityUtils.getSampleCount();
-        final int[] genotypeCounts = new int[genotypeCountsDoubles.length];
-        for(int i = 0; i < genotypeCountsDoubles.length; i++) {
-            genotypeCounts[i] = (int)genotypeCountsDoubles[i];
-        }
-
-        double pval = exactTest(genotypeCounts);
-
-        //If the actual phredPval would be infinity we will probably still filter out just a very large number
-        if (pval == 0) {
-            return Integer.MAX_VALUE;
-        }
-        double phredPval = -10.0 * Math.log10(pval);
-
-        return phredPval;
+    /**
+     * Create a new HeterozygosityUtils -- a new class should be instantiated for each VariantContext to store data for that VC
+     * @param returnRounded round the likelihoods to return integer numbers of counts (as doubles)
+     */
+    protected HeterozygosityUtils(final boolean returnRounded) {
+        this.returnRounded = returnRounded;
     }
 
     /**
-     * Note that this method is not accurate for very small p-values. Beyond 1.0E-16 there is no guarantee that the
-     * p-value is accurate, just that it is in fact smaller than 1.0E-16 (and therefore we should filter it). It would
-     * be more computationally expensive to calculate accuracy beyond a given threshold. Here we have enough accuracy
-     * to filter anything below a p-value of 10E-6.
-     *
-     * @param genotypeCounts Number of observed genotypes (n_aa, n_ab, n_bb)
-     * @return Right sided p-value or the probability of getting the observed or higher number of hets given the sample
-     * size (N) and the observed number of allele a (rareCopies)
+     * Get the genotype counts for A/A, A/B, and B/B where A is the reference and B is any alternate allele
+     * @param vc
+     * @param genotypes may be subset to just founders if a pedigree file is provided
+     * @return may be null, otherwise length-3 double[] representing homRef, het, and homVar counts
      */
-    protected double exactTest(final int[] genotypeCounts) {
-        if (genotypeCounts.length != 3) {
-            throw new IllegalStateException("Input genotype counts must be length 3 for the number of genotypes with {2, 1, 0} ref alleles.");
-        }
-        final int REF_INDEX = 0;
-        final int HET_INDEX = 1;
-        final int VAR_INDEX = 2;
-
-        final int refCount = genotypeCounts[REF_INDEX];
-        final int hetCount = genotypeCounts[HET_INDEX];
-        final int homCount = genotypeCounts[VAR_INDEX];
-
-        if (hetCount < 0 || refCount < 0 || homCount < 0) {
-            throw new IllegalArgumentException("Genotype counts cannot be less than 0");
-        }
-
-        //Split into observed common allele and rare allele
-        final int obsHomR;
-        final int obsHomC;
-        if (refCount < homCount) {
-            obsHomR = refCount;
-            obsHomC = homCount;
-        } else {
-            obsHomR = homCount;
-            obsHomC = refCount;
-        }
-
-        final int rareCopies = 2 * obsHomR + hetCount;
-        final int N = hetCount + obsHomC + obsHomR;
-
-        //If the probability distribution has only 1 point, then the mid p-value is .5
-        if (rareCopies <= 1) {
-            return .5;
-        }
-
-        double[] probs = new double[rareCopies + 1];
-
-        //Find (something close to the) mode for the midpoint
-        int mid = (int) Math.floor(((double) rareCopies * (2.0 * (double) N - (double) rareCopies)) / (2.0 * (double) N - 1.0));
-        if ((mid % 2) != (rareCopies % 2)) {
-            mid++;
-        }
-
-        probs[mid] = 1.0;
-        double mysum = 1.0;
-
-        //Calculate probabilities from midpoint down
-        int currHets = mid;
-        int currHomR = (rareCopies - mid) / 2;
-        int currHomC = N - currHets - currHomR;
-
-        while (currHets >= 2) {
-            double potentialProb = probs[currHets] * (double) currHets * ((double) currHets - 1.0) / (4.0 * ((double) currHomR + 1.0) * ((double) currHomC + 1.0));
-            if (potentialProb < minNeededValue) {
-                break;
-            }
-
-            probs[currHets - 2] = potentialProb;
-            mysum = mysum + probs[currHets - 2];
-
-            //2 fewer hets means one additional homR and homC each
-            currHets = currHets - 2;
-            currHomR = currHomR + 1;
-            currHomC = currHomC + 1;
-        }
-
-        //Calculate probabilities from midpoint up
-        currHets = mid;
-        currHomR = (rareCopies - mid) / 2;
-        currHomC = N - currHets - currHomR;
-
-        while (currHets <= rareCopies - 2) {
-            double potentialProb = probs[currHets] * 4.0 * (double) currHomR * (double) currHomC / (((double) currHets + 2.0) * ((double) currHets + 1.0));
-            if (potentialProb < minNeededValue) {
-                break;
-            }
-
-            probs[currHets + 2] = potentialProb;
-            mysum = mysum + probs[currHets + 2];
-
-            //2 more hets means 1 fewer homR and homC each
-            currHets = currHets + 2;
-            currHomR = currHomR - 1;
-            currHomC = currHomC - 1;
-        }
-
-        double rightPval = probs[hetCount] / (2.0 * mysum);
-        //Check if we observed the highest possible number of hets
-        if (hetCount == rareCopies) {
-            return rightPval;
-        }
-        rightPval = rightPval + StatUtils.sum(Arrays.copyOfRange(probs, hetCount + 1, probs.length)) / mysum;
-
-        return (rightPval);
-    }
-
-    protected Map<String, Object> makeEHAnnotation(final VariantContext vc) {
-        final GenotypesContext genotypes = (founderIds == null || founderIds.isEmpty()) ? vc.getGenotypes() : vc.getGenotypes(founderIds);
+    protected double[] getGenotypeCountsForRefVsAllAlts(final VariantContext vc, final GenotypesContext genotypes) {
         if (genotypes == null || !vc.isVariant())
             return null;
-        double EH = calculateEH(vc, genotypes);
-        if (sampleCount < 1)
-            return null;
-        return Collections.singletonMap(getKeyNames().get(0), (Object) String.format("%.4f", EH));
+
+        final boolean doMultiallelicMapping = !vc.isBiallelic();
+
+        int idxAA = 0, idxAB = 1, idxBB = 2;
+
+        double refCount = 0;
+        double hetCount = 0;
+        double homCount = 0;
+
+        sampleCount = 0;
+        for (final Genotype g : genotypes) {
+            if (g.isCalled() && g.hasLikelihoods() && g.getPloidy() == 2)  // only work for diploid samples
+                sampleCount++;
+            else
+                continue;
+
+            //Need to round the likelihoods to deal with small numerical deviations due to normalizing
+            final double[] normalizedLikelihoodsUnrounded = MathUtils.normalizeFromLog10(g.getLikelihoods().getAsVector());
+            double[] normalizedLikelihoods = new double[normalizedLikelihoodsUnrounded.length];
+            if (returnRounded) {
+                for (int i = 0; i < normalizedLikelihoodsUnrounded.length; i++) {
+                    normalizedLikelihoods[i] = Math.round(normalizedLikelihoodsUnrounded[i]);
+                }
+            } else {
+                normalizedLikelihoods = normalizedLikelihoodsUnrounded;
+            }
+
+            if (doMultiallelicMapping) {
+                if (g.isHetNonRef()) {
+                    //all likelihoods go to homCount
+                    homCount++;
+                    continue;
+                }
+
+                if (!g.isHomRef()) {
+                    //get alternate allele for each sample
+                    final Allele a1 = g.getAllele(0);
+                    final Allele a2 = g.getAllele(1);
+                    final int[] idxVector = vc.getGLIndecesOfAlternateAllele(a2.isNonReference() ? a2 : a1);
+                    idxAA = idxVector[0];
+                    idxAB = idxVector[1];
+                    idxBB = idxVector[2];
+                }
+            }
+
+            refCount += normalizedLikelihoods[idxAA];
+            hetCount += normalizedLikelihoods[idxAB];
+            homCount += normalizedLikelihoods[idxBB];
+        }
+        return new double[]{refCount, hetCount, homCount};
     }
 
-    @Override
-    public List<String> getKeyNames() {
-        return Collections.singletonList(GATKVCFConstants.EXCESS_HET_KEY);
+    /**
+     * Get the count of heterozygotes in vc for a specific altAllele (both reference and non-reference hets, e.g. 1/2)
+     * @param vc
+     */
+    protected void doGenotypeCalculations(final VariantContext vc) {
+        final GenotypesContext genotypes = vc.getGenotypes();
+        if (genotypes == null || !vc.isVariant())
+            return;
+
+        final int numAlleles = vc.getNAlleles();
+
+        sampleCount = 0;
+        if (hetCounts == null && alleleCounts == null) {
+            hetCounts = new HashMap<>();
+            alleleCounts = new HashMap<>();
+            for (final Allele a : vc.getAlleles()) {
+                if (a.isNonReference())
+                    hetCounts.put(a, 0.0);
+                alleleCounts.put(a, 0.0);
+            }
+
+            int idxAB;
+
+            //for each sample
+            for (final Genotype g : genotypes) {
+                if (g.isCalled() && g.hasLikelihoods() && g.getPloidy() == 2)  // only work for diploid samples
+                    sampleCount++;
+                else
+                    continue;
+
+                int altIndex = 0;
+                for(final Allele a : vc.getAlternateAlleles()) {
+                    //for each alt allele index from 1 to N
+                    altIndex++;
+
+                        final double[] normalizedLikelihoodsUnrounded = MathUtils.normalizeFromLog10(g.getLikelihoods().getAsVector());
+                        double[] normalizedLikelihoods = new double[normalizedLikelihoodsUnrounded.length];
+                        if (returnRounded) {
+                            for (int i = 0; i < normalizedLikelihoodsUnrounded.length; i++) {
+                                normalizedLikelihoods[i] = Math.round(normalizedLikelihoodsUnrounded[i]);
+                            }
+                        } else {
+                            normalizedLikelihoods = normalizedLikelihoodsUnrounded;
+                        }
+                        //iterate over the other alleles
+                        for (int i = 0; i < numAlleles; i++) {
+                            //only add homozygotes to alleleCounts, not hetCounts
+                            if (i == altIndex) {
+                                final double currentAlleleCounts = alleleCounts.get(a);
+                                alleleCounts.put(a, currentAlleleCounts + 2*normalizedLikelihoods[GenotypeLikelihoods.calculatePLindex(altIndex,altIndex)]);
+                                continue;
+                            }
+                            //pull out the heterozygote PL index, ensuring that the first allele index < second allele index
+                            idxAB = GenotypeLikelihoods.calculatePLindex(Math.min(i,altIndex),Math.max(i,altIndex));
+                            final double aHetCounts = hetCounts.get(a);
+                            hetCounts.put(a, aHetCounts + normalizedLikelihoods[idxAB]);
+                            final double currentAlleleCounts = alleleCounts.get(a);
+                            //these are guaranteed to be hets
+                            alleleCounts.put(a, currentAlleleCounts + normalizedLikelihoods[idxAB]);
+                            final double refAlleleCounts = alleleCounts.get(vc.getReference());
+                            alleleCounts.put(vc.getReference(), refAlleleCounts + normalizedLikelihoods[idxAB]);
+                        }
+                    //add in ref/ref likelihood
+                    final double refAlleleCounts = alleleCounts.get(vc.getReference());
+                    alleleCounts.put(vc.getReference(), refAlleleCounts + 2*normalizedLikelihoods[0]);
+                }
+
+            }
+        }
     }
 
-    @Override
-    public List<VCFInfoHeaderLine> getDescriptions() {
-        return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
+    /**
+     * Get the count of heterozygotes in vc for a specific altAllele (both reference and non-reference hets, e.g. 1/2)
+     * @param vc
+     * @param altAllele the alternate allele of interest
+     * @return number of hets
+     */
+    protected double getHetCount(final VariantContext vc, final Allele altAllele) {
+        if (hetCounts == null)
+            doGenotypeCalculations(vc);
+        return hetCounts.containsKey(altAllele)? hetCounts.get(altAllele) : 0;
     }
 
+    protected double getAlleleCount(final VariantContext vc, final Allele allele) {
+        if (alleleCounts == null)
+            doGenotypeCalculations(vc);
+        return alleleCounts.containsKey(allele)? alleleCounts.get(allele) : 0;
+    }
+
+    protected int getSampleCount() {
+        return sampleCount;
+    }
 }

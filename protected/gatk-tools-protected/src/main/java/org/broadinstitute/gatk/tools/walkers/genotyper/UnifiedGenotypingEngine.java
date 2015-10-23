@@ -96,6 +96,8 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
 
     private final boolean BAQEnabledOnCMDLine;
 
+    private boolean doAlleleSpecificCalcs = false;
+
     // ---------------------------------------------------------------------------------------------------------
     //
     // Public interface functions
@@ -115,7 +117,6 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
         this(configuration,toolkit.getSampleList(),toolkit.getGenomeLocParser(),afCalculatorProvider,toolkit.getArguments().BAQMode);
     }
 
-
     /**
      * Creates a new unified genotyping given the UG configuration parameters, the targeted set of samples and
      * a genome location parser.
@@ -131,18 +132,39 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
     public UnifiedGenotypingEngine(final UnifiedArgumentCollection configuration,
                                    final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider,
                                    final BAQ.CalculationMode baqCalculationMode) {
+        this(configuration, samples, genomeLocParser, afCalculatorProvider, baqCalculationMode, false);
+    }
 
-        super(configuration,samples,genomeLocParser,afCalculatorProvider);
+
+    /**
+     * Creates a new unified genotyping given the UG configuration parameters, the targeted set of samples and
+     * a genome location parser.
+     *
+     * @param configuration the UG configuration.
+     * @param samples {@inheritDoc}
+     * @param baqCalculationMode the BAQ calculation mode.
+     *
+     * @throws NullPointerException if any of {@code configuration}, {@code samples} or {@code genomeLocParser} is {@code null}.
+     *
+     * @throws IllegalArgumentException if {@code baqCalculationMode} is {@code null}.
+     */
+    public UnifiedGenotypingEngine(final UnifiedArgumentCollection configuration,
+                                   final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider,
+                                   final BAQ.CalculationMode baqCalculationMode,
+                                   final boolean doAlleleSpecificCalcs) {
+
+        super(configuration,samples,genomeLocParser,afCalculatorProvider, doAlleleSpecificCalcs);
 
         if (baqCalculationMode == null)
             throw new IllegalArgumentException("the BAQ calculation mode cannot be null");
 
         this.BAQEnabledOnCMDLine = baqCalculationMode != BAQ.CalculationMode.OFF;
-
+        this.doAlleleSpecificCalcs = doAlleleSpecificCalcs;
         determineGLModelsToUse();
-
         initializeGenotypeLikelihoodsCalculationModels();
     }
+
+
 
     /**
      * Changes the verbose output writer for this engine.
@@ -283,7 +305,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
         // return the first one
         final GenotypeLikelihoodsCalculationModel.Model model = models.get(0);
         final Map<String, AlignmentContext> stratifiedContexts = getFilteredAndStratifiedContexts(refContext, rawContext, model);
-        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, null);
+        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, null, false);
     }
 
     /**
@@ -305,7 +327,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
             model = GenotypeLikelihoodsCalculationModel.Model.SNP;
         }
 
-        return calculateGenotypes(null, null, null, null, vc, model, null);
+        return calculateGenotypes(null, null, null, null, vc, model, null, doAlleleSpecificCalcs);
     }
 
 
@@ -331,7 +353,15 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
 
 
     public VariantCallContext calculateGenotypes(final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Model model) {
-        return calculateGenotypes(null, null, null, null, vc, model, null);
+        return calculateGenotypes(null, null, null, null, vc, model, null, false);
+    }
+
+    public VariantCallContext calculateGenotypes(final RefMetaDataTracker tracker, final ReferenceContext refContext,
+                                                 final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
+                                                 final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Model model,
+                                                 final boolean inheritAttributesFromInputVC,
+                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, inheritAttributesFromInputVC, perReadAlleleLikelihoodMap, false);
     }
 
     public VariantCallContext calculateGenotypes(final RefMetaDataTracker tracker,
@@ -340,8 +370,9 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                                                  final Map<String, AlignmentContext> stratifiedContexts,
                                                  final VariantContext vc,
                                                  final GenotypeLikelihoodsCalculationModel.Model model,
-                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
-        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, false, perReadAlleleLikelihoodMap);
+                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                 final boolean useAlleleSpecificCalcs) {
+        return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, false, perReadAlleleLikelihoodMap, useAlleleSpecificCalcs);
     }
 
     @Override
@@ -354,9 +385,10 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                                                  final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
                                                  final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Model model,
                                                  final boolean inheritAttributesFromInputVC,
-                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                 final boolean useAlleleSpecificCalcs) {
         boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
-        final VariantCallContext result = super.calculateGenotypes(tracker,refContext,rawContext,stratifiedContexts,vc,model,inheritAttributesFromInputVC,perReadAlleleLikelihoodMap);
+        final VariantCallContext result = super.calculateGenotypes(tracker,refContext,rawContext,stratifiedContexts,vc,model,inheritAttributesFromInputVC,perReadAlleleLikelihoodMap, useAlleleSpecificCalcs);
         if ( verboseWriter != null && !limitedContext )
             printVerboseData(refContext.getLocus().toString(), vc, model);
         return result;
@@ -377,9 +409,10 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
     protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
                                                        final AlignmentContext rawContext, final Map<String, AlignmentContext> stratifiedContexts, final RefMetaDataTracker tracker, final ReferenceContext refContext, final List<Integer> alleleCountsofMLE, final boolean bestGuessIsRef,
                                                        final AFCalculationResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
-                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                       final boolean useAlleleSpecificCalcs) {
         final Map<String,Object> result = super.composeCallAttributes(inheritAttributesFromInputVC, vc,rawContext,stratifiedContexts,tracker,refContext,alleleCountsofMLE,bestGuessIsRef,
-                                    AFresult,allAllelesToUse,genotypes,model,perReadAlleleLikelihoodMap);
+                                    AFresult,allAllelesToUse,genotypes,model,perReadAlleleLikelihoodMap, useAlleleSpecificCalcs);
 
         final boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
 
