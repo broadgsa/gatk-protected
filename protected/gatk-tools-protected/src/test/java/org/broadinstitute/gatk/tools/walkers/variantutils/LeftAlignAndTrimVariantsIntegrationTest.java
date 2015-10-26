@@ -51,9 +51,14 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Level;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -68,6 +73,53 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
                  1,
                  Arrays.asList("5d82f53b036d9a0fca170e5be68d5ab2"));
          executeTest("test left alignment", spec);
+    }
+
+    @Test
+    public void testLeftAlignmentLongAllelesError() throws IOException {
+
+        // Need to see log INFO messages
+        Level level = logger.getLevel();
+        logger.setLevel(Level.INFO);
+
+        File logFile = createTempFile("testLargeReferenceAlleleError.log", ".tmp");
+        String logFileName = logFile.getAbsolutePath();
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "longAlleles.vcf --no_cmdline_in_header -log " + logFileName,
+                1,
+                Arrays.asList("136f88a5bd07a022a3404089359cb8ee"));
+        executeTest("test left alignment with long alleles with an error", spec);
+
+        // Make sure the "reference allele too long" message is in the log
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains(ValidateVariants.REFERENCE_ALLELE_TOO_LONG_MSG));
+
+        // Set the log level back
+        logger.setLevel(level);
+    }
+
+    @Test
+    public void testLeftAlignmentLongAllelesFix() throws IOException {
+
+        // Need to see log INFO messages
+        Level level = logger.getLevel();
+        logger.setLevel(Level.INFO);
+
+        File logFile = createTempFile("testLargeReferenceAlleleError.log", ".tmp");
+        String logFileName = logFile.getAbsolutePath();
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir +
+                        "longAlleles.vcf --no_cmdline_in_header --reference_window_stop 208 -log " + logFileName,
+                1,
+                Arrays.asList("c4ca5520ee499da171053059e3717b2f"));
+        executeTest("test left alignment with long alleles fix", spec);
+
+        // Make sure the "reference allele too long" message is in the log
+        Assert.assertFalse(FileUtils.readFileToString(logFile).contains(ValidateVariants.REFERENCE_ALLELE_TOO_LONG_MSG));
+
+        // Set the log level back
+        logger.setLevel(level);
     }
 
     @Test
