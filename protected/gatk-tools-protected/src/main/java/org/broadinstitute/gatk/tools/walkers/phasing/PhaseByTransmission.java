@@ -6,6 +6,7 @@ import org.broadinstitute.gatk.engine.samples.Sample;
 import org.broadinstitute.gatk.engine.samples.Gender;
 
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
+//import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.utils.commandline.Output;
@@ -30,17 +31,24 @@ import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.SampleUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+//import org.broadinstitute.sting.utils.variantcontext.GenotypeType;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 
-
+//import org.broadinstitute.variant.variantcontext
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFConstants;
-
+//import htsjdk.variant.vcf.
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+//import org.broadinstitute.gatk.utils.variant.*;
 
+
+
+
+//import org.broadinstitute.sting.utils.help.HelpConstants;
+//import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
 
 
 import java.util.HashMap;
@@ -65,9 +73,12 @@ import java.io.PrintStream;
  * Computes the most likely genotype configuration and phases trios and parent/child pairs
  *
  * <p>
- * PhaseByTransmission is a GATK tool that 1) computes the most likely genotype configuration and phases trios and parent/child pairs given their genotype likelihoods and a mutation prior and 2) phases
- * all sites were parent/child transmission can be inferred unambiguously. It reports the genotype configuration (and hence phasing) probability. Additionally, if ReadBackPhasing was used prior to PhaseByTransmission, on the same vcf file (i.e.: HP tags are present in the genotype data), parental (haplotype) assignment of detected de novo mutations can be computed
- * Ambiguous sites are:
+ * PhaseByTransmission can be summarized by performing two functions:
+ * <ul>
+ *     <li> computes the most likely genotype configuration and phases trios and parent/child pairs given their genotype likelihoods, a mutation prior and, optionally, population statistics such as allele frequency </li>
+ *     <li> phases all sites were parent/child transmission can be inferred unambiguously. It reports the genotype configuration (and hence phasing) phred scaled posterior probability. </li>
+ * </ul>
+ * Ambiguous (i.e.: not phase-able by PBT) sites are:
  * <ul>
  *     <li>Sites where all individuals are heterozygous</li>
  *     <li>Sites where there is a Mendelian violation</li>
@@ -77,17 +88,22 @@ import java.io.PrintStream;
  * <p>
  * <ul>
  *     <li>A VCF variant set containing trio(s) and/or parent/child pair(s).</li>
- *     <li>A PED pedigree file containing the description of the individuals relationships and sex information if chromosome X is being called.</li>
+ *     <li>A PED pedigree file containing the description of the individuals relationships and sex information when chromosome X is being evaluated.</li>
  * </ul>
  * </p>
  *
  * <h2>Options</h2>
  * <p>
  *     <ul>
- *         <li>MendelianViolationsFile: An optional argument for reporting. If a file is specified, all sites that remain in mendelian violation after being assigned the most likely genotype
+ *         <li> MendelianViolationsFile: An optional argument for reporting. If a file is specified, all sites that remain mendelian violations after being assigned the most likely genotype
  *         configuration will be reported there. Information reported: chromosome, position, filter, allele count in VCF, family, transmission probability,
- *         and each individual genotype, depth, allelic depth and likelihoods.</li>
- *         <li>DeNovoPrior: Mutation prio; default is 1e-8</li>
+ *         and each individual genotype, depth, allelic depth and likelihoods. </li>
+ *         <li> DeNovoPrior: Mutation prior; default is 1e-8 </li>
+ *         <li> UseAlleleFrequency: specify whether or not to use an additional, individual genotype prior for the founders, determined dynamically, from the allele frequency of the respective founder genotype's alleles.
+ *         We find that using such additional population information greatly improves performance (i.e.: specificity of results), especially in low coverage (i.e.: <15x).
+ *         If a population of ancestry-compact trios is used for de novo mutations calling, we recommend estimating this prior using the "GT" method (i.e.: from best guess genotypes of the founders).
+ *         Alternatively, allele frequencies can be supplied from an external source (i.e.: using the "EXTERNAL" option), as an allele frequency annotation, in the INFO field of a vcf file.
+ *         These external allele frequency should be representative for the trio(s) being currently called </li>
  *     </ul>
  * </p>
  *
@@ -104,9 +120,26 @@ import java.io.PrintStream;
  *   -V input.vcf \
  *   -ped input.ped \
  *   -o output.vcf
+ *   -useAF GT
  * </pre>
+ * <p> The command above parses the input vcf file and trio-genotypes all trios found (and specified as such in the input ped file). In addition to the (here default) de novo prior of 10e-8, it also uses allele frequency priors, for the founder genotypes, computed from the most likely alleles of all founders found in input.vcf</p>
+ *
+ * <pre>
+ * java -Xmx2g -jar GenomeAnalysisTK.jar \
+ *   -R ref.fasta \
+ *   -T PhaseByTransmission \
+ *   -V input.vcf \
+ *   -ped input.ped \
+ *   -o output.vcf
+ *   -useAF GT
+ *   -hapIntervals ploidyOne.intervals
+ *   -fh 8000
+ * </pre>
+ * <p>A sample command for calling de novo mutations on a vcf that contains variants on the X chromosome as well. The ploidyOne.intervals should specify all these intervals one per row (i.e.: X:2600000-155000000). Everything variant position outside these intervals will be treated as diploid.
+ * We apply a simple transformation to obtain haploid genotypes for all the male samples found in the input, in case diploid individual genotypes are supplied. the "fake_hets" argument will make PBT output "diploid looking" genotypes for male samples, where the likelihoods for the heterozygous genotypes are set to a high, specified number (i.e.: 8000)</p>
  *
  */
+
 //@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap<Byte,Double>> 
 {
@@ -123,19 +156,19 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
     //@Argument(shortName = "Xchr",required = false,fullName = "X-chromozome", doc="indicate whether the input variants are from the X chromozome")
     //private boolean Xchr = false;
 
-    @Argument(shortName = "useAF",required = false,fullName = "UseAlleleFrequency", doc="Use of an AF-based prior on the founders. Accepted values: NO | AFDOS | GT | EXTERNAL. AFDOS - allele frequency dosage - computes the AF prior from the allele dosages of all the founder samples in the input; GT computes the AF prior from the best-guess genotypes of all founders found in input; default: NO - no allele frequency prior used")
+    @Argument(shortName = "useAF",required = false,fullName = "UseAlleleFrequency", doc="Use of an AF-based prior for the founder genotypes. Accepted values: NO | AFDOS | GT | EXTERNAL. AFDOS - computes the AF prior from the allele dosages of all the founder samples in the input; GT - computes the AF prior from the best-guess genotypes of all founders found in input; default: NO - no allele frequency prior used; EXTERNAL - allele frequencies needed for computing the priors are read from the INFO field of a vcf file, \"alleleFrequencyFile\" argument is needed and \"alleleFrequencyTag\" is recommended in this case")
     private String useAF = "NO";
 
-    @Argument(shortName = "afFile", required = false, fullName = "alleleFrequencyFile", doc = "A vcf file containing the minor allele frequency in its INFO field, for each site")
+    @Argument(shortName = "afFile", required = false, fullName = "alleleFrequencyFile", doc = "A vcf file containing the minor allele frequency in its INFO field, sites that do not overlap the input vcf are treated as monomorphic sites")
     private RodBinding<VariantContext> afRod = null;// = new RodBinding<VariantContext>(VariantContext.class, "afRod", "afFile", "vcf", new Tags());
     
     @Argument(shortName = "afTag",required = false,fullName = "alleleFrequencyTag", doc="name of the allele frequency tag to be searched for in the externally supplied allele vcf file")
     private String af_tag = VCFConstants.ALLELE_FREQUENCY_KEY;
-    
-    @Argument(shortName = "af_cap",required = false,fullName = "alleleFrequencyCap", doc="Prevents the allele frequency prior from taking extreme values when the minor allele frequency is low and few samples are supplied; Very high AF prior can introduce false positive DNM calls. By default, the minor allele frequency is thus capped at 10^-3 i.e.: heterozigosity level. Any value can be speciffied in the (0,1) interval; if other values are speciffied the AF cap option is disabled")
+
+    @Argument(shortName = "af_cap",required = false,fullName = "alleleFrequencyCap", doc="Prevents the allele frequency prior from taking extreme values when the minor allele frequency is very low and/or few samples are supplied (i.e.: when true allele frequency is very low ); Very high AF prior can introduce false positive DNM calls. By default, the minor allele frequency is thus capped at 10^-3 i.e.: heterozigosity level. Any value can be speciffied in the (0,1) interval; if other values are speciffied the AF cap option is disabled")
     private double af_cap = 0.0001;
     
-    @Argument (shortName = "assignPO", required = false, fullName = "assignParentalOrigin", doc="attempt to assign parental origin to detected mutations; PBT cannot phase de novos or HET/HET/HET genotype combinations so this argument is  only aplicable if the supplied input VCF has been run through ReadBackedPhasing, which fills in this gap; We can therefore combine trio-aware phasing with NGS data-driven phasing to identify the parental haplotype on which the de novo mutation occured")
+    @Argument (shortName = "assignPO", required = false, fullName = "assignParentalOrigin", doc="attempt to assign parental origin to detected mutations; PBT cannot phase de novos or HET/HET/HET genotype combinations so this argument is  only aplicable if the supplied input VCF has been run through ReadBackedPhasing (or other phasing tools that encode an HP tag), which fills in this gap; We can therefore combine trio-aware phasing with NGS data-driven phasing to identify the parental haplotype on which the de novo mutation occured")
     private int assignPO = 0;
     
     @Argument (shortName = "POET", required = false, fullName = "ParentalOriginEvidenceThreshold", doc = "This parameter sets the desired strictness when assigning a muation to one of the parental haplotypes; it represents the proportion of the total adjacent phasing sites that is to indicate for one of the parental haplotypes; default value is currently 1, i.e.: all adjacent phasing sites must be consistent with one of the parental haplotypes")
@@ -145,15 +178,15 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
     //private boolean contrast = false;
 
     @Hidden
-    @Argument(shortName = "updatePLs",required = false,fullName = "UpdatePLs", doc="Updates the PLs to take the trio information (and AC information if useAF option is used).")
+    @Argument(shortName = "updatePLs",required = false,fullName = "UpdatePLs", doc="Updates the PLs to take the trio information (and AC information if useAF option is used) into account.")
     private boolean updatePLs = false;
 
     @Hidden
     @Argument(shortName = "gt",required = false,fullName = "GenotypeAssignment", doc="Selects how the genotypes are assigned/updated. TRIOCONF => Most likely trio configuration; INDIV => Most likely individual genotype from trio-adjusted PLs. Can only be used in combination with updatePLs")
     private String gtAssignment = "TRIOCONF";
     
-    @Hidden
-    @Argument(shortName = "multipleOffspring",required = false,fullName = "multipleOffspringAsTrios", doc=" if a family has multiple offspring, build an independent trio for each one? - in case a family has multiple offspring, we may evaluate the joint probability of parents' genotypes and each individual offspring, as opposed to the joint probability of all family genotypes. This argument implements the former option. The PBT model is consistent and correct in evaluating the probability of a DNM in each parents-offspring trios, but, as a result of the same parents' genotypes being evaluated under different trio combinations (for the different offspring), the parents' genotypes in the output vcf will be the most likely genotypes from the last trio configuration evaluated (i.e.: not the most likely genotypes given all the available information - all offspring). In these unlikely cases, the DNMs are correctly represented in the mvFile, but may not be in the outputted vcf")
+
+    @Argument(shortName = "multipleOffspring",required = false,fullName = "multipleOffspringAsTrios", doc=" if a family has multiple offspring, build an independent trio for each one? default is no - in case a family has multiple offspring, we may evaluate the joint probability of parents' genotypes and each individual offspring, as opposed to the joint probability of all family genotypes. This argument implements the former option. The PBT model is consistent and correct in evaluating the probability of a DNM in each parents-offspring trios, but, as a result of the same parents' genotypes being evaluated under different trio combinations (for the different offspring), the parents' genotypes in the output vcf will be the most likely genotypes from the last trio configuration evaluated (i.e.: not the most likely genotypes given all the available information - all offspring). In these unlikely cases, the DNMs are correctly represented in the mvFile, but may not be in the outputted vcf")
     private boolean multiple_offspring = false;
 
     //@Argument(shortName = "EMtest",required = false,fullName = "EMtest", doc="TRUE => AF=0 AND AF=x cases are considered in case of an MV; FALSE => Only AF=0 is considered.")
@@ -162,7 +195,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
     @Argument(shortName = "fatherAlleleFirst",required = false,fullName = "FatherAlleleFirst", doc="Ouputs the father allele as the first allele in phased child genotype. i.e. father|mother rather than mother|father.")
     private boolean fatherAlleleFirst=false;
     
-    @Argument(shortName="hapIntervals", required=false, fullName="haploidMaleIntervals", doc="Haploid regions of the genome in males. Male diploid genotypes and likelihoods in these regions will be converted to haploid values. Overrides the site_male_ploidy argument")
+    @Argument(shortName="hapIntervals", required=false, fullName="haploidMaleIntervals", doc="Haploid regions of the genome in males. Male diploid genotypes and likelihoods in these regions will be converted to haploid values.")
 	private String x_file = null; // locations to be considerred haploid for males
     
     @Argument(shortName="fh", required=false, fullName="fake_hets", doc="output dummy, very big PL values for het genotypes as well -- relevant only for X-like inheritance pattern")
@@ -180,11 +213,11 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
     @Argument(shortName = "ufad",required = false,fullName = "useFatherAsNeeded", doc="does not use the father in the likelihood computation if not needed; i.e.: for calling X chromozome in families with male children; useful for dnms")
     private boolean ufad=true;
     
-    @Hidden
+
     @Argument (shortName = "op", required = false, fullName="onlyPhase", doc = "only phase found trios; i.e.: do not evaluate genotype calls")
     private boolean op = false;
 
-	@Hidden
+
 	@Argument (shortName = "pep", required = false, fullName="phaseEverythingPossible", doc = "attempt to trio-phase sites that are normally ignored by PBT such as multi-allelic sites")
 	private boolean phaseEverything = false;
 
@@ -3132,14 +3165,3 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
     		
     }
 }
-
-
-
-
-
-
-
-
-
-
-
