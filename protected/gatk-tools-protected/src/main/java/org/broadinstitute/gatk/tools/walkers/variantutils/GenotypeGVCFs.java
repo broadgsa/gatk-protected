@@ -162,6 +162,16 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"InbreedingCoeff", "FisherStrand", "QualByDepth", "ChromosomeCounts", "StrandOddsRatio"}));
 
     /**
+     * Which groups of annotations to add to the output VCF file. The single value 'none' removes the default group. See
+     * the VariantAnnotator -list argument to view available groups. Note that this usage is not recommended because
+     * it obscures the specific requirements of individual annotations. Any requirements that are not met (e.g. failing
+     * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
+     */
+    @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
+    protected String[] annotationGroupsToUse = {};
+
+
+    /**
      * The rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate. Note that dbSNP is not used in any way for the calculations themselves.
      */
     @ArgumentCollection
@@ -211,7 +221,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
                 toolkit.getArguments().BAQMode);
         // create the annotation engine
-        annotationEngine = new VariantAnnotatorEngine(Arrays.asList("none"), annotationsToUse, Collections.<String>emptyList(), this, toolkit);
+        annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationGroupsToUse), annotationsToUse, Collections.<String>emptyList(), this, toolkit);
 
         // take care of the VCF headers
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
@@ -230,6 +240,9 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         final VCFHeader vcfHeader = new VCFHeader(headerLines, sampleNameSet);
         vcfWriter.writeHeader(vcfHeader);
 
+        //now that we have all the VCF headers, initialize the annotations (this is particularly important to turn off RankSumTest dithering in integration tests)
+        annotationEngine.invokeAnnotationInitializationMethods(headerLines);
+
         logger.info("Notice that the -ploidy parameter is ignored in " + getClass().getSimpleName() + " tool as this is automatically determined by the input variant files");
     }
 
@@ -238,7 +251,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             return null;
 
         final GenomeLoc loc = ref.getLocus();
-        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true, uniquifySamples);
+        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true, uniquifySamples, annotationEngine);
         if ( combinedVC == null )
             return null;
         return regenotypeVC(tracker, ref, combinedVC);
@@ -255,20 +268,24 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     protected VariantContext regenotypeVC(final RefMetaDataTracker tracker, final ReferenceContext ref, final VariantContext originalVC) {
         if ( originalVC == null ) throw new IllegalArgumentException("originalVC cannot be null");
 
-        VariantContext result = originalVC;
+        VariantContext rawResult = originalVC;
 
         // only re-genotype polymorphic sites
-        if ( result.isVariant() ) {
-            VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(result);
+        if ( rawResult.isVariant() ) {
+            VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(rawResult);
             if ( ! isProperlyPolymorphic(regenotypedVC) ) {
                 if (!INCLUDE_NON_VARIANTS)
                     return null;
             }
             else {
-                regenotypedVC = GATKVariantContextUtils.reverseTrimAlleles(regenotypedVC);
-                result = addGenotypingAnnotations(originalVC.getAttributes(), regenotypedVC);
+                rawResult = addGenotypingAnnotations(rawResult.getAttributes(), regenotypedVC);
             }
         }
+
+        //At this point we should already have DP and AD annotated
+        VariantContext result = annotationEngine.finalizeAnnotations(rawResult, originalVC);
+        //do trimming after allele-specific annotation reduction or the mapping is difficult
+        result = GATKVariantContextUtils.reverseTrimAlleles(result);
 
         // if it turned monomorphic then we either need to ignore or fix such sites
         boolean createRefGTs = false;

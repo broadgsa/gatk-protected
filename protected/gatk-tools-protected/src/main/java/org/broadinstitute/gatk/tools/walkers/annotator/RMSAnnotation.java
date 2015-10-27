@@ -51,113 +51,198 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import htsjdk.variant.variantcontext.GenotypesContext;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.utils.QualityUtils;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ReducibleAnnotation;
+import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
+import org.broadinstitute.gatk.tools.walkers.variantutils.CombineGVCFs;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.pileup.PileupElement;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.util.*;
 
-
 /**
- * Strand bias estimated using Fisher's Exact Test
- *
- * <p>Strand bias is a type of sequencing bias in which one DNA strand is favored over the other, which can result in incorrect evaluation of the amount of evidence observed for one allele vs. the other. The FisherStrand annotation is one of several methods that aims to evaluate whether there is strand bias in the data. It uses Fisher's Exact Test to determine if there is strand bias between forward and reverse strands for the reference or alternate allele.”</p>
- * <p>The output is a Phred-scaled p-value. The higher the output value, the more likely there is to be bias. More bias is indicative of false positive calls.</p>
- *
- * <h3>Statistical notes</h3>
- * <p>See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this application of Fisher's Exact Test.</p>
- *
- * <h3>Caveats</h3>
- * <ul>
- *     <li>The FisherStrand test may not be calculated for certain complex indel cases or for multi-allelic sites.</li>
- *     <li>FisherStrand is best suited for low coverage situations. For testing strand bias in higher coverage situations, see the StrandOddsRatio annotation.</li>
- * </ul>
- * <h3>Related annotations</h3>
- * <ul>
- *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_StrandBiasBySample.php">StrandBiasBySample</a></b> outputs counts of read depth per allele for each strand orientation.</li>
- *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_StrandOddsRatio.php">StrandOddsRatio</a></b> is an updated form of FisherStrand that uses a symmetric odds ratio calculation.</li>
- * </ul>
- *
+ * Abstract root for all RankSum-based annotations
  */
-public class FisherStrand extends StrandBiasTest implements StandardAnnotation, ActiveRegionBasedAnnotation {
-    private final static boolean ENABLE_DEBUGGING = false;
-
-    private static final double MIN_PVALUE = 1E-320;
-    private static final int MIN_QUAL_FOR_FILTERED_TEST = 17;
-    private static final int MIN_COUNT = ARRAY_DIM;
+public abstract class RMSAnnotation extends InfoFieldAnnotation implements ReducibleAnnotation {
+    protected AnnotatorCompatible callingWalker;
 
     @Override
-    public List<String> getKeyNames() {
-        return Collections.singletonList(GATKVCFConstants.FISHER_STRAND_KEY);
+    public void initialize(final AnnotatorCompatible walker, final GenomeAnalysisEngine toolkit, final Set<VCFHeaderLine> headerLines) {
+        callingWalker = walker;
     }
 
     @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
-        return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
+        final List<VCFInfoHeaderLine> headerLines = new ArrayList<>();
+        //ideally only HC in GVCF mode would get the raw header line, but that's a little more complicated
+        if (callingWalker instanceof HaplotypeCaller || callingWalker instanceof CombineGVCFs)
+            headerLines.add(GATKVCFHeaderLines.getInfoLine(getRawKeyName()));
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
+        return headerLines;
     }
 
     @Override
-    protected Map<String, Object> calculateAnnotationFromGTfield(final GenotypesContext genotypes){
-        final int[][] tableFromPerSampleAnnotations = getTableFromSamples( genotypes, MIN_COUNT );
-        return ( tableFromPerSampleAnnotations != null )? pValueAnnotationForBestTable(tableFromPerSampleAnnotations, null) : null;
+    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
+                                        final AnnotatorCompatible walker,
+                                        final ReferenceContext ref,
+                                        final Map<String, AlignmentContext> stratifiedContexts,
+                                        final VariantContext vc,
+                                           final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
+
+        if ( (stratifiedContexts == null || stratifiedContexts.isEmpty()) && perReadAlleleLikelihoodMap == null)
+            return null;
+
+        final Map<String, Object> annotations = new HashMap<>();
+        final ReducibleAnnotationData<Number> myData = new ReducibleAnnotationData<>(null);
+        calculateRawData(stratifiedContexts, perReadAlleleLikelihoodMap, myData);
+        final String annotationString = makeFinalizedAnnotationString(vc, myData.getAttributeMap(), stratifiedContexts, perReadAlleleLikelihoodMap);
+        annotations.put(getKeyNames().get(0), annotationString);
+        return annotations;
+    }
+
+    public Map<String, Object> annotateRawData(final RefMetaDataTracker tracker,
+                                               final AnnotatorCompatible walker,
+                                               final ReferenceContext ref,
+                                               final Map<String, AlignmentContext> stratifiedContexts,
+                                               final VariantContext vc,
+                                               final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
+
+        if ( perReadAlleleLikelihoodMap == null)
+            return new HashMap<>();
+
+        final Map<String, Object> annotations = new HashMap<>();
+        ReducibleAnnotationData<Number> myData = new ReducibleAnnotationData<>(null);
+        calculateRawData(vc, perReadAlleleLikelihoodMap, myData);
+        String annotationString = makeRawAnnotationString(vc.getAlleles(), myData.getAttributeMap());
+        annotations.put(getRawKeyName(), annotationString);
+        return annotations;
     }
 
     @Override
-    protected Map<String, Object> calculateAnnotationFromStratifiedContexts(final Map<String, AlignmentContext> stratifiedContexts,
-                                                                                     final VariantContext vc){
-        final int[][] tableNoFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAlternateAlleles(), -1, MIN_COUNT);
-        final int[][] tableFiltering = getSNPContingencyTable(stratifiedContexts, vc.getReference(), vc.getAlternateAlleles(), MIN_QUAL_FOR_FILTERED_TEST, MIN_COUNT);
-        if (ENABLE_DEBUGGING) {
-            StrandBiasTableUtils.printTable("unfiltered", tableNoFiltering);
-            StrandBiasTableUtils.printTable("filtered", tableFiltering);
+    public Map<String, Object> combineRawData(final List<Allele> vcAlleles, final List<? extends ReducibleAnnotationData> annotationList) {
+        //VC already contains merged alleles from ReferenceConfidenceVariantContextMerger
+       ReducibleAnnotationData combinedData = new ReducibleAnnotationData(null);
+
+        for (final ReducibleAnnotationData currentValue : annotationList) {
+            parseRawDataString(currentValue);
+            combineAttributeMap(currentValue, combinedData);
+
         }
-        return pValueAnnotationForBestTable(tableFiltering, tableNoFiltering);
+        final Map<String, Object> annotations = new HashMap<>();
+        String annotationString = makeRawAnnotationString(vcAlleles, combinedData.getAttributeMap());
+        annotations.put(getRawKeyName(), annotationString);
+        return annotations;
     }
 
     @Override
-    protected Map<String, Object> calculateAnnotationFromLikelihoodMap(final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap,
-                                                                                final VariantContext vc){
-        // either SNP with no alignment context, or indels: per-read likelihood map needed
-        final int[][] table = getContingencyTable(stratifiedPerReadAlleleLikelihoodMap, vc, MIN_COUNT);
-        //logger.info("VC " + vc);
-        //printTable(table, 0.0);
-        return pValueAnnotationForBestTable(table, null);
+    public Map<String, Object> finalizeRawData(final VariantContext vc, final VariantContext originalVC) {
+        if (!vc.hasAttribute(getRawKeyName()))
+            return new HashMap<>();
+        String rawMQdata = vc.getAttributeAsString(getRawKeyName(),null);
+        if (rawMQdata == null)
+            return new HashMap<>();
+
+        ReducibleAnnotationData myData = new ReducibleAnnotationData(rawMQdata);
+        parseRawDataString(myData);
+
+        String annotationString = makeFinalizedAnnotationString(vc, myData.getAttributeMap());
+        return Collections.singletonMap(getKeyNames().get(0), (Object)annotationString);
+    }
+
+    protected void parseRawDataString(ReducibleAnnotationData<Number> myData) {
+        final String rawDataString = myData.getRawData();
+        String[] rawMQdataAsStringVector;
+        rawMQdataAsStringVector = rawDataString.split(",");
+        double squareSum = Double.parseDouble(rawMQdataAsStringVector[0]);
+        myData.putAttribute(Allele.NO_CALL, squareSum);
+    }
+
+    public void combineAttributeMap(ReducibleAnnotationData<Number> toAdd, ReducibleAnnotationData<Number> combined) {
+        if (combined.getAttribute(Allele.NO_CALL) != null)
+            combined.putAttribute(Allele.NO_CALL, (Double) combined.getAttribute(Allele.NO_CALL) + (Double) toAdd.getAttribute(Allele.NO_CALL));
+        else
+            combined.putAttribute(Allele.NO_CALL, toAdd.getAttribute(Allele.NO_CALL));
+
+    }
+
+    //Implementations of this method should return a string consisting of the sum of the squared values for the attribute being annotated (or a delimited list of those if allele-specific)
+    abstract protected String makeRawAnnotationString(List<Allele> vcAlleles, Map<Allele,Number> sumOfSquares);
+
+    //Implementations of this method should return a string with the finalized annotation value as will appear in the INFO field
+    abstract protected String makeFinalizedAnnotationString(VariantContext vc, Map<Allele, Number> sumOfSquares);
+
+    //Implementations of this method should return a string with the finalized annotation value as will appear in the INFO field
+    abstract protected String makeFinalizedAnnotationString(VariantContext vc, Map<Allele, Number> sumOfSquares, Map<String, AlignmentContext> stratifiedContexts, final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap);
+
+    protected void calculateRawData(final Map<String, AlignmentContext> stratifiedContexts,
+                                    final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                    final ReducibleAnnotationData myData) {
+        if (perReadAlleleLikelihoodMap != null) {
+            calculateRawData((VariantContext) null, perReadAlleleLikelihoodMap, myData);
+        }
     }
 
     /**
-     * Create an annotation for the highest (i.e., least significant) p-value of table1 and table2
      *
-     * @param table1 a contingency table, may be null
-     * @param table2 a contingency table, may be null
-     * @return annotation result for FS given tables
+     * @param vc
+     * @param perReadAlleleLikelihoodMap
+     * @param stratifiedContexts
+     * @return the number of reads at the vc position (-1 if all read data is null)
      */
-    private Map<String, Object> pValueAnnotationForBestTable(final int[][] table1, final int[][] table2) {
-        if ( table2 == null )
-            return table1 == null ? null : annotationForOneTable(StrandBiasTableUtils.FisherExactPValueForContingencyTable(table1));
-        else if (table1 == null)
-            return annotationForOneTable(StrandBiasTableUtils.FisherExactPValueForContingencyTable(table2));
-        else { // take the one with the best (i.e., least significant pvalue)
-            double pvalue1 = StrandBiasTableUtils.FisherExactPValueForContingencyTable(table1);
-            double pvalue2 = StrandBiasTableUtils.FisherExactPValueForContingencyTable(table2);
-            return annotationForOneTable(Math.max(pvalue1, pvalue2));
+    public int getNumOfReads(final VariantContext vc,
+                             final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                             final Map<String, AlignmentContext> stratifiedContexts) {
+        //don't use the full depth because we don't calculate MQ for reference blocks
+        int numOfReads = 0;
+        if(vc.hasAttribute(VCFConstants.DEPTH_KEY)) {
+            numOfReads += Integer.parseInt(vc.getAttributeAsString(VCFConstants.DEPTH_KEY, "-1"));
+            if(vc.hasGenotypes()) {
+                for(Genotype gt : vc.getGenotypes()) {
+                    if(gt.isHomRef() && gt.hasExtendedAttribute("MIN_DP")) //site-level DP contribution will come from MIN_DP for gVCF-called reference variants
+                        numOfReads -= Integer.parseInt(gt.getExtendedAttribute("MIN_DP").toString());
+                }
+            }
+            return numOfReads;
         }
+        else if (stratifiedContexts != null && !stratifiedContexts.isEmpty()) {
+            for ( final Map.Entry<String, AlignmentContext> sample : stratifiedContexts.entrySet() ) {
+                final AlignmentContext context = sample.getValue();
+                for ( final PileupElement p : context.getBasePileup() ) {
+                    int mq = p.getRead().getMappingQuality();
+                    if ( mq != QualityUtils.MAPPING_QUALITY_UNAVAILABLE ) {
+                        numOfReads++;
+                    }
+                }
+            }
+            return numOfReads;
+        }
+        else if (perReadAlleleLikelihoodMap != null && !perReadAlleleLikelihoodMap.isEmpty())
+        {
+            for ( final PerReadAlleleLikelihoodMap perReadLikelihoods : perReadAlleleLikelihoodMap.values() ) {
+                for ( final GATKSAMRecord read : perReadLikelihoods.getStoredElements() ) {
+                    int mq = read.getMappingQuality();
+                    if ( mq != QualityUtils.MAPPING_QUALITY_UNAVAILABLE ) {
+                        numOfReads++;
+                    }
+                }
+            }
+            return numOfReads;
+        }
+        return -1;
     }
 
-    /**
-     * Returns an annotation result given a pValue
-     *
-     * @param pValue
-     * @return a hash map from FS -> phred-scaled pValue
-     */
-    protected Map<String, Object> annotationForOneTable(final double pValue) {
-        final Object value = String.format("%.3f", QualityUtils.phredScaleErrorRate(Math.max(pValue, MIN_PVALUE))); // prevent INFINITYs
-        return Collections.singletonMap(getKeyNames().get(0), value);
-    }
 }

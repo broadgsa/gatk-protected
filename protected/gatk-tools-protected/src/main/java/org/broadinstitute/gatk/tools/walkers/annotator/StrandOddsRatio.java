@@ -101,7 +101,6 @@ import java.util.*;
  *
  */
 public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotation, ActiveRegionBasedAnnotation {
-    private final static double AUGMENTATION_CONSTANT = 1.0;
     private static final int MIN_COUNT = 0;
 
     @Override
@@ -132,17 +131,17 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
     }
 
     /**
-     * Computes the SOR value of a table after augmentation. Based on the symmetric odds ratio but modified to take on
+     * Computes the SOR value of a table after augmentation (adding pseudocounts). Based on the symmetric odds ratio but modified to take on
      * low values when the reference +/- read count ratio is skewed but the alt count ratio is not.  Natural log is taken
      * to keep values within roughly the same range as other annotations.
      *
-     * Augmentation avoids quotient by zero.
+     * Adding pseudocounts prevent divide-by-zero.
      *
      * @param originalTable The table before augmentation
      * @return the SOR annotation value
      */
     final protected double calculateSOR(final int[][] originalTable) {
-        final double[][] augmentedTable = augmentContingencyTable(originalTable);
+        final double[][] augmentedTable = StrandBiasTableUtils.augmentContingencyTable(originalTable);
 
         double ratio = 0;
 
@@ -157,22 +156,6 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
         return Math.log(ratio);
     }
 
-
-    /**
-     * Adds the small value AUGMENTATION_CONSTANT to all the entries of the table.
-     *
-     * @param table the table to augment
-     * @return the augmented table
-     */
-    private static double[][] augmentContingencyTable(final int[][] table) {
-        double[][] augmentedTable = new double[ARRAY_DIM][ARRAY_DIM];
-        for ( int i = 0; i < ARRAY_DIM; i++ ) {
-            for ( int j = 0; j < ARRAY_DIM; j++ )
-                augmentedTable[i][j] = table[i][j] + AUGMENTATION_CONSTANT;
-        }
-
-        return augmentedTable;
-    }
 
     /**
      * Returns an annotation result given a ratio

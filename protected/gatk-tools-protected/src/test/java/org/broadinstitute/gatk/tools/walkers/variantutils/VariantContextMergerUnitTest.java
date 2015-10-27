@@ -52,6 +52,8 @@
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
@@ -65,6 +67,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -103,7 +106,7 @@ public class VariantContextMergerUnitTest  extends BaseTest {
     @Test(dataProvider = "referenceConfidenceMergeData")
     public void testReferenceConfidenceMerge(final String testID, final List<VariantContext> toMerge, final GenomeLoc loc,
                                              final boolean returnSiteEvenIfMonomorphic, final boolean uniquifySamples, final VariantContext expectedResult) {
-        final VariantContext result = ReferenceConfidenceVariantContextMerger.merge(toMerge, loc, returnSiteEvenIfMonomorphic ? (byte) 'A' : null, true, uniquifySamples);
+        final VariantContext result = ReferenceConfidenceVariantContextMerger.merge(toMerge, loc, returnSiteEvenIfMonomorphic ? (byte) 'A' : null, true, uniquifySamples, null);
         if ( result == null ) {
             Assert.assertTrue(expectedResult == null);
             return;

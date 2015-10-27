@@ -311,7 +311,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected String[] annotationClassesToUse = { "Standard" };
+    protected String[] annotationGroupsToUse = { "Standard" };
 
     @ArgumentCollection
     private HaplotypeCallerArgumentCollection HCAC = new HaplotypeCallerArgumentCollection();
@@ -623,9 +623,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         genotypingEngine = new HaplotypeCallerGenotypingEngine(HCAC, samplesList, genomeLocParser, FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(), HCAC,logger), !doNotRunPhysicalPhasing);
         // initialize the output VCF header
-        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
+        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationGroupsToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
         final Set<VCFHeaderLine> headerInfo = new HashSet<>();
+
+        //initialize the annotations (this is particularly important to turn off RankSumTest dithering in integration tests)
+        //do this before we write the header because SnpEff adds to header lines
+        annotationEngine.invokeAnnotationInitializationMethods(headerInfo);
 
         headerInfo.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
         // all annotation fields from VariantAnnotatorEngine
@@ -653,9 +657,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         initializeReferenceConfidenceModel(samplesList, headerInfo);
 
         vcfWriter.writeHeader(new VCFHeader(headerInfo, sampleSet));
-
-        //now that we have all the VCF headers, initialize the annotations (this is particularly important to turn off RankSumTest dithering in integration tests)
-        annotationEngine.invokeAnnotationInitializationMethods(headerInfo);
 
         try {
             // fasta reference reader to supplement the edges of the reference sequence
@@ -1211,7 +1212,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      *
      * @return true if HC must emit reference confidence.
      */
-    private boolean emitReferenceConfidence() {
+    public boolean emitReferenceConfidence() {
         return HCAC.emitReferenceConfidence != ReferenceConfidenceMode.NONE;
     }
 

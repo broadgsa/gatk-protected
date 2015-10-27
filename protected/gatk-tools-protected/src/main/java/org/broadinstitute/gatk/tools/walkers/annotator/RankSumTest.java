@@ -52,12 +52,10 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.*;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.MannWhitneyU;
@@ -76,11 +74,12 @@ import java.util.*;
 
 
 /**
- * Abstract root for all RankSum based annotations
+ * Abstract root for all RankSum-based annotations
  */
+//TODO: will eventually implement ReducibleAnnotation in order to preserve accuracy for CombineGVCFs and GenotypeGVCFs -- see RMSAnnotation.java for an example of an abstract ReducibleAnnotation
 public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
     static final boolean DEBUG = false;
-    private boolean useDithering = true;
+    protected boolean useDithering = true;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,

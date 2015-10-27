@@ -58,6 +58,7 @@ import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -77,7 +78,8 @@ import java.util.*;
 /**
  * Class of tests to detect strand bias.
  */
-public abstract class StrandBiasTest extends InfoFieldAnnotation {
+//TODO: will eventually implement ReducibleAnnotation -- see RMSAnnotation.java for an example of an abstract ReducibleAnnotation
+public abstract class StrandBiasTest extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
     private final static Logger logger = Logger.getLogger(StrandBiasTest.class);
     private static boolean stratifiedPerReadAlleleLikelihoodMapWarningLogged = false;
     private static boolean inputVariantContextWarningLogged = false;
@@ -312,7 +314,6 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
     private static void updateTable(final int[] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final List<Allele> allAlts) {
 
         final boolean matchesRef = allele.equals(ref, true);
-        final boolean matchesAlt = allele.equals(allAlts.get(0), true);
         final boolean matchesAnyAlt = allAlts.contains(allele);
 
         if ( matchesRef || matchesAnyAlt ) {

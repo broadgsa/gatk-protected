@@ -90,6 +90,7 @@ import java.util.*;
 public class ChromosomeCounts extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 
     private Set<String> founderIds = new HashSet<String>();
+    private boolean didUniquifiedSampleNameCheck = false;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -99,6 +100,11 @@ public class ChromosomeCounts extends InfoFieldAnnotation implements StandardAnn
                                         final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
         if ( ! vc.hasGenotypes() )
             return null;
+        //if none of the "founders" are in the vc samples, assume we uniquified the samples upstream and they are all founders
+        if (!didUniquifiedSampleNameCheck) {
+            checkSampleNames(vc);
+            didUniquifiedSampleNameCheck = true;
+        }
 
         return VariantContextUtils.calculateChromosomeCounts(vc, new HashMap<String, Object>(), true,founderIds);
     }
@@ -113,4 +119,21 @@ public class ChromosomeCounts extends InfoFieldAnnotation implements StandardAnn
     }
 
     public List<VCFInfoHeaderLine> getDescriptions() { return Arrays.asList(ChromosomeCountConstants.descriptions); }
+
+    //this method is intended to reconcile uniquified sample names
+    // it comes into play when calling this annotation from GenotypeGVCFs with --uniquifySamples because founderIds
+    // is derived from the sampleDB, which comes from the input sample names, but vc will have uniquified (i.e. different)
+    // sample names. Without this check, the founderIds won't be found in the vc and the annotation won't be calculated.
+    protected void checkSampleNames(final VariantContext vc) {
+        Set<String> vcSamples = new HashSet<>();
+        vcSamples.addAll(vc.getSampleNames());
+        if (!vcSamples.isEmpty()) {
+            if (founderIds!=null) {
+                vcSamples.retainAll(founderIds);
+                if (vcSamples.isEmpty())
+                    founderIds = vc.getSampleNames();
+            }
+        }
+    }
+
 }
