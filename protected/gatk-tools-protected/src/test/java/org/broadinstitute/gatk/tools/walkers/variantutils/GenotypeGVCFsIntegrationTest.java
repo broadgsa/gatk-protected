@@ -65,8 +65,9 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class GenotypeGVCFsIntegrationTest extends WalkerTest {
@@ -591,4 +592,14 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations_elevenSamples", spec);
     }
+
+    @Test
+    public void testFractionInformativeReads() {
+        final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -G AS_Standard -o %s --no_cmdline_in_header -A FractionInformativeReads --disableDithering -V "
+                + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList("794cfec86a8bee1f6955766b5a98b950"));
+        spec.disableShadowBCF();
+        executeTest("testAlleleSpecificAnnotations", spec);
+    }
+
 }
