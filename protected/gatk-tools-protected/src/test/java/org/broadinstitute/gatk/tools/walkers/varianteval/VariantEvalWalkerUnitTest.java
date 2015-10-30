@@ -140,7 +140,7 @@ public class VariantEvalWalkerUnitTest extends BaseTest {
         }
 
         @Override
-        public List<Object> getRelevantStates(final ReferenceContext ref, final RefMetaDataTracker tracker, final VariantContext comp, final String compName, final VariantContext eval, final String evalName, final String sampleName) {
+        public List<Object> getRelevantStates(final ReferenceContext ref, final RefMetaDataTracker tracker, final VariantContext comp, final String compName, final VariantContext eval, final String evalName, final String sampleName, final String familyName) {
             int i = Integer.valueOf(evalName); // a terrible hack, but we can now provide accessible states
             List<Object> states = new ArrayList<Object>();
             for ( int state : integers )
@@ -180,12 +180,12 @@ public class VariantEvalWalkerUnitTest extends BaseTest {
         final RefMetaDataTracker tracker = new RefMetaDataTracker();
         final ReferenceContext ref = null;
         final VariantContext comp = null;
-        final String compName = null, sampleName = null;
+        final String compName = null, sampleName = null, familyName = null;
 
         // increment eval counts for each stratification of divisors of i from from 1...maxI
         for ( int i = 1; i <= cfg.maxI; i++ ) {
             final String evalName = String.valueOf(i); // terrible hack to stratify by divisor
-            for ( EvaluationContext nec : VEwalker.getEvaluationContexts(tracker, ref, eval, evalName, comp, compName, sampleName) ) {
+            for ( EvaluationContext nec : VEwalker.getEvaluationContexts(tracker, ref, eval, evalName, comp, compName, sampleName, familyName) ) {
                 synchronized (nec) {
                     nec.apply(tracker, ref, null, comp, eval);
                 }
