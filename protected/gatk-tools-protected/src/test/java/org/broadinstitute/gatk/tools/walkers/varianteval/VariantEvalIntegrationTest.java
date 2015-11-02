@@ -701,4 +701,22 @@ public class VariantEvalIntegrationTest extends WalkerTest {
         tests.add(new Object[]{"genotypes/genotypes", evalGenotypes, compGenotypes, "73790b530595fcbd467a88475ea9717f"});
         return tests.toArray(new Object[][]{});
     }
+
+
+    @Test
+    public void testPrintMissingComp() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                buildCommandLine(
+                        "-T VariantEval",
+                        "-R " + b37KGReference,
+                        "-eval " + privateTestDir + "validationReportEval.noGenotypes.vcf",
+                        "--comp " + privateTestDir + "validationReportComp.noGenotypes.vcf",
+                        "-L 20",
+                        "-EV PrintMissingComp"
+                ),
+                0,
+                Arrays.asList("d41d8cd98f00b204e9800998ecf8427e")); // sato: make sure it doesn't throw a null pointer exception.
+        executeTest("testPrintMissingComp", spec);
+
+    }
 }
