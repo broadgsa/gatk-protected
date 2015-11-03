@@ -619,9 +619,9 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         String idFile = privateTestDir + "complexExample1.vcf.id";
 
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString(" -xlIDs " + idFile + " --variant " + testFile),
+                baseTestString(" -xlIDs " + idFile + " --variant " + testFile + " --forceValidOutput"),
                 1,
-                Arrays.asList("6c1e8591c134519bfc202b4ec7ef1f71")
+                Arrays.asList("45ad235b42bac75aa269e12bcd88a411")
         );
         spec.disableShadowBCF();
         executeTest("testExcludeSelectionID--" + testFile, spec);
