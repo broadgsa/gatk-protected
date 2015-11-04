@@ -612,6 +612,8 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
 
     /**
      * Test excluding variants with IDs
+     * Also tests --forceValidOutput flag, which changes the GQ from floats to ints to match
+     * header spec.
      */
     @Test
     public void testExcludeSelectionID() {
