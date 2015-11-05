@@ -64,6 +64,10 @@ import java.util.*;
 abstract class ExactAFCalculator extends AFCalculator {
 
     protected static final int HOM_REF_INDEX = 0;  // AA likelihoods are always first
+
+    // useful so that we don't keep printing out the same warning message
+    protected static boolean printedWarning = false;
+
     /**
      * Sorts {@link ExactAFCalculator.LikelihoodSum} instances where those with higher likelihood are first.
      */
@@ -152,23 +156,29 @@ abstract class ExactAFCalculator extends AFCalculator {
 
         if (altAlleleReduction == 0)
             return vc;
-        else if (altAlleleReduction != 0) {
-            logger.warn("this tool is currently set to genotype at most " + maximumAlternativeAlleles
-                    + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart()
-                    + " has " + (vc.getAlternateAlleles().size())
-                    + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
 
-            final List<Allele> alleles = new ArrayList<>(maximumAlternativeAlleles + 1);
-            alleles.add(vc.getReference());
-            alleles.addAll(reduceScopeAlleles(vc, defaultPloidy, maximumAlternativeAlleles));
-            final VariantContextBuilder builder = new VariantContextBuilder(vc);
-            builder.alleles(alleles);
-            builder.genotypes(reduceScopeGenotypes(vc, defaultPloidy, alleles));
-            if (altAlleleReduction < 0)
-                throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc + " " + builder.make());
-            return builder.make();
-        } else // if (altAlleleReduction < 0)
-            throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc);
+        String message = "this tool is currently set to genotype at most " + maximumAlternativeAlleles
+                + " alternate alleles in a given context, but the context at " + vc.getContig() + ":" + vc.getStart()
+                + " has " + (vc.getAlternateAlleles().size())
+                + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument";
+
+        if ( !printedWarning ) {
+            printedWarning = true;
+            message += ". This warning message is output just once per run and further warnings will be suppressed unless the DEBUG logging level is used.";
+            logger.warn(message);
+        } else {
+            logger.debug(message);
+        }
+
+        final List<Allele> alleles = new ArrayList<>(maximumAlternativeAlleles + 1);
+        alleles.add(vc.getReference());
+        alleles.addAll(reduceScopeAlleles(vc, defaultPloidy, maximumAlternativeAlleles));
+        final VariantContextBuilder builder = new VariantContextBuilder(vc);
+        builder.alleles(alleles);
+        builder.genotypes(reduceScopeGenotypes(vc, defaultPloidy, alleles));
+        if (altAlleleReduction < 0)
+            throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc + " " + builder.make());
+        return builder.make();
     }
 
     /**
