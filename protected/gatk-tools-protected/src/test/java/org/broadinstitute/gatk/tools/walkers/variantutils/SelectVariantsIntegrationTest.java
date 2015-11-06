@@ -604,7 +604,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -IDs " + idFile + " --variant " + testFile),
                 1,
-                Arrays.asList("41dda9f4b9ec9f9b0f3593b2cbd82cd5")
+                Arrays.asList("c6632b63617162455f02670174a2322a")
         );
         spec.disableShadowBCF();
         executeTest("testKeepSelectionID--" + testFile, spec);
@@ -623,7 +623,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -xlIDs " + idFile + " --variant " + testFile + " --forceValidOutput"),
                 1,
-                Arrays.asList("45ad235b42bac75aa269e12bcd88a411")
+                Arrays.asList("613826acb415f05bf288536701a87855")
         );
         spec.disableShadowBCF();
         executeTest("testExcludeSelectionID--" + testFile, spec);
