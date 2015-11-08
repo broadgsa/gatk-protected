@@ -65,7 +65,7 @@ import java.util.Map;
  */
 public enum AFCalculatorImplementation {
 
-    /** default implementation */
+    /** Fast implementation for multi-allelics (equivalent to {@link #EXACT_REFERENCE} for biallelics sites */
     EXACT_INDEPENDENT(IndependentAllelesDiploidExactAFCalculator.class, 2),
 
     /** reference implementation of multi-allelic EXACT model.  Extremely slow for many alternate alleles */
@@ -75,7 +75,12 @@ public enum AFCalculatorImplementation {
     EXACT_ORIGINAL(OriginalDiploidExactAFCalculator.class, 2, 2),
 
     /** implementation that supports any sample ploidy.  Currently not available for the HaplotypeCaller */
-    EXACT_GENERAL_PLOIDY(GeneralPloidyExactAFCalculator.class);
+    EXACT_GENERAL_PLOIDY(GeneralPloidyExactAFCalculator.class),
+
+    /**
+     * Implementation that implements the {@link #EXACT_INDEPENDENT} for any ploidy.
+     */
+    EXACT_GENERAL_INDEPENDENT(IndependentAllelesExactAFCalculator.class);
 
     /**
      * Special max alt allele count indicating that this maximum is in fact unbound (can be anything).
@@ -180,7 +185,7 @@ public enum AFCalculatorImplementation {
     }
 
     /**
-     * Creates new instance
+     * Creates new instance.
      *
      * @throws IllegalStateException if the instance could not be create due to some exception. The {@link Exception#getCause() cause} will hold a reference to the actual exception.
      * @return never {@code null}.
@@ -205,11 +210,14 @@ public enum AFCalculatorImplementation {
         final AFCalculatorImplementation preferredValue = preferred == null ? DEFAULT : preferred;
         if (preferredValue.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
             return preferredValue;
-        if (EXACT_INDEPENDENT.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+        else if (EXACT_INDEPENDENT.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
             return EXACT_INDEPENDENT;
-        if (EXACT_REFERENCE.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+        else if (EXACT_REFERENCE.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
             return EXACT_REFERENCE;
-        return EXACT_GENERAL_PLOIDY;
+        else if (EXACT_GENERAL_INDEPENDENT.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+            return EXACT_GENERAL_INDEPENDENT;
+        else
+            return EXACT_GENERAL_PLOIDY;
     }
 
     /**

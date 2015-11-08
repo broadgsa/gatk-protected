@@ -88,7 +88,7 @@ public class GeneralPloidyFailOverAFCalculatorProviderUnitTest {
                     Assert.assertNotNull(failOver);
                     final AFCalculatorImplementation failOverImplementation = AFCalculatorImplementation.fromCalculatorClass(failOver.getClass());
                     Assert.assertTrue(failOverImplementation.usableForParams(PLOIDIES[i],MAX_ALT_ALLELES[j]));
-                    Assert.assertEquals(failOverImplementation, AFCalculatorImplementation.EXACT_GENERAL_PLOIDY);
+                    Assert.assertEquals(failOverImplementation, AFCalculatorImplementation.EXACT_GENERAL_INDEPENDENT);
                 }
             }
         }

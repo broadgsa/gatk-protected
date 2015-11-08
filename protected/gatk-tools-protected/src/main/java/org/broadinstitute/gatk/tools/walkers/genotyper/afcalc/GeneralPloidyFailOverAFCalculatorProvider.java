@@ -81,7 +81,7 @@ public class GeneralPloidyFailOverAFCalculatorProvider extends AFCalculatorProvi
         preferredImplementation = AFCalculatorImplementation.bestValue(genotypeArgs.samplePloidy,genotypeArgs.MAX_ALTERNATE_ALLELES, null);
         preferred = preferredImplementation.newInstance();
         preferred.setLogger(logger);
-        failOver = AFCalculatorImplementation.EXACT_GENERAL_PLOIDY.newInstance();
+        failOver = AFCalculatorImplementation.EXACT_GENERAL_INDEPENDENT.newInstance();
         failOver.setLogger(logger);
     }
 

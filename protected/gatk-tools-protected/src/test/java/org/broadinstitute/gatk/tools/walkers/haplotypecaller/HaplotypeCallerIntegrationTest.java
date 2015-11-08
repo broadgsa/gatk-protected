@@ -107,7 +107,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSampleHaploid() throws IOException {
-        HCTest(CEUTRIO_BAM, "-ploidy 1", "0aa0bde7c7188bcf89c65606f975bbaf");
+        HCTest(CEUTRIO_BAM, "-ploidy 1", "4c32640204a11fe46a23d97b1012bca2");
     }
 
     @Test
@@ -117,7 +117,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleTetraploid() throws IOException {
-        HCTest(NA12878_BAM, "-ploidy 4", "89a95ecb4f0326fdf62ba1bb0ee349a3");
+        HCTest(NA12878_BAM, "-ploidy 4", "bbae9f77683591200b2034d5461e6425");
     }
 
     @Test
@@ -132,7 +132,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMinBaseQualityTetraploid() throws IOException {
-        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "89a95ecb4f0326fdf62ba1bb0ee349a3");
+        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "bbae9f77683591200b2034d5461e6425");
     }
 
     @Test
@@ -142,7 +142,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSampleHaploid() throws IOException {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "88ea6597151d7c08bfdee035e43f2db6");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "5333e3ff4d7fc53624eab801250be4f0");
     }
 
     @Test
@@ -171,7 +171,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGATetraploid() throws IOException {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 4 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf -isr INTERSECTION -L 20:10080000-10100000",
-                "6e24e1f10b32a8dac3bcc27fbadce3fb");
+                "6ba0fa930899f70fee9a7b1161508f93");
     }
 
     @Test
