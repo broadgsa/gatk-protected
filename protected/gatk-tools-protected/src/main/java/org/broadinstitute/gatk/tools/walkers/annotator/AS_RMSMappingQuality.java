@@ -79,8 +79,13 @@ import java.util.*;
  * </ul>
  *
  * <h3>Caveat</h3>
- * <p>Uninformative reads are not used in these annotations.</p>
+ * <p>Uninformative reads are not used in this annotation.</p>
  *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_RMSMappingQuality.php">RMSMappingQuality</a></b> outputs a version of this annotation that includes all alternate alleles in a single calculation.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_MappingQualityRankSumTest.php">MappingQualityRankSumTest</a></b> compares the mapping quality of reads supporting the REF and ALT alleles.</li>
+ * </ul>
  */
 public class AS_RMSMappingQuality extends AS_RMSAnnotation implements AS_StandardAnnotation, ActiveRegionBasedAnnotation {
 

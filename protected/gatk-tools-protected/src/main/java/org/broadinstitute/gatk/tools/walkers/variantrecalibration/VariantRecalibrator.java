@@ -141,6 +141,7 @@ import java.util.*;
  * <h3>Caveats</h3>
  *
  * <ul>
+ * <li>SNPs and indels must be recalibrated in separate runs (but it is not necessary to separate them into different files). Mixed records are treated as indels.</li>
  * <li>The values used in the example above are only meant to show how the command lines are composed.
  * They are not meant to be taken as specific recommendations of values to use in your own work, and they may be
  * different from the values cited elsewhere in our documentation. For the latest and greatest recommendations on

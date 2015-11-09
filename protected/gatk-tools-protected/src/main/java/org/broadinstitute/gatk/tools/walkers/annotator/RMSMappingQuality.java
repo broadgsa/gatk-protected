@@ -80,8 +80,12 @@ import java.util.*;
  * <h3>Statistical notes</h3>
  * <p>The root mean square is equivalent to the mean of the mapping qualities plus the standard deviation of the mapping qualities.</p>
  *
+ * <h3>Caveat</h3>
+ * <p>Uninformative reads are not used in this annotation.</p>
+ *
  * <h3>Related annotations</h3>
  * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_RMSMappingQuality.php">AS_RMSMappingQuality</a></b> outputs an allele-specific version of this annotation.</li>
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_MappingQualityRankSumTest.php">MappingQualityRankSumTest</a></b> compares the mapping quality of reads supporting the REF and ALT alleles.</li>
  * </ul>
  *

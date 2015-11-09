@@ -108,7 +108,7 @@ import java.io.FileNotFoundException;
 import java.util.*;
 
 /**
- * Call SNPs and indels simultaneously via local re-assembly of haplotypes in an active region
+ * Call SNPs and indels simultaneously via local assembly of haplotypes in an active region
  *
  * <p>The basic operation of the HaplotypeCaller proceeds as follows:   </p>
  *
@@ -119,7 +119,7 @@ import java.util.*;
  * evidence for variation.</p>
  *
  * <br />
- * <h4>2. Determine haplotypes by re-assembly of the active region </h4>
+ * <h4>2. Determine haplotypes by assembly of the active region </h4>
  *
  * <p>For each ActiveRegion, the program builds a De Bruijn-like graph to reassemble the ActiveRegion, and identifies
  * what are the possible haplotypes present in the data. The program then realigns each haplotype against the reference
@@ -135,7 +135,7 @@ import java.util.*;
  * <br />
  * <h4>4. Assign sample genotypes </h4>
  *
- * <p>For each potentially variant site, the program applies Bayes’ rule, using the likelihoods of alleles given the
+ * <p>For each potentially variant site, the program applies Bayes' rule, using the likelihoods of alleles given the
  * read data to calculate the likelihoods of each genotype per sample given the read data observed for that
  * sample. The most likely genotype is then assigned to the sample.    </p>
  *

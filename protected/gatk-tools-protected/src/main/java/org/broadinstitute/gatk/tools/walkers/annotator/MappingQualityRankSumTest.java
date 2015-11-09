@@ -70,11 +70,14 @@ import java.util.*;
  * <h3>Statistical notes</h3>
  * <p>The value output for this annotation is the u-based z-approximation from the Mann-Whitney-Wilcoxon Rank Sum Test for mapping qualities (MAPQ of reads supporting REF vs. MAPQ of reads supporting ALT). See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of the ranksum test.</p>
  *
- * <h3>Caveat</h3>
- * <p>The mapping quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
+ * <h3>Caveats</h3>
+ * <ul><li>The mapping quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</li>
+ * <li>Uninformative reads are not used in these annotations.</li>
+ * </ul>
  *
  * <h3>Related annotations</h3>
  * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_MappingQualityRankSumTest.php">AS_MappingQualityRankSumTest</a></b> outputs an allele-specific version of this annotation.</li>
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_RMSMappingQuality.php">RMSMappingQuality</a></b> gives an estimation of the overal read mapping quality supporting a variant call.</li>
  * </ul>
  *

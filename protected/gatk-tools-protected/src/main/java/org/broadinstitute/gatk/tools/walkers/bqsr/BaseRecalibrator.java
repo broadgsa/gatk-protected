@@ -86,22 +86,35 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Generate base recalibration table to compensate for systematic errors
+ * Generate base recalibration table to compensate for systematic errors in basecalling confidences
  *
  * <p>
- * This tool is designed to work as the first pass in a two-pass processing step. It does a by-locus traversal operating
- * only at sites that are not in dbSNP. We assume that all reference mismatches we see are therefore errors and indicative
- * of poor base quality. This tool generates tables based on various user-specified covariates (such as read group,
- * reported quality score, cycle, and context). Since there is a large amount of data, one can then calculate an empirical
- * probability of error given the particular covariates seen at this site, where p(error) = num mismatches / num observations.
- * The output file is a table (of the several covariate values, num observations, num mismatches, empirical quality score).
- * </p>
- * <p>
- * Note: ReadGroupCovariate and QualityScoreCovariate are required covariates and will be added regardless of whether
- * or not they were specified.
+ * Variant calling algorithms rely heavily on the quality scores assigned to the individual base calls in each sequence
+ * read. These scores are per-base estimates of error emitted by the sequencing machines. Unfortunately the scores
+ * produced by the machines are subject to various sources of systematic technical error, leading to over- or
+ * under-estimated base quality scores in the data. Base quality score recalibration (BQSR) is a process in which we
+ * apply machine learning to model these errors empirically and adjust the quality scores accordingly. This allows us
+ * to get more accurate base qualities, which in turn improves the accuracy of our variant calls.
+ *
+ * The base recalibration process involves two key steps: first the program builds a model of covariation based on the
+ * data and a set of known variants (which you can bootstrap if there is none available for your organism), then it
+ * adjusts the base quality scores in the data based on the model.
+ *
+ * There is an optional but highly recommended step that involves building a second model and generating before/after
+ * plots to visualize the effects of the recalibration process. This is useful for quality control purposes.
+ *
+ * This tool performs the first step described above: it builds the model of covariation and produces the recalibration
+ * table. It operates only at sites that are not in dbSNP; we assume that all reference mismatches we see are therefore
+ * errors and indicative of poor base quality. This tool generates tables based on various user-specified covariates
+ * (such as read group, reported quality score, cycle, and context). Assuming we are working with a large amount of data,
+ * we can then calculate an empirical probability of error given the particular covariates seen at this site,
+ * where p(error) = num mismatches / num observations.
+ *
+ * The output file is a table (of the several covariate values, number of observations, number of mismatches, empirical
+ * quality score).
  * </p>
  *
- * <h3>Input</h3>
+ * <h3>Inputs</h3>
  * <p>
  * A BAM file containing data that needs to be recalibrated.
  * <p>
@@ -131,6 +144,13 @@ import java.util.List;
  *   -knownSites latest_dbsnp.vcf \
  *   -o recal_data.table
  * </pre>
+ *
+ * <h3>Notes</h3>
+ * <ul><li>This *base* recalibration process should not be confused with *variant* recalibration, which is a s
+ * ophisticated filtering technique applied on the variant callset produced in a later step of the analysis workflow.</li>
+ * <li>ReadGroupCovariate and QualityScoreCovariate are required covariates and will be added regardless of whether
+ * or not they were specified.</li></ul>
+ *
  */
 
 @DocumentedGATKFeature(groupName = HelpConstants.DOCS_CAT_DATA, extraDocs = {CommandLineGATK.class})
