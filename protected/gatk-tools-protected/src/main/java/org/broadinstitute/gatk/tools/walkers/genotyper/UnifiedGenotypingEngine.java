@@ -377,7 +377,8 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
 
     @Override
     protected boolean forceKeepAllele(final Allele allele) {
-        return configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES || configuration.annotateAllSitesWithPLs;
+        return configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES
+                || configuration.annotateAllSitesWithPLs;
     }
 
     @Override

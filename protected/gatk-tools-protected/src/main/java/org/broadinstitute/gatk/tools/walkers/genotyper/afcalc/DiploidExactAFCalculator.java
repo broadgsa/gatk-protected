@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
@@ -72,7 +73,7 @@ public abstract class DiploidExactAFCalculator extends ExactAFCalculator {
                                                final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
         final int numAlternateAlleles = vc.getNAlleles() - 1;
 
-        final ArrayList<double[]> genotypeLikelihoods = getGLs(vc.getGenotypes(), true);
+        final ArrayList<double[]> genotypeLikelihoods = getGLs(vc.getGenotypes(), true, vc.hasAllele(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE));
         final int numSamples = genotypeLikelihoods.size()-1;
         final int numChr = 2*numSamples;
 

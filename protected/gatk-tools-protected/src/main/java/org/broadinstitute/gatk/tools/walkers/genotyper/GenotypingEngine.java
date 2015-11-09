@@ -244,8 +244,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         // Add 0.0 removes -0.0 occurrences.
         final double phredScaledConfidence = (-10.0 * log10Confidence) + 0.0;
 
+
         // return a null call if we don't pass the confidence cutoff or the most likely allele frequency is zero
-        if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission()) {
+        //skip this if we are already looking at a vc with a NON_REF allele i.e. if we are in GenotypeGVCFs
+        if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission()
+                && outputAlternativeAlleles.alleles[0] != GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) {
             // technically, at this point our confidence in a reference call isn't accurately estimated
             //  because it didn't take into account samples with no data, so let's get a better estimate
             final double[] AFpriors = getAlleleFrequencyPriors(vc, defaultPloidy, model);
@@ -336,7 +339,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
 
     /**
-     * Provided the exact mode computations it returns the appropiate subset of alleles that progress to genotyping.
+     * Provided the exact mode computations it returns the appropriate subset of alleles that progress to genotyping.
      * @param afcr the exact model calcualtion result.
      * @return never {@code null}.
      */
@@ -350,8 +353,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         boolean siteIsMonomorphic = true;
         for (final Allele alternativeAllele : alleles) {
             if (alternativeAllele.isReference()) continue;
+            // we want to keep the NON_REF symbolic allele but only in the absence of a non-symbolic allele, e.g.
+            // if we combined a ref / NON_REF gVCF with a ref / alt gVCF
+            final boolean isNonRefWhichIsLoneAltAllele = alternativeAlleleCount == 1 && alternativeAllele == GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE;
             final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(alternativeAllele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING);
-            final boolean toOutput = isPlausible || forceKeepAllele(alternativeAllele);
+            final boolean toOutput = isPlausible || forceKeepAllele(alternativeAllele) || isNonRefWhichIsLoneAltAllele;
 
             siteIsMonomorphic &= ! isPlausible;
             if (!toOutput) continue;
