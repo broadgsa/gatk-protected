@@ -120,7 +120,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "281682124584ab384f23359934df0c3b")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "0a92fdff5fd26227c29d34eda5a32f49")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "90d8c24077e8ae9a0037a9aad5f09e31")},
+                {new BQSRTest(hg18Reference, privateTestDir + "originalQuals.1kg.chr1.1-1K.1RG.bam", "chr1:1-1,000", " -OQ", "90d8c24077e8ae9a0037a9aad5f09e31")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "c41ef02c640ef1fed4bfc03b9b33b616")},
                 {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "b577cd1d529425f66db49620db09fdca")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
