@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardHCAnnotation;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
@@ -71,7 +72,7 @@ import java.util.*;
  * <p>The clipping rank sum test cannot be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
  *
  */
-public class ClippingRankSumTest extends RankSumTest {
+public class ClippingRankSumTest extends RankSumTest implements StandardHCAnnotation{
     @Override
     public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.CLIPPING_RANK_SUM_KEY); }
 

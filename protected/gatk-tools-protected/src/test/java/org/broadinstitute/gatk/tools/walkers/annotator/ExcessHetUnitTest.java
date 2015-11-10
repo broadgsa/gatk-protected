@@ -242,7 +242,7 @@ public class ExcessHetUnitTest {
 
     @Test(dataProvider = "smallSets")
     public void smallSets(int hetCount, int homrefCount, int homvarCount, double expected) {
-        double actual = new ExcessHet().exactTest(hetCount, homrefCount, homvarCount);
+        double actual = new ExcessHet().exactTest(new int[]{homrefCount, hetCount, homvarCount});
         Assert.assertEquals(actual, expected, DELTA_PRECISION, "Pass");
     }
 }

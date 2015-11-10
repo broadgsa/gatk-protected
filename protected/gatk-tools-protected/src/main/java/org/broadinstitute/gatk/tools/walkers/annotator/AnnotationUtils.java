@@ -56,6 +56,8 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.indels.PairHMMIndelErrorModel;
@@ -66,10 +68,28 @@ import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class AnnotationUtils {
 
     public static final String ANNOTATION_HC_WARN_MSG = " annotation will not be calculated, must be called from HaplotypeCaller";
     public static final int WARNINGS_LOGGED_SIZE = 3;
+
+    /**
+     * Helper function to parse the list into the annotation string
+     * @param valueList the ArrayList returned from StrandBiasBySample.annotate()
+     * @return the array used by the per-sample Strand Bias annotation
+     */
+    protected static String encodeValueList( final List<Double> valueList, final String precisionFormat ) {
+        List<String> outputList = new ArrayList<>();
+        for (Double d : valueList) {
+            outputList.add(String.format(precisionFormat, d));
+        }
+        return StringUtils.join(outputList, ",");
+    }
 
     /**
      * Checks if the walker is compatible with allele-specific annotations
@@ -152,6 +172,24 @@ public class AnnotationUtils {
         return true;
     }
 
+
+    //this method is intended to reconcile uniquified sample names
+    // it comes into play when calling this annotation from GenotypeGVCFs with --uniquifySamples because founderIds
+    // is derived from the sampleDB, which comes from the input sample names, but vc will have uniquified (i.e. different)
+    // sample names. Without this check, the founderIds won't be found in the vc and the annotation won't be calculated.
+    protected static Set<String> validateFounderIDs(final Set<String> founderIds, final VariantContext vc) {
+        Set<String> vcSamples = new HashSet<>();
+        Set<String> returnIDs = founderIds;
+        vcSamples.addAll(vc.getSampleNames());
+        if (!vcSamples.isEmpty()) {
+            if (founderIds != null) {
+                vcSamples.removeAll(founderIds);
+                if (vcSamples.equals(vc.getSampleNames()))
+                    returnIDs = vc.getSampleNames();
+            }
+        }
+        return returnIDs;
+    }
 
     /**
      * Get the position of a variant within a read with respect to the closer end, accounting for hard clipped bases and low quality ends

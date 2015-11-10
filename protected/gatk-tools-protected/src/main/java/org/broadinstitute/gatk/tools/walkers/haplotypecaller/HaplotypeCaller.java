@@ -290,7 +290,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"ClippingRankSumTest", "DepthPerSampleHC"}));
+    protected List<String> annotationsToUse = new ArrayList<>();
 
     /**
      * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the
@@ -302,7 +302,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
-    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{}));
+    protected List<String> annotationsToExclude = new ArrayList<>();
 
     /**
      * Which groups of annotations to add to the output VCF file. The single value 'none' removes the default group. See
@@ -311,7 +311,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected String[] annotationGroupsToUse = { "Standard" };
+    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{ "Standard", "StandardHCAnnotation" }));
 
     @ArgumentCollection
     private HaplotypeCallerArgumentCollection HCAC = new HaplotypeCallerArgumentCollection();
@@ -623,7 +623,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         genotypingEngine = new HaplotypeCallerGenotypingEngine(HCAC, samplesList, genomeLocParser, FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(), HCAC,logger), !doNotRunPhysicalPhasing);
         // initialize the output VCF header
-        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationGroupsToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
+        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(annotationGroupsToUse, annotationsToUse, annotationsToExclude, this, getToolkit());
 
         final Set<VCFHeaderLine> headerInfo = new HashSet<>();
 

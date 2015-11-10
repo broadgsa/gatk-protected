@@ -51,208 +51,200 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import org.apache.commons.math.stat.StatUtils;
-import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.engine.walkers.Walker;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.utils.MathUtils;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypesContext;
-import htsjdk.variant.variantcontext.VariantContext;
-import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
-import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
+import htsjdk.variant.variantcontext.*;
+import org.testng.Assert;
+import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.Test;
 
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 
 /**
- * Phred-scaled p-value for exact test of excess heterozygosity.
- * Using implementation from
- * Wigginton JE, Cutler DJ, Abecasis GR. A Note on Exact Tests of Hardy-Weinberg Equilibrium. American Journal of Human Genetics. 2005;76(5):887-893.
+ * Created with IntelliJ IDEA.
+ * User: gauthier
+ * Date: 10/28/2015
  */
-public class ExcessHet extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
-    private final static Logger logger = Logger.getLogger(ExcessHet.class);
-    private final double minNeededValue = 1.0E-16;
-    private Set<String> founderIds;
-    private final boolean RETURN_ROUNDED = true;
-    private int sampleCount = -1;
+public class AS_InbreedingCoeffUnitTest {
+    private static double DELTA_PRECISION = 0.001;
+    private Allele Aref, T, C;
+    private int[] hetPLs, homRefPLs;
 
-    @Override
-    public void initialize ( AnnotatorCompatible walker, GenomeAnalysisEngine toolkit, Set<VCFHeaderLine> headerLines ) {
-        //If available, get the founder IDs and cache them. The ExcessHet value will only be computed on founders then.
-        //excessHet respects pedigree files, but doesn't require a minimum number of samples
-        if(founderIds == null && walker != null) {
-            founderIds = ((Walker) walker).getSampleDB().getFounderIds();
-        }
+    @BeforeSuite
+    public void setup() {
+        // alleles
+        Aref = Allele.create("A", true);
+        T = Allele.create("T");
+        C = Allele.create("C");
 
+        // simulating 20 reads with Q30 base qualities
+        hetPLs = new int[] {240, 0, 240};
+        homRefPLs = new int[] {0, 60, 600};
     }
 
-    @Override
-    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
-                                        final AnnotatorCompatible walker,
-                                        final ReferenceContext ref,
-                                        final Map<String, AlignmentContext> stratifiedContexts,
-                                        final VariantContext vc,
-                                        final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
-
-        return makeEHAnnotation(vc);
-    }
-
-    protected double calculateEH(final VariantContext vc, final GenotypesContext genotypes) {
-        HeterozygosityUtils heterozygosityUtils = new HeterozygosityUtils(RETURN_ROUNDED);
-        final double[] genotypeCountsDoubles = heterozygosityUtils.getGenotypeCountsForRefVsAllAlts(vc, genotypes);
-        sampleCount = heterozygosityUtils.getSampleCount();
-        final int[] genotypeCounts = new int[genotypeCountsDoubles.length];
-        for(int i = 0; i < genotypeCountsDoubles.length; i++) {
-            genotypeCounts[i] = (int)genotypeCountsDoubles[i];
-        }
-
-        double pval = exactTest(genotypeCounts);
-
-        //If the actual phredPval would be infinity we will probably still filter out just a very large number
-        if (pval == 0) {
-            return Integer.MAX_VALUE;
-        }
-        double phredPval = -10.0 * Math.log10(pval);
-
-        return phredPval;
-    }
-
-    /**
-     * Note that this method is not accurate for very small p-values. Beyond 1.0E-16 there is no guarantee that the
-     * p-value is accurate, just that it is in fact smaller than 1.0E-16 (and therefore we should filter it). It would
-     * be more computationally expensive to calculate accuracy beyond a given threshold. Here we have enough accuracy
-     * to filter anything below a p-value of 10E-6.
-     *
-     * @param genotypeCounts Number of observed genotypes (n_aa, n_ab, n_bb)
-     * @return Right sided p-value or the probability of getting the observed or higher number of hets given the sample
-     * size (N) and the observed number of allele a (rareCopies)
-     */
-    protected double exactTest(final int[] genotypeCounts) {
-        if (genotypeCounts.length != 3) {
-            throw new IllegalStateException("Input genotype counts must be length 3 for the number of genotypes with {2, 1, 0} ref alleles.");
-        }
-        final int REF_INDEX = 0;
-        final int HET_INDEX = 1;
-        final int VAR_INDEX = 2;
-
-        final int refCount = genotypeCounts[REF_INDEX];
-        final int hetCount = genotypeCounts[HET_INDEX];
-        final int homCount = genotypeCounts[VAR_INDEX];
-
-        if (hetCount < 0 || refCount < 0 || homCount < 0) {
-            throw new IllegalArgumentException("Genotype counts cannot be less than 0");
-        }
-
-        //Split into observed common allele and rare allele
-        final int obsHomR;
-        final int obsHomC;
-        if (refCount < homCount) {
-            obsHomR = refCount;
-            obsHomC = homCount;
-        } else {
-            obsHomR = homCount;
-            obsHomC = refCount;
-        }
-
-        final int rareCopies = 2 * obsHomR + hetCount;
-        final int N = hetCount + obsHomC + obsHomR;
-
-        //If the probability distribution has only 1 point, then the mid p-value is .5
-        if (rareCopies <= 1) {
-            return .5;
-        }
-
-        double[] probs = new double[rareCopies + 1];
-
-        //Find (something close to the) mode for the midpoint
-        int mid = (int) Math.floor(((double) rareCopies * (2.0 * (double) N - (double) rareCopies)) / (2.0 * (double) N - 1.0));
-        if ((mid % 2) != (rareCopies % 2)) {
-            mid++;
-        }
-
-        probs[mid] = 1.0;
-        double mysum = 1.0;
-
-        //Calculate probabilities from midpoint down
-        int currHets = mid;
-        int currHomR = (rareCopies - mid) / 2;
-        int currHomC = N - currHets - currHomR;
-
-        while (currHets >= 2) {
-            double potentialProb = probs[currHets] * (double) currHets * ((double) currHets - 1.0) / (4.0 * ((double) currHomR + 1.0) * ((double) currHomC + 1.0));
-            if (potentialProb < minNeededValue) {
-                break;
+    private Genotype makeGwithPLs(String sample, Allele a1, Allele a2, double[] pls) {
+        Genotype gt = new GenotypeBuilder(sample, Arrays.asList(a1, a2)).PL(pls).make();
+        if ( pls != null && pls.length > 0 ) {
+            Assert.assertNotNull(gt.getPL());
+            Assert.assertTrue(gt.getPL().length > 0);
+            for ( int i : gt.getPL() ) {
+                Assert.assertTrue(i >= 0);
             }
+            Assert.assertNotEquals(Arrays.toString(gt.getPL()),"[0]");
+        }
+        return gt;
+    }
 
-            probs[currHets - 2] = potentialProb;
-            mysum = mysum + probs[currHets - 2];
+    private Genotype makeG(String sample, Allele a1, Allele a2, int... pls) {
+        return new GenotypeBuilder(sample, Arrays.asList(a1, a2)).PL(pls).make();
+    }
 
-            //2 fewer hets means one additional homR and homC each
-            currHets = currHets - 2;
-            currHomR = currHomR + 1;
-            currHomC = currHomC + 1;
+    private VariantContext makeVC(String source, List<Allele> alleles, Genotype... genotypes) {
+        int start = 10;
+        int stop = start; // alleles.contains(ATC) ? start + 3 : start;
+        return new VariantContextBuilder(source, "1", start, stop, alleles)
+                .genotypes(Arrays.asList(genotypes))
+                .filters((String)null)
+                .make();
+    }
+
+    @Test
+    public void testInbreedingCoeffForMultiallelicVC() {
+        //make sure that compound gets (with no ref) don't add to het count
+        VariantContext test1 = makeVC("1",Arrays.asList(Aref,T,C),
+                makeG("s1", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s2", T, T, 7099, 2530, 0, 7099, 366, 3056),
+                makeG("s3", T, C, 7099, 2530, 7099, 3056, 0, 14931),
+                makeG("s4", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s5", T, T, 7099, 2530, 0, 7099, 366, 3056),
+                makeG("s6", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s7", T, T, 7099, 2530, 0, 7099, 366, 3056),
+                makeG("s8", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s9", T, T, 7099, 2530, 0, 7099, 366, 3056),
+                makeG("s10", Aref, T, 2530, 0, 7099, 366, 3056, 14931));
+
+        final AS_InbreedingCoeff testClass1 = new AS_InbreedingCoeff();
+        testClass1.initialize(null, null, null);
+        final double ICresult1 = testClass1.calculateIC(test1, T);
+        Assert.assertEquals(ICresult1, -0.4285714, DELTA_PRECISION, "Pass");
+        final double ICresult1b = testClass1.calculateIC(test1, C);
+        Assert.assertEquals(ICresult1b, -0.05263, DELTA_PRECISION, "Pass");
+
+        //make sure that hets with different alternate alleles all get counted
+        VariantContext test2 = makeVC("2", Arrays.asList(Aref,T,C),
+                makeG("s1", Aref, C, 4878, 1623, 11297, 0, 7970, 8847),
+                makeG("s2", Aref, T, 2530, 0, 7099, 366, 3056, 14931),
+                makeG("s3", Aref, T, 3382, 0, 6364, 1817, 5867, 12246),
+                makeG("s4", Aref, T, 2488, 0, 9110, 3131, 9374, 12505),
+                makeG("s5", Aref, C, 4530, 2006, 18875, 0, 6847, 23949),
+                makeG("s6", Aref, T, 5325, 0, 18692, 389, 16014, 24570),
+                makeG("s7", Aref, T, 2936, 0, 29743, 499, 21979, 38630),
+                makeG("s8", Aref, T, 6902, 0, 8976, 45, 5844, 9061),
+                makeG("s9", Aref, T, 5732, 0, 10876, 6394, 11408, 17802),
+                makeG("s10", Aref, T, 2780, 0, 25045, 824, 23330, 30939));
+
+        final AS_InbreedingCoeff testClass2 = new AS_InbreedingCoeff();
+        testClass2.initialize(null, null, null);
+        final double ICresult2 = testClass2.calculateIC(test2, T);
+        Assert.assertEquals(ICresult2, -0.666666, DELTA_PRECISION, "Pass");
+        final double ICresult2b = testClass2.calculateIC(test2, C);
+        Assert.assertEquals(ICresult2b, -0.111129, DELTA_PRECISION, "Pass");
+    }
+
+    @Test
+    public void testSingletonVsCommonAllele() {
+
+        final List<Genotype> allGTs = new ArrayList<>();
+        final int numHomRefGTs = 10000;
+        allGTs.add(makeG("het0", Aref, T, hetPLs));
+
+        for ( int i = 0; i < numHomRefGTs; i++ )
+            allGTs.add(makeG("ref" + i, Aref, Aref, homRefPLs));
+
+        int numHetGTs = 1;
+
+        final VariantContext singleton = makeVC("singleton", Arrays.asList(Aref, T), allGTs.toArray(new Genotype[allGTs.size()]));
+        AS_InbreedingCoeff testClass = new AS_InbreedingCoeff();
+        testClass.initialize(null,null,null);
+        final double ICsingleton = testClass.calculateIC(singleton, T);
+
+        final int targetNumHetGTs = 20;
+        for ( int i = numHetGTs; i < targetNumHetGTs; i++ )
+            allGTs.add(makeG("het" + i, Aref, T, hetPLs));
+
+        final VariantContext common = makeVC("common", Arrays.asList(Aref, T), allGTs.toArray(new Genotype[allGTs.size()]));
+        testClass = new AS_InbreedingCoeff();
+        testClass.initialize(null,null,null);
+        final double ICcommon = testClass.calculateIC(common, T);
+
+        Assert.assertTrue(Math.abs(ICsingleton) < Math.abs(ICcommon), String.format("singleton=%f common=%f", ICsingleton, ICcommon));
+    }
+
+    @Test
+    public void testLargeCohorts() {
+
+        final List<Genotype> allGTs = new ArrayList<>();
+        final int numHomRefGTs = 1000000;
+        for ( int i = 0; i < numHomRefGTs; i++ )
+            allGTs.add(makeG("ref" + i, Aref, Aref, homRefPLs));
+
+        allGTs.add(makeG("het0", Aref, T, hetPLs));
+        int numHetGTs = 1;
+
+        final VariantContext singleton = makeVC("singleton", Arrays.asList(Aref, T), allGTs.toArray(new Genotype[allGTs.size()]));
+        AS_InbreedingCoeff testClass = new AS_InbreedingCoeff();
+        testClass.initialize(null,null,null);
+        final double ICsingleton = testClass.calculateIC(singleton, T);
+
+        for ( int i = numHetGTs; i < 100; i++ ) {
+            allGTs.add(makeG("het" + i, Aref, T, hetPLs));
+            numHetGTs++;
         }
 
-        //Calculate probabilities from midpoint up
-        currHets = mid;
-        currHomR = (rareCopies - mid) / 2;
-        currHomC = N - currHets - currHomR;
+        final VariantContext hundredton = makeVC("hundredton", Arrays.asList(Aref, T), allGTs.toArray(new Genotype[allGTs.size()]));
+        testClass = new AS_InbreedingCoeff();
+        testClass.initialize(null,null,null);
+        final double IChundredton = testClass.calculateIC(hundredton, T);
 
-        while (currHets <= rareCopies - 2) {
-            double potentialProb = probs[currHets] * 4.0 * (double) currHomR * (double) currHomC / (((double) currHets + 2.0) * ((double) currHets + 1.0));
-            if (potentialProb < minNeededValue) {
-                break;
-            }
+        Assert.assertTrue(Math.abs(ICsingleton) < Math.abs(IChundredton), String.format("singleton=%f hundredton=%f", ICsingleton, IChundredton));
 
-            probs[currHets + 2] = potentialProb;
-            mysum = mysum + probs[currHets + 2];
+        for ( int i = numHetGTs; i < numHomRefGTs; i++ )
+            allGTs.add(makeG("het" + i, Aref, T, hetPLs));
 
-            //2 more hets means 1 fewer homR and homC each
-            currHets = currHets + 2;
-            currHomR = currHomR - 1;
-            currHomC = currHomC - 1;
-        }
+        final VariantContext common = makeVC("common", Arrays.asList(Aref, T), allGTs.toArray(new Genotype[allGTs.size()]));
+        testClass = new AS_InbreedingCoeff();
+        testClass.initialize(null,null,null);
+        final double ICcommon = testClass.calculateIC(common, T);
 
-        double rightPval = probs[hetCount] / (2.0 * mysum);
-        //Check if we observed the highest possible number of hets
-        if (hetCount == rareCopies) {
-            return rightPval;
-        }
-        rightPval = rightPval + StatUtils.sum(Arrays.copyOfRange(probs, hetCount + 1, probs.length)) / mysum;
-
-        return (rightPval);
+        Assert.assertTrue(Math.abs(IChundredton) < Math.abs(ICcommon), String.format("hundredton=%f common=%f", IChundredton, ICcommon));
     }
 
-    protected Map<String, Object> makeEHAnnotation(final VariantContext vc) {
-        final GenotypesContext genotypes = (founderIds == null || founderIds.isEmpty()) ? vc.getGenotypes() : vc.getGenotypes(founderIds);
-        if (genotypes == null || !vc.isVariant())
-            return null;
-        double EH = calculateEH(vc, genotypes);
-        if (sampleCount < 1)
-            return null;
-        return Collections.singletonMap(getKeyNames().get(0), (Object) String.format("%.4f", EH));
-    }
+    @Test
+    public void testAllHetsForLargeCohorts() {
 
-    @Override
-    public List<String> getKeyNames() {
-        return Collections.singletonList(GATKVCFConstants.EXCESS_HET_KEY);
-    }
+        final int numGTs = 1000000;
 
-    @Override
-    public List<VCFInfoHeaderLine> getDescriptions() {
-        return Collections.singletonList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
-    }
+        final List<Genotype> singletonGTs = new ArrayList<>();
+        for ( int i = 0; i < numGTs; i++ )
+            singletonGTs.add(makeG("ref" + i, Aref, Aref, homRefPLs));
 
+        singletonGTs.add(makeG("het0", Aref, T, hetPLs));
+
+        final VariantContext singleton = makeVC("singleton", Arrays.asList(Aref, T), singletonGTs.toArray(new Genotype[singletonGTs.size()]));
+        AS_InbreedingCoeff testClass = new AS_InbreedingCoeff();
+        testClass.initialize(null, null, null);
+        final double ICsingleton = testClass.calculateIC(singleton, T);
+
+        final List<Genotype> allHetGTs = new ArrayList<>();
+        for ( int i = 0; i < numGTs; i++ )
+            allHetGTs.add(makeG("het" + i, Aref, T, hetPLs));
+
+        final VariantContext allHet = makeVC("allHet", Arrays.asList(Aref, T), allHetGTs.toArray(new Genotype[allHetGTs.size()]));
+        testClass.initialize(null, null, null);
+        final double ICHets = testClass.calculateIC(allHet, T);
+
+        Assert.assertTrue(Math.abs(ICsingleton) < Math.abs(ICHets), String.format("singleton=%f allHets=%f", ICsingleton, ICHets));
+    }
 }
+
