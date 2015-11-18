@@ -55,29 +55,30 @@ import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
-import org.broadinstitute.gatk.utils.genotyper.SampleList;
-import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.Reference;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.TreeReducible;
 import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedArgumentCollection;
+import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.GeneralPloidyFailOverAFCalculatorProvider;
 import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.commandline.*;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.engine.GATKVCFUtils;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
@@ -372,10 +373,10 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             int depth = oldGT.hasDP() ? oldGT.getDP() : 0;
 
             // move the MIN_DP to DP
-            if ( oldGT.hasExtendedAttribute("MIN_DP") ) {
-                depth = Integer.parseInt((String)oldGT.getAnyAttribute("MIN_DP"));
+            if ( oldGT.hasExtendedAttribute(GATKVCFConstants.MIN_DP_FORMAT_KEY) ) {
+                depth = Integer.parseInt((String)oldGT.getAnyAttribute(GATKVCFConstants.MIN_DP_FORMAT_KEY));
                 builder.DP(depth);
-                attrs.remove("MIN_DP");
+                attrs.remove(GATKVCFConstants.MIN_DP_FORMAT_KEY);
             }
 
             // move the GQ to RGQ
@@ -385,7 +386,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             }
 
             // remove SB
-            attrs.remove("SB");
+            attrs.remove(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY);
 
             // update PGT for hom vars
             if ( oldGT.isHomVar() && oldGT.hasExtendedAttribute(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_GT_KEY) ) {
