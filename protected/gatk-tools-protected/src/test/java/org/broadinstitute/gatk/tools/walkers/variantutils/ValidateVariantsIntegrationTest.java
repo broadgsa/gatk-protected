@@ -189,12 +189,21 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
     @Test
     public void testComplexEvents() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("complexEvents.vcf", "ALL"),
+                baseTestString("complexEvents.vcf", "ALL", DEFAULT_REGION, b37KGReference),
                 0,
                 Arrays.asList(EMPTY_MD5)
         );
 
         executeTest("test validating complex events", spec);
+    }
+
+    @Test(description = "Checks out of order header contigs")
+    public void testOutOfOrderHeaderContigsError() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("complexEvents-outOfOrder.vcf", "ALL", DEFAULT_REGION, b37KGReference),
+                0, UserException.LexicographicallySortedSequenceDictionary.class);
+        executeTest("test out of order header contigs error", spec);
     }
 
     @Test(description = "Fixes '''bug''' reported in story https://www.pivotaltracker.com/story/show/68725164")
@@ -254,5 +263,32 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
 
         // Set the log level back
         logger.setLevel(level);
+    }
+
+    @Test(description = "Checks '''issue''' reported in issue https://github.com/broadinstitute/gsa-unstable/issues/964")
+    public void testWrongContigHeaderLengthError()  {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference),
+                0, UserException.IncompatibleSequenceDictionaries.class);
+        executeTest("test wrong header contig length error", spec);
+    }
+
+    @Test
+    public void testAllowWrongContigHeaderLengthDictIncompat()  {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference) + "  --reference_window_stop 208 -U ALLOW_SEQ_DICT_INCOMPATIBILITY ",
+                0, Arrays.asList(EMPTY_MD5));
+        executeTest("test to allow wrong header contig length, not checking dictionary incompatibility", spec);
+    }
+
+    @Test
+    public void testAllowWrongContigHeaderLength()  {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference) + "  --reference_window_stop 208 -U ",
+                0, Arrays.asList(EMPTY_MD5));
+        executeTest("test to allow wrong header contig length, no compatibility checks", spec);
     }
 }
