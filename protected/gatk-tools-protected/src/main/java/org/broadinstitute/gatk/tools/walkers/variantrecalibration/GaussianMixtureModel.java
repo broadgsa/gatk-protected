@@ -58,6 +58,7 @@ import org.broadinstitute.gatk.utils.Utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -70,7 +71,7 @@ public class GaussianMixtureModel {
 
     protected final static Logger logger = Logger.getLogger(GaussianMixtureModel.class);
 
-    private final ArrayList<MultivariateGaussian> gaussians;
+    private final List<MultivariateGaussian> gaussians;
     private final double shrinkage;
     private final double dirichletParameter;
     private final double priorCounts;
@@ -95,6 +96,21 @@ public class GaussianMixtureModel {
         isModelReadyForEvaluation = false;
         Arrays.fill(empiricalMu, 0.0);
         empiricalSigma.setMatrix(0, empiricalMu.length - 1, 0, empiricalMu.length - 1, Matrix.identity(empiricalMu.length, empiricalMu.length).times(200.0).inverse());
+    }
+
+    //this is used for the model output unit test
+    protected GaussianMixtureModel(final List<MultivariateGaussian> gaussians, final double shrinkage, final double dirichletParameter, final double priorCounts ) {
+        this.gaussians = gaussians;
+        final int numAnnotations = gaussians.get(0).mu.length;
+        this.shrinkage = shrinkage;
+        this.dirichletParameter = dirichletParameter;
+        this.priorCounts = priorCounts;
+        empiricalMu = new double[numAnnotations];
+        empiricalSigma = new Matrix(numAnnotations, numAnnotations);
+        isModelReadyForEvaluation = false;
+        Arrays.fill(empiricalMu, 0.0);
+        empiricalSigma.setMatrix(0, empiricalMu.length - 1, 0, empiricalMu.length - 1, Matrix.identity(empiricalMu.length, empiricalMu.length).times(200.0).inverse());
+
     }
 
     public void initializeRandomModel( final List<VariantDatum> data, final int numKMeansIterations ) {
@@ -295,4 +311,8 @@ public class GaussianMixtureModel {
         }
         return Math.log10( sumPVarInGaussian / ((double) numRandomDraws) );
     }
+
+    protected List<MultivariateGaussian> getModelGaussians() {return Collections.unmodifiableList(gaussians);}
+
+    protected int getNumAnnotations() {return empiricalMu.length;}
 }
