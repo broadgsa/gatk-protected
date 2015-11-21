@@ -79,7 +79,7 @@ import java.util.Map;
  * Create plots to visualize base recalibration results
  *
  * <p/>
- * This tool generates plots for visualizing the quality of a recalibration run.
+ * This tool generates plots for visualizing the quality of a recalibration run (effected by <a href='http://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_bqsr_BaseRecalibrator.php'>BaseRecalibrator</a>).
  * </p>
  *
  * <h3>Input</h3>

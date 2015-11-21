@@ -130,7 +130,7 @@ import java.util.*;
  *   -T IndelRealigner \
  *   -R reference.fasta \
  *   -I input.bam \
- *   --known indels.vcf \
+ *   -known indels.vcf \
  *   -targetIntervals intervalListFromRTC.intervals \
  *   -o realignedBam.bam
  * </pre>

@@ -138,7 +138,7 @@ import static org.broadinstitute.gatk.engine.GATKVCFUtils.getVCFHeadersFromRods;
 // Filter out all reads with zero mapping quality
 @ReadFilters({MappingQualityZeroFilter.class})
 
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
 public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingStats> {
     @Argument(fullName="debug", shortName="debug", doc="If specified, print out very verbose debug information (if -l DEBUG is also specified)", required = false)
     protected boolean DEBUG = false;

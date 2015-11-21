@@ -85,6 +85,11 @@ import java.util.*;
  * <li>This annotation can take a valid pedigree file to specify founders.</li>
  * </ul>
  *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_annotator_ExcessHet.php">Excess Heterozygosity</a></b> </li>
+ * </ul>
+ *
  */
 public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation, ReducibleAnnotation {
 
