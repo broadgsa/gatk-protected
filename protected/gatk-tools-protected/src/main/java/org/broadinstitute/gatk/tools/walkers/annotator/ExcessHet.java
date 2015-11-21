@@ -79,20 +79,23 @@ import java.util.*;
 /**
  * Phred-scaled p-value for exact test of excess heterozygosity
  *
- * <p>This annotation is a one-sided phred-scaled p-value using an exact test of the Hardy-Weinberg Equilibrium. The null hypothesis is that the number of heterozygotes follows the Hardy-Weinberg Equilibrium. The p-value is the probability of getting the same or more heterozygotes as was observed, given the null hypothesis. The implementation used is adapted from Wigginton JE, Cutler DJ, Abecasis GR. A Note on Exact Tests of Hardy-Weinberg Equilibrium. American Journal of Human Genetics. 2005;76(5):887-893.</p>
+ * This annotation estimates excess heterozygosity in a population of samples. It is related to but distinct from InbreedingCoeff, which estimates evidence for inbreeding in a population. ExcessHet scales more reliably to large cohort sizes.
  *
  * <h3>Statistical notes</h3>
+ * <p>This annotation is a one-sided phred-scaled p-value using an exact test of the Hardy-Weinberg Equilibrium. The null hypothesis is that the number of heterozygotes follows the Hardy-Weinberg Equilibrium. The p-value is the probability of getting the same or more heterozygotes as was observed, given the null hypothesis. </p>
+ * <p>The implementation used is adapted from Wigginton JE, Cutler DJ, Abecasis GR. A Note on Exact Tests of Hardy-Weinberg Equilibrium. American Journal of Human Genetics. 2005;76(5):887-893.</p>
  * <p>The p-value is calculated exactly by using the Levene-Haldane distribution. This implementation also uses a mid-p correction as described by Graffelman, J. & Moreno, V. (2013). The mid p-value in exact tests for Hardy-Weinberg equilibrium. Statistical Applications in Genetics and Molecular Biology, 12(4), pp. 433-448. </p>
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>The annotation is not accurate for very small p-values. Beyond 1.0E-16 there is no guarantee that the p-value is accurate, just that it is in fact smaller than 1.0E-16 </li>
- * <li>For multiallelic sites all non reference alleles are treated as a single alternate allele.</li>
+ * <li>The annotation is not accurate for very small p-values. Beyond 1.0E-16 there is no guarantee that the p-value is accurate, just that it is in fact smaller than 1.0E-16. </li>
+ * <li>For multiallelic sites, all non-reference alleles are treated as a single alternate allele.</li>
  * </ul>
  *
  * <h3>Related annotations</h3>
  * <ul>
- *     <li><b><a href="https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_annotator_InbreedingCoeff.php">Inbreeding Coefficient</a></b> </li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_annotator_InbreedingCoeff.php">InbreedingCoeff</a></b> estimates whether there is evidence of inbreeding in a population</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_InbreedingCoeff.php">AS_InbreedingCoeff</a></b> outputs an allele-specific version of the InbreedingCoeff annotation.</li>
  * </ul>
  *
  */

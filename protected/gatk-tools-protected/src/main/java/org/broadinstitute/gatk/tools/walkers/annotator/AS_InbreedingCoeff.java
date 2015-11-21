@@ -72,7 +72,7 @@ import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import java.util.*;
 
 /**
- * Allele-specific, likelihood-based test for the inbreeding among samples
+ * Allele-specific likelihood-based test for the inbreeding among samples
  *
  * <p>This annotation estimates whether there is evidence of inbreeding in a population. The higher the score, the higher the chance that there is inbreeding.</p>
  *
@@ -81,8 +81,14 @@ import java.util.*;
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>The Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
- * <li>This annotation can take a valid pedigree file to specify founders.</li>
+ * <li>The inbreeding coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
+ * <li>This annotation can take a valid pedigree file to specify founders. If not specified, all samples will be considered as founders.</li>
+ * </ul>
+ *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_InbreedingCoeff.php">InbreedingCoeff</a></b> outputs a version of this annotation that includes all alternate alleles in a single calculation.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_annotator_ExcessHet.php">ExcessHet</a></b> estimates excess heterozygosity in a population of samples.</li>
  * </ul>
  *
  */
