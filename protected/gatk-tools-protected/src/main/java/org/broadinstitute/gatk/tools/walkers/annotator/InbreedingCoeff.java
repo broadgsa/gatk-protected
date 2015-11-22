@@ -80,14 +80,15 @@ import java.util.*;
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>The Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
+ * <li>The inbreeding coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
  * <li>This annotation is used in variant filtering, but may not be appropriate for that purpose if the cohort being analyzed contains many closely related individuals.</li>
  * <li>This annotation can take a valid pedigree file to specify founders.</li>
  * </ul>
  *
  * <h3>Related annotations</h3>
  * <ul>
- *     <li><b><a href="https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_annotator_ExcessHet.php">Excess Heterozygosity</a></b> </li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_InbreedingCoeff.php">AS_InbreedingCoeff</a></b> outputs an allele-specific version of this annotation.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_annotator_ExcessHet.php">ExcessHet</a></b> estimates excess heterozygosity in a population of samples.</li>
  * </ul>
  *
  */

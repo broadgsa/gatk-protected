@@ -62,17 +62,38 @@ import java.io.File;
 import java.util.List;
 
 /**
- * relevant javadoc from the underlying gatk class:
+ * Gather recalibration reports from parallelized base recalibration runs
  *
- * Gathers recalibration reports by adding all observations and errors
+ * This tool is intended to be used to combine recalibration tables from runs of BaseRecalibrator parallelized per-interval.
+ * The combination is done simply by adding up all observations and errors.
  *
- * Note: This method DOES NOT recalculate the empirical qualities and quantized qualities. You have to recalculate
+ * <h3>Usage</h3>
+ * <p>Note that this is a command-line utility that bypasses the GATK engine. As a result, the command-line you must use to
+ * invoke it is a little different from other GATK tools (see example below), and it does not accept any of the
+ * classic "CommandLineGATK" arguments.</p>
+ *
+ * <h4>Input</h4>
+ * List of scattered BQSR files
+ *
+ * <h4>Output</h4>
+ * Combined recalibration table in GATKReport format.
+ *
+ * <h4>Command</h4>
+ * <pre>
+ *     java -cp GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.GatherBqsrReports \
+ *          -I input.list \
+ *          -O output.grp
+ * </pre>
+ *
+ * <h3>Caveats</h3>
+ * <ul>
+ * <li>This method DOES NOT recalculate the empirical qualities and quantized qualities. You have to recalculate
  * them after combining. The reason for not calculating it is because this function is intended for combining a
  * series of recalibration reports, and it only makes sense to calculate the empirical qualities and quantized
- * qualities after all the recalibration reports have been combined. Having the user recalculate when appropriate,
- * makes this method faster
- *
- * Note2: The empirical quality reported, however, is recalculated given its simplicity.
+ * qualities after all the recalibration reports have been combined. This is done to make the tool faster.
+ * </li>
+ * <li>The reported empirical quality is recalculated (because it is so simple to do).</li>
+ * </ul>
  *
  */
 
