@@ -80,8 +80,7 @@ import java.util.*;
  * Analyze coverage distribution and validate read mates per interval and per sample
  *
  * <p>
- * This tool is useful for diagnosing regions with bad coverage, mapping, or read mate pairs. It analyzes each sample
- * independently and aggregates results over intervals of interest.
+ * This tool is useful for diagnosing regions with bad coverage, mapping, or read mate pairs. It analyzes each sample independently and aggregates results over intervals of interest. Low-coverage regions can be identified by using e.g. FindCoveredIntervals with the -uncovered argument.
  * </p>
  * <h3>Input</h3>
  * <ul>
