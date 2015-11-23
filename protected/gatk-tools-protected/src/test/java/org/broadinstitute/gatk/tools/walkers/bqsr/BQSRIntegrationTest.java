@@ -292,7 +292,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                         " -R " + hg18Reference +
                         " -I " + HiSeqBam +
                         " -L " + HiSeqInterval +
-                        " -SQQ 4 -q1 4 " +
+                        " -SQQ 4 -ql 4 " +
                         " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.lowMaxCycle.table" +
                         " -o /dev/null",
                 0,
