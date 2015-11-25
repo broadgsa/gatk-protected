@@ -1,0 +1,24 @@
+# intervals file (m2_dream3.intervals) was created by merging the following data sets:
+#     1. all M2 calls (including failures) from chr21 on the full DREAM 3 challenge data set, after being called 
+#        realigned by BWA-MEM.  This is to capture FP, TN and some TP
+#     2. all TP events from the DREAM 3 truth data for chr21
+#
+# Then the following command was run to produce the subsetted BAMs
+
+cat m2_dream3.tp.intervals m2_dream3.fp.intervals > m2_dream3.intervals
+
+export GATK_JAR=/humgen/gsa-hpprojects/GATK/bin/current/GenomeAnalysisTK.jar
+export REF=/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta 
+
+java -jar $GATK_JAR -T PrintReads -R $REF -ip 250 -L m2_dream3.intervals \
+-I /cga/tcga-gsc/benchmark/data/realignments/synthetic.challenge.set3.tumor/IS3.snv.indel.sv.bam \
+-o dream3.integrationtest.tumor.bam
+
+
+java -jar $GATK_JAR -T PrintReads -R $REF -ip 250 -L m2_dream3.intervals \
+-I /cga/tcga-gsc/benchmark/data/realignments/synthetic.challenge.set3.normal/G15512.prenormal.sorted.bam \
+-o dream3.integrationtest.normal.bam
+
+mv *.bam /humgen/gsa-hpprojects/GATK/data/Validation_Data/cancer
+mv *.bai /humgen/gsa-hpprojects/GATK/data/Validation_Data/cancer
+

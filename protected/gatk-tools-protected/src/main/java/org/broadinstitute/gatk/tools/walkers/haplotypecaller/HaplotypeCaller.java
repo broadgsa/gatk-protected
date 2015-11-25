@@ -108,9 +108,17 @@ import java.io.FileNotFoundException;
 import java.util.*;
 
 /**
- * Call SNPs and indels simultaneously via local assembly of haplotypes in an active region
+ * Call germline SNPs and indels via local re-assembly of haplotypes
  *
- * <p>The basic operation of the HaplotypeCaller proceeds as follows:   </p>
+ * <p>The HaplotypeCaller is capable of calling SNPs and indels simultaneously via local de-novo assembly of haplotypes in an active region. In other words, whenever the program encounters a region showing signs of variation, it discards the existing mapping information and completely reassembles the reads in that region. This allows the HaplotypeCaller to be more accurate when calling regions that are traditionally difficult to call, for example when they contain different types of variants close to each other. It also makes the HaplotypeCaller much better at calling indels than position-based callers like UnifiedGenotyper.</p>
+
+<p>In the so-called GVCF mode used for scalable variant calling in DNA sequence data, HaplotypeCaller runs per-sample to generate an intermediate genomic gVCF (gVCF), which can then be used for joint genotyping of multiple samples in a very efficient way, which enables rapid incremental processing of samples as they roll off the sequencer, as well as scaling to very large cohort sizes (e.g. the 92K exomes of ExAC).</p>
+
+ <p>In addition, HaplotypeCaller is able to handle non-diploid organisms as well as pooled experiment data. Note however that the algorithms used to calculate variant likelihoods is not well suited to extreme allele frequencies (relative to ploidy) so its use is not recommended for somatic (cancer) variant discovery. For that purpose, use MuTect2 instead.</p>
+
+ <p>Finally, HaplotypeCaller is also able to correctly handle the splice junctions that make RNAseq a challenge for most variant callers.</p>
+ *
+ * <h3>How HaplotypeCaller works</h3>
  *
  * <br />
  * <h4>1. Define active regions </h4>
@@ -159,16 +167,13 @@ import java.util.*;
  * Best Practices documentation for detailed recommendations. </p>
  *
  * <br />
- * <h4>Single-sample all-sites calling on DNAseq (for `-ERC GVCF` cohort analysis workflow)</h4>
+ * <h4>Single-sample GVCF calling on DNAseq (for `-ERC GVCF` cohort analysis workflow)</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar
- *     -T HaplotypeCaller
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -R reference.fasta \
+ *     -T HaplotypeCaller \
  *     -I sample1.bam \
  *     --emitRefConfidence GVCF \
- *     --variant_index_type LINEAR \
- *     --variant_index_parameter 128000
  *     [--dbsnp dbSNP.vcf] \
  *     [-L targets.interval_list] \
  *     -o output.raw.snps.indels.g.vcf
@@ -176,10 +181,9 @@ import java.util.*;
  *
  * <h4>Variant-only calling on DNAseq</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar
- *     -T HaplotypeCaller
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -R reference.fasta \
+ *     -T HaplotypeCaller \
  *     -I sample1.bam [-I sample2.bam ...] \
  *     [--dbsnp dbSNP.vcf] \
  *     [-stand_call_conf 30] \
@@ -190,10 +194,9 @@ import java.util.*;
  *
  * <h4>Variant-only calling on RNAseq</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar
- *     -T HaplotypeCaller
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -R reference.fasta \
+ *     -T HaplotypeCaller \
  *     -I sample1.bam \
  *     [--dbsnp dbSNP.vcf] \
  *     -stand_call_conf 20 \
@@ -210,8 +213,7 @@ import java.util.*;
  * </ul>
  *
  * <h3>Special note on ploidy</h3>
- * <p>This tool is able to handle almost any ploidy (except very high ploidies in large pooled experiments); the ploidy
- * can be specified using the -ploidy argument for non-diploid organisms.</p>
+ * <p>This tool is able to handle almost any ploidy (except very high ploidies in large pooled experiments); the ploidy can be specified using the -ploidy argument for non-diploid organisms.</p>
  *
  * <h3>Additional Notes</h3>
  * <ul>
