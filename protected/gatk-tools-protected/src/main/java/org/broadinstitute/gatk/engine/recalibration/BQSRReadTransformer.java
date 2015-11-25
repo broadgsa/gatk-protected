@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -82,7 +82,7 @@ public class BQSRReadTransformer extends ReadTransformer {
             // Although we could add this check to the apply() method below, it's kind of ugly and inefficient.
             // The call here would be: RecalUtils.checkForInvalidRecalBams(engine.getSAMFileHeaders(), engine.getArguments().ALLOW_BQSR_ON_REDUCED_BAMS);
             final BQSRArgumentSet args = engine.getBQSRArgumentSet();
-            this.bqsr = new BaseRecalibration(args.getRecalFile(), args.getQuantizationLevels(), args.shouldDisableIndelQuals(), args.getPreserveQscoresLessThan(), args.shouldEmitOriginalQuals(), args.getGlobalQScorePrior());
+            this.bqsr = new BaseRecalibration(args.getRecalFile(), args.getQuantizationLevels(), args.shouldDisableIndelQuals(), args.getPreserveQscoresLessThan(), args.shouldEmitOriginalQuals(), args.getGlobalQScorePrior(), args.getStaticQuantizedQuals(), args.getRoundDown());
         }
         final BQSRMode mode = WalkerManager.getWalkerAnnotation(walker, BQSRMode.class);
         return mode.ApplicationTime();

@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -51,20 +51,25 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Level;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 
 public class ValidateVariantsIntegrationTest extends WalkerTest {
 
-    protected static final String emptyMd5 = "d41d8cd98f00b204e9800998ecf8427e";
-    protected static final String defaultRegion = "1:10001292-10001303";
+    protected static final String EMPTY_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
+    protected static final String DEFAULT_REGION = "1:10001292-10001303";
 
 
     public static String baseTestString(final String file, String type) {
-        return baseTestString(file,type,defaultRegion,b36KGReference);
+        return baseTestString(file,type,DEFAULT_REGION,b36KGReference);
     }
 
     public static String baseTestString(String file, String type, String region, String reference) {
@@ -88,7 +93,7 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("validationExampleGood.vcf", "ALL"),
                 0,
-                Arrays.asList(emptyMd5)
+                Arrays.asList(EMPTY_MD5)
         );
 
         executeTest("test good file", spec);
@@ -175,7 +180,7 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("validationExampleBad.vcf", "-ALL"),
                 0,
-                Arrays.asList(emptyMd5)
+                Arrays.asList(EMPTY_MD5)
         );
 
         executeTest("test no validation", spec);
@@ -184,18 +189,27 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
     @Test
     public void testComplexEvents() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("complexEvents.vcf", "ALL"),
+                baseTestString("complexEvents.vcf", "ALL", DEFAULT_REGION, b37KGReference),
                 0,
-                Arrays.asList(emptyMd5)
+                Arrays.asList(EMPTY_MD5)
         );
 
         executeTest("test validating complex events", spec);
     }
 
+    @Test(description = "Checks out of order header contigs")
+    public void testOutOfOrderHeaderContigsError() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("complexEvents-outOfOrder.vcf", "ALL", DEFAULT_REGION, b37KGReference),
+                0, UserException.LexicographicallySortedSequenceDictionary.class);
+        executeTest("test out of order header contigs error", spec);
+    }
+
     @Test(description = "Fixes '''bug''' reported in story https://www.pivotaltracker.com/story/show/68725164")
     public void testUnusedAlleleFix() {
         WalkerTestSpec spec = new WalkerTestSpec(
-                baseTestString("validationUnusedAllelesBugFix.vcf","-ALLELES","1:1-739000",b37KGReference),0,Arrays.asList(emptyMd5));
+                baseTestString("validationUnusedAllelesBugFix.vcf","-ALLELES","1:1-739000",b37KGReference),0,Arrays.asList(EMPTY_MD5));
         executeTest("test unused allele bug fix", spec);
     }
 
@@ -204,5 +218,77 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("validationUnusedAllelesBugFix.vcf","ALLELES","1:1-739000",b37KGReference),0, UserException.FailsStrictValidation.class);
         executeTest("test unused allele bug fix", spec);
+    }
+
+    @Test(description = "Checks '''bug''' reported in issue https://github.com/broadinstitute/gsa-unstable/issues/963")
+    public void testLargeReferenceAlleleError() throws IOException {
+        // Need to see log INFO messages
+        Level level = logger.getLevel();
+        logger.setLevel(Level.INFO);
+
+        File logFile = createTempFile("testLargeReferenceAlleleError.log", ".tmp");
+        String logFileName = logFile.getAbsolutePath();
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("longAlleles.vcf", "ALL", "1", b37KGReference) + " -log " + logFileName,
+                0, Arrays.asList(EMPTY_MD5));
+        executeTest("test long reference allele bug error", spec);
+
+        // Make sure the "reference allele too long" message is in the log
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains(ValidateVariants.REFERENCE_ALLELE_TOO_LONG_MSG));
+        
+        // Set the log level back
+        logger.setLevel(level);
+    }
+
+    @Test(description = "Checks '''bug''' is fixed, reported in issue https://github.com/broadinstitute/gsa-unstable/issues/963")
+    public void testLargeReferenceAlleleFix() throws IOException {
+        // Need to see log INFO messages
+        Level level = logger.getLevel();
+        logger.setLevel(Level.INFO);
+
+        File logFile = createTempFile("testLargeReferenceAllele.log", ".tmp");
+        String logFileName = logFile.getAbsolutePath();
+
+        // expand window for the large reference allele
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("longAlleles.vcf","ALL","1",b37KGReference) + " --reference_window_stop 208 -log " + logFileName,
+                0, Arrays.asList(EMPTY_MD5));
+        executeTest("test long reference allele bug fix", spec);
+
+        // Make sure the "reference allele too long" message is not in the log
+        Assert.assertFalse(FileUtils.readFileToString(logFile).contains(ValidateVariants.REFERENCE_ALLELE_TOO_LONG_MSG));
+
+        // All of the validation tests have passed since UserException.FailsStrictValidation is not thrown.
+
+        // Set the log level back
+        logger.setLevel(level);
+    }
+
+    @Test(description = "Checks '''issue''' reported in issue https://github.com/broadinstitute/gsa-unstable/issues/964")
+    public void testWrongContigHeaderLengthError()  {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference),
+                0, UserException.IncompatibleSequenceDictionaries.class);
+        executeTest("test wrong header contig length error", spec);
+    }
+
+    @Test
+    public void testAllowWrongContigHeaderLengthDictIncompat()  {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference) + "  --reference_window_stop 208 -U ALLOW_SEQ_DICT_INCOMPATIBILITY ",
+                0, Arrays.asList(EMPTY_MD5));
+        executeTest("test to allow wrong header contig length, not checking dictionary incompatibility", spec);
+    }
+
+    @Test
+    public void testAllowWrongContigHeaderLength()  {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference) + "  --reference_window_stop 208 -U ",
+                0, Arrays.asList(EMPTY_MD5));
+        executeTest("test to allow wrong header contig length, no compatibility checks", spec);
     }
 }

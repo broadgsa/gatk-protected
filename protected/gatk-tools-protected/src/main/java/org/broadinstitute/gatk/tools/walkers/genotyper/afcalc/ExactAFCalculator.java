@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -64,6 +64,10 @@ import java.util.*;
 abstract class ExactAFCalculator extends AFCalculator {
 
     protected static final int HOM_REF_INDEX = 0;  // AA likelihoods are always first
+
+    // useful so that we don't keep printing out the same warning message
+    protected static boolean printedWarning = false;
+
     /**
      * Sorts {@link ExactAFCalculator.LikelihoodSum} instances where those with higher likelihood are first.
      */
@@ -152,23 +156,29 @@ abstract class ExactAFCalculator extends AFCalculator {
 
         if (altAlleleReduction == 0)
             return vc;
-        else if (altAlleleReduction != 0) {
-            logger.warn("this tool is currently set to genotype at most " + maximumAlternativeAlleles
-                    + " alternate alleles in a given context, but the context at " + vc.getChr() + ":" + vc.getStart()
-                    + " has " + (vc.getAlternateAlleles().size())
-                    + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument");
 
-            final List<Allele> alleles = new ArrayList<>(maximumAlternativeAlleles + 1);
-            alleles.add(vc.getReference());
-            alleles.addAll(reduceScopeAlleles(vc, defaultPloidy, maximumAlternativeAlleles));
-            final VariantContextBuilder builder = new VariantContextBuilder(vc);
-            builder.alleles(alleles);
-            builder.genotypes(reduceScopeGenotypes(vc, defaultPloidy, alleles));
-            if (altAlleleReduction < 0)
-                throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc + " " + builder.make());
-            return builder.make();
-        } else // if (altAlleleReduction < 0)
-            throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc);
+        String message = "this tool is currently set to genotype at most " + maximumAlternativeAlleles
+                + " alternate alleles in a given context, but the context at " + vc.getContig() + ":" + vc.getStart()
+                + " has " + (vc.getAlternateAlleles().size())
+                + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument";
+
+        if ( !printedWarning ) {
+            printedWarning = true;
+            message += ". This warning message is output just once per run and further warnings will be suppressed unless the DEBUG logging level is used.";
+            logger.warn(message);
+        } else {
+            logger.debug(message);
+        }
+
+        final List<Allele> alleles = new ArrayList<>(maximumAlternativeAlleles + 1);
+        alleles.add(vc.getReference());
+        alleles.addAll(reduceScopeAlleles(vc, defaultPloidy, maximumAlternativeAlleles));
+        final VariantContextBuilder builder = new VariantContextBuilder(vc);
+        builder.alleles(alleles);
+        builder.genotypes(reduceScopeGenotypes(vc, defaultPloidy, alleles));
+        if (altAlleleReduction < 0)
+            throw new IllegalStateException("unexpected: reduction increased the number of alt. alleles!: " + - altAlleleReduction + " " + vc + " " + builder.make());
+        return builder.make();
     }
 
     /**

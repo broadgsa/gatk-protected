@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -72,10 +72,7 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
 
     // the last vertex seen in the path
     protected final T lastVertex;
-
-    // the list of edges comprising the path
-    private Set<E> edgesAsSet = null;
-    protected final ArrayList<E> edgesInOrder;
+    protected final List<E> edgesInOrder;
 
     // the scores for the path
     protected final int totalScore;
@@ -94,13 +91,22 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
         if ( ! graph.containsVertex(initialVertex) ) throw new IllegalArgumentException("Vertex " + initialVertex + " must be part of graph " + graph);
 
         lastVertex = initialVertex;
-        edgesInOrder = new ArrayList<>(0);
+        edgesInOrder = Collections.emptyList();
         totalScore = 0;
         this.graph = graph;
     }
 
+    protected Path(final BaseGraph<T, E> graph, final List<E> edges, final T lastVertex, final int totalScore) {
+        this.graph = graph;
+        edgesInOrder = edges;
+        this.lastVertex = lastVertex;
+        this.totalScore = totalScore;
+    }
+
     /**
      * Convenience constructor for testing that creates a path through vertices in graph
+     *
+     * @deprecated use {@link PathBuilder}.
      */
     protected static <T extends BaseVertex, E extends BaseEdge> Path<T,E> makePath(final List<T> vertices, final BaseGraph<T, E> graph) {
         Path<T,E> path = new Path<T,E>(vertices.get(0), graph);
@@ -119,7 +125,6 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
     protected Path(final Path<T,E> p) {
         this.edgesInOrder = p.edgesInOrder;
         this.lastVertex = p.lastVertex;
-        this.edgesAsSet = p.edgesAsSet;
         this.totalScore = p.totalScore;
         this.graph = p.graph;
     }
@@ -178,42 +183,7 @@ public class Path<T extends BaseVertex, E extends BaseEdge> {
         totalScore = p.totalScore + edge.getMultiplicity();
     }
 
-    /**
-     * Get the collection of edges leaving the last vertex of this path
-     * @return a non-null collection
-     */
-    public Collection<E> getOutgoingEdgesOfLastVertex() {
-        return getGraph().outgoingEdgesOf(getLastVertex());
-    }
-
-    /**
-     * Does this path contain the given edge
-     * @param edge  the given edge to test
-     * @return      true if the edge is found in this path
-     */
-    public boolean containsEdge( final E edge ) {
-        if( edge == null ) { throw new IllegalArgumentException("Attempting to test null edge."); }
-        if ( edgesInOrder.isEmpty() ) return false;
-
-        // initialize contains cache if necessary
-        if ( edgesAsSet == null ) edgesAsSet = new HashSet<E>(edgesInOrder);
-        return edgesAsSet.contains(edge);
-    }
-
-    /**
-     * Does this path contain the given vertex?
-     *
-     * @param v a non-null vertex
-     * @return true if v occurs within this path, false otherwise
-     */
-    public boolean containsVertex(final T v) {
-        if ( v == null ) throw new IllegalArgumentException("Vertex cannot be null");
-
-        // TODO -- warning this is expensive.  Need to do vertex caching
-        return getVertices().contains(v);
-    }
-
-    /**
+   /**
      * Checks whether a given path is a suffix of this path.
      *
      * @param other the path to compare against.

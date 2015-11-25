@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -89,11 +89,12 @@ public class AssemblyBasedCallerArgumentCollection extends StandardCallerArgumen
     }
 
     /**
-     * The assembled haplotypes will be written as BAM to this file if requested.  Really for debugging purposes only.
-     * Note that the output here does not include uninformative reads so that not every input read is emitted to the bam.
+     * The assembled haplotypes and locally realigned reads will be written as BAM to this file if requested.  Really
+     * for debugging purposes only. Note that the output here does not include uninformative reads so that not every
+     * input read is emitted to the bam.
      *
-     * Turning on this mode may result in serious performance cost for the HC.  It's really only appropriate to
-     * use in specific areas where you want to better understand why the HC is making specific calls.
+     * Turning on this mode may result in serious performance cost for the caller.  It's really only appropriate to
+     * use in specific areas where you want to better understand why the caller is making specific calls.
      *
      * The reads are written out containing an "HC" tag (integer) that encodes which haplotype each read best matches
      * according to the haplotype caller's likelihood calculation.  The use of this tag is primarily intended
@@ -101,14 +102,18 @@ public class AssemblyBasedCallerArgumentCollection extends StandardCallerArgumen
      * easily see which reads go with these haplotype.
      *
      * Note that the haplotypes (called or all, depending on mode) are emitted as single reads covering the entire
-     * active region, coming from read HC and a special read group.
+     * active region, coming from sample "HC" and a special read group called "ArtificialHaplotype". This will increase the
+     * pileup depth compared to what would be expected from the reads only, especially in complex regions.
      *
      * Note also that only reads that are actually informative about the haplotypes are emitted.  By informative we mean
      * that there's a meaningful difference in the likelihood of the read coming from one haplotype compared to
      * its next best haplotype.
      *
+     * If multiple BAMs are passed as input to the tool (as is common for M2), then they will be combined in the bamout
+     * output and tagged with the appropriate sample names.
+     *
      * The best way to visualize the output of this mode is with IGV.  Tell IGV to color the alignments by tag,
-     * and give it the HC tag, so you can see which reads support each haplotype.  Finally, you can tell IGV
+     * and give it the "HC" tag, so you can see which reads support each haplotype.  Finally, you can tell IGV
      * to group by sample, which will separate the potential haplotypes from the reads.  All of this can be seen in
      * <a href="https://www.dropbox.com/s/xvy7sbxpf13x5bp/haplotypecaller%20bamout%20for%20docs.png">this screenshot</a>
      *

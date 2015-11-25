@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -52,6 +52,8 @@
 package org.broadinstitute.gatk.tools.walkers.bqsr;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.broadinstitute.gatk.utils.commandline.ArgumentException;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -118,7 +120,7 @@ public class BQSRIntegrationTest extends WalkerTest {
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "281682124584ab384f23359934df0c3b")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12873.454.SRP000031.2009_06.chr1.10_20mb.1RG.bam", "1:10,000,000-10,200,000", "", "0a92fdff5fd26227c29d34eda5a32f49")},
-                {new BQSRTest(b36KGReference, validationDataLocation + "originalQuals.1kg.chr1.1-1K.1RG.bam", "1:1-1,000", " -OQ", "90d8c24077e8ae9a0037a9aad5f09e31")},
+                {new BQSRTest(hg18Reference, privateTestDir + "originalQuals.1kg.chr1.1-1K.1RG.bam", "chr1:1-1,000", " -OQ", "90d8c24077e8ae9a0037a9aad5f09e31")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-20,000,000", " --solid_recal_mode REMOVE_REF_BIAS", "c41ef02c640ef1fed4bfc03b9b33b616")},
                 {new BQSRTest(b36KGReference, privateTestDir + "NA19240.chr1.BFAST.SOLID.hasCSNoCall.bam", "1:50,000-80,000", " --solid_nocall_strategy LEAVE_READ_UNRECALIBRATED", "b577cd1d529425f66db49620db09fdca")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", " -knownSites:anyNameABCD,VCF " + privateTestDir + "vcfexample3.vcf", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
@@ -196,12 +198,13 @@ public class BQSRIntegrationTest extends WalkerTest {
     public Object[][] createPRTestData() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{1, new PRTest(" -qq -1", "ce09e16466151bb37305dbfd5dc88f35")});
-        tests.add(new Object[]{1, new PRTest(" -qq 6", "2d12f3d48b1797ea0671e28a435527fe")});
-        tests.add(new Object[]{1, new PRTest(" -DIQ", "f3dbf3ae2725f1e7aa8ae61a09beac51")});
-
+        tests.add(new Object[]{1, new PRTest(" -qq -1", "8a38828e3b14ce067614d4248e3ea95a")});
+        tests.add(new Object[]{1, new PRTest(" -qq 6", "e4f23250b2c87f0d68d042cc3d2ec1d3")});
+        tests.add(new Object[]{1, new PRTest(" -DIQ", "2dfa45f004d3a371fd290ed67fbdf573")});
+        tests.add(new Object[]{1, new PRTest(" --useOriginalQualities -SQQ 10 -SQQ 20 -SQQ 30", "4882354d9e603f9bbe7c9591bba0a573")});
+        tests.add(new Object[]{1, new PRTest(" --useOriginalQualities -SQQ 10 -SQQ 20 -SQQ 30 -RDQ", "6ffdfc4593e83f7c234b6249412433af")});
         for ( final int nct : Arrays.asList(1, 2, 4) ) {
-            tests.add(new Object[]{nct, new PRTest("", "0746ae12c106a8af0b3b01f22e9efcba")});
+            tests.add(new Object[]{nct, new PRTest("", "6451093cadfc14d7359617b2a7ea6db8")});
         }
 
         return tests.toArray(new Object[][]{});
@@ -263,5 +266,37 @@ public class BQSRIntegrationTest extends WalkerTest {
                 1,
                 UserException.class);
         executeTest("testPRFailWithBadPL", spec);
+    }
+
+    @Test
+    public void testPRWithConflictingArguments_qqAndSQQ() {
+        // -qq and -SQQ shouldn't be able to be run in the same command
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T PrintReads" +
+                        " -R " + hg18Reference +
+                        " -I " + HiSeqBam +
+                        " -L " + HiSeqInterval +
+                        " -qq 4 -SQQ 9" +
+                        " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.highMaxCycle.table" +
+                        " -o /dev/null",
+                0,
+                ArgumentException.class);
+        executeTest("testPRWithConflictingArguments_qqAndSQQ", spec);
+    }
+
+    @Test
+    public void testPRWithConflictingArguments_qlAndSQQ() {
+        // Arguments -SQQ and -ql conflict and should throw an exception
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                " -T PrintReads" +
+                        " -R " + hg18Reference +
+                        " -I " + HiSeqBam +
+                        " -L " + HiSeqInterval +
+                        " -SQQ 4 -ql 4 " +
+                        " -BQSR " + privateTestDir + "HiSeq.1mb.1RG.lowMaxCycle.table" +
+                        " -o /dev/null",
+                0,
+                ArgumentException.class);
+        executeTest("testPRWithConflictingArguments_qlAndSQQ", spec);
     }
 }

@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -69,10 +69,13 @@ import org.broadinstitute.gatk.utils.help.HelpConstants;
 import java.io.PrintStream;
 
 /**
- * Outputs a list of intervals that are covered above a given threshold
+ * Outputs a list of intervals that are covered to or above a given threshold
  *
- * <p>The output list can be used as an interval list for other tools. Note that if the -uncovered argument is given, the
- * logic will be inverted and the tool will instead output intervals that fail the coverage threshold.</p>
+ * <p>The output list can be used as an interval list for other tools. The logic can be inverted using the -uncovered argument argument to instead output intervals that fail the coverage threshold.
+ * </p>
+ *
+ * <h4>Application example: find and diagnose low-coverage regions</h4>
+ * <p>Run this toool first with the -uncovered argument to identify regions that have low coverage. Then run DiagnoseTargets on the output intervals to diagnose why they are poorly covered.</p>
  *
  * <h3>Input</h3>
  * <p>
@@ -90,6 +93,8 @@ import java.io.PrintStream;
  *   -T FindCoveredIntervals \
  *   -R reference.fasta \
  *   -I my_file.bam \
+ *   [-cov 10 \]
+ *   [-uncovered \]
  *   -o output.list
  * </pre>
  *

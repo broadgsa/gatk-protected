@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -52,19 +52,16 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.*;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.Walker;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
-import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
-import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
@@ -79,24 +76,42 @@ import java.util.*;
  * <p>This annotation estimates whether there is evidence of inbreeding in a population. The higher the score, the higher the chance that there is inbreeding.</p>
  *
  * <h3>Statistical notes</h3>
- * <p>The calculation is a continuous generalization of the Hardy-Weinberg test for disequilibrium that works well with limited coverage per sample. The output is a Phred-scaled p-value derived from running the HW test for disequilibrium with PL values. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
+ * <p>The calculation is a continuous generalization of the Hardy-Weinberg test for disequilibrium that works well with limited coverage per sample. The output is the F statistic from running the HW test for disequilibrium with PL values. See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>The Inbreeding Coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
- * <li>This annotation is used in variant recalibration, but may not be appropriate for that purpose if the cohort being analyzed contains many closely related individuals.</li>
- * <li>This annotation requires a valid pedigree file.</li>
+ * <li>The inbreeding coefficient can only be calculated for cohorts containing at least 10 founder samples.</li>
+ * <li>This annotation is used in variant filtering, but may not be appropriate for that purpose if the cohort being analyzed contains many closely related individuals.</li>
+ * <li>This annotation can take a valid pedigree file to specify founders.</li>
+ * </ul>
+ *
+ * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_InbreedingCoeff.php">AS_InbreedingCoeff</a></b> outputs an allele-specific version of this annotation.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_annotator_ExcessHet.php">ExcessHet</a></b> estimates excess heterozygosity in a population of samples.</li>
  * </ul>
  *
  */
-public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
+public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation, ReducibleAnnotation {
 
     private final static Logger logger = Logger.getLogger(InbreedingCoeff.class);
-    private static final int MIN_SAMPLES = 10;
+    protected static final int MIN_SAMPLES = 10;
     private Set<String> founderIds;
-    private int sampleCount;
-    private boolean pedigreeCheckWarningLogged = false;
     private boolean didUniquifiedSampleNameCheck = false;
+    protected HeterozygosityUtils heterozygosityUtils;
+    final private boolean RETURN_ROUNDED = false;
+
+    @Override
+    public void initialize (final AnnotatorCompatible walker, final GenomeAnalysisEngine toolkit, final Set<VCFHeaderLine> headerLines ) {
+        //If available, get the founder IDs and cache them. the IC will only be computed on founders then.
+        if(founderIds == null && walker != null) {
+            founderIds = ((Walker) walker).getSampleDB().getFounderIds();
+        }
+        if(walker != null && (((Walker) walker).getSampleDB().getSamples().size() < MIN_SAMPLES || (!founderIds.isEmpty() && founderIds.size() < MIN_SAMPLES)))
+            logger.warn("Annotation will not be calculated. InbreedingCoeff requires at least " + MIN_SAMPLES + " unrelated samples.");
+        //intialize a HeterozygosityUtils before annotating for use in unit tests
+        heterozygosityUtils = new HeterozygosityUtils(RETURN_ROUNDED);
+    }
 
     @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
@@ -105,78 +120,59 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
                                         final Map<String, AlignmentContext> stratifiedContexts,
                                         final VariantContext vc,
                                         final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap ) {
-        //If available, get the founder IDs and cache them. the IC will only be computed on founders then.
-        if(founderIds == null && walker != null) {
-            founderIds = ((Walker) walker).getSampleDB().getFounderIds();
-        }
+
+        heterozygosityUtils = new HeterozygosityUtils(RETURN_ROUNDED);
+
         //if none of the "founders" are in the vc samples, assume we uniquified the samples upstream and they are all founders
         if (!didUniquifiedSampleNameCheck) {
-            checkSampleNames(vc);
+            founderIds = AnnotationUtils.validateFounderIDs(founderIds, vc);
             didUniquifiedSampleNameCheck = true;
         }
-        if ( founderIds == null || founderIds.isEmpty() ) {
-            if ( !pedigreeCheckWarningLogged ) {
-                logger.warn("Annotation will not be calculated, must provide a valid PED file (-ped) from the command line.");
-                pedigreeCheckWarningLogged = true;
-            }
-            return null;
+        return makeCoeffAnnotation(vc);
+    }
+
+    //Inbreeding coeff doesn't need raw data -- it's calculated from the final genotypes
+    @Override
+    public String getRawKeyName() { return null; }
+
+    @Override
+    public Map<String, Object> annotateRawData(final RefMetaDataTracker tracker, final AnnotatorCompatible walker, final ReferenceContext ref, final Map<String, AlignmentContext> stratifiedContexts, final VariantContext vc, final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+        return null;
+    }
+
+    @Override
+    public void calculateRawData(final VariantContext vc, final Map<String, PerReadAlleleLikelihoodMap> pralm, final ReducibleAnnotationData rawAnnotations) { }
+
+    @Override
+    public Map<String, Object> combineRawData(final List<Allele> allelesList, final List<? extends ReducibleAnnotationData> listOfRawData) {
+        return null;
+    }
+
+    @Override
+    public Map<String, Object> finalizeRawData(final VariantContext vc, final VariantContext originalVC) {
+        heterozygosityUtils = new HeterozygosityUtils(RETURN_ROUNDED);
+
+        //if none of the "founders" are in the vc samples, assume we uniquified the samples upstream and they are all founders
+        if (!didUniquifiedSampleNameCheck) {
+            founderIds = AnnotationUtils.validateFounderIDs(founderIds, vc);
+            didUniquifiedSampleNameCheck = true;
         }
-        else{
-            return makeCoeffAnnotation(vc);
-        }
+        return makeCoeffAnnotation(vc);
     }
 
     protected double calculateIC(final VariantContext vc, final GenotypesContext genotypes) {
 
-        final boolean doMultiallelicMapping = !vc.isBiallelic();
-
-        int idxAA = 0, idxAB = 1, idxBB = 2;
-
-        double refCount = 0.0;
-        double hetCount = 0.0;
-        double homCount = 0.0;
-        sampleCount = 0; // number of samples that have likelihoods
-
-        for ( final Genotype g : genotypes ) {
-            if ( g.isCalled() && g.hasLikelihoods() && g.getPloidy() == 2)  // only work for diploid samples
-                sampleCount++;
-            else
-                continue;
-            final double[] normalizedLikelihoods = MathUtils.normalizeFromLog10( g.getLikelihoods().getAsVector() );
-            if (doMultiallelicMapping)
-            {
-                if (g.isHetNonRef()) {
-                    //all likelihoods go to homCount
-                    homCount++;
-                    continue;
-                }
-
-                //get alternate allele for each sample
-                final Allele a1 = g.getAllele(0);
-                final Allele a2 = g.getAllele(1);
-                if (a2.isNonReference()) {
-                    final int[] idxVector = vc.getGLIndecesOfAlternateAllele(a2);
-                    idxAA = idxVector[0];
-                    idxAB = idxVector[1];
-                    idxBB = idxVector[2];
-                }
-                //I expect hets to be reference first, but there are no guarantees (e.g. phasing)
-                else if (a1.isNonReference()) {
-                    final int[] idxVector = vc.getGLIndecesOfAlternateAllele(a1);
-                    idxAA = idxVector[0];
-                    idxAB = idxVector[1];
-                    idxBB = idxVector[2];
-                }
-            }
-
-            refCount += normalizedLikelihoods[idxAA];
-            hetCount += normalizedLikelihoods[idxAB];
-            homCount += normalizedLikelihoods[idxBB];
+        final double[] genotypeCounts = heterozygosityUtils.getGenotypeCountsForRefVsAllAlts(vc, genotypes);  //guarantees that sampleCount is set
+        if (genotypeCounts.length != 3) {
+            throw new IllegalStateException("Input genotype counts must be length 3 for the number of genotypes with {2, 1, 0} ref alleles.");
         }
+        final double refCount = genotypeCounts[HeterozygosityUtils.REF_INDEX];
+        final double hetCount = genotypeCounts[HeterozygosityUtils.HET_INDEX];
+        final double homCount = genotypeCounts[HeterozygosityUtils.VAR_INDEX];
 
         final double p = ( 2.0 * refCount + hetCount ) / ( 2.0 * (refCount + hetCount + homCount) ); // expected reference allele frequency
         final double q = 1.0 - p; // expected alternative allele frequency
-        final double F = 1.0 - ( hetCount / ( 2.0 * p * q * (double) sampleCount) ); // inbreeding coefficient
+        final double F = 1.0 - ( hetCount / ( 2.0 * p * q * (double) heterozygosityUtils.getSampleCount()) ); // inbreeding coefficient
 
         return F;
     }
@@ -185,27 +181,13 @@ public class InbreedingCoeff extends InfoFieldAnnotation implements StandardAnno
         final GenotypesContext genotypes = (founderIds == null || founderIds.isEmpty()) ? vc.getGenotypes() : vc.getGenotypes(founderIds);
         if (genotypes == null || genotypes.size() < MIN_SAMPLES || !vc.isVariant())
             return null;
-        double F = calculateIC(vc, genotypes);
-        if (sampleCount < MIN_SAMPLES)
+        final double F = calculateIC(vc, genotypes);
+        if (heterozygosityUtils.getSampleCount() < MIN_SAMPLES)
             return null;
         return Collections.singletonMap(getKeyNames().get(0), (Object)String.format("%.4f", F));
     }
 
-    //this method is intended to reconcile uniquified sample names
-    // it comes into play when calling this annotation from GenotypeGVCFs with --uniquifySamples because founderIds
-    // is derived from the sampleDB, which comes from the input sample names, but vc will have uniquified (i.e. different)
-    // sample names. Without this check, the founderIds won't be found in the vc and the annotation won't be calculated.
-    protected void checkSampleNames(final VariantContext vc) {
-        Set<String> vcSamples = new HashSet<>();
-        vcSamples.addAll(vc.getSampleNames());
-        if (!vcSamples.isEmpty()) {
-            if (founderIds!=null) {
-                vcSamples.removeAll(founderIds);
-                if (vcSamples.equals(vc.getSampleNames()))
-                    founderIds = vc.getSampleNames();
-            }
-        }
-    }
+
 
     @Override
     public List<String> getKeyNames() { return Collections.singletonList(GATKVCFConstants.INBREEDING_COEFFICIENT_KEY); }

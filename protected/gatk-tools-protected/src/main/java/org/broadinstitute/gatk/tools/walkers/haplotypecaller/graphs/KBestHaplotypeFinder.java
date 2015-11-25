@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -90,7 +90,7 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
     /**
      * The top finder.
      *
-     * <p>If there is only a single source vertex, its finder is the top finder. However whent there
+     * <p>If there is only a single source vertex, its finder is the top finder. However when there
      * is more than one possible source, we create a composite finder that alternates between individual source vertices
      * for their best haplotypes.</p>
      */
@@ -472,44 +472,18 @@ public class KBestHaplotypeFinder extends AbstractList<KBestHaplotype> implement
      *     The resulting list is sorted by the score with more likely haplotype search results first.
      * </p>
      *
-     * @param maxSize maximum number of unique results to return.
-     *
-     * @throws IllegalArgumentException if {@code maxSize} is negative.
-     *
-     * @return never {@code null}, perhaps an empty list.
-     */
-    public List<KBestHaplotype> unique(final int maxSize) {
-        if (maxSize < 0) throw new IllegalArgumentException("maxSize cannot be negative");
-        final int requiredCapacity = Math.min(maxSize,size());
-        final Set<Haplotype> haplotypes = new HashSet<>(requiredCapacity);
-        int resultSize = 0;
-        final List<KBestHaplotype> result = new ArrayList<>(requiredCapacity);
-        for (final KBestHaplotype kbh : this) {
-            if (haplotypes.add(kbh.haplotype())) {
-                result.add(kbh);
-                if (resultSize == maxSize) break;
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Returns a unique list of haplotypes solutions.
-     *
-     * <p>
-     *     The result will not contain more than one haplotype with the same base sequence. The solution of the best
-     *     score is returned.
-     * </p>
-     * <p>
-     *     This makes sense when there are more than one possible path through the graph to create the same haplotype.
-     * </p>
-     * <p>
-     *     The resulting list is sorted by the score with more likely haplotype search results first.
-     * </p>
      *
      * @return never {@code null}, perhaps an empty list.
      */
     public List<KBestHaplotype> unique() {
-        return unique(size());
+        final int requiredCapacity = size();
+        final Set<Haplotype> haplotypes = new HashSet<>(requiredCapacity);
+        final List<KBestHaplotype> result = new ArrayList<>(requiredCapacity);
+        for (final KBestHaplotype kbh : this) {
+            if (haplotypes.add(kbh.haplotype())) {
+                result.add(kbh);
+            }
+        }
+        return result;
     }
 }

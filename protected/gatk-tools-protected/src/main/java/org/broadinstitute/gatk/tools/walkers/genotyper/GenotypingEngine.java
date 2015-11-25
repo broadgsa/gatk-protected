@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -112,10 +112,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      *                    sample set will be used instead.
      * @param genomeLocParser the genome-loc-parser
      *
+     * @param doAlleleSpecificCalcs
      * @throws IllegalArgumentException if any of {@code samples}, {@code configuration} or {@code genomeLocParser} is {@code null}.
      */
     protected GenotypingEngine(final Config configuration, final SampleList samples,
-                               final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider) {
+                               final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doAlleleSpecificCalcs) {
 
         if (configuration == null)
             throw new IllegalArgumentException("the configuration cannot be null");
@@ -137,6 +138,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         this.genomeLocParser = genomeLocParser;
     }
 
+    protected GenotypingEngine(final Config configuration, final SampleList samples,
+                               final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider) {
+        this(configuration, samples, genomeLocParser, afCalculatorProvider, false);
+    }
+
     /**
      * Changes the logger for this genotyper engine.
      *
@@ -151,7 +157,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     }
 
     public Set<VCFInfoHeaderLine> getAppropriateVCFInfoHeaders() {
-        Set<VCFInfoHeaderLine> headerInfo = new HashSet<>();
+        final Set<VCFInfoHeaderLine> headerInfo = new HashSet<>();
         if ( configuration.genotypeArgs.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
             headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY));
         return headerInfo;
@@ -191,7 +197,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             throw new IllegalArgumentException("vc cannot be null");
         if (model == null)
             throw new IllegalArgumentException("the model cannot be null");
-        return calculateGenotypes(null,null,null,null,vc,model,false,null);
+        return calculateGenotypes(null,null,null,null,vc,model,false,null, false);
     }
 
     /**
@@ -210,7 +216,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
                                                  final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
                                                  final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Model model,
                                                  final boolean inheritAttributesFromInputVC,
-                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                 final boolean doAlleleSpecificCalcs) {
 
         final boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
         // if input VC can't be genotyped, exit with either null VCC or, in case where we need to emit all sites, an empty call
@@ -227,7 +234,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final double PoFGT0 = Math.pow(10, AFresult.getLog10PosteriorOfAFGT0());
 
         // note the math.abs is necessary because -10 * 0.0 => -0.0 which isn't nice
-        double log10Confidence =
+        final double log10Confidence =
                 ! outputAlternativeAlleles.siteIsMonomorphic ||
                     configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES || configuration.annotateAllSitesWithPLs
                         ? AFresult.getLog10PosteriorOfAFEq0() + 0.0
@@ -238,10 +245,13 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final double phredScaledConfidence = (-10.0 * log10Confidence) + 0.0;
 
         // return a null call if we don't pass the confidence cutoff or the most likely allele frequency is zero
-        if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission())
+        if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission()) {
             // technically, at this point our confidence in a reference call isn't accurately estimated
             //  because it didn't take into account samples with no data, so let's get a better estimate
-            return limitedContext ? null : estimateReferenceConfidence(vc, stratifiedContexts, getModelTheta(model), true, PoFGT0);
+            final double[] AFpriors = getAlleleFrequencyPriors(vc, defaultPloidy, model);
+            final int INDEX_FOR_AC_EQUALS_1 = 1;
+            return limitedContext ? null : estimateReferenceConfidence(vc, stratifiedContexts, AFpriors[INDEX_FOR_AC_EQUALS_1], true, PoFGT0);
+        }
 
         // start constructing the resulting VC
         final GenomeLocParser genomeLocParser = this.genomeLocParser != null || refContext == null ? this.genomeLocParser : refContext.getGenomeLocParser();
@@ -262,7 +272,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
         // *** note that calculating strand bias involves overwriting data structures, so we do that last
         final Map<String, Object> attributes = composeCallAttributes(inheritAttributesFromInputVC, vc, rawContext, stratifiedContexts, tracker, refContext,
-                outputAlternativeAlleles.alternativeAlleleMLECounts(), outputAlternativeAlleles.siteIsMonomorphic, AFresult, outputAlternativeAlleles.outputAlleles(vc.getReference()),genotypes,model,perReadAlleleLikelihoodMap);
+                outputAlternativeAlleles.alternativeAlleleMLECounts(), outputAlternativeAlleles.siteIsMonomorphic, AFresult, outputAlternativeAlleles.outputAlleles(vc.getReference()), genotypes, model, perReadAlleleLikelihoodMap, doAlleleSpecificCalcs);
 
         builder.attributes(attributes);
 
@@ -334,8 +344,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final List<Allele> alleles = afcr.getAllelesUsedInGenotyping();
 
         final int alternativeAlleleCount = alleles.size() - 1;
-        Allele[] outputAlleles = new Allele[alternativeAlleleCount];
-        int[] mleCounts = new int[alternativeAlleleCount];
+        final Allele[] outputAlleles = new Allele[alternativeAlleleCount];
+        final int[] mleCounts = new int[alternativeAlleleCount];
         int outputAlleleCount = 0;
         boolean siteIsMonomorphic = true;
         for (final Allele alternativeAllele : alleles) {
@@ -373,25 +383,6 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         return conf >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ||
                 (configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES
                         && QualityUtils.phredScaleErrorRate(PofF) >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING);
-    }
-
-    /**
-     * Based in the model used, returns the appropriate heterozygosity argument value.
-     * @param model genotyping model.
-     *
-     * @return a valid heterozygosity in (0,1).
-     */
-    private double getModelTheta(final GenotypeLikelihoodsCalculationModel.Model model) {
-        switch (model) {
-            case SNP:
-            case GENERALPLOIDYSNP:
-                return configuration.genotypeArgs.snpHeterozygosity;
-            case INDEL:
-            case GENERALPLOIDYINDEL:
-                return configuration.genotypeArgs.indelHeterozygosity;
-            default:
-                throw new IllegalArgumentException("Unexpected GenotypeCalculationModel " + model);
-        }
     }
 
 
@@ -473,7 +464,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      */
     protected abstract boolean forceSiteEmission();
 
-    protected final VariantCallContext estimateReferenceConfidence(VariantContext vc, Map<String, AlignmentContext> contexts, double theta, boolean ignoreCoveredSamples, double initialPofRef) {
+    protected final VariantCallContext estimateReferenceConfidence(VariantContext vc, Map<String, AlignmentContext> contexts, double log10OfTheta, boolean ignoreCoveredSamples, double initialPofRef) {
         if ( contexts == null )
             return null;
 
@@ -487,7 +478,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
             if ( ignoreCoveredSamples && context != null )
                 continue;
             final int depth = context == null ? 0 : context.getBasePileup().depthOfCoverage();
-            log10POfRef += estimateLog10ReferenceConfidenceForOneSample(depth, theta);
+            log10POfRef += estimateLog10ReferenceConfidenceForOneSample(depth, log10OfTheta);
         }
 
         return new VariantCallContext(vc, QualityUtils.phredScaleLog10CorrectRate(log10POfRef) >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING, false);
@@ -504,7 +495,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @return never {@code null}, an array with exactly <code>total-ploidy(vc) + 1</code> positions.
      */
     protected final double[] getAlleleFrequencyPriors( final VariantContext vc, final int defaultPloidy, final GenotypeLikelihoodsCalculationModel.Model model ) {
-        final int totalPloidy = GATKVariantContextUtils.totalPloidy(vc,defaultPloidy);
+        final int totalPloidy = GATKVariantContextUtils.totalPloidy(vc, defaultPloidy);
         switch (model) {
             case SNP:
             case GENERALPLOIDYSNP:
@@ -523,16 +514,13 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * Assumes the sample is diploid
      *
      * @param depth the depth of the sample
-     * @param theta the heterozygosity of this species (between 0 and 1)
-     *
-     * @throws IllegalArgumentException if {@code depth} is less than 0 or {@code theta} is not in the (0,1) range.
+     * @param log10OfTheta the heterozygosity of this species (in log10-space)
      *
      * @return a valid log10 probability of the sample being hom-ref
      */
     @Ensures("MathUtils.goodLog10Probability(result)")
-    protected final double estimateLog10ReferenceConfidenceForOneSample(final int depth, final double theta) {
-        if (theta <= 0 || theta >= 1) throw new IllegalArgumentException("theta must be greater than 0 and less than 1");
-        final double log10PofNonRef = Math.log10(theta / 2.0) + getRefBinomialProbLog10(depth);
+    protected final double estimateLog10ReferenceConfidenceForOneSample(final int depth, final double log10OfTheta) {
+        final double log10PofNonRef = log10OfTheta + getRefBinomialProbLog10(depth);
         return MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));
     }
 
@@ -558,14 +546,19 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @param heterozygosity                   default heterozygosity to use, if inputPriors is empty
      * @param inputPriors                      Input priors to use (in which case heterozygosity is ignored)
      *
+     * @throws IllegalArgumentException if {@code inputPriors} has size != {@code N} or any entry in {@code inputPriors} is not in the (0,1) range.
+     *
      * @return never {@code null}.
      */
-    private static AFPriorProvider composeAlleleFrequencyPriorProvider(final int N, final double heterozygosity, final List<Double> inputPriors) {
+    public static AFPriorProvider composeAlleleFrequencyPriorProvider(final int N, final double heterozygosity, final List<Double> inputPriors) {
 
         if (!inputPriors.isEmpty()) {
             // user-specified priors
             if (inputPriors.size() != N)
                 throw new UserException.BadArgumentValue("inputPrior","Invalid length of inputPrior vector: vector length must be equal to # samples +1 ");
+            for (final Double prior : inputPriors) {
+                if (prior <= 0 || prior >= 1) throw new UserException.BadArgumentValue("inputPrior","inputPrior vector values must be greater than 0 and less than 1");
+            }
             return new CustomAFPriorProvider(inputPriors);
         }
         else
@@ -629,7 +622,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
                                                        final AlignmentContext rawContext, final Map<String, AlignmentContext> stratifiedContexts, final RefMetaDataTracker tracker, final ReferenceContext refContext, final List<Integer> alleleCountsofMLE, final boolean bestGuessIsRef,
                                                        final AFCalculationResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
-                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                       final boolean doAlleleSpecificCalcs) {
         final HashMap<String, Object> attributes = new HashMap<>();
 
         final boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
@@ -651,6 +645,22 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if ( configuration.genotypeArgs.ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED )
             attributes.put(GATKVCFConstants.NUMBER_OF_DISCOVERED_ALLELES_KEY, vc.getAlternateAlleles().size());
 
+        //since we don't have access to the AnnotationEngine, this argument tells us whether we need per-allele QUALs for downstream annotations
+        if (doAlleleSpecificCalcs){
+            List<Double> perAlleleQuals = new ArrayList<>();
+            //Per-allele quals are not calculated for biallelic sites
+            if (AFresult.getAllelesUsedInGenotyping().size() > 2) {
+                for (final Allele a : allAllelesToUse) {
+                    if (a.isNonReference())
+                        perAlleleQuals.add(AFresult.getLog10PosteriorOfAFEq0ForAllele(a));
+                }
+            }
+            else {
+                perAlleleQuals.add(AFresult.getLog10PosteriorOfAFEq0());
+            }
+
+            attributes.put(GATKVCFConstants.AS_QUAL_KEY, perAlleleQuals);
+        }
 
         return attributes;
     }
@@ -668,4 +678,50 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         return MLEfrequencies;
     }
 
+    /**
+     * Calculates the active state profile value for a single sample.
+     *
+     * @param log10GenotypeLikelihoods the single sample genotype likelihoods.
+     * @return log10 probability from 0 to -Infinity.
+     */
+    public double calculateSingleSampleRefVsAnyActiveStateProfileValue(final double[] log10GenotypeLikelihoods) {
+        if (log10GenotypeLikelihoods == null) {
+            throw new IllegalArgumentException("the input likelihoods cannot be null");
+        } else if (log10GenotypeLikelihoods.length != this.configuration.genotypeArgs.samplePloidy + 1) {
+            throw new IllegalArgumentException("wrong likelihoods dimensions");
+        } else {
+            final double[] log10Priors = log10AlleleFrequencyPriorsSNPs.forTotalPloidy(this.configuration.genotypeArgs.samplePloidy);
+            final double log10ACeq0Likelihood = log10GenotypeLikelihoods[0];
+            final double log10ACeq0Prior = log10Priors[0];
+            final double log10ACeq0Posterior = log10ACeq0Likelihood + log10ACeq0Prior;
+
+            // If the Maximum a-posteriori AC is 0 then the profile value must be 0.0 as per existing code; it does
+            // not matter whether a AC > 0 is at all plausible.
+            boolean mapACeq0 = true;
+            for (int AC = 1; AC < log10Priors.length; AC++)
+                if (log10Priors[AC] + log10GenotypeLikelihoods[AC] > log10ACeq0Posterior) {
+                    mapACeq0 = false;
+                    break;
+                }
+            if (mapACeq0)
+                return 0.0;
+
+            //TODO bad way to calculate AC > 0 posterior that follows the current behaviour of ExactAFCalculator (StateTracker)
+            //TODO this is the lousy part... this code just adds up lks and priors of AC != 0 before as if
+            //TODO Sum(a_i * b_i) is equivalent to Sum(a_i) * Sum(b_i)
+            //TODO This has to be changed not just here but also in the AFCalculators (StateTracker).
+            final double log10ACgt0Likelihood = MathUtils.approximateLog10SumLog10(log10GenotypeLikelihoods, 1, log10GenotypeLikelihoods.length);
+            final double log10ACgt0Prior = MathUtils.approximateLog10SumLog10(log10Priors, 1, log10Priors.length);
+            final double log10ACgt0Posterior = log10ACgt0Likelihood + log10ACgt0Prior;
+            final double log10PosteriorNormalizationConstant = MathUtils.approximateLog10SumLog10(log10ACeq0Posterior, log10ACgt0Posterior);
+            //TODO End of lousy part.
+
+            final double normalizedLog10ACeq0Posterior = log10ACeq0Posterior - log10PosteriorNormalizationConstant;
+            // This is another condition to return a 0.0 also present in AFCalculator code as well.
+            if (normalizedLog10ACeq0Posterior >= QualityUtils.qualToErrorProbLog10(configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING))
+                return 0.0;
+
+            return 1.0 - Math.pow(10.0, normalizedLog10ACeq0Posterior);
+        }
+    }
 }

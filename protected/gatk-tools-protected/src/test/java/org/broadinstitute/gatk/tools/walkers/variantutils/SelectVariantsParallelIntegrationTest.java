@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -90,17 +90,17 @@ public class SelectVariantsParallelIntegrationTest extends WalkerTest {
                 String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
                 String samplesFile = validationDataLocation + "SelectVariants.samples.txt";
                 String args = " -sn A -se '[CDH]' -sf " + samplesFile + " -env -ef -select 'DP < 250' --variant " + testfile;
-                new ParallelSelectTestProvider(b36KGReference, args, "4386fbb258dcef4437495a37f5a83c53", nt);
+                new ParallelSelectTestProvider(b36KGReference, args, "8090c349d12549b437a80e29c285fdd5", nt);
             }
             { // new tests on b37 using testdir VCF
                 final String testfile = privateTestDir + "NA12878.hg19.example1.vcf";
                 final String args = "-select 'DP > 30' -V " + testfile;
-                new ParallelSelectTestProvider(b37KGReference, args, "c64b45a14d41b1e5cddbe036b47e7519", nt);
+                new ParallelSelectTestProvider(b37KGReference, args, "b899cebdd30e6641437489b746301797", nt);
             }
             { // AD and PL decoding race condition
                 final String testfile = privateTestDir + "race_condition.vcf";
                 final String args = "-env -trimAlternates -sn SAMPLE -L 1:1-10,000,000 -V " + testfile;
-                new ParallelSelectTestProvider(b37KGReference, args, "e86c6eb105ecdd3ff026999ffc692821", nt);
+                new ParallelSelectTestProvider(b37KGReference, args, "ace613ed2e4929f448d30d85110d6ced", nt);
             }
         }
 

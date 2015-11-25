@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -52,7 +52,9 @@
 package org.broadinstitute.gatk.tools.walkers.indels;
 
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.util.ProgressLoggerInterface;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
@@ -61,6 +63,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -135,5 +138,61 @@ public class ConstrainedMateFixingManagerUnitTest extends BaseTest {
             manager.addRead(ArtificialSAMUtils.createArtificialRead(header, "foo" + i, 0, 1500, 10), false, false);
 
         Assert.assertTrue(manager.forMateMatching.containsKey("foo"));
+    }
+
+    @Test
+    public void testSupplementaryAlignmentsDoNotCauseBadMateFixing() {
+        final List<GATKSAMRecord> properReads = ArtificialSAMUtils.createPair(header, "foo", 1, 1000, 2000, true, false);
+        final GATKSAMRecord read1 = properReads.get(0);
+        read1.setFlags(99);   // first in pair, negative strand
+
+        final GATKSAMRecord read2 = properReads.get(1);
+        read2.setFlags(161);   // second in pair, mate negative strand
+
+        final GATKSAMRecord read2Supp = new GATKSAMRecord(read2);
+        read2Supp.setReadName("foo");
+        read2Supp.setFlags(2209);   // second in pair, mate negative strand, supplementary
+        read2Supp.setAlignmentStart(100);
+        read2Supp.setMateAlignmentStart(1000);
+
+        final DummyWriter writer = new DummyWriter();
+        final ConstrainedMateFixingManager manager = new ConstrainedMateFixingManager(writer, genomeLocParser, 10000, 200, 10000);
+        manager.addRead(read2Supp, false, false);
+        manager.addRead(read1, false, false);
+        manager.addRead(read2, false, false);
+        manager.close(); // "write" the reads to our dummy writer
+
+        // check to make sure that none of the mate locations were changed, which is the problem brought to us by a user
+        for ( final SAMRecord read : writer.reads ) {
+            final int start = read.getAlignmentStart();
+            switch (start) {
+                case 100:
+                    Assert.assertEquals(read.getMateAlignmentStart(), 1000);
+                    break;
+                case 1000:
+                    Assert.assertEquals(read.getMateAlignmentStart(), 2000);
+                    break;
+                case 2000:
+                    Assert.assertEquals(read.getMateAlignmentStart(), 1000);
+                    break;
+                default:
+                    Assert.assertTrue(false, "We saw a read located at the wrong position");
+            }
+        }
+    }
+
+    private class DummyWriter implements SAMFileWriter {
+
+        public List<SAMRecord> reads;
+
+        public DummyWriter() { reads = new ArrayList<>(10); }
+
+        public void addAlignment(final SAMRecord alignment) { reads.add(alignment);}
+
+        public SAMFileHeader getFileHeader() { return null; }
+
+        public void setProgressLogger(final ProgressLoggerInterface progress) {}
+
+        public void close() {}
     }
 }

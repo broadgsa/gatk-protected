@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -59,24 +59,89 @@ import java.util.Arrays;
 
 public class FastaAlternateReferenceIntegrationTest extends WalkerTest {
 
+    private static String CONTIGUOUS_INTERVAL_SAME_CONTIG_MD5 = "e1f4b93f9071d158d94dc4fb25e07702";
+    private static String CONTIGUOUS_INTERVAL_DIFF_CONTIG_MD5 = "dfca4e0b0fe0cb18596ec51af541a69e";
+
     @Test
     public void testReferenceOnly() {
 
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FastaReferenceMaker -R " + b36KGReference + " -L 1:10,000,100-10,000,500 -L 1:10,100,000-10,101,000 -L 1:10,900,000-10,900,001 -o %s",
                  1,
-                 Arrays.asList("328d2d52cedfdc52da7d1abff487633d"));
+                 Arrays.asList("75d4d352a9ce4fae22fd7924a42c800a"));
         executeTest("test FastaReference", spec);
     }
 
     @Test
-    public void testIndelsAndSnpMask() {
+    public void testReferenceOnlyContiguousSameContig() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaReferenceMaker -R " + b36KGReference + " -L 1:10,000,100-10,000,200 -L 1:10,000,201-10,000,301 -o %s",
+                1,
+                Arrays.asList(CONTIGUOUS_INTERVAL_SAME_CONTIG_MD5));
+        executeTest("test FastaReference with contiguous intervals, same contig", spec);
+    }
+
+    @Test
+    public void testReferenceOnlyContiguousDiffContigs() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaReferenceMaker -R " + b36KGReference + " -L 1:10,000,100-10,000,200 -L 2:10,000,201-10,000,301 -o %s",
+                1,
+                Arrays.asList(CONTIGUOUS_INTERVAL_DIFF_CONTIG_MD5));
+        executeTest("test FastaReference with contiguous intervals, different contigs", spec);
+    }
+
+    @Test
+    public void testAlternateReferenceContiguousSameContig() {
+        // Show that FastaAlternateReferenceMaker behaves the same as FastaReferenceMaker across contiguous intervals on the same contig.
+        // Note that there are variant locations in this interval.
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + validationDataLocation + "NA12878.chr1_10mb_11mb.slx.indels.vcf4 -L 1:10,000,100-10,000,200 -L 1:10,000,201-10,000,301 -o %s",
+                1,
+                Arrays.asList(CONTIGUOUS_INTERVAL_SAME_CONTIG_MD5));
+        executeTest("test Alternate FastaReference with contiguous intervals, same contig", spec);
+    }
+
+    @Test
+    public void testAlternateReferenceContiguousDiffContigs() {
+        // Show that FastaAlternateReferenceMaker behaves the same as FastaReferenceMaker across contiguous intervals on different contigs.
+        // Note that there are variant locations in this interval.
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + validationDataLocation + "NA12878.chr1_10mb_11mb.slx.indels.vcf4 -L 1:10,000,100-10,000,200 -L 2:10,000,201-10,000,301 -o %s",
+                1,
+                Arrays.asList(CONTIGUOUS_INTERVAL_DIFF_CONTIG_MD5));
+        executeTest("test Alternate FastaReference with contiguous intervals, different contigs", spec);
+    }
+
+    @Test
+    public void testSnpMask() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + b36dbSNP129 + " --snpmask:vcf " + b36dbSNP129 + " -L 1:10,271,272-10,271,302 -o %s",
+                1,
+                Arrays.asList("01a0dffc62fc940c97e29276457f1ff0"));
+        executeTest("test snp mask", spec);
+    }
+
+    @Test
+    public void testSnpMaskPriority() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + b36dbSNP129 + " --snpmaskPriority --snpmask:vcf " + b36dbSNP129 + " -L 1:10,271,272-10,271,302 -o %s",
+                1,
+                Arrays.asList("0950493e5038f7d588034ce4dd21292a"));
+        executeTest("test snp mask priority", spec);
+    }
+
+    @Test
+         public void testIndelsAndSnpMask() {
 
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + validationDataLocation + "NA12878.chr1_10mb_11mb.slx.indels.vcf4 --snpmask:vcf " + b36dbSNP129 + " -L 1:10,075,000-10,075,380 -L 1:10,093,447-10,093,847 -L 1:10,271,252-10,271,452 -o %s",
-                 1,
-                 Arrays.asList("ef481be9962e21d09847b8a1d4a4ff65"));
-        executeTest("test indels", spec);
+                1,
+                Arrays.asList("375efb2feb017f01339f680fdffac6cd"));
+        executeTest("test indels and snp mask", spec);
     }
 
     @Test
@@ -85,7 +150,7 @@ public class FastaAlternateReferenceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FastaAlternateReferenceMaker -R " + b36KGReference + " -V " + GATKDataLocation + "dbsnp_129_b36.vcf -L 1:10,023,400-10,023,500 -L 1:10,029,200-10,029,500 -o %s",
                  1,
-                 Arrays.asList("8b6cd2e20c381f9819aab2d270f5e641"));
+                 Arrays.asList("81e30f0ab92684c496343c8ea51a393e"));
         executeTest("test SNPs", spec);
     }
 
@@ -108,7 +173,7 @@ public class FastaAlternateReferenceIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T FastaAlternateReferenceMaker -R " + b37KGReference + " --use_IUPAC_sample NA12878 -V " + privateTestDir + "NA12878.WGS.b37.chr20.firstMB.vcf -L 20:61050-66380 -o %s",
                 1,
-                Arrays.asList("5feb2a576ff2ed1745a007eaa36448b3"));
+                Arrays.asList("8fd887bca9f3949f2c23c3565f7dcc1b"));
         executeTest("test iupac", spec);
     }
 }

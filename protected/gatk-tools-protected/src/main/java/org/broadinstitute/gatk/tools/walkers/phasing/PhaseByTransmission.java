@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -118,7 +118,9 @@ import java.util.*;
  *         remain in mendelian violation after being assigned the most likely genotype combination will be reported
  *         there. Information reported: chromosome, position, filter, allele count in VCF, family, transmission
  *         probability, and each individual genotype, depth, allelic depth and likelihoods.</li>
- *         <li>DeNovoPrior: Mutation prio; default is 1e-8</li>
+ *         <li>DeNovoPrior: Prior probability of de novo mutations. The default value of 1e-8 is fairly stringent, so if
+ *         you are interested in maximizing sensitivity at the expense of specificity (i.e. are ok with seeing some false
+ *         positives as long as all true positives are detected) you will need to relax this value.</li>
  *     </ul>
  *
  * <h3>Output</h3>
@@ -138,7 +140,7 @@ import java.util.*;
  * </pre>
  *
  */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
 public class PhaseByTransmission extends RodWalker<HashMap<Byte,Integer>, HashMap<Byte,Integer>> {
 
     @ArgumentCollection

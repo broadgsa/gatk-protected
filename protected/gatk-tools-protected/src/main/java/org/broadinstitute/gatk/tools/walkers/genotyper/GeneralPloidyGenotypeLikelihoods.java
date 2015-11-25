@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -143,11 +143,11 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
      * of form int[] -> double (to be more precise, IntArrayWrapper -> Double).
      * For a given ploidy (chromosome count) and number of alleles, we need a form to iterate deterministically
      * across all possible allele conformations.
-     * Problem equivalent to listing in determistic order all possible ways in which N integers will sum to P,
+     * Problem equivalent to listing in deterministic order all possible ways in which N integers will sum to P,
      * where N is number of alleles and P is number of chromosomes.
      * There's an option to list all integers so that sum will be UP to P.
      * For example, with P=2,N=2, restrictSumTo = 2 iterator will produce
-     * [2 0 ] [1 1] [ 0 2]
+     * [2 0] [1 1] [0 2]
      *
      *
      */
@@ -331,7 +331,7 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
      * @param numChromosomes        Ploidy (number of chromosomes describing PL's)
      * @param originalAlleles       List of original alleles
      * @param allelesToSubset       Alleles to subset
-     * @return                      Vector of new PL's, ordered accorrding to SumIterator's ordering
+     * @return                      Vector of new PL's, ordered according to SumIterator's ordering
      */
     public static double[] subsetToAlleles(final double[] oldLikelihoods, final int numChromosomes,
                                                    final List<Allele> originalAlleles, final List<Allele> allelesToSubset) {
@@ -339,13 +339,11 @@ public abstract class GeneralPloidyGenotypeLikelihoods {
         int newPLSize = GeneralPloidyGenotypeLikelihoods.getNumLikelihoodElements(allelesToSubset.size(), numChromosomes);
         double[] newPLs = new double[newPLSize];
 
-
         int idx = 0;
         // First fill boolean array stating whether each original allele is present in new mapping
         final boolean [] allelePresent = new boolean[originalAlleles.size()];
         for ( Allele allele : originalAlleles )
             allelePresent[idx++] = allelesToSubset.contains(allele);
-
 
         // compute mapping from old idx to new idx
         // This might be needed in case new allele set is not ordered in the same way as old set

@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -66,7 +66,9 @@ import java.util.*;
 /**
  * Strand bias estimated by the Symmetric Odds Ratio test
  *
- * <p>Strand bias is a type of sequencing bias in which one DNA strand is favored over the other, which can result in incorrect evaluation of the amount of evidence observed for one allele vs. the other. The StrandOddsRatio annotation is one of several methods that aims to evaluate whether there is strand bias in the data. It is an updated form of the Fisher Strand Test that is better at taking into account large amounts of data in high coverage situations. It is used to determine if there is strand bias between forward and reverse strands for the reference or alternate allele.</p>
+ * <p>Strand bias is a type of sequencing bias in which one DNA strand is favored over the other, which can result in incorrect evaluation of the amount of evidence observed for one allele vs. the other. </p>
+ *
+ * <p>The StrandOddsRatio annotation is one of several methods that aims to evaluate whether there is strand bias in the data. It is an updated form of the Fisher Strand Test that is better at taking into account large amounts of data in high coverage situations. It is used to determine if there is strand bias between forward and reverse strands for the reference or alternate allele. The reported value is ln-scaled.</p>
  *
  * <h3>Statistical notes</h3>
  * <p> Odds Ratios in the 2x2 contingency table below are</p>
@@ -93,15 +95,19 @@ import java.util.*;
  *
  * <p>See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
  *
+ * <h3>Caveat</h3>
+ * <p>
+ * The name SOR is not entirely appropriate because the implementation was changed somewhere between the start of development and release of this annotation. Now SOR isn't really an odds ratio anymore. The goal was to separate certain cases of data without penalizing variants that occur at the ends of exons because they tend to only be covered by reads in one direction (depending on which end of the exon they're on), so if a variant has 10 ref reads in the + direction, 1 ref read in the - direction, 9 alt reads in the + direction and 2 alt reads in the - direction, it's actually not strand biased, but the FS score is pretty bad. The implementation that resulted derived in part from empirically testing some read count tables of various sizes with various ratios and deciding from there.</p>
+ *
  * <h3>Related annotations</h3>
  * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_StrandOddsRatio.php">AS_StrandOddsRatio</a></b> outputs an allele-specific version of this annotation.</li>
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_StrandBiasBySample.php">StrandBiasBySample</a></b> outputs counts of read depth per allele for each strand orientation.</li>
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_FisherStrand.php">FisherStrand</a></b> uses Fisher's Exact Test to evaluate strand bias.</li>
  * </ul>
  *
  */
 public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotation, ActiveRegionBasedAnnotation {
-    private final static double AUGMENTATION_CONSTANT = 1.0;
     private static final int MIN_COUNT = 0;
 
     @Override
@@ -132,17 +138,17 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
     }
 
     /**
-     * Computes the SOR value of a table after augmentation. Based on the symmetric odds ratio but modified to take on
+     * Computes the SOR value of a table after augmentation (adding pseudocounts). Based on the symmetric odds ratio but modified to take on
      * low values when the reference +/- read count ratio is skewed but the alt count ratio is not.  Natural log is taken
      * to keep values within roughly the same range as other annotations.
      *
-     * Augmentation avoids quotient by zero.
+     * Adding pseudocounts prevent divide-by-zero.
      *
      * @param originalTable The table before augmentation
      * @return the SOR annotation value
      */
     final protected double calculateSOR(final int[][] originalTable) {
-        final double[][] augmentedTable = augmentContingencyTable(originalTable);
+        final double[][] augmentedTable = StrandBiasTableUtils.augmentContingencyTable(originalTable);
 
         double ratio = 0;
 
@@ -157,22 +163,6 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
         return Math.log(ratio);
     }
 
-
-    /**
-     * Adds the small value AUGMENTATION_CONSTANT to all the entries of the table.
-     *
-     * @param table the table to augment
-     * @return the augmented table
-     */
-    private static double[][] augmentContingencyTable(final int[][] table) {
-        double[][] augmentedTable = new double[ARRAY_DIM][ARRAY_DIM];
-        for ( int i = 0; i < ARRAY_DIM; i++ ) {
-            for ( int j = 0; j < ARRAY_DIM; j++ )
-                augmentedTable[i][j] = table[i][j] + AUGMENTATION_CONSTANT;
-        }
-
-        return augmentedTable;
-    }
 
     /**
      * Returns an annotation result given a ratio

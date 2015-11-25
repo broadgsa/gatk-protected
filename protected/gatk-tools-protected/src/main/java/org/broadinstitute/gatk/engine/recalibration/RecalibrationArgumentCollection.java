@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -75,18 +75,16 @@ public class RecalibrationArgumentCollection implements Cloneable {
 
     /**
      * This algorithm treats every reference mismatch as an indication of error. However, real genetic variation is expected to mismatch the reference,
-     * so it is critical that a database of known polymorphic sites is given to the tool in order to skip over those sites. This tool accepts any number of RodBindings (VCF, Bed, etc.)
-     * for use as this database. For users wishing to exclude an interval list of known variation simply use -XL my.interval.list to skip over processing those sites.
-     * Please note however that the statistics reported by the tool will not accurately reflected those sites skipped by the -XL argument.
+     * so it is critical that a database of known polymorphic sites (e.g. dbSNP) is given to the tool in order to mask out those sites.
      */
-    @Input(fullName = "knownSites", shortName = "knownSites", doc = "A database of known polymorphic sites to skip over in the recalibration algorithm", required = false)
+    @Input(fullName = "knownSites", shortName = "knownSites", doc = "A database of known polymorphic sites", required = false)
     public List<RodBinding<Feature>> knownSites = Collections.emptyList();
 
     /**
      * After the header, data records occur one per line until the end of the file. The first several items on a line are the
      * values of the individual covariates and will change depending on which covariates were specified at runtime. The last
      * three items are the data- that is, number of observations for this combination of covariates, number of reference mismatches,
-     * and the raw empirical quality score calculated by phred-scaling the mismatch rate.   Use '/dev/stdout' to print to standard out.
+     * and the raw empirical quality score calculated by phred-scaling the mismatch rate.
      */
     @Gather(BQSRGatherer.class)
     @Output(doc = "The output recalibration table file to create", required = true)
@@ -107,7 +105,7 @@ public class RecalibrationArgumentCollection implements Cloneable {
     @Argument(fullName = "covariate", shortName = "cov", doc = "One or more covariates to be used in the recalibration. Can be specified multiple times", required = false)
     public String[] COVARIATES = null;
 
-    /*
+    /**
      * The Cycle and Context covariates are standard and are included by default unless this argument is provided.
      * Note that the ReadGroup and QualityScore covariates are required and cannot be excluded.
      */

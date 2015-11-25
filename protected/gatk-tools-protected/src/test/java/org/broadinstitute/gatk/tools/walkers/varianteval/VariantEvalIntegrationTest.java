@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -335,7 +335,7 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                 " --eval " + validationDataLocation + "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.vcf" +
                 " --comp:comp_genotypes " + privateTestDir + "yri.trio.gatk.ug.head.vcf";
         WalkerTestSpec spec = new WalkerTestSpec(withSelect(tests, "DP < 50", "DP50") + " " + extraArgs + " -ST CpG -o %s",
-                1, Arrays.asList("4b9dcbce0717285e3c0c736c1bed744c"));
+                1, Arrays.asList("eaa3708d9db22fca0844a652bb73b82f"));
         executeTestParallel("testSelect1", spec);
     }
 
@@ -348,6 +348,17 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                 1,
                 Arrays.asList("c56e19d0647d826485d8a3b559d5c56d"));
         executeTestParallel("testVEMendelianViolationEvaluator" + vcfFile, spec);
+    }
+
+    @Test
+    public void testMVEvalFamilyStrat() {
+        String vcfFile = "/PhaseByTransmission/PhaseByTransmission.IntegrationTest.TP.vcf";
+        String pedFile = "/PhaseByTransmission/PhaseByTransmission.IntegrationTest.goodFamilies.ped";
+
+        WalkerTestSpec spec = new WalkerTestSpec("-R "+b37KGReference+ " -T VariantEval -ped " + privateTestDir + pedFile + " -eval " + privateTestDir + vcfFile + " -noEV -noST -ST Family -EV MendelianViolationEvaluator -o %s",
+                1,
+                Arrays.asList("d599d3e6b308ac06b2c2e003cf596328"));
+        executeTestParallel("testMVEvalFamilyStrat", spec);
     }
 
 
@@ -377,7 +388,7 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                            " --dbsnp " + b37dbSNP132 +
                            " --eval:evalBI " + variantEvalTestDataRoot + "ALL.20100201.chr20.bi.sites.vcf" +
                            " -noST -ST Novelty -o %s";
-        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("112bb3221688acad83f29542bfb33151"));
+        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("fe9dcf4933a645f55be1cb0e33497e49"));
         executeTestParallel("testEvalTrackWithoutGenotypes",spec);
     }
 
@@ -404,7 +415,7 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                 " --eval:evalBI " + variantEvalTestDataRoot + "ALL.20100201.chr20.bi.sites.vcf" +
                 " --eval:evalBC " + variantEvalTestDataRoot + "ALL.20100201.chr20.bc.sites.vcf" +
                 " -noST -ST Novelty -o %s";
-        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("81dcdde458c1ebb9aa35289ea8f12bc8"));
+        WalkerTestSpec spec = new WalkerTestSpec(extraArgs,1,Arrays.asList("8dfdec264fcff9472bdee7d223fdb3ca"));
         executeTestParallel("testMultipleEvalTracksWithoutGenotypes",spec);
     }
 
@@ -586,7 +597,7 @@ public class VariantEvalIntegrationTest extends WalkerTest {
                                         "-o %s"
                                 ),
                                 1,
-                                Arrays.asList("f8460af997436a5ce4407fefb0e2724d")
+                                Arrays.asList("af317f1ea1b80e5d4bc4f2d8523ef73d")
                               );
         executeTest("testModernVCFWithLargeIndels", spec);
     }
@@ -689,5 +700,23 @@ public class VariantEvalIntegrationTest extends WalkerTest {
         tests.add(new Object[]{"genotypes/sites", evalGenotypes, compSites, "f0dbb848a94b451e42765b0cb9d09ee2"});
         tests.add(new Object[]{"genotypes/genotypes", evalGenotypes, compGenotypes, "73790b530595fcbd467a88475ea9717f"});
         return tests.toArray(new Object[][]{});
+    }
+
+
+    @Test
+    public void testPrintMissingComp() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                buildCommandLine(
+                        "-T VariantEval",
+                        "-R " + b37KGReference,
+                        "-eval " + privateTestDir + "validationReportEval.noGenotypes.vcf",
+                        "--comp " + privateTestDir + "validationReportComp.noGenotypes.vcf",
+                        "-L 20",
+                        "-EV PrintMissingComp"
+                ),
+                0,
+                Arrays.asList("d41d8cd98f00b204e9800998ecf8427e")); // sato: make sure it doesn't throw a null pointer exception.
+        executeTest("testPrintMissingComp", spec);
+
     }
 }

@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -81,7 +81,7 @@ import java.util.*;
  *
  * <p>
  * Given a VCF with genotype likelihoods from the HaplotypeCaller, UnifiedGenotyper, or another source which provides
- * -unbiased- genotype likelihoods, calculate the posterior genotype state and likelihood given allele frequency
+ * <b>unbiased</b> genotype likelihoods, calculate the posterior genotype state and likelihood given allele frequency
  * information from both the samples themselves and input VCFs describing allele frequencies in related populations.</p>
  *
  * <p>The AF field will not be used in this calculation as it does not provide a way to estimate the confidence interval
@@ -139,7 +139,8 @@ import java.util.*;
  *   -R reference.fasta \
  *   -V NA12878.wgs.HC.vcf \
  *   -supporting 1000G_EUR.genotypes.combined.vcf \
- *   -o NA12878.wgs.HC.posteriors.vcf \
+ *   -o NA12878.wgs.HC.posteriors.vcf 
+ * </pre>
  *
  * <h4>Refine the genotypes of a large panel based on the discovered allele frequency</h4>
  * <pre>
@@ -196,7 +197,7 @@ public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
 
     /**
      * Supporting external panels. Allele counts from these panels (taken from AC,AN or MLEAC,AN or raw genotypes) will
-     * be used to inform the frequency distribution underying the genotype priors.
+     * be used to inform the frequency distribution underying the genotype priors. These files must be VCF 4.2 spec or later.
      */
     @Input(fullName="supporting", shortName = "supporting", doc="Other callsets to use in generating genotype posteriors", required=false)
     public List<RodBinding<VariantContext>> supportVariants = new ArrayList<>();

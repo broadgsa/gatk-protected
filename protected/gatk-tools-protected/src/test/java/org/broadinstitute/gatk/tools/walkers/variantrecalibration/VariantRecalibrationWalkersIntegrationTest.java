@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -94,14 +94,14 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
 
     VRTest lowPass = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
             "41e2d951a17de433fe378bb3d9ec75d4",  // tranches
-            "19c77724f08d90896914d3d348807399",  // recal file
-            "c6a186a1a9271f5de35f1e5aeb8749a6"); // cut VCF
+            "3fe87e69c6a613addb7eff5449e86aa1",  // recal file
+            "78b8f1934d77341df2f6a9fdbd30fa74"); // cut VCF
 
     VRTest lowPassPlusExomes = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
             validationDataLocation + "1kg_exomes_unfiltered.AFR.unfiltered.vcf",
             "ce4bfc6619147fe7ce1f8331bbeb86ce",  // tranches
-            "b7cad6a0bbbf0330e0ac712a80c3144f",  // recal file
-            "bee399765991636461599565c9634bcf"); // cut VCF
+            "5a298554e9175961f63506c4e42ea78b",  // recal file
+            "f284c0cbb00407cc5273c6f1a871513e"); // cut VCF
 
     @DataProvider(name = "VRTest")
     public Object[][] createData1() {
@@ -196,8 +196,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
 
     VRTest bcfTest = new VRTest(privateTestDir + "vqsr.bcf_test.snps.unfiltered.bcf",
             "3ad7f55fb3b072f373cbce0b32b66df4",  // tranches
-            "e91a5b25ea1eefdcff488e0326028b51",  // recal file
-            "e6a0c5173d8c8fbd08afdc5e5e7d3a78"); // cut VCF
+            "73489f9365e4884b2dd89477350a7fe0",  // recal file
+            "0bd2067f831e5388b790e7bb7f45d98f"); // cut VCF
 
     @DataProvider(name = "VRBCFTest")
     public Object[][] createVRBCFTest() {
@@ -251,14 +251,14 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     VRTest indelUnfiltered = new VRTest(
             validationDataLocation + "combined.phase1.chr20.raw.indels.unfiltered.sites.vcf", // all FILTERs as .
             "9a331328370889168a7aa3a625f73620",  // tranches
-            "689c7853fe2e63216da3b0d47e27740e",  // recal file
-            "4147373ec8e0aba7ace3658677007990"); // cut VCF
+            "d8f68f41c8fbdff84f909f4de4a67476",  // recal file
+            "ca376c261dc041faa4dfa31e53fed1e2"); // cut VCF
 
     VRTest indelFiltered = new VRTest(
             validationDataLocation + "combined.phase1.chr20.raw.indels.filtered.sites.vcf", // all FILTERs as PASS
             "9a331328370889168a7aa3a625f73620",  // tranches
-            "689c7853fe2e63216da3b0d47e27740e",  // recal file
-            "8dd8ea31e419f68d80422b34b14e24e4"); // cut VCF
+            "d8f68f41c8fbdff84f909f4de4a67476",  // recal file
+            "c968a943ef24520de6ed15c830ab5ac4"); // cut VCF
 
     @DataProvider(name = "VRIndelTest")
     public Object[][] createTestVariantRecalibratorIndel() {
@@ -316,7 +316,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -tranchesFile " + privateTestDir + "VQSR.mixedTest.tranches" +
                         " -recalFile " + privateTestDir + "VQSR.mixedTest.recal",
-                Arrays.asList("cd42484985179c7f549e652f0f6a94d0"));
+                Arrays.asList("41d5c363bd311677ae1fcf98f4a18487"));
         final List<File> outputFiles = executeTest("testApplyRecalibrationSnpAndIndelTogether", spec).getFirst();
         setPDFsForDeletion(outputFiles);
     }

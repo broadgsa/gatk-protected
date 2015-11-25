@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -55,13 +55,14 @@ import htsjdk.samtools.*;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFSimpleHeaderLine;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.tools.walkers.genotyper.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingModel;
+import org.broadinstitute.gatk.tools.walkers.genotyper.PloidyModel;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.genotyper.*;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.locusiterator.LocusIteratorByState;
@@ -96,7 +97,26 @@ public class ReferenceConfidenceModel {
     private final static boolean WRITE_DEBUGGING_BAM = false;
     private final SAMFileWriter debuggingWriter;
 
-    private final static byte REF_MODEL_DELETION_QUAL = (byte) 30;
+    /**
+     * Surrogate quality score for no base calls.
+     * <p>
+     * This is the quality assigned to deletion (so without its own base-call quality) pile-up elements,
+     * when assessing the confidence on the hom-ref call at that site.
+     * </p>
+     */
+    private final static byte REF_MODEL_DELETION_QUAL = 30;
+
+    /**
+     * Base calls with quality threshold lower than this number won't be considered when assessing the
+     * confidence on the hom-ref call.
+     */
+    private final static byte BASE_QUAL_THRESHOLD = 6;
+
+    /**
+     * Only base calls with quality strictly greater than this constant,
+     * will be considered high quality if they are part of a soft-clip.
+     */
+    private final static byte HQ_BASE_QUALITY_SOFTCLIP_THRESHOLD = 28;
 
     /**
      * Create a new ReferenceConfidenceModel
@@ -145,7 +165,6 @@ public class ReferenceConfidenceModel {
     public void close() {
         if ( debuggingWriter != null ) debuggingWriter.close();
     }
-
 
     /**
      * Calculate the reference confidence for a single sample given the its read data
@@ -205,9 +224,10 @@ public class ReferenceConfidenceModel {
                     results.add(overlappingSite);
             } else {
                 // otherwise emit a reference confidence variant context
+                // Assume infinite population on a single sample.
                 final int refOffset = offset + globalRefOffset;
                 final byte refBase = ref[refOffset];
-                final RefVsAnyResult homRefCalc = calcGenotypeLikelihoodsOfRefVsAny(sampleName,ploidy,model,pileup, refBase, (byte)6, null);
+                final RefVsAnyResult homRefCalc = calcGenotypeLikelihoodsOfRefVsAny(ploidy, pileup, refBase, BASE_QUAL_THRESHOLD, null);
                 homRefCalc.capByHomRefLikelihood();
 
                 final Allele refAllele = Allele.create(refBase, true);
@@ -267,7 +287,26 @@ public class ReferenceConfidenceModel {
     protected static final int MAX_N_INDEL_INFORMATIVE_READS = 40; // more than this is overkill because GQs are capped at 99 anyway
     private static final int INITIAL_INDEL_LK_CACHE_PLOIDY_CAPACITY = 20;
     private static GenotypeLikelihoods[][] indelPLCache = new GenotypeLikelihoods[INITIAL_INDEL_LK_CACHE_PLOIDY_CAPACITY + 1][];
+
+    /**
+     * Indel error rate for the indel model used to assess the confidence on the hom-ref call.
+     */
     private static final double INDEL_ERROR_RATE = -4.5; // 10^-4.5 indel errors per bp
+
+    /**
+     * Phred scaled qual value that corresponds to the {@link #INDEL_ERROR_RATE indel error rate}.
+     */
+    private static final byte INDEL_QUAL = (byte) Math.round((INDEL_ERROR_RATE * -10.0));
+
+    /**
+     * No indel likelihood (ref allele) used in the indel model to assess the confidence on the hom-ref call.
+     */
+    private static final double NO_INDEL_LIKELIHOOD = QualityUtils.qualToProbLog10(INDEL_QUAL);
+
+    /**
+     * Indel likelihood (alt. allele) used in the indel model to assess the confidence on the hom-ref call.
+     */
+    private static final double INDEL_LIKELIHOOD = QualityUtils.qualToErrorProbLog10(INDEL_QUAL);
 
     private final GenotypeLikelihoods indelPLCache(final int ploidy, final int nInformativeReads) {
         return initializeIndelPLCache(ploidy)[nInformativeReads];
@@ -285,14 +324,11 @@ public class ReferenceConfidenceModel {
         final GenotypeLikelihoods[] result = new GenotypeLikelihoods[MAX_N_INDEL_INFORMATIVE_READS + 1];
         result[0] = GenotypeLikelihoods.fromLog10Likelihoods(new double[ploidy + 1]);
         for( int nInformativeReads = 1; nInformativeReads <= MAX_N_INDEL_INFORMATIVE_READS; nInformativeReads++ ) {
-            final byte indelQual = (byte) Math.round((INDEL_ERROR_RATE * -10));
-            final double refLikelihood = QualityUtils.qualToProbLog10(indelQual);
-            final double altLikelihood = QualityUtils.qualToErrorProbLog10(indelQual);
             double[] PLs = new double[ploidy + 1];
-            PLs[0] = nInformativeReads * refLikelihood;
+            PLs[0] = nInformativeReads * NO_INDEL_LIKELIHOOD;
             for (int altCount = 1; altCount <= ploidy; altCount++) {
-                final double refLikelihoodAccum = refLikelihood + MathUtils.Log10Cache.get(ploidy - altCount);
-                final double altLikelihoodAccum = altLikelihood + MathUtils.Log10Cache.get(altCount);
+                final double refLikelihoodAccum = NO_INDEL_LIKELIHOOD + MathUtils.Log10Cache.get(ploidy - altCount);
+                final double altLikelihoodAccum = INDEL_LIKELIHOOD + MathUtils.Log10Cache.get(altCount);
                 PLs[altCount] = nInformativeReads * (MathUtils.approximateLog10SumLog10(refLikelihoodAccum ,altLikelihoodAccum) + denominator);
             }
             result[nInformativeReads] = GenotypeLikelihoods.fromLog10Likelihoods(PLs);
@@ -304,68 +340,62 @@ public class ReferenceConfidenceModel {
     /**
      * Calculate the genotype likelihoods for the sample in pileup for being hom-ref contrasted with being ref vs. alt
      *
-     * @param sampleName target sample name.
      * @param ploidy target sample ploidy.
-     * @param genotypingModel model to calculate likelihoods and genotypes.
      * @param pileup the read backed pileup containing the data we want to evaluate
      * @param refBase the reference base at this pileup position
      * @param minBaseQual the min base quality for a read in the pileup at the pileup position to be included in the calculation
      * @param hqSoftClips running average data structure (can be null) to collect information about the number of high quality soft clips
      * @return a RefVsAnyResult genotype call.
      */
-    public RefVsAnyResult calcGenotypeLikelihoodsOfRefVsAny(final String sampleName, final int ploidy,
-                                                        final GenotypingModel genotypingModel,
-                                                        final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual, final MathUtils.RunningAverage hqSoftClips) {
-        final AlleleList<Allele> alleleList = new IndexedAlleleList<>(Allele.create(refBase,true), GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
-        // Notice that the sample name is rather irrelevant as this information is never used, just need to be the same in both lines bellow.
+    public RefVsAnyResult calcGenotypeLikelihoodsOfRefVsAny(final int ploidy,
+                                                        final ReadBackedPileup pileup,
+                                                        final byte refBase,
+                                                        final byte minBaseQual,
+                                                        final MathUtils.RunningAverage hqSoftClips) {
 
-        final int maximumReadCount = pileup.getReads().size();
+        final int likelihoodCount = ploidy + 1;
+        final double log10Ploidy = MathUtils.Log10Cache.get(ploidy);
 
-        final List<GATKSAMRecord> reads = new ArrayList<>(maximumReadCount);
-        final double[][] likelihoods = new double[2][maximumReadCount];
-        final int[] adCounts = new int[2];
-        int nextIndex = 0;
+        final RefVsAnyResult result = new RefVsAnyResult(likelihoodCount);
+        int readCount = 0;
         for (final PileupElement p : pileup) {
             final byte qual = p.isDeletion() ? REF_MODEL_DELETION_QUAL : p.getQual();
             if (!p.isDeletion() && qual <= minBaseQual)
                 continue;
-            final GATKSAMRecord read = p.getRead();
-            reads.add(read);
-            final boolean isAlt = p.getBase() != refBase || p.isDeletion() || p.isBeforeDeletionStart()
-                    || p.isAfterDeletionEnd() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip();
-            final int bestAllele;
-            final int worstAllele;
-            if (isAlt) {
-                bestAllele = 1;
-                worstAllele = 0;
-            } else {
-                bestAllele = 0;
-                worstAllele = 1;
-            }
-
-            likelihoods[bestAllele][nextIndex] = QualityUtils.qualToProbLog10(qual);
-            likelihoods[worstAllele][nextIndex++] = QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD;
-            adCounts[bestAllele]++;
-            if (isAlt && hqSoftClips != null && p.isNextToSoftClip())
-                hqSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(read, (byte) 28));
+            readCount++;
+            calcPileupElementRefVsNonRefLikelihoodAndCount(refBase, likelihoodCount, log10Ploidy, result, p, qual, hqSoftClips);
         }
-
-        final Map<String,List<GATKSAMRecord>> sampleToReads = Collections.singletonMap(sampleName,reads);
-        final ReadLikelihoods<Allele> readLikelihoods = new ReadLikelihoods<>(new IndexedSampleList(sampleName),alleleList,sampleToReads);
-        final ReadLikelihoods.Matrix<Allele> sampleLikelihoods = readLikelihoods.sampleMatrix(0);
-        final int readCount = sampleLikelihoods.readCount();
-        for (int i = 0; i < readCount; i++) {
-            sampleLikelihoods.set(0,i,likelihoods[0][i]);
-            sampleLikelihoods.set(1,i,likelihoods[1][i]);
-        }
-
-        final PloidyModel ploidyModel = new HomogeneousPloidyModel(new IndexedSampleList(sampleName),ploidy);
-        final GenotypingLikelihoods<Allele> genotypingLikelihoods = genotypingModel.calculateLikelihoods(alleleList, new GenotypingData<>(ploidyModel, readLikelihoods));
-        final double[] genotypeLikelihoodArray = genotypingLikelihoods.sampleLikelihoods(0).getAsVector();
-        final RefVsAnyResult result = new RefVsAnyResult(genotypeLikelihoodArray.length);
-        System.arraycopy(genotypeLikelihoodArray,0,result.genotypeLikelihoods,0,genotypeLikelihoodArray.length);
-        System.arraycopy(adCounts,0,result.AD_Ref_Any,0,2);
+        final double denominator = readCount * log10Ploidy;
+        for (int i = 0; i < likelihoodCount; i++)
+            result.genotypeLikelihoods[i] -= denominator;
         return result;
+    }
+
+    private void calcPileupElementRefVsNonRefLikelihoodAndCount(final byte refBase, final int likelihoodCount, final double log10Ploidy, final RefVsAnyResult result, final PileupElement element, final byte qual, final MathUtils.RunningAverage hqSoftClips) {
+        final boolean isAlt = element.getBase() != refBase || element.isDeletion() || element.isBeforeDeletionStart()
+                || element.isAfterDeletionEnd() || element.isBeforeInsertion() || element.isAfterInsertion() || element.isNextToSoftClip();
+        final double referenceLikelihood;
+        final double nonRefLikelihood;
+        if (isAlt) {
+            nonRefLikelihood = QualityUtils.qualToProbLog10(qual);
+            referenceLikelihood = QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD;
+            result.AD_Ref_Any[1]++;
+        } else {
+            referenceLikelihood = QualityUtils.qualToProbLog10(qual);
+            nonRefLikelihood = QualityUtils.qualToErrorProbLog10(qual) + MathUtils.LOG_ONE_THIRD;
+            result.AD_Ref_Any[0]++;
+        }
+        // Homozygous likelihoods don't need the logSum trick.
+        result.genotypeLikelihoods[0] += referenceLikelihood + log10Ploidy;
+        result.genotypeLikelihoods[likelihoodCount - 1] += nonRefLikelihood + log10Ploidy;
+        // Heterozyougs likelihoods need the logSum trick:
+        for (int i = 1, j = likelihoodCount - 2; i < likelihoodCount - 1; i++, j--)
+            result.genotypeLikelihoods[i] +=
+                    MathUtils.approximateLog10SumLog10(
+                            referenceLikelihood + MathUtils.Log10Cache.get(j),
+                            nonRefLikelihood + MathUtils.Log10Cache.get(i));
+        if (isAlt && hqSoftClips != null && element.isNextToSoftClip())
+            hqSoftClips.add(AlignmentUtils.calcNumHighQualitySoftClips(element.getRead(), HQ_BASE_QUALITY_SOFTCLIP_THRESHOLD));
     }
 
     /**
@@ -491,20 +521,12 @@ public class ReferenceConfidenceModel {
         // consider each indel size up to max in term, checking if an indel that deletes either the ref bases (deletion
         // or read bases (insertion) would fit as well as the origin baseline sum of mismatching quality scores
         for ( int indelSize = 1; indelSize <= maxIndelSize; indelSize++ ) {
-            for ( final boolean checkInsertion : Arrays.asList(true, false) ) {
-                final int readI, refI;
-                if ( checkInsertion ) {
-                    readI = readStart + indelSize;
-                    refI = refStart;
-                } else {
-                    readI = readStart;
-                    refI = refStart + indelSize;
-                }
-
-                final int score = sumMismatchingQualities(readBases, readQuals, readI, refBases, refI, baselineMMSum);
-                if ( score <= baselineMMSum )
-                    return false;
-            }
+            // check insertions:
+            if (sumMismatchingQualities(readBases, readQuals, readStart + indelSize, refBases, refStart, baselineMMSum) <= baselineMMSum)
+                return false;
+            // check deletions:
+            if (sumMismatchingQualities(readBases, readQuals, readStart, refBases, refStart + indelSize, baselineMMSum) <= baselineMMSum)
+                return false;
         }
 
         return true;

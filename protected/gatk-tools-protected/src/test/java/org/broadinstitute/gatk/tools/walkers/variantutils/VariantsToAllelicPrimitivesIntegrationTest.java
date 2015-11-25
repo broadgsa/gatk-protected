@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -66,7 +66,7 @@ public class VariantsToAllelicPrimitivesIntegrationTest extends WalkerTest {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T VariantsToAllelicPrimitives -o %s -R " + b37KGReference + " -V " + privateTestDir + "vcfWithMNPs.vcf --no_cmdline_in_header",
                  1,
-                 Arrays.asList("c5333d2e352312bdb7c5182ca3009594"));
+                 Arrays.asList("db9929eef707d7dff0aef576f49e4a0d"));
          executeTest("test MNPs To SNPs", spec);
     }
 }

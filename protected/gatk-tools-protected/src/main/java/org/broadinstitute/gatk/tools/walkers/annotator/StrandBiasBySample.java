@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -99,7 +99,7 @@ import java.util.*;
 
 public class StrandBiasBySample extends GenotypeAnnotation {
     private final static Logger logger = Logger.getLogger(StrandBiasBySample.class);
-    boolean[] warningsLogged = new boolean[4];
+    private final boolean[] warningsLogged = new boolean[AnnotationUtils.WARNINGS_LOGGED_SIZE];
 
     @Override
     public void annotate(final RefMetaDataTracker tracker,
@@ -110,14 +110,13 @@ public class StrandBiasBySample extends GenotypeAnnotation {
                          final Genotype g,
                          final GenotypeBuilder gb,
                          final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
-
-        if (!AnnotationUtils.isAppropriateInput(walker, alleleLikelihoodMap, g, warningsLogged, logger)) {
+        if (!AnnotationUtils.isAppropriateInput(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY, walker, alleleLikelihoodMap, g, warningsLogged, logger)) {
             return;
         }
 
         final int[][] table = FisherStrand.getContingencyTable(Collections.singletonMap(g.getSampleName(), alleleLikelihoodMap), vc, 0);
 
-        gb.attribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY, FisherStrand.getContingencyArray(table));
+        gb.attribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY, StrandBiasTableUtils.getContingencyArray(table));
     }
 
     @Override

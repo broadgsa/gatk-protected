@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -140,7 +140,7 @@ public class VariantEvalWalkerUnitTest extends BaseTest {
         }
 
         @Override
-        public List<Object> getRelevantStates(final ReferenceContext ref, final RefMetaDataTracker tracker, final VariantContext comp, final String compName, final VariantContext eval, final String evalName, final String sampleName) {
+        public List<Object> getRelevantStates(final ReferenceContext ref, final RefMetaDataTracker tracker, final VariantContext comp, final String compName, final VariantContext eval, final String evalName, final String sampleName, final String familyName) {
             int i = Integer.valueOf(evalName); // a terrible hack, but we can now provide accessible states
             List<Object> states = new ArrayList<Object>();
             for ( int state : integers )
@@ -180,12 +180,12 @@ public class VariantEvalWalkerUnitTest extends BaseTest {
         final RefMetaDataTracker tracker = new RefMetaDataTracker();
         final ReferenceContext ref = null;
         final VariantContext comp = null;
-        final String compName = null, sampleName = null;
+        final String compName = null, sampleName = null, familyName = null;
 
         // increment eval counts for each stratification of divisors of i from from 1...maxI
         for ( int i = 1; i <= cfg.maxI; i++ ) {
             final String evalName = String.valueOf(i); // terrible hack to stratify by divisor
-            for ( EvaluationContext nec : VEwalker.getEvaluationContexts(tracker, ref, eval, evalName, comp, compName, sampleName) ) {
+            for ( EvaluationContext nec : VEwalker.getEvaluationContexts(tracker, ref, eval, evalName, comp, compName, sampleName, familyName) ) {
                 synchronized (nec) {
                     nec.apply(tracker, ref, null, comp, eval);
                 }

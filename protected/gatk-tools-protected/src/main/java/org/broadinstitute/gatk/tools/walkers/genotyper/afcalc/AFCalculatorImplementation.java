@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -65,7 +65,7 @@ import java.util.Map;
  */
 public enum AFCalculatorImplementation {
 
-    /** default implementation */
+    /** Fast implementation for multi-allelics (equivalent to {@link #EXACT_REFERENCE} for biallelics sites */
     EXACT_INDEPENDENT(IndependentAllelesDiploidExactAFCalculator.class, 2),
 
     /** reference implementation of multi-allelic EXACT model.  Extremely slow for many alternate alleles */
@@ -75,7 +75,12 @@ public enum AFCalculatorImplementation {
     EXACT_ORIGINAL(OriginalDiploidExactAFCalculator.class, 2, 2),
 
     /** implementation that supports any sample ploidy.  Currently not available for the HaplotypeCaller */
-    EXACT_GENERAL_PLOIDY(GeneralPloidyExactAFCalculator.class);
+    EXACT_GENERAL_PLOIDY(GeneralPloidyExactAFCalculator.class),
+
+    /**
+     * Implementation that implements the {@link #EXACT_INDEPENDENT} for any ploidy.
+     */
+    EXACT_GENERAL_INDEPENDENT(IndependentAllelesExactAFCalculator.class);
 
     /**
      * Special max alt allele count indicating that this maximum is in fact unbound (can be anything).
@@ -180,7 +185,7 @@ public enum AFCalculatorImplementation {
     }
 
     /**
-     * Creates new instance
+     * Creates new instance.
      *
      * @throws IllegalStateException if the instance could not be create due to some exception. The {@link Exception#getCause() cause} will hold a reference to the actual exception.
      * @return never {@code null}.
@@ -205,11 +210,14 @@ public enum AFCalculatorImplementation {
         final AFCalculatorImplementation preferredValue = preferred == null ? DEFAULT : preferred;
         if (preferredValue.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
             return preferredValue;
-        if (EXACT_INDEPENDENT.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+        else if (EXACT_INDEPENDENT.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
             return EXACT_INDEPENDENT;
-        if (EXACT_REFERENCE.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+        else if (EXACT_REFERENCE.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
             return EXACT_REFERENCE;
-        return EXACT_GENERAL_PLOIDY;
+        else if (EXACT_GENERAL_INDEPENDENT.usableForParams(requiredPloidy,requiredAlternativeAlleleCount))
+            return EXACT_GENERAL_INDEPENDENT;
+        else
+            return EXACT_GENERAL_PLOIDY;
     }
 
     /**

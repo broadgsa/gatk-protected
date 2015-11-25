@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -64,7 +64,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forSimulation.vcf -o %s",
                  1,
-                 Arrays.asList("dd9e17a9c268578e903ecd4ca0a4a335"));
+                 Arrays.asList("d929369b9095420a8aaff2595ec2f80a"));
         executeTest("testVariants", spec);
     }
 
@@ -74,7 +74,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-RL 70 -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forSimulation.vcf -o %s",
                  1,
-                 Arrays.asList("d7388376ffd4d3826d48a5be0be70632"));
+                 Arrays.asList("bbc65e4f8bd3a1656616476a1e190ecf"));
         executeTest("testReadLength", spec);
     }
 
@@ -84,7 +84,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-ER 40 -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forSimulation.vcf -o %s",
                  1,
-                 Arrays.asList("6c9bf583f4b2708d6b82f54516474b7b"));
+                 Arrays.asList("cb0e4b11bbd1b5a154ad6c99541cd017"));
         executeTest("testErrorRate", spec);
     }
 
@@ -94,7 +94,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-RGPL SOLID -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forSimulation.vcf -o %s",
                 1,
-                Arrays.asList("26db391f223ead74d786006a502029d8"));
+                Arrays.asList("2b5c6cda9a434c9e25e5da5599eeae51"));
         executeTest("testPlatformTag", spec);
     }
 
@@ -105,7 +105,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SimulateReadsForVariants --no_pg_tag --useAFAsAlleleFraction -DP 100 -R " + b37KGReference + " -V " + publicTestDir + "forAlleleFractionSimulation.vcf -o %s",
                 1,
-                Arrays.asList("3425c807525dff71310d1517e00a4f7e"));
+                Arrays.asList("1ae2c354718b470e30b44d5e59cb9944"));
         executeTest("testAlleleFraction", spec);
 
     }
@@ -116,7 +116,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forLongInsert.vcf -o %s",
                 1,
-                Arrays.asList("bb412c1fc8f95523dd2fc623d53dbeec"));
+                Arrays.asList("5c069bff8efb988660c7f6d28a3117fc"));
         executeTest("testLongInsertFailure", spec);
     }
 
@@ -126,7 +126,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-RL 269 -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forLongInsert.vcf -o %s",
                 1,
-                Arrays.asList("9236320c470cd8d6759c21b79206f63f"));
+                Arrays.asList("0657f6a692d22b5e2b7f5832710042e4"));
         executeTest("testLongInsertSuccess", spec);
     }
 

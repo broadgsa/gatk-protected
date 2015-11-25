@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -70,22 +70,16 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     /**
      * The expected heterozygosity value used to compute prior probability that a locus is non-reference.
      *
-     * The default priors are for provided for humans:
+     * From the heterozygosity we calculate the probability of N samples being hom-ref at a site as 1 - sum_i_2N (hets / i)
+     * where hets is this case is analogous to the parameter theta from population genetics. See https://en.wikipedia.org/wiki/Coalescent_theory for more details.
      *
-     * het = 1e-3
+     * Note that heterozygosity as used here is the population genetics concept. (See http://en.wikipedia.org/wiki/Zygosity#Heterozygosity_in_population_genetics. 
+     * We also suggest the book "Population Genetics: A Concise Guide" by John H. Gillespie for further details on the theory.) That is, a hets value of 0.001 
+     * implies that two randomly chosen chromosomes from the population of organisms would differ from each other at a rate of 1 in 1000 bp.
      *
-     * which means that the probability of N samples being hom-ref at a site is:
+     * The default priors provided for humans (hets = 1e-3)
      *
-     * 1 - sum_i_2N (het / i)
-     *
-     * Note that heterozygosity as used here is the population genetics concept:
-     *
-     * http://en.wikipedia.org/wiki/Zygosity#Heterozygosity_in_population_genetics
-     *
-     * That is, a hets value of 0.01 implies that two randomly chosen chromosomes from the population of organisms
-     * would differ from each other (one being A and the other B) at a rate of 1 in 100 bp.
-     *
-     * Note that this quantity has nothing to do with the likelihood of any given sample having a heterozygous genotype,
+     * Also note that this quantity has nothing to do with the likelihood of any given sample having a heterozygous genotype,
      * which in the GATK is purely determined by the probability of the observed data P(D | AB) under the model that there
      * may be a AB het genotype.  The posterior probability of this AB genotype would use the het prior, but the GATK
      * only uses this posterior probability in determining the prob. that a site is polymorphic.  So changing the
@@ -95,13 +89,13 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
      * The quantity that changes whether the GATK considers the possibility of a het genotype at all is the ploidy,
      * which determines how many chromosomes each individual in the species carries.
      */
-    @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus.  See the GATKDocs for full details on the meaning of this population genetics concept", required = false)
+    @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus", required = false)
     public Double snpHeterozygosity = HomoSapiensConstants.SNP_HETEROZYGOSITY;
 
     /**
      * This argument informs the prior probability of having an indel at a site.
      */
-    @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling.  See the GATKDocs for heterozygosity for full details on the meaning of this population genetics concept", required = false)
+    @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling", required = false)
     public double indelHeterozygosity = HomoSapiensConstants.INDEL_HETEROZYGOSITY;
 
     /**
@@ -135,12 +129,13 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
      * see e.g. Waterson (1975) or Tajima (1996).
      * This model asserts that the probability of having a population of k variant sites in N chromosomes is proportional to theta/k, for 1=1:N
      *
-     * There are instances where using this prior might not be desireable, e.g. for population studies where prior might not be appropriate,
+     * There are instances where using this prior might not be desirable, e.g. for population studies where prior might not be appropriate,
      * as for example when the ancestral status of the reference allele is not known.
-     * By using this argument, user can manually specify priors to be used for calling as a vector for doubles, with the following restriciotns:
+     * By using this argument, the user can manually specify a list of probabilities for each AC>1 to be used as priors for genotyping,
+     * with the following restrictions:
      * a) User must specify 2N values, where N is the number of samples.
      * b) Only diploid calls supported.
-     * c) Probability values are specified in double format, in linear space.
+     * c) Probability values are specified in Double format, in linear space (not log10 space or Phred-scale).
      * d) No negative values allowed.
      * e) Values will be added and Pr(AC=0) will be 1-sum, so that they sum up to one.
      * f) If user-defined values add to more than one, an error will be produced.

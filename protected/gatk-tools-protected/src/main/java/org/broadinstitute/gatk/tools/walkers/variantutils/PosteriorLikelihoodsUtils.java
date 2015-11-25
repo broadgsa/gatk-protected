@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -93,7 +93,10 @@ public class PosteriorLikelihoodsUtils {
             }
 
             //add zero allele counts for any reference alleles not seen in priors (if applicable)
-            totalAlleleCounts.put(vc1.getReference(),totalAlleleCounts.get(vc1.getReference())+numRefSamplesFromMissingResources);
+            int existingRefCounts = 0;
+            if (totalAlleleCounts.containsKey(vc1.getReference()))
+                existingRefCounts += totalAlleleCounts.get(vc1.getReference());
+            totalAlleleCounts.put(vc1.getReference(),existingRefCounts+numRefSamplesFromMissingResources);
         }
 
         // now extract the counts of the alleles present within vc1, and in order

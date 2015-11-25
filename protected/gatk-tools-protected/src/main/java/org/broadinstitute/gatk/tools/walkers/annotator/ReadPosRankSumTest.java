@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -51,12 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMRecord;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
-import org.broadinstitute.gatk.tools.walkers.indels.PairHMMIndelErrorModel;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
@@ -70,7 +65,9 @@ import java.util.*;
 /**
  * Rank Sum Test for relative positioning of REF versus ALT alleles within reads
  *
- * <p>This variant-level annotation tests whether there is evidence of bias in the position of alleles within the reads that support them, between the reference and alternate alleles. Seeing an allele only near the ends of reads is indicative of error, because that is where sequencers tend to make the most errors. However, some variants located near the edges of sequenced regions will necessarily be covered by the ends of reads, so we can't just set an absolute "minimum distance from end of read" threshold. That is why we use a rank sum test to evaluate whether there is a difference in how well the reference allele and the alternate allele are supported.</p>
+ * <p>This variant-level annotation tests whether there is evidence of bias in the position of alleles within the reads that support them, between the reference and alternate alleles.</p>
+ *
+ * <p>Seeing an allele only near the ends of reads is indicative of error, because that is where sequencers tend to make the most errors. However, some variants located near the edges of sequenced regions will necessarily be covered by the ends of reads, so we can't just set an absolute "minimum distance from end of read" threshold. That is why we use a rank sum test to evaluate whether there is a difference in how well the reference allele and the alternate allele are supported.</p>
  *
  * <p>The ideal result is a value close to zero, which indicates there is little to no difference in where the alleles are found relative to the ends of reads. A negative value indicates that the alternate allele is found at the ends of reads more often than the reference allele. Conversely, a positive value indicates that the reference allele is found at the ends of reads more often than the alternate allele. </p>
  *
@@ -80,7 +77,15 @@ import java.util.*;
  * <p>The value output for this annotation is the u-based z-approximation from the Mann-Whitney-Wilcoxon Rank Sum Test for site position within reads (position within reads supporting REF vs. position within reads supporting ALT). See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of the ranksum test.</p>
  *
  * <h3>Caveat</h3>
- * <p>The read position rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</p>
+ * <ul>
+ * <li>The read position rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</li>
+ * <li>Uninformative reads are not used in these annotations.</li>
+ * </ul>
+ *
+ *  * <h3>Related annotations</h3>
+ * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_ReadPosRankSumTest.php">AS_ReadPosRankRankSumTest</a></b> outputs an allele-specific version of this annotation.</li>
+ * </ul>
  *
  */
 public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotation {
@@ -109,7 +114,7 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
     @Override
     protected Double getElementForPileupElement(final PileupElement p) {
         final int offset = AlignmentUtils.calcAlignmentByteArrayOffset(p.getRead().getCigar(), p, 0, 0);
-        return (double)getFinalReadPosition(p.getRead(), offset);
+        return (double)AnnotationUtils.getFinalVariantReadPosition(p.getRead(), offset);
     }
 
     @Override
@@ -122,69 +127,5 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         return super.isUsableRead(read, refLoc) && read.getSoftStart() + read.getCigar().getReadLength() > refLoc;
     }
 
-    private int getFinalReadPosition(final GATKSAMRecord read, final int initialReadPosition) {
-        final int numAlignedBases = getNumAlignedBases(read);
 
-        int readPos = initialReadPosition;
-        if (initialReadPosition > numAlignedBases / 2) {
-            readPos = numAlignedBases - (initialReadPosition + 1);
-        }
-        return readPos;
-
-    }
-
-    private int getNumClippedBasesAtStart(final SAMRecord read) {
-        // compute total number of clipped bases (soft or hard clipped)
-        // check for hard clips (never consider these bases):
-        final Cigar c = read.getCigar();
-        final CigarElement first = c.getCigarElement(0);
-
-        int numStartClippedBases = 0;
-        if (first.getOperator() == CigarOperator.H) {
-            numStartClippedBases = first.getLength();
-        }
-        final byte[] unclippedReadBases = read.getReadBases();
-        final byte[] unclippedReadQuals = read.getBaseQualities();
-
-        // Do a stricter base clipping than provided by CIGAR string, since this one may be too conservative,
-        // and may leave a string of Q2 bases still hanging off the reads.
-        for (int i = numStartClippedBases; i < unclippedReadBases.length; i++) {
-            if (unclippedReadQuals[i] < PairHMMIndelErrorModel.BASE_QUAL_THRESHOLD)
-                numStartClippedBases++;
-            else
-                break;
-
-        }
-
-        return numStartClippedBases;
-    }
-
-    private int getNumAlignedBases(final GATKSAMRecord read) {
-        return read.getReadLength() - getNumClippedBasesAtStart(read) - getNumClippedBasesAtEnd(read);
-    }
-
-    private int getNumClippedBasesAtEnd(final GATKSAMRecord read) {
-        // compute total number of clipped bases (soft or hard clipped)
-        // check for hard clips (never consider these bases):
-        final Cigar c = read.getCigar();
-        CigarElement last = c.getCigarElement(c.numCigarElements() - 1);
-
-        int numEndClippedBases = 0;
-        if (last.getOperator() == CigarOperator.H) {
-            numEndClippedBases = last.getLength();
-        }
-        final byte[] unclippedReadBases = read.getReadBases();
-        final byte[] unclippedReadQuals = read.getBaseQualities();
-
-        // Do a stricter base clipping than provided by CIGAR string, since this one may be too conservative,
-        // and may leave a string of Q2 bases still hanging off the reads.
-        for (int i = unclippedReadBases.length - numEndClippedBases - 1; i >= 0; i--) {
-            if (unclippedReadQuals[i] < PairHMMIndelErrorModel.BASE_QUAL_THRESHOLD)
-                numEndClippedBases++;
-            else
-                break;
-        }
-
-        return numEndClippedBases;
-    }
 }

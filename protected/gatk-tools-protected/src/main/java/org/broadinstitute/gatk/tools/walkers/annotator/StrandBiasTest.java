@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -58,6 +58,7 @@ import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -77,7 +78,8 @@ import java.util.*;
 /**
  * Class of tests to detect strand bias.
  */
-public abstract class StrandBiasTest extends InfoFieldAnnotation {
+//TODO: will eventually implement ReducibleAnnotation -- see RMSAnnotation.java for an example of an abstract ReducibleAnnotation
+public abstract class StrandBiasTest extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
     private final static Logger logger = Logger.getLogger(StrandBiasTest.class);
     private static boolean stratifiedPerReadAlleleLikelihoodMapWarningLogged = false;
     private static boolean inputVariantContextWarningLogged = false;
@@ -181,8 +183,16 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
                 continue;
 
             foundData = true;
-            final String sbbsString = (String) g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY);
-            final int[] data = encodeSBBS(sbbsString);
+            int[] data;
+            if ( g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY).getClass().equals(String.class)) {
+                final String sbbsString = (String) g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY);
+                data = encodeSBBS(sbbsString);
+            } else if (g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY).getClass().equals(ArrayList.class)) {
+                ArrayList sbbsList = (ArrayList) g.getAnyAttribute(GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY);
+                data = encodeSBBS(sbbsList);
+            } else
+                throw new IllegalArgumentException("Unexpected " + GATKVCFConstants.STRAND_BIAS_BY_SAMPLE_KEY + " type");
+
             if ( passesMinimumThreshold(data, minCount) ) {
                 for( int index = 0; index < sbArray.length; index++ ) {
                     sbArray[index] += data[index];
@@ -304,7 +314,6 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
     private static void updateTable(final int[] table, final Allele allele, final GATKSAMRecord read, final Allele ref, final List<Allele> allAlts) {
 
         final boolean matchesRef = allele.equals(ref, true);
-        final boolean matchesAlt = allele.equals(allAlts.get(0), true);
         final boolean matchesAnyAlt = allAlts.contains(allele);
 
         if ( matchesRef || matchesAnyAlt ) {
@@ -347,6 +356,20 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation {
         for( int index = 0; index < ARRAY_SIZE; index++ ) {
             array[index] = Integer.parseInt(tokenizer.nextToken());
         }
+        return array;
+    }
+
+    /**
+     * Helper function to parse the genotype annotation into the SB annotation array
+     * @param arrayList the ArrayList returned from StrandBiasBySample.annotate()
+     * @return the array used by the per-sample Strand Bias annotation
+     */
+    private static int[] encodeSBBS( final ArrayList<Integer> arrayList ) {
+        final int[] array = new int[ARRAY_SIZE];
+        int index = 0;
+        for ( Integer item : arrayList )
+            array[index++] = item.intValue();
+
         return array;
     }
 

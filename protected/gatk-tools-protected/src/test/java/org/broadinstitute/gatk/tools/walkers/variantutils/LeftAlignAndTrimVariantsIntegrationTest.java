@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -51,9 +51,14 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Level;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -66,17 +71,83 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forLeftAlignVariantsTest.vcf --no_cmdline_in_header",
                  1,
-                 Arrays.asList("bcf05f56adbb32a47b6d6b27b327d5c2"));
+                 Arrays.asList("5d82f53b036d9a0fca170e5be68d5ab2"));
          executeTest("test left alignment", spec);
     }
 
     @Test
-    public void testLeftAlignmentWithTrimmingAndMultialleliecs() {
+    public void testLeftAlignmentLongAllelesError() throws IOException {
+
+        // Need to see log INFO messages
+        Level level = logger.getLevel();
+        logger.setLevel(Level.INFO);
+
+        File logFile = createTempFile("testLargeReferenceAlleleError.log", ".tmp");
+        String logFileName = logFile.getAbsolutePath();
+
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --no_cmdline_in_header -trim -split",
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "longAlleles.vcf --no_cmdline_in_header -log " + logFileName,
                 1,
-                Arrays.asList("d12468cf08cfd14354f781d5f42b279f"));
-        executeTest("test left alignment with trimming and hard multiple alleles", spec);
+                Arrays.asList("136f88a5bd07a022a3404089359cb8ee"));
+        executeTest("test left alignment with long alleles with an error", spec);
+
+        // Make sure the "reference allele too long" message is in the log
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains(ValidateVariants.REFERENCE_ALLELE_TOO_LONG_MSG));
+
+        // Set the log level back
+        logger.setLevel(level);
+    }
+
+    @Test
+    public void testLeftAlignmentLongAllelesFix() throws IOException {
+
+        // Need to see log INFO messages
+        Level level = logger.getLevel();
+        logger.setLevel(Level.INFO);
+
+        File logFile = createTempFile("testLargeReferenceAlleleError.log", ".tmp");
+        String logFileName = logFile.getAbsolutePath();
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir +
+                        "longAlleles.vcf --no_cmdline_in_header --reference_window_stop 208 -log " + logFileName,
+                1,
+                Arrays.asList("c4ca5520ee499da171053059e3717b2f"));
+        executeTest("test left alignment with long alleles fix", spec);
+
+        // Make sure the "reference allele too long" message is in the log
+        Assert.assertFalse(FileUtils.readFileToString(logFile).contains(ValidateVariants.REFERENCE_ALLELE_TOO_LONG_MSG));
+
+        // Set the log level back
+        logger.setLevel(level);
+    }
+
+    @Test
+    public void testLeftAlignmentDontTrim() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forLeftAlignVariantsTest.vcf --dontTrimAlleles --no_cmdline_in_header",
+                1,
+                Arrays.asList("dd238fe14b4a495a489907c1e021221e"));
+        executeTest("test left alignment, don't trim", spec);
+    }
+
+    @Test
+    public void testLeftAlignmentWithMultialleliecs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --no_cmdline_in_header -split",
+                1,
+                Arrays.asList("534bea653d4a0e59e74f4107c1768558"));
+        executeTest("test left alignment with hard multiple alleles", spec);
+
+    }
+
+    @Test
+    public void testLeftAlignmentDontTrimWithMultialleliecs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --dontTrimAlleles --no_cmdline_in_header -split",
+                1,
+                Arrays.asList("189b8136ee62b54bf7b227e99c892440"));
+        executeTest("test left alignment with hard multiple alleles, don't trim", spec);
 
     }
 }

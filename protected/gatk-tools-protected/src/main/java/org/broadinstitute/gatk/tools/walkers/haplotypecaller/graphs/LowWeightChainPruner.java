@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -140,10 +140,10 @@ public class LowWeightChainPruner<V extends BaseVertex, E extends BaseEdge> {
 
         // must be after since we can add duplicate starts in the above finding algorithm
         final List<Path<V, E>> linearChains = new LinkedList<>();
+        final PathBuilder<V, E> builder = new PathBuilder<>(graph, 100);
         for ( final V chainStart : chainStarts ) {
             for ( final E outEdge : graph.outgoingEdgesOf(chainStart) ) {
-                // these chains are composed of the starts + their next vertices
-                linearChains.add(extendLinearChain(new Path<>(new Path<>(chainStart, graph), outEdge)));
+                linearChains.add(extendLinearChain(builder.start(chainStart).addEdge(outEdge)).make());
             }
         }
 
@@ -152,28 +152,29 @@ public class LowWeightChainPruner<V extends BaseVertex, E extends BaseEdge> {
 
     /**
      * Extend path while the last vertex has in and out degrees of 1 or 0
-     * @param path the path to extend
+     * @param builder the path builder already started
      * @return a fully extended linear path
      */
-    protected final Path<V,E> extendLinearChain(final Path<V, E> path) {
-        final V last = path.getLastVertex();
-        final Set<E> outEdges = path.getGraph().outgoingEdgesOf(last);
-
-        final int outDegree = outEdges.size();
-        final int inDegree = path.getGraph().inDegreeOf(last);
-
-        if ( outDegree != 1 || inDegree > 1 ) {
-            // out next vertex has multiple outgoing edges, so we are done with the linear path
-            return path;
-        } else {
-            final V next = path.getGraph().getEdgeTarget(outEdges.iterator().next());
-            if ( path.containsVertex(next) ) {
-                // we are done if the path contains a cycle
-                return path;
-            } else {
-                // we now know that last has outdegree == 1, so we keep extending the chain
-                return extendLinearChain(new Path<>(path, outEdges.iterator().next()));
+    protected final PathBuilder<V, E> extendLinearChain(final PathBuilder<V, E> builder) {
+        final BaseGraph<V, E> graph = builder.getGraph();
+        V last = builder.lastVertex();
+        while (true) {
+            final Set<E> outEdges = graph.outgoingEdgesOf(last);
+            final int outDegree = outEdges.size();
+            final int inDegree = graph.inDegreeOf(last);
+            if ( outDegree != 1 || inDegree > 1 )
+                break;
+            else {
+                final E edge = outEdges.iterator().next();
+                final V next = graph.getEdgeTarget(edge);
+                if (builder.containsVertex(next))
+                    break;
+                else {
+                    builder.addEdge(edge);
+                    last = next;
+                }
             }
         }
+        return builder;
     }
 }

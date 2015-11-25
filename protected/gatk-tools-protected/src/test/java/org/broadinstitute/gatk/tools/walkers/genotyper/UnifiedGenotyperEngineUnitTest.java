@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -99,12 +99,13 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
         final List<Object[]> tests = new ArrayList<>();
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
+        //Note that this copies code from GenotypingEngine::estimateLog10ReferenceConfidenceForOneSample to provide expected values
         final double p = Math.log10(0.5);
-        for ( final double theta : Arrays.asList(0.1, 0.01, 0.001) ) {
+        for ( final double log10ofTheta : Arrays.asList(0.0, -1.0, -2.0, -3.0) ) {
             for ( final int depth : Arrays.asList(0, 1, 2, 10, 100, 1000, 10000) ) {
-                final double log10PofNonRef = Math.log10(theta / 2.0) + MathUtils.log10BinomialProbability(depth, 0, p);
+                final double log10PofNonRef = log10ofTheta + MathUtils.log10BinomialProbability(depth, 0, p);
                 final double log10POfRef = MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));
-                tests.add(new Object[]{depth, theta, log10POfRef});
+                tests.add(new Object[]{depth, log10ofTheta, log10POfRef});
             }
         }
 
@@ -112,8 +113,8 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
     }
 
     @Test(dataProvider = "ReferenceQualityCalculation")
-    public void testReferenceQualityCalculation(final int depth, final double theta, final double expected) {
-        final double ref = getEngine().estimateLog10ReferenceConfidenceForOneSample(depth, theta);
+    public void testReferenceQualityCalculation(final int depth, final double log10ofTheta, final double expected) {
+        final double ref = getEngine().estimateLog10ReferenceConfidenceForOneSample(depth, log10ofTheta);
         Assert.assertTrue(MathUtils.goodLog10Probability(ref), "Reference calculation wasn't a well formed log10 prob " + ref);
         Assert.assertEquals(ref, expected, TOLERANCE, "Failed reference confidence for single sample");
     }

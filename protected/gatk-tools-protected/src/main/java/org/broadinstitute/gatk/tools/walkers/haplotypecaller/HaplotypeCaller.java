@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -108,9 +108,17 @@ import java.io.FileNotFoundException;
 import java.util.*;
 
 /**
- * Call SNPs and indels simultaneously via local re-assembly of haplotypes in an active region
+ * Call germline SNPs and indels via local re-assembly of haplotypes
  *
- * <p>The basic operation of the HaplotypeCaller proceeds as follows:   </p>
+ * <p>The HaplotypeCaller is capable of calling SNPs and indels simultaneously via local de-novo assembly of haplotypes in an active region. In other words, whenever the program encounters a region showing signs of variation, it discards the existing mapping information and completely reassembles the reads in that region. This allows the HaplotypeCaller to be more accurate when calling regions that are traditionally difficult to call, for example when they contain different types of variants close to each other. It also makes the HaplotypeCaller much better at calling indels than position-based callers like UnifiedGenotyper.</p>
+
+<p>In the so-called GVCF mode used for scalable variant calling in DNA sequence data, HaplotypeCaller runs per-sample to generate an intermediate genomic gVCF (gVCF), which can then be used for joint genotyping of multiple samples in a very efficient way, which enables rapid incremental processing of samples as they roll off the sequencer, as well as scaling to very large cohort sizes (e.g. the 92K exomes of ExAC).</p>
+
+ <p>In addition, HaplotypeCaller is able to handle non-diploid organisms as well as pooled experiment data. Note however that the algorithms used to calculate variant likelihoods is not well suited to extreme allele frequencies (relative to ploidy) so its use is not recommended for somatic (cancer) variant discovery. For that purpose, use MuTect2 instead.</p>
+
+ <p>Finally, HaplotypeCaller is also able to correctly handle the splice junctions that make RNAseq a challenge for most variant callers.</p>
+ *
+ * <h3>How HaplotypeCaller works</h3>
  *
  * <br />
  * <h4>1. Define active regions </h4>
@@ -119,7 +127,7 @@ import java.util.*;
  * evidence for variation.</p>
  *
  * <br />
- * <h4>2. Determine haplotypes by re-assembly of the active region </h4>
+ * <h4>2. Determine haplotypes by assembly of the active region </h4>
  *
  * <p>For each ActiveRegion, the program builds a De Bruijn-like graph to reassemble the ActiveRegion, and identifies
  * what are the possible haplotypes present in the data. The program then realigns each haplotype against the reference
@@ -135,7 +143,7 @@ import java.util.*;
  * <br />
  * <h4>4. Assign sample genotypes </h4>
  *
- * <p>For each potentially variant site, the program applies Bayes’ rule, using the likelihoods of alleles given the
+ * <p>For each potentially variant site, the program applies Bayes' rule, using the likelihoods of alleles given the
  * read data to calculate the likelihoods of each genotype per sample given the read data observed for that
  * sample. The most likely genotype is then assigned to the sample.    </p>
  *
@@ -159,16 +167,13 @@ import java.util.*;
  * Best Practices documentation for detailed recommendations. </p>
  *
  * <br />
- * <h4>Single-sample all-sites calling on DNAseq (for `-ERC GVCF` cohort analysis workflow)</h4>
+ * <h4>Single-sample GVCF calling on DNAseq (for `-ERC GVCF` cohort analysis workflow)</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar
- *     -T HaplotypeCaller
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -R reference.fasta \
+ *     -T HaplotypeCaller \
  *     -I sample1.bam \
  *     --emitRefConfidence GVCF \
- *     --variant_index_type LINEAR \
- *     --variant_index_parameter 128000
  *     [--dbsnp dbSNP.vcf] \
  *     [-L targets.interval_list] \
  *     -o output.raw.snps.indels.g.vcf
@@ -176,10 +181,9 @@ import java.util.*;
  *
  * <h4>Variant-only calling on DNAseq</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar
- *     -T HaplotypeCaller
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -R reference.fasta \
+ *     -T HaplotypeCaller \
  *     -I sample1.bam [-I sample2.bam ...] \
  *     [--dbsnp dbSNP.vcf] \
  *     [-stand_call_conf 30] \
@@ -190,10 +194,9 @@ import java.util.*;
  *
  * <h4>Variant-only calling on RNAseq</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar
- *     -T HaplotypeCaller
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -R reference.fasta \
+ *     -T HaplotypeCaller \
  *     -I sample1.bam \
  *     [--dbsnp dbSNP.vcf] \
  *     -stand_call_conf 20 \
@@ -210,8 +213,7 @@ import java.util.*;
  * </ul>
  *
  * <h3>Special note on ploidy</h3>
- * <p>This tool is able to handle almost any ploidy (except very high ploidies in large pooled experiments); the ploidy
- * can be specified using the -ploidy argument for non-diploid organisms.</p>
+ * <p>This tool is able to handle almost any ploidy (except very high ploidies in large pooled experiments); the ploidy can be specified using the -ploidy argument for non-diploid organisms.</p>
  *
  * <h3>Additional Notes</h3>
  * <ul>
@@ -290,7 +292,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"ClippingRankSumTest", "DepthPerSampleHC"}));
+    protected List<String> annotationsToUse = new ArrayList<>();
 
     /**
      * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the
@@ -302,7 +304,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     @Advanced
     @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
-    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{}));
+    protected List<String> annotationsToExclude = new ArrayList<>();
 
     /**
      * Which groups of annotations to add to the output VCF file. The single value 'none' removes the default group. See
@@ -311,7 +313,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected String[] annotationClassesToUse = { "Standard" };
+    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{ "Standard", "StandardHCAnnotation" }));
 
     @ArgumentCollection
     private HaplotypeCallerArgumentCollection HCAC = new HaplotypeCallerArgumentCollection();
@@ -480,8 +482,39 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private byte MIN_TAIL_QUALITY;
     private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
 
-    // the minimum length of a read we'd consider using for genotyping
-    private final static int MIN_READ_LENGTH = 10;
+    /**
+     * Minimum (exclusive) average number of high quality bases per soft-clip to consider that a set of soft-clips is a
+     * high quality set.
+     */
+    private static final double AVERAGE_HQ_SOFTCLIPS_HQ_BASES_THRESHOLD = 6.0;
+
+    /**
+     * Maximum-mininum confidence on a variant to exist to consider the position as a potential variant harbouring locus
+     * when looking for active regions.
+     */
+    private static final double MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY = 4.0;
+
+    /**
+     * Minimum ploidy assumed when looking for loci that may harbour variation to identify active regions.
+     * <p>
+     * By default we take the putative ploidy provided by the user, but this turned out to be too insensitive
+     * for low ploidy, notoriously with haploid samples. Therefore we impose this minimum.
+     * </p>
+     */
+    private static final int MINIMUM_PUTATIVE_PLOIDY_FOR_ACTIVE_REGION_DISCOVERY = 2;
+
+
+    /**
+     * Reads with length lower than this number, after clipping off overhands outside the active region,
+     * won't be considered for genotyping.
+     */
+    private final static int READ_LENGTH_FILTER_THRESHOLD = 10;
+
+    /**
+     * Reads with mapping quality lower than this number won't be considered for genotyping, even if they have
+     * passed earlier filters (e.g. the walkers' own min MQ filter).
+     */
+    private static final int READ_QUALITY_FILTER_THRESHOLD = 20;
 
     private SampleList samplesList;
 
@@ -569,14 +602,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         final UnifiedArgumentCollection simpleUAC = HCAC.cloneTo(UnifiedArgumentCollection.class);
         simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
         simpleUAC.genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
-        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = Math.min( 4.0, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
-        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min( 4.0, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = Math.min(MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
+        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min(MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
         // Seems that at least with some test data we can lose genuine haploid variation if we use
         // UGs engine with ploidy == 1
-        simpleUAC.genotypeArgs.samplePloidy = Math.max(2, HCAC.genotypeArgs.samplePloidy);
+        simpleUAC.genotypeArgs.samplePloidy = Math.max(MINIMUM_PUTATIVE_PLOIDY_FOR_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.samplePloidy);
 
         activeRegionEvaluationGenotyperEngine = new UnifiedGenotypingEngine(simpleUAC,
                 FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(),simpleUAC,logger), toolkit);
@@ -592,9 +625,13 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         genotypingEngine = new HaplotypeCallerGenotypingEngine(HCAC, samplesList, genomeLocParser, FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(), HCAC,logger), !doNotRunPhysicalPhasing);
         // initialize the output VCF header
-        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
+        final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(annotationGroupsToUse, annotationsToUse, annotationsToExclude, this, getToolkit());
 
         final Set<VCFHeaderLine> headerInfo = new HashSet<>();
+
+        //initialize the annotations (this is particularly important to turn off RankSumTest dithering in integration tests)
+        //do this before we write the header because SnpEff adds to header lines
+        annotationEngine.invokeAnnotationInitializationMethods(headerInfo);
 
         headerInfo.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
         // all annotation fields from VariantAnnotatorEngine
@@ -622,9 +659,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         initializeReferenceConfidenceModel(samplesList, headerInfo);
 
         vcfWriter.writeHeader(new VCFHeader(headerInfo, sampleSet));
-
-        //now that we have all the VCF headers, initialize the annotations (this is particularly important to turn off RankSumTest dithering in integration tests)
-        annotationEngine.invokeAnnotationInitializationMethods(headerInfo);
 
         try {
             // fasta reference reader to supplement the edges of the reference sequence
@@ -775,15 +809,22 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             final String sampleName = sample.getKey();
             // The ploidy here is not dictated by the sample but by the simple genotyping-engine used to determine whether regions are active or not.
             final int activeRegionDetectionHackishSamplePloidy = activeRegionEvaluationGenotyperEngine.getConfiguration().genotypeArgs.samplePloidy;
-            final double[] genotypeLikelihoods = referenceConfidenceModel.calcGenotypeLikelihoodsOfRefVsAny(sampleName,activeRegionDetectionHackishSamplePloidy,genotypingModel,sample.getValue().getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE, averageHQSoftClips).genotypeLikelihoods;
+            final double[] genotypeLikelihoods = referenceConfidenceModel.calcGenotypeLikelihoodsOfRefVsAny(activeRegionDetectionHackishSamplePloidy,sample.getValue().getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE, averageHQSoftClips).genotypeLikelihoods;
             genotypes.add( new GenotypeBuilder(sample.getKey()).alleles(noCall).PL(genotypeLikelihoods).make() );
         }
 
         final List<Allele> alleles = Arrays.asList(FAKE_REF_ALLELE , FAKE_ALT_ALLELE);
-        final VariantCallContext vcOut = activeRegionEvaluationGenotyperEngine.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.SNP);
-        final double isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb( vcOut.getPhredScaledQual() );
+        final double isActiveProb;
 
-        return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > 6.0 ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
+        if (genotypes.size() == 1) {
+            // Faster implementation avoiding the costly and over complicated Exact AFCalculator machinery:
+            // This is the case when doing GVCF output.
+            isActiveProb = activeRegionEvaluationGenotyperEngine.calculateSingleSampleRefVsAnyActiveStateProfileValue(genotypes.get(0).getLikelihoods().getAsVector());
+        } else {
+            final VariantCallContext vcOut = activeRegionEvaluationGenotyperEngine.calculateGenotypes(new VariantContextBuilder("HCisActive!", context.getContig(), context.getLocation().getStart(), context.getLocation().getStop(), alleles).genotypes(genotypes).make(), GenotypeLikelihoodsCalculationModel.Model.SNP);
+            isActiveProb = vcOut == null ? 0.0 : QualityUtils.qualToProb(vcOut.getPhredScaledQual());
+        }
+        return new ActivityProfileState( ref.getLocus(), isActiveProb, averageHQSoftClips.mean() > AVERAGE_HQ_SOFTCLIPS_HQ_BASES_THRESHOLD ? ActivityProfileState.Type.HIGH_QUALITY_SOFT_CLIPS : ActivityProfileState.Type.NONE, averageHQSoftClips.mean() );
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -1138,7 +1179,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private Set<GATKSAMRecord> filterNonPassingReads( final ActiveRegion activeRegion ) {
         final Set<GATKSAMRecord> readsToRemove = new LinkedHashSet<>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
-            if( rec.getReadLength() < MIN_READ_LENGTH || rec.getMappingQuality() < 20 || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
+            if( rec.getReadLength() < READ_LENGTH_FILTER_THRESHOLD || rec.getMappingQuality() < READ_QUALITY_FILTER_THRESHOLD || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
                 readsToRemove.add(rec);
             }
         }
@@ -1173,7 +1214,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      *
      * @return true if HC must emit reference confidence.
      */
-    private boolean emitReferenceConfidence() {
+    public boolean emitReferenceConfidence() {
         return HCAC.emitReferenceConfidence != ReferenceConfidenceMode.NONE;
     }
 

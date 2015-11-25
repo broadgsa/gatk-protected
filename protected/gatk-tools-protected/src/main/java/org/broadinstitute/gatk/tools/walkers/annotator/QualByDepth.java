@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -73,26 +73,26 @@ import htsjdk.variant.variantcontext.VariantContext;
 import java.util.*;
 
 /**
- * Variant confidence normalized by unfiltered depth of variant samples
+ * Variant call confidence normalized by depth of sample reads supporting a variant
  *
  * <p>This annotation puts the variant confidence QUAL score into perspective by normalizing for the amount of coverage available. Because each read contributes a little to the QUAL score, variants in regions with deep coverage can have artificially inflated QUAL scores, giving the impression that the call is supported by more evidence than it really is. To compensate for this, we normalize the variant confidence by depth, which gives us a more objective picture of how well supported the call is.</p>
  *
  * <h3>Statistical notes</h3>
  * <p>The QD is the QUAL score normalized by allele depth (AD) for a variant. For a single sample, the HaplotypeCaller calculates the QD by taking QUAL/AD. For multiple samples, HaplotypeCaller and GenotypeGVCFs calculate the QD by taking QUAL/AD of samples with a non hom-ref genotype call. The reason we leave out the samples with a hom-ref call is to not penalize the QUAL for the other samples with the variant call.</p>
- * <p>Here is a single sample example:</p>
+ * <h4>Here is a single-sample example:</h4>
  * <pre>2	37629	.	C	G	1063.77	.	AC=2;AF=1.00;AN=2;DP=31;FS=0.000;MLEAC=2;MLEAF=1.00;MQ=58.50;QD=34.32;SOR=2.376	GT:AD:DP:GQ:PL:QSS	1/1:0,31:31:93:1092,93,0:0,960</pre>
    <p>QUAL/AD = 1063.77/31 = 34.32 = QD</p>
- * <p>Here is a multi-sample example:</p>
+ * <h4>Here is a multi-sample example:</h4>
  * <pre>10	8046	.	C	T	4107.13	.	AC=1;AF=0.167;AN=6;BaseQRankSum=-3.717;DP=1063;FS=1.616;MLEAC=1;MLEAF=0.167;QD=11.54
    GT:AD:DP:GQ:PL:QSS	0/0:369,4:373:99:0,1007,12207:10548,98	    0/0:331,1:332:99:0,967,11125:9576,27	    0/1:192,164:356:99:4138,0,5291:5501,4505</pre>
  * <p>QUAL/AD = 4107.13/356 = 11.54 = QD</p>
- * <p>Note that currently, when HaplotypeCaller is run with `-ERC GVCF`, the QD calculation is invoked before AD itself has been calculated, due to a technical constraint. In that case, HaplotypeCaller uses the number of overlapping reads from the haplotype likelihood calculation in place of AD to calculate QD, which generally yields a very similar number. This does not cause any measurable problems, but can cause some confusion since the number may be slightly different than what you would expect to get if you did the calculation manually. For that reason, this behavior will be modified in an upcoming version.</p>
  *
  * <h3>Caveat</h3>
  * <p>This annotation can only be calculated for sites for which at least one sample was genotyped as carrying a variant allele.</p>
  *
  * <h3>Related annotations</h3>
  * <ul>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_QualByDepth.php">AS_QualByDepth</a></b> outputs an allele-specific version of this annotation.</li>
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_Coverage.php">Coverage</a></b> gives the filtered depth of coverage for each sample and the unfiltered depth across all samples.</li>
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_DepthPerAlleleBySample.php">DepthPerAlleleBySample</a></b> calculates depth of coverage for each allele per sample (AD).</li>
  * </ul>
@@ -100,6 +100,7 @@ import java.util.*;
 public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotation, ActiveRegionBasedAnnotation {
 //    private final static Logger logger = Logger.getLogger(QualByDepth.class);
 
+    @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
                                         final ReferenceContext ref,
@@ -113,6 +114,25 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         if ( genotypes == null || genotypes.size() == 0 )
             return null;
 
+        final int standardDepth = getDepth(genotypes, stratifiedContexts, perReadAlleleLikelihoodMap);
+
+        if ( standardDepth == 0 )
+            return null;
+
+        final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
+        // Hack: UnifiedGenotyper (but not HaplotypeCaller or GenotypeGVCFs) over-estimates the quality of long indels
+        //       Penalize the QD calculation for UG indels to compensate for this
+        double QD = -10.0 * vc.getLog10PError() / ((double)standardDepth * indelNormalizationFactor(altAlleleLength, walker instanceof UnifiedGenotyper));
+
+        // Hack: see note in the fixTooHighQD method below
+        QD = fixTooHighQD(QD);
+
+        final Map<String, Object> map = new HashMap<>();
+        map.put(getKeyNames().get(0), String.format("%.2f", QD));
+        return map;
+    }
+
+    protected int getDepth(final GenotypesContext genotypes, final Map<String, AlignmentContext> stratifiedContexts, final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
         int standardDepth = 0;
         int ADrestrictedDepth = 0;
 
@@ -123,10 +143,6 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
                 continue;
 
             // if we have the AD values for this sample, let's make sure that the variant depth is greater than 1!
-            // TODO -- If we like how this is working and want to apply it to a situation other than the single sample HC pipeline,
-            // TODO --  then we will need to modify the annotateContext() - and related - routines in the VariantAnnotatorEngine
-            // TODO --  so that genotype-level annotations are run first (to generate AD on the samples) and then the site-level
-            // TODO --  annotations must come afterwards (so that QD can use the AD).
             if ( genotype.hasAD() ) {
                 final int[] AD = genotype.getAD();
                 final int totalADdepth = (int)MathUtils.sum(AD);
@@ -157,20 +173,7 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         if ( ADrestrictedDepth > 0 )
             standardDepth = ADrestrictedDepth;
 
-        if ( standardDepth == 0 )
-            return null;
-
-        final double altAlleleLength = GATKVariantContextUtils.getMeanAltAlleleLength(vc);
-        // Hack: UnifiedGenotyper (but not HaplotypeCaller or GenotypeGVCFs) over-estimates the quality of long indels
-        //       Penalize the QD calculation for UG indels to compensate for this
-        double QD = -10.0 * vc.getLog10PError() / ((double)standardDepth * indelNormalizationFactor(altAlleleLength, walker instanceof UnifiedGenotyper));
-
-        // Hack: see note in the fixTooHighQD method below
-        QD = fixTooHighQD(QD);
-
-        final Map<String, Object> map = new HashMap<>();
-        map.put(getKeyNames().get(0), String.format("%.2f", QD));
-        return map;
+        return standardDepth;
     }
 
     /**
@@ -178,7 +181,7 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
      *
      * @param altAlleleLength  the average alternate allele length for the call
      * @param increaseNormalizationAsLengthIncreases should we apply a normalization factor based on the allele length?
-     * @return a possitive double
+     * @return a positive double
      */
     private double indelNormalizationFactor(final double altAlleleLength, final boolean increaseNormalizationAsLengthIncreases) {
         return ( increaseNormalizationAsLengthIncreases ? Math.max(altAlleleLength / 3.0, 1.0) : 1.0);
@@ -190,12 +193,10 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
      * and VQSR will filter these out.  This code looks at the QD value, and if it is above
      * threshold we map it down to the mean high QD value, with some jittering
      *
-     * // TODO -- remove me when HaplotypeCaller bubble caller is live
-     *
      * @param QD the raw QD score
      * @return a QD value
      */
-    private double fixTooHighQD(final double QD) {
+    protected static double fixTooHighQD(final double QD) {
         if ( QD < MAX_QD_BEFORE_FIXING ) {
             return QD;
         } else {
@@ -203,12 +204,14 @@ public class QualByDepth extends InfoFieldAnnotation implements StandardAnnotati
         }
     }
 
-    private final static double MAX_QD_BEFORE_FIXING = 35;
-    private final static double IDEAL_HIGH_QD = 30;
-    private final static double JITTER_SIGMA = 3;
+    protected final static double MAX_QD_BEFORE_FIXING = 35;
+    protected final static double IDEAL_HIGH_QD = 30;
+    protected final static double JITTER_SIGMA = 3;
 
+    @Override
     public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.QUAL_BY_DEPTH_KEY); }
 
+    @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
         return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
     }

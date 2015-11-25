@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -56,18 +56,17 @@ import com.google.java.contract.Requires;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.utils.genotyper.AlleleList;
-import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
-import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pairhmm.*;
-import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatCovariate;
-import org.broadinstitute.gatk.engine.recalibration.covariates.RepeatLengthCovariate;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.variant.TandemRepeatFinder;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -428,14 +427,11 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
     protected static final int MIN_ADJUSTED_QSCORE = 10;
     protected static final double INITIAL_QSCORE = 40.0;
 
-    private byte[] pcrIndelErrorModelCache = new byte[MAX_REPEAT_LENGTH * MAX_STR_UNIT_LENGTH + 1];
-    private final RepeatCovariate repeatCovariate = new RepeatLengthCovariate();
+    private byte[] pcrIndelErrorModelCache = null;
 
     private void initializePCRErrorModel() {
         if ( pcrErrorModel == PCR_ERROR_MODEL.NONE || !pcrErrorModel.hasRateFactor() )
             return;
-
-        repeatCovariate.initialize(MAX_STR_UNIT_LENGTH, MAX_REPEAT_LENGTH);
 
         pcrIndelErrorModelCache = new byte[MAX_REPEAT_LENGTH + 1];
 
@@ -449,12 +445,15 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
         return (byte) Math.max(MIN_ADJUSTED_QSCORE, MathUtils.fastRound( INITIAL_QSCORE - Math.exp(((double) repeatLength) / (rateFactor * Math.PI)) + 1.0 ));
     }
 
-    protected void applyPCRErrorModel( final byte[] readBases, final byte[] readInsQuals, final byte[] readDelQuals ) {
+
+
+    protected void applyPCRErrorModel(final byte[] readBases, final byte[] readInsQuals, final byte[] readDelQuals ) {
         if ( pcrErrorModel == PCR_ERROR_MODEL.NONE )
             return;
 
+        final TandemRepeatFinder repeatFinder = new TandemRepeatFinder(readBases, MAX_STR_UNIT_LENGTH, MAX_REPEAT_LENGTH);
         for ( int iii = 1; iii < readBases.length; iii++ ) {
-            final int repeatLength = repeatCovariate.findTandemRepeatUnits(readBases, iii-1).getSecond();
+            final int repeatLength = repeatFinder.findMostRelevantTandemRepeatUnitAt(iii - 1).getRepeatCount();
             readInsQuals[iii-1] = (byte) Math.min(0xff & readInsQuals[iii-1], 0xff & pcrIndelErrorModelCache[repeatLength]);
             readDelQuals[iii-1] = (byte) Math.min(0xff & readDelQuals[iii-1], 0xff & pcrIndelErrorModelCache[repeatLength]);
         }

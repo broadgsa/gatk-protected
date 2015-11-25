@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -56,6 +56,7 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
@@ -105,7 +106,7 @@ import java.util.Map;
 
 public class StrandAlleleCountsBySample extends GenotypeAnnotation {
     private final static Logger logger = Logger.getLogger(StrandAlleleCountsBySample.class);
-    boolean[] warningsLogged = new boolean[4];
+    private final boolean[] warningsLogged = new boolean[AnnotationUtils.WARNINGS_LOGGED_SIZE];
 
     @Override
     public void annotate(final RefMetaDataTracker tracker,
@@ -117,7 +118,7 @@ public class StrandAlleleCountsBySample extends GenotypeAnnotation {
                          final GenotypeBuilder gb,
                          final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
 
-        if ( !AnnotationUtils.isAppropriateInput(walker, alleleLikelihoodMap, g, warningsLogged, logger) ) {
+        if ( !AnnotationUtils.isAppropriateInput(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY, walker, alleleLikelihoodMap, g, warningsLogged, logger) ) {
             return;
         }
 

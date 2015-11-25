@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -62,6 +62,8 @@ import org.broadinstitute.gatk.utils.recalibration.EventType;
 import org.broadinstitute.gatk.engine.recalibration.covariates.Covariate;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
+import java.util.Collections;
+import java.util.Iterator;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,6 +88,8 @@ public class BaseRecalibration {
     private final double globalQScorePrior;
     private final boolean emitOriginalQuals;
 
+    private byte[] staticQuantizedMapping = null;
+
     /**
      * Constructor using a GATK Report file
      *
@@ -93,8 +97,9 @@ public class BaseRecalibration {
      * @param quantizationLevels number of bins to quantize the quality scores
      * @param disableIndelQuals  if true, do not emit base indel qualities
      * @param preserveQLessThan  preserve quality scores less than this value
+     * @param staticQuantizedQuals static quantized bins for quality scores
      */
-    public BaseRecalibration(final File RECAL_FILE, final int quantizationLevels, final boolean disableIndelQuals, final int preserveQLessThan, final boolean emitOriginalQuals, final double globalQScorePrior) {
+    public BaseRecalibration(final File RECAL_FILE, final int quantizationLevels, final boolean disableIndelQuals, final int preserveQLessThan, final boolean emitOriginalQuals, final double globalQScorePrior, final List<Integer> staticQuantizedQuals, final boolean roundDown) {
         RecalibrationReport recalibrationReport = new RecalibrationReport(RECAL_FILE);
 
         recalibrationTables = recalibrationReport.getRecalibrationTables();
@@ -109,6 +114,15 @@ public class BaseRecalibration {
         this.preserveQLessThan = preserveQLessThan;
         this.globalQScorePrior = globalQScorePrior;
         this.emitOriginalQuals = emitOriginalQuals;
+
+        // staticQuantizedQuals is entirely separate from the dynamic binning that quantizationLevels, and
+        // staticQuantizedQuals does not make use of quantizationInfo
+        if(staticQuantizedQuals != null) {
+            if(staticQuantizedQuals.isEmpty()) {
+                throw new IllegalStateException("List of static quantized quals is empty.");
+            }
+            staticQuantizedMapping = constructStaticQuantizedMapping(staticQuantizedQuals, roundDown);
+        }
     }
 
     /**
@@ -184,7 +198,13 @@ public class BaseRecalibration {
                         // return the quantized version of the recalibrated quality
                         final byte recalibratedQualityScore = quantizationInfo.getQuantizedQuals().get(recalibratedQual);
 
-                        quals[offset] = recalibratedQualityScore;
+                        // Bin to static quals
+                        if(staticQuantizedMapping != null) {
+                            quals[offset] = staticQuantizedMapping[recalibratedQualityScore];
+                        }
+                        else {
+                            quals[offset] = recalibratedQualityScore;
+                        }
                     }
                 }
             }
@@ -192,6 +212,67 @@ public class BaseRecalibration {
             // finally update the base qualities in the read
             read.setBaseQualities(quals, errorModel);
         }
+    }
+
+    /**
+     * Constructs an array that maps particular quantized values to a rounded value in staticQuantizedQuals
+     *
+     * Rounding is done in probability space.  When roundDown is true, we simply round down to the nearest
+     * available qual in staticQuantizedQuals
+     *
+     * @param staticQuantizedQuals the list of qualities to round to
+     * @param roundDown round down if true, round to nearest (in probability space) otherwise
+     * @return  Array where index representing the quality score to be mapped and the value is the rounded quality score
+     */
+    protected static byte[] constructStaticQuantizedMapping(List<Integer> staticQuantizedQuals, boolean roundDown) {
+        // Create array mapping that maps quals to their rounded value.
+        byte[] mapping = new byte[QualityUtils.MAX_QUAL];
+
+        Collections.sort(staticQuantizedQuals);
+        Iterator<Integer> quantizationIterator = staticQuantizedQuals.iterator();
+
+        // Fill mapping with one-to-one mappings for values between 0 and MIN_USABLE_Q_SCORE
+        // This ensures that quals used as special codes will be preserved
+        for(int i = 0 ; i < QualityUtils.MIN_USABLE_Q_SCORE ; i++) {
+            mapping[i] = (byte) i;
+        }
+
+        // If only one staticQuantizedQual is given, fill mappings larger than QualityUtils.MAX_QUAL with that value
+        if(staticQuantizedQuals.size() == 1) {
+            int onlyQual = quantizationIterator.next();
+            for(int i = QualityUtils.MIN_USABLE_Q_SCORE ; i < QualityUtils.MAX_QUAL ; i++) {
+                mapping[i] = (byte) onlyQual;
+            }
+            return mapping;
+        }
+
+        int firstQual = QualityUtils.MIN_USABLE_Q_SCORE;
+        int previousQual = firstQual;
+        double previousProb = QualityUtils.qualToProb(previousQual);
+        while(quantizationIterator.hasNext()) {
+            final int nextQual = quantizationIterator.next();
+            final double nextProb = QualityUtils.qualToProb(nextQual);
+
+            for (int i = previousQual ; i < nextQual ; i++) {
+                if (roundDown) {
+                    mapping[i] = (byte) previousQual;
+                } else {
+                    final double iProb = QualityUtils.qualToProb(i);
+                    if ((iProb - previousProb) > (nextProb - iProb)) {
+                        mapping[i] = (byte) nextQual;
+                    } else {
+                        mapping[i] = (byte) previousQual;
+                    }
+                }
+            }
+            previousQual = nextQual;
+            previousProb = nextProb;
+        }
+        // Round all quals larger than the largest static qual down to the largest static qual
+        for(int j = previousQual ; j < QualityUtils.MAX_QUAL ; j++) {
+            mapping[j] = (byte) previousQual;
+        }
+        return mapping;
     }
 
     @Ensures("result > 0.0")

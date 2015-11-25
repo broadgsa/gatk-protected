@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -66,8 +66,8 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
     private static final String knownIndels = validationDataLocation + "indelRealignerTest.pilot1.ceu.vcf";
     private static final String baseCommandPrefix = "-T IndelRealigner -noPG -R " + b36KGReference + " -I " + mainTestBam + " -targetIntervals " + mainTestIntervals + " -compress 0 -L 20:49,500-55,500 ";
     private static final String baseCommand = baseCommandPrefix + "-o %s ";
-    private static final String base_md5 = "458588d68c8ea7e54443ea722604b265";
-    private static final String base_md5_with_SW_or_VCF = "d5ed91bd5b2023c69078a0fc00268d3c";
+    private static final String base_md5 = "ab7407d2299d9ba73449cea376eeb9c4";
+    private static final String base_md5_with_SW_or_VCF = "fa57bd96b83038ac6a70e58e11bf5364";
 
     @Test
     public void testDefaults() {
@@ -90,7 +90,7 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
         WalkerTestSpec spec1 = new WalkerTestSpec(
                 baseCommand + "--consensusDeterminationModel KNOWNS_ONLY -known " + knownIndels,
                 1,
-                Arrays.asList("a1b9396f4d5b65f7ae6e0062daf363a3"));
+                Arrays.asList("c42b6f3e1270e43cce2b6f75b6a38f30"));
         executeTest("realigner known indels only from VCF", spec1);
     }
 
@@ -107,7 +107,7 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
     public void testLods() {
         HashMap<String, String> e = new HashMap<String, String>();
         e.put("-LOD 60", base_md5);
-        e.put( "-LOD 1 --consensusDeterminationModel USE_SW",  "dea9bd14323b33348d9cf28e256415f2" );
+        e.put( "-LOD 1 --consensusDeterminationModel USE_SW",  "0c4597e48b4e194de32ebe494704ea6b" );
 
         for ( Map.Entry<String, String> entry : e.entrySet() ) {
             WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
@@ -123,7 +123,7 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T IndelRealigner -noPG -R " + b36KGReference + " -I " + validationDataLocation + "NA12878.chrom1.SLX.SRP000032.2009_06.bam -L 1:10,000,000-11,000,000 -targetIntervals " + validationDataLocation + "indelRealignerTest.NA12878.chrom1.intervals -compress 0 -o %s",
                 1,
-                Arrays.asList("b91c0bf803247f703dc1cb6ccdc4f18f"));
+                Arrays.asList("19e6859b9ef09c7e0a79a19626908b17"));
         executeTest("realigner long run", spec);
     }
 
@@ -132,7 +132,7 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseCommand + "--noOriginalAlignmentTags --consensusDeterminationModel USE_SW",
                 1,
-                Arrays.asList("041e2254f271261fb46dc3878cf638f6"));
+                Arrays.asList("8f5684359d7b26acaacfa657ef395a0c"));
         executeTest("realigner no output tags", spec);
     }
 
@@ -154,7 +154,7 @@ public class IndelRealignerIntegrationTest extends WalkerTest {
     @Test
     public void testMaxReadsInMemory() {
         HashMap<String, String> e = new HashMap<String, String>();
-        e.put("--maxReadsInMemory 10000", "0108cd5950f1a4eb90209c3dca8f9e11");
+        e.put("--maxReadsInMemory 10000", "236c64f2da0047534b44444d9d699378");
         e.put( "--maxReadsInMemory 40000", base_md5 );
 
         for ( Map.Entry<String, String> entry : e.entrySet() ) {

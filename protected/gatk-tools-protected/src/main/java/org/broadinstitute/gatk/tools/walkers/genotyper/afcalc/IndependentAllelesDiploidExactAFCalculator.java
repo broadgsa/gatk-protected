@@ -25,7 +25,7 @@
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -109,21 +109,13 @@ import java.util.*;
  * XB = AB + BC
  * BB = BB
  *
- * After each allele has its probability calculated we compute the joint posterior
- * as P(D | AF_* == 0) = prod_i P (D | AF_i == 0), after applying the theta^i
- * prior for the ith least likely allele.
+ * The posterior of the site being a variant site is calculated using
+ * the likelihood of the AF whe all alternatives are collapsed to be zero.
  */
  public class IndependentAllelesDiploidExactAFCalculator extends DiploidExactAFCalculator {
 
-    /**
-     * The min. confidence of an allele to be included in the joint posterior.
-     */
-    private final static double MIN_LOG10_CONFIDENCE_TO_INCLUDE_ALLELE_IN_POSTERIOR = Math.log10(1e-10);
-
     private final static int[] BIALLELIC_NON_INFORMATIVE_PLS = new int[]{0,0,0};
     private final static List<Allele> BIALLELIC_NOCALL = Arrays.asList(Allele.NO_CALL, Allele.NO_CALL);
-
-
 
     /**
      * Sorts AFCalcResults by their posteriors of AF > 0, so the
@@ -145,21 +137,6 @@ import java.util.*;
     protected IndependentAllelesDiploidExactAFCalculator() {
         super();
         biAlleleExactModel = new ReferenceDiploidExactAFCalculator();
-    }
-
-    /**
-     * Trivial subclass that helps with debugging by keeping track of the supporting information for this joint call
-     */
-    private static class MyAFCalculationResult extends AFCalculationResult {
-        /**
-         * List of the supporting bi-allelic AFCalcResults that went into making this multi-allelic joint call
-         */
-        final List<AFCalculationResult> supporting;
-
-        private MyAFCalculationResult(int[] alleleCountsOfMLE, int nEvaluations, List<Allele> allelesUsedInGenotyping, double[] log10LikelihoodsOfAC, double[] log10PriorsOfAC, Map<Allele, Double> log10pRefByAllele, List<AFCalculationResult> supporting) {
-            super(alleleCountsOfMLE, nEvaluations, allelesUsedInGenotyping, log10LikelihoodsOfAC, log10PriorsOfAC, log10pRefByAllele);
-            this.supporting = supporting;
-        }
     }
 
     @Override
@@ -248,21 +225,6 @@ import java.util.*;
     }
 
     /**
-     * Helper function to ensure that the computeAlleleIndependentExact is returning reasonable results
-     */
-    private static boolean goodIndependentResult(final VariantContext vc, final List<AFCalculationResult> results) {
-        if ( results.size() != vc.getNAlleles() - 1) return false;
-        for ( int i = 0; i < results.size(); i++ ) {
-            if ( results.get(i).getAllelesUsedInGenotyping().size() != 2 )
-                return false;
-            if ( ! results.get(i).getAllelesUsedInGenotyping().contains(vc.getAlternateAllele(i)) )
-                return false;
-        }
-
-        return true;
-    }
-
-    /**
      * Returns the bi-allelic variant context for each alt allele in vc with bi-allelic likelihoods, in order
      *
      * @param vc the variant context to split.  Must have n.alt.alleles > 1
@@ -313,65 +275,6 @@ import java.util.*;
             return vcb.make();
         }
     }
-
-    /**
-     * Returns a new Genotype with the PLs of the multi-allelic original reduced to a bi-allelic case
-     *
-     * This is handled in the following way:
-     *
-     * Suppose we have for a A/B/C site the following GLs:
-     *
-     * AA AB BB AC BC CC
-     *
-     * and we want to get the bi-allelic GLs for X/B, where X is everything not B
-     *
-     * XX = AA + AC + CC (since X = A or C)
-     * XB = AB + BC
-     * BB = BB
-     *
-     * @param original the original multi-allelic genotype
-     * @param altIndex the index of the alt allele we wish to keep in the bialleic case -- with ref == 0
-     * @param nAlts the total number of alt alleles
-     * @return a new biallelic genotype with appropriate PLs
-     */
-    @Requires({"original.hasLikelihoods()"}) // TODO -- add ploidy == 2 test "original.getPLs() == null || original.getPLs().length == 3"})
-    @Ensures({"result.hasLikelihoods()", "result.getPL().length == 3"})
-    @Deprecated
-    protected Genotype combineGLs(final Genotype original, final int altIndex, final int nAlts ) {
-        if ( original.isNonInformative() )
-            return new GenotypeBuilder(original).PL(BIALLELIC_NON_INFORMATIVE_PLS).alleles(BIALLELIC_NOCALL).make();
-
-        if ( altIndex < 1 || altIndex > nAlts ) throw new IllegalStateException("altIndex must be between 1 and nAlts " + nAlts);
-
-        final double[] normalizedPr = MathUtils.normalizeFromLog10(GenotypeLikelihoods.fromPLs(original.getPL()).getAsVector());
-        final double[] biAllelicPr = new double[3];
-
-        for ( int index = 0; index < normalizedPr.length; index++ ) {
-            final GenotypeLikelihoods.GenotypeLikelihoodsAllelePair pair = GenotypeLikelihoods.getAllelePair(index);
-
-            if ( pair.alleleIndex1 == altIndex ) {
-                if ( pair.alleleIndex2 == altIndex )
-                    // hom-alt case
-                    biAllelicPr[2] = normalizedPr[index];
-                else
-                    // het-alt case
-                    biAllelicPr[1] += normalizedPr[index];
-            } else {
-                if ( pair.alleleIndex2 == altIndex )
-                    // het-alt case
-                    biAllelicPr[1] += normalizedPr[index];
-                else
-                    // hom-non-alt
-                    biAllelicPr[0] += normalizedPr[index];
-            }
-        }
-
-        final double[] GLs = new double[3];
-        for ( int i = 0; i < GLs.length; i++ ) GLs[i] = Math.log10(biAllelicPr[i]);
-
-        return new GenotypeBuilder(original).PL(GLs).alleles(BIALLELIC_NOCALL).make();
-    }
-
 
     private static final double PHRED_2_LOG10_COEFF = -.1;
 
@@ -504,7 +407,7 @@ import java.util.*;
             nEvaluations += sortedResultWithThetaNPriors.nEvaluations;
         }
 
-        return new MyAFCalculationResult(alleleCountsOfMLE, nEvaluations, vc.getAlleles(),
+        return new IndependentAlleleAFCalculationResult(alleleCountsOfMLE, nEvaluations, vc.getAlleles(),
                 // necessary to ensure all values < 0
                 MathUtils.normalizeFromLog10(new double[] { combinedAltAllelesResult.getLog10LikelihoodOfAFEq0(), combinedAltAllelesResult.getLog10LikelihoodOfAFGT0() }, true),
                 // priors incorporate multiple alt alleles, must be normalized
