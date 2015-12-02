@@ -193,6 +193,17 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     @Argument(fullName="breakBandsAtMultiplesOf", shortName="breakBandsAtMultiplesOf", doc = "If > 0, reference bands will be broken up at genomic positions that are multiples of this number", required=false)
     protected int multipleAtWhichToBreakBands = 0;
 
+    /**
+     * To reduce file sizes our gVCFs group similar reference positions into bands.  However, there are cases when users will want to know that no bands
+     * span across a given genomic position (e.g. when scatter-gathering jobs across a compute farm).  The option below enables users to break bands at
+     * specific pre-defined positions.  These are specified as a chromosome and position separated by ':' (e.g. --breakBandsAt chr1:10000).
+     *
+     * This argument can be specified multiple times (e.g. -bba chr1:10000 -bba chr1:15000 -bba chr2:10000).
+     * This can be used in conjunction with -L arguments to specify the breakpoints of intervals that are not regularly spaced.
+     */
+    @Argument(fullName="breakBandsAt", shortName="bba", doc="Reference bands will be broken up at this specific genomic position", required=false)
+    protected Set<String> breakBandsAt = Collections.emptySet();
+
     private GenomeLocParser genomeLocParser;
 
     public void initialize() {
@@ -264,7 +275,8 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
      */
     private boolean breakBand(final GenomeLoc loc) {
         return USE_BP_RESOLUTION ||
-                (loc != null && multipleAtWhichToBreakBands > 0 && (loc.getStart()+1) % multipleAtWhichToBreakBands == 0);  // add +1 to the loc because we want to break BEFORE this base
+                (loc != null && multipleAtWhichToBreakBands > 0 && (loc.getStart()+1) % multipleAtWhichToBreakBands == 0) || // add +1 to the loc because we want to break BEFORE this base
+                breakBandsAt.contains(loc.getContig()+":"+(loc.getStart()+1));
     }
 
     /**
