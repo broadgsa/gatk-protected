@@ -231,6 +231,18 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
         // optimization to prevent mods when we always just want to break bands
         if ( multipleAtWhichToBreakBands == 1 )
             USE_BP_RESOLUTION = true;
+
+        // log at which positions we will break bands
+        if ( USE_BP_RESOLUTION ) {
+            logger.info("Will break bands: at every position.");
+        } else {
+            if ( multipleAtWhichToBreakBands > 0 ) {
+                logger.info("Will break bands: on every chromosome at all multiples of " + String.format("%d", multipleAtWhichToBreakBands));
+            }
+            for ( String position : breakBandsAt ) {
+                logger.info("Will break bands: at " + position);
+            }
+        }
     }
 
     public PositionalState map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
