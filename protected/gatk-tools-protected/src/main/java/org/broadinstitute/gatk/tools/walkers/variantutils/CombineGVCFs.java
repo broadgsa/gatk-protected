@@ -441,7 +441,12 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     @Override
     public void onTraversalDone(final OverallState state) {
         // there shouldn't be any state left unless the user cut in the middle of a gVCF block
-        if ( !state.VCs.isEmpty() )
+        if ( !state.VCs.isEmpty() ) {
             logger.warn("You have asked for an interval that cuts in the middle of one or more gVCF blocks. Please note that this will cause you to lose records that don't end within your interval.");
+            for ( int i = state.VCs.size() - 1; i >= 0; i-- ) {
+                final VariantContext vc = state.VCs.get(i);
+                logger.warn("Record lost for variant at: " + vc.getContig() + ":" + vc.getStart() + "-" + vc.getEnd());
+            }
+        }
     }
 }
