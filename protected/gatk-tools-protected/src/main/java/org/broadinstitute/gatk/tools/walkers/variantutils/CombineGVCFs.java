@@ -196,10 +196,17 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     /**
      * To reduce file sizes our gVCFs group similar reference positions into bands.  However, there are cases when users will want to know that no bands
      * span across a given genomic position (e.g. when scatter-gathering jobs across a compute farm).  The option below enables users to break bands at
-     * specific pre-defined positions.  These are specified as a chromosome and position separated by ':' (e.g. --breakBandsAt chr1:10000).
+     * specific pre-defined positions.  These are specified as a chromosome and position separated by ':' (e.g. `--breakBandsAt chr1:10000`).  The break 
+     * will occur just before the specified base (i.e. the specified base will be the first base of the new band and the previous base will be the last 
+     * base of the previous band).
      *
-     * This argument can be specified multiple times (e.g. -bba chr1:10000 -bba chr1:15000 -bba chr2:10000).
-     * This can be used in conjunction with -L arguments to specify the breakpoints of intervals that are not regularly spaced.
+     * This argument can be specified multiple times (e.g. `-bba chr1:10000 -bba chr1:15000 -bba chr2:10000`).
+     *
+     * This can be used in conjunction with `-L` arguments to specify the breakpoints of intervals that are not regularly spaced.  For example, if a 
+     * single interval was given as `-L chr2:3456-7890`, to avoid losing bands that overlap the ends, corresponding `--breakBandsAt` arguments could be 
+     * given specifying the first base of the interval as well as one base past the last base of the interval. 
+     *
+     * A complete example for a single interval could be: `-L chr2:3456-7890 --breakBandsAt chr2:3456 --breakBandsAt chr2:7891`. 
      */
     @Argument(fullName="breakBandsAt", shortName="bba", doc="Reference bands will be broken up at this specific genomic position", required=false)
     protected Set<String> breakBandsAt = Collections.emptySet();
