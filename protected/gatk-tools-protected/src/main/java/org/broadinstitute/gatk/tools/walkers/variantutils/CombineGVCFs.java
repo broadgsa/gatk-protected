@@ -288,7 +288,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     private boolean breakBand(final GenomeLoc loc) {
         return USE_BP_RESOLUTION ||
                 (loc != null && multipleAtWhichToBreakBands > 0 && (loc.getStart()+1) % multipleAtWhichToBreakBands == 0) || // add +1 to the loc because we want to break BEFORE this base
-                breakBandsAt.contains(loc.getContig()+":"+(loc.getStart()+1));
+                (loc != null && breakBandsAt.contains(loc.getContig()+":"+(loc.getStart()+1)));
     }
 
     /**
