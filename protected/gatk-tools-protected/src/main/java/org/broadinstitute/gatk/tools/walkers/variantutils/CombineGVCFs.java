@@ -457,7 +457,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
             logger.warn("You have asked for an interval that cuts in the middle of one or more gVCF blocks. Please note that this will cause you to lose records that don't end within your interval.");
             for ( int i = state.VCs.size() - 1; i >= 0; i-- ) {
                 final VariantContext vc = state.VCs.get(i);
-                logger.warn("Record lost for variant at: " + vc.getContig() + ":" + vc.getStart() + "-" + vc.getEnd());
+                logger.info("Record lost for variant at: " + vc.getContig() + ":" + vc.getStart() + "-" + vc.getEnd() + " from sample(s): " + vc.getSampleNames());
             }
         }
     }
