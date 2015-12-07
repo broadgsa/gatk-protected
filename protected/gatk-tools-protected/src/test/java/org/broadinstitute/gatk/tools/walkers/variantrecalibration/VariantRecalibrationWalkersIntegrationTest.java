@@ -346,6 +346,42 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         }
     }
 
+    @Test(enabled = true)
+    public void testApplyRecalibrationAlleleSpecificSNPmode() {
+        final String base = "-R " + b37KGReference +
+                " -T ApplyRecalibration" +
+                " -L 3:113005755-195507036" +
+                " -mode SNP -AS" +
+                " -ts_filter_level 99.7" +
+                " --no_cmdline_in_header" +
+                " -input " + privateTestDir + "VQSR.AStest.input.vcf" +
+                " -o %s" +
+                " -tranchesFile " + privateTestDir + "VQSR.AStest.snps.tranches" +
+                " -recalFile " + privateTestDir + "VQSR.AStest.snps.recal";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("db465aaf18b9de8b3191de63fc9f0e6e"));
+        final List<File> outputFiles = executeTest("testApplyRecalibrationAlleleSpecificSNPmode", spec).getFirst();
+        setPDFsForDeletion(outputFiles);
+    }
+
+    @Test(enabled = true)
+    public void testApplyRecalibrationAlleleSpecificINDELmode() {
+        final String base = "-R " + b37KGReference +
+                " -T ApplyRecalibration" +
+                " -L 3:113005755-195507036" +
+                " -mode INDEL -AS" +
+                " -ts_filter_level 99.3" +
+                " --no_cmdline_in_header" +
+                " -input " + privateTestDir + "VQSR.AStest.postSNPinput.vcf" +
+                " -o %s" +
+                " -tranchesFile " + privateTestDir + "VQSR.AStest.indels.tranches" +
+                " -recalFile " + privateTestDir + "VQSR.AStest.indels.recal";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("7c1df91b9827a5906d30db52e96922e1"));
+        final List<File> outputFiles = executeTest("testApplyRecalibrationAlleleSpecificINDELmode", spec).getFirst();
+        setPDFsForDeletion(outputFiles);
+    }
+
     private void setPDFsForDeletion( final List<File> walkerOutputFiles ) {
         for ( final File outputFile : walkerOutputFiles ) {
             new File(outputFile.getAbsolutePath() + ".pdf").deleteOnExit();
