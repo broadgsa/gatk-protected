@@ -90,14 +90,14 @@ public class VariantsToTableIntegrationTest extends WalkerTest {
     @Test(enabled = true)
     public void testMultiAllelicOneRecord() {
         WalkerTestSpec spec = new WalkerTestSpec(variantsToTableMultiAllelicCmd(""),
-                Arrays.asList("0ff49c08690f61a38614606a090f23ea"));
+                Arrays.asList("b468589f4d2bf4c7d85a0584b77fc0fd"));
         executeTest("testMultiAllelicOneRecord", spec);
     }
 
     @Test(enabled = true)
     public void testMultiAllelicSplitRecords() {
-        WalkerTestSpec spec = new WalkerTestSpec(variantsToTableMultiAllelicCmd(" -SMA"),
-                Arrays.asList("17a0fc80409d2fc00ad2bbb94b3a346b"));
+        WalkerTestSpec spec = new WalkerTestSpec(variantsToTableMultiAllelicCmd(" -F TYPE -SMA"),
+                Arrays.asList("74b37874afff05d65cf7b0587b7168ec"));
         executeTest("testMultiAllelicSplitRecords", spec);
     }
 
@@ -193,7 +193,7 @@ public class VariantsToTableIntegrationTest extends WalkerTest {
                         " --moltenize -SMA" +
                         " -o %s",
                 1,
-                Arrays.asList("c131e2c3cfb673c456cb160bda476101"));
+                Arrays.asList("84d103b54f6799424bf49c854831d059"));
         executeTest("testMoltenOutputWithMultipleAlleles", spec);
     }
 }
