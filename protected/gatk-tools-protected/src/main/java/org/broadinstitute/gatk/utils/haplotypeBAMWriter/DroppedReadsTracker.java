@@ -1,44 +1,44 @@
 /*
 * By downloading the PROGRAM you agree to the following terms of use:
-* 
+*
 * BROAD INSTITUTE
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
-* 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
-* 
+*
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+*
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
 * NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
-* 
+*
 * 1. DEFINITIONS
 * 1.1 PROGRAM shall mean copyright in the object code and source code known as GATK3 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute.org/gatk on the EFFECTIVE DATE.
-* 
+*
 * 2. LICENSE
 * 2.1 Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. LICENSEE hereby automatically grants to BROAD a non-exclusive, royalty-free, irrevocable license to any LICENSEE bug fixes or modifications to the PROGRAM with unlimited rights to sublicense and/or distribute.  LICENSEE agrees to provide any such modifications and bug fixes to BROAD promptly upon their creation.
 * The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only. For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
 * 2.2 No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD. LICENSEE shall ensure that all of its users agree to the terms of this Agreement. LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
-* 
+*
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
-* 
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+*
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2016 Broad Institute, Inc.
+* Copyright 2012-2015 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
-* 
+*
 * 5. INDEMNIFICATION
 * LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
-* 
+*
 * 6. NO REPRESENTATIONS OR WARRANTIES
 * THE PROGRAM IS DELIVERED AS IS. BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
 * IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
-* 
+*
 * 7. ASSIGNMENT
 * This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
-* 
+*
 * 8. MISCELLANEOUS
 * 8.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
 * 8.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
@@ -48,125 +48,164 @@
 * 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
+package org.broadinstitute.gatk.utils.haplotypeBAMWriter;
 
-package org.broadinstitute.gatk.tools.walkers.cancer.m2;
-
-import org.broadinstitute.gatk.engine.walkers.WalkerTest;
-import org.testng.annotations.Test;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
+import htsjdk.samtools.SAMTag;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.util.*;
 
-public class MuTect2IntegrationTest extends WalkerTest {
-    final static String REF = hg19Reference;
+/**
+ * Class for tracking and emitting reads dropped by HaplotypeCaller due to filtering, trimming, etc. Reads are
+ * categorized per ActiveRegion by reason, and then emitted to the HaplotypeBAMWriter's bamout read destination,
+ * with an "FT" attribute with a value corresponding to the reason the reads were dropped.
+ */
+public class DroppedReadsTracker {
 
-    final static String CCLE_MICRO_TUMOR_BAM = privateTestDir + "HCC1143.cghub.ccle.micro.bam";
-    final static String CCLE_MICRO_NORMAL_BAM = privateTestDir + "HCC1143_BL.cghub.ccle.micro.bam";
-    final static String CCLE_MICRO_INTERVALS_FILE = privateTestDir + "HCC1143.cghub.ccle.micro.intervals";
+    private final Map<Reason, Set<GATKSAMRecord>> droppedReads = new HashMap<>(Reason.values().length);
+    private final static HashFunction murmurHasher = Hashing.murmur3_32();
 
-    final static String DBSNP=b37dbSNP132;
-    final static String COSMIC="/xchip/cga/reference/hg19/hg19_cosmic_v54_120711.vcf";
-    final static String PON="/xchip/cga/reference/hg19/refseq_exome_10bp_hg19_300_1kg_normal_panel.vcf";
+    // Enum of reasons that reads are dropped and tracked.
+    public enum Reason {
+        TRIMMMED {
+            String reasonName() { return "Trimmed"; }
+        },
+        DOWNSAMPLED {
+            String reasonName() { return "Downsampled"; }
+        },
+        REALIGNMENT_FAILURE {
+            String reasonName() { return "Failed realignment"; }
+        },
+        FILTERED {
+            String reasonName() { return "Filtered"; }
+        },
+        NOT_INFORMATIVE {
+            String reasonName() { return "Not informative"; }
+        };
 
-    final static String DREAM3_TUMOR_BAM = validationDataLocation + "cancer/dream3.integrationtest.tumor.bam";
-    final static String DREAM3_NORMAL_BAM = validationDataLocation + "cancer/dream3.integrationtest.normal.bam";
-    final static String DREAM3_TP_INTERVALS_FILE = privateTestDir + "m2_dream3.tp.intervals";
-    final static String DREAM3_FP_INTERVALS_FILE = privateTestDir + "m2_dream3.fp.intervals";
-
-
-    final String commandLine =
-            "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -I:normal %s -L %s";
-
-    private void M2Test(String tumorBam, String normalBam, String intervals, String args, String md5) {
-                final String base = String.format(
-                        commandLine,
-                        REF, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
-                    " -o %s ";
-
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-
-        // TODO: do we want to enable this and why?  It explodes with
-        // java.lang.RuntimeException: java.lang.ClassCastException: java.lang.Double cannot be cast to java.lang.String
-        //    at htsjdk.variant.variantcontext.writer.BCF2FieldEncoder$StringOrCharacter.javaStringToBCF2String(BCF2FieldEncoder.java:312)
-        spec.disableShadowBCF();
-        executeTest("testM2: args=" + args, spec);
+        abstract String reasonName();
     }
 
-    private void m2TumorOnlyTest(String tumorBam, String intervals, String args, String md5) {
-        final String base = String.format(
-                "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -L %s",
-                REF, DBSNP, COSMIC, PON, tumorBam, intervals) +
-                " -o %s ";
+    // Private wrapper for a GATKSAMRecord that provides an alternate hashCode
+    // suitable for maintaining record identity across mutations that occur during
+    // filtering, trimming, etc. Used by addReadsFromDelta to
+    private class GATKSAMRecordHashWrapper {
+        private GATKSAMRecord samRec;
 
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+        public GATKSAMRecordHashWrapper() {
+            samRec = null;
+        }
 
-        spec.disableShadowBCF();
-        executeTest("testM2TumorOnly: args=" + args, spec);
-    }
+        public GATKSAMRecordHashWrapper(GATKSAMRecord rec) {
+            samRec = rec;
+        }
 
-    private void M2TestWithDroppedReads(String tumorBam, String normalBam, String intervals, String args, String md5Variants, String md5Bamout) {
-        final String base = String.format(
-                commandLine,
-                REF, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
-                " -o %s " +
-                "-bamout %s --emitDroppedReads";
+        public GATKSAMRecordHashWrapper set(GATKSAMRecord rec) {
+            samRec = rec;
+            return this;
+        }
 
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5Variants, md5Bamout));
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof GATKSAMRecordHashWrapper)) {
+                return false;
+            }
 
-        // TODO: do we want to enable this and why?  It explodes with
-        // java.lang.RuntimeException: java.lang.ClassCastException: java.lang.Double cannot be cast to java.lang.String
-        //    at htsjdk.variant.variantcontext.writer.BCF2FieldEncoder$StringOrCharacter.javaStringToBCF2String(BCF2FieldEncoder.java:312)
-        spec.disableShadowBCF();
-        executeTest("testM2Dropped: args=" + args, spec);
-    }
+            GATKSAMRecord other = ((GATKSAMRecordHashWrapper) o).samRec;
+            return samRec.getReadName().equals(other.getReadName()) && samRec.getFlags() == other.getFlags();
+        }
 
-    @Test
-    public void testMicroRegression() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "617054c6d056cad7448a463cb8d04a55");
-    }
-
-    /**
-     * Tests all the True Positive sites in the DREAM 3 data set.  We don't necessarily call
-     * all of these (e.g. we have some FNs) but it's the full set of things we want to be able
-     * to call, and not regress
-     */
-    @Test
-    public void testTruePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "f856432679e43445d2939772be4326cf");
+        // Calculate a read hash that remains invariant as reads are mutated during
+        // filtering/trimming etc., but that distinguishes paired reads from their mate, secondary etc.
+        public int hashCode() {
+            // Use a murmur hash of the flags to distribute the values more uniformly over the full range of int
+            return samRec.getReadName().hashCode() +  (31 * murmurHasher.hashInt(samRec.getFlags()).asInt());
+        }
     }
 
     /**
-     * Test dropped read tracking on true positives and a narrow interval range.
+     * Add reads that have been dropped for the specified reason to the dropped list.
      */
-    @Test
-    public void testTruePositivesDream3TrackedDropped() {
-        M2TestWithDroppedReads(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, "21:10935369", "",
-                "ee4786de29532ffd745048c449a9772a",
-                "b536e76870326b4be01b8d6b83c1cf1c");
+    public void addReads(final Reason reason, final Collection<GATKSAMRecord> reads) {
+        Set<GATKSAMRecord> readsForReason = droppedReads.get(reason);
+        if (null == readsForReason) {
+            readsForReason = new HashSet<>(reads.size());
+        }
+        for (final GATKSAMRecord rec: reads) {
+            if (!previouslyDropped(rec)) {
+                // tag the original read so we can track the ones we've already seen and
+                // only add them to the dropped list once
+                rec.setAttribute(SAMTag.FT.name(), reason.reasonName());
+                readsForReason.add(rec);
+            }
+        }
+
+        droppedReads.put(reason, readsForReason);
     }
 
     /**
-     * Tests a number of False Positive calls from the DREAM 3 data set.  Some of them are not rejected
-     * (e.g. we have some FPs!) but most are rejected.
+     * Figure out the delta between the preReads list and the postReads list by hashing on the combination of read name and
+     * first_of_pair flag; any read not in the postReads list is added to the dropped list for the specified reason.
      */
-    @Test
-    public void testFalsePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "11357aa543e7c6b2725cd330adba23a0");
+    public void addReadsFromDelta(final Reason reason, final Collection<GATKSAMRecord> preReads, final Collection<GATKSAMRecord> postReads) {
+        final HashSet<GATKSAMRecordHashWrapper> postReadsSet = new HashSet<>(postReads.size());
+
+        for (final GATKSAMRecord postRead : postReads) {
+            final GATKSAMRecordHashWrapper hashWrapper = new GATKSAMRecordHashWrapper(postRead);
+            postReadsSet.add(hashWrapper);
+        }
+
+        final int estimatedDropSize = preReads.size() - postReads.size();
+        final List<GATKSAMRecord> newlyDropped = new ArrayList<>(estimatedDropSize > 0 ? estimatedDropSize : 5);
+
+        GATKSAMRecordHashWrapper hashWrapper = new GATKSAMRecordHashWrapper();
+        for (final GATKSAMRecord preRead: preReads) {
+            if (!postReadsSet.contains(hashWrapper.set(preRead))) {
+                newlyDropped.add(preRead);
+            }
+        }
+
+        addReads(reason, newlyDropped);
     }
 
     /**
-     * Test that contamination downsampling reduces tumor LOD, rejects more variants
+     * Emit the accumulated dropped reads and reset/clear the cache.
+     *
+     * @param readDestination destination to receive the reads
      */
-    @Test
-    public void testContaminationCorrection() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "d7947ddf0240fe06a44621312831f44c");
+    public void writeDroppedReads(final ReadDestination readDestination) {
+        for (final DroppedReadsTracker.Reason reason : droppedReads.keySet()) {
+            final Set<GATKSAMRecord> droppedRecords = droppedReads.get(reason);
+            for (final GATKSAMRecord originalRec : droppedRecords) {
+                // We want to set the vendor quality check flag on the read emitted to
+                // the bamout, so clone the read before update it so we don't affect
+                // subsequent filtering/trimming, etc. in the event the original read
+                // gets processed again
+                final GATKSAMRecord clonedRec = (GATKSAMRecord)originalRec.clone();
+                clonedRec.setReadFailsVendorQualityCheckFlag(true);
+                readDestination.add(clonedRec);
+            }
+        }
+
+        // clear and reset the cache
+        droppedReads.clear();
     }
 
-    /**
-     *  Test that tumor-only mode does not create an empty vcf
+    /*
+     * Check to see if the read is marked as having been previously dropped.
      */
-    @Test
-    public void testTumorOnly(){
-        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "8439d9a673b3a57aa5893af600125d3b");
+    private boolean previouslyDropped(GATKSAMRecord rec) {
+        final String reasonDesc = rec.getStringAttribute(SAMTag.FT.name());
+        for (final Reason reason : Reason.values()) {
+            if (reason.reasonName().equals(reasonDesc)) {
+                return true;
+            }
+        }
+        return false;
     }
-
 }

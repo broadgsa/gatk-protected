@@ -94,6 +94,21 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         Assert.assertFalse(FileUtils.readFileToString(outputVCF).contains(VCFConstants.MAPPING_QUALITY_ZERO_KEY));
     }
 
+    private void HCTestWithBAMOut(String bam, String args, String md5Variants, String md5BAMOut) throws IOException {
+        final String base = String.format("-T HaplotypeCaller  -R %s -I %s ",
+                REF, NA12878_BAM) +
+                args +
+                " --no_cmdline_in_header -o %s -bamout %s --emitDroppedReads";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5Variants, md5BAMOut));
+        executeTest("testHaplotypeCallerBamout", spec);
+    }
+
+    @Test
+    public void testHaplotypeBAMOutFlags() throws IOException {
+        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "b49e15b4680d197db9b9f71644a5a1f9", "f84c8bc44b6af548bd3b8555a068b59e");
+    }
+
     @Test
     public void testHaplotypeCallerMultiSample() throws IOException {
         HCTest(CEUTRIO_BAM, "", "b86311f6a0b4b5f2cfd05662f03fbe6c");

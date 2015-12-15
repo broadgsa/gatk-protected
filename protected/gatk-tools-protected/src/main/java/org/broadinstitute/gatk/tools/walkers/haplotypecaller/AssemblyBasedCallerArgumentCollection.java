@@ -90,8 +90,8 @@ public class AssemblyBasedCallerArgumentCollection extends StandardCallerArgumen
 
     /**
      * The assembled haplotypes and locally realigned reads will be written as BAM to this file if requested.  Really
-     * for debugging purposes only. Note that the output here does not include uninformative reads so that not every
-     * input read is emitted to the bam.
+     * for debugging purposes only. Note that not every input read is emitted to the bam. To include trimmed, downsampled,
+     * filtered and uninformative reads add the "--emitDroppedReads" argument.
      *
      * Turning on this mode may result in serious performance cost for the caller.  It's really only appropriate to
      * use in specific areas where you want to better understand why the caller is making specific calls.
@@ -129,6 +129,14 @@ public class AssemblyBasedCallerArgumentCollection extends StandardCallerArgumen
     @Advanced
     @Argument(fullName="bamWriterType", shortName="bamWriterType", doc="Which haplotypes should be written to the BAM", required = false)
     public HaplotypeBAMWriter.Type bamWriterType = HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES;
+
+    /**
+     * Determines whether dropped reads will be tracked and emitted when a bamout is specified. Use this in combination
+     * with a specific interval of interest to avoid accumulating a large number of reads int eh bamout.
+     */
+    @Advanced
+    @Argument(fullName="emitDroppedReads", shortName="edr", doc="Emit reads that are dropped for filtering, trimming, realignment failure", required = false)
+    public boolean emitDroppedReads = false;
 
     /**
      * If set, certain "early exit" optimizations in HaplotypeCaller, which aim to save compute and time by skipping

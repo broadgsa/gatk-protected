@@ -88,6 +88,7 @@ import org.broadinstitute.gatk.utils.fragments.FragmentCollection;
 import org.broadinstitute.gatk.utils.fragments.FragmentUtils;
 import org.broadinstitute.gatk.utils.genotyper.*;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
+import org.broadinstitute.gatk.utils.haplotypeBAMWriter.DroppedReadsTracker;
 import org.broadinstitute.gatk.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
@@ -561,6 +562,10 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         final ActiveRegion regionForGenotyping = assemblyResult.getRegionForGenotyping();
         logReadInfo(DEBUG_READ_NAME, regionForGenotyping.getReads(), "Present in region for genotyping");
 
+        if ( MTAC.bamWriter != null && MTAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(DroppedReadsTracker.Reason.TRIMMMED, originalActiveRegion.getReads(), regionForGenotyping.getReads());
+        }
+
 //
 //        final ActiveRegion regionForGenotyping = trimmingResult.getCallableRegion();
 
@@ -572,6 +577,11 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         //TODO - if you move this up you might have to consider to change referenceModelForNoVariation
         //TODO - that does also filter reads.
         final Collection<GATKSAMRecord> filteredReads = filterNonPassingReads(regionForGenotyping);
+
+        if ( MTAC.bamWriter != null && MTAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReads(DroppedReadsTracker.Reason.FILTERED, filteredReads);
+        }
+
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample(filteredReads);
 
         logReadInfo(DEBUG_READ_NAME, regionForGenotyping.getReads(), "Present in region for genotyping after filtering reads");
@@ -617,6 +627,14 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         // Realign reads to their best haplotype.
         // KCIBUL: this is new stuff -- review it!
         final Map<GATKSAMRecord,GATKSAMRecord> readRealignments = realignReadsToTheirBestHaplotype(readLikelihoods, assemblyResult.getReferenceHaplotype(), assemblyResult.getPaddedReferenceLoc());
+
+        if ( MTAC.bamWriter != null && MTAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(
+                    DroppedReadsTracker.Reason.REALIGNMENT_FAILURE,
+                    regionForGenotyping.getReads(),
+                    readRealignments.values());
+        }
+
         readLikelihoods.changeReads(readRealignments);
 
         for (GATKSAMRecord rec : readRealignments.keySet()) {
@@ -657,6 +675,10 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
                     haplotypes,
                     calledHaplotypeSet,
                     readLikelihoods);
+
+            if ( MTAC.emitDroppedReads ) {
+                haplotypeBAMWriter.writeDroppedReads();
+            }
         }
 
         if( MTAC.DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
@@ -1189,6 +1211,10 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         // TODO -- Performance optimization: we partition the reads by sample 4 times right now; let's unify that code.
 
         final List<GATKSAMRecord> downsampledReads = DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart);
+
+        if ( MTAC.bamWriter != null && MTAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(DroppedReadsTracker.Reason.DOWNSAMPLED, activeRegion.getReads(), downsampledReads);
+        }
 
         // handle overlapping read pairs from the same fragment
         // KC: commented out as we handle overlapping read pairs in a different way...
