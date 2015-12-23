@@ -572,6 +572,15 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testASMateRankSumAnnotation() {
+        final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -A AS_MQMateRankSumTest --disableDithering -V "
+                + privateTestDir + "NA12878.AS.MateRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.MateRankSum.chr20snippet.g.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("f8bf55e16358b35449621f896b084b7a"));
+        spec.disableShadowBCF();
+        executeTest("testAlleleSpecificAnnotations", spec);
+    }
+
+    @Test
     //make sure none of the assumptions about things being merged as lists break the single-sample case
     //This test file also doesn't have raw data, so test to make sure that doesn't make GenotypeGVCFs crash and burn
     //Note that AS_InbreedingCoeff and InbreedingCoeff may still differ for bialleleic sites for low number of samples because allele frequencies are derived differently
