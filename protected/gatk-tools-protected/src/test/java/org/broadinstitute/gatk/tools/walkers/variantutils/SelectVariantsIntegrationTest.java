@@ -69,6 +69,8 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     private static final String INVERT_SELECTION_MD5 = "26d192b868746ab14133f145ae812e7c";
     private static final String MAX_FILTERED_GT_SELECTION_MD5 = "f83ac0deb7a8b022d6d40a85627a71ec";
     private static final String MIN_FILTERED_GT_SELECTION_MD5 = "346620b7a5d66dabf89d3f42d6e27db7";
+    private static final String NO_CALL_FILTERING_KEEP_ONE = "6e2401190c5ada6a3bed2640c068f43b";
+    private static final String NO_CALL_FILTERING_KEEP_TWO =  "6bced1ab6a3d58f1fd905b7f601987a3";
 
     @Test
     public void testDiscordanceNoSampleSpecified() {
@@ -770,5 +772,57 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 ReviewedGATKException.class);
         spec.disableShadowBCF();
         executeTest("testSACNonDiploid", spec);
+    }
+
+    @Test
+    public void testMaxNoCall1() {
+        final String testfile = privateTestDir + "vcfexample.forNoCallFiltering.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " --variant " + testfile + " -o %s --no_cmdline_in_header --maxNOCALLnumber 1",
+                1,
+                Arrays.asList(NO_CALL_FILTERING_KEEP_ONE));
+        spec.disableShadowBCF();
+
+        executeTest("testMaxNoCall1", spec);
+    }
+
+    @Test
+    public void testMaxNoCall0_25()  {
+        final String testfile = privateTestDir + "vcfexample.forNoCallFiltering.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " --variant " + testfile + " -o %s --no_cmdline_in_header --maxNOCALLfraction 0.25",
+                1,
+                Arrays.asList(NO_CALL_FILTERING_KEEP_ONE));
+        spec.disableShadowBCF();
+
+        executeTest("testMaxNoCall0_25", spec);
+    }
+
+    @Test
+    public void testMaxNoCall2() {
+        final String testfile = privateTestDir + "vcfexample.forNoCallFiltering.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " --variant " + testfile + " -o %s --no_cmdline_in_header --maxNOCALLnumber 2",
+                1,
+                Arrays.asList(NO_CALL_FILTERING_KEEP_TWO));
+        spec.disableShadowBCF();
+
+        executeTest("testMaxNoCall2", spec);
+    }
+
+    @Test
+    public void testMaxNoCall0_5() {
+        final String testfile = privateTestDir + "vcfexample.forNoCallFiltering.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " --variant " + testfile + " -o %s --no_cmdline_in_header --maxNOCALLfraction 0.5",
+                1,
+                Arrays.asList(NO_CALL_FILTERING_KEEP_TWO));
+        spec.disableShadowBCF();
+
+        executeTest("testMaxNoCall0_5", spec);
     }
 }
