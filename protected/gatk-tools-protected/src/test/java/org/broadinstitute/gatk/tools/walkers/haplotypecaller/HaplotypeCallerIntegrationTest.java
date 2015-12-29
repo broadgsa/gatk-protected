@@ -368,6 +368,15 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         executeTest("testGraphBasedNoSuchEdgeBugFix", spec);
     }
 
+    @Test
+    public void testWriteGVCFStdout() {
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -dontTrimActiveRegions -ERC GVCF ",
+                b37KGReferenceWithDecoy, privateTestDir + "graphbased_no_such_edge_bug.bam", privateTestDir + "graphbased_no_such_edge_bug.intervals.bed");
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine, Arrays.asList(""));
+        spec.disableShadowBCF();
+        executeTest("testWriteGVCFStdout", spec);
+    }
+
     // This test takes longer than 15 secs ... ~ 25-35 ,
     @Test
     public void testLackSensitivityDueToBadHaplotypeSelectionFix() {
