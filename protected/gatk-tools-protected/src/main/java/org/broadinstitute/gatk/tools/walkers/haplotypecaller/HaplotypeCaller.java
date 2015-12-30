@@ -104,6 +104,7 @@ import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.utils.variant.*;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 
@@ -1245,10 +1246,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     /**
      * Is writing to an output GVCF file?
      *
-     * @return true if the VCF output file has a .g.vcf or .g.vcf.gz extension
+     * @return true if the VCF output file has a .g.vcf or .g.vcf.gz extension or if no output file
      */
     private boolean isGVCF() {
-        String fileName = ((VariantContextWriterStub) vcfWriter).getOutputFile().getName();
-        return ( fileName.endsWith("." + GATKVCFUtils.GVCF_EXT) || fileName.endsWith("." + GATKVCFUtils.GVCF_GZ_EXT) );
+        final File file = ((VariantContextWriterStub) vcfWriter).getOutputFile();
+        if ( file == null ){
+            return true;
+        } else {
+            final String fileName = file.getName();
+            return ( fileName.endsWith("." + GATKVCFUtils.GVCF_EXT) || fileName.endsWith("." + GATKVCFUtils.GVCF_GZ_EXT) );
+        }
     }
 }
