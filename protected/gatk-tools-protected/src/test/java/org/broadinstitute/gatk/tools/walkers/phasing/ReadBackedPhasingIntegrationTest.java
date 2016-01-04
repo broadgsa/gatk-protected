@@ -152,7 +152,22 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                 " -o %s" +
                 " --no_cmdline_in_header",
                 1,
-                Arrays.asList("d7797171d9ca4e173fab6b5af1e6d539"));
+                Arrays.asList("b251b4378fda9784f2175c7e3d80f032"));
         executeTest("Do not merge unphased SNPs", spec);
+    }
+
+    @Test
+    public void testMergeSNPsIfSameRead() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T ReadBackedPhasing" +
+                        " -R " + b37KGReferenceWithDecoy +
+                        " -I " + privateTestDir + "readBackedPhasing.bam" +
+                        " --variant " + privateTestDir + "readBackedPhasing.vcf.gz" +
+                        " -enableMergeToMNP -maxDistMNP 2 -L 1:1875000-1877000" +
+                        " -o %s" +
+                        " --no_cmdline_in_header",
+                1,
+                Arrays.asList("630816da701b9ea8674c23c91fa61bec"));
+        executeTest("Merge SNPs if on the same read", spec);
     }
 }

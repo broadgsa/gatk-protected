@@ -81,7 +81,6 @@ public class PhasingUtilsUnitTest extends BaseTest {
     private ReferenceSequenceFile referenceFile;
     private Genotype genotype1;
     private Genotype genotype2;
-    private Genotype genotype2unphased;
     private String contig;
     private List<Allele> alleleList1;
     private List<Allele> alleleList2;
@@ -94,9 +93,8 @@ public class PhasingUtilsUnitTest extends BaseTest {
         genomeLocParser = new GenomeLocParser(referenceFile);
         alleleList1 = Arrays.asList(Allele.create("T", true), Allele.create("C", false));
         alleleList2 = Arrays.asList(Allele.create("G", true), Allele.create("A", false));
-        genotype1 = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-1", "10-2"}).attribute("PQ", 100.0).alleles(alleleList1).phased(true).make();
-        genotype2 = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-2", "10-1"}).attribute("PQ", 200.0).alleles(alleleList2).phased(true).make();
-        genotype2unphased = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-2", "10-1"}).attribute("PQ", 200.0).alleles(alleleList2).phased(false).make();
+        genotype1 = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-1", "10-2"}).attribute("PQ", 100.0).alleles(alleleList1).make();
+        genotype2 = new GenotypeBuilder().name("sample").attribute("HP", new String[]{"10-2", "10-1"}).attribute("PQ", 200.0).alleles(alleleList2).make();
         contig = new String("1");
         vc1 = new VariantContextBuilder().chr(contig).id("id1").source("TC").start(start).stop(start).alleles(alleleList1).genotypes(genotype1).make();
         vc2 = new VariantContextBuilder().chr(contig).id("id2").source("GA").start(start+1).stop(start+1).alleles(alleleList2).genotypes(genotype2).make();
@@ -186,7 +184,6 @@ public class PhasingUtilsUnitTest extends BaseTest {
     @Test
     public void TestAlleleSegregationIsKnown(){
         Assert.assertTrue(PhasingUtils.alleleSegregationIsKnown(genotype1, genotype2));
-        Assert.assertFalse(PhasingUtils.alleleSegregationIsKnown(genotype1, genotype2unphased));
     }
 
     @Test

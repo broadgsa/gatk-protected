@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.phasing;
 
 import org.broadinstitute.gatk.engine.walkers.*;
+import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Hidden;
@@ -63,6 +64,7 @@ import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.engine.filters.MappingQualityZeroFilter;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
@@ -338,6 +340,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
     private List<VariantContext> processQueue(PhasingStats phaseStats, boolean processAll) {
         List<VariantContext> oldPhasedList = new LinkedList<VariantContext>();
 
+        VariantAndReads prevVr = null;
         while (!unphasedSiteQueue.isEmpty()) {
             if (!processAll) { // otherwise, phase until the end of unphasedSiteQueue
                 VariantContext nextToPhaseVc = unphasedSiteQueue.peek().variant;
@@ -354,10 +357,35 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
             oldPhasedList.addAll(discardIrrelevantPhasedSites());
             if (DEBUG) logger.debug("oldPhasedList(1st) = " + toStringVCL(oldPhasedList));
 
-            VariantAndReads vr = unphasedSiteQueue.remove();
+            final VariantAndReads vr = unphasedSiteQueue.remove();
+
+            // should try to merge variants if they are SNPs that are within the minimum merging distance from each other
+            final boolean shouldTryToMerge = enableMergePhasedSegregatingPolymorphismsToMNP &&
+                    prevVr != null &&
+                    prevVr.variant.isSNP() && vr.variant.isSNP() &&
+                    vr.variant.getStart() - prevVr.variant.getStart() <= maxGenomicDistanceForMNP;
+
+            // if should try to merge, find if there are any reads that contain both SNPs
+            boolean commonReads = false;
+            if ( shouldTryToMerge ) {
+                for ( final String readName : vr.variantReadNames) {
+                    if (prevVr.variantReadNames.contains(readName)) {
+                        commonReads = true;
+                        break;
+                    }
+                }
+                if ( DEBUG && !commonReads )
+                    logger.debug("No common reads with previous variant for " + GATKVariantContextUtils.getLocation(getToolkit().getGenomeLocParser(), vr.variant));
+            }
+
             if (DEBUG)
                 logger.debug("Performing phasing for " + GATKVariantContextUtils.getLocation(getToolkit().getGenomeLocParser(), vr.variant));
-            phaseSite(vr, phaseStats);
+
+            // phase the variant site, cannot phase if trying to merge variants that do not have any common reads
+            phaseSite(vr, phaseStats, !(shouldTryToMerge && !commonReads));
+
+            // save previous variant reads for next iteration
+            prevVr = vr;
         }
 
         // Update partiallyPhasedSites after phaseSite is done:
@@ -399,7 +427,14 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
        ASSUMES: All VariantContexts in unphasedSiteQueue are in positions downstream of vc (head of queue).
      */
 
-    private void phaseSite(VariantAndReads vr, PhasingStats phaseStats) {
+    /**
+     * Phase the variant site relative to the previous site
+     *
+     * @param vr            A variant and the reads for each sample at that site:
+     * @param phaseStats    Summary statistics about phasing rates for each sample
+     * @param canPhase      Can phase variant site relative to the previous site
+     */
+    private void phaseSite(final VariantAndReads vr, final PhasingStats phaseStats, final boolean canPhase) {
         VariantContext vc = vr.variant;
         logger.debug("Will phase vc = " + GATKVariantContextUtils.getLocation(getToolkit().getGenomeLocParser(), vc));
 
@@ -433,76 +468,78 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
                     if (DEBUG) logger.debug("Want to phase TOP vs. BOTTOM for: " + "\n" + allelePair);
 
                     boolean phasedCurGenotypeRelativeToPrevious = false;
-                    for (int goBackFromEndOfPrevHets = 0; goBackFromEndOfPrevHets < prevHetGenotypes.size(); goBackFromEndOfPrevHets++) {
-                        PhasingWindow phaseWindow = new PhasingWindow(vr, samp, prevHetGenotypes, goBackFromEndOfPrevHets);
+                    if ( canPhase ) {
+                        for (int goBackFromEndOfPrevHets = 0; goBackFromEndOfPrevHets < prevHetGenotypes.size(); goBackFromEndOfPrevHets++) {
+                            PhasingWindow phaseWindow = new PhasingWindow(vr, samp, prevHetGenotypes, goBackFromEndOfPrevHets);
 
-                        PhaseResult pr = phaseSampleAtSite(phaseWindow);
-                        phasedCurGenotypeRelativeToPrevious = passesPhasingThreshold(pr.phaseQuality);
+                            PhaseResult pr = phaseSampleAtSite(phaseWindow);
+                            phasedCurGenotypeRelativeToPrevious = passesPhasingThreshold(pr.phaseQuality);
 
-                        if (pr.phasingContainsInconsistencies) {
-                            if (DEBUG)
-                                logger.debug("MORE than " + (MAX_FRACTION_OF_INCONSISTENT_READS * 100) + "% of the reads are inconsistent for phasing of " + GATKVariantContextUtils.getLocation(getToolkit().getGenomeLocParser(), vc));
-                            uvc.setPhasingInconsistent();
-                        }
-
-                        if (phasedCurGenotypeRelativeToPrevious) {
-                            Genotype prevHetGenotype = phaseWindow.phaseRelativeToGenotype();
-                            SNPallelePair prevAllelePair = new SNPallelePair(prevHetGenotype);
-                            if (!prevHetGenotype.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY))
-                                throw new ReviewedGATKException("Internal error: missing haplotype markings for previous genotype, even though we put it there...");
-                            String[] prevPairNames = (String[]) prevHetGenotype.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY);
-
-                            String[] curPairNames = ensurePhasing(allelePair, prevAllelePair, prevPairNames, pr.haplotype);
-                            Genotype phasedGt = new GenotypeBuilder(gt)
-                                    .alleles(allelePair.getAllelesAsList())
-                                    .attribute(VCFConstants.PHASE_QUALITY_KEY, pr.phaseQuality)
-                                    .attribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY, curPairNames)
-                                    .make();
-                            uvc.setGenotype(samp, phasedGt);
-
-                            if (DEBUG) {
-                                logger.debug("PREVIOUS CHROMOSOME NAMES: Top= " + prevPairNames[0] + ", Bot= " + prevPairNames[1]);
-                                logger.debug("PREVIOUS CHROMOSOMES:\n" + prevAllelePair + "\n");
-
-                                logger.debug("CURRENT CHROMOSOME NAMES: Top= " + curPairNames[0] + ", Bot= " + curPairNames[1]);
-                                logger.debug("CURRENT CHROMOSOMES:\n" + allelePair + "\n");
-                                logger.debug("\n");
+                            if (pr.phasingContainsInconsistencies) {
+                                if (DEBUG)
+                                    logger.debug("MORE than " + (MAX_FRACTION_OF_INCONSISTENT_READS * 100) + "% of the reads are inconsistent for phasing of " + GATKVariantContextUtils.getLocation(getToolkit().getGenomeLocParser(), vc));
+                                uvc.setPhasingInconsistent();
                             }
-                        }
 
-                        if (statsWriter != null) {
-                            GenomeLoc prevLoc = null;
-                            int curIndex = 0;
-                            for (GenotypeAndReadBases grb : prevHetGenotypes) {
-                                if (curIndex == prevHetGenotypes.size() - 1 - goBackFromEndOfPrevHets) {
-                                    prevLoc = grb.loc;
-                                    break;
+                            if (phasedCurGenotypeRelativeToPrevious) {
+                                Genotype prevHetGenotype = phaseWindow.phaseRelativeToGenotype();
+                                SNPallelePair prevAllelePair = new SNPallelePair(prevHetGenotype);
+                                if (!prevHetGenotype.hasAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY))
+                                    throw new ReviewedGATKException("Internal error: missing haplotype markings for previous genotype, even though we put it there...");
+                                String[] prevPairNames = (String[]) prevHetGenotype.getAnyAttribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY);
+
+                                String[] curPairNames = ensurePhasing(allelePair, prevAllelePair, prevPairNames, pr.haplotype);
+                                Genotype phasedGt = new GenotypeBuilder(gt)
+                                        .alleles(allelePair.getAllelesAsList())
+                                        .attribute(VCFConstants.PHASE_QUALITY_KEY, pr.phaseQuality)
+                                        .attribute(GATKVCFConstants.RBP_HAPLOTYPE_KEY, curPairNames)
+                                        .make();
+                                uvc.setGenotype(samp, phasedGt);
+
+                                if (DEBUG) {
+                                    logger.debug("PREVIOUS CHROMOSOME NAMES: Top= " + prevPairNames[0] + ", Bot= " + prevPairNames[1]);
+                                    logger.debug("PREVIOUS CHROMOSOMES:\n" + prevAllelePair + "\n");
+
+                                    logger.debug("CURRENT CHROMOSOME NAMES: Top= " + curPairNames[0] + ", Bot= " + curPairNames[1]);
+                                    logger.debug("CURRENT CHROMOSOMES:\n" + allelePair + "\n");
+                                    logger.debug("\n");
                                 }
-                                ++curIndex;
                             }
-                            statsWriter.addStat(samp, GATKVariantContextUtils.getLocation(getToolkit().getGenomeLocParser(), vc), startDistance(prevLoc, vc), pr.phaseQuality, phaseWindow.readsAtHetSites.size(), phaseWindow.hetGenotypes.length);
-                        }
 
-                        PhaseCounts sampPhaseCounts = samplePhaseStats.get(samp);
-                        if (sampPhaseCounts == null) {
-                            sampPhaseCounts = new PhaseCounts();
-                            samplePhaseStats.put(samp, sampPhaseCounts);
-                        }
-                        sampPhaseCounts.numTestedSites++;
+                            if (statsWriter != null) {
+                                GenomeLoc prevLoc = null;
+                                int curIndex = 0;
+                                for (GenotypeAndReadBases grb : prevHetGenotypes) {
+                                    if (curIndex == prevHetGenotypes.size() - 1 - goBackFromEndOfPrevHets) {
+                                        prevLoc = grb.loc;
+                                        break;
+                                    }
+                                    ++curIndex;
+                                }
+                                statsWriter.addStat(samp, GATKVariantContextUtils.getLocation(getToolkit().getGenomeLocParser(), vc), startDistance(prevLoc, vc), pr.phaseQuality, phaseWindow.readsAtHetSites.size(), phaseWindow.hetGenotypes.length);
+                            }
 
-                        if (pr.phasingContainsInconsistencies) {
+                            PhaseCounts sampPhaseCounts = samplePhaseStats.get(samp);
+                            if (sampPhaseCounts == null) {
+                                sampPhaseCounts = new PhaseCounts();
+                                samplePhaseStats.put(samp, sampPhaseCounts);
+                            }
+                            sampPhaseCounts.numTestedSites++;
+
+                            if (pr.phasingContainsInconsistencies) {
+                                if (phasedCurGenotypeRelativeToPrevious)
+                                    sampPhaseCounts.numInconsistentSitesPhased++;
+                                else
+                                    sampPhaseCounts.numInconsistentSitesNotPhased++;
+                            }
+
                             if (phasedCurGenotypeRelativeToPrevious)
-                                sampPhaseCounts.numInconsistentSitesPhased++;
-                            else
-                                sampPhaseCounts.numInconsistentSitesNotPhased++;
+                                sampPhaseCounts.numPhased++;
+
+                            // Phased current relative to *SOME* previous het genotype, so break out of loop:
+                            if (phasedCurGenotypeRelativeToPrevious)
+                                break;
                         }
-
-                        if (phasedCurGenotypeRelativeToPrevious)
-                            sampPhaseCounts.numPhased++;
-
-                        // Phased current relative to *SOME* previous het genotype, so break out of loop:
-                        if (phasedCurGenotypeRelativeToPrevious)
-                            break;
                     }
 
                     if (!phasedCurGenotypeRelativeToPrevious) { // Either no previous hets, or unable to phase relative to any previous het:
@@ -1206,6 +1243,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
     private class VariantAndReads {
         public VariantContext variant;
         public HashMap<String, ReadBasesAtPosition> sampleReadBases;
+        public Set<String> variantReadNames;
 
         public VariantAndReads(VariantContext variant, HashMap<String, ReadBasesAtPosition> sampleReadBases) {
             this.variant = variant;
@@ -1230,6 +1268,22 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
                                     readBases.putReadBase(p);
                             }
                             sampleReadBases.put(sample, readBases);
+                        }
+                    }
+
+                    // if merging SNPs, save the read names overlapping the variant
+                    if (enableMergePhasedSegregatingPolymorphismsToMNP && variant.isSNP()) {
+                        variantReadNames = new HashSet<>();
+                        for ( final GATKSAMRecord read : pileup.getReads() ) {
+                            // get the SNP position in the read
+                            Pair<Integer, Boolean> pair = ReadUtils.getReadCoordinateForReferenceCoordinate(read, variant.getStart());
+
+                            // get the reads containing the SNP
+                            for (final Allele altAllele : variant.getAlternateAlleles()) {
+                                if (read.getReadBases()[pair.first] == altAllele.getBases()[0]) {
+                                    variantReadNames.add(read.getReadName());
+                                }
+                            }
                         }
                     }
                 }
