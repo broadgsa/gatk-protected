@@ -261,7 +261,8 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                     // remove the effect of cosmic from dbSNP
                     boolean germlineAtRisk = (!dbsnpVC.isEmpty() && cosmicVC.isEmpty());
 
-                    NORMAL_LOD_THRESHOLD = (germlineAtRisk)?MTAC.NORMAL_DBSNP_LOD_THRESHOLD:MTAC.NORMAL_LOD_THRESHOLD;
+                    INIT_NORMAL_LOD_THRESHOLD = MTAC.INITIAL_NORMAL_LOD_THRESHOLD; //only set this if this job has a normal
+                            NORMAL_LOD_THRESHOLD = (germlineAtRisk)?MTAC.NORMAL_DBSNP_LOD_THRESHOLD:MTAC.NORMAL_LOD_THRESHOLD;
                     for (int altInd = 0; altInd < numAlts; altInd++)
                         normalLods[altInd] = normalGLs[REF_INDEX] - normalGLs[altInd+1];
                 }
@@ -270,7 +271,7 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                 int numPassingAlts = 0;
                 int lodInd = 0;
                 for (int altInd = 0; altInd < numAlts; altInd++) {
-                    if (tumorLods[altInd] >= MTAC.INITIAL_TUMOR_LOD_THRESHOLD && normalLods[altInd] >= MTAC.INITIAL_NORMAL_LOD_THRESHOLD) {
+                    if (tumorLods[altInd] >= MTAC.INITIAL_TUMOR_LOD_THRESHOLD && normalLods[altInd] >= INIT_NORMAL_LOD_THRESHOLD) {
                         numPassingAlts++;
                         lodInd = altInd;
                     }
@@ -280,7 +281,7 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                 final double normalLod = normalLods[lodInd];
 
                 VariantContext call = null;
-                if (tumorLod >= MTAC.INITIAL_TUMOR_LOD_THRESHOLD && normalLod >= MTAC.INITIAL_NORMAL_LOD_THRESHOLD) {
+                if (tumorLod >= MTAC.INITIAL_TUMOR_LOD_THRESHOLD && normalLod >= INIT_NORMAL_LOD_THRESHOLD) {
                     VariantContextBuilder callVcb = new VariantContextBuilder(mergedVC);
 
                     if (normalLod < NORMAL_LOD_THRESHOLD) {
