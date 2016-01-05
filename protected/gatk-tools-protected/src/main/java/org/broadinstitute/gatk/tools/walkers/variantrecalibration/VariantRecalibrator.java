@@ -64,6 +64,8 @@ import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.R.RScriptExecutor;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.report.GATKReport;
+import org.broadinstitute.gatk.utils.report.GATKReportTable;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -78,6 +80,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.*;
+
+import Jama.Matrix;
 
 /**
  * Build a recalibration model to score variant quality for filtering purposes
@@ -196,6 +200,14 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
     @Output(fullName="tranches_file", shortName="tranchesFile", doc="The output tranches file used by ApplyRecalibration", required=true)
     protected File TRANCHES_FILE;
+
+    /**
+     *  This GATKReport gives information to describe the VQSR model fit. Normalized means for the positive model are concatenated as one table and negative model normalized means as another table.
+     *  Covariances are also concatenated for postive and negative models, respectively. Tables of annotation means and standard deviations are provided to help describe the normalization.
+     *  The model fit report can be read in with our R gsalib package. Individual model Gaussians can be subset by the value in the "Gaussian" column if desired.
+     */
+    @Output(fullName="model_file", shortName = "modelFile", doc="A GATKReport containing the positive and negative model fits", required=false)
+    protected PrintStream modelReport = null;
 
     /////////////////////////////
     // Additional Command Line Arguments
@@ -352,7 +364,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                     datum.isTransition = datum.isSNP && GATKVariantContextUtils.isTransition(vc);
                     datum.isAggregate = !isInput;
 
-                    // Loop through the training data sets and if they overlap this loci then update the prior and training status appropriately
+                    // Loop through the training data sets and if they overlap this locus (and allele, if applicable) then update the prior and training status appropriately
                     dataManager.parseTrainingSets( tracker, context.getLocation(), vc, datum, TRUST_ALL_POLYMORPHIC );
                     final double priorFactor = QualityUtils.qualToProb( datum.prior );
                     datum.prior = Math.log10( priorFactor ) - Math.log10( 1.0 - priorFactor );
@@ -414,6 +426,11 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider " + (badModel.failedToConverge ? "raising the number of variants used to train the negative model (via --minNumBadVariants 5000, for example)." : "lowering the maximum number of Gaussians allowed for use in the model (via --maxGaussians 4, for example).") );
         }
 
+        if (modelReport != null) {
+            GATKReport report = writeModelReport(goodModel, badModel, USE_ANNOTATIONS);
+            report.print(modelReport);
+        }
+
         engine.calculateWorstPerformingAnnotation( dataManager.getData(), goodModel, badModel );
 
         // Find the VQSLOD cutoff values which correspond to the various tranches of calls requested by the user
@@ -441,6 +458,93 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             logger.info("Executing: " + executor.getApproximateCommandLine());
             executor.exec();
         }
+    }
+
+    protected GATKReport writeModelReport(final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, List<String> annotationList) {
+        final String formatString = "%.3f";
+        final GATKReport report = new GATKReport();
+
+        if (dataManager != null) {  //for unit test
+            final double[] meanVector = dataManager.getMeanVector();
+            GATKReportTable annotationMeans = makeVectorTable("AnnotationMeans", "Mean for each annotation, used to normalize data", dataManager.annotationKeys, meanVector, "Mean", formatString);
+            report.addTable(annotationMeans);
+
+            final double[] varianceVector = dataManager.getVarianceVector();  //"varianceVector" is actually stdev
+            GATKReportTable annotationVariances = makeVectorTable("AnnotationStdevs", "Standard deviation for each annotation, used to normalize data", dataManager.annotationKeys, varianceVector, "Standard deviation", formatString);
+            report.addTable(annotationVariances);
+        }
+
+        //The model and Gaussians don't know what the annotations are, so get them from this class
+        //VariantDataManager keeps the annotation in the same order as the argument list
+        GATKReportTable positiveMeans = makeMeansTable("PositiveModelMeans", "Vector of annotation values to describe the (normalized) mean for each Gaussian in the positive model", annotationList, goodModel, formatString);
+        report.addTable(positiveMeans);
+
+        GATKReportTable positiveCovariance = makeCovariancesTable("PositiveModelCovariances", "Matrix to describe the (normalized) covariance for each Gaussian in the positive model; covariance matrices are joined by row", annotationList, goodModel, formatString);
+        report.addTable(positiveCovariance);
+
+        //do the same for the negative model means
+        GATKReportTable negativeMeans = makeMeansTable("NegativeModelMeans", "Vector of annotation values to describe the (normalized) mean for each Gaussian in the negative model", annotationList, badModel, formatString);
+        report.addTable(negativeMeans);
+
+        GATKReportTable negativeCovariance = makeCovariancesTable("NegativeModelCovariances", "Matrix to describe the (normalized) covariance for each Gaussian in the negative model; covariance matrices are joined by row", annotationList, badModel, formatString);
+        report.addTable(negativeCovariance);
+
+        return report;
+    }
+
+    protected GATKReportTable makeVectorTable(final String tableName, final String tableDescription, final List<String> annotationList, final double[] perAnnotationValues, final String columnName, final String formatString) {
+        GATKReportTable vectorTable = new GATKReportTable(tableName, tableDescription, annotationList.size(), GATKReportTable.TableSortingWay.DO_NOT_SORT);
+        vectorTable.addColumn("Annotation");
+        vectorTable.addColumn(columnName, formatString);
+        for (int i = 0; i < perAnnotationValues.length; i++) {
+            vectorTable.addRowIDMapping(annotationList.get(i), i, true);
+            vectorTable.set(i, 1, perAnnotationValues[i]);
+        }
+        return vectorTable;
+    }
+
+    private GATKReportTable makeMeansTable(final String tableName, final String tableDescription, final List<String> annotationList, final GaussianMixtureModel model, final String formatString) {
+        GATKReportTable meansTable = new GATKReportTable(tableName, tableDescription, annotationList.size(), GATKReportTable.TableSortingWay.DO_NOT_SORT);
+        meansTable.addColumn("Gaussian");
+        for (final String annotationName : annotationList) {
+            meansTable.addColumn(annotationName, formatString);
+        }
+        final List<MultivariateGaussian> modelGaussians = model.getModelGaussians();
+        for (int i = 0; i < modelGaussians.size(); i++) {
+            final MultivariateGaussian gaussian = modelGaussians.get(i);
+            final double[] meanVec = gaussian.mu;
+            if (meanVec.length != annotationList.size())
+                throw new IllegalStateException("Gaussian mean vector does not have the same size as the list of annotations");
+            meansTable.addRowIDMapping(i, i, true);
+            for (int j = 0; j < annotationList.size(); j++)
+                meansTable.set(i, annotationList.get(j), meanVec[j]);
+        }
+        return meansTable;
+    }
+
+    private GATKReportTable makeCovariancesTable(final String tableName, final String tableDescription, final List<String> annotationList, final GaussianMixtureModel model, final String formatString) {
+        GATKReportTable modelCovariances = new GATKReportTable(tableName, tableDescription, annotationList.size()+2, GATKReportTable.TableSortingWay.DO_NOT_SORT); //+2 is for Gaussian and Annotation columns
+        modelCovariances.addColumn("Gaussian");
+        modelCovariances.addColumn("Annotation");
+        for (final String annotationName : annotationList) {
+            modelCovariances.addColumn(annotationName, formatString);
+        }
+        final List<MultivariateGaussian> modelGaussians = model.getModelGaussians();
+        for (int i = 0; i < modelGaussians.size(); i++) {
+            final MultivariateGaussian gaussian = modelGaussians.get(i);
+            final Matrix covMat = gaussian.sigma;
+            if (covMat.getRowDimension() != annotationList.size() || covMat.getColumnDimension() != annotationList.size())
+                throw new IllegalStateException("Gaussian covariance matrix does not have the same size as the list of annotations");
+            for (int j = 0; j < annotationList.size(); j++) {
+                modelCovariances.set(j + i * annotationList.size(), "Gaussian", i);
+                modelCovariances.set(j + i * annotationList.size(), "Annotation", annotationList.get(j));
+                for (int k = 0; k < annotationList.size(); k++) {
+                    modelCovariances.set(j + i * annotationList.size(), annotationList.get(k), covMat.get(j, k));
+
+                }
+            }
+        }
+        return modelCovariances;
     }
 
     private void createVisualizationScript( final List<VariantDatum> randomData, final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, final double lodCutoff, final String[] annotationKeys ) {

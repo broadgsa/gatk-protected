@@ -148,6 +148,14 @@ public class VariantDataManager {
         logger.info("Annotations are now ordered by their information content: " + annotationKeys.toString());
     }
 
+    public double[] getMeanVector() {
+        return meanVector;
+    }
+
+    public double[] getVarianceVector() {
+        return varianceVector;
+    }
+
     /**
      * Get a list of indices which give the ascending sort order of the data array
      * @param inputVector the data to consider
