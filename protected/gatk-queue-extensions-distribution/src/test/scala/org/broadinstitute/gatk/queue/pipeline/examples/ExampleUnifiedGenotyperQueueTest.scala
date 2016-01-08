@@ -109,7 +109,8 @@ class ExampleUnifiedGenotyperQueueTest {
   }
 
   @DataProvider(name="resMemReqParams")
-  def getResMemReqParam = Array(Array("mem_free"), Array("virtual_free")).asInstanceOf[Array[Array[Object]]]
+  //mem_free no longer works on GridEngine8 configuration; UGER will require "m_mem_free" instead of "virtual_free"
+  def getResMemReqParam = Array(Array("virtual_free")).asInstanceOf[Array[Array[Object]]]
 
   @Test(dataProvider = "resMemReqParams", timeOut=36000000)
   def testUnifiedGenotyperResMemReqParam(reqParam: String) {
