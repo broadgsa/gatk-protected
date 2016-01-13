@@ -283,19 +283,29 @@ public abstract class DiploidExactAFCalculator extends ExactAFCalculator {
                           final int PLsetIndex,
                           final ArrayList<double[]> genotypeLikelihoods) {
         final int totalK = targetSet.getACsum();
+        final double[] targetLog10Likelihoods = targetSet.getLog10Likelihoods();
+        final double[] dependentLog10Likelihoods = dependentSet.getLog10Likelihoods();
+        final int[] targetACcounts = targetSet.getACcounts().getCounts();
 
-        for ( int j = 1; j < targetSet.getLog10Likelihoods().length; j++ ) {
+        // skip impossible conformations, namely those for which there aren't enough possible chromosomes (2*j in the if loop below)
+        // to fill up the totalK alternate alleles needed; we do want to ensure that there's at least one sample included (hence the Math.max)
+        final int firstIndex = Math.max(1, (totalK + 1) / 2);
 
-            if ( totalK <= 2*j ) { // skip impossible conformations
-                final double[] gl = genotypeLikelihoods.get(j);
-                final double conformationValue =
-                        determineCoefficient(PLsetIndex, j, targetSet.getACcounts().getCounts(), totalK) + dependentSet.getLog10Likelihoods()[j-1] + gl[PLsetIndex];
-                targetSet.getLog10Likelihoods()[j] = MathUtils.approximateLog10SumLog10(targetSet.getLog10Likelihoods()[j], conformationValue);
-            }
+        // find the 2 alleles that are represented by this PL index
+        final GenotypeLikelihoods.GenotypeLikelihoodsAllelePair alleles = GenotypeLikelihoods.getAllelePair(PLsetIndex);
+        // if neither allele is reference then the coefficient is constant throughout this invocation
+        final Double constantCoefficient = (alleles.alleleIndex1 == 0) ? null : determineCoefficient(alleles, 0, targetACcounts, totalK);
+
+        for ( int j = firstIndex; j < targetLog10Likelihoods.length; j++ ) {
+            final double[] gl = genotypeLikelihoods.get(j);
+            final double coefficient = (constantCoefficient != null) ? constantCoefficient : determineCoefficient(alleles, j, targetACcounts, totalK);
+
+            final double conformationValue = coefficient + dependentLog10Likelihoods[j-1] + gl[PLsetIndex];
+            targetLog10Likelihoods[j] = MathUtils.approximateLog10SumLog10(targetLog10Likelihoods[j], conformationValue);
         }
     }
 
-    private double determineCoefficient(int PLindex, final int j, final int[] ACcounts, final int totalK) {
+    private double determineCoefficient(final GenotypeLikelihoods.GenotypeLikelihoodsAllelePair alleles, final int j, final int[] ACcounts, final int totalK) {
         // the closed form representation generalized for multiple alleles is as follows:
         // AA: (2j - totalK) * (2j - totalK - 1)
         // AB: 2k_b * (2j - totalK)
@@ -303,9 +313,6 @@ public abstract class DiploidExactAFCalculator extends ExactAFCalculator {
         // BB: k_b * (k_b - 1)
         // BC: 2 * k_b * k_c
         // CC: k_c * (k_c - 1)
-
-        // find the 2 alleles that are represented by this PL index
-        GenotypeLikelihoods.GenotypeLikelihoodsAllelePair alleles = GenotypeLikelihoods.getAllelePair(PLindex);
 
         // *** note that throughout this method we subtract one from the alleleIndex because ACcounts ***
         // *** doesn't consider the reference allele whereas the GenotypeLikelihoods PL cache does.   ***
