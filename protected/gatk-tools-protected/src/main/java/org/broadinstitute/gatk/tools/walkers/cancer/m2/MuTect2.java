@@ -399,6 +399,13 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.EVENT_DISTANCE_MIN_KEY));
         headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.EVENT_DISTANCE_MAX_KEY));
 
+        if (MTAC.ENABLE_STRAND_ARTIFACT_FILTER){
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TLOD_FWD_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TLOD_REV_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TUMOR_SB_POWER_FWD_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TUMOR_SB_POWER_REV_KEY));
+        }
+
         headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.ALLELE_FRACTION_KEY));
 
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.STR_CONTRACTION_FILTER_NAME));
@@ -410,11 +417,8 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.TUMOR_LOD_FILTER_NAME));
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.GERMLINE_RISK_FILTER_NAME));
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.TRIALLELIC_SITE_FILTER_NAME));
+        headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.STRAND_ARTIFACT_FILTER_NAME));
 
-        headerInfo.add(new VCFFilterHeaderLine("M1_CLUSTERED_READ_POSITION", "Variant appears in similar read positions"));
-        headerInfo.add(new VCFFilterHeaderLine("M1_STRAND_BIAS", "Forward LOD vs. reverse LOD comparison indicates strand bias"));
-        headerInfo.add(new VCFInfoHeaderLine("TLOD_FWD",1,VCFHeaderLineType.Integer,"TLOD from forward reads only"));
-        headerInfo.add(new VCFInfoHeaderLine("TLOD_REV",1,VCFHeaderLineType.Integer,"TLOD from reverse reads only"));
 
         if ( ! doNotRunPhysicalPhasing ) {
             headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_ID_KEY));
@@ -728,7 +732,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
                 filters.add(GATKVCFConstants.TUMOR_LOD_FILTER_NAME);
             }
 
-            // if we are in artifact detection mode,  apply the thresholds for the LOD scores
+            // if we are in artifact detection mode, apply the thresholds for the LOD scores
             if (!MTAC.ARTIFACT_DETECTION_MODE) {
                  filters.addAll(calculateFilters(metaDataTracker, originalVC, eventDistanceAttributes));
             }
@@ -754,11 +758,8 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
             annotatedCalls.add(vcb.make());
         }
 
-
-
-
-
-
+        // TODO: find a better place for this debug message
+        // logger.info("We had " + TumorPowerCalculator.numCacheHits + " hits in starnd artifact power calculation");
         return annotatedCalls;
     }
 
@@ -834,16 +835,10 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
             filters.add(GATKVCFConstants.CLUSTERED_EVENTS_FILTER_NAME);
         }
 
-        Integer tumorFwdPosMedian = (Integer) vc.getAttribute("TUMOR_FWD_POS_MEDIAN");
-        Integer tumorRevPosMedian = (Integer) vc.getAttribute("TUMOR_REV_POS_MEDIAN");
-        Integer tumorFwdPosMAD = (Integer) vc.getAttribute("TUMOR_FWD_POS_MAD");
-        Integer tumorRevPosMAD = (Integer) vc.getAttribute("TUMOR_REV_POS_MAD");
-        //If the variant is near the read end (median threshold) and the positions are very similar (MAD threshold) then filter
-        if ( (tumorFwdPosMedian != null && tumorFwdPosMedian <= MTAC.PIR_MEDIAN_THRESHOLD && tumorFwdPosMAD != null && tumorFwdPosMAD <= MTAC.PIR_MAD_THRESHOLD) ||
-                (tumorRevPosMedian != null && tumorRevPosMedian <= MTAC.PIR_MEDIAN_THRESHOLD && tumorFwdPosMAD != null && tumorRevPosMAD <= MTAC.PIR_MAD_THRESHOLD))
-            filters.add("M1_CLUSTERED_READ_POSITION");
-
+        // TODO: Add clustered read position filter here
+        // TODO: Move strand bias filter here
         return filters;
+
     }
 
 
@@ -1064,9 +1059,9 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     @Advanced
     @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
 //    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"ClippingRankSumTest", "DepthPerSampleHC"}));
-    //protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"DepthPerAlleleBySample", "BaseQualitySumPerAlleleBySample", "TandemRepeatAnnotator",
-    //    "RMSMappingQuality","MappingQualityRankSumTest","FisherStrand","StrandOddsRatio","ReadPosRankSumTest","QualByDepth", "Coverage"}));
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"DepthPerAlleleBySample", "BaseQualitySumPerAlleleBySample", "TandemRepeatAnnotator", "OxoGReadCounts", "ClusteredEventsAnnotator"}));
+//    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"DepthPerAlleleBySample", "BaseQualitySumPerAlleleBy ruSample", "TandemRepeatAnnotator",
+//        "RMSMappingQuality","MappingQualityRankSumTest","FisherStrand","StrandOddsRatio","ReadPosRankSumTest","QualByDepth", "Coverage"}));
+    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"DepthPerAlleleBySample", "BaseQualitySumPerAlleleBySample", "TandemRepeatAnnotator", "OxoGReadCounts"}));
 
     /**
      * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the -A or -G arguments,

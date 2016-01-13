@@ -49,92 +49,147 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.cancer.m2
+package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import java.io.File
+import htsjdk.variant.variantcontext.Allele;
 
-import org.broadinstitute.gatk.queue.QScript
-import org.broadinstitute.gatk.queue.extensions.gatk._
-import org.broadinstitute.gatk.queue.function.CommandLineFunction
-import org.broadinstitute.gatk.queue.util.QScriptUtils
-import org.broadinstitute.gatk.utils.commandline.{Input, Output}
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils.FilteredRecordMergeType
+import java.util.*;
 
-import scala.collection.mutable.ListBuffer
+/**
+ * A container for allele to value mapping.
+ *
+ * Each PerAlleleCollection may hold a value for each ALT allele and, optionally, a value for the REF allele.
+ * For example,
+ *
+ *   PerAlleleCollection<Double> alleleFractions = PerAlleleCollection.createPerAltAlleleCollection()
+ *
+ * may be a container for allele fractions for ALT alleles in a variant context. While
+ *
+ *   PerAlleleCollection<Double> alleleCount = PerAlleleCollection.createPerRefAndAltAlleleCollection()
+ *
+ * may hold the allele counts for the REF allele and all ALT alleles in a variant context.
+ *
+ *
+ **/
+public class PerAlleleCollection<X> {
+    // TODO: consider using Optional for ref allele
+    private Optional<Allele> refAllele;
+    private Optional<X> refValue;
+    private Map<Allele, X> altAlleleValueMap;
+    private boolean altOnly;
 
-class create_M2_pon extends QScript {
+    private PerAlleleCollection(boolean altOnly){
+        this.altOnly = altOnly;
+        this.altAlleleValueMap = new HashMap();
+        this.refAllele = Optional.empty();
 
-  @Argument(shortName = "bams", required = true, doc = "file of all BAM files")
-  var allBams: String = ""
-
-  @Argument(shortName = "o", required = true, doc = "Output prefix")
-  var outputPrefix: String = ""
-
-  @Argument(shortName = "minN", required = false, doc = "minimum number of sample observations to include in PON")
-  var minN: Int = 2
-
-  @Argument(doc="Reference fasta file to process with", fullName="reference", shortName="R", required=false)
-  var reference = new File("/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta")
-
-  @Argument(doc="Intervals file to process with", fullName="intervals", shortName="L", required=true)
-  var intervals : File = ""
-
-  @Argument(shortName = "sc", required = false, doc = "base scatter count")
-  var scatter: Int = 10
-
-
-  def script() {
-    val bams = QScriptUtils.createSeqFromFile(allBams)
-    val genotypesVcf = outputPrefix + ".genotypes.vcf"
-    val finalVcf = outputPrefix + ".vcf"
-
-    val perSampleVcfs = new ListBuffer[File]()
-    for (bam <- bams) {
-      val outputVcf = "sample-vcfs/" + bam.getName + ".vcf"
-      add( createM2Config(bam, outputVcf))
-      perSampleVcfs += outputVcf
     }
 
-    val cv = new CombineVariants()
-    cv.reference_sequence = reference
-    cv.memoryLimit = 2
-    cv.setKey = "null"
-    cv.minimumN = minN
-    cv.memoryLimit = 16
-    cv.filteredrecordsmergetype = FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED
-    cv.filteredAreUncalled = true
-    cv.variant = perSampleVcfs
-    cv.out = genotypesVcf
+    public static PerAlleleCollection createPerAltAlleleCollection(){
+        return new PerAlleleCollection(true);
+    }
 
-    // using this instead of "sites_only" because we want to keep the AC info
-    val vc = new VcfCutter()
-    vc.inVcf = genotypesVcf
-    vc.outVcf = finalVcf
+    public static PerAlleleCollection createPerRefAndAltAlleleCollection(){
+        return new PerAlleleCollection(false);
+    }
 
-    add (cv, vc)
+    /**
+     * Take an allele, REF or ALT, and update its value appropriately
+     *
+     * @param allele : REF or ALT allele
+     * @param newValue :
+     */
+    public void set(Allele allele, X newValue){
+        if (allele == null || newValue == null){
+            throw new IllegalArgumentException("allele or newValue is null");
+        }
+        if (allele.isReference() && altOnly){
+            throw new IllegalArgumentException("Collection stores values for alternate alleles only");
+        }
+        if (allele.isReference()){
+            this.setRef(allele, newValue);
+        } else {
+            this.setAlt(allele, newValue);
+        }
+    }
 
-  }
+    public void setRef(Allele refAllele, X newValue){
+        if (refAllele == null || newValue == null){
+            throw new IllegalArgumentException("refAllele or newValue is null");
+        }
+        if (refAllele.isNonReference()){
+            throw new IllegalArgumentException("Setting Non-reference allele as reference");
+        }
+
+        if (this.refAllele.isPresent()){
+            throw new IllegalArgumentException("Resetting the reference allele not permitted");
+        }
+
+        this.refAllele = Optional.of(refAllele);
+        this.refValue = Optional.of(newValue);
+    }
+
+    public void setAlt(Allele altAllele, X newValue){
+        if (altAllele == null || newValue == null){
+            throw new IllegalArgumentException("altAllele or newValue is null");
+        }
+        if (altAllele.isReference()){
+            throw new IllegalArgumentException("Setting reference allele as alt");
+        }
+
+        altAlleleValueMap.put(altAllele, newValue);
+    }
+
+    /**
+     * Get the value for an allele, REF or ALT
+     * @param allele
+     */
+    public X get(Allele allele){
+        if (allele == null){
+            throw new IllegalArgumentException("allele is null");
+        }
+
+        if (allele.isReference()){
+            if (allele.equals(this.refAllele.get())){
+                return(getRef());
+            } else {
+                throw new IllegalArgumentException("Requested ref allele does not match the stored ref allele");
+            }
+        } else {
+            return(getAlt(allele));
+        }
+    }
+
+    public X getRef(){
+        if (altOnly) {
+            throw new IllegalStateException("Collection does not hold the REF allele");
+        }
+
+        if (this.refAllele.isPresent()){
+            return(refValue.get());
+        } else {
+            throw new IllegalStateException("Collection's ref allele has not been set yet");
+        }
+    }
+
+    public X getAlt(Allele allele){
+        if (allele == null){
+            throw new IllegalArgumentException("allele is null");
+        }
+        if (allele.isReference()){
+            throw new IllegalArgumentException("allele is not an alt allele");
+        }
+
+        if (altAlleleValueMap.containsKey(allele)) {
+            return(altAlleleValueMap.get(allele));
+        } else {
+            throw new IllegalArgumentException("Requested alt allele is not in the collection");
+        }
+
+    }
 
 
-  def createM2Config(bam : File, outputVcf : File): org.broadinstitute.gatk.queue.extensions.gatk.MuTect2 = {
-    val mutect2 = new org.broadinstitute.gatk.queue.extensions.gatk.MuTect2
-
-    mutect2.reference_sequence = reference
-    mutect2.artifact_detection_mode = true
-    mutect2.intervalsString :+= intervals
-    mutect2.memoryLimit = 2
-    mutect2.input_file = List(new TaggedFile(bam, "tumor"))
-
-    mutect2.scatterCount = scatter
-    mutect2.out = outputVcf
-
-    mutect2
-  }
-}
-
-class VcfCutter extends CommandLineFunction {
-  @Input(doc = "vcf to cut") var inVcf: File = _
-  @Output(doc = "output vcf") var outVcf: File = _
-
-  def commandLine = "cat %s | cut -f1-8 > %s".format(inVcf, outVcf)
+    public Set<Allele> getAltAlleles(){
+        return(altAlleleValueMap.keySet());
+    }
 }

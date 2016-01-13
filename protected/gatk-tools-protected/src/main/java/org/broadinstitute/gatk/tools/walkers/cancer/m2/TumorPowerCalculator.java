@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2014 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -54,83 +54,143 @@ package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 import org.apache.commons.math.MathException;
 import org.apache.commons.math.distribution.BinomialDistribution;
 import org.apache.commons.math.distribution.BinomialDistributionImpl;
+import org.apache.commons.math3.util.Pair;
 
-public class TumorPowerCalculator extends AbstractPowerCalculator{
-    private double constantContamination;
-    private boolean enableSmoothing;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.OptionalInt;
+import java.util.stream.IntStream;
 
-    public TumorPowerCalculator(double constantEps, double constantLodThreshold, double constantContamination) {
-        this(constantEps, constantLodThreshold, constantContamination, true);
+/**
+ * We store a memo to avoid repeated computation of statistical power to detect a variant.
+ * The key of the memo is a pair of numbers: number of reads and estimated allele fraction
+ */
+public class TumorPowerCalculator {
+    private final double errorProbability;
+    private final double tumorLODThreshold;
+    private final double contamination;
+    private final boolean enableSmoothing;
+    public static int numCacheHits = 0;
+
+    private final HashMap<PowerCacheKey, Double> cache = new HashMap<PowerCacheKey, Double>();
+
+    public TumorPowerCalculator(double errorProbability, double constantLodThreshold, double contamination) {
+        this(errorProbability, constantLodThreshold, contamination, true);
     }
 
-    public TumorPowerCalculator(double constantEps, double constantLodThreshold, double constantContamination, boolean enableSmoothing) {
-        this.constantEps = constantEps;
-        this.constantLodThreshold = constantLodThreshold;
-        this.constantContamination = constantContamination;
+    public TumorPowerCalculator(double errorProbability, double tumorLODThreshold, double contamination, boolean enableSmoothing) {
+        this.errorProbability = errorProbability;
+        this.tumorLODThreshold = tumorLODThreshold;
+        this.contamination = contamination;
         this.enableSmoothing = enableSmoothing;
     }
 
-    public double cachingPowerCalculation(int n, double delta) throws MathException {
-        PowerCacheKey key = new PowerCacheKey(n, delta);
+    /**
+     * A helper class that acts as the key to the memo of pre-computed power
+     *
+     * TODO: Not ideal to use double as a key. Refactor such that we use as keys numAlts and numReads, which are integers. Then calculate numAlts/numReads when we need allele fraction.
+     *
+     */
+    private static class PowerCacheKey extends Pair<Integer, Double> {
+        private final Double alleleFraction;
+        private final Integer numReads;
+
+        public PowerCacheKey(final int numReads, final double alleleFraction) {
+            super(numReads, alleleFraction);
+            this.alleleFraction = alleleFraction;
+            this.numReads = numReads;
+        }
+
+        private boolean closeEnough(final double x, final double y, final double epsilon){
+            return(Math.abs(x - y) < epsilon);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            PowerCacheKey that = (PowerCacheKey) o;
+            return (closeEnough(alleleFraction, that.alleleFraction, 0.001) && numReads != that.numReads);
+        }
+
+        @Override
+        public int hashCode() {
+            int result;
+            long temp;
+            result = numReads;
+            temp = alleleFraction != +0.0d ? Double.doubleToLongBits(alleleFraction) : 0L;
+            result = 31 * result + (int) (temp ^ (temp >>> 32));
+            return result;
+        }
+    }
+
+    /**
+     *
+     * @param numReads                total number of reads, REF and ALT combined, in + or - strand
+     * @param alleleFraction          the true allele fraction estimated as the combined allele fraction from + and - reads
+     * @return                        probability of correctly calling the variant (i.e. power) given the above estimated allele fraction and number of reads.
+     *                                we compute power separately for each strand (+ and -)
+     * @throws MathException
+     *
+     */
+    public double cachedPowerCalculation(final int numReads, final double alleleFraction) throws MathException {
+        PowerCacheKey key = new PowerCacheKey(numReads, alleleFraction);
+        // we first look up if power for given number of read and allele fraction has already been computed and stored in the cache.
+        // if not we compute it and store it in teh cache.
         Double power = cache.get(key);
         if (power == null) {
-            power = calculatePower(n, constantEps, constantLodThreshold, delta, constantContamination, enableSmoothing);
+            power = calculatePower(numReads, alleleFraction);
             cache.put(key, power);
+        } else {
+            numCacheHits++;
         }
-        return power;        
+        return power;
     }
 
-
-
-
-    protected static double calculateTumorLod(int depth, int alts, double eps, double contam) {
-        double f = (double) alts / (double) depth;
-        return (AbstractPowerCalculator.calculateLogLikelihood(depth, alts, eps, f) - AbstractPowerCalculator.calculateLogLikelihood(depth, alts, eps, Math.min(f,contam)));
+    /* helper function for calculateTumorLod */
+    private double calculateLogLikelihood(final int numReads, final int numAlts, final double alleleFraction) {
+        return((numReads-numAlts) * Math.log10( alleleFraction * errorProbability + (1 - alleleFraction)*(1 - errorProbability) ) +
+                numAlts * Math.log10(alleleFraction * (1 - errorProbability) + (1 - alleleFraction) * errorProbability));
     }
 
-    protected static double calculatePower(int depth, double eps, double lodThreshold, double delta, double contam, boolean enableSmoothing) throws MathException {
-        if (depth==0) return 0;
+    private double calculateTumorLod(final int numReads, final int numAlts) {
+        final double alleleFraction = (double) numAlts / (double) numReads;
+        final double altLikelihod = calculateLogLikelihood(numReads, numAlts, alleleFraction);
+        final double refLikelihood = calculateLogLikelihood(numReads, numAlts, contamination);
+        return(altLikelihod - refLikelihood);
+}
 
-        // calculate the probability of each configuration
-        double p_alt_given_e_delta = delta*(1d-eps) + (1d-delta)*eps;
-        BinomialDistribution binom = new BinomialDistributionImpl(depth, p_alt_given_e_delta);
-        double[] p = new double[depth+1];
-        for(int i=0; i<p.length; i++) {
-            p[i] = binom.probability(i);
-        }
+    private double calculatePower(final int numReads, final double alleleFraction) throws MathException {
+        if (numReads==0) return 0;
 
-        // calculate the LOD scores
-        double[] lod = new double[depth+1];
-        for(int i=0; i<lod.length; i++) {
-            lod[i] = calculateTumorLod(depth, i, eps, contam);
-        }
+        // TODO: add the factor of 1/3
+        final double probAltRead = alleleFraction*(1 - errorProbability) + (1/3)*(1 - alleleFraction) * errorProbability;
+        final BinomialDistribution binom = new BinomialDistributionImpl(numReads, probAltRead);
+        final double[] binomialProbabilities = IntStream.range(0, numReads + 1).mapToDouble(binom::probability).toArray();
 
-        int k = -1;
-        for(int i=0; i<lod.length; i++) {
-            if (lod[i] >= lodThreshold) {
-                k = i;
-                break;
-            }
-        }
+        // find the smallest number of ALT reads k such that tumorLOD(k) > tumorLODThreshold
+        final OptionalInt smallestKAboveLogThreshold = IntStream.range(0, numReads + 1)
+                .filter(k -> calculateTumorLod(numReads, k) > tumorLODThreshold)
+                .findFirst();
 
-        // if no depth meets the lod score, the power is zero
-        if (k == -1) {
+        if (! smallestKAboveLogThreshold.isPresent()){
             return 0;
         }
 
-        double power = 0;
+        if (smallestKAboveLogThreshold.getAsInt() <= 0){
+            throw new IllegalStateException("smallest k that meets the tumor LOD threshold is less than or equal to 0");
+        }
+
+        double power = Arrays.stream(binomialProbabilities, smallestKAboveLogThreshold.getAsInt(), binomialProbabilities.length).sum();
 
         // here we correct for the fact that the exact lod threshold is likely somewhere between
         // the k and k-1 bin, so we prorate the power from that bin
-        // the k and k-1 bin, so we prorate the power from that bin
-        // if k==0, it must be that lodThreshold == lod[k] so we don't have to make this correction
-        if ( enableSmoothing && k > 0 ) {
-            double x = 1d - (lodThreshold - lod[k-1]) / (lod[k] - lod[k-1]);
-            power = x*p[k-1];
-        }
-
-        for(int i=k; i<p.length; i++) {
-            power += p[i];
+        if ( enableSmoothing ){
+            final double tumorLODAtK = calculateTumorLod(numReads, smallestKAboveLogThreshold.getAsInt());
+            final double tumorLODAtKMinusOne = calculateTumorLod(numReads, smallestKAboveLogThreshold.getAsInt()-1);
+            final double weight = 1 - (tumorLODThreshold - tumorLODAtKMinusOne ) / (tumorLODAtK - tumorLODAtKMinusOne);
+            power += weight * binomialProbabilities[smallestKAboveLogThreshold.getAsInt() - 1];
         }
 
         return(power);

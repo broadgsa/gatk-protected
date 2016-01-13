@@ -49,54 +49,143 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.queue.qscripts.dev
+package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import org.broadinstitute.gatk.queue.QScript
-import org.broadinstitute.gatk.queue.extensions.gatk._
-import org.broadinstitute.gatk.queue.util.QScriptUtils
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ActiveRegionBasedAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
+import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
+import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.sam.ReadUtils;
 
-class run_M2_ICE_NN extends QScript {
+import java.util.*;
 
-  @Argument(shortName = "bams", required = true, doc = "file of all BAM files")
-  var allBams: String = ""
+/**
+ * Created by gauthier on 7/27/15.
+ */
+public class ClusteredEventsAnnotator extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
 
-  @Argument(shortName = "o", required = false, doc = "Output prefix")
-  var outputPrefix: String = ""
+    private String tumorSampleName = null;
 
-  @Argument(shortName = "pon", required = false, doc = "Normal PON")
-  var panelOfNormals: String = "/dsde/working/mutect/panel_of_normals/panel_of_normals_m2_ice_wgs_territory/m2_406_ice_normals_wgs_calling_regions.vcf";
+    @Override
+    public List<String> getKeyNames() { return Arrays.asList("tumorForwardOffsetMedian","tumorReverseOffsetMedian","tumorForwardOffsetMAD","tumorReverseOffsetMAD"); }
 
-  @Argument(shortName = "sc", required = false, doc = "base scatter count")
-  var scatter: Int = 10
-
-
-  def script() {
-    val bams = QScriptUtils.createSeqFromFile(allBams)
-
-    for (tumor <- bams) {
-      for (normal <- bams) {
-        if (tumor != normal) add( createM2Config(tumor, normal, new File(panelOfNormals), outputPrefix))
-      }
+    @Override
+    public List<VCFInfoHeaderLine> getDescriptions() {
+        //TODO: this needs a lot of re-phrasing
+        return Arrays.asList(new VCFInfoHeaderLine("TUMOR_FWD_POS_MEDIAN", 1, VCFHeaderLineType.Integer, "Median offset of tumor variant position from positive read end"),
+                new VCFInfoHeaderLine("TUMOR_FWD_POS_MAD", 1, VCFHeaderLineType.Integer, "Median absolute deviation from the median for tumor forward read positions"),
+                new VCFInfoHeaderLine("TUMOR_REV_POS_MEDIAN", 1, VCFHeaderLineType.Integer, "Median offset of tumor variant position from negative read end"),
+                new VCFInfoHeaderLine("TUMOR_REV_POS_MAD", 1, VCFHeaderLineType.Integer, "Median absolute deviation from the median for tumor reverse read positions"));
     }
-  }
+
+    @Override
+    public Map<String, Object> annotate(final RefMetaDataTracker tracker,
+                                        final AnnotatorCompatible walker,
+                                        final ReferenceContext ref,
+                                        final Map<String, AlignmentContext> stratifiedContexts,
+                                        final VariantContext vc,
+                                        final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
+
+        if (tumorSampleName == null){
+            if (walker instanceof MuTect2 ) {
+                tumorSampleName = ((MuTect2) walker).tumorSampleName;
+            } else {
+                // ts: log error and exit
+                throw new IllegalStateException("ClusteredEventsAnnotator: walker is not MuTect2");
+            }
+        }
+
+        final Map<String, Object> map = new HashMap<>();
 
 
-  def createM2Config(tumorBAM : File, normalBAM : File, panelOfNormals : File, outputPrefix : String): M2 = {
-    val mutect2 = new MuTect2
+        if ( stratifiedPerReadAlleleLikelihoodMap != null ) {
+            final PerReadAlleleLikelihoodMap likelihoodMap = stratifiedPerReadAlleleLikelihoodMap.get(tumorSampleName);
+            MuTect2.logReadInfo("HAVCYADXX150109:2:2209:19034:53394", likelihoodMap.getLikelihoodReadMap().keySet(), "Present inside ClusteredEventsAnnotator:annotate");
+            if ( likelihoodMap != null && !likelihoodMap.isEmpty() ) {
+                double[] list = fillQualsFromLikelihoodMap(vc.getStart(), likelihoodMap); // [fwdMedian, revMedian, fwdMAD, revMAD]
+                final int FWDMEDIAN = 0, REVMEDIAN = 1, FWDMAD = 2, REVMAD = 3; // ts: make a class to contain these values
+                map.put("TUMOR_FWD_POS_MEDIAN", list[FWDMEDIAN]);
+                map.put("TUMOR_REV_POS_MEDIAN", list[REVMEDIAN]);
+                map.put("TUMOR_FWD_POS_MAD", list[FWDMAD]);
+                map.put("TUMOR_REV_POS_MAD", list[REVMAD]);
+            }
+        }
 
-    mutect2.reference_sequence = new File("/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta")
-    mutect2.cosmic :+= new File("/xchip/cga/reference/hg19/hg19_cosmic_v54_120711.vcf")
-    mutect2.dbsnp = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/dbsnp_138.b37.vcf")
-    mutect2.normal_panel :+= panelOfNormals
+        return map;
 
-    mutect2.intervalsString :+= new File("/dsde/working/mutect/crsp_nn/whole_exome_illumina_coding_v1.Homo_sapiens_assembly19.targets.no_empty.interval_list")
-    mutect2.memoryLimit = 2
-    mutect2.input_file = List(new TaggedFile(normalBAM, "normal"), new TaggedFile(tumorBAM, "tumor"))
+    }
 
-    mutect2.scatterCount = scatter
-    mutect2.out = outputPrefix + tumorBAM.getName + "-vs-" + normalBAM.getName + ".vcf"
+    private double[] fillQualsFromLikelihoodMap(final int refLoc,
+                                                final PerReadAlleleLikelihoodMap likelihoodMap) {
+        final ArrayList<Double> tumorFwdOffset = new ArrayList<>();
+        final ArrayList<Double> tumorRevOffset = new ArrayList<>();
+        for ( final Map.Entry<GATKSAMRecord, Map<Allele,Double>> el : likelihoodMap.getLikelihoodReadMap().entrySet() ) {
+            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+            if ( ! a.isInformative() )
+                continue; // read is non-informative
 
-    println("Adding " + tumorBAM + " vs " + normalBAM + " as " + mutect2.out)
-    mutect2
-  }
+            final GATKSAMRecord read = el.getKey();
+            if ( isUsableRead(read, refLoc) ) {
+                if ( a.getMostLikelyAllele().isReference() )
+                    continue;
+                final Double valueRight = getElementForRead(read, refLoc, ReadUtils.ClippingTail.RIGHT_TAIL);
+                if ( valueRight == null )
+                    continue;
+                tumorFwdOffset.add(valueRight);
+                final Double valueLeft = getElementForRead(read, refLoc, ReadUtils.ClippingTail.LEFT_TAIL);
+                if ( valueLeft == null )
+                    continue;
+                tumorRevOffset.add(valueLeft);
+            }
+        }
+
+        double fwdMedian = 0.0;
+        double revMedian = 0.0;
+        double fwdMAD = 0.0;
+        double revMAD = 0.0;
+
+        if (!tumorFwdOffset.isEmpty() && !tumorRevOffset.isEmpty()) {
+            fwdMedian = MuTectStats.getMedian(tumorFwdOffset);
+            revMedian = MuTectStats.getMedian(tumorRevOffset);
+            fwdMAD = MuTectStats.calculateMAD(tumorFwdOffset, fwdMedian);
+            revMAD = MuTectStats.calculateMAD(tumorRevOffset, revMedian);
+        }
+
+        return( new double[] {fwdMedian, revMedian, fwdMAD, revMAD} ); // TODO: make an object container instead of array
+    }
+
+   protected Double getElementForRead(final GATKSAMRecord read, final int refLoc, final ReadUtils.ClippingTail tail) {
+        final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate(read.getSoftStart(), read.getCigar(), refLoc, tail, true);
+        if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED ) // offset is the number of bases in the read, including inserted bases, from start of read to the variant
+            return null;
+
+        int readPos = AlignmentUtils.calcAlignmentByteArrayOffset(read.getCigar(), offset, false, 0, 0); // readpos is the number of REF bases from start to variant. I would name it as such...
+        final int numAlignedBases = AlignmentUtils.getNumAlignedBasesCountingSoftClips( read );
+        if (readPos > numAlignedBases / 2)
+            readPos = numAlignedBases - (readPos + 1);
+        return (double)readPos;
+    }
+
+    /**
+     * Can the read be used in comparative tests between ref / alt bases?
+     *
+     * @param read   the read to consider
+     * @param refLoc the reference location
+     * @return true if this read is meaningful for comparison, false otherwise
+     */
+    protected boolean isUsableRead(final GATKSAMRecord read, final int refLoc) {
+        return !( read.getMappingQuality() == 0 ||
+                read.getMappingQuality() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE );
+    }
 }

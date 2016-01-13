@@ -51,102 +51,57 @@
 
 package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.AssemblyBasedCallerArgumentCollection;
-import org.broadinstitute.gatk.utils.commandline.Advanced;
-import org.broadinstitute.gatk.utils.commandline.Argument;
-import org.broadinstitute.gatk.utils.commandline.Hidden;
+import htsjdk.variant.variantcontext.Allele;
+import org.testng.annotations.Test;
 
-public class M2ArgumentCollection extends AssemblyBasedCallerArgumentCollection {
-    @Advanced
-    @Argument(fullName="m2debug", shortName="m2debug", doc="Print out very verbose M2 debug information", required = false)
-    public boolean M2_DEBUG = false;
+import static org.testng.Assert.*;
 
-    /**
-     * Artifact detection mode is used to prepare a panel of normals. This maintains the specified tumor LOD threshold,
-     * but disables the remaining pragmatic filters. See usage examples above for more information.
-     */
-    @Advanced
-    @Argument(fullName = "artifact_detection_mode", required = false, doc="Enable artifact detection for creating panels of normals")
-    public boolean ARTIFACT_DETECTION_MODE = false;
+/**
+ * Created by tsato on 6/21/16.
+ */
+public class PerAlleleCollectionTest {
 
-    /**
-     * This is the LOD threshold that a variant must pass in the tumor to be emitted to the VCF. Note that the variant may pass this threshold yet still be annotated as FILTERed based on other criteria.
-     */
-    @Argument(fullName = "initial_tumor_lod", required = false, doc = "Initial LOD threshold for calling tumor variant")
-    public double INITIAL_TUMOR_LOD_THRESHOLD = 4.0;
 
-    /**
-     * This is the LOD threshold corresponding to the minimum amount of reference evidence in the normal for a variant to be considered somatic and emitted in the VCF
-     */
-    @Argument(fullName = "initial_normal_lod", required = false, doc = "Initial LOD threshold for calling normal variant")
-    public double INITIAL_NORMAL_LOD_THRESHOLD = 0.5;
 
-    /**
-     * Only variants with tumor LODs exceeding this threshold can pass filtering.
-     */
-    @Argument(fullName = "tumor_lod", required = false, doc = "LOD threshold for calling tumor variant")
-    public double TUMOR_LOD_THRESHOLD = 6.3;
+    @Test
+    public void testSet() throws Exception {
+        PerAlleleCollection<Integer> alleleCounts = PerAlleleCollection.createPerRefAndAltAlleleCollection();
+        Allele refA = Allele.create("A", true);
+        Allele altT = Allele.create("T", false);
+        alleleCounts.set(refA, 40);
+        alleleCounts.set(altT, 10);
+        assertEquals((int)alleleCounts.getRef(), 40);
+        assertEquals((int)alleleCounts.getAlt(altT), 10);
+    }
 
-    /**
-     * This is a measure of the minimum evidence to support that a variant observed in the tumor is not also present in the normal.
-     */
-    @Argument(fullName = "normal_lod", required = false, doc = "LOD threshold for calling normal non-germline")
-    public double NORMAL_LOD_THRESHOLD = 2.2;
+    @Test
+    public void testGet() throws Exception {
+        PerAlleleCollection<Integer> alleleCounts = PerAlleleCollection.createPerRefAndAltAlleleCollection();
+        Allele refA = Allele.create("A", true);
+        Allele altT = Allele.create("T", false);
+        alleleCounts.set(refA, 40);
+        alleleCounts.set(altT, 10);
+        assertEquals((int)alleleCounts.get(refA), 40);
+        assertEquals((int)alleleCounts.get(altT), 10);
+    }
 
-    /**
-     * The LOD threshold for the normal is typically made more strict if the variant has been seen in dbSNP (i.e. another
-     * normal sample). We thus require MORE evidence that a variant is NOT seen in this tumor's normal if it has been observed as a germline variant before.
-     */
-    @Argument(fullName = "dbsnp_normal_lod", required = false, doc = "LOD threshold for calling normal non-variant at dbsnp sites")
-    public double NORMAL_DBSNP_LOD_THRESHOLD = 5.5;
 
-    /**
-     * This argument is used for the internal "alt_allele_in_normal" filter.
-     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
-     **/
-    @Argument(fullName = "max_alt_alleles_in_normal_count", required = false, doc="Threshold for maximum alternate allele counts in normal")
-    public int MAX_ALT_ALLELES_IN_NORMAL_COUNT = 1;
+    @Test
+    public void testGetAltAlleles() throws Exception {
+        PerAlleleCollection<Integer> alleleCounts = PerAlleleCollection.createPerAltAlleleCollection();
+        Allele altA = Allele.create("A", false);
+        Allele altC = Allele.create("C", false);
+        Allele altG = Allele.create("G", false);
+        Allele altT = Allele.create("T", false);
+        Allele[] altAlleles = {altA, altC, altG, altT};
+        for (Allele altAllele : altAlleles ) {
+            alleleCounts.set(altAllele, 3);
+        }
 
-    /**
-     * This argument is used for the internal "alt_allele_in_normal" filter.
-     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
-     */
-    @Argument(fullName = "max_alt_alleles_in_normal_qscore_sum", required = false, doc="Threshold for maximum alternate allele quality score sum in normal")
-    public int MAX_ALT_ALLELES_IN_NORMAL_QSCORE_SUM = 20;
+        for (Allele altAllele : altAlleles ) {
+            assertTrue(alleleCounts.getAltAlleles().contains(altAllele));
+        }
 
-    /**
-     * This argument is used for the internal "alt_allele_in_normal" filter.
-     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
-     */
-    @Argument(fullName = "max_alt_allele_in_normal_fraction", required = false, doc="Threshold for maximum alternate allele fraction in normal")
-    public double MAX_ALT_ALLELE_IN_NORMAL_FRACTION = 0.03;
-
-    /**
-     * This argument is used for the M1-style strand bias filter
-     */
-    @Argument(fullName="power_constant_qscore", doc="Phred scale quality score constant to use in power calculations", required=false)
-    public int POWER_CONSTANT_QSCORE = 30;
-
-    @Hidden
-    @Argument(fullName = "strand_artifact_lod", required = false, doc = "LOD threshold for calling strand bias")
-    public float STRAND_ARTIFACT_LOD_THRESHOLD = 2.0f;
-
-    @Hidden
-    @Argument(fullName = "strand_artifact_power_threshold", required = false, doc = "power threshold for calling strand bias")
-    public float STRAND_ARTIFACT_POWER_THRESHOLD = 0.9f;
-
-    @Argument(fullName = "enable_strand_artifact_filter", required = false, doc = "turn on strand artifact filter")
-    public boolean ENABLE_STRAND_ARTIFACT_FILTER = false;
-
-    /**
-     * This argument is used for the M1-style read position filter
-     */
-    @Argument(fullName = "pir_median_threshold", required = false, doc="threshold for clustered read position artifact median")
-    public double PIR_MEDIAN_THRESHOLD = 10;
-
-    /**
-     * This argument is used for the M1-style read position filter
-     */
-    @Argument(fullName = "pir_mad_threshold", required = false, doc="threshold for clustered read position artifact MAD")
-    public double PIR_MAD_THRESHOLD = 3;
+        assertFalse(alleleCounts.getAltAlleles().contains(Allele.create("A", true)));
+    }
 }

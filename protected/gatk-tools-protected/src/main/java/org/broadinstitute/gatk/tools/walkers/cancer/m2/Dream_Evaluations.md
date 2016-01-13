@@ -54,7 +54,7 @@ and then run the following Queue command
 java \
   -Djava.io.tmpdir=$TEMPDIR \
   -jar $QUEUE_JAR \
-  -S $GSA_UNSTABLE_HOME/private/gatk-tools-private/src/main/java/org/broadinstitute/gatk/tools/walkers/cancer/m2/run_M2_dream.scala \
+  -S $GSA_UNSTABLE_HOME/private/gatk-queue-extensions-internal/src/main/qscripts/org/broadinstitute/gatk/queue/qscripts/m2/run_M2_dream.scala \
   --job_queue gsa -qsub -jobResReq virtual_free=5G -startFromScratch \
   -sc 200 \
   -normal $NORMAL_BAM \
