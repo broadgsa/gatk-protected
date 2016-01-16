@@ -198,12 +198,12 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
     }
 
     @Test(description = "Checks out of order header contigs")
-    public void testOutOfOrderHeaderContigsError() {
-
+    public void testOutOfOrderHeaderContigs() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("complexEvents-outOfOrder.vcf", "ALL", DEFAULT_REGION, b37KGReference),
-                0, UserException.LexicographicallySortedSequenceDictionary.class);
-        executeTest("test out of order header contigs error", spec);
+                0,
+                Arrays.asList(EMPTY_MD5));
+        executeTest("test out of order header contigs", spec);
     }
 
     @Test(description = "Fixes '''bug''' reported in story https://www.pivotaltracker.com/story/show/68725164")
