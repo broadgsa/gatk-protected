@@ -58,7 +58,6 @@ import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.collections.ExpandingArrayList;
@@ -85,7 +84,7 @@ public class VariantDataManager {
     protected final static Logger logger = Logger.getLogger(VariantDataManager.class);
     protected final List<TrainingSet> trainingSets;
     private static final double SAFETY_OFFSET = 0.01;     //To use for example as 1/(X + SAFETY_OFFSET) to protect against dividing or taking log of X=0.
-    private static final double PRECISION = 0.01;         //To use mainly with MathUrils.compareDoubles(a,b,PRECISON)
+    private static final double PRECISION = 0.01;         //To use mainly with MathUtils.compareDoubles(a,b,PRECISION)
 
     public VariantDataManager( final List<String> annotationKeys, final VariantRecalibratorArgumentCollection VRAC ) {
         this.data = Collections.emptyList();
@@ -344,7 +343,7 @@ public class VariantDataManager {
         int iii = 0;
         for( final String key : annotationKeys ) {
             isNull[iii] = false;
-            annotations[iii] = decodeAnnotation( key, vc, jitter, VRAC );
+            annotations[iii] = decodeAnnotation( key, vc, jitter, VRAC, datum );
             if( Double.isNaN(annotations[iii]) ) { isNull[iii] = true; }
             iii++;
         }
@@ -356,19 +355,31 @@ public class VariantDataManager {
         return Math.log((x - xmin)/(xmax - x));
     }
 
-    private static double decodeAnnotation( final String annotationKey, final VariantContext vc, final boolean jitter, final VariantRecalibratorArgumentCollection vrac ) {
+    private static double decodeAnnotation( final String annotationKey, final VariantContext vc, final boolean jitter, final VariantRecalibratorArgumentCollection vrac, final VariantDatum datum ) {
         double value;
 
         final double LOG_OF_TWO = 0.6931472;
 
         try {
-            value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
+            //if we're in allele-specific mode and an allele-specific annotation has been requested, parse the appropriate value from the list
+            if(vrac.useASannotations && annotationKey.startsWith(GATKVCFConstants.ALLELE_SPECIFIC_PREFIX)) {
+                final List<Object> valueList = vc.getAttributeAsList(annotationKey);
+                if (vc.hasAllele(datum.alternateAllele)) {
+                    final int altIndex = vc.getAlleleIndex(datum.alternateAllele)-1; //-1 is to convert the index from all alleles (including reference) to just alternate alleles
+                    value = Double.parseDouble((String)valueList.get(altIndex));
+                }
+                //if somehow our alleles got mixed up
+                else
+                    throw new IllegalStateException("VariantDatum allele " + datum.alternateAllele + " is not contained in the input VariantContext.");
+            }
+            else
+                value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
             if( Double.isInfinite(value) ) { value = Double.NaN; }
-            if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("InbreedingCoeff") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("SOR") && MathUtils.compareDoubles(value, LOG_OF_TWO, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
-            if( jitter && annotationKey.equalsIgnoreCase("MQ")) {
+            if( jitter && annotationKey.equalsIgnoreCase(GATKVCFConstants.HAPLOTYPE_SCORE_KEY) && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && (annotationKey.equalsIgnoreCase(GATKVCFConstants.FISHER_STRAND_KEY) || annotationKey.equalsIgnoreCase(GATKVCFConstants.AS_FILTER_STATUS_KEY)) && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase(GATKVCFConstants.INBREEDING_COEFFICIENT_KEY) && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && (annotationKey.equalsIgnoreCase(GATKVCFConstants.STRAND_ODDS_RATIO_KEY) || annotationKey.equalsIgnoreCase(GATKVCFConstants.AS_STRAND_ODDS_RATIO_KEY)) && MathUtils.compareDoubles(value, LOG_OF_TWO, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
+            if( jitter && (annotationKey.equalsIgnoreCase(VCFConstants.RMS_MAPPING_QUALITY_KEY) || annotationKey.equalsIgnoreCase(GATKVCFConstants.AS_RMS_MAPPING_QUALITY_KEY))) {
                 if( vrac.MQ_CAP > 0) {
                     value = logitTransform(value, -SAFETY_OFFSET, vrac.MQ_CAP + SAFETY_OFFSET);
                     if (MathUtils.compareDoubles(value, logitTransform(vrac.MQ_CAP, -SAFETY_OFFSET, vrac.MQ_CAP + SAFETY_OFFSET), PRECISION) == 0 ) {
@@ -394,6 +405,8 @@ public class VariantDataManager {
 
         for( final TrainingSet trainingSet : trainingSets ) {
             for( final VariantContext trainVC : tracker.getValues(trainingSet.rodBinding, genomeLoc) ) {
+                if (VRAC.useASannotations && !doAllelesMatch(trainVC, datum))
+                    continue;
                 if( isValidVariant( evalVC, trainVC, TRUST_ALL_POLYMORPHIC ) ) {
                     datum.isKnown = datum.isKnown || trainingSet.isKnown;
                     datum.atTruthSite = datum.atTruthSite || trainingSet.isTruth;
@@ -411,6 +424,11 @@ public class VariantDataManager {
     private boolean isValidVariant( final VariantContext evalVC, final VariantContext trainVC, final boolean TRUST_ALL_POLYMORPHIC) {
         return trainVC != null && trainVC.isNotFiltered() && trainVC.isVariant() && checkVariationClass( evalVC, trainVC ) &&
                 (TRUST_ALL_POLYMORPHIC || !trainVC.hasGenotypes() || trainVC.isPolymorphicInSamples());
+    }
+
+    private boolean doAllelesMatch(final VariantContext trainVC, final VariantDatum datum) {
+        //only do this check in the allele-specific case, where each datum represents one allele
+        return datum.alternateAllele == null || trainVC.getAlternateAlleles().contains(datum.alternateAllele);
     }
 
     protected static boolean checkVariationClass( final VariantContext evalVC, final VariantContext trainVC ) {
@@ -436,7 +454,21 @@ public class VariantDataManager {
             case BOTH:
                 return true;
             default:
-                throw new ReviewedGATKException( "Encountered unknown recal mode: " + mode );
+                throw new IllegalStateException( "Encountered unknown recal mode: " + mode );
+        }
+    }
+
+    protected static boolean checkVariationClass( final VariantContext evalVC, final Allele allele, final VariantRecalibratorArgumentCollection.Mode mode ) {
+        switch( mode ) {
+            case SNP:
+                //note that spanning deletions are considered SNPs by this logic
+                return evalVC.getReference().length() == allele.length();
+            case INDEL:
+                return (evalVC.getReference().length() != allele.length()) || allele.isSymbolic();
+            case BOTH:
+                return true;
+            default:
+                throw new IllegalStateException( "Encountered unknown recal mode: " + mode );
         }
     }
 
@@ -448,9 +480,11 @@ public class VariantDataManager {
             }} );
 
         // create dummy alleles to be used
-        final List<Allele> alleles = Arrays.asList(Allele.create("N", true), Allele.create("<VQSR>", false));
+        List<Allele> alleles = Arrays.asList(Allele.create("N", true), Allele.create("<VQSR>", false));
 
         for( final VariantDatum datum : data ) {
+            if (VRAC.useASannotations)
+                alleles = Arrays.asList(datum.referenceAllele, datum.alternateAllele); //use the alleles to distinguish between multiallelics in AS mode
             VariantContextBuilder builder = new VariantContextBuilder("VQSR", datum.loc.getContig(), datum.loc.getStart(), datum.loc.getStop(), alleles);
             builder.attribute(VCFConstants.END_KEY, datum.loc.getStop());
             builder.attribute(GATKVCFConstants.VQS_LOD_KEY, String.format("%.4f", datum.lod));

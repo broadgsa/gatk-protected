@@ -51,6 +51,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
+import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.tools.walkers.annotator.AnnotationUtils;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
@@ -74,6 +76,8 @@ import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
 import java.io.File;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Apply a score cutoff to filter variants based on a recalibration table
@@ -126,6 +130,26 @@ import java.util.*;
  *   -o path/to/output.recalibrated.filtered.vcf
  * </pre>
  *
+ * <h3>Allele-specific usage</h3>
+ * <pre>
+ * java -Xmx3g -jar GenomeAnalysisTK.jar \
+ *   -T ApplyRecalibration \
+ *   -R reference.fasta \
+ *   -input rawVariants.withASannotations.vcf \
+ *   -AS \
+ *   --ts_filter_level 99.0 \
+ *   -tranchesFile path/to/output.AS.tranches \
+ *   -recalFile path/to/output.AS.recal \
+ *   -mode SNP \
+ *   -o path/to/output.recalibrated.ASfiltered.vcf
+ * </pre>
+ * Each allele will be annotated by its corresponding entry in the AS_FilterStatus INFO field annotation.  Allele-specific VQSLOD and culprit are also carried through from VariantRecalibrator and stored in the AS_VQSLOD and AS_culprit INFO fields, respectively.
+ * The site-level filter is set to the most lenient of any of the allele filters.  That is, if one allele passes, the whole site will be PASS.  If no alleles pass, the site-level filter will be set to the lowest sensitivity tranche among all the alleles.
+ *
+ * Note that the .tranches and .recal files should be derived from an allele-specific run of VariantRecalibrator
+ * Also note that the AS_culprit, AS_FilterStatus, and AS_VQSLOD fields will have placeholder values (NA or NaN) for alleles of a type that have not yet been processed by ApplyRecalibration
+ * The spanning deletion allele (*) will not be recalibrated because it represents missing data. Its VQSLOD will remain NaN and it's culprit and FilterStatus will be NA.
+ *
  * <h3>Caveats</h3>
  *
  * <ul>
@@ -144,6 +168,9 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
 
     public static final String LOW_VQSLOD_FILTER_NAME = "LOW_VQSLOD";
     private final double DEFAULT_VQSLOD_CUTOFF = 0.0;
+
+    boolean foundSNPTranches = false;
+    boolean foundINDELTranches = false;
 
     /////////////////////////////
     // Inputs
@@ -169,6 +196,14 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
     /////////////////////////////
     @Argument(fullName="ts_filter_level", shortName="ts_filter_level", doc="The truth sensitivity level at which to start filtering", required=false)
     protected Double TS_FILTER_LEVEL = null;
+
+    /**
+     *  Filter the input file based on allele-specific recalibration data.  See tool docs for site-level and allele-level filtering details.
+     *  Requires a .recal file produced using an allele-specific run of VariantRecalibrator
+     */
+    @Argument(fullName="useAlleleSpecificAnnotations", shortName="AS", doc="If specified, the tool will attempt to apply a filter to each allele based on the input tranches and allele-specific .recal file.", required=false)
+    public boolean useASannotations = false;
+
     @Advanced
     @Argument(fullName="lodCutoff", shortName="lodCutoff", doc="The VQSLOD score below which to start filtering", required=false)
     protected Double VQSLOD_CUTOFF = null;
@@ -191,6 +226,12 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
     final private List<Tranche> tranches = new ArrayList<>();
     final private Set<String> inputNames = new HashSet<>();
     final private Set<String> ignoreInputFilterSet = new TreeSet<>();
+    final static private String listPrintSeparator = ",";
+    final static private String trancheFilterString = "VQSRTranche";
+    final static private String arrayParseRegex = "[\\[\\]\\s]";
+    final static private String emptyStringValue = "NA";
+    final static private String emptyFloatValue = "NaN";
+
 
     //---------------------------------------------------------------------------------------------------------------
     //
@@ -219,11 +260,19 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
 
         // setup the header fields
         final Set<VCFHeaderLine> hInfo = new HashSet<>();
-        hInfo.addAll(GATKVCFUtils.getHeaderFields(getToolkit(), inputNames));
+        final Set<VCFHeaderLine> inputHeaders = GATKVCFUtils.getHeaderFields(getToolkit(), inputNames);
+        hInfo.addAll(inputHeaders);
         addVQSRStandardHeaderLines(hInfo);
+        if (useASannotations)
+            addAlleleSpecificVQSRHeaderLines(hInfo);
+
+        checkForPreviousApplyRecalRun(Collections.unmodifiableSet(inputHeaders));
+
         final TreeSet<String> samples = new TreeSet<>();
         samples.addAll(SampleUtils.getUniqueSamplesFromRods(getToolkit(), inputNames));
 
+        //generate headers from tranches file
+        //TODO: throw away old tranche headers if we're ignoring filters
         if( TS_FILTER_LEVEL != null ) {
             // if the user specifies both ts_filter_level and lodCutoff then throw a user error
             if( VQSLOD_CUTOFF != null ) {
@@ -255,12 +304,58 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
         vcfWriter.writeHeader(vcfHeader);
     }
 
+    private boolean trancheIntervalIsValid(final String sensitivityLimits) {
+        final String[] vals = sensitivityLimits.split("to");
+        if(vals.length != 2)
+            return false;
+        try {
+            double lowerLimit = Double.parseDouble(vals[0]);
+            double upperLimit = Double.parseDouble(vals[1].replace("+",""));    //why does our last tranche end with 100+? Is there anything greater than 100 percent?  Really???
+        }
+        catch(NumberFormatException e) {
+            throw new UserException("Poorly formatted tranche filter name does not contain two sensitivity interval end points.");
+        }
+        return true;
+    }
+
     public static void addVQSRStandardHeaderLines(final Set<VCFHeaderLine> hInfo) {
         hInfo.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
         hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.VQS_LOD_KEY));
         hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.CULPRIT_KEY));
         hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.POSITIVE_LABEL_KEY));
         hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.NEGATIVE_LABEL_KEY));
+    }
+
+    public static void addAlleleSpecificVQSRHeaderLines(final Set<VCFHeaderLine> hInfo) {
+        hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.AS_FILTER_STATUS_KEY));
+    }
+
+    /**
+     * Check the filter declarations in the input VCF header to see if any ApplyRecalibration mode has been run
+     * Here we assume that the tranches are named with a specific format: VQSRTranche[SNP|INDEL][lowerLimit]to[upperLimit]
+     * @param inputHeaders
+     */
+    private void checkForPreviousApplyRecalRun(final Set<VCFHeaderLine> inputHeaders) {
+        for(final VCFHeaderLine header : inputHeaders) {
+            if(header instanceof VCFFilterHeaderLine) {
+                final String filterName = ((VCFFilterHeaderLine)header).getID();
+                if(filterName.length() < 12 || !filterName.substring(0, 11).equalsIgnoreCase(trancheFilterString)) {
+                    continue;
+                }
+                if(filterName.charAt(11) == 'S') {
+                    //for SNP tranches, get sensitivity limit
+                    final String sensitivityLimits = filterName.substring(14);
+                    if(trancheIntervalIsValid(sensitivityLimits))
+                        foundSNPTranches = true;
+                }
+                else if(filterName.charAt(11) == 'I') {
+                    //for INDEL tranches, get sensitivity limit
+                    final String sensitivityLimits = filterName.substring(16);
+                    if(trancheIntervalIsValid(sensitivityLimits))
+                        foundINDELTranches = true;
+                }
+            }
+        }
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -280,38 +375,26 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
 
         for( final VariantContext vc : VCs ) {
 
-            if( VariantDataManager.checkVariationClass( vc, MODE ) && (IGNORE_ALL_FILTERS || vc.isNotFiltered() || ignoreInputFilterSet.containsAll(vc.getFilters())) ) {
+            final boolean evaluateThisVariant = useASannotations || VariantDataManager.checkVariationClass( vc, MODE );
+            final boolean variantIsNotFiltered = IGNORE_ALL_FILTERS || vc.isNotFiltered() || (!ignoreInputFilterSet.isEmpty() && ignoreInputFilterSet.containsAll(vc.getFilters()));     //vc.isNotFiltered is true for PASS; vc.filtersHaveBeenApplied covers PASS and filters
+            if( evaluateThisVariant && variantIsNotFiltered) {
 
-                final VariantContext recalDatum = getMatchingRecalVC(vc, recals);
-                if( recalDatum == null ) {
-                    throw new UserException("Encountered input variant which isn't found in the input recal file. Please make sure VariantRecalibrator and ApplyRecalibration were run on the same set of input variants. First seen at: " + vc );
+
+                String filterString;
+                final VariantContextBuilder builder = new VariantContextBuilder(vc);
+                if (!useASannotations) {
+                    filterString = doSiteSpecificFiltering(vc, recals, builder);
+                }
+                else {  //allele-specific mode
+                    filterString = doAlleleSpecificFiltering(vc, recals, builder);
                 }
 
-                final String lodString = recalDatum.getAttributeAsString(GATKVCFConstants.VQS_LOD_KEY, null);
-                if( lodString == null ) {
-                    throw new UserException("Encountered a malformed record in the input recal file. There is no lod for the record at: " + vc );
-                }
-                final double lod;
-                try {
-                    lod = Double.valueOf(lodString);
-                } catch (NumberFormatException e) {
-                    throw new UserException("Encountered a malformed record in the input recal file. The lod is unreadable for the record at: " + vc );
-                }
-
-                VariantContextBuilder builder = new VariantContextBuilder(vc);
-
-                // Annotate the new record with its VQSLOD and the worst performing annotation
-                builder.attribute(GATKVCFConstants.VQS_LOD_KEY, lod);
-                builder.attribute(GATKVCFConstants.CULPRIT_KEY, recalDatum.getAttribute(GATKVCFConstants.CULPRIT_KEY));
-                if ( recalDatum.hasAttribute(GATKVCFConstants.POSITIVE_LABEL_KEY))
-                    builder.attribute(GATKVCFConstants.POSITIVE_LABEL_KEY, true);
-                if ( recalDatum.hasAttribute(GATKVCFConstants.NEGATIVE_LABEL_KEY))
-                    builder.attribute(GATKVCFConstants.NEGATIVE_LABEL_KEY, true);
-
-                final String filterString = generateFilterString(lod);
+                //for both non-AS and AS modes:
 
                 if( filterString.equals(VCFConstants.PASSES_FILTERS_v4) ) {
                     builder.passFilters();
+                } else if(filterString.equals(VCFConstants.UNFILTERED)) {
+                    builder.unfiltered();
                 } else {
                     builder.filters(filterString);
                 }
@@ -326,6 +409,78 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
         }
 
         return 1; // This value isn't used for anything
+    }
+
+    public double parseFilterLowerLimit(final String trancheFilter) {
+        final Pattern pattern = Pattern.compile("VQSRTranche\\S+(\\d+\\.\\d+)to(\\d+\\.\\d+)");
+        final Matcher m = pattern.matcher(trancheFilter);
+        return m.find() ? Double.parseDouble(m.group(1)) : -1;
+    }
+
+    /**
+     * Generate the VCF filter string for this record based on the ApplyRecalibration modes run so far
+     * @param vc the input VariantContext (with at least one ApplyRecalibration mode already run)
+     * @param bestLod best LOD from the alleles we've seen in this recalibration mode
+     * @return the String to use as the VCF filter field
+     */
+    protected String generateFilterStringFromAlleles(final VariantContext vc, final double bestLod) {
+        String filterString = ".";
+
+        final boolean bothModesWereRun = (MODE == VariantRecalibratorArgumentCollection.Mode.SNP && foundINDELTranches) || (MODE == VariantRecalibratorArgumentCollection.Mode.INDEL && foundSNPTranches);
+        final boolean onlyOneModeNeeded = !vc.isMixed() && VariantDataManager.checkVariationClass( vc, MODE );
+
+        //if both SNP and INDEL modes have not yet been run (and need to be), leave this variant as unfiltered and add the filters for the alleles in this mode to the INFO field
+        if (!bothModesWereRun && !onlyOneModeNeeded) {
+            return VCFConstants.UNFILTERED;
+        }
+
+        //if both SNP and INDEL modes have been run or the site is not mixed, generate a filter string for this site based on both models
+
+        //pull out the allele filter status from the info field (there may be more than one entry in the list if there were multiple snp/indel alleles assessed in the other mode)
+        final String prevFilterStatus = vc.getAttributeAsString(GATKVCFConstants.AS_FILTER_STATUS_KEY, null);
+
+        //if this site hasn't had a filter applied yet
+        if (prevFilterStatus != null && !prevFilterStatus.equals(VCFConstants.UNFILTERED)) {
+            final String prevAllelesFilterStatusString = vc.getAttributeAsString(GATKVCFConstants.AS_FILTER_STATUS_KEY, null);
+            final String[] prevAllelesFilterStatusList = prevAllelesFilterStatusString.split(listPrintSeparator);
+            //start with the current best allele filter as the most lenient filter across all modes and all alleles
+            String mostLenientFilterName = generateFilterString(bestLod);
+            //if the current mode's best allele passes the tranche filter, then let the whole site pass
+            if (mostLenientFilterName.equals(VCFConstants.PASSES_FILTERS_v4)) {
+                filterString = mostLenientFilterName;
+            }
+            //if the current mode's best allele does not pass the tranche filter, compare the most lenient filter of this mode with those from the previous mode
+            else {
+                double mostLenientSensitivityLowerLimit = parseFilterLowerLimit(mostLenientFilterName);
+                for (int i = 0; i < prevAllelesFilterStatusList.length; i++) {
+                    final String alleleFilterString = prevAllelesFilterStatusList[i].replaceAll(arrayParseRegex, "").trim();
+                    //if any allele from the previous mode passed the tranche filter, then let the whole site pass
+                    if (alleleFilterString.equals(VCFConstants.PASSES_FILTERS_v4)) { //this allele is PASS
+                        mostLenientFilterName = alleleFilterString;
+                        break;
+                    }
+                    //if there's no PASS, then we need to parse the filters to find out how lenient they are
+                    else {
+                        final double alleleLowerLimit = parseFilterLowerLimit(alleleFilterString);
+                        if (alleleLowerLimit == -1)
+                            continue;
+                        if (alleleLowerLimit < mostLenientSensitivityLowerLimit) {
+                            mostLenientSensitivityLowerLimit = alleleLowerLimit;
+                            mostLenientFilterName = alleleFilterString;
+                        }
+                    }
+
+                }
+                filterString = mostLenientFilterName;
+            }
+        }
+
+        //if both modes have been run, but the previous mode didn't apply a filter, use the current mode's best allele VQSLOD filter (shouldn't get run, but just in case)
+        else {
+            filterString = generateFilterString(bestLod);
+        }
+
+        return filterString;
     }
 
     /**
@@ -358,14 +513,162 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
         return filterString;
     }
 
-    private static VariantContext getMatchingRecalVC(final VariantContext target, final List<VariantContext> recalVCs) {
+    private VariantContext getMatchingRecalVC(final VariantContext target, final List<VariantContext> recalVCs, final Allele allele) {
         for( final VariantContext recalVC : recalVCs ) {
             if ( target.getEnd() == recalVC.getEnd() ) {
-                return recalVC;
+                if (!useASannotations)
+                    return recalVC;
+                else if (allele.equals(recalVC.getAlternateAllele(0)))
+                    return recalVC;
             }
         }
-
         return null;
+    }
+
+    /**
+     *
+     * @param altIndex current alt allele
+     * @param prevCulpritList culprits from previous ApplyRecalibration run
+     * @param prevLodList lods from previous ApplyRecalibration run
+     * @param prevASfiltersList AS_filters from previous ApplyRecalibration run
+     * @param culpritString
+     * @param lodString
+     * @param AS_filterString
+     */
+    private void updateAnnotationsWithoutRecalibrating(final int altIndex, final String[] prevCulpritList, final String[] prevLodList, final String[] prevASfiltersList,
+                                                       final List<String> culpritString, final List<String> lodString, final List<String> AS_filterString) {
+        if (foundINDELTranches || foundSNPTranches) {
+            if (altIndex < prevCulpritList.length) {
+                culpritString.add(prevCulpritList[altIndex].replaceAll(arrayParseRegex, "").trim());
+                lodString.add(prevLodList[altIndex].replaceAll(arrayParseRegex, "").trim());
+                AS_filterString.add(prevASfiltersList[altIndex].replaceAll(arrayParseRegex, "").trim());
+            }
+        } else { //if the other allele type hasn't been processed yet, make sure there are enough entries
+            culpritString.add(emptyStringValue);
+            lodString.add(emptyFloatValue);
+            AS_filterString.add(emptyStringValue);
+        }
+    }
+
+    /**
+     * Calculate the allele-specific filter status of vc
+     * @param vc
+     * @param recals
+     * @param builder   is modified by adding attributes
+     * @return a String with the filter status for this site
+     */
+    private String doAlleleSpecificFiltering(final VariantContext vc, final List<VariantContext> recals, final VariantContextBuilder builder) {
+        double bestLod = VariantRecalibratorEngine.MIN_ACCEPTABLE_LOD_SCORE;
+        final List<String> culpritStrings = new ArrayList<>();
+        final List<String> lodStrings = new ArrayList<>();
+        final List<String> AS_filterStrings = new ArrayList<>();
+
+        String[] prevCulpritList = null;
+        String[] prevLodList = null;
+        String[] prevASfiltersList = null;
+
+        //get VQSR annotations from previous run of ApplyRecalibration, if applicable
+        if(foundINDELTranches || foundSNPTranches) {
+            final String prevCulprits = vc.getAttributeAsString(GATKVCFConstants.AS_CULPRIT_KEY,"");
+            prevCulpritList = prevCulprits.isEmpty()? new String[0] : prevCulprits.split(listPrintSeparator);
+            final String prevLodString = vc.getAttributeAsString(GATKVCFConstants.AS_VQS_LOD_KEY,"");
+            prevLodList = prevLodString.isEmpty()? new String[0] : prevLodString.split(listPrintSeparator);
+            final String prevASfilters = vc.getAttributeAsString(GATKVCFConstants.AS_FILTER_STATUS_KEY,"");
+            prevASfiltersList = prevASfilters.isEmpty()? new String[0] : prevASfilters.split(listPrintSeparator);
+        }
+
+        //for each allele in the current VariantContext
+        for (int altIndex = 0; altIndex < vc.getNAlleles()-1; altIndex++) {
+            final Allele allele = vc.getAlternateAllele(altIndex);
+
+            //if the current allele is not part of this recalibration mode, add its annotations to the list and go to the next allele
+            if (!VariantDataManager.checkVariationClass(vc, allele, MODE)) {
+                updateAnnotationsWithoutRecalibrating(altIndex, prevCulpritList, prevLodList, prevASfiltersList, culpritStrings, lodStrings, AS_filterStrings);
+                continue;
+            }
+
+            //if the current allele does need to have recalibration applied...
+
+            //initialize allele-specific VQSR annotation data with values for spanning deletion
+            String alleleLodString = emptyFloatValue;
+            String alleleFilterString = emptyStringValue;
+            String alleleCulpritString = emptyStringValue;
+
+            //if it's not a spanning deletion, replace those allele strings with the real values
+            if (!allele.equals(Allele.SPAN_DEL)) {
+                VariantContext recalDatum = getMatchingRecalVC(vc, recals, allele);
+                if (recalDatum == null) {
+                    throw new UserException("Encountered input allele which isn't found in the input recal file. Please make sure VariantRecalibrator and ApplyRecalibration were run on the same set of input variants with flag -AS. First seen at: " + vc);
+                }
+
+                //compare VQSLODs for all alleles in the current mode for filtering later
+                final double lod = recalDatum.getAttributeAsDouble(GATKVCFConstants.VQS_LOD_KEY, VariantRecalibratorEngine.MIN_ACCEPTABLE_LOD_SCORE);
+                if (lod > bestLod)
+                    bestLod = lod;
+
+                alleleLodString = String.format("%.4f", lod);
+                alleleFilterString = generateFilterString(lod);
+                alleleCulpritString = recalDatum.getAttributeAsString(GATKVCFConstants.CULPRIT_KEY, ".");
+
+                if(recalDatum != null) {
+                    if (recalDatum.hasAttribute(GATKVCFConstants.POSITIVE_LABEL_KEY))
+                        builder.attribute(GATKVCFConstants.POSITIVE_LABEL_KEY, true);
+                    if (recalDatum.hasAttribute(GATKVCFConstants.NEGATIVE_LABEL_KEY))
+                        builder.attribute(GATKVCFConstants.NEGATIVE_LABEL_KEY, true);
+                }
+            }
+
+            //append per-allele VQSR annotations
+            lodStrings.add(alleleLodString);
+            AS_filterStrings.add(alleleFilterString);
+            culpritStrings.add(alleleCulpritString);
+        }
+
+        // Annotate the new record with its VQSLOD, AS_FilterStatus, and the worst performing annotation
+        if(!AS_filterStrings.isEmpty() )
+            builder.attribute(GATKVCFConstants.AS_FILTER_STATUS_KEY, AnnotationUtils.encodeStringList(AS_filterStrings));
+        if(!lodStrings.isEmpty())
+            builder.attribute(GATKVCFConstants.AS_VQS_LOD_KEY, AnnotationUtils.encodeStringList(lodStrings));
+        if(!culpritStrings.isEmpty())
+            builder.attribute(GATKVCFConstants.AS_CULPRIT_KEY, AnnotationUtils.encodeStringList(culpritStrings));
+
+        return generateFilterStringFromAlleles(vc, bestLod);
+    }
+
+    /**
+     * Calculate the filter status for a given VariantContext using the combined data from all alleles at a site
+     * @param vc
+     * @param recals
+     * @param builder   is modified by adding attributes
+     * @return a String with the filter status for this site
+     */
+    private String doSiteSpecificFiltering(final VariantContext vc, final List<VariantContext> recals, final VariantContextBuilder builder) {
+        VariantContext recalDatum = getMatchingRecalVC(vc, recals, null);
+        if( recalDatum == null ) {
+            throw new UserException("Encountered input variant which isn't found in the input recal file. Please make sure VariantRecalibrator and ApplyRecalibration were run on the same set of input variants. First seen at: " + vc );
+        }
+
+        final String lodString = recalDatum.getAttributeAsString(GATKVCFConstants.VQS_LOD_KEY, null);
+        if( lodString == null ) {
+            throw new UserException("Encountered a malformed record in the input recal file. There is no lod for the record at: " + vc );
+        }
+        final double lod;
+        try {
+            lod = Double.valueOf(lodString);
+        } catch (NumberFormatException e) {
+            throw new UserException("Encountered a malformed record in the input recal file. The lod is unreadable for the record at: " + vc );
+        }
+
+        builder.attribute(GATKVCFConstants.VQS_LOD_KEY, lod);
+        builder.attribute(GATKVCFConstants.CULPRIT_KEY, recalDatum.getAttribute(GATKVCFConstants.CULPRIT_KEY));
+        if(recalDatum != null) {
+            if (recalDatum.hasAttribute(GATKVCFConstants.POSITIVE_LABEL_KEY))
+                builder.attribute(GATKVCFConstants.POSITIVE_LABEL_KEY, true);
+            if (recalDatum.hasAttribute(GATKVCFConstants.NEGATIVE_LABEL_KEY))
+                builder.attribute(GATKVCFConstants.NEGATIVE_LABEL_KEY, true);
+        }
+
+        return generateFilterString(lod);
     }
 
     //---------------------------------------------------------------------------------------------------------------

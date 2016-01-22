@@ -180,6 +180,19 @@ import java.util.*;
  *     -o output.raw.snps.indels.g.vcf
  * </pre>
  *
+ * <h4>Single-sample GVCF calling on DNAseq with allele-specific annotations (for allele-specific cohort analysis workflow)</h4>
+ * <pre>
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -R reference.fasta \
+ *     -T HaplotypeCaller \
+ *     -I sample1.bam \
+ *     --emitRefConfidence GVCF \
+ *     [--dbsnp dbSNP.vcf] \
+ *     [-L targets.interval_list] \
+ *     -G Standard -G AS_Standard \
+ *     -o output.raw.snps.indels.AS.g.vcf
+ * </pre>
+ *
  * <h4>Variant-only calling on DNAseq</h4>
  * <pre>
  *   java -jar GenomeAnalysisTK.jar \

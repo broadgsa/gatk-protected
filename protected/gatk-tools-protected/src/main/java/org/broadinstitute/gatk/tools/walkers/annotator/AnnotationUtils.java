@@ -79,16 +79,25 @@ public class AnnotationUtils {
     public static final int WARNINGS_LOGGED_SIZE = 3;
 
     /**
-     * Helper function to parse the list into the annotation string
-     * @param valueList the ArrayList returned from StrandBiasBySample.annotate()
-     * @return the array used by the per-sample Strand Bias annotation
+     * Helper function to convert a List of Doubles to a comma-separated String
+     * @param valueList the ArrayList with Double data
+     * @return a comma-separated String
      */
-    protected static String encodeValueList( final List<Double> valueList, final String precisionFormat ) {
+    public static String encodeValueList( final List<Double> valueList, final String precisionFormat ) {
         List<String> outputList = new ArrayList<>();
         for (Double d : valueList) {
             outputList.add(String.format(precisionFormat, d));
         }
         return StringUtils.join(outputList, ",");
+    }
+
+    /**
+     * Helper function to convert a List of Strings to a comma-separated String
+     * @param stringList the ArrayList with String data
+     * @return a comma-separated String
+     */
+    public static String encodeStringList( final List<String> stringList) {
+        return StringUtils.join(stringList, ",");
     }
 
     /**

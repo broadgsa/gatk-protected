@@ -84,6 +84,13 @@ public class VariantRecalibratorArgumentCollection {
     public VariantRecalibratorArgumentCollection.Mode MODE = VariantRecalibratorArgumentCollection.Mode.SNP;
 
     /**
+     * Generate a VQSR model using per-allele data instead of the default per-site data, assuming that the input VCF contains allele-specific annotations.
+     * Annotations should be specified using their full names with AS_ prefix. Non-allele-specific (scalar) annotations will be applied to all alleles.
+     */
+    @Argument(fullName="useAlleleSpecificAnnotations", shortName="AS", doc="If specified, the variant recalibrator will attempt to use the allele-specific versions of the specified annotations.", required=false)
+    public boolean useASannotations = false;
+
+    /**
      * This parameter determines the maximum number of Gaussians that should be used when building a positive model
      * using the variational Bayes algorithm.
      */
