@@ -288,6 +288,17 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                 + privateTestDir + "NA12878.AS.MateRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.MateRankSum.chr20snippet.g.vcf";
         final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("005bf0087480cce364c20d67aab5ad59"));
         spec.disableShadowBCF();
-        executeTest("testAlleleSpecificAnnotations", spec);
+        executeTest("testASMateRankSumAnnotation", spec);
     }
+
+    @Test
+    public void testASInsertSizeRankSumAnnotation() throws Exception {
+        final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -V "
+                + privateTestDir + "NA12878.AS.InsertSizeRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.InsertSizeRankSum.chr20snippet.g.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("309ddf2a8b0c431cdabec8dafa4ab3a0"));
+        spec.disableShadowBCF();
+        executeTest("testASInsertSizeRankSumAnnotation", spec);
+    }
+
+
 }
