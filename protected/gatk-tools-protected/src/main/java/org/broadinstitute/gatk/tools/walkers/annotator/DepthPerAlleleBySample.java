@@ -139,7 +139,7 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
         final Set<Allele> alleles = new HashSet<>(vc.getAlleles());
 
         // make sure that there's a meaningful relationship between the alleles in the perReadAlleleLikelihoodMap and our VariantContext
-        if ( ! perReadAlleleLikelihoodMap.getAllelesSet().containsAll(alleles) )
+        if ( ! perReadAlleleLikelihoodMap.getAllelesSet().isEmpty() && ! perReadAlleleLikelihoodMap.getAllelesSet().containsAll(alleles) )
             throw new IllegalStateException("VC alleles " + alleles + " not a strict subset of per read allele map alleles " + perReadAlleleLikelihoodMap.getAllelesSet());
 
         final HashMap<Allele, Integer> alleleCounts = new HashMap<>();
@@ -148,7 +148,6 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
         for ( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
             final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue(), alleles);
             if (! a.isInformative() ) continue; // read is non-informative
-            final GATKSAMRecord read = el.getKey();
             final int prevCount = alleleCounts.get(a.getMostLikelyAllele());
             alleleCounts.put(a.getMostLikelyAllele(), prevCount + 1);
         }

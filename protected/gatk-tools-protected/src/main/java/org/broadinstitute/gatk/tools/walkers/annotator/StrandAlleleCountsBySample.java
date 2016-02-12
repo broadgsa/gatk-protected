@@ -69,9 +69,7 @@ import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Number of forward and reverse reads that support each allele
@@ -142,11 +140,16 @@ public class StrandAlleleCountsBySample extends GenotypeAnnotation {
         if( stratifiedPerReadAlleleLikelihoodMap == null ) { throw new IllegalArgumentException("stratifiedPerReadAlleleLikelihoodMap cannot be null"); }
         if( vc == null ) { throw new IllegalArgumentException("input vc cannot be null"); }
 
+        final Set<Allele> alleles = new HashSet<>(vc.getAlleles());
+
         final int[] table = new int[vc.getNAlleles()*2];
 
         for (final PerReadAlleleLikelihoodMap maps : stratifiedPerReadAlleleLikelihoodMap.values() ) {
+            // make sure that there's a meaningful relationship between the alleles in the perReadAlleleLikelihoodMap and our VariantContext
+            if ( ! maps.getAllelesSet().isEmpty() && ! maps.getAllelesSet().containsAll(alleles) )
+                throw new IllegalStateException("VC alleles " + alleles + " not a strict subset of per read allele map alleles " + maps.getAllelesSet());
             for (final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : maps.getLikelihoodReadMap().entrySet()) {
-                final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue());
+                final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue(), alleles);
                 final GATKSAMRecord read = el.getKey();
                 if (mostLikelyAllele.isInformative())
                     updateTable(table, vc.getAlleleIndex(mostLikelyAllele.getAlleleIfInformative()), read);
