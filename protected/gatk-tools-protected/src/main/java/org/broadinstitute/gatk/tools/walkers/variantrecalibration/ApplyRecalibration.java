@@ -328,6 +328,8 @@ public class ApplyRecalibration extends RodWalker<Integer, Integer> implements T
 
     public static void addAlleleSpecificVQSRHeaderLines(final Set<VCFHeaderLine> hInfo) {
         hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.AS_FILTER_STATUS_KEY));
+        hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.AS_CULPRIT_KEY));
+        hInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.AS_VQS_LOD_KEY));
     }
 
     /**
