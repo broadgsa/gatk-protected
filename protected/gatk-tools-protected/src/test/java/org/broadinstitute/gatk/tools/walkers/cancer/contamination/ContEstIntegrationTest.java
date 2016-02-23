@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.cancer.contamination;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -99,5 +100,18 @@ public class ContEstIntegrationTest extends WalkerTest {
                         " -L 1" +
                         " -isr INTERSECTION",md5sums);
         executeTest("testArrayFree",spec);
+    }
+
+    @Test(enabled = true)
+    public void testArrayNoPop(){
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-T ContEst" +
+                        " -I:eval " + ContaminatedBamsDirectory + "HCC1143_BL.small.0.05.contaminated.with.SM-612V3.small.0.95.bam" +
+                        " -I:genotype " + NormalBamsDirectory + "SM-612V4.bam" +
+                        " -R " + b37KGReference +
+                        " --popfile " + validationDataLocation + "hg19_population_stratified_af_hapmap_3.3.fixed_no_pop.vcf",
+                        0,
+                UserException.class);
+        executeTest("testArrayNoPop",spec);
     }
 }
