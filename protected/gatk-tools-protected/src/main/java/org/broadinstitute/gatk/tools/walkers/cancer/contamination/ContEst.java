@@ -264,14 +264,14 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
             useSequencingGenotypes = true;
             // if were not using arrays, we need to figure out what samples are what
             for(SAMReaderID id : getToolkit().getReadsDataSource().getReaderIDs()) {
-                if (id.getTags().getPositionalTags().size() == 0)
+                if (id.getTags().getPositionalTags().isEmpty())
                     throw new UserException.BadInput("BAMs must be tagged with " + GENOTYPE_BAM_TAG + " and " + EVAL_BAM_TAG + " when running in array-free mode. Please see the ContEst documentation for more details");
 
                 // now sort out what tags go with what bam
                 for (String tag : id.getTags().getPositionalTags()) {
                     if (GENOTYPE_BAM_TAG.equalsIgnoreCase(tag)) {
                         try {
-                            if (getToolkit().getReadsDataSource().getHeader(id).getReadGroups().size() == 0)
+                            if (getToolkit().getReadsDataSource().getHeader(id).getReadGroups().isEmpty())
                                 throw new RuntimeException("No Read Groups found for Genotyping BAM -- Read Groups are Required in sequencing genotype mode!");
                             genotypeSample = getToolkit().getReadsDataSource().getHeader(id).getReadGroups().get(0).getSample();
                         } catch (NullPointerException npe) {
@@ -279,7 +279,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
                         }
                     } else if (EVAL_BAM_TAG.equalsIgnoreCase(tag)) {
                         try {
-                            if (getToolkit().getReadsDataSource().getHeader(id).getReadGroups().size() == 0)
+                            if (getToolkit().getReadsDataSource().getHeader(id).getReadGroups().isEmpty())
                                 throw new RuntimeException("No Read Groups found for Genotyping BAM -- Read Groups are Required in sequencing genotype mode!");
                             evalSample = getToolkit().getReadsDataSource().getHeader(id).getReadGroups().get(0).getSample();
                         } catch (NullPointerException npe) {
@@ -410,7 +410,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
                                 namePair.getKey(),
                                 populationsToEvaluate);
 
-                if (results.size() > 0) {
+                if (!results.isEmpty()) {
                     countResults++;
                     stats.put(namePair.getKey(), results);
                 }
@@ -498,7 +498,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
     private static Genotype getGenotypeFromArray(RefMetaDataTracker tracker, RodBinding<VariantContext> genotypes, boolean verifiedSampleName, boolean verifySample, String sampleName) {
         // get the truthForSample and the hapmap information for this site; if either are null we can't move forward
         Collection<VariantContext> truths = tracker.getValues(genotypes);
-        if (truths == null || truths.size() == 0) return null;
+        if (truths == null || truths.isEmpty()) return null;
 
         VariantContext truthForSample = truths.iterator().next();
 
@@ -506,7 +506,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
         if (!verifiedSampleName && verifySample) {
             if (!truthForSample.getSampleNames().contains(sampleName))
                 throw new UserException.BadInput("The sample name was set to " + sampleName + " but this sample isn't in your genotypes file.  Please Verify your sample name");
-                verifiedSampleName = true;
+            verifiedSampleName = true;
         }
 
         GenotypesContext gt = truthForSample.getGenotypes();
@@ -622,6 +622,9 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
 
         for (String pop : pops) {
             PopulationFrequencyInfo info = parsePopulationFrequencyInfo(popVC, pop);
+            if ( info == null )
+                throw new RuntimeException("No population frequency annotation for " + pop + " in " + popVC.toString());
+
             double alleleFreq = info.getMinorAlleleFrequency();
             if (alleleFreq > 0.5) {
                 throw new RuntimeException("Minor allele frequency is greater than 0.5, this is an error; we saw AF of " + alleleFreq);
@@ -708,7 +711,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
             }
 
 
-            if (newMap.size() > 0)
+            if (!newMap.isEmpty())
                 cleanedMap.put(entry.getKey(), newMap);
             else
                 out.println("Warning: We're throwing out lane " + entry.getKey() + " since it has fewer than " + minBaseCount +
