@@ -423,36 +423,17 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testStrandAlleleCountsBySample() throws IOException {
+    public void testStrandAlleleCountsBySample() {
+        final String MD5 = "93e424f866f03ac23f9ddac94401e348";
         final WalkerTestSpec spec = new WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering " +
                 String.format("-R %s -I %s ", REF, CEUTRIO_BAM) +
                 "--no_cmdline_in_header -o %s -L 20:10130000-10134800 " +
                 "-A StrandBiasBySample -A StrandAlleleCountsBySample",
-                1, Arrays.asList("")
+                1, Arrays.asList(MD5)
         );
-        spec.disableShadowBCF(); //TODO: Remove when BaseTest.assertAttributesEquals() works with SC
-        final File outputVCF = executeTest("testStrandAlleleCountsBySample", spec).getFirst().get(0);
-
-        //Confirm that SB and SAC are identical for bi-allelic variants
-        final VCFCodec codec = new VCFCodec();
-        final FileInputStream s = new FileInputStream(outputVCF);
-        final LineIterator lineIterator = codec.makeSourceFromStream(new PositionalBufferedStream(s));
-        codec.readHeader(lineIterator);
-
-        while (lineIterator.hasNext()) {
-            final String line = lineIterator.next();
-            Assert.assertFalse(line == null);
-            final VariantContext vc = codec.decode(line);
-
-            if (vc.isBiallelic()) {
-                for (final Genotype g : vc.getGenotypes()) {
-                    Assert.assertTrue(g.hasExtendedAttribute("SB"));
-                    Assert.assertTrue(g.hasExtendedAttribute("SAC"));
-                    Assert.assertEquals(g.getExtendedAttribute("SB").toString(), g.getExtendedAttribute("SAC").toString());
-                }
-            }
-        }
+        spec.disableShadowBCF();
+        executeTest("testStrandAlleleCountsBySample", spec);
     }
 
     @Test(enabled = false)
