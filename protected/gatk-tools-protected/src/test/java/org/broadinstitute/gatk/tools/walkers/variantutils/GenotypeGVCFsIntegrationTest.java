@@ -260,7 +260,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + gVCF.getAbsolutePath(), b37KGReference),
                 1,
-                Arrays.asList("eeff965cd79c0b7085c7d4d7ecf82b68"));
+                Arrays.asList("d8eb4a64a2ae7e7dad1efc4fe8b4b3ed"));
         spec.disableShadowBCF();  //TODO: Remove when BaseTest.assertAttributesEquals() works with SAC
         executeTest("testStrandAlleleCountsBySample", spec);
     }
@@ -566,7 +566,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("35daaea8dea591d35ca99854c8d36e5f"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("7261cde50d4556c6dc190b10222a8538"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }
@@ -575,7 +575,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testASMateRankSumAnnotation() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -A AS_MQMateRankSumTest --disableDithering -V "
                 + privateTestDir + "NA12878.AS.MateRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.MateRankSum.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("f8bf55e16358b35449621f896b084b7a"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("08dc30527c98d78d09f8575efc3b84ae"));
         spec.disableShadowBCF();
         executeTest("testASMateRankSumAnnotation", spec);
     }
@@ -584,7 +584,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testASInsertSizeRankSumAnnotation() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "NA12878.AS.InsertSizeRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.InsertSizeRankSum.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("8a27e5fbcb0d8f91684c2887167eb043"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("723522fe1d05f2d11efda008b65884d2"));
         spec.disableShadowBCF();
         executeTest("testASInsertSizeRankSumAnnotation", spec);
     }
@@ -597,7 +597,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations_oneSample() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("b6026b2a2d2da39f181a4905b2225dad"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("cc2fe42eafd9789be49b550a639a7a1b"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations_oneSample", spec);
     }
@@ -616,7 +616,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testFractionInformativeReads() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -G AS_Standard -o %s --no_cmdline_in_header -A FractionInformativeReads --disableDithering -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList("794cfec86a8bee1f6955766b5a98b950"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList("16dbeec9d640e61453e902918427343a"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }

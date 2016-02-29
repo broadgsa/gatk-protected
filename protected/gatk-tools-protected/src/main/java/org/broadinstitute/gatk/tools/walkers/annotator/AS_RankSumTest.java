@@ -59,11 +59,7 @@ import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ReducibleAnnotation;
-import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
-import org.broadinstitute.gatk.tools.walkers.variantutils.CombineGVCFs;
-import org.broadinstitute.gatk.tools.walkers.variantutils.GenotypeGVCFs;
 import org.broadinstitute.gatk.utils.MannWhitneyU;
-import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.exceptions.GATKException;
@@ -298,14 +294,16 @@ public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnn
         for (final Allele alt : perAlleleValues.keySet()) {
             if (alt.equals(ref, false))
                 continue;
-            final MannWhitneyU mannWhitneyU = new MannWhitneyU(useDithering);
-            //load alts
+            final MannWhitneyU mannWhitneyU = new MannWhitneyU();
+            //load alts (series 1)
+            List<Double> alts = new ArrayList<>();
             for (final Number qual : perAlleleValues.get(alt)) {
-                mannWhitneyU.add(qual, MannWhitneyU.USet.SET1);
+                alts.add((double) qual.intValue());
             }
-            //load refs
+            //load refs (series 2)
+            List<Double> refs = new ArrayList<>();
             for (final Number qual : perAlleleValues.get(ref)) {
-                mannWhitneyU.add(qual, MannWhitneyU.USet.SET2);
+                refs.add((double) qual.intValue());
             }
 
             if (DEBUG) {
@@ -320,8 +318,8 @@ public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnn
 
             }
             // we are testing that set1 (the alt bases) have lower quality scores than set2 (the ref bases)
-            final Pair<Double, Double> testResults = mannWhitneyU.runOneSidedTest(MannWhitneyU.USet.SET1);
-            perAltRankSumResults.put(alt, testResults.first);
+            final MannWhitneyU.Result result = mannWhitneyU.test(convertToArray(alts), convertToArray(refs), MannWhitneyU.TestType.FIRST_DOMINATES);
+            perAltRankSumResults.put(alt, result.getZ());
         }
         return perAltRankSumResults;
     }
