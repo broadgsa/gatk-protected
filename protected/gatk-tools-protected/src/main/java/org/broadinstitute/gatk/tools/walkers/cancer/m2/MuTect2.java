@@ -141,7 +141,7 @@ import static java.lang.Math.pow;
  * <pre>
  *   java
  *     -jar GenomeAnalysisTK.jar
- *     -T HaplotypeCaller
+ *     -T MuTect2
  *     -R reference.fasta
  *     -I:tumor normal1.bam \
  *     [--dbsnp dbSNP.vcf] \
