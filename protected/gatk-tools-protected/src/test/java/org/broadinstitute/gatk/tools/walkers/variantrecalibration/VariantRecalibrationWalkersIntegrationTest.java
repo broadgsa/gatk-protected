@@ -359,7 +359,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                 " -tranchesFile " + privateTestDir + "VQSR.AStest.snps.tranches" +
                 " -recalFile " + privateTestDir + "VQSR.AStest.snps.recal";
 
-        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("db465aaf18b9de8b3191de63fc9f0e6e"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("cd087f2824fac5fe04c6c50cbdab1fab"));
         final List<File> outputFiles = executeTest("testApplyRecalibrationAlleleSpecificSNPmode", spec).getFirst();
         setPDFsForDeletion(outputFiles);
     }
@@ -377,7 +377,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                 " -tranchesFile " + privateTestDir + "VQSR.AStest.indels.tranches" +
                 " -recalFile " + privateTestDir + "VQSR.AStest.indels.recal";
 
-        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("7c1df91b9827a5906d30db52e96922e1"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("b0d14f1c0647f46819018cd378036024"));
         final List<File> outputFiles = executeTest("testApplyRecalibrationAlleleSpecificINDELmode", spec).getFirst();
         setPDFsForDeletion(outputFiles);
     }
