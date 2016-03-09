@@ -55,6 +55,7 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AS_StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.BetaTestingAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
@@ -86,7 +87,7 @@ import java.util.Map;
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_MappingQualityRankSumTest.php">AS_MappingQualityRankSumTest</a></b> outputs the same rank sum test on the mapping quality of the reads themselves rather than their mates.</li>
  * </ul>
  */
-public class AS_MQMateRankSumTest extends AS_RankSumTest {
+public class AS_MQMateRankSumTest extends AS_RankSumTest implements BetaTestingAnnotation {
     @Override
     public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.AS_MATE_MAP_QUAL_RANK_SUM_KEY); }
 
