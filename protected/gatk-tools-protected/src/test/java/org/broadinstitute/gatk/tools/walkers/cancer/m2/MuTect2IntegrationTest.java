@@ -89,6 +89,18 @@ public class MuTect2IntegrationTest extends WalkerTest {
         executeTest("testM2: args=" + args, spec);
     }
 
+    private void m2TumorOnlyTest(String tumorBam, String intervals, String args, String md5) {
+        final String base = String.format(
+                "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -L %s",
+                REF, DBSNP, COSMIC, PON, tumorBam, intervals) +
+                " -o %s ";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+
+        spec.disableShadowBCF();
+        executeTest("testM2TumorOnly: args=" + args, spec);
+    }
+
     @Test
     public void testMicroRegression() {
         M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "617054c6d056cad7448a463cb8d04a55");
@@ -113,12 +125,20 @@ public class MuTect2IntegrationTest extends WalkerTest {
         M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "11357aa543e7c6b2725cd330adba23a0");
     }
 
-    /*
+    /**
      * Test that contamination downsampling reduces tumor LOD, rejects more variants
      */
     @Test
     public void testContaminationCorrection() {
         M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "d7947ddf0240fe06a44621312831f44c");
+    }
+
+    /**
+     *  Test that tumor-only mode does not create an empty vcf
+     */
+    @Test
+    public void testTumorOnly(){
+        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "8439d9a673b3a57aa5893af600125d3b");
     }
 
 }
