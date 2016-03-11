@@ -88,15 +88,7 @@ import Jama.Matrix;
  * Build a recalibration model to score variant quality for filtering purposes
  *
  * <p>
- * This tool performs the first pass in a two-stage process called VQSR; the second pass is performed by the
- * <a href='https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_variantrecalibration_ApplyRecalibration.php'>ApplyRecalibration</a> tool.
- * In brief, the first pass consists of creating a Gaussian mixture model by looking at the distribution of annotation
- * values over a high quality subset of the input call set, and then scoring all input variants according to the model.
- * The second pass consists of filtering variants based on score cutoffs identified in the first pass.
- *</p>
- *
- * <p>
- * The purpose of the variant recalibrator is to assign a well-calibrated probability to each variant call in a call set.
+ * The purpose of variant recalibration is to assign a well-calibrated probability to each variant call in a call set.
  * You can then create highly accurate call sets by filtering based on this single estimate for the accuracy of each call.
  * The approach taken by variant quality score recalibration is to develop a continuous, covarying estimate of the relationship
  * between SNP call annotations (such as QD, MQ, and ReadPosRankSum, for example) and the probability that a SNP is a true genetic
@@ -106,6 +98,14 @@ import Jama.Matrix;
  * probability that each call is real. The score that gets added to the INFO field of each variant is called the VQSLOD. It is
  * the log odds of being a true variant versus being false under the trained Gaussian mixture model.
  * </p>
+ * 
+ * <p>
+ * This tool performs the first pass in a two-stage process called VQSR; the second pass is performed by the
+ * <a href='https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_variantrecalibration_ApplyRecalibration.php'>ApplyRecalibration</a> tool.
+ * In brief, the first pass consists of creating a Gaussian mixture model by looking at the distribution of annotation
+ * values over a high quality subset of the input call set, and then scoring all input variants according to the model.
+ * The second pass consists of filtering variants based on score cutoffs identified in the first pass.
+ *</p>
  *
  * <p>VQSR is probably the hardest part of the Best Practices to get right, so be sure to read the
  * <a href='https://www.broadinstitute.org/gatk/guide/article?id=39'>method documentation</a>,
@@ -115,7 +115,10 @@ import Jama.Matrix;
  *
  * <h3>Inputs</h3>
  * <ul>
- * <li>The input raw variants to be recalibrated.</li>
+ * <li>The input raw variants to be recalibrated. These variant calls must be annotated with the annotations that will be used for modeling. 
+ * If the calls come from multiple samples, they must have been obtained by joint calling the samples, either directly (running HaplotypeCaller 
+ * on all samples together) or via the GVCF workflow (HaplotypeCaller with -ERC GVCF per-sample then GenotypeGVCFs on the resulting gVCFs) 
+ * which is more scalable.</li>
  * <li>Known, truth, and training sets to be used by the algorithm. See the method documentation for more details.</li>
  * </ul>
  *
@@ -135,7 +138,7 @@ import Jama.Matrix;
  *   -resource:hapmap,known=false,training=true,truth=true,prior=15.0 hapmap_3.3.b37.sites.vcf \
  *   -resource:omni,known=false,training=true,truth=false,prior=12.0 1000G_omni2.5.b37.sites.vcf \
  *   -resource:1000G,known=false,training=true,truth=false,prior=10.0 1000G_phase1.snps.high_confidence.vcf
- *   -resource:dbsnp,known=true,training=false,truth=false,prior=6.0 dbsnp_135.b37.vcf \
+ *   -resource:dbsnp,known=true,training=false,truth=false,prior=2.0 dbsnp_135.b37.vcf \
  *   -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an InbreedingCoeff \
  *   -mode SNP \
  *   -recalFile output.recal \
@@ -153,7 +156,7 @@ import Jama.Matrix;
  *   -resource:hapmap,known=false,training=true,truth=true,prior=15.0 hapmap_3.3.b37.sites.vcf \
  *   -resource:omni,known=false,training=true,truth=false,prior=12.0 1000G_omni2.5.b37.sites.vcf \
  *   -resource:1000G,known=false,training=true,truth=false,prior=10.0 1000G_phase1.snps.high_confidence.vcf
- *   -resource:dbsnp,known=true,training=false,truth=false,prior=6.0 dbsnp_135.b37.vcf \
+ *   -resource:dbsnp,known=true,training=false,truth=false,prior=2.0 dbsnp_135.b37.vcf \
  *   -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an InbreedingCoeff \
  *   -mode SNP \
  *   -recalFile output.AS.recal \
@@ -191,9 +194,13 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     // Inputs
     /////////////////////////////
     /**
-     * These calls should be unfiltered and annotated with the error covariates that are intended to be used for modeling.
+     * These variant calls must be annotated with the annotations that will be used for modeling. If the calls come from multiple samples, 
+     * they must have been obtained by joint calling the samples, either directly (running HaplotypeCaller on all samples together) or 
+     * via the GVCF workflow (HaplotypeCaller with -ERC GVCF per-sample then GenotypeGVCFs on the resulting gVCFs) which is more scalable. 
+     * Note that the ability to pass multiple input files is only intended to facilitate scatter-gather parallelism (to enable e.g. running on VCFs 
+     * generated per-chromosome), not to combine different callsets. The variant calls in the separate input files should not overlap. 
      */
-    @Input(fullName="input", shortName = "input", doc="The raw input variants to be recalibrated", required=true)
+    @Input(fullName="input", shortName = "input", doc="One or more VCFs of raw input variants to be recalibrated", required=true)
     public List<RodBindingCollection<VariantContext>> inputCollections;
     final private List<RodBinding<VariantContext>> input = new ArrayList<>();
 
