@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AS_StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.BetaTestingAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.ExperimentalAnnotation;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
@@ -72,7 +73,7 @@ import java.util.List;
  *
  * */
 
-public class AS_InsertSizeRankSum extends AS_RankSumTest implements ExperimentalAnnotation {
+public class AS_InsertSizeRankSum extends AS_RankSumTest implements ExperimentalAnnotation, BetaTestingAnnotation {
     @Override
     public List<String> getKeyNames() { return Arrays.asList(GATKVCFConstants.AS_INSERT_SIZE_RANK_SUM_KEY);}
 
