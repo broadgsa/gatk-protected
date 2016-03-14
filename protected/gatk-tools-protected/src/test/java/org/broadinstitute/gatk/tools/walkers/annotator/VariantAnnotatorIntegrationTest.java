@@ -505,4 +505,22 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         Assert.assertFalse(lineIterator.hasNext());
         Assert.assertFalse(lineIteratorAnn.hasNext());
     }
+
+    @Test
+    public void testHomopolymerRunWindow() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantAnnotator -R " + hg19ReferenceWithChrPrefixInChromosomeNames + " -A HomopolymerRun --variant:vcf " + privateTestDir + "problem_del.vcf  " +
+                        "-U ALLOW_SEQ_DICT_INCOMPATIBILITY -L chr18:44382010-44384010 --reference_window_stop 59 --no_cmdline_in_header -o %s", 1,
+                Arrays.asList("bda55495578147b2390d850d7fb25a12"));
+        executeTest("Testing testHomopolymerRunWindow", spec);
+    }
+
+    @Test
+    public void testHomopolymerRunTooBig() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantAnnotator -R " + hg19ReferenceWithChrPrefixInChromosomeNames + " -A HomopolymerRun --variant:vcf " + privateTestDir + "problem_del.vcf  " +
+                        "-U ALLOW_SEQ_DICT_INCOMPATIBILITY -L chr18:44382010-44384010 --no_cmdline_in_header -o %s", 1,
+                Arrays.asList("e20b12fd45f37a7bb31a2f2e91983477"));
+        executeTest("Testing HomopolymerRunTooBig", spec);
+    }
 }

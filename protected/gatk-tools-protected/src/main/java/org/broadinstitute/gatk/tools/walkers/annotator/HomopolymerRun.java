@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -83,7 +84,11 @@ import java.util.Map;
  */
 public class HomopolymerRun extends InfoFieldAnnotation implements ExperimentalAnnotation {
 
+    private final static Logger logger = Logger.getLogger(HardyWeinberg.class);
+
     private boolean ANNOTATE_INDELS = true;
+    
+    private final static int BAD_RUN_LENGTH = -1;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -103,6 +108,9 @@ public class HomopolymerRun extends InfoFieldAnnotation implements ExperimentalA
         } else {
             return null;
         }
+
+        if ( run == BAD_RUN_LENGTH )
+            return null;
         
         Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%d", run));
@@ -149,15 +157,13 @@ public class HomopolymerRun extends InfoFieldAnnotation implements ExperimentalA
         GenomeLoc window = ref.getWindow();
         int refBasePos = (int) (locus.getStart() - window.getStart())+1;
         if ( vc.isSimpleDeletion() ) {
-            // check that deleted bases are the same
-            byte dBase = bases[refBasePos];
-            for ( int i = 0; i < vc.getReference().length(); i ++ ) {
-                if ( bases[refBasePos+i] != dBase ) {
-                    return 0;
-                }
+            if ( refBasePos + vc.getReference().length() - 1 >= bases.length ) {
+                logger.warn("Encountered a homopolymer at " + locus.toString() + " longer than the tool's default window size, so the position was skipped. " +
+                        "To process this position, add --reference_window_stop to your command with a value equal or greater than " + vc.getReference().length());
+                return BAD_RUN_LENGTH;
             }
 
-            return computeHomopolymerRun(dBase, ref);
+            return computeHomopolymerRun(bases[refBasePos], ref);
         } else {
             // check that inserted bases are the same
             byte insBase = vc.getAlternateAllele(0).getBases()[0];
