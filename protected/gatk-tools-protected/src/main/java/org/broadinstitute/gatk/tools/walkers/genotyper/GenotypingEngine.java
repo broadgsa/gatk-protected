@@ -210,7 +210,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @param vc                                 Input VC
      * @param model                              GL calculation model
      * @param inheritAttributesFromInputVC       Output VC will contain attributes inherited from input vc
-     * @return                                   VC with assigned genotypes
+     * @return                                   VC with assigned genotypes (may be null if QUAL<emit threshold or MLEAF==0)
      */
     protected VariantCallContext calculateGenotypes(final RefMetaDataTracker tracker, final ReferenceContext refContext,
                                                  final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
