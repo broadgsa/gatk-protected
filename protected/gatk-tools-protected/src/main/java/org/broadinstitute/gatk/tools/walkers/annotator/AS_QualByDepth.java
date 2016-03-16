@@ -172,6 +172,8 @@ public class AS_QualByDepth extends InfoFieldAnnotation implements ReducibleAnno
             return null;
 
         final List<Integer> standardDepth = getAlleleDepths(genotypes);
+        if (standardDepth == null) //all no-calls and homRefs
+            return null;
 
         //Parse the VC's allele-specific qual values
         List<Object> alleleQualObjList = vc.getAttributeAsList(GATKVCFConstants.AS_QUAL_KEY);
