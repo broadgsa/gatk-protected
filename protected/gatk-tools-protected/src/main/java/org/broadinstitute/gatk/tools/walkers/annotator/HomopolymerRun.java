@@ -84,7 +84,7 @@ import java.util.Map;
  */
 public class HomopolymerRun extends InfoFieldAnnotation implements ExperimentalAnnotation {
 
-    private final static Logger logger = Logger.getLogger(HardyWeinberg.class);
+    private final static Logger logger = Logger.getLogger(HomopolymerRun.class);
 
     private boolean ANNOTATE_INDELS = true;
     
