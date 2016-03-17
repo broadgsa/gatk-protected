@@ -53,7 +53,6 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.PositionalBufferedStream;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
